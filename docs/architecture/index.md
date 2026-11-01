@@ -1,28 +1,139 @@
 ---
-title: Architecture notes
-description: 'Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history.'
+title: Architecture
+description: 'Landing page and page index for docs/architecture/: the boundary rule between decisions and consumption, living and frozen pages, the decay rule, and ADR locations.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
 - docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
-- docs/architecture/README.md
+- docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
+- docs/archive/architecture/NAVIGATION_GUIDE.md
 - docs/archive/architecture/feature-detection.md
 - docs/archive/architecture/gap-analysis-connector-installation-model.md
+- docs/architecture/diagrams/01_context/README.md
+- docs/architecture/diagrams/02_containers/README.md
+- docs/architecture/diagrams/03_components/README.md
 - docs/index.md
 ---
-# Architecture notes
+# Architecture
 
-Internal architecture and design notes for Spec Kitty subsystems. These pages capture
-design rationale and models; they are working engineering material rather than
-end-user documentation. This index enumerates every page in `docs/architecture/`
-(see [`README.md`](README.md) for the boundary rule and layout). The active release
-cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadmap.md).
+This directory is the architecture corpus for Spec Kitty. The active release cycle
+is **4.0.0** (see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadmap.md)).
 
-## Living architecture (current + forward)
+## Boundary rule (single source of truth)
 
-- [Architecture](README.md) — the corpus landing page: the decisions-vs-consumption boundary rule, living pages, and frozen history.
+Two surfaces, two jobs. They never duplicate each other:
+
+| Surface | Holds | Authority |
+|---|---|---|
+| `docs/architecture/` + `docs/adr/` | **Decisions & models**: ADRs, C4 diagrams, vision, audits, calibration | Authoritative; changes are deliberate and reviewed |
+| The rest of `docs/` | **Consumption**: tutorials, how-tos, reference, context | Reader-facing; narrates and links *up* to architecture |
+
+- **Architecture = decisions & models.** ADRs (under `docs/adr/`), the C4 model, vision,
+  audits and calibration are the deliberately changed source of truth.
+- **Reader-facing docs link up; they never duplicate architecture narrative.** When the
+  two overlap, architecture wins.
+- **Vision is an architecture concern.** There is no `docs/vision/`; forward intent lives
+  in `docs/architecture/vision/`.
+- **Terminology canon lives in the glossary context pages** (see
+  [glossary conventions](../context/glossary-conventions.md)). Architecture docs
+  *reference* glossary terms; they do not host a second glossary.
+- **Module boundaries are owned by code, not prose.** The enforced pair (the
+  `pyproject.toml` wheel package list plus `tests/architectural/test_layer_rules.py`)
+  is the modularity source of truth; every module map in this directory is a derived view.
+
+## Living pages and frozen history
+
+- **Living** (describes the architecture now and going forward; not era-stamped):
+  - `docs/architecture/vision/`: current and future vision (forward intent).
+  - `docs/architecture/diagrams/`: the living C4 model (`01_context/`, `02_containers/`,
+    `03_components/`), hand-authored Markdown + Mermaid.
+  - `docs/architecture/00_landscape/` and `docs/architecture/04_implementation_mapping/`:
+    the landscape and the concept-to-code map, kept current with the package layout.
+  - The topical explanation pages at the top of `docs/architecture/`.
+- **Frozen history**:
+  - `docs/architecture/01_context/`, `02_containers/`, `03_components/`: the 2.x C4
+    snapshot. Not refreshed; the living copy is under `diagrams/`.
+  - `docs/adr/<era>/`: dated, immutable decision records per era.
+
+### Decay rule (so the layout can't re-drift)
+
+When a living page stops being current, it is **relabelled as history** rather than
+deleted: set its `doc_status` to `superseded` (naming the successor) or `deprecated`,
+add a one-line banner under the H1, and move its index entry into the history group.
+For vision content, the era history slots are `vision/README-<era>.md`. Nothing is
+silently rewritten; history accrues by era.
+
+## Structure
+
+| Path | Purpose |
+|---|---|
+| `docs/architecture/vision/` | Living current + future architecture vision (forward intent) |
+| `docs/architecture/diagrams/` | Living C4 model: `01_context/`, `02_containers/`, `03_components/` |
+| `docs/architecture/00_landscape/`, `04_implementation_mapping/` | Living landscape and implementation mapping (derived views of the module map) |
+| `docs/architecture/01_context/`, `02_containers/`, `03_components/` | Frozen 2.x C4 snapshot |
+| `docs/adr/<era>/` | ADRs by era: `1.x/`, `2.x/`, `3.x/` (see below) |
+| `docs/context/audience/` | Persona catalog for architecture audiences and actor links |
+| `docs/plans/engineering-notes/architecture-audits/` | Architecture audits (point-in-time forensic records) |
+| `docs/architecture/calibration/` | Per-mission-type calibration notes |
+| `docs/architecture/assessments/` | Code-as-a-crime-scene and similar assessments |
+| `docs/architecture/adr-template.md` | Shared ADR template used by all eras |
+
+> **Layout is structure, not policy.** Directory layout here encodes only the boundary,
+> era and decay rules. It does **not** encode per-artifact tiering: a future optional
+> per-artifact *tier* (upstream `#1843`), if introduced, is a **declared field** on
+> artifacts, never a directory level.
+
+## ADR locations
+
+ADRs are grouped into era folders under `docs/adr/<era>/`. The [ADR index](../adr/index.md)
+lists them all.
+
+- `docs/adr/1.x/`: 1.x-era decisions.
+- `docs/adr/2.x/`: 2.x-era decisions (frozen).
+- `docs/adr/3.x/`: 3.x-era decisions, through the start of the 4.0.0 cycle.
+- ADRs for the 4.x line land in `docs/adr/4.x/`.
+
+Older era folders remain authoritative for the decisions made in those eras; a later
+ADR supersedes an earlier one explicitly, never by silence.
+
+## C4 model
+
+The living C4 lives under `docs/architecture/diagrams/` with stable numbered levels:
+
+1. [`diagrams/01_context/README.md`](diagrams/01_context/README.md): system boundary and external interactions.
+2. [`diagrams/02_containers/README.md`](diagrams/02_containers/README.md): runtime/governance container responsibilities.
+3. [`diagrams/03_components/README.md`](diagrams/03_components/README.md): component-level behavior sequences.
+
+C4 is **hand-authored Markdown + Mermaid** (renders on GitHub, no build tooling).
+The 2.x C4 under `docs/architecture/{01_context,02_containers,03_components}/` is kept
+frozen as the 2.x snapshot; the living copy under `diagrams/` is the one refreshed
+against the current domain model. (Generated-C4 tooling is deferred: `#1812`.)
+
+## Creating a new ADR
+
+Copy the shared template into the era folder for the current line:
+
+```bash
+cp docs/architecture/adr-template.md docs/adr/<era>/YYYY-MM-DD-N-your-decision.md
+```
+
+Use an older era folder only when documenting legacy behavior for that era.
+
+## Find ADRs
+
+```bash
+ls -1 docs/adr/*/ | sort
+rg -n "Status:|Decision Outcome|Technical Story" docs/adr/
+```
+
+## Page index
+
+Every page in `docs/architecture/`. These pages capture design rationale and models; they are working engineering material rather than end-user documentation.
+
+### Living architecture (current + forward)
+
 - [Architecture Vision (living)](vision/README.md) — current and future forward intent, including the 4.x forward signal.
 - [Architecture Diagrams (living C4)](diagrams/README.md) — the living C4 model and how its modules map onto the enforced layer packages.
 - [Diagrams: System Context (living)](diagrams/01_context/README.md) — C4 level 1, including Team Kitty and the Zeitgeist relay.
@@ -33,7 +144,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Implementation Mapping (living)](04_implementation_mapping/README.md) — C4 level 4: where each architecture concept lives in the source tree.
 - [Core Code Patterns Applied in the Codebase](04_implementation_mapping/code-patterns.md) — recurring implementation idioms mapped to components.
 
-## Explanations
+### Explanations
 
 - [Explanation](explanation-index.md) — the Divio "understanding-oriented" hub for this section.
 - [Spec-driven development](spec-driven-development.md) — the core methodology.
@@ -67,7 +178,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development artifact set and its change-intent canvas.
 - [Team Kitty and Zeitgeist](../context/team-kitty.md) — the live hosted model: CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram.
 
-## Status, trail & workflow models
+### Status, trail & workflow models
 
 - [Status model (operator reference)](status-model.md) — the append-only event-log lane state machine, the `--mission` selector, and `mission_id` ULID identity.
 - [Event ledger writers and readers](event-ledger-writers-and-readers.md) — every event log core writes and reads today, the target the event ADRs set, and the cited gap table.
@@ -75,16 +186,16 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Host-surface parity matrix](host-surface-parity.md) — how each supported host surface teaches the governance-injection contract, with per-surface parity status.
 - [Spec Kitty mission workflow (canonical authority)](spec-kitty-mission-workflow.md) — the nine-phase end-to-end mission workflow and the focused-PR path.
 
-## Connector & installation decisions
+### Connector & installation decisions
 
 - [Connector auth / binding separation](../adr/3.x/2026-04-06-2-connector-auth-binding-separation.md) — separating connector authentication from binding.
 - [GitHub App installation authority](../adr/3.x/2026-04-06-3-github-app-installation-authority.md) — installation-authority model for the GitHub App.
 
-## Assessments
+### Assessments
 
 - [Code as a Crime Scene — High-Level Overview](assessments/code-as-a-crime-scene-overview.md) — pedagogical overview of the CaaCS auditing technique (durable methodology explainer; the dated 2026-05 forensic run itself lives under [`docs/archive/plans/engineering-notes/architecture-audits/`](https://github.com/spec-kitty/spec-kitty/tree/main/docs/archive/plans/engineering-notes/architecture-audits/)).
 
-## Calibration reports
+### Calibration reports
 
 - [Calibration Report Template](calibration/README.md) — the per-mission-type DRG context calibration template: does context resolution return what each step needs, and nothing irrelevant?
 - [Calibration Report: documentation](calibration/documentation.md).
@@ -92,17 +203,17 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Calibration Report: research](calibration/research.md).
 - [Calibration Report: software-dev](calibration/software-dev.md).
 
-## Ownership & charter models
+### Ownership & charter models
 
 - [Unified Charter Bundle](06_unified_charter_bundle.md) — the single-file authoritative `charter.yaml` model.
 - [Activation Preset Usage Journey](charter-pack-usage-journey.md) — the `activate --preset` → `generate` two-step and the empty-charter dispatch safety net.
 
-## Templates & reference
+### Templates & reference
 
 - [ADR template](adr-template.md) — the shared ADR authoring template used by all eras.
 - [Pip vs pipx vs uv](pip-vs-pipx-vs-uv.md) — which installer to use for the Spec Kitty CLI.
 
-## Historical / prior cycle
+### Historical / prior cycle
 
 Kept as records; not maintained as current.
 
@@ -125,3 +236,4 @@ Kept as records; not maintained as current.
 
 - [Documentation home](../index.md)
 - [Architecture Decision Records](../adr/index.md)
+- Project terminology canon: [glossary conventions](../context/glossary-conventions.md)

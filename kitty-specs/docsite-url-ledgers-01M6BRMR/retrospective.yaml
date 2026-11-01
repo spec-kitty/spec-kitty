@@ -1,0 +1,237 @@
+schema_version: 1
+mission_id: 01M6BRMR1VJ9DJZP4R04K1QMJT
+mission_slug: docsite-url-ledgers-01M6BRMR
+mission_number: 246
+friendly_name: Docsite URL baseline, moves ledger and single index files
+mission_type: software-dev
+target_branch: issue-6927-url-baseline-moves-ledger
+created_at: '2026-11-01T16:14:36.178585+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-01T16:14:36.178585+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-009
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-01][grounding] No DocFX in the cloud container.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-01][grounding] No DocFX in the cloud container.** `dotnet-sdk-8.0` came from the Ubuntu archive and
+    `docfx` from NuGet. `www.plantuml.com` is unreachable, so the local site walk rewrote the five `plantuml` fences to `text`
+    in a throwaway worktree (diagram render only, not page set). Workaround.'
+- id: n-012
+  category: tooling
+  summary: "Tracer: [2026-11-01][grounding] Shallow clone hides #3914's base commit."
+  evidence_refs:
+  - e-012
+  details: "- **[2026-11-01][grounding] Shallow clone hides #3914's base commit.** `rename_reconcile.py --base a60425c…` fails
+    on a 50-commit clone; the forward gate needs no git, so it was run directly. Workaround."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] Rename gate scope narrowed to published pages.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-01][implement] Rename gate scope narrowed to published pages.** With a route ledger, a deleted non-page
+    file or a never-published page has no URL to break, so `rename_reconcile` checks only renames/deletions whose route is
+    in `site/url-baseline.txt`. Its forward check now proves the committed map is current for every ledger move.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] The ledger closed its own loop.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-11-01][implement] The ledger closed its own loop.** After deleting `architecture/README.md`, `relative_link_fixer`
+    (now defaulting to `site/moves.yaml`) rewrote the 12 dead archive links to `index.md` through the ledger's new `#6928`
+    entries, the mechanical link-target rewrite ADR D-7 sanctions. The first full `tests/docs` run caught 6 reds, all from
+    the removal (pinned paths, a 181-char description, the archive links); fixed in WP03."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] The seed is 970 routes, not 835 + 124.'
+  evidence_refs:
+  - e-010
+  details: '- **[2026-11-01][implement] The seed is 970 routes, not 835 + 124.** The 11 follow-up entries (archived or re-moved
+    destinations) are ledger `from`s too, so they are redirect keys and join the baseline: 672 walk pages + 298 keys. Local
+    DocFX coverage: 970/970, and a one-key mutant drops to 969/970.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] `sed -i` on `CLAUDE.md` replaced the symlink to `AGENTS.md` with a regular file.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-01][implement] `sed -i` on `CLAUDE.md` replaced the symlink to `AGENTS.md` with a regular file.**
+    Caught by `git status` (`T`); restored. Edit `AGENTS.md` only.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] `tests/docs` collection costs ~55 s of session setup in this container.'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-11-01][implement] `tests/docs` collection costs ~55 s of session setup in this container.** Any single
+    docs test file pays it; the ledger tests themselves run under 1 s. Not investigated (not this Mission's surface)."
+- id: n-007
+  category: tooling
+  summary: "Tracer: [2026-11-01][plan] #3914's 124 URLs are redirected, not proven."
+  evidence_refs:
+  - e-011
+  details: "- **[2026-11-01][plan] #3914's 124 URLs are redirected, not proven.** Their publication history cannot be proven
+    from a shallow clone; a stub for a never-live URL is harmless, so all 124 get a redirect and join the baseline as map
+    keys."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] ATDD per slice.'
+  evidence_refs:
+  - e-010
+  details: '- **[2026-11-01][plan] ATDD per slice.** Each WP commits its failing acceptance test first: ledger containment
+    and derivation (WP01), no Mission-scoped defaults (WP02), one index per folder (WP03).'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Grow-on-publish is reported, not gated.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-01][plan] Grow-on-publish is reported, not gated.** A blocking per-PR check would make every page-adding
+    docs PR edit one shared file, the conflict pattern #6993 removed. The deploy job warns; the gate lands with the doc-kitty
+    build gate (#6930, #6933).'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] PR-time coverage mirror.'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-01][plan] PR-time coverage mirror.** A `tests/docs/` test asserts every baseline URL is a page the
+    docs tree publishes or a redirect key, so a deletion without a ledger entry fails at PR time, not at deploy.'
+- id: n-002
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Two ledgers plus one derived map.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-11-01][plan] Two ledgers plus one derived map.** `site/moves.yaml` is the only hand-edited move record;
+    `scripts/docs/redirect_map.yaml` (what DocFX reads) is derived from it with chain collapse; `site/url-baseline.txt` is
+    seeded once from a real DocFX walk unioned with the derived map's keys. One module, `scripts/docs/moves_ledger.py`, owns
+    reading and validating both."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] Route form is the legacy published path.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-11-01][specify] Route form is the legacy published path.** Decision Moment `01M6BRRA8VAED9C86WVXDKSKBK`.
+    A route reads `/a/b.html` with a leading slash, as doc-kitty's baseline format does; DocFX's map drops the slash. Both
+    generators can read it; doc-kitty maps it to `/a/b/` (ADR D-5 rule 1)."
+gaps:
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] `rename_reconcile.py` needs ruamel, so it cannot run under bare system `python3`.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-01][implement] `rename_reconcile.py` needs ruamel, so it cannot run under bare system `python3`.**
+    Pre-existing; run it with `.venv/bin/python`. `bulk_ref_rewrite.py --dry-run` over the whole repo exceeds 10 minutes with
+    298 substitutions; scope it with `--root`. Candidate gaps, not fixed here.'
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] `charter context` reported `packs/internal` missing.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-11-01][specify] `charter context` reported `packs/internal` missing.** `make sync-packs` had not run
+    in this checkout (the setup script does not run it). Fixed by running it; candidate gap: `scripts/dev/cloud-session-setup.sh`
+    could sync packs.'
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] `mission create` scaffold commit carries no co-author trailer.'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-11-01][specify] `mission create` scaffold commit carries no co-author trailer.** The CLI's own commit
+    cannot take the operator-required trailer. Candidate gap."
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/tasks/WP01-standing-url-baseline-and-moves-ledger.md
+- id: e-006
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/tasks/WP02-no-mission-scoped-occurrence-map.md
+- id: e-007
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/tasks/WP03-one-index-file-per-folder.md
+- id: e-008
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/status.events.jsonl
+- id: e-009
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/analysis-report.md
+- id: e-010
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/traces/approach.md
+- id: e-011
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/traces/design-decisions.md
+- id: e-012
+  kind: file
+  path: kitty-specs/docsite-url-ledgers-01M6BRMR/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

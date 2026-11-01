@@ -14,7 +14,8 @@
 # Rules: append only; never edit or delete a recorded line. A page that moves
 # again gets a NEW entry from its previous route. Each `from` appears once, and no
 # `from` is a published page. Each entry carries a `ref` (PR, issue or Mission).
-# How to record a move: kitty-specs/docsite-url-ledgers-01M6BRMR/quickstart.md
+# To record a move: append `- {from: /old.html, to: /new.html, ref: "#<issue>"}`, add the old
+# route to site/url-baseline.txt if missing, run `regenerate-map`, then `check-map`.
 #
 # Provenance (seeded 2026-11-01 on main 7e2ca9fdc, Mission docsite-url-ledgers-01M6BRMR):
 #   (a) the 163 entries of scripts/docs/redirect_map.yaml, derived until now from the
@@ -339,3 +340,8 @@ moves:
   - {from: /plans/investigations/loop-friction-fastfollow-spec.html, to: /plans/investigations/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
   - {from: /plans/next-mission-mappings/index.html, to: /plans/index.html, ref: "#3914", note: "section removed: plans hub (ADR D-5 rule 4)"}
   - {from: /plans/testing/test-change-coupling-caacs.html, to: /plans/testing/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
+  # --- 2026-11-01 #6928: dual-index folders keep index.md (ADR 2026-10-31-1 D-1, D-7) ---
+  - {from: /adr/1.x/README.html, to: /adr/1.x/index.html, ref: "#6928", note: "redirect stub deleted"}
+  - {from: /adr/2.x/README.html, to: /adr/2.x/index.html, ref: "#6928", note: "redirect stub deleted"}
+  - {from: /adr/3.x/README.html, to: /adr/3.x/index.html, ref: "#6928", note: "redirect stub deleted"}
+  - {from: /architecture/README.html, to: /architecture/index.html, ref: "#6928", note: "landing page folded into the index"}

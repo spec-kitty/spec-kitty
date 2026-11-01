@@ -13,7 +13,7 @@
       "wp": null
     },
     "#2358": {
-      "evidence_ref": "WP01 928e5364c closes it for redirect_stub_generator.py; WP02 covers the remaining scripts",
+      "evidence_ref": "WP01 928e5364c (redirect_stub_generator) + WP02 (rename_reconcile, bulk_ref_rewrite, relative_link_fixer) default to site/moves.yaml; test_docs_tooling_defaults green",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#3914": {
@@ -61,7 +61,7 @@
       "wp": null
     },
     "#6927": {
-      "evidence_ref": "WP01 928e5364c delivers the ledgers; remaining WPs in this Mission",
+      "evidence_ref": "site/url-baseline.txt + site/moves.yaml; regenerate-map from the ledger; test_moves_ledger green; DocFX coverage 970/970",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#6928": {
-      "evidence_ref": "S-4 scope of this Mission (later WP)",
+      "evidence_ref": "df087129a: 4 dual-index folders keep index.md, README.html routes redirect via site/moves.yaml; test_one_index_per_folder red at 96321e1f7 (6 fail), green now (7 pass); DocFX coverage 970/970",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP03"
     },
     "#6929": {
       "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",

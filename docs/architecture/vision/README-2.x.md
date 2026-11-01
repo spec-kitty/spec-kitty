@@ -9,7 +9,7 @@ audience: docs/context/audience/internal/system-architect.md
 
 Per-era **vision** record for the 2.x architecture track. This is part of the
 **versioned history beneath** the living architecture (see the
-[architecture README](../README.md) for the boundary and decay rules).
+[architecture README](../index.md) for the boundary and decay rules).
 
 This page is the slot itself: when a piece of the living vision
 (`docs/architecture/vision/README.md`) is no longer current or future and belongs to the

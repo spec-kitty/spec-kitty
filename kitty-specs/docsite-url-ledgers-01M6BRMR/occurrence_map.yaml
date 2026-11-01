@@ -31,8 +31,8 @@ exceptions:
     action: do_not_change
     reason: "Reports are immutable history (C-003)"
   - path: "docs/archive/**"
-    action: do_not_change
-    reason: "Archived pages are immutable history (C-003)"
+    action: manual_review
+    reason: "Archived pages are immutable history (C-003); the only edit allowed is the mechanical link-target rewrite ADR 2026-10-31-1 D-7 sanctions, applied by relative_link_fixer through site/moves.yaml (README.md -> index.md)"
   - path: "docs/changelog/**"
     action: do_not_change
     reason: "The changelog is immutable history (C-003); new entries go in a fragment"

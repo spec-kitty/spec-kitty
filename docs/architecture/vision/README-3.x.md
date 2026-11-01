@@ -9,7 +9,7 @@ audience: docs/context/audience/internal/system-architect.md
 
 Per-era **vision** record for the 3.x architecture track. This is part of the
 **versioned history beneath** the living architecture (see the
-[architecture README](../README.md) for the boundary and decay rules).
+[architecture README](../index.md) for the boundary and decay rules).
 
 3.x is the **prior era**: its last release was 3.2.7 (2026-09-10), and 4.0.0 is the active
 cycle. Forward vision lives in the living [vision page](README.md); 3.x-era ADRs are in

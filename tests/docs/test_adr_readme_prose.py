@@ -1,4 +1,8 @@
-"""Regression tests for stale back-compat symlink / architecture/ prose in ADR READMEs.
+"""Regression tests for stale back-compat symlink / architecture/ prose on the ADR era landing pages.
+
+The era landing pages are ``docs/adr/<era>/index.md``. The ``README.md`` redirect stubs
+these tests first guarded were deleted in #6928 (one index file per folder); the claim
+they pin still applies to the surviving landing pages.
 
 SC-006 backstop (WP07, doc-quality-hardening-2245-01KW9AKV):
 The Common Docs structural move (PR #2225) removed the `architecture/` tree and dropped
@@ -21,11 +25,11 @@ pytestmark = [pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_ADR_README_2X = REPO_ROOT / "docs" / "adr" / "2.x" / "README.md"
+_ADR_README_2X = REPO_ROOT / "docs" / "adr" / "2.x" / "index.md"
 _OWNED_READMES = [
-    REPO_ROOT / "docs" / "adr" / "1.x" / "README.md",
-    REPO_ROOT / "docs" / "adr" / "2.x" / "README.md",
-    REPO_ROOT / "docs" / "adr" / "3.x" / "README.md",
+    REPO_ROOT / "docs" / "adr" / "1.x" / "index.md",
+    REPO_ROOT / "docs" / "adr" / "2.x" / "index.md",
+    REPO_ROOT / "docs" / "adr" / "3.x" / "index.md",
 ]
 
 # Matches the dropped-symlink pattern: "symlink" (case-insensitive) within 5 lines of
@@ -50,7 +54,7 @@ _BACCOMPAT_SYMLINK_CLAIM_RE = re.compile(
 
 
 def test_adr_2x_readme_no_false_symlink_claim() -> None:
-    """docs/adr/2.x/README.md must not contain a present-tense dropped-symlink claim.
+    """docs/adr/2.x/index.md must not contain a present-tense dropped-symlink claim.
 
     The back-compat symlinks at the old `architecture/2.x/adr/<filename>` paths
     were NOT retained when PR #2225 moved the files — the `architecture/` tree no
@@ -59,16 +63,16 @@ def test_adr_2x_readme_no_false_symlink_claim() -> None:
     text = _ADR_README_2X.read_text(encoding="utf-8")
     match = _BACCOMPAT_SYMLINK_CLAIM_RE.search(text)
     assert match is None, (
-        f"docs/adr/2.x/README.md still contains a present-tense dropped-symlink claim "
+        f"docs/adr/2.x/index.md still contains a present-tense dropped-symlink claim "
         f"(SC-006 regression).  Offending text near char {match.start()}: "
         f"{text[max(0, match.start() - 40):match.end() + 40]!r}"
     )
 
 
 def test_owned_readmes_no_present_tense_architecture_symlink_claims() -> None:
-    """None of the three owned ADR README files may claim that architecture/ symlinks exist.
+    """None of the three ADR era landing pages may claim that architecture/ symlinks exist.
 
-    Counts present-tense architecture/... symlink claims across all three owned READMEs;
+    Counts present-tense architecture/... symlink claims across all three era landing pages;
     the expected count is 0.  The `architecture/` tree was removed in PR #2225 and the
     back-compat symlinks were dropped — any such claim is factually incorrect.
     """

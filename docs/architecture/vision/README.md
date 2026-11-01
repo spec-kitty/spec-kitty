@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-10-03'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/architecture/README.md
+- docs/architecture/index.md
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/plans/code-quality/index.md
 ---
@@ -13,7 +13,7 @@ related:
 
 This directory holds the **current and future** architecture vision for Spec Kitty —
 forward intent that may still change. It is one of the living architecture surfaces
-(see [`../README.md`](../README.md) for the boundary and decay rules).
+(see [architecture index](../index.md) for the boundary and decay rules).
 
 ## What belongs here
 

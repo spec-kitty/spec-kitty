@@ -108,7 +108,7 @@ AUTHORED_CREATE_INTENT = ("src/specify_cli/ownership/_roundtrip_probe.py",)
 DOC_AUTHORED_AUTHORITATIVE_SURFACE = "docs/architecture/"
 DOC_AUTHORED_OWNED_FILES = (
     "docs/architecture/documentation-mission.md",
-    "docs/architecture/README.md",
+    "docs/architecture/index.md",
 )
 DOC_AUTHORED_CREATE_INTENT = ("docs/architecture/_roundtrip_probe.md",)
 
