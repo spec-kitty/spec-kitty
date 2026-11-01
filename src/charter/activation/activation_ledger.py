@@ -35,6 +35,7 @@ one.
 
 from __future__ import annotations
 
+import re
 import dataclasses
 import sys
 from collections.abc import Callable, Iterable, Mapping
@@ -86,6 +87,8 @@ __all__ = [
     "LedgerMigrationRefusal",
     "LedgerMigrationRefused",
     "LedgerMove",
+    "RENAME_LEGACY_SLUG",
+    "RENAME_NEW_SLUG",
     "RequiredOmission",
     "apply_ledger_migration",
     "config_error",
@@ -578,6 +581,27 @@ def _deny_changes(before: Mapping[str, Any], after: Mapping[str, Any]) -> tuple[
     return tuple(changes)
 
 
+#: The project-intent rename (#6565): ``<NNN>-<legacy slug>`` becomes ``<NNN>-<new slug>``. The rename helper
+#: (``synthesizer.legacy_rename``, which imports this module) takes both slugs from here.
+RENAME_LEGACY_SLUG = "mission-type-scope-directive"
+RENAME_NEW_SLUG = "project-intent-directive"
+_LEGACY_STEM_RE = re.compile(rf"(\d+)-{RENAME_LEGACY_SLUG}")
+
+
+def _is_stem_rename(added: tuple[str, ...], removed: tuple[str, ...]) -> bool:
+    """True when the change only moves legacy stems to their renamed spelling (a collapse adds nothing).
+
+    Every removed id must be a legacy stem and every added id the renamed spelling of a removed one.
+    """
+    renamed: set[str] = set()
+    for token in removed:
+        match = _LEGACY_STEM_RE.fullmatch(token)
+        if match is None:
+            return False
+        renamed.add(f"{match.group(1)}-{RENAME_NEW_SLUG}")
+    return set(added) <= renamed
+
+
 def _check_write_keys(values: Mapping[str, Any], removals: tuple[str, ...]) -> None:
     unknown = (set(values) | set(removals)) - _LEGACY_KEYS
     if unknown:
@@ -652,10 +676,9 @@ def prepare_ledger_write(
             _assign(document, key, values[key])
         elif key in removals:
             document.pop(key, None)
-    changes = _deny_changes(original, document)
-    if changes and deny_change is None:
-        key, added, removed = changes[0]
-        raise DenyListWriteRefused(key, added, removed)
+    for key, added, removed in _deny_changes(original, document):
+        if deny_change is None or (deny_change is DenyListChoice.RENAME and not _is_stem_rename(added, removed)):
+            raise DenyListWriteRefused(key, added, removed)
     return prepare_yaml_write(target, _ledger_bytes(before.content, document), section=_ACTIVATION_SECTION, inputs=(before,))
 
 

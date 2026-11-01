@@ -44,7 +44,7 @@ from typing import Any, Protocol
 import pytest
 import yaml
 
-from charter.activation.activation_ledger import DENY_KEYS, LEDGER_KEYS, DenyListWriteRefused, prepare_ledger_write
+from charter.activation.activation_ledger import DENY_KEYS, LEDGER_KEYS, DenyListChoice, DenyListWriteRefused, prepare_ledger_write
 from charter.activation.preset_application import apply_preset_plan, find_offering_pack, plan_preset_application
 from kernel.activation_ledger_store import ACTIVATION_LEDGER, activation_ledger_path
 from kernel.paths import get_packs_root_default
@@ -101,6 +101,8 @@ CHOICE_ORIGINS: frozenset[tuple[str, str, str]] = frozenset(
         ("src/specify_cli/cli/commands/charter/activate.py", "_activate_cascade_targets", "CASCADE_INCLUDE_DEACTIVATED"),
         # #6565: the one narrowing choice -- the project-intent rename moves the legacy directive stem.
         (_LEGACY_RENAME_REL, "_apply_tokens", "RENAME"),
+        # ...and the seam's guard names it only to scope that choice to a legacy-stem move (a comparison, not a mint).
+        ("src/charter/activation/activation_ledger.py", "prepare_ledger_write", "RENAME"),
     }
 )
 
@@ -618,6 +620,13 @@ def test_the_rename_carries_the_deny_entry_and_nothing_else(tmp_path: Path) -> N
     assert ledger["deactivated_tactics"] == FIXTURE_DENY["deactivated_tactics"]
     assert ledger["deactivated_skills"] == FIXTURE_DENY["deactivated_skills"]
     assert _LEGACY_INTENT_STEM not in ledger["activated_directives"]
+
+    # The choice itself is scoped to that move: a RENAME write that adds an unrelated denial, or drops a
+    # denial that is not a legacy stem, is refused and writes nothing.
+    carried = ledger["deactivated_directives"]
+    for deny in ([*carried, "DIRECTIVE_099"], carried[:1]):
+        with pytest.raises(DenyListWriteRefused):
+            prepare_ledger_write(tmp_path, {"deactivated_directives": deny}, deny_change=DenyListChoice.RENAME)
 
 
 def _preset_names() -> list[str]:
