@@ -128,7 +128,9 @@ def test_every_self_starting_job_is_fork_guarded(workflow: str, job_name: str, j
     assert f"github.repository == '{CORE_REPOSITORY}'" in guard
 
     # On the core repository the guard never changes anything.
-    for event_name, run_event in itertools.product(("schedule", "push", "workflow_run", "pull_request", "workflow_dispatch"), ("push", "pull_request", None)):
+    for event_name, run_event in itertools.product(
+        ("schedule", "push", "workflow_run", "pull_request", "workflow_dispatch", "merge_group"), ("push", "pull_request", "merge_group", None)
+    ):
         assert _guard_allows(guard, repository=CORE_REPOSITORY, event_name=event_name, run_event=run_event)
 
     # On a fork, automated main-branch runs skip...

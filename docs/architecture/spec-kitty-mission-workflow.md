@@ -2,7 +2,7 @@
 title: Spec Kitty Mission Workflow
 description: 'End-to-end authority for a local autonomous mission: the nine phases from specify through retrospective, and the focused-PR path when the target branch is not synchronized.'
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-11-01'
 type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 ---
@@ -130,7 +130,7 @@ Prefer a squash merge for autonomous runs that accumulated many orchestration
 commits:
 
 ```bash
-gh pr merge --squash --delete-branch
+gh pr merge --auto   # queues it; the merge queue rebase-merges once the required checks pass
 ```
 
 ## Phase 8: Mission Review

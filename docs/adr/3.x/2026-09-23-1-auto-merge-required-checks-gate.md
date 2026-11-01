@@ -210,8 +210,11 @@ same three required checks pass there.
 
 ### Consequences
 
-- Every PR runs the required checks twice: on the PR and in the queue. The queue run diffs
-  against `merge_group.base_sha`, so it stays path-scoped.
+- Every PR runs the required checks three times: on the PR, in the queue, and on the push to
+  `main` that the queue's merge makes. The queue run diffs against `merge_group.base_sha`, so it
+  stays path-scoped; the push run is the one the main-red fleet verdict reads.
+- The queue does not resolve textual conflicts: a PR that conflicts with `main` or with a PR
+  ahead of it is removed from the queue and still needs a rebase.
 - A push to a queued PR evicts it and rebuilds every group behind it.
 - `pr:pause-ci` reads PR labels, which a queue run does not carry. A paused PR cannot enter the
   queue (its required gates read `fail`), and an already queued PR is stopped by removing it from

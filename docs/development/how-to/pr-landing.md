@@ -570,8 +570,10 @@ changelog) go in this comment too, addressed to the author.
 
 The operator merges. `main` merges through GitHub's merge queue: the queue
 tests each PR on `main` plus the PRs ahead of it and rebase-merges it when the
-required checks pass there, so a PR that went `CONFLICTING` or stale after
-another merge needs no manual rebase and CI re-run. A landing pass asks once at
+required checks pass there, so a PR that is only behind `main` needs no manual
+rebase and CI re-run. The queue does not resolve conflicts: a PR that conflicts
+with `main`, or with a PR ahead of it in the queue, cannot be queued or is
+removed from the queue, and still needs a rebase. A landing pass asks once at
 its start whether to queue the PR when it is merge-ready
 (`gh pr merge <N> --auto` adds it to the queue once its own checks pass); the
 default is not to, and without an explicit yes for that run nobody but the
