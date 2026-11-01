@@ -61,6 +61,7 @@ from typing import Any, Final
 
 import pytest
 
+from scripts.ci.battery_scope import read_selected_gates
 from scripts.ci.shard_select import (
     BatteryPartition,
     battery_parts,
@@ -422,7 +423,7 @@ def read_gates_file(env: Mapping[str, str]) -> frozenset[str] | None:
     path = Path(named)
     if not path.is_file():
         raise pytest.UsageError(f"{_PREFIX}: {GATES_FILE_ENV} names a missing file: {named}")
-    return frozenset(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+    return read_selected_gates(named)
 
 
 def verify_worker_digest(state: PartitionState, workerinput: Mapping[str, Any]) -> None:

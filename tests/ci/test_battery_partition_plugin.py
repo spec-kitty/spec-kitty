@@ -976,6 +976,33 @@ def test_a_gates_file_selecting_nothing_of_the_part_is_a_usage_error(tree: _Tree
     assert "selects none of part 1/2" in run.output
 
 
+def test_both_readers_resolve_one_file_to_the_same_set(tmp_path: Path) -> None:
+    """#7001: the leg's scope and the universe decision parse one file through one parser.
+
+    Same fixture, both readers, blank lines and a duplicate included: a divergence here would
+    let the pre-step ask about a gate the leg will not run (or the reverse).
+    """
+    from scripts.ci import battery_scope
+
+    listed = tmp_path / "gates.txt"
+    listed.write_text(
+        "\n  tests/architectural/test_b.py  \ntests/architectural/test_a.py\ntests/architectural/test_a.py\n",
+        encoding="utf-8",
+    )
+    expected = frozenset({"tests/architectural/test_a.py", "tests/architectural/test_b.py"})
+    assert battery_scope.read_selected_gates(str(listed)) == expected
+    assert plugin.read_gates_file({plugin.GATES_FILE_ENV: str(listed)}) == expected
+
+
+def test_a_file_the_ci_writer_wrote_is_read_by_the_plugin_reader(tmp_path: Path) -> None:
+    """Positive control for the round trip: the writer's real output, not a hand-made string."""
+    from scripts.ci import battery_scope
+
+    out = tmp_path / "gates.txt"
+    battery_scope.output_lines(battery_scope.SCOPED, frozenset({"tests/architectural/test_b.py", "tests/architectural/test_a.py"}), out)
+    assert plugin.read_gates_file({plugin.GATES_FILE_ENV: str(out)}) == {"tests/architectural/test_a.py", "tests/architectural/test_b.py"}
+
+
 def test_read_gates_file_is_none_when_unset_and_reads_lines(tmp_path: Path) -> None:
     assert plugin.read_gates_file({}) is None
     assert plugin.read_gates_file({plugin.GATES_FILE_ENV: "  "}) is None
