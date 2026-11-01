@@ -603,7 +603,8 @@ def test_verify_fails_a_wheel_whose_tag_understates_its_binaries(tmp_path: Path,
     )
     assert _verify(script, fixture, tmp_path / "out") == 1
     err = capsys.readouterr().err
-    assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err or "needs glibc 2_39" in err
+    assert "COMPANION_VERIFY_FAILED" in err  # the verifier's own code, with the floor reason in the message
+    assert "needs glibc 2_39" in err and "2_28 its wheel tag claims" in err
 
 
 def test_a_bad_macos_floor_fails_even_without_a_macos_target(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:

@@ -165,8 +165,9 @@ def _elf_floor(data: bytes) -> str | None:
     entries = _dynamic_entries(data, dynamic)
     if _DT_VERNEED not in entries:
         return None  # no version-need table at all: no versioned symbols, so no glibc floor
-    if _DT_STRTAB not in entries or _DT_VERNEEDNUM not in entries:
-        raise UnreadableBinary("ELF has a version-need table but no string table or version-need count")
+    missing = [name for name, tag in (("DT_STRTAB", _DT_STRTAB), ("DT_VERNEEDNUM", _DT_VERNEEDNUM)) if tag not in entries]
+    if missing:
+        raise UnreadableBinary(f"ELF has a version-need table but no {', '.join(missing)}")
     if not entries[_DT_VERNEEDNUM]:
         return None  # an empty version-need table: no glibc floor
     highest = _highest_glibc(
@@ -206,6 +207,8 @@ def _elf_layout(data: bytes) -> tuple[list[tuple[int, int, int]], tuple[int, int
         if p_type == _PT_LOAD:
             loads.append((p_vaddr, p_offset, p_filesz))
         elif p_type == _PT_DYNAMIC:
+            if not p_filesz:
+                raise UnreadableBinary("ELF PT_DYNAMIC segment is empty (0 bytes)")
             dynamic = (p_offset, p_filesz)
     return loads, dynamic
 
