@@ -175,18 +175,6 @@ def _claim_row(feature_dir: Path, namespace: str) -> dict[str, object] | None:
 # ---------------------------------------------------------------------------
 
 
-def test_backfill_verifies_on_slug_identified_mission(tmp_path: Path) -> None:
-    """#6689: the seed row and its own verifier must agree on the envelope identity."""
-    feature_dir = _build_reported_mission(tmp_path)
-
-    result = b.backfill_runtime_state(feature_dir)
-    assert result.action == "wrote", result.reason
-
-    verify = b.verify_backfill(feature_dir)
-    assert verify.ok, verify.mismatches
-    assert verify.wp_count == 1
-
-
 def test_seed_row_carries_the_declared_mission_id(tmp_path: Path) -> None:
     """FR-002: the minted envelope carries the id ``meta.json`` declares, verbatim.
 
@@ -204,6 +192,16 @@ def test_seed_row_carries_the_declared_mission_id(tmp_path: Path) -> None:
     assert claim["event_id"] == PREFIX_SEED_ID, "the claim seed id must not move (idempotency)"
     assert claim["mission_id"] == SLUG, "the seed row must declare the mission_id meta.json declares"
     assert claim["policy_metadata"] == {"agent": "codex", "shell_pid": 21224}
+
+    # INV-1 as the invariant, not the symptom: every derived row survives a
+    # write/read round-trip with an identical typed payload, so the next
+    # envelope field cannot reintroduce the #6689 asymmetry.
+    stream = read_event_stream(feature_dir)
+    actual = {event.event_id: event for event in (*stream.transitions, *stream.annotations)}
+    legacy = b.read_legacy_runtime(feature_dir)
+    expected_t, expected_a = b._build_seed_events(feature_dir, feature_dir, legacy, b._claim_anchors(feature_dir), [])
+    for expected in (*expected_t, *expected_a):
+        assert actual[expected.event_id].to_dict() == expected.to_dict(), expected.event_id
 
 
 def test_pre_fix_seed_row_without_mission_id_is_sound(tmp_path: Path) -> None:
@@ -246,6 +244,9 @@ def test_cli_flips_slug_identified_mission(tmp_path: Path) -> None:
     assert payload["summary"]["flipped"] == 1
     assert payload["summary"]["failed"] == 0
     assert json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))["status_phase"] == FLIPPED_STATUS_PHASE
+    verify = b.verify_backfill(feature_dir)
+    assert verify.ok, verify.mismatches
+    assert verify.wp_count == 1
 
 
 def test_cli_second_run_seeds_nothing_and_still_verifies(tmp_path: Path) -> None:
@@ -355,24 +356,3 @@ def test_strip_before_verify_still_raises_ordering_error(tmp_path: Path) -> None
 
     with pytest.raises(MigrationOrderingError, match="strip_mutable_fields ran before verify"):
         b.verify_backfill(feature_dir)
-
-
-def test_event_stream_read_back_matches_rebuilt_expectation(tmp_path: Path) -> None:
-    """INV-1, stated as the invariant rather than as a symptom.
-
-    Every row the builder derives must survive a write/read round-trip with an
-    identical typed payload modulo the tolerances the verifier already allows.
-    This is the property #6689 violated; asserting it directly keeps the next
-    envelope field from reintroducing the same asymmetry.
-    """
-    feature_dir = _build_reported_mission(tmp_path)
-    _seeded(feature_dir)
-
-    stream = read_event_stream(feature_dir)
-    actual = {event.event_id: event for event in (*stream.transitions, *stream.annotations)}
-    legacy = b.read_legacy_runtime(feature_dir)
-    expected_t, expected_a = b._build_seed_events(feature_dir, feature_dir, legacy, b._claim_anchors(feature_dir), [])
-
-    for expected in (*expected_t, *expected_a):
-        reread = actual[expected.event_id]
-        assert reread.to_dict() == expected.to_dict(), expected.event_id
