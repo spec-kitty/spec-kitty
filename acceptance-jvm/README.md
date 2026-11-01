@@ -21,11 +21,15 @@ The Gradle distribution is pinned in [`tools/pins.json`](tools/pins.json) (versi
 unpack anything until the downloaded bytes match the pinned sha256:
 
 ```bash
-python contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+make sync-services   # fetches, verifies and unpacks the pinned contract tools
+tools="$(python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+python "$tools/install_tools.py" --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
 ```
 
-`contracts/tools/install_tools.py` is reused, not copied: it is the one canonical
-installer. The installed Gradle lands at `$RUNNER_TEMP/tools/gradle-8.14.5/bin`; add it
+`install_tools.py` is reused, not copied: it is the one canonical installer, shipped in the
+`contract-tools` extra of spec-kitty-events that `pins/read-service.source.yaml` pins (#6915).
+`scripts/sync_services.py --extras-path read-service:contract_tools` prints where that extra is
+unpacked in the shared cache. The installed Gradle lands at `$RUNNER_TEMP/tools/gradle-8.14.5/bin`; add it
 to `PATH` and invoke `gradle` directly. There is no committed wrapper jar,
 `gradle-wrapper.properties`, or `gradlew`.
 
@@ -63,7 +67,7 @@ Once a Java 25 is present, `scripts/dev/cloud-session-setup.sh` auto-detects it,
 exports `JAVA_HOME` for the session, puts the JDK's `bin/` on `PATH` (so a plain `java`
 is 25 too) and puts the pinned Gradle from
 [`tools/pins.json`](tools/pins.json) (installed checksum-verified by
-`contracts/tools/install_tools.py`, as CI does, and cached under
+the pinned `install_tools.py` of the `contract-tools` extra, as CI does, and cached under
 `${XDG_CACHE_HOME:-~/.cache}/spec-kitty/acceptance-jvm-tools/`) first on `PATH`, so
 `gradle` resolves the toolchain with no per-run config. A session without a Java 25 still runs every Python check and the per-PR scenario
 contract (`tests/architectural/test_scenario_contract.py`) — neither needs a JDK — and
@@ -81,8 +85,9 @@ gradle --write-verification-metadata sha256 test --no-daemon
 ```
 
 Commit the regenerated file. This build declares no Gradle version and no Gradle plugin.
-The nightly's pin-guard step runs `contracts/tools/gradle_pin_check.py`, which for this
-subproject checks only that the `url` in `tools/pins.json` carries the pinned `version`
+The nightly's pin-guard step runs `scripts/ci/acceptance_jvm_gradle_pin_check.py`, which calls
+`check_acceptance_jvm` of the pinned `gradle_pin_check.py` (the `contract-tools` extra); for this
+subproject it checks only that the `url` in `tools/pins.json` carries the pinned `version`
 (and a `gradle-version:` input of the `acceptance-bdd` job, if one is ever added).
 
 ## Run the scenarios
