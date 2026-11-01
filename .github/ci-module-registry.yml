@@ -264,8 +264,9 @@ modules:
 - module: glossary
   roots:
   - src/glossary/**
-  # the torn-tail repair goldens shared with the Java port; tests/glossary re-checks Python against them
-  - services/mission-status-api/event-log/src/test/resources/torn-tail/**
+  # the pins name the torn-tail repair goldens (the pinned conformance-fixtures of spec-kitty-events,
+  # #6915) that tests/glossary re-checks Python against, so a pin bump selects this row
+  - pins/**
   cov_targets:
   - glossary
   tier: standard
@@ -422,7 +423,6 @@ modules:
   roots:
   - scripts/ci/**
   - .github/workflows/**
-  - services/mission-status-api/**
   # #6590 (F2): tests/ci/test_service_pins_gate.py checks every committed pin and
   # tests/ci/test_sync_services.py the script and its action, so a pins-only or
   # sync-only diff selects this row too (and core_misc, which carries the same three).
@@ -458,9 +458,6 @@ modules:
   # (~67s serial wall, the rest collection/import time) -- shard_count stays 1,
   # far inside the 30m shard budget, so no split is needed (skew is trivially
   # 0%).
-  # services/mission-status-api/** (#5529 landing review B): tests/ci pins
-  # that service's build inputs, and its own workflow runs no pytest, so a
-  # services-only diff selects this row too. Non-src, like the other roots.
   shard_count: 1
   test_dirs:
   - tests/ci
@@ -775,8 +772,9 @@ out_of_matrix_test_dirs:
     required router jobs in ci-router.yml (a required check through router-gate), not the
     per-module matrix; claiming the directory in a module row too would double-run it. The
     corpus-marked contract tool unit tests run in 'tests (contract tools)', gated on the
-    corpus path group (contracts/**) or the contract_tools group (tests/contract/** and what
-    the tools run on). The corpus modules that read the committed corpus (the reality check
+    corpus path group (contracts/fixtures/**, pins/**) or the contract_tools group
+    (tests/contract/**, the pins of the contract bundles, tools and conformance fixtures the
+    tests read from spec-kitty-events (#6915), and what the tests run on). The corpus modules that read the committed corpus (the reality check
     and its payload helper, the example round trip) run in 'tests (corpus-blocking)', which
     carries the corpus-marked tests with no other blocking per-PR home and is gated on the
     corpus path group.

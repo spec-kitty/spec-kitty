@@ -168,7 +168,7 @@
       "group": "glossary",
       "roots": [
         "src/glossary/**",
-        "services/mission-status-api/event-log/src/test/resources/torn-tail/**"
+        "pins/**"
       ],
       "cov_targets": [
         "glossary"
@@ -249,7 +249,6 @@
       "roots": [
         "scripts/ci/**",
         ".github/workflows/**",
-        "services/mission-status-api/**",
         "pins/**",
         "scripts/sync_services.py",
         ".github/actions/sync-services/**"
@@ -284,10 +283,11 @@
         ".kittify/charter/**",
         ".kittify/glossaries/**",
         ".kittify/charter-packs/**",
-        "contracts/**",
+        "contracts/fixtures/**",
+        "pins/**",
         "kitty-ops/**"
       ],
-      "note": "Doctrine corpus + mission data leaves (#3008), plus the contracts/ tree, which stays out of the wheel, and the kitty-ops/ Op data the reality check reads; non-src, no --cov subject."
+      "note": "Doctrine corpus + mission data leaves (#3008), plus the core-owned contracts/fixtures/ tree, which stays out of the wheel, the pins of the spec-kitty-events extras the reality check reads (#6915), and the kitty-ops/ Op data the reality check reads; non-src, no --cov subject."
     },
     {
       "group": "e2e",
