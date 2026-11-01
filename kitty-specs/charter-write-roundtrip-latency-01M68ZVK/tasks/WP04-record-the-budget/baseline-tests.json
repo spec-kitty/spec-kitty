@@ -46,12 +46,12 @@
     },
     {
       "test": "tests.status.test_lock_fallback_never_mints_marker.test_bare_tree_locks_under_a_non_marker_home",
-      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2179998/popen-gw20/test_bare_tree_locks_under_a_n0/.git/spec-kitty-locks/001-mission.status.lock') == (((PosixPath('/tmp/spec-kitty-pyt",
+      "error": "AssertionError: assert PosixPath('<tmp>/...') == (((PosixPath('<tmp>/...",
       "file": "unknown:?"
     },
     {
       "test": "tests.status.test_lock_fallback_never_mints_marker.test_existing_kittify_keeps_its_lock_location",
-      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2179998/popen-gw20/test_existing_kittify_keeps_it0/.git/spec-kitty-locks/001-mission.status.lock') == (((PosixPath('/tmp/spec-kitty-pyt",
+      "error": "AssertionError: assert PosixPath('<tmp>/...') == (((PosixPath('<tmp>/...",
       "file": "unknown:?"
     },
     {
@@ -61,12 +61,12 @@
     },
     {
       "test": "tests.status.test_lock_fallback_never_mints_marker.test_existing_dot_git_dir_keeps_its_lock_location",
-      "error": "FileExistsError: [Errno 17] File exists: '/tmp/spec-kitty-pytest-tmp/run-2179998/popen-gw20/test_existing_dot_git_dir_keep0/.git'",
+      "error": "FileExistsError: [Errno 17] File exists: '<tmp>/...'",
       "file": "unknown:?"
     },
     {
       "test": "tests.status.test_lock_fallback_never_mints_marker.test_mission_write_lock_on_a_bare_dir_leaves_no_project_for_its_children",
-      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2179998/popen-gw20/test_mission_write_lock_on_a_b0') is None",
+      "error": "AssertionError: assert PosixPath('<tmp>/...') is None",
       "file": "unknown:?"
     },
     {
@@ -91,7 +91,7 @@
     },
     {
       "test": "tests.status.test_mission_write.test_the_non_repository_probe_pins_git_to_the_c_locale",
-      "error": "AssertionError: assert ([{'AI_AGENT': 'pi', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'HOME': '/tmp/spec-kitty-test-homes/0966fb3c2b454bc69d3",
+      "error": "AssertionError: assert ([{'AI_AGENT': 'pi', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'HOME': '<tmp>/...",
       "file": "unknown:?"
     }
   ],

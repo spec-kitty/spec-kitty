@@ -193,7 +193,7 @@ Also measure the real thing, and put the numbers in your history note:
 
 ```bash
 # scratch project seeded from this repository's own .kittify/
-mkdir -p /tmp/wp02-repro && cd /tmp/wp02-repro && git init -q .
+mkdir -p <tmp>/wp02-repro && cd <tmp>/wp02-repro && git init -q .
 cp -r <repo>/.kittify . && cp -r <repo>/packs .
 time spec-kitty charter deactivate tactic analysis-extract-before-interpret
 time spec-kitty charter activate   tactic analysis-extract-before-interpret
