@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "charter-identity-single-authority-01M68ZQC",
+  "mission_id": "01M68ZQCTBH0HQRABS3BGT44Z9",
+  "mission_branch": "issue-6433-charter-identity-single-authority",
+  "target_branch": "issue-6433-charter-identity-single-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/activation-ledger-and-charter-contract.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/identity_index.py",
+        "src/charter/activation/kind_vocabulary.py",
+        "src/specify_cli/cli/commands/charter/_resynthesis_preflight.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "tests/charter/activation/test_unknown_token_policies_6433.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:44:33.239708+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "58501567615496a975ca0d51a64eee6772c8fb68"
+}
