@@ -17,9 +17,8 @@ from pathlib import Path
 import pytest
 from _pytest.fixtures import SubRequest
 from kernel.clock import UTC, datetime
-from kernel.event_log_append import EventLogTornTailError
 
-from specify_cli.invocation.lifecycle import append_lifecycle_record
+from specify_cli.invocation.lifecycle import LIFECYCLE_LOG_RELATIVE_PATH, append_lifecycle_record, lifecycle_log_path
 from specify_cli.invocation.record import ProfileInvocationRecord
 from tests.architectural import test_archive_root_byte_identical as gate
 
@@ -60,18 +59,29 @@ def git(repo: Path, *args: str) -> bytes:
     ).stdout
 
 
-def append(repo: Path, action: str = "wp12::inspect") -> Path:
-    path = append_lifecycle_record(
-        repo,
-        ProfileInvocationRecord(
-            canonical_action_id=action,
-            phase="started",
-            at=datetime(2026, 9, 6, tzinfo=UTC),
-            agent="codex",
-            mission_id="01M0QCK4D9D65AVNC15HKWAQZ7",
-        ),
+def _wp12_record(action: str) -> ProfileInvocationRecord:
+    return ProfileInvocationRecord(
+        canonical_action_id=action,
+        phase="started",
+        at=datetime(2026, 9, 6, tzinfo=UTC),
+        agent="codex",
+        mission_id="01M0QCK4D9D65AVNC15HKWAQZ7",
     )
+
+
+def append(repo: Path, action: str = "wp12::inspect") -> Path:
+    """The real writer: a new ``kitty-ops/lifecycle/<ulid>.json`` record file (#7003)."""
+    path = append_lifecycle_record(repo, _wp12_record(action))
     assert isinstance(path, Path)
+    return path
+
+
+def append_legacy(repo: Path, action: str = "wp12::inspect") -> Path:
+    """What an older CLI does: extend the shared legacy ``kitty-ops/lifecycle.jsonl``."""
+    path = lifecycle_log_path(repo)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("ab") as handle:
+        handle.write(_wp12_record(action).to_json_line().encode("utf-8") + b"\n")
     return path
 
 
@@ -84,7 +94,7 @@ def archive_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     git(repo, "config", "user.email", "wp12@example.invalid")
     git(repo, "config", "user.name", "WP12 fixture")
     git(repo, "config", "commit.gpgsign", "false")
-    append(repo, "wp12::historical")
+    append_legacy(repo, "wp12::historical")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "Nonempty historical archive")
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
@@ -188,12 +198,12 @@ def test_lifecycle_corruption_is_rejected(
     attack: str,
     reason: str,
 ) -> None:
-    path = append(archive_repo)
+    path = append_legacy(archive_repo)
     git(archive_repo, "add", ".")
     git(archive_repo, "commit", "-m", "Second historical row")
     git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     before = path.read_bytes()
-    append(archive_repo, "wp12::new")
+    append_legacy(archive_repo, "wp12::new")
     valid = path.read_bytes()
     run_gate(archive_repo, monkeypatch)
     rows = before.splitlines(keepends=True)
@@ -248,20 +258,16 @@ def test_historical_bytes_are_not_reserialized(
     git(archive_repo, "commit", "-m", "Historical shape")
     git(archive_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     run_gate(archive_repo, monkeypatch)
+    # #7003: the real writer never touches the legacy log, so a torn or odd
+    # historical shape neither blocks a new record nor gets re-serialised.
+    append(archive_repo)
+    assert path.read_bytes() == historical
+    run_gate(archive_repo, monkeypatch)
     if historical and not historical.endswith(b"\n"):
-        # #6606: the interim event-log lock refuses to extend a torn tail, so the
-        # append never lands and the historical bytes stay as they were.
-        with pytest.raises(EventLogTornTailError):
-            append(archive_repo)
-        assert path.read_bytes() == historical
-        run_gate(archive_repo, monkeypatch)
-        # A writer that bypasses the lock (an older CLI) still trips the gate.
+        # A writer that extends the legacy log past a torn tail (an older CLI) still trips the gate.
         path.write_bytes(historical + b'{"phase":"started"}\n')
         with pytest.raises(AssertionError, match="unterminated historical boundary"):
             run_gate(archive_repo, monkeypatch)
-    else:
-        append(archive_repo)
-        run_gate(archive_repo, monkeypatch)
 
 
 @pytest.mark.parametrize(
@@ -271,6 +277,7 @@ def test_historical_bytes_are_not_reserialized(
         "kitty-specs/old/status.events.jsonl",
         "kitty-specs/old/status.json",
         "kitty-ops/old.jsonl",
+        "kitty-ops/lifecycle/01ARZ3NDEKTSV4RRFFQ69G5FAV.json",
         ".kittify/mission-state-audit/quarantine/raw.jsonl",
         ".kittify/missions/old/retrospective.yaml",
         "kitty-specs/tab\tand\nnewline.md",
@@ -823,7 +830,7 @@ def test_omitting_archive_root_breaks_independent_control(
         module.test_no_preexisting_archived_file_was_modified()
 
 
-def test_public_next_appends_real_lifecycle_bytes(
+def test_public_next_writes_real_lifecycle_record_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -841,9 +848,9 @@ def test_public_next_appends_real_lifecycle_bytes(
     _write_three_step_input_mission(repo, mission_type=mission_type)
     monkeypatch.chdir(repo)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
-    lifecycle = append(repo, "wp12::existing-proof")
+    lifecycle = append_legacy(repo, "wp12::existing-proof")
     before = lifecycle.read_bytes()
-    git(repo, "add", "kitty-ops/lifecycle.jsonl")
+    git(repo, "add", LIFECYCLE_LOG_RELATIVE_PATH.as_posix())
     git(repo, "commit", "-m", "Lifecycle prefix before public next")
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     runner = CliRunner()
@@ -865,9 +872,12 @@ def test_public_next_appends_real_lifecycle_bytes(
     answer = runner.invoke(app, [*args, "--result", "success", "--answer", "yes", "--decision-id", payload["decision_id"]])
     assert answer.exit_code == 0, answer.output
     assert json.loads(answer.stdout)["kind"] == "step"
-    after = lifecycle.read_bytes()
-    assert after.startswith(before) and len(after) > len(before)
-    records = [ProfileInvocationRecord.from_dict(json.loads(row)) for row in after[len(before) :].splitlines()]
+    # #7003: the legacy log is read-only; every new record is its own file.
+    assert lifecycle.read_bytes() == before
+    record_files = sorted((repo / "kitty-ops" / "lifecycle").glob("*.json"))
+    rows = [path.read_bytes() for path in record_files]
+    assert rows and all(row.count(b"\n") == 1 for row in rows)
+    records = [ProfileInvocationRecord.from_dict(json.loads(row)) for row in rows]
     assert any(record.phase == "started" for record in records)
     assert any(record.phase == "completed" for record in records)
     run_gate(repo, monkeypatch)

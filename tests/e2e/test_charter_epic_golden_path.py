@@ -50,7 +50,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.invocation.lifecycle import lifecycle_log_path
+from specify_cli.invocation.lifecycle import lifecycle_records_dir
 from tests.e2e.conftest import (
     REPO_ROOT,
     SourcePollutionBaseline,
@@ -713,24 +713,25 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     # prompt_file pointing at the issued action's prompt artifact.
     _assert_envelope_per_kind_invariants(payload, test_project_root=project, fr_id="FR-006/FR-007 (next advance)")
 
-    # FR-011/FR-012 / #843: lifecycle records at the canonical Op lifecycle
-    # JSONL file (see
-    # `specify_cli.invocation.lifecycle.LIFECYCLE_LOG_RELATIVE_PATH`).
+    # FR-011/FR-012 / #843: lifecycle records, one file per record under
+    # `kitty-ops/lifecycle/` since #7003 (see
+    # `specify_cli.invocation.lifecycle.LIFECYCLE_RECORDS_RELATIVE_DIR`).
     # WP05 makes a `started` record a HARD requirement for any issued
     # public action.
-    lifecycle_path = lifecycle_log_path(project)
-    if not lifecycle_path.is_file():
+    lifecycle_path = lifecycle_records_dir(project)
+    record_files = sorted(lifecycle_path.glob("*.json")) if lifecycle_path.is_dir() else []
+    if not record_files:
         raise AssertionError(
             "WP05 / #843 / FR-011: "
-            f"`{lifecycle_path.relative_to(project)}` does not "
-            "exist after `next` issued an action. WP05 must write a "
+            f"`{lifecycle_path.relative_to(project)}` holds no record "
+            "after `next` issued an action. WP05 must write a "
             "`started` lifecycle record at issuance time. If this fires, "
             "the WP05 invocation lifecycle fix has regressed."
         )
 
     started: list[dict[str, Any]] = []
     completed_records: list[dict[str, Any]] = []
-    for line in lifecycle_path.read_text(encoding="utf-8").splitlines():
+    for line in (path.read_text(encoding="utf-8") for path in record_files):
         if not line.strip():
             continue
         record: dict[str, Any] = json.loads(line)
@@ -747,8 +748,8 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
     assert len(started) >= 1, (
         "WP05 / #843 / FR-011: at least one `started` profile-invocation "
         "lifecycle record is required after `next` issued an action; got 0.\n"
-        f"  lifecycle file: {lifecycle_path}\n"
-        f"  contents: {lifecycle_path.read_text(encoding='utf-8')!r}"
+        f"  lifecycle records: {lifecycle_path}\n"
+        f"  files: {[path.name for path in record_files]!r}"
     )
 
     # Tight regression-sensitive assertion: at least one record for this
@@ -768,8 +769,8 @@ def _run_next_and_assert_lifecycle(project: Path, run_cli: RunCli, mission_handl
         "FR-012 / #843: no `started` lifecycle record matches issued "
         f"step id {issued_step_id!r}.\n"
         f"  matching records: {matching_records!r}\n"
-        f"  lifecycle file: {lifecycle_path}\n"
-        f"  contents: {lifecycle_path.read_text(encoding='utf-8')!r}"
+        f"  lifecycle records: {lifecycle_path}\n"
+        f"  files: {[path.name for path in record_files]!r}"
     )
 
 

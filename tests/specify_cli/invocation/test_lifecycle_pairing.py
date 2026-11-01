@@ -26,6 +26,7 @@ from specify_cli.invocation.lifecycle import (
     find_orphans,
     group_by_action,
     lifecycle_log_path,
+    lifecycle_records_dir,
     make_canonical_action_id,
     read_lifecycle_records,
     write_paired_completion,
@@ -345,7 +346,7 @@ class TestCanonicalActionIdMatchesIssued:
         # rewriting at completion time.
         assert completion.canonical_action_id == started.canonical_action_id == canonical
 
-    def test_lifecycle_log_path_uses_kittify_events_dir(self, tmp_path: Path) -> None:
+    def test_lifecycle_log_path_names_the_legacy_log(self, tmp_path: Path) -> None:
         path = lifecycle_log_path(tmp_path)
         assert path == tmp_path / LIFECYCLE_LOG_RELATIVE_PATH
 
@@ -440,18 +441,20 @@ def test_compute_pairing_rate_handles_partial_pairing() -> None:
 def test_append_lifecycle_record_creates_parent_dir(tmp_path: Path) -> None:
     record = _started()
     target = tmp_path / "nested" / "project"
-    append_lifecycle_record(target, record)
-    log_path = lifecycle_log_path(target)
-    assert log_path.exists()
-    assert log_path.read_text(encoding="utf-8").strip() != ""
+    written = append_lifecycle_record(target, record)
+    assert written.parent == lifecycle_records_dir(target)
+    assert written.read_text(encoding="utf-8").strip() != ""
+    # #7003: the shared legacy log is never created again.
+    assert not lifecycle_log_path(target).exists()
 
 
 def test_read_lifecycle_records_skips_blank_and_corrupt_lines(tmp_path: Path) -> None:
-    """Robustness: doctor surface should not crash on malformed history."""
+    """Robustness: doctor surface should not crash on malformed legacy history."""
     record = _started()
-    append_lifecycle_record(tmp_path, record)
     log_path = lifecycle_log_path(tmp_path)
-    # Append blank and corrupt content.
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text(record.to_json_line() + "\n", encoding="utf-8")
+    # Append blank and corrupt content to the (read-only) legacy log.
     with log_path.open("a", encoding="utf-8") as fh:
         fh.write("\n")  # blank line
         fh.write("not json\n")  # corrupt
