@@ -88,7 +88,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude:opus:python-pedro:implementer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -98,7 +98,8 @@
       "last_transition_at": "2026-11-01T09:49:40.097585+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Oracle, mission-status/mission-write contract tests, scenario contract and corpus script read the pinned contract-bundles/contract-tools extras (bundled_schema/bundled_examples/bundled_path_item in _mission_status_payloads; load_contract_tools tools_root; corpus --tools-root). Targeted set: 1804 passed, 5 skipped (pre-existing), also with contracts/ moved aside except fixtures. Live corpus compare vs pinned service-v0.1.0-rc.1: compared 677 Missions: 678 rows equal, 0 rows not equal. Residuals (split-source assertions, port to spec-kitty-events): drift CHANGELOG.md assertion; project 'exactly one of x-source/x-derived' per property (now 'at least one'). ruff/format clean, no new mypy errors."
+        "Oracle, mission-status/mission-write contract tests, scenario contract and corpus script read the pinned contract-bundles/contract-tools extras (bundled_schema/bundled_examples/bundled_path_item in _mission_status_payloads; load_contract_tools tools_root; corpus --tools-root). Targeted set: 1804 passed, 5 skipped (pre-existing), also with contracts/ moved aside except fixtures. Live corpus compare vs pinned service-v0.1.0-rc.1: compared 677 Missions: 678 rows equal, 0 rows not equal. Residuals (split-source assertions, port to spec-kitty-events): drift CHANGELOG.md assertion; project 'exactly one of x-source/x-derived' per property (now 'at least one'). ruff/format clean, no new mypy errors.",
+        "Review cycle 1 folded: (1) project row8 restores the exact per-property provenance via EXPECTED_PROVENANCE (health = x-derived + inlined ProjectHealth x-source, symbol CompatibilityStatus asserted; others exactly one) with three new plants; (2) corpus script preflights the pinned contracts extra (this checkout's pin) before importing the oracle, exit 2 naming the extra and SERVICE_* code, no path, also with --tools-root; subprocess tests for --tools-root on an empty cache and a tools-only cache; (3) non_empty_examples at the reader-schema test, gate also sees a quoted contracts/tools path. Targeted set 1807 passed, 5 skipped (pre-existing), same with contracts/ moved aside except fixtures. ruff/format clean, mypy 61 = base. Residual kept: drift CHANGELOG.md assertion (port to spec-kitty-events)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
