@@ -25,14 +25,14 @@ exceptions:
     action: do_not_change
     reason: "ADR bodies are immutable history (C-003)"
   - path: "docs/plans/**"
-    action: do_not_change
-    reason: "Plans are immutable history (C-003)"
+    action: manual_review
+    reason: "Plans are immutable history (C-003); the only edit is one mechanical related: retarget (adr/3.x/README.md -> index.md), operator ruling 2026-11-01"
   - path: "docs/reports/**"
     action: do_not_change
     reason: "Reports are immutable history (C-003)"
   - path: "docs/archive/**"
     action: manual_review
-    reason: "Archived pages are immutable history (C-003); the only edit allowed is the mechanical link-target rewrite ADR 2026-10-31-1 D-7 sanctions, applied by relative_link_fixer through site/moves.yaml (README.md -> index.md)"
+    reason: "Archived pages are immutable history (C-003); the only edit allowed is the mechanical link-target rewrite ADR 2026-10-31-1 D-7 sanctions, applied by relative_link_fixer through site/moves.yaml (README.md -> index.md), plus five mechanical related: retargets to docs/architecture/index.md (operator ruling 2026-11-01)"
   - path: "docs/changelog/**"
     action: do_not_change
     reason: "The changelog is immutable history (C-003); new entries go in a fragment"

@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/adr/3.x/README.md
+- docs/adr/3.x/index.md
 - docs/development/page-inventory.yaml
 - docs/docfx.json
 - docs/llms.txt
