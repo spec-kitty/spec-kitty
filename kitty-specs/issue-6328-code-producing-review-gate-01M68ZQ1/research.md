@@ -1,7 +1,6 @@
 # Research: #6328 — enforce the implementation-commit review prerequisite from `code_producing`
 
-Grounding performed on `origin/main` at `dfe9efb0e8` in the mission clone
-`/home/exedev/work/sk-6328`, before any planning artifact was written.
+Grounding performed on `origin/main` at `dfe9efb0e8` in the mission clone, before any planning artifact was written.
 
 ## Decision 1 — the defect reproduces, and at exactly one site
 
