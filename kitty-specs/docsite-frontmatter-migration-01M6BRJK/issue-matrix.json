@@ -83,6 +83,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#6937": {
+      "evidence_ref": "Later #6100 step; cited for scope boundaries only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
