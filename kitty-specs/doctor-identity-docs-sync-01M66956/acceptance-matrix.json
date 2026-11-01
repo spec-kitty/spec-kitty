@@ -1,0 +1,49 @@
+{
+  "mission_slug": "doctor-identity-docs-sync-01M66956",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_mission_id_migration_page.py: test_page_documents_exactly_the_live_states \u2014 page state list == set(IDENTITY_STATES)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T12:07:37.456498+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_mission_id_migration_page.py: sample key/shape tests vs _build_identity_json + IdentityState.to_dict; 8/8 green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T12:07:40.821135+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_mission_id_migration_page.py: backfill transcript + stale-token tests; fictional transcript and conflict-gate prose removed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T12:07:44.233205+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_mission_id_migration_page.py: red-first: 6/6 failed pre-fix recorded in WP01 history; 8/8 pass post-fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T12:07:47.785970+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
