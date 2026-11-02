@@ -161,13 +161,16 @@ def safe_mission_slug(slug: str | None, fallback: str) -> str:
     return slug
 
 
-def _git_ceiling_dirs() -> frozenset[Path]:
-    """The resolved ``GIT_CEILING_DIRECTORIES`` entries both root walks stop at.
+def git_ceiling_dirs() -> frozenset[Path]:
+    """The resolved ``GIT_CEILING_DIRECTORIES`` entries the root walks stop at.
 
-    One reading of git's discovery ceiling for :func:`locate_project_root` and
-    :func:`resolve_canonical_root`, so the two root authorities agree on where a
-    walk ends (#7022). A listed directory is still examined; the walk never
-    continues above it.
+    One reading of the discovery ceiling for :func:`locate_project_root`,
+    :func:`resolve_canonical_root` and ``task_utils.support.find_repo_root``, so
+    the root authorities agree on where a walk ends (#7022). A listed directory
+    is still examined and the walk never continues above it. That is one step
+    looser than git, which does not examine a ceiling directory unless the
+    search starts there; every entry is also resolved, where git skips relative
+    entries and leaves those after an empty entry unresolved.
     """
     return frozenset(
         Path(part).resolve()
@@ -240,8 +243,9 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
             would otherwise flip this walk's verdict non-deterministically
             (same class of bug as #130/#139's ``_find_project_root``).
             ``GIT_CEILING_DIRECTORIES`` bounds the walk the same way, with
-            :func:`resolve_canonical_root`'s semantics: a listed directory is
-            examined, nothing above it is (#7022).
+            :func:`resolve_canonical_root`'s semantics (see
+            :func:`git_ceiling_dirs`): a listed directory is examined, nothing
+            above it is (#7022).
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -271,7 +275,7 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
     boundary = stop.resolve() if stop is not None else None
-    ceilings = _git_ceiling_dirs()
+    ceilings = git_ceiling_dirs()
 
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
@@ -420,8 +424,8 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
        Otherwise keep walking so an enclosing repo is still found if one exists.
     4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
 
-    ``GIT_CEILING_DIRECTORIES`` uses Git's ceiling semantics: a listed ancestor
-    is still eligible, but discovery never continues above it. This keeps
+    ``GIT_CEILING_DIRECTORIES`` bounds discovery (see :func:`git_ceiling_dirs`):
+    a listed ancestor is still eligible, but discovery never continues above it. This keeps
     hermetic fixtures isolated from an ambient repository above their temporary
     root.
 
@@ -435,7 +439,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
         WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
     """
     start = (cwd or Path.cwd()).resolve()
-    ceilings = _git_ceiling_dirs()
+    ceilings = git_ceiling_dirs()
 
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
@@ -1204,6 +1208,7 @@ __all__ = [
     "lint_report_path",
     "is_worktree_context",
     "get_main_repo_root",
+    "git_ceiling_dirs",
     "resolve_canonical_root",
     "WorkspaceRootNotFound",
     "get_status_read_root",
