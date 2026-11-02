@@ -156,6 +156,13 @@ _COLLECT_OK_CODES: frozenset[int] = frozenset(
     {int(pytest.ExitCode.OK), int(pytest.ExitCode.NO_TESTS_COLLECTED)},
 )
 
+# Wall-clock ceiling of ONE whole-repo collection subprocess. This is the authority for how long a
+# legitimate collection may take: the universe it produces is ~55k records and a cold run costs
+# 90-414 s on a shared machine (#7052). Anything that puts a budget on a collection (a test whose
+# fixture setup may collect, say) derives it from this constant instead of repeating the number,
+# so a per-test budget can never under-cut the collector and report a real collection as a hang.
+COLLECT_TIMEOUT_S = 900
+
 # Reported (not enforced) selection-overlap threshold: >=2 gates = duplicate.
 _DUPLICATE_GATE_THRESHOLD = 2
 
@@ -2012,7 +2019,7 @@ def _collect_universe_fresh(repo: Path) -> list[TestRecord]:
             env=env,
             capture_output=True,
             text=True,
-            timeout=900,
+            timeout=COLLECT_TIMEOUT_S,
             check=False,
         )
         if result.returncode not in _COLLECT_OK_CODES or not dump.exists():
@@ -2087,7 +2094,7 @@ def collect_job_nodeids(gate: Gate, repo_root: Path | None = None) -> list[str]:
             gate.partition,
         ]
     result = subprocess.run(
-        args, cwd=repo, env=env, capture_output=True, text=True, timeout=900, check=False,
+        args, cwd=repo, env=env, capture_output=True, text=True, timeout=COLLECT_TIMEOUT_S, check=False,
     )
     if result.returncode not in _COLLECT_OK_CODES:
         raise RuntimeError(

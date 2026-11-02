@@ -32,8 +32,14 @@ vacuous. The FR-010 red-first is recorded against the pre-Mission workflows with
 
 from __future__ import annotations
 
+import ast
 import collections
+import inspect
+import sys
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -48,6 +54,38 @@ _WINDOWS = "windows-latest"
 _BATTERY = lu.BATTERY_FAMILY
 _NO_FILES: frozenset[str] = frozenset()
 _FINDINGS_SHOWN = 10
+
+# ---------------------------------------------------------------------------
+# The universe fixture's per-test budget (#7052)
+# ---------------------------------------------------------------------------
+#
+# ``universe`` collects the whole test tree. On a store hit that costs a stored-record read, but
+# when the store is bypassed (dirty checkout, unsupported platform, no record, an unreadable
+# operator env file) the same fixture runs the real collection inside its own setup: 90-414 s on a
+# shared machine, 247.7 s on the machine that filed #7052. The suite's per-test timeout is the
+# 240 s runaway-hang backstop in ``pytest.ini``, so that budget reported a legitimate collection as
+# a hang and 16 tests errored at once.
+#
+# The fix is the response ``pytest.ini`` itself prescribes ("If a legitimate test needs longer,
+# mark it with @pytest.mark.timeout(<seconds>)"): a budget derived from the collector's own
+# ceiling, applied only where the collection cost is. Deriving it means pytest-timeout can never
+# under-cut the collector and misreport a slow collection as a hang (#7052).
+#
+# pytest-timeout installs its timer in ``pytest_runtest_protocol`` unless ``timeout_func_only`` is
+# set (``pytest.ini`` leaves it unset), so a marker on an item ALSO bounds the module-scoped
+# fixture setup it triggers. ``test_pytest_ini_timeout_default.py`` pins the sibling ini keys.
+_UNIVERSE_FIXTURE = "universe"
+# Measured in-setup work that runs beside the collection (per-job selection + pairwise overlap over
+# ~55k records, 20 s warm here) plus interpreter/import slack.
+_UNIVERSE_TIMEOUT_ALLOWANCE_S = 300
+_UNIVERSE_TIMEOUT_S = gc.COLLECT_TIMEOUT_S + _UNIVERSE_TIMEOUT_ALLOWANCE_S
+# The 8 tests whose closure reaches ``universe`` today; a floor, not an exact count, so adding one
+# more test does not require an edit while deleting them all fails the guard's non-vacuity check.
+_MIN_UNIVERSE_CONSUMING_TESTS = 8
+# The universe-carrying fixtures this module owns; a rename must update the guard deliberately.
+_UNIVERSE_CARRYING_FIXTURES = frozenset({_UNIVERSE_FIXTURE, "records", "selected", "overlaps"})
+
+_COLLECTS_UNIVERSE = pytest.mark.timeout(_UNIVERSE_TIMEOUT_S)
 
 # Ratchet constant: may only be lowered, never raised (shrink-only).
 _ALLOWLIST_CEILING = 4
@@ -184,6 +222,7 @@ def _job(jobs: list[lu.LiveJob], workflow: str, job: str, leg: str | None = None
 # ---------------------------------------------------------------------------
 
 
+@_COLLECTS_UNIVERSE
 def test_no_per_change_overlap_outside_the_allowlist(
     jobs: list[lu.LiveJob],
     overlaps: lu.Overlaps,
@@ -197,6 +236,7 @@ def test_no_per_change_overlap_outside_the_allowlist(
     )
 
 
+@_COLLECTS_UNIVERSE
 def test_allowlist_entries_are_reasoned_live_and_capped(
     jobs: list[lu.LiveJob],
     overlaps: lu.Overlaps,
@@ -218,6 +258,7 @@ def test_allowlist_entries_are_reasoned_live_and_capped(
     )
 
 
+@_COLLECTS_UNIVERSE
 def test_per_change_job_set_is_non_vacuous(jobs: list[lu.LiveJob], selected: dict[lu.JobKey, frozenset[str]]) -> None:
     """The relation ranges over real jobs: expanded module rows, the battery, Packs, all tiered."""
     registry_rows = [module for module, _ in lu.module_rows(gc.WORKFLOWS_DIR.parent / lu.REGISTRY_FILE_NAME)]
@@ -232,6 +273,7 @@ def test_per_change_job_set_is_non_vacuous(jobs: list[lu.LiveJob], selected: dic
     assert not empty, f"per-change jobs selecting no test (a vacuous job hides drift): {empty}"
 
 
+@_COLLECTS_UNIVERSE
 @pytest.mark.parametrize(("workflow", "job"), _ANCHOR_JOBS, ids=[f"{w}::{j}" for w, j in _ANCHOR_JOBS])
 def test_modelled_selection_matches_real_collect_for_anchor_jobs(
     workflow: str,
@@ -277,6 +319,7 @@ def _pair_nodes(overlaps: lu.Overlaps, label_a: str, label_b: str) -> frozenset[
     return frozenset().union(*(nodes for (first, second), nodes in overlaps.items() if {lu.label_of(first), lu.label_of(second)} == {label_a, label_b}))
 
 
+@_COLLECTS_UNIVERSE
 def test_planted_overlap_outside_allowlist_is_reported(
     jobs: list[lu.LiveJob],
     universe: list[gc.TestRecord],
@@ -303,6 +346,7 @@ def test_planted_overlap_outside_allowlist_is_reported(
     assert _pair_nodes(leaked, _PLANTED_LABEL, _CLI_ROW_LABEL), "a scoped allowance swallowed an overlap outside its scope"
 
 
+@_COLLECTS_UNIVERSE
 def test_retired_router_duplicate_shape_is_reported(
     tmp_path: Path,
     jobs: list[lu.LiveJob],
@@ -323,6 +367,7 @@ def test_retired_router_duplicate_shape_is_reported(
     assert _pair_nodes(flagged, "ci-router.yml::tests-cli", _CLI_ROW_LABEL), "the retired router duplicate shape was not reported against the cli row"
 
 
+@_COLLECTS_UNIVERSE
 def test_stale_allowance_is_reported(jobs: list[lu.LiveJob], overlaps: lu.Overlaps, records: dict[str, gc.TestRecord]) -> None:
     """An allowance naming a pair that never overlaps covers nothing, so it is stale."""
     ghost = lu.OverlapAllowance("ci-router.yml::terminology", _BATTERY, "corpus", _NO_FILES, "ghost control", "#5510")
@@ -343,6 +388,7 @@ _BATTERY_HEAVY_LABEL = "ci-router.yml::architectural-heavy[1/2]"
     ],
     ids=["heavy-vs-family", "heavy-vs-fast", "heavy-vs-heavy", "family-vs-fast"],
 )
+@_COLLECTS_UNIVERSE
 def test_battery_internal_allowance_is_rejected(
     job_a: str,
     job_b_family: str,
@@ -416,3 +462,157 @@ def test_untiered_per_change_job_fails_closed() -> None:
     unresolved = gc.Gate("synthetic", "matrixed", None, paths=["tests/synthetic/"], runs_on=None)
     with pytest.raises(ValueError, match="no single OS-family tier"):
         lu.group_jobs([unresolved], [])
+
+
+# ---------------------------------------------------------------------------
+# The collection budget itself (#7052)
+# ---------------------------------------------------------------------------
+
+
+def _fixture_dependencies(namespace: Mapping[str, Any]) -> dict[str, frozenset[str]]:
+    """``{fixture name: its own parameter names}`` for every fixture defined in *namespace*.
+
+    pytest exposes a fixture as a ``FixtureFunctionDefinition`` wrapper whose signature is the
+    fixture function's own, and marks it with ``_fixture_function_marker``. Both facts are
+    internal to pytest, so the probe is defensive: a non-fixture is simply absent from the map and
+    the guard's non-vacuity assertions say so.
+    """
+    dependencies: dict[str, frozenset[str]] = {}
+    for name, obj in namespace.items():
+        if getattr(obj, "_fixture_function_marker", None) is None:
+            continue
+        try:
+            parameters = inspect.signature(obj).parameters
+        except (TypeError, ValueError):  # pragma: no cover - a builtin-like fixture
+            continue
+        dependencies[name] = frozenset(parameters)
+    return dependencies
+
+
+def _universe_reaching_fixtures(dependencies: Mapping[str, frozenset[str]], seed: str = _UNIVERSE_FIXTURE) -> frozenset[str]:
+    """*seed* plus every fixture that reaches it, transitively, through its own parameters.
+
+    The direction matters: ``records`` requests ``universe``, so a test requesting ``records``
+    collects the universe even though ``universe`` has no parameters of its own.
+    """
+    reaching = {seed}
+    grew = True
+    while grew:
+        grew = False
+        for name, parameters in dependencies.items():
+            if name not in reaching and parameters & reaching:
+                reaching.add(name)
+                grew = True
+    return frozenset(reaching)
+
+
+def _requested_fixtures(func: Callable[..., Any]) -> frozenset[str]:
+    return frozenset(inspect.signature(func).parameters)
+
+
+def _timeout_budget(func: Callable[..., Any]) -> float | None:
+    """The effective ``pytest.mark.timeout`` value of *func*, or ``None`` when it inherits the ini default."""
+    for marker in (*pytestmark, *getattr(func, "pytestmark", ())):
+        if marker.name == "timeout" and marker.args:
+            return marker.args[0]
+    return None
+
+
+def _consumer_names(dependencies: Mapping[str, frozenset[str]], tests: Mapping[str, tuple[frozenset[str], float | None]]) -> list[str]:
+    """Tests whose requested fixtures reach the universe, sorted."""
+    reaching = _universe_reaching_fixtures(dependencies)
+    return sorted(name for name, (requested, _budget) in tests.items() if requested & reaching)
+
+
+def _budget_offenders(dependencies: Mapping[str, frozenset[str]], tests: Mapping[str, tuple[frozenset[str], float | None]]) -> list[str]:
+    """Universe consumers whose budget is absent or below the collection ceiling, sorted.
+
+    A budget at the ceiling is accepted: the ceiling is how long the collector may take, so a
+    budget that equals it is honest. Only a budget *below* it under-cuts the collector.
+    """
+    reaching = _universe_reaching_fixtures(dependencies)
+    return sorted(
+        name
+        for name, (requested, budget) in tests.items()
+        if requested & reaching and (budget is None or budget < gc.COLLECT_TIMEOUT_S)
+    )
+
+
+def _module_tests(module: ModuleType) -> dict[str, tuple[frozenset[str], float | None]]:
+    return {
+        name: (_requested_fixtures(func), _timeout_budget(func))
+        for name, func in vars(module).items()
+        if name.startswith("test_") and inspect.isfunction(func)
+    }
+
+
+def test_universe_consumers_carry_a_collection_sized_timeout_budget() -> None:
+    """#7052: a test whose setup may collect the universe must not inherit the 240 s backstop."""
+    module = sys.modules[__name__]
+    dependencies = _fixture_dependencies(vars(module))
+    assert _UNIVERSE_FIXTURE in dependencies, "the universe fixture is not discoverable, so this guard proves nothing"
+    reaching = _universe_reaching_fixtures(dependencies)
+    missing_fixtures = sorted(_UNIVERSE_CARRYING_FIXTURES - reaching)
+    assert not missing_fixtures, f"these fixtures no longer reach the universe: {missing_fixtures}; update _UNIVERSE_CARRYING_FIXTURES deliberately"
+
+    tests = _module_tests(module)
+    consumers = _consumer_names(dependencies, tests)
+    assert len(consumers) >= _MIN_UNIVERSE_CONSUMING_TESTS, (
+        f"only {len(consumers)} test(s) are classified as universe consumers (floor {_MIN_UNIVERSE_CONSUMING_TESTS}); "
+        "the classifier stopped seeing them and this guard would pass vacuously"
+    )
+
+    offenders = _budget_offenders(dependencies, tests)
+    assert not offenders, (
+        "these tests may collect the whole test universe in their setup but carry no per-test budget of at least "
+        f"gc.COLLECT_TIMEOUT_S ({gc.COLLECT_TIMEOUT_S} s), so a store bypass (dirty checkout, no record) turns a "
+        f"legitimate collection into 'Failed: Timeout' (#7052): {offenders}. Decorate them with @_COLLECTS_UNIVERSE."
+    )
+
+    exempt = sorted(name for name, (requested, budget) in tests.items() if not (requested & reaching) and budget is None)
+    assert exempt, (
+        "every test in this module carries a timeout budget, so the marker was applied blanket: that raises the hang "
+        "backstop on tests that never collect (#7052). Keep the marker on the universe consumers only."
+    )
+
+
+def test_timeout_budget_guard_bites_on_a_markerless_consumer() -> None:
+    """Positive control: the same classifier reports an unbudgeted consumer and clears a budgeted one."""
+    dependencies: dict[str, frozenset[str]] = {
+        "universe": frozenset(),
+        "records": frozenset({"universe"}),
+        "jobs": frozenset(),
+    }
+    tests: dict[str, tuple[frozenset[str], float | None]] = {
+        "test_markerless": (frozenset({"records"}), None),
+        "test_below_ceiling": (frozenset({_UNIVERSE_FIXTURE}), gc.COLLECT_TIMEOUT_S - 1),
+        "test_at_ceiling": (frozenset({_UNIVERSE_FIXTURE}), gc.COLLECT_TIMEOUT_S),
+        "test_unrelated": (frozenset({"jobs"}), None),
+    }
+    assert _consumer_names(dependencies, tests) == ["test_at_ceiling", "test_below_ceiling", "test_markerless"]
+    assert _budget_offenders(dependencies, tests) == ["test_below_ceiling", "test_markerless"]
+
+
+def _bare_collection_timeouts(source: str) -> list[str]:
+    """``"line:column timeout=<n>"`` for every call in *source* passing an integer-literal ``timeout=``."""
+    problems = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        for keyword in node.keywords:
+            value = keyword.value
+            if keyword.arg == "timeout" and isinstance(value, ast.Constant) and isinstance(value.value, int):
+                problems.append(f"{node.lineno}:{node.col_offset} timeout={value.value}")
+    return problems
+
+
+def test_collection_subprocesses_use_the_named_ceiling() -> None:
+    """The collection ceiling is one named constant, never a literal repeated at a call site."""
+    source = Path(gc.__file__).read_text(encoding="utf-8")
+    offenders = _bare_collection_timeouts(source)
+    assert not offenders, (
+        f"{Path(gc.__file__).name} bounds a collection with a bare numeric timeout at {offenders}; "
+        "pass gc.COLLECT_TIMEOUT_S so consumer budgets can derive from the same authority (#7052)"
+    )
+    # Positive control: the scanner sees the shape it forbids.
+    assert _bare_collection_timeouts("subprocess.run(args, timeout=900)") == ["1:0 timeout=900"]
