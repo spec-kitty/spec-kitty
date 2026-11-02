@@ -5,13 +5,13 @@
       "accept_commit": "c8cd90b284dfc75bad02fce5a4999857e336c3af",
       "acceptance_mode": "pr",
       "accepted_at": "2026-11-02T19:24:12.461284+00:00",
-      "accepted_by": "exedev",
+      "accepted_by": "Ivan-Melck",
       "accepted_from_commit": "d2577ebb7e3ba1481d62accc61a0f5b5a5a1bd80"
     }
   ],
   "acceptance_mode": "pr",
   "accepted_at": "2026-11-02T19:24:12.461284+00:00",
-  "accepted_by": "exedev",
+  "accepted_by": "Ivan-Melck",
   "accepted_from_commit": "d2577ebb7e3ba1481d62accc61a0f5b5a5a1bd80",
   "baseline_merge_commit": "494bffdee4fbdcac73a516008dfaeae2928e7d52",
   "created_at": "2026-11-02T16:51:34.311190+00:00",
