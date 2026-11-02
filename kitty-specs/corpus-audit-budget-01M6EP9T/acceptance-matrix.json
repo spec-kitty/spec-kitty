@@ -2,37 +2,37 @@
   "mission_slug": "corpus-audit-budget-01M6EP9T",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "One bounded hosted run of the unchanged corpus test records source, runner, all eleven audit phases and the final outcome without retries.",
+      "proof_type": "hosted_diagnostic",
+      "evidence": "https://github.com/spec-kitty/spec-kitty/actions/runs/41501746918 ; attempt1; artifact13170455644; eleven complete audits,4inventories,2gates; research.md and traces/final-integrity-review.md",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:41:04.535334+00:00",
+      "notes": "257.019s retained-files protocol window; all phases complete; the 485.911s session total is not the budget input."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "The independently calibrated function-local budget lets the complete contract pass in the normal hosted upgrade shard without changing shared or inner limits.",
+      "proof_type": "hosted_upgrade_shard",
+      "evidence": "https://github.com/spec-kitty/spec-kitty/actions/runs/41506010620/job/125485798815 ;398passed; exactnode239.505sJUnit with450smarker andnormalcleanup; independentbudgetreview in research.md",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:41:09.193697+00:00",
+      "notes": "450s marker; normal shard398passed; exact-node JUnit239.505s, cleanup1.27s; not a p95 estimate."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "All audits, memberships, inventories, gates, corruptions and healthy controls remain effective, with independent test-integrity review.",
+      "proof_type": "behavioral_contract_and_independent_review",
+      "evidence": "https://github.com/spec-kitty/spec-kitty/pull/7096#issuecomment-6586030681 ; unchanged11audits/4inventories/2gates/4attackcontrolpairs; ASTproof; normalupgrade398passed; traces/final-integrity-review.md",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:41:13.390899+00:00",
+      "notes": "Reviewer-renata APPROVE PATCH and KEEP; whole-module AST equality after removing the single timeout decorator. Runtime acceptance is separately gated."
     }
   ],
   "negative_invariants": []
