@@ -121,7 +121,7 @@ jobs:
       docs: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
       # Docsite group (#6930): non-src, like docs above; gates only `docs-site` (the doc-kitty build).
       # Never in the unmatched loop.
-      docs_site: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs_site }}
+      docs_site: ${{ inputs.mode == 'full' && 'true' || steps.filter.outputs.docs_site }}
       corpus: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
       e2e: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
       # CI-infrastructure group (spec-kitty#4386): non-src, like docs/corpus/e2e

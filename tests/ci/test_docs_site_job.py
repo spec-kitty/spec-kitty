@@ -100,10 +100,10 @@ def test_the_group_is_not_in_the_fail_closed_unmatched_union() -> None:
     assert f"steps.filter.outputs.{GROUP}" not in unmatched["run"]
 
 
-def test_the_group_output_folds_full_mode_like_every_other_group() -> None:
+def test_the_group_output_folds_full_mode_but_not_the_unmatched_union() -> None:
     outputs = _workflow()["jobs"]["changes"]["outputs"]
 
-    assert outputs[GROUP] == f"${{{{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.{GROUP} }}}}"
+    assert outputs[GROUP] == f"${{{{ inputs.mode == 'full' && 'true' || steps.filter.outputs.{GROUP} }}}}"
 
 
 def test_scrub_documentation_copy_equals_the_router_group() -> None:
