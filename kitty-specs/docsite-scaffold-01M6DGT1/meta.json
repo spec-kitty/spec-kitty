@@ -1,0 +1,36 @@
+{
+  "accept_commit": "7a2d9fa1d9e6e309b8fbd16c4908527bbdfdb718",
+  "acceptance_history": [
+    {
+      "accept_commit": "7a2d9fa1d9e6e309b8fbd16c4908527bbdfdb718",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-02T08:38:22.214234+00:00",
+      "accepted_by": "claude::implementer-ivan",
+      "accepted_from_commit": "71f6574101a57cc3c9ffb9500878bdf0dc71b059"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-02T08:38:22.214234+00:00",
+  "accepted_by": "claude::implementer-ivan",
+  "accepted_from_commit": "71f6574101a57cc3c9ffb9500878bdf0dc71b059",
+  "baseline_merge_commit": "60ad69206bf3b82327cf4ac0b883ca1f833bc88c",
+  "contracts": "none",
+  "contracts_rationale": "The Mission defines no service or API interface: it adds a static-site sub-project, make targets and a CI job. The shapes it consumes are doc-kitty's published config and section-registry contract (ADR 2026-10-31-1 D-1, D-2, D-8).",
+  "created_at": "2026-11-02T06:58:05.819777+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite scaffold, pinned doc-kitty and the docs-site PR build job",
+  "merged_at": "2026-11-02T08:39:01.346677+00:00",
+  "merged_commit": "60ad69206bf3b82327cf4ac0b883ca1f833bc88c",
+  "mid8": "01M6DGT1",
+  "mission_id": "01M6DGT1J6CRK7YSBA2ERGJ96C",
+  "mission_number": 247,
+  "mission_slug": "docsite-scaffold-01M6DGT1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Epic #6100 moves docs.spec-kitty.ai from DocFX to doc-kitty (ADR 2026-10-31-1). The frontmatter now builds (#6929). This mission adds the site/ Astro project that pins doc-kitty by commit, make targets to build and bump it, docs/_meta/sections.yaml, and a docs-site job in ci-router.yml that builds the full published corpus on every docs/site pull request and uploads site/dist. DocFX keeps deploying; the job is not yet required (#6937).",
+  "purpose_tldr": "Start the doc-kitty parallel run: a site/ project that builds the published docs on every docs/site pull request, while DocFX keeps deploying.",
+  "slug": "docsite-scaffold-01M6DGT1",
+  "status_phase": "1",
+  "target_branch": "issue-6930-docsite-scaffold",
+  "topology": "single_branch"
+}

@@ -1,0 +1,6 @@
+# Approach trace: docsite-scaffold-01M6DGT1
+
+Append-only, newest last.
+
+- 2026-11-02 — Grounded first (research/code-grounding.md). Three WPs mirroring the plan's concerns: site project + single authority (WP01), make targets + bump helper (WP02), router job (WP03). ATDD: each WP commits its failing acceptance tests before the implementation.
+- 2026-11-02 — Close-out assessment. All three WPs approved by an independent reviewer (`reviewer-renata`) and consolidated locally. Two review rejections caught real defects the implementer's evidence hid: WP01's lockfile named an SSH repo (a sandbox `insteadOf` rewrite masked it), and WP03's "not in `needs:`" left the job blocking through router-gate's every-row classification and the run conclusion (DD-09, DD-10). What worked: grounding first, drafting the next WP in the scratchpad while the previous one was reviewed, red commits before every fix. What to carry forward: (1) claim with a profiled `--agent tool::profile` from the first claim, or review independence cannot be proven; (2) a "no credential" install proof must unset `url.*.insteadOf` as well as SSH; (3) "not required" for a router job means both halves — router-gate's row and the run conclusion. History is kept unsquashed and unrebased: the approval `lane_head` stamps in the status log name these commits.
