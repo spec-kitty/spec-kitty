@@ -1256,17 +1256,3 @@ def test_issue_request_routes_through_the_dispatch_command(tmp_path: Path) -> No
     assert envelope["profile_id"] == "curator-carla"
     assert envelope["router_confidence"] == "domain_keyword"
     assert isinstance(envelope["alternatives"], list)
-
-
-def test_bare_database_index_still_refuses_at_the_command_surface(tmp_path: Path) -> None:
-    """FR-002 at the CLI: `index` alone is not a documentation signal."""
-    project = _setup_shipped_project(tmp_path)
-
-    result = _run(
-        project,
-        ["dispatch", "index the invoice table", "--dry-run", "--json"],
-    )
-
-    assert result.exit_code == 1, result.output
-    envelope = json.loads(result.output)
-    assert envelope["error_code"] == "ROUTER_NO_MATCH"

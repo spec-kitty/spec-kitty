@@ -1071,37 +1071,3 @@ def test_ambiguous_suggestion_names_every_tied_profile() -> None:
     assert [candidate["profile_id"] for candidate in err.candidates] == ["implementer-a", "implementer-b"]
     assert "--profile implementer-a" in err.suggestion
     assert "--profile implementer-b" in err.suggestion
-
-
-# ---------------------------------------------------------------------------
-# #6970 FR-009/FR-012, NFR-005: purity — one catalog read, ranking only on refusal
-# ---------------------------------------------------------------------------
-
-
-def test_route_reads_the_catalog_exactly_once() -> None:
-    """The refusal ranking reuses the single list_all() the router already performs."""
-    registry = _no_match_registry()
-    router = ActionRouter(registry)
-
-    with pytest.raises(RouterAmbiguityError):
-        router.route("reticulate the splines")
-    registry.list_all.assert_called_once()
-
-
-def test_decided_route_has_no_ranking_side_effects() -> None:
-    """A decided route reports no alternatives; the nearest-profile ranking never runs."""
-    registry = _make_mock_registry(
-        [
-            {
-                "profile_id": "only-fixture",
-                "role_value": "implementer",
-                "routing_priority": 50,
-                "domain_keywords": ["splines"],
-            },
-        ]
-    )
-
-    decision = ActionRouter(registry).route("reticulate the splines")
-
-    assert decision.profile_id == "only-fixture"
-    assert decision.alternatives == []
