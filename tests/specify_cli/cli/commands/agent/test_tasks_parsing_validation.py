@@ -491,6 +491,19 @@ def test_issue_matrix_approval_blocker_names_schema_drift_column(tmp_path: Path)
     assert "Missing rows" not in blocker
 
 
+def test_zero_row_structural_failure_does_not_claim_every_row_has_a_verdict(tmp_path: Path) -> None:
+    """A matrix that parsed no rows (schema drift) must not say "every recorded row carries a verdict"."""
+    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
+    _write_malformed_issue_matrix(feature_dir)
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "Mandatory column(s) missing: issue" in blocker
+    assert "has validation errors" in blocker
+    assert "every recorded row carries a verdict" not in blocker
+
+
 def test_issue_matrix_approval_blocker_keeps_missing_rows_when_parsed(tmp_path: Path) -> None:
     """FR-007 (#2555.5), T018(b) preservation branch: when the header is
     well-formed and rows actually parse, a genuinely row-incomplete matrix
