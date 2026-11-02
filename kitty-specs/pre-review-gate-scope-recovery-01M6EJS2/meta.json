@@ -12,5 +12,7 @@
   "purpose_tldr": "pre review gate scope recovery",
   "slug": "pre-review-gate-scope-recovery-01M6EJS2",
   "target_branch": "main",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-02T17:01:42.278333+00:00"
 }
