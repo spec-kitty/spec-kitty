@@ -121,6 +121,9 @@ def _init_project(root: Path, *, version: str = "1.0.0a1", up_to_date: bool = Fa
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+    # No background `git maintenance run --auto --detach` after commits: it can
+    # write under .git/objects while a test compares filesystem snapshots (#4113).
+    subprocess.run(["git", "config", "maintenance.auto", "false"], cwd=root, check=True)
     subprocess.run(["git", "add", "-A"], cwd=root, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=root, check=True)
 
