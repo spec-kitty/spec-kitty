@@ -891,7 +891,6 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             repo_root=repo_root,
             owned=owned,
             analysis_currency=ctx.analysis_currency,
-            run_dir=ctx.run_dir,
         )
         if guard_failures:
             return _dn_reissue_step_decision(ctx, current_step_id, guard_failures)
