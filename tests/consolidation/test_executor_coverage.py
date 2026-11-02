@@ -865,6 +865,21 @@ def test_phase_push_publishes_the_target_branch_to_origin(tmp_path: Path) -> Non
     assert remote_heads == f"refs/heads/main {_git(repo, 'rev-parse', 'main')}"
 
 
+def test_cleanup_push_failure_only_warns_and_skips_when_nothing_new(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#6450: the post-cleanup push never raises, and does nothing when cleanup added no commit."""
+    run = _make_run(tmp_path, push=True)
+    with (
+        patch.object(phase_finalize, "has_remote", return_value=True),
+        patch_executor_family("run_command", return_value=(1, "", "rejected")) as cmd_mock,
+        patch.object(phase_finalize, "_resolve_ref_sha", return_value="tip-after"),
+    ):
+        ex._phase_push_cleanup_commits(run, "tip-before")  # must not raise
+        assert cmd_mock.call_count == 1
+        assert "were not pushed" in capsys.readouterr().out
+        ex._phase_push_cleanup_commits(run, "tip-after")  # unchanged tip: no second push
+        assert cmd_mock.call_count == 1
+
+
 def test_phase_push_failure_with_linear_history_hint_exits(tmp_path: Path) -> None:
     run = _make_run(tmp_path, push=True)
     with (

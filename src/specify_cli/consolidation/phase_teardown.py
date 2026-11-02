@@ -29,7 +29,12 @@ from kernel.git import changed_paths as git_changed_paths
 from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
-from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
+from specify_cli.git.commit_helpers import (
+    ProtectedBranchCommitError,
+    SafeCommitBackstopError,
+    SafeCommitError,
+    SafeCommitRecoveryFailed,
+)
 from specify_cli.git.ref_advance import (
     RefDeleteError,
     RefDeleteMismatchError,
@@ -77,6 +82,10 @@ from specify_cli.consolidation.run_state import (
 )
 
 
+# What ``commit_merge_bookkeeping`` (via ``safe_commit``) raises when a commit cannot land.
+_BOOKKEEPING_COMMIT_ERRORS = (SafeCommitError, SafeCommitBackstopError, ProtectedBranchCommitError, GitCommandError, OSError)
+
+
 def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> None:
     """issue #3086: clear the coordination marker once the coord branch is gone.
 
@@ -96,18 +105,11 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     inventing its own copy of the pop-``coordination_branch`` / pop-``topology``
     / set-``flattened`` mutation set.
 
-    **Known residual (T054, verdict-seam-write-unification-01KZ9Q35 WP10):**
-    this flatten (and its bookkeeping commit) runs in
-    ``_phase_cleanup_worktrees_and_branches``, which executes AFTER
-    ``_phase_push``. On a ``spec-kitty consolidate --push``, the flatten bookkeeping
-    commit therefore lands LOCAL-ONLY -- it is never pushed to origin, so
-    origin/target keeps the stale ``coordination_branch`` key even though the
-    local target branch is correctly flattened. Verified as a real, pre-existing
-    ordering gap (not introduced or regressed by WP10's convergence); fixing it
-    would mean either re-ordering the two phases or pushing a second time after
-    cleanup, both out of WP10's scope (a lane-owned convergence WP, not a merge
-    phase-ordering change) -- tracked as a follow-up rather than silently
-    expanded into here.
+    **Publishing.** This flatten (and its bookkeeping commit) runs in
+    ``_phase_cleanup_worktrees_and_branches``, AFTER ``_phase_push``; on a
+    ``--push`` run the executor therefore pushes once more after cleanup
+    (``_phase_push_cleanup_commits``, warn-only), so the flatten commit is not
+    left local-only.
 
     Placement & ordering. This lives in the ``delete_branch`` gate, co-located
     with the branch deletion, so the marker is cleared **iff** the branch it
@@ -858,7 +860,9 @@ def _commit_tombstoned_workspace_contexts(run: _MergeRunState, tombstoned: list[
     means no commit at all.
 
     A failure here must not fail an already-landed merge; it is reported and
-    the run keeps its existing teardown behaviour.
+    the run keeps its existing teardown behaviour. Publishing the commit on a
+    ``--push`` run is not done here: ``_phase_push_cleanup_commits`` pushes once
+    after the whole cleanup phase, warn-only.
     """
     if not tombstoned:
         return
@@ -875,19 +879,11 @@ def _commit_tombstoned_workspace_contexts(run: _MergeRunState, tombstoned: list[
             message=f"chore({run.mission_slug}): tombstone lane workspace contexts",
             paths=tuple(deleted),
         )
-    except Exception as exc:  # noqa: BLE001 — teardown is post-landing; warn, never fail the merge
+    except _BOOKKEEPING_COMMIT_ERRORS as exc:  # teardown is post-landing; warn, never fail the merge
         names = ", ".join(str(path.relative_to(run.main_repo)) for path in deleted)
         logger.warning("Could not commit tombstoned workspace contexts (%s): %s", names, exc)
         console.print(f"  [yellow]Warning:[/yellow] tombstoned workspace context(s) {escape(names)} were not committed: {escape(str(exc))}")
         return
-    # ``_phase_push`` runs BEFORE this phase, so a ``--push`` run would otherwise leave this one
-    # bookkeeping commit local-only — the same "landed but not where the operator looks" gap.
-    # Reuse that phase (its own ``run.push``/remote guards make this a no-op otherwise) rather
-    # than duplicating the push.
-    if run.push:
-        from specify_cli.consolidation.phase_finalize import _phase_push  # noqa: PLC0415 — avoids an import cycle
-
-        _phase_push(run)
 
 
 def _delete_lane_branch_guarded(run: _MergeRunState, branch_name: str) -> bool:
