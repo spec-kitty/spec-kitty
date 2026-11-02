@@ -36,6 +36,13 @@ deferred to mission wrap-up because it needs the PR number.
 
 ## Work Packages
 
+## WP01 — Route the path-literal audit on a status diff
+
+Add the `path_literal_audit` router group and the `tests-path-literal-audit` job that runs
+`tests/audit/test_no_legacy_path_literals.py` on a `src/specify_cli/status/**` diff, with the
+live-routing regression guard written first. Subtasks T001-T006; no dependencies; implementer
+profile `python-pedro`. Details: [tasks/WP01-path-literal-audit-routing.md](./tasks/WP01-path-literal-audit-routing.md).
+
 | WP | Title | Subtasks | Depends on | Profile | Model |
 | --- | --- | --- | --- | --- | --- |
 | WP01 | Route the path-literal audit on a status diff | T001-T006 | — | python-pedro (implementer) | cheaper tier (implementation) |
