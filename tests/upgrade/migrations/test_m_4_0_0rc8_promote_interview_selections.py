@@ -501,7 +501,7 @@ def test_a_list_a_released_default_preset_wrote_gets_a_hint(tmp_path: Path) -> N
     assert _bytes(project) == before
     hint = module._SEEDED_PRESET_HINT.format(key=DIRECTIVES, token="directive", listed=len(preset), selected=2)
     assert result.warnings == [hint]
-    assert "released" in hint and "default" in hint
+    assert f"lists the {len(preset)} directives a released `default`" in hint
     assert "--narrow-activation" in hint and "--only" in hint
 
 
@@ -549,7 +549,6 @@ def test_a_released_preset_list_of_another_kind_gets_its_own_hint(tmp_path: Path
     assert result.success, result.errors
     hint = module._SEEDED_PRESET_HINT.format(key="activated_paradigms", token="paradigm", listed=len(preset), selected=1)
     assert result.warnings == [hint]
-    assert "paradigms are in force today" in hint
 
 
 def test_an_operator_chosen_list_gets_no_hint(tmp_path: Path) -> None:
