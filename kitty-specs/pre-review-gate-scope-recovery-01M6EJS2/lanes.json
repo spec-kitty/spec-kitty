@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mission_slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "mission_id": "01M6EJS28KN871H2E15PSJTTYS",
+  "mission_branch": "kitty/mission-pre-review-gate-scope-recovery-01M6EJS2",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/configuration.md",
+        "docs/changelog/unreleased/6865-pre-review-gate-scope-recovery.fixed.md",
+        "docs/configuration/review-test-budget.md",
+        "docs/development/how-to/review-gates.md",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "src/specify_cli/review/test_timeout.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/review/test_pre_review_gate_scope_diagnostics.py",
+        "tests/review/test_review_budget_scope_shape.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py",
+        "tests/specify_cli/status/test_wp_metadata.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T17:00:12.944446+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3a9aedea40cace5033c4a02fad6f8ee9daa1228d"
+}
