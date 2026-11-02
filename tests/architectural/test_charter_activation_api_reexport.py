@@ -36,6 +36,7 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("DenyListChoice", "charter.activation.activation_ledger"),
     ("DenyListWriteRefused", "charter.activation.activation_ledger"),
     ("load_activation_ledger", "charter.activation.activation_ledger"),
+    ("load_agent_profile", "charter.activation.profile_resolution"),
     ("resolve_ledger_source", "charter.activation.activation_ledger"),
     ("refuse_unmigrated_deny_write", "charter.activation.activation_ledger"),
     ("ActiveCharterConfigError", "charter.activation.activation_ledger"),

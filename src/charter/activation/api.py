@@ -253,6 +253,10 @@ from charter.activation.skill_preparation import (
     MAX_SKILL_NAME_LENGTH as MAX_SKILL_NAME_LENGTH,
 )
 
+# Agent-profile lookup (``charter context --profile`` warns on an unknown profile). Public per
+# charter.activation.profile_resolution.__all__.
+from charter.activation.profile_resolution import load_agent_profile as load_agent_profile
+
 #: The curated activation public surface. Keep it sorted and explicit; every entry
 #: MUST be an identity re-export of a ``charter.activation`` symbol (never a
 #: ``charter.offering`` one) and carry an identity-contract row in
@@ -307,6 +311,7 @@ __all__ = [
     "finalize_manifest",
     "ledger_findings",
     "load_activation_ledger",
+    "load_agent_profile",
     "load_charter_yaml_mapping",
     "load_denied",
     "load_yaml",
