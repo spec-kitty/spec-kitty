@@ -48,6 +48,12 @@ def _repo(tmp_path: Path) -> Path:
     root = tmp_path / "primary"
     root.mkdir()
     run_git(root, "init", "-b", "main")
+    # The sweep commits through the product's own git calls, which do not carry
+    # run_git's ``-c`` identity. Repo-local config is shared by every linked worktree,
+    # so the fixture stays hermetic without a developer or CI global identity.
+    run_git(root, "config", "user.email", "t@example.com")
+    run_git(root, "config", "user.name", "T")
+    run_git(root, "config", "commit.gpgsign", "false")
     kittify = root / ".kittify"
     kittify.mkdir()
     (kittify / "config.yaml").write_text("project: fixture\n", encoding="utf-8")
