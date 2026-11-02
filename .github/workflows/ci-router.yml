@@ -116,11 +116,6 @@ jobs:
       # match and belong in the unmatched union and the heavy battery's `if:`.
       unit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.unit }}
       specify_cli_runtime: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.specify_cli_runtime }}
-      # issue #6879: path_literal_audit is NON-src (its globs are `**/`-spelled, like
-      # mission_state) -- same fold shape as the rows above, but deliberately excluded from the
-      # unmatched union and the heavy battery's `if:` below: it is an extra narrow lane over paths
-      # other src-backed groups already own, never a code-shard group.
-      path_literal_audit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.path_literal_audit }}
       # Non-src groups (data, not code): docs/corpus/e2e mirror the src rows'
       # fold shape but are DELIBERATELY excluded from the unmatched loop below.
       docs: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
@@ -129,6 +124,10 @@ jobs:
       docs_site: ${{ inputs.mode == 'full' && 'true' || steps.filter.outputs.docs_site }}
       corpus: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
       e2e: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      # issue #6879: NON-src, like docs/corpus/e2e above and mission_state below -- the globs are
+      # `**/`-spelled, so this is an extra narrow lane over paths other src-backed groups already own,
+      # never a code-shard group; it stays out of the unmatched union and the heavy battery's `if:`.
+      path_literal_audit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.path_literal_audit }}
       # CI-infrastructure group (spec-kitty#4386): non-src, like docs/corpus/e2e
       # above. Names the scripts/ci/** + .github/workflows/** path family so it
       # routes (matches a named group) instead of silently matching nothing.
@@ -1631,9 +1630,9 @@ jobs:
   # every test in this module (it is `pytestmark = [pytest.mark.integration]`, 8 tests). So the lane
   # below -- gated on the `path_literal_audit` group, which a src/specify_cli/status/** or
   # src/kernel/paths.py diff matches -- is the guard's only home that actually executes it, and it
-  # deliberately carries NO marker
-  # expression: any `-m` filter here would collect zero tests. A zero-collected exit 5 fails the step,
-  # so a rename or a re-added filter reds instead of silently passing. Narrow by design: one file, no
+  # deliberately carries NO marker expression: any `-m` filter here would collect zero tests. A
+  # zero-collected exit 5 fails the step, so a rename or a re-added filter reds instead of silently
+  # passing. Narrow by design: one file, no
   # directory, so a status diff pays ~2 s of pytest plus the install. Pinned by
   # tests/ci/test_path_literal_audit_routing.py (routing, job shape, negative controls) and declared in
   # tests/architectural/test_no_duplicate_suite_execution.AUTHORIZED_PER_CHANGE_SUITE_JOBS.
@@ -1657,7 +1656,7 @@ jobs:
         uses: ./.github/actions/sync-packs
       - name: Run the runtime-home path-literal guard
         run: |
-          uv run --frozen pytest tests/audit/test_no_legacy_path_literals.py -q --junitxml=out/reports/xunit-path-literal-audit.xml
+          uv run --frozen pytest tests/audit/test_no_legacy_path_literals.py -q
 
   # The Mission-state audit (#5864). The upgrade witness used to audit the checkout's whole kitty-specs/
   # with this command and gate, but it runs only when upgrade code changes, so a Mission that landed with a
