@@ -1,5 +1,4 @@
 {
-  "accept_commit": "66269583e91c25611050452c34b271563c04823c",
   "acceptance_history": [
     {
       "accept_commit": "b1af8c3f05405f9cd96ed8344ec58c7967cf21e7",
@@ -14,12 +13,18 @@
       "accepted_at": "2026-11-02T18:20:05.671166+00:00",
       "accepted_by": "exedev",
       "accepted_from_commit": "893b95d39ac139afba8b64b2c4fa7d499f9e23a0"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T18:21:03.114833+00:00",
+      "accepted_by": "Ivan Melck",
+      "accepted_from_commit": "806105df10d2254c7272240e669f3f04a5e45d14"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-11-02T18:20:05.671166+00:00",
-  "accepted_by": "exedev",
-  "accepted_from_commit": "893b95d39ac139afba8b64b2c4fa7d499f9e23a0",
+  "accepted_at": "2026-11-02T18:21:03.114833+00:00",
+  "accepted_by": "Ivan Melck",
+  "accepted_from_commit": "806105df10d2254c7272240e669f3f04a5e45d14",
   "coordination_branch": "kitty/mission-orchestrator-error-code-prose-guard-01M6EJQS",
   "created_at": "2026-11-02T16:51:03.306418+00:00",
   "flattened": false,
