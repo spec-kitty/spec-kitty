@@ -1,0 +1,49 @@
+{
+  "mission_slug": "move-task-evidence-fixture-repin-01M6EJZB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Fixture WP01 declares owned_files: [\"src/**\"] (tests/tasks/test_move_task_git_validation_unit.py); module 15 passed on the branch (commit d43bd5af65)",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-02T19:58:35.283043+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Lane's 'Add implementation' commit writes src/implementation.py inside the lane write_scope src/**; evidence window shows the owned change; module 15 passed",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-02T19:58:38.361649+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_move_to_done_with_override_reason_succeeds_when_unmerged passes --agent reviewer-renata and is green; the independence gate is exercised, not bypassed (no --force)",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-02T19:58:43.035807+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "git diff 8b065d044c..HEAD -- src/ empty; pytest --collect-only reports 15 nodes; AST comparison by the independent reviewer shows identical test definitions/assertions/markers",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-02T19:58:46.277377+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "move-task-evidence-fixture-repin-01M6EJZB",
+  "mission_id": "01M6EJZBFF60KD34M7SM8ZD007",
+  "mission_branch": "issue-7057-move-task-evidence-fixture-repin",
+  "target_branch": "issue-7057-move-task-evidence-fixture-repin",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7057-move-task-evidence-fixtures.internal.md",
+        "tests/tasks/test_move_task_git_validation_unit.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T17:07:01.503104+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0ce6341cca88759f5a9064b00f00731270d87c8c"
+}
