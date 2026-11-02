@@ -1132,6 +1132,7 @@ special_tiers:
       - {gate: tests/architectural/test_spec_kitty_home_pin_budget.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_spec_kitty_home_pin_census.py, globs: ['tests/**', 'kitty-specs/**']}
       - {gate: tests/architectural/test_spec_kitty_home_pin_prefilter.py, globs: ['tests/**']}
+      - {gate: tests/architectural/test_status_path_ordering_claims.py, globs: ['docs/adr/4.x/**']}
       - {gate: tests/architectural/test_timing_coverage_invariant.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_tmp_path_cache_key_collision_risk.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_tracker_egress_guards_3108.py, globs: ['tests/**']}
