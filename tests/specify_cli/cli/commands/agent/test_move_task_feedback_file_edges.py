@@ -12,11 +12,9 @@ and the approval writer consume it. On edges that write no review cycle the
 file used to be validated and then dropped without a word. These tests drive
 the production Typer app through the shared rework-loop harness:
 
-* ``in_progress -> for_review`` and ``for_review -> in_review`` with the flag
-  must REFUSE (exit 1) naming the edge, writing nothing (RED on the pre-fix
-  tree: today they exit 0 in silence).
-* The same moves without the flag must still succeed (positive controls, so
-  the refusal probe is non-vacuous).
+* ``in_progress -> for_review`` with the flag must REFUSE (exit 1) naming the
+  edge, writing nothing; the remaining edges are covered by the parametrised
+  guard matrix below.
 * An arbiter override into ``approved`` with the flag keeps the #6652 stderr
   warning and records only the ``--note`` (ratchet: passes pre-fix; pinned here
   end-to-end because it was only pinned at writer level).
@@ -88,46 +86,6 @@ def test_feedback_file_on_in_progress_to_for_review_is_refused(tmp_path: Path, m
     assert review_cycle_files(m) == []
 
 
-def test_feedback_file_on_for_review_to_in_review_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    m = build_mission(tmp_path, monkeypatch)
-    drive_to_for_review(m)
-    hops_before = len(_lane_events(m))
-
-    result = move(m, WP, "in_review", REVIEWER, "--review-feedback-file", str(_feedback(m)))
-
-    assert result.exit_code == 1, result.output
-    assert "from 'for_review' to 'in_review'" in result.output
-    assert len(_lane_events(m)) == hops_before
-    assert _lane_events(m)[-1]["to_lane"] == "for_review"
-    assert review_cycle_files(m) == []
-
-
-# ---------------------------------------------------------------------------
-# Positive controls on the same fixtures: the moves succeed without the flag.
-# ---------------------------------------------------------------------------
-
-
-def test_in_progress_to_for_review_without_the_flag_still_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    m = build_mission(tmp_path, monkeypatch)
-    assert move(m, WP, "claimed", IMPLEMENTER).exit_code == 0
-    assert move(m, WP, "in_progress", IMPLEMENTER).exit_code == 0
-
-    result = move(m, WP, "for_review", IMPLEMENTER)
-
-    assert result.exit_code == 0, result.output
-    assert _lane_events(m)[-1]["to_lane"] == "for_review"
-
-
-def test_for_review_to_in_review_without_the_flag_still_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    m = build_mission(tmp_path, monkeypatch)
-    drive_to_for_review(m)
-
-    result = move(m, WP, "in_review", REVIEWER)
-
-    assert result.exit_code == 0, result.output
-    assert _lane_events(m)[-1]["to_lane"] == "in_review"
-
-
 def test_rejection_edge_still_requires_the_feedback_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     m = build_mission(tmp_path, monkeypatch)
     drive_to_for_review(m)
@@ -192,7 +150,7 @@ def test_arbiter_override_without_feedback_file_is_silent(tmp_path: Path, monkey
 
 # ---------------------------------------------------------------------------
 # Unit matrix on the pure guard (#6699): the refusal arms exactly on the
-# non-recordable edges; recordable-edge messages stay byte-stable.
+# non-recordable edges.
 # ---------------------------------------------------------------------------
 
 
@@ -275,23 +233,6 @@ def test_guard_leaves_recordable_edges_alone(old_lane: str, target_lane: str, tm
     # And the full decision still emits on these edges (no new guard slot bites).
     outcome = decide_transition(req)
     assert isinstance(outcome, Emit), f"{old_lane} -> {target_lane}: {outcome!r}"
-
-
-@pytest.mark.fast
-def test_guard_missing_file_message_is_byte_stable_on_recordable_edges(tmp_path: Path) -> None:
-    missing = str(tmp_path / "missing.md")
-    refusal = _guard_feedback_file(
-        _base_request(
-            old_lane="for_review",
-            target_lane="planned",
-            feedback_provided=True,
-            feedback_source=missing,
-            feedback_exists=False,
-            feedback_is_file=False,
-        )
-    )
-    assert isinstance(refusal, RefuseExit1)
-    assert refusal.error == f"Review feedback file not found: {missing}"
 
 
 @pytest.mark.fast

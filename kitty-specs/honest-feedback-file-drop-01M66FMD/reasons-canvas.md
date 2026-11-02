@@ -60,7 +60,7 @@ registration and its golden fixture, one new e2e test file, and docs.
 
 - Code: `src/specify_cli/cli/commands/agent/tasks_transition_core.py`
   (guard arm + message helper), `tasks.py` (help text).
-- Tests: `tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py`
+- Tests: `tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py`
   (rework-loop harness, red-first) + `fixtures/tasks_cli/help/move-task.help`.
 - Ownership boundary: `tasks_verdict_persistence.py`, `tasks_move_task.py`
   and `review/arbiter.py` are read-only context; no new writer, no new field.
