@@ -27,6 +27,7 @@ from uuid import uuid4
 
 from specify_cli.core.no_follow import chmod_fd
 from specify_cli.skills import command_installer
+from specify_cli.skills._agent_roster import SUPPORTED_AGENTS
 
 from ..enums import ActivationMode, ToolSurfaceKind
 from ..model import SurfacePlan
@@ -237,6 +238,12 @@ def _profile_id(source_path: Path) -> str:
 # Inert placeholder manifest version. The manifest is a declarative descriptor;
 # its presence never triggers install/publish behaviour.
 _MANIFEST_VERSION = "0.0.0"
+
+
+# Every shared-skill-root agent writes the same ``.agents/skills/...`` file, so
+# any of them may own the rendered command/charter skill source. Derived from the
+# one roster; bundles append it at the lowest rank after their native tools.
+SHARED_SKILL_ROOT_OWNERS: tuple[str, ...] = tuple(SUPPORTED_AGENTS)
 
 
 def _bundle_relative_path(

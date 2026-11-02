@@ -26,6 +26,7 @@ from .model import (
 )
 from .projection import (
     BUNDLE_SURFACE_KINDS,
+    SHARED_SKILL_ROOT_OWNERS,
     bundle_entries_for_plans,
     plugin_manifest_payload,
     write_bundle,
@@ -53,12 +54,12 @@ _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
 
 # Ordered accept-lists for per-harness rendered surfaces (index = preference
 # rank). Copilot/VS Code native renderings lead their bundles; the Claude
-# Markdown family is the lower-priority fallback; Codex supplies the shared
+# Markdown family is the lower-priority fallback; the shared-root agents supply the shared
 # ``.agents/skills`` skill rendering only.
 _COPILOT_TOOL_PRECEDENCE: dict[ToolSurfaceKind, tuple[str, ...]] = {
     ToolSurfaceKind.AGENT_PROFILE: ("copilot", "vscode", "claude"),
-    ToolSurfaceKind.COMMAND_SKILL: ("copilot", "vscode", "claude", "codex"),
-    ToolSurfaceKind.CHARTER_SKILL: ("copilot", "vscode", "claude", "codex"),
+    ToolSurfaceKind.COMMAND_SKILL: ("copilot", "vscode", "claude", *SHARED_SKILL_ROOT_OWNERS),
+    ToolSurfaceKind.CHARTER_SKILL: ("copilot", "vscode", "claude", *SHARED_SKILL_ROOT_OWNERS),
 }
 
 

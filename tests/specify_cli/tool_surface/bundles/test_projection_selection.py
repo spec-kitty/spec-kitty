@@ -106,3 +106,15 @@ def test_two_differing_same_family_sources_still_conflict(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="Conflicting bundle members: agents/analyst-annie.md"):
         files_for_entries(entries, project / "dist", OperationRoot("project", "project", project.resolve()), [])
+
+
+@pytest.mark.parametrize("projector", [ClaudeCodeBundleProjector(), CopilotBundleProjector(), VsCodeBundleProjector()])
+@pytest.mark.parametrize("owner", ["codex", "vibe", "pi", "letta", "antigravity"])
+def test_every_shared_skill_root_owner_keeps_the_rendered_command_skill(tmp_path: Path, projector, owner: str) -> None:
+    project = tmp_path / "proj"
+    skill = _write(project / ".agents/skills/spec-kitty-plan/SKILL.md", "# plan skill\n")
+    plan = _plan(_instance(ToolSurfaceKind.COMMAND_SKILL, skill, owner))
+
+    members = [e for e in projector.entries(plan, project) if e.surface_kind == ToolSurfaceKind.COMMAND_SKILL]
+
+    assert [m.bundle_relative_path for m in members] == ["skills/spec-kitty-plan/SKILL.md"]
