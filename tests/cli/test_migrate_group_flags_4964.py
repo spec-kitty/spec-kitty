@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import enum
 import json
+import os
 import re
 import subprocess
 import sys
@@ -56,6 +57,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import migrate_cmd
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
+from specify_cli.core.paths import WorkspaceRootNotFound, git_ceiling_dirs, resolve_canonical_root
 from tests import _click_universe as typer_click
 from tests.unit.migration._backfill_fixture import build_mission
 
@@ -115,7 +117,165 @@ def _hard_repo_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ite
     scratch_cwd.mkdir()
     monkeypatch.chdir(scratch_cwd)
     monkeypatch.setattr(_LOCATE, _poisoned_locate_project_root)
+    # Pin the root walk too (#6957): the cutover's PRIMARY-home resolution reads
+    # ``core.paths.resolve_canonical_root``, not ``locate_project_root``, so an
+    # ambient repository enclosing the platform temp root would capture it.
+    monkeypatch.setenv(
+        "GIT_CEILING_DIRECTORIES",
+        _append_ceiling(os.environ.get("GIT_CEILING_DIRECTORIES", ""), resolved_tmp),
+    )
     yield
+
+
+# ---------------------------------------------------------------------------
+# Root-walk isolation (#6957).
+#
+# Poisoning ``locate_project_root`` covers the CLI's project resolution but not
+# the *root walk* the migration cutover uses: ``runtime_state_cutover.
+# _resolve_primary_home_or_degrade`` calls ``core.paths.resolve_canonical_root``,
+# which ascends from the fixture to the first ancestor holding ``.git``. On a host
+# whose platform temp root sits inside a repository (a stray ``/tmp/.git``), that
+# ancestor is the foreign repository, so ``resolve_artifact_surface`` reports
+# ``<repo>/kitty-specs/<slug>`` and ``_flip_phase`` fails closed against the real
+# write target — the red in #6957.
+#
+# The harness already installs a process-wide ``GIT_CEILING_DIRECTORIES`` from the
+# run basetemp (#7022, tests/_support/git_ceiling.py), which bounds that walk; a
+# test that does not inherit it "sets the variable itself". This module therefore
+# pins its OWN root as a ceiling in the autouse fixture above, so it is hermetic
+# on every runner rather than only where the harness is installed.
+# ---------------------------------------------------------------------------
+
+
+def _append_ceiling(existing: str, entry: Path) -> str:
+    """Return *existing* with *entry* appended as an absolute discovery ceiling.
+
+    Policy, so the harness is never disturbed: the value already there is kept
+    verbatim — a leading empty entry is meaningful to git — and the new absolute
+    entry is appended to it. Idempotency is checked against *absolute* entries
+    only, because that is what :func:`specify_cli.core.paths.git_ceiling_dirs`
+    reads: it ignores relative entries and resolves every absolute one. A
+    relative ``.`` that happens to resolve here is therefore not a ceiling for
+    the root walks, and must not suppress the absolute one this module needs.
+
+    Note the two readers: git does not resolve entries that follow a leading
+    empty entry, while ``git_ceiling_dirs`` resolves every absolute entry and
+    stops a walk at a listed directory even when that directory holds no ``.git``.
+    Both agree on the entry appended here, because it is already absolute and
+    already resolved.
+    """
+    resolved = str(entry.resolve())
+    listed = {str(Path(part).resolve()) for part in existing.split(os.pathsep) if part and Path(part).is_absolute()}
+    if resolved in listed:
+        return existing
+    return f"{existing}{os.pathsep}{resolved}" if existing else resolved
+
+
+def test_module_pins_git_discovery_to_its_own_test_root(tmp_path: Path) -> None:
+    """The module owns its ceiling: discovery can never leave this test's root.
+
+    Host-independent standing invariant — it fails on every host without the
+    fixture's ceiling append (#6957), so it is the always-on half of the guard.
+    """
+    ceilings = git_ceiling_dirs()
+    assert tmp_path.resolve() in ceilings, f"this module must pin its own root as a git discovery ceiling; ceilings={sorted(ceilings)}"
+
+    # Positive control on the same fixture (FR-005): a repository the test
+    # creates *inside* its own root sits below the ceiling and must stay
+    # discoverable, so the pin cannot break fixtures that root a project here.
+    nested = tmp_path / "nested"
+    (nested / ".git").mkdir(parents=True)
+    mission = nested / "kitty-specs" / "042-demo"
+    mission.mkdir(parents=True)
+    assert resolve_canonical_root(mission) == nested.resolve()
+
+
+def test_append_ceiling_is_append_only_and_idempotent(tmp_path: Path) -> None:
+    """An existing value is kept verbatim and an already-listed entry is not repeated."""
+    tmp = tmp_path.resolve()
+    assert _append_ceiling("", tmp) == str(tmp)
+    assert _append_ceiling(f"{os.pathsep}/elsewhere", tmp) == f"{os.pathsep}/elsewhere{os.pathsep}{tmp}"
+    once = _append_ceiling("/elsewhere", tmp)
+    assert _append_ceiling(once, tmp) == once
+
+
+def test_append_ceiling_ignores_relative_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A relative entry is not a ceiling for the root walks, so it cannot stand in for one.
+
+    ``git_ceiling_dirs`` drops relative entries. The regression this pins: with cwd
+    at the ceiling, ``.`` *resolves* to this test root, so a helper that dedupes
+    against resolved relative entries returns ``"."`` unchanged and leaves the walk
+    unbounded while claiming a ceiling exists.
+    """
+    tmp = tmp_path.resolve()
+    monkeypatch.chdir(tmp)  # make "." resolve to the very root we are asking for
+    assert Path(".").resolve() == tmp
+    assert _append_ceiling(".", tmp) == f".{os.pathsep}{tmp}"
+    mixed = f"{tmp}{os.pathsep}.."
+    assert _append_ceiling(mixed, tmp) == mixed  # the absolute entry already listed; the relative one is not a ceiling
+
+
+def test_append_ceiling_dedupes_an_equivalent_symlinked_entry(tmp_path: Path) -> None:
+    """A symlinked alias of the ceiling already listed is not appended twice."""
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    assert _append_ceiling(str(link), real) == str(link)
+
+
+def test_positive_control_survives_a_temp_root_inside_a_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6957's host shape: the platform temp root sits inside a repository.
+
+    The harness's process-wide ceiling is deliberately absent here — only the pin
+    this module's autouse fixture installed is in force — so the probe runs the
+    production CLI seam as it would on a runner that installs nothing.
+
+    Half-by-half: this test takes the pinned entry *from the fixture's own
+    environment* and fails if the fixture never installed one, so reverting the
+    fixture wiring reds it independently of Guard A. Where no repository encloses
+    the temp root the leak cannot be observed, so the probe skips with a reason
+    instead of passing vacuously (acceptance-criteria-non-vacuity).
+    """
+    feature_dir = build_mission(tmp_path)
+    # What the autouse fixture installed, captured before the ambient value is cleared.
+    installed_value = os.environ.get("GIT_CEILING_DIRECTORIES", "")
+
+    # Non-vacuity, same fixture: with no ceiling at all, the production resolver
+    # escapes into whichever repository encloses the temp root (the leak).
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", "")
+    try:
+        enclosing = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        pytest.skip(
+            "no repository encloses the platform temp root: #6957's host shape is absent, so this probe cannot observe the leak (Guard A still pins the invariant)"
+        )
+    if enclosing.is_relative_to(tmp_path.resolve()):
+        pytest.skip(
+            f"the enclosing repository ({enclosing}) is inside this test's root, so the module ceiling cannot mask the leak (Guard A still pins the invariant)"
+        )
+
+    # The pin must come from the module fixture, never from this test. Only an
+    # absolute entry is a ceiling for ``git_ceiling_dirs``, so a relative entry
+    # that happens to resolve here must not be mistaken for the fixture's pin.
+    installed = [part for part in installed_value.split(os.pathsep) if part and Path(part).is_absolute() and Path(part).resolve() == tmp_path.resolve()]
+    assert installed, f"the autouse fixture did not pin this test's own root as a git discovery ceiling; GIT_CEILING_DIRECTORIES={installed_value!r}"
+
+    # With only that pin in force the same walk stops at the test root, which is
+    # what degrades the PRIMARY-home resolution back to the fixture's target.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", installed[-1])
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(feature_dir)
+
+    # Production path: the real non-dry-run control still flips the fixture.
+    with patch(_LOCATE, return_value=tmp_path):
+        result = _invoke(["backfill-runtime-state", "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["dry_run"] is False
+    assert payload["summary"]["flipped"] == 1, payload
+    assert json.loads((feature_dir / "meta.json").read_text())["status_phase"] == "1"
 
 
 def test_hard_isolation_guard_is_non_vacuous() -> None:
