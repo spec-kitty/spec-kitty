@@ -3,8 +3,8 @@
 This module is the rendering half of the WP09 feature. It:
 
 1. Honours ``SPEC_KITTY_NO_UPGRADE_CHECK=1`` opt-out (checked on every call).
-2. Reads / writes a per-user cache at ``~/.cache/spec-kitty/upgrade-check.json``
-   (POSIX) or ``%LOCALAPPDATA%\\spec-kitty\\upgrade-check.json`` (Windows).
+2. Reads / writes a per-user cache, ``upgrade-check.json`` inside
+   :func:`kernel.user_dirs.user_cache_dir` (the one per-user authority, #6488).
 3. Probes PyPI via :mod:`upgrade_probe` only when the cache is missing or stale.
 4. Suppresses identical-channel notices within the cache TTL window (AC #4).
 5. Emits a single-line dim notice via Rich's ``Console.print``.
