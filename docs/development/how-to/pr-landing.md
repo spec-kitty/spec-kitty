@@ -714,7 +714,7 @@ been fixed, the end-state is stated instead of the trap.
   `docs/changelog/CHANGELOG.md` surfaced ~21 pre-existing `MD049` findings
   spread across the file. Expect this on any changelog or large-doc fold, and
   budget for fixing the file rather than only your lines. Run the repo's own
-  markdownlint invocation (see the step in `.github/workflows/ci-quality.yml`)
+  markdownlint invocation (see the informational step in the `uv-lock` job of `.github/workflows/ci-router.yml`)
   rather than a default config.
 - **Moving or adding a test file trips completeness baselines.** New or
   relocated test files must join their registries in the *same commit* as the

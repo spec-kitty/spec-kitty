@@ -40,7 +40,7 @@ When you need to bump `spec-kitty-events`:
    [project]
    dependencies = [
        # ...
-       "spec-kitty-events>=X.Y.0,<X+1",  # today: >=10.4.6,<11
+       "spec-kitty-events>=X.Y.0,<X+1",  # choose the supported range; uv.lock records the exact version
        # ...
    ]
    ```
