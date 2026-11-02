@@ -161,6 +161,17 @@ def test_every_code_has_a_remedy() -> None:
     assert "re-run `spec-kitty service vendor`" in remedy_for(ServiceRefusalCode.PIN_INVALID, variant="malformed", **fields)
 
 
+def test_cache_remedies_name_the_platform_cache_lever(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6488: ``XDG_CACHE_HOME`` never moves the cache on Windows, so the remedy must not claim it does."""
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: True)
+    for variant, extra in (("cache", {"cache": "c"}), ("spawn", {"program": "p"})):
+        remedy = remedy_for(ServiceRefusalCode.BINARY_MISSING, variant=variant, **extra)
+        assert "XDG_CACHE_HOME" not in remedy
+        assert "%LOCALAPPDATA%" in remedy
+    monkeypatch.setattr("kernel.paths.is_windows", lambda: False)
+    assert "XDG_CACHE_HOME" in remedy_for(ServiceRefusalCode.BINARY_MISSING, variant="cache", cache="c")
+
+
 def test_binary_env_var_names() -> None:
     assert binary_env_var("write-service") == EXPLICIT_ENV
     assert binary_env_var("charter-service") == "SPEC_KITTY_CHARTER_SERVICE_BINARY"
