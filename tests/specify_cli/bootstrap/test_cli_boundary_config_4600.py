@@ -12,7 +12,10 @@ import pytest
 pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
 
 
-@pytest.mark.parametrize("args", [("--version",), ("doctor",)])
+# ``doctor --help``, not bare ``doctor``: since #6969 a bare ``doctor`` runs the default checks,
+# whose findings legitimately depend on the (deliberately damaged) config, so its stdout is not a
+# startup invariant. ``--help`` still enters the doctor group through the same startup path.
+@pytest.mark.parametrize("args", [("--version",), ("doctor", "--help")])
 def test_issue_4600_startup_survives_non_utf8_config(tmp_path: Path, args: tuple[str, ...]) -> None:
     """FR-001/C-009: exercise startup before any module import in a fresh process."""
     project = tmp_path / "project"
