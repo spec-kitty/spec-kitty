@@ -263,7 +263,8 @@ CASES: dict[str, tuple[str, str, tuple[str, ...], dict[str, list[str]], str]] = 
         {},
         (
             "Deactivated: p1-dir\n"
-            "Cascade: styleguide/s-style: still active (no allow-list; only p1-dir excluded)\n"
+            "Cascade: styleguide/s-style: still active (no allow-list; only p1-dir excluded). "
+            "To turn it off: `spec-kitty charter deactivate styleguide s-style`\n"
             "Cascade: tactic/r-tac: skipped (required by acme)\n"
             "Cascade-deactivated: tactic/x-tac\n"
             "Skipped (shared artifact): tactic:TACTIC_T (still referenced by directive:DIRECTIVE_P2)\n"
