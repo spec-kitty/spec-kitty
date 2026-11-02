@@ -20,6 +20,7 @@ from rich.markup import escape
 from ruamel.yaml.error import YAMLError
 
 from charter.activation.api import ActivationIdCollisionError, absent_key_stays_implicit
+from kernel.charter_pack_paths import repo_relative_posix
 from specify_cli.core.env import is_interactive
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
@@ -27,6 +28,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import (
+    _display_path,
     _emit_error,
     _interview_path,
     _parse_csv_option,
@@ -520,7 +522,7 @@ def interview(  # noqa: C901
                     {
                         "result": "success",
                         "success": True,
-                        "interview_path": str(answers_path.relative_to(repo_root)),
+                        "interview_path": repo_relative_posix(answers_path, repo_root),
                         "mission": interview_data.mission,
                         "profile": interview_data.profile,
                         "selected_paradigms": interview_data.selected_paradigms,
@@ -540,7 +542,7 @@ def interview(  # noqa: C901
             return
 
         console.print("[green]Charter interview answers saved[/green]")
-        console.print(f"Interview file: {answers_path.relative_to(repo_root)}")
+        console.print(f"Interview file: {_display_path(answers_path, repo_root)}")
         console.print(f"Mission: {interview_data.mission}")
         console.print(f"Profile: {interview_data.profile}")
         if language_settlement.languages:
