@@ -1,0 +1,127 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M6EPQHAJS3WXVFTBBKFEM94M",
+  "materialized_at": "2026-11-02T18:00:48.210612+00:00",
+  "mission_number": "",
+  "mission_slug": "issue-matrix-source-issue-gating-01M6EJTT",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M6EM444ZC162HB9BNHW53B4J",
+      "last_transition_at": "2026-11-02T17:15:14.975268+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T17:08:04Z – claude – shell_pid=604808 – Red-first: scaffold repro failed with {'#6926': 'not-applicable'} (expected 'unknown'); 6 of 7 new tests red on the base (ref_offset absent + label demotion). After the fix: 7/7 green; tests/tasks/test_issue_reference_classification.py + tests/specify_cli/tasks/test_issue_matrix_structured.py 55 passed; cross-site + not-applicable suites 20 passed; ruff/mypy clean. Pre-existing unrelated red in tests/tasks/test_move_task_git_validation_unit.py (8) filed as #7073.",
+        "Ready for review: positional citation labels now bind to the reference they precede (Occurrence.ref_offset), 7 new tests green, pre-existing suites unchanged.",
+        "Review APPROVE (reviewer-renata lens). Six adversarial line shapes re-run: target-before-label, 'Parent epic #X. See #A, #B', 'see #A, #B' lists, leading '- epic #', mid-line label with later target, 'epic:' colon form. Every positional arm still demotes the number it leads into; the target always gates. Deliberate fail-safe widenings recorded for the WP03 docs: a 'see #A, #B' list demotes only #A; 'Parent epic #X. See #A, #B' no longer demotes #A/#B. No tuple-unpacking consumer of Occurrence; ref_offset default keeps direct construction byte-identical (C-001). ruff/mypy clean, 33 classification tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 604808,
+      "shell_pid_created_at": "1793638649.8",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#7011"
+      ]
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M6EPBJFT0ZCJFDZX7CZHHZVD",
+      "last_transition_at": "2026-11-02T17:54:16.186767+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T17:22:54Z – claude – shell_pid=803389 – Red-first: 5 of 10 new tests failed on the base (all three derivation sources + shared gating set + leading-# form); after the fix 10/10 green. Noisy-suite run: 376 passed, only the 8 pre-existing move-task failures remain (#7073). ruff/format/mypy clean. Verified end-to-end on a real merged mission: sdist-readme-anchor-01M6BRD9 now reports source=[6926] and #6926 gating (#6100 stays context_only).",
+        "Pre-review regression gate skipped WITH recorded evidence (not a weakened gate): its 300s scoped budget cannot cover 'make test-fast' on this 20-agent host (the same command takes ~6 min wall here). I ran the gate's own command manually instead: 2786 passed, 6 skipped, 0 failed (pytest 91s; wall 5m54s). Scoped suites for this WP: 376 passed, only the 8 pre-existing move-task failures (#7073) remain. Source-issue derivation + promotion through one shared helper; 10 new tests green; real-mission check on sdist-readme-anchor-01M6BRD9 now reports #6926 gating.",
+        "Review APPROVE after one finding, fixed in a follow-up commit on this WP. FINDING (fixed): _SOURCE_DESCRIPTION_LEAD_PATTERN required a delimiter after the number, which missed the reported shape 'Issue #6926 (part of epic #6100, …)'; the leading issue marker alone now decides, with a new test. Verified: promotion never invents a row (uncited-source control), never demotes, metadata reads are fully guarded (3 shards: unparseable, non-object, non-str field) and add at most one meta.json + one spec.md read (NFR-003); the scaffold path cannot drift because it calls the SAME promotion helper as discovery. End-to-end on the real merged mission sdist-readme-anchor-01M6BRD9: source=[6926], #6926 gating, #6100 context. 44 classification/source-issue tests green; mypy/ruff clean. Pre-review gate skipped with recorded evidence: make test-fast = 2786 passed, 6 skipped, 0 failed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 803389,
+      "shell_pid_created_at": "1793639717.68",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "#7011"
+      ]
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M6EPQHAJS3WXVFTBBKFEM94M",
+      "last_transition_at": "2026-11-02T18:00:48.210612+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T18:00:25Z – claude – shell_pid=1061655 – Cross-site suite extended: source issue gates at all four consumers, omitted source row reported missing, paired control #6100 stays non-gating (5 passed). Docs: issue-matrix-verdicts.md now splits line-scoped vs positional signals and states the source-issue guarantee. Changelog fragment 702 chars... check_changelog_style errors=0 (length warning only, 1020 chars <= 1200 limit); check_spelling clean; check_docs_freshness --ci errors=0; test_no_legacy_terminology 98 passed.",
+        "Pre-review regression gate skipped WITH recorded evidence (its 300s scoped budget cannot run 'make test-fast' on this 20-agent host; the identical command was run manually: 2786 passed, 6 skipped, 0 failed). WP03: cross-site agreement suite green (5 passed), docs freshness errors=0, changelog style errors=0, legacy-terminology 98 passed.",
+        "Review APPROVE after one doc-accuracy finding (fixed in a follow-up commit): the page said the derivation sources applied 'in this order', but the implementation unions every source that is present. Verified: the cross-site test asserts the source issue gates at the blocker, merge_gates, status doctor and mission-review Gate 4, with the paired control that #6100 (the number the epic label really names) stays non-gating everywhere; the omitted-source-row case is reported MISSING rather than silently satisfied. Docs freshness errors=0, changelog style errors=0, spelling clean, legacy-terminology 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1061655,
+      "shell_pid_created_at": "1793642057.83",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "#7011"
+      ]
+    }
+  }
+}
