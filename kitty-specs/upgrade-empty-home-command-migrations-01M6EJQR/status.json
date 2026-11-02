@@ -4,8 +4,7 @@
   "materialized_at": "2026-11-02T18:26:22.547564+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-empty-home-command-migrations-01M6EJQR",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,99 +19,51 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "implementer-pedro",
       "force_count": 0,
       "implementer_of_record": "implementer-pedro",
       "lane": "done",
       "last_event_id": "01M6ER68ESXVG9WW6Q5Y36GFBG",
       "last_transition_at": "2026-11-02T18:26:19.225442+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Red-first module added: two 3.1.2 tests fail on main, four guards pass",
-        "Review passed: red evidence genuine, no gate weakened, fixture measures the three (skipped-record shape). Two style findings fixed in review round 1."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261102",
         "reviewer": "reviewer-renata",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 713161,
-      "shell_pid_created_at": "1793639302.99",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid_created_at": "1793639302.99"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "implementer-pedro",
       "force_count": 0,
       "implementer_of_record": "implementer-pedro",
       "lane": "done",
       "last_event_id": "01M6ER6A0X3P3MJQ5W7QQY0RD8",
       "last_transition_at": "2026-11-02T18:26:20.829092+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Stamp-first classification + canonical global command dir; 23 targeted tests green (2 reds turned green)",
-        "Review passed: stamp read through ProjectMetadata, canonical global-command dir, hold rule preserved, 23 targeted + 40 architectural tests green. No findings; trade-off N1 goes to the changelog."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261102",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 1078072,
-      "shell_pid_created_at": "1793642111.07",
-      "subtasks": {
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done"
-      }
+      "shell_pid_created_at": "1793642111.07"
     },
     "WP03": {
       "actor": "merge",
       "agent": "implementer-pedro",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "implementer-pedro",
       "lane": "done",
       "last_event_id": "01M6ER6BPK6X0BZQFH2T0ZSEK5",
       "last_transition_at": "2026-11-02T18:26:22.547564+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Fragment added (provisional name per unreleased/README; renamed to the PR number before hand-off); changelog style errors=0, spelling clean, docs freshness errors=0",
-        "Review passed: fragment shape/style/spelling/docs freshness all green; renamed to the PR number before hand-off.",
-        "Fragment present and green; PR-number rename follows the draft PR"
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP03:20261102",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
-      "subtasks": {
-        "T012": "done",
-        "T013": "done"
-      }
+      "shell_pid": 1511274,
+      "shell_pid_created_at": "1793643658.31"
     }
   }
 }
