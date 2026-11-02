@@ -950,21 +950,21 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status, open-decision, resolve-decision, defer-decision, cancel-decision | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal (design-status), or on an idempotent decision retry (open-decision; resolve/defer/cancel-decision since contract 1.17.0); all four decision write verbs also return it for an unreadable `decisions/index.json` |
 | `DESIGN_ARTIFACT_UNSUPPORTED` | artifact-read, artifact-submit | Artifact name invalid, undeclared by the Mission type, or not an authoring capability |
-| `DESIGN_BOUNDS_EXCEEDED` | artifact-read, artifact-submit, design-context | A request, artifact or response exceeds the documented byte bounds |
+| `DESIGN_BOUNDS_EXCEEDED` | artifact-read, artifact-submit, design-validate | An artifact, request or batch exceeds the documented byte bound |
 | `DESIGN_COMMIT_FAILED` | artifact-submit | Content materialized but the host commit did not complete; inspect the reported effect state and commit outcome before retrying |
-| `DESIGN_CONTEXT_FAILED` | design-context | Undeclared design stage, host content over the inline limit, or an activated Mission with no template mapping |
+| `DESIGN_CONTEXT_FAILED` | design-context, interview-record, artifact-submit, design-validate | The resolved design context cannot be built: an undeclared design stage, host content over the inline limit, or an activated Mission with no template mapping |
 | `DESIGN_CONTEXT_STALE` | artifact-submit, design-validate | The template or governance context changed since the content was authored; re-read `design-context` and resubmit |
-| `DESIGN_FINALIZED` | artifact-submit, design-validate | The native task board is finalized, so API design writes and plan scaffolding refuse; native reconciliation applies instead |
-| `DESIGN_INTERVIEW_FAILED` | interview-record | A native interview batch failed after earlier answers were applied; reconcile the reported decisions before retrying |
-| `DESIGN_INTERVIEW_INCOMPLETE` | interview-record, design-validate | Required interview answers are still pending, deferred or canceled |
+| `DESIGN_FINALIZED` | plan, artifact-submit | An API-authored Mission whose native task board is finalized refuses plan scaffolding and design writes; native reconciliation applies instead |
+| `DESIGN_INTERVIEW_FAILED` | design-context, interview-record, artifact-submit, design-validate | The interview ledger could not be read, or a requested answer could not be recorded; the failure carries the decision IDs already applied, if any, and asks for reconciliation before retrying |
+| `DESIGN_INTERVIEW_INCOMPLETE` | artifact-submit, design-validate | Required interview answers are still pending, deferred or canceled; `interview-record` reports that state as `data.interview.complete: false` rather than refusing |
 | `DESIGN_INTERVIEW_INVALID` | interview-record | The answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing |
 | `DESIGN_IO_FAILED` | artifact-read, artifact-submit, design-validate | The host could not read or persist design content |
 | `DESIGN_LOCK_TIMEOUT` | artifact-read, artifact-submit | The Mission authoring lock stayed busy past its bound; nothing was written, retry |
 | `DESIGN_PARENT_STALE` | artifact-submit, design-validate | An accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt |
 | `DESIGN_PATH_REFUSED` | artifact-read, artifact-submit | An artifact identifier or location is not a single safe basename or a declared destination |
-| `DESIGN_PREREQUISITES_FAILED` | artifact-submit, design-validate | Open decisions, missing accepted provenance, or an invalid bounded package graph |
-| `DESIGN_RECEIPT_UNREADABLE` | artifact-read, artifact-submit, design-validate | API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects |
-| `DESIGN_REQUEST_INVALID` | artifact-submit | The request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, or names an unknown stage |
+| `DESIGN_PREREQUISITES_FAILED` | artifact-read, artifact-submit, design-validate | Open decisions, missing accepted provenance, an invalid outline, or an invalid bounded package graph |
+| `DESIGN_RECEIPT_UNREADABLE` | artifact-submit, design-validate | API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects |
+| `DESIGN_REQUEST_INVALID` | artifact-read, artifact-submit, design-validate | The request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, names an unknown stage, or selects an identifier the kind does not take |
 | `DESIGN_REVISION_CONFLICT` | artifact-submit | The artifact revision changed since its `expected_sha256` was read; re-read and resubmit |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
 | `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step); an approval-bound or (contract >= 1.21.0) implementation-evidence refusal carries its codes in `data.preflight_error_code` / `data.preflight_error_codes` |
@@ -982,7 +982,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
 | `RUNTIME_BLOCKED` | next | The native runtime reported a blocked outcome; the typed payload explains why and the exit code is nonzero |
 | `RUNTIME_NEXT_FAILED` | next | The native step, prompt or request was refused; the exit code is nonzero |
-| `UNSUPPORTED_CAPABILITY` | any verb that requires it | The Python delivery profile does not support the requested capability; `data.capability` names it |
+| `UNSUPPORTED_CAPABILITY` | contract-version | `--require-capability` names a capability the Python delivery profile does not register; `data.capability` names it |
 
 <!-- orchestrator-error-codes:end -->
 

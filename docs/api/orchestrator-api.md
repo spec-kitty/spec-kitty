@@ -1072,25 +1072,25 @@ documented in the same change that registers it.
 - `AMBIGUOUS_PENDING_DECISION` — `answer-decision`
 - `DECISION_NOT_PENDING` — `answer-decision`
 - `DESIGN_ARTIFACT_UNSUPPORTED` — `artifact-read`, `artifact-submit`: the configured artifact name is invalid, the Mission type does not declare it, or the kind is not an authoring capability
-- `DESIGN_BOUNDS_EXCEEDED` — `artifact-read`, `artifact-submit`, `design-context`: a request, artifact or response exceeds the documented byte bounds
+- `DESIGN_BOUNDS_EXCEEDED` — `artifact-read`, `artifact-submit`, `design-validate`: an artifact, request or batch exceeds the documented byte bound
 - `DESIGN_COMMIT_FAILED` — `artifact-submit`: the content materialized but the host commit did not complete; inspect the reported effect state and commit outcome before retrying
-- `DESIGN_CONTEXT_FAILED` — `design-context`: an undeclared design stage, host content over the inline byte limit, or an activated Mission with no template mapping
+- `DESIGN_CONTEXT_FAILED` — `design-context`, `interview-record`, `artifact-submit`, `design-validate`: the resolved design context cannot be built — an undeclared design stage, host content over the inline byte limit, or an activated Mission with no template mapping
 - `DESIGN_CONTEXT_STALE` — `artifact-submit`, `design-validate`: the resolved template or governance context changed since the content was authored; re-read `design-context` and resubmit
-- `DESIGN_FINALIZED` — `artifact-submit`, `design-validate`: the native task board is already finalized, so API design writes and plan scaffolding refuse and native reconciliation applies instead
-- `DESIGN_INTERVIEW_FAILED` — `interview-record`: a native interview batch failed after earlier answers were applied; reconcile the reported decisions before retrying
-- `DESIGN_INTERVIEW_INCOMPLETE` — `interview-record`, `design-validate`: required interview answers are still pending, deferred or canceled
+- `DESIGN_FINALIZED` — `plan`, `artifact-submit`: an API-authored Mission whose native task board is finalized refuses plan scaffolding and design writes; native reconciliation applies instead
+- `DESIGN_INTERVIEW_FAILED` — `design-context`, `interview-record`, `artifact-submit`, `design-validate`: the interview ledger could not be read, or a requested answer could not be recorded; the failure carries the decision IDs already applied, if any, and asks for reconciliation before retrying
+- `DESIGN_INTERVIEW_INCOMPLETE` — `artifact-submit`, `design-validate`: required interview answers are still pending, deferred or canceled; `interview-record` reports that state as `data.interview.complete: false` rather than refusing
 - `DESIGN_INTERVIEW_INVALID` — `interview-record`: the answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing
 - `DESIGN_IO_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`: the host could not read or persist design content
 - `DESIGN_LOCK_TIMEOUT` — `artifact-read`, `artifact-submit`: the Mission authoring lock stayed busy past its bound; nothing was written, retry
 - `DESIGN_PARENT_STALE` — `artifact-submit`, `design-validate`: an accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt
 - `DESIGN_PATH_REFUSED` — `artifact-read`, `artifact-submit`: an artifact identifier or location is not a single safe basename or a declared destination
-- `DESIGN_PREREQUISITES_FAILED` — `artifact-submit`, `design-validate`: canonical prerequisites are unmet — open decisions, missing accepted provenance, or an invalid bounded package graph
-- `DESIGN_RECEIPT_UNREADABLE` — `artifact-read`, `artifact-submit`, `design-validate`: API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects
-- `DESIGN_REQUEST_INVALID` — `artifact-submit`: the request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, or names an unknown stage
+- `DESIGN_PREREQUISITES_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`: canonical prerequisites are unmet — open decisions, missing accepted provenance, an invalid outline, or an invalid bounded package graph
+- `DESIGN_RECEIPT_UNREADABLE` — `artifact-submit`, `design-validate`: API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects
+- `DESIGN_REQUEST_INVALID` — `artifact-read`, `artifact-submit`, `design-validate`: the request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, names an unknown stage, or selects an identifier the kind does not take
 - `DESIGN_REVISION_CONFLICT` — `artifact-submit`: the artifact revision changed since its `expected_sha256` was read; re-read and resubmit
 - `RUNTIME_BLOCKED` — `next`: the native runtime reported a blocked outcome; the typed payload explains why and the exit code is nonzero
 - `RUNTIME_NEXT_FAILED` — `next`: the native step, prompt or request was refused; the exit code is nonzero
-- `UNSUPPORTED_CAPABILITY` — a verb that requires a capability the Python delivery profile does not provide; `data.capability` names it
+- `UNSUPPORTED_CAPABILITY` — `contract-version --require-capability`: the Python delivery profile does not register the requested capability; `data.capability` names it
 <!-- orchestrator-error-codes:end -->
 
 Contract `1.4.0` (#3837) added the design-phase, analysis and decision verbs and
