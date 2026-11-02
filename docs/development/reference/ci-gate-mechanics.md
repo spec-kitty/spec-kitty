@@ -517,6 +517,38 @@ The store is not read or written, and the caller collects for itself, when:
 | `git-unavailable` | git cannot describe the checkout. |
 | `env-file-unreadable` | an operator `.kitty.env` exists but cannot be read, so the environment variables of the key are unknown. |
 
+### The per-test budget on a collecting gate
+
+A bypass is not free: the caller now pays the whole collection inside its own test setup. One
+`pytest --collect-only` of the tree costs 89 to 233 s on a first CI run (the measurements above),
+247.7 s on the machine that filed #7052, and 90 to 422 s on a shared development VM depending on
+load; the post-test `check` step cannot see that cost, because it only reads the report lines.
+
+The suite's per-test timeout is a 240 s runaway-hang backstop (`pytest.ini`, #3143), which is at
+or below a legitimate collection. A gate whose fixture setup may collect therefore carries its
+own `@pytest.mark.timeout(...)` budget, derived from the collector's own ceiling
+(`tests/architectural/_gate_coverage.COLLECT_TIMEOUT_S`, 900 s) plus an allowance for the work
+that runs beside the collection. pytest-timeout installs its timer over setup as well as the
+call (`timeout_func_only` is unset), so the marker also bounds the module-scoped fixture setup
+that triggers the collection.
+
+The rule is the one `pytest.ini` states: a legitimate slow test gets a per-test marker, the
+global default is not raised. The budget must never be below `COLLECT_TIMEOUT_S` — a smaller one
+reports a real collection as a hang, which is exactly #7052: on the architectural battery leg the
+whole-repo collection was killed at 240 s and 16 tests in
+`tests/architectural/test_same_tier_uniqueness.py` errored at once while `check` still printed
+"Reuse held" (an interrupted request writes no report line).
+
+Two invariants keep the two numbers together, both in that test module: every test whose fixture
+closure reaches `universe` must carry a budget of at least `COLLECT_TIMEOUT_S`, and
+`_gate_coverage.py` may not pass a bare numeric timeout to a collection subprocess. A test that
+never collects keeps the 240 s default.
+
+Giving the tests room does not make a broken reuse green. On CI a bypass inside the pytest step
+is still a red at the `check` step (`Reuse broken: … collected` / `… bypassed (dirty-checkout)`),
+with the reason and the dirty paths in the job summary; the budget only stops that red from
+arriving as a timeout storm that names no cause.
+
 ### The report line
 
 When `SK_GATE_REUSE_REPORT` names a file, each call of `collect_universe()` appends
