@@ -94,7 +94,10 @@ class TestLegacyCharterMdOnlyShape:
         """
         result = _collect_charter_sync_status(charter_md_only_repo)
 
-        assert result["charter_path"] == str(Path(".kittify/charter/charter.md")), result
+        # A literal POSIX string, not ``str(Path(...))``: the collector reports a
+        # repository-relative path POSIX on every OS (#7044), so building the
+        # expectation with ``str()`` would pin the Windows separator instead.
+        assert result["charter_path"] == ".kittify/charter/charter.md", result
 
     def test_files_info_reports_only_charter_md_present(
         self, charter_md_only_repo: Path

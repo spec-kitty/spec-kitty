@@ -31,7 +31,9 @@ class TestConstants:
         assert paths.PROJECT_GRAPH_FILENAME == "graph.yaml"
 
     def test_all_names_every_public_symbol(self) -> None:
-        public = {n for n in vars(paths) if not n.startswith("_") and n not in {"annotations", "Path"}}
+        # ``to_posix`` is imported from ``kernel.paths``, not owned here: it is the
+        # separator seam this module delegates to, so it is not part of ``__all__``.
+        public = {n for n in vars(paths) if not n.startswith("_") and n not in {"annotations", "Path", "to_posix"}}
         assert public == set(paths.__all__)
 
 
@@ -65,3 +67,16 @@ class TestHelpers:
         (tmp_path / ".kittify" / "doctrine").mkdir(parents=True)
         assert paths.project_pack_root(tmp_path) == tmp_path / ".kittify" / "charter-packs"
         assert not {"LEGACY_PROJECT_PACK_DIRNAME", "LegacyDoctrineRootWarning", "resolve_project_pack_read_root"} & set(vars(paths))
+
+
+class TestRepoRelativePosix:
+    """``repo_relative_posix``: the one seam for a reported repo-relative path (#7044)."""
+
+    def test_in_repo_path_is_posix(self, tmp_path: Path) -> None:
+        assert paths.repo_relative_posix(tmp_path / ".kittify" / "charter" / "charter.md", tmp_path) == ".kittify/charter/charter.md"
+
+    def test_a_path_outside_the_repo_raises(self, tmp_path: Path) -> None:
+        """The caller owns the fallback: the helper never guesses a spelling for it."""
+        outside = tmp_path.parent / "elsewhere" / "charter.md"
+        with pytest.raises(ValueError, match="is not in the subpath of"):
+            paths.repo_relative_posix(outside, tmp_path)
