@@ -1,0 +1,3 @@
+# Tooling friction
+
+- 2026-11-02 — pi/gpt-6.1-sol: `agent tracer-append` exposes no owned-checkout argument and resolved the repository root checkout instead of this Mission's owned topic checkout. It created an untracked trace there and refused the protected-main commit. Reported as #7081; no protected-branch override was used. The sole untracked trace created by that attempt was moved into this Mission's `traces/approach.md`, and the now-empty accidental directories were removed. Other traces are authored directly as planning artifacts here pending the CLI correction. No runtime state or protected branch was edited.

@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-11-02T17:53:18.758362+00:00",
+  "flattened": false,
+  "friendly_name": "Calibrate the full-corpus recovery test budget",
+  "mid8": "01M6EP9T",
+  "mission_id": "01M6EP9TCD959FAJT6XKS658AY",
+  "mission_number": null,
+  "mission_slug": "corpus-audit-budget-01M6EP9T",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Measure the existing full-corpus recovery test on a GitHub-hosted runner, preserve every behavioral audit and integrity control, and correct only a demonstrated execution-budget mismatch or proven bottleneck. Separate work for issue 5716; do not modify the reviewed maintenance fix in PR 7071.",
+  "purpose_tldr": "Unblock upgrade CI without weakening full-corpus recovery checks.",
+  "slug": "corpus-audit-budget-01M6EP9T",
+  "target_branch": "issue-5716-corpus-audit-budget",
+  "topology": "single_branch"
+}

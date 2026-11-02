@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#5716": {
+      "evidence_ref": "Operator-authorized separate measurement-first work to unblock PR #7071.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#7081": {
+      "evidence_ref": "Tooling friction tracked separately; owned tracer repair is outside this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
