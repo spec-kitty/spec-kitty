@@ -12,13 +12,18 @@ Everything at module scope is standard library only: ``capture_shard_timings.py`
 is also run as a bare script (``python -I -S``), so this module must import
 without site packages.
 
-Module-row shard *assignment* is identical to the retired heredoc: when the
-committed timings do not line up with the collected tests the weights are still
-uniform. Since WP02 (FR-005, #5092 acceptance criterion 2) that fallback is
-never silent: a ``::warning title=shard timings::`` annotation and one
-``$GITHUB_STEP_SUMMARY`` line report it. It fires for any module whose committed
-timings no longer match live collection; that visibility is intended (research
-R1 section 4d).
+Module-row weights are **identity-keyed**. ``module_test_node_durations`` maps
+exact pytest node ids to seconds and is the authority: :func:`resolve_node_weights`
+joins it to live collection by node id, so an unchanged test keeps its own weight
+when others are added, removed or reordered, and a new test takes the deterministic
+median of its module's known timings. The old positional pairing is gone: a
+same-size reorder used to silently move every weight one place. A module whose
+ledger still holds only the legacy positional ``module_test_durations`` array is
+weighted uniformly and *loudly* (a ``::warning title=shard timings::`` annotation
+plus one ``$GITHUB_STEP_SUMMARY`` line): the ids were never recorded, so guessing
+them is not an option -- only a recapture can migrate the row. The same report
+names every missing and stale node id, so drift stays visible on the PR that
+caused it.
 
 WP02 also owns the battery's file granularity: :func:`enumerate_base_files` is
 THE list of battery test files (the WP05 plugin and the WP06 gate model both
@@ -32,6 +37,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import math
 import os
 import re
 import statistics
@@ -48,13 +54,16 @@ __all__ = [
     "DEFAULT_TIMINGS_PATH",
     "EXIT_NO_TESTS",
     "EXIT_USAGE",
+    "MODULE_NODE_DURATIONS_KEY",
     "MODULE_SELECTION_MARKER_EXPR",
     "NORECURSE_DIR_PATTERNS",
     "BatteryPartition",
+    "ModuleTimings",
     "WeightResolution",
     "battery_parts",
     "enumerate_base_files",
     "escape_workflow_command_message",
+    "load_module_timings",
     "lpt_assign",
     "lpt_loads",
     "main",
@@ -62,13 +71,22 @@ __all__ = [
     "report_mismatch",
     "resolve_file_weights",
     "resolve_module_test_dirs",
-    "resolve_positional_weights",
+    "resolve_node_weights",
+    "validate_node_durations",
 ]
 
 #: The single marker authority for module-row selection: the wall-clock/benchmark
 #: budget guards (``performance``) and the concurrency/load suite (``stress``)
 #: belong to the nightly lanes, never to a module shard.
 MODULE_SELECTION_MARKER_EXPR: Final = "not performance and not stress"
+
+#: THE identity-keyed duration table: ``{module: {node_id: seconds}}``. Weights are
+#: joined to collected tests by node id, never by position -- a reordered suite of
+#: unchanged size therefore cannot silently re-weight other tests. The positional
+#: ``module_test_durations`` list is a derived projection of this table (written
+#: beside it so the count/length consumers keep one meaning), and a module that has
+#: only the legacy list is weighted uniformly with an explicit warning.
+MODULE_NODE_DURATIONS_KEY: Final = "module_test_node_durations"
 
 #: Exit status for "nothing to select" -- the legacy heredoc's value.
 EXIT_NO_TESTS: Final = 64
@@ -96,6 +114,7 @@ _SUMMARY_ENV: Final = "GITHUB_STEP_SUMMARY"
 _MAX_NAMES_LISTED: Final = 10
 _FAST_PART: Final = "fast"
 _NO_TIMINGS_REASON: Final = "no timings for this key \N{EM DASH} uniform weights"
+_LEGACY_REASON: Final = "legacy positional durations cannot be matched to node ids \N{EM DASH} recapture to record node ids; uniform weights"
 _CONFTEST: Final = "conftest.py"
 
 
@@ -153,17 +172,109 @@ class WeightResolution:
         return self.reason is not None
 
 
-def resolve_positional_weights(node_ids: Sequence[str], durations: Sequence[float]) -> WeightResolution:
-    """Weights for *node_ids*: the committed *durations* when the counts line up, else uniform.
+def _is_seconds(value: object) -> bool:
+    """True for a finite, non-negative, non-bool number of seconds."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    return math.isfinite(float(value)) and float(value) >= 0.0
 
-    The committed timings drop node ids for compactness, so durations pair with
-    collected tests by position. A length mismatch keeps the legacy uniform
-    weights (module rows keep their assignment) but is reported in ``reason``.
+
+def validate_node_durations(value: object) -> str | None:
+    """``None`` when *value* is a usable node-id -> seconds mapping, otherwise why not.
+
+    THE structural check for ``module_test_node_durations[<module>]``: exact pytest
+    node ids (each carrying ``::``) mapped to finite, non-negative seconds. A list
+    (the retired positional shape), an empty mapping, a key that is not a node id,
+    or a NaN/infinite/negative/bool/string duration is rejected by name so callers
+    fail closed on uniform weights instead of weighting a shard with data they
+    cannot interpret.
     """
-    if len(durations) == len(node_ids):
-        return WeightResolution(tuple(durations), (), (), None)
-    reason = f"{len(durations)} committed durations vs {len(node_ids)} collected \N{EM DASH} uniform weights"
-    return WeightResolution((_UNIFORM_WEIGHT,) * len(node_ids), (), (), reason)
+    if not isinstance(value, Mapping):
+        return f"expected a node-id -> seconds mapping, got {type(value).__name__}"
+    if not value:
+        return "no node-id -> seconds entries"
+    bad_keys = [str(key) for key in value if not isinstance(key, str) or _NODE_ID_SEPARATOR not in key]
+    if bad_keys:
+        return f"keys that are not pytest node ids (no '::') -- {_describe_names(len(bad_keys), 'key(s)', bad_keys)}"
+    bad_values = [str(key) for key, seconds in value.items() if not _is_seconds(seconds)]
+    if bad_values:
+        return f"entries with a non-finite/negative/non-numeric duration -- {_describe_names(len(bad_values), 'entry(s)', bad_values)}"
+    return None
+
+
+@dataclass(frozen=True)
+class ModuleTimings:
+    """What the timings artefact holds for one module: keyed durations, and the legacy list size.
+
+    ``node_durations`` is ``None`` when the module has no identity-keyed table (a legacy
+    capture, or no capture at all); ``legacy_entries`` is the length of the positional
+    ``module_test_durations`` list, reported so the warning can say how much data is
+    waiting on a recapture.
+    """
+
+    node_durations: Mapping[str, float] | None
+    legacy_entries: int
+
+
+def resolve_node_weights(
+    node_ids: Sequence[str],
+    node_durations: Mapping[str, float] | None,
+    *,
+    legacy_entries: int = 0,
+) -> WeightResolution:
+    """Weights for *node_ids* from identity-keyed *node_durations* -- never positionally.
+
+    Every collected id keeps its OWN measured seconds, so a reorder or an insertion
+    never moves one test's weight onto another. Ids with no timing get the median of
+    the module's known timings (deterministic: ``statistics.median`` of the same
+    values, and stale keys never skew it). Missing and stale ids are reported.
+
+    Without an identity-keyed table (``None``) the weights are uniform and the reason
+    says why: a legacy positional list cannot be paired with collected ids without
+    guessing, so it is never paired at all -- fail closed, loudly, until a recapture
+    records the node ids.
+    """
+    reason: str | None
+    if node_durations is None:
+        reason = f"{legacy_entries} legacy positional durations for {len(node_ids)} collected tests: {_LEGACY_REASON}" if legacy_entries else _NO_TIMINGS_REASON
+        return WeightResolution((_UNIFORM_WEIGHT,) * len(node_ids), (), (), reason)
+    problem = validate_node_durations(node_durations)
+    if problem is not None:
+        reason = f"identity-keyed durations unusable ({problem}) \N{EM DASH} uniform weights"
+        return WeightResolution((_UNIFORM_WEIGHT,) * len(node_ids), (), (), reason)
+    known = {node_id: float(node_durations[node_id]) for node_id in node_ids if node_id in node_durations}
+    stale = tuple(sorted(set(node_durations) - set(node_ids)))
+    missing = tuple(node_id for node_id in node_ids if node_id not in known)
+    if not known:
+        reason = f"no identity-keyed duration matches a collected test ({len(stale)} stale) \N{EM DASH} uniform weights"
+        return WeightResolution((_UNIFORM_WEIGHT,) * len(node_ids), missing, stale, reason)
+    fill = float(statistics.median(known.values()))
+    weights = tuple(known.get(node_id, fill) for node_id in node_ids)
+    reason = None
+    if missing or stale:
+        reason = f"{len(missing)} collected tests without a timing get the median {fill:g}s; {len(stale)} identity-keyed timings match no collected test"
+    return WeightResolution(weights, missing, stale, reason)
+
+
+def load_module_timings(timings_path: str | os.PathLike[str], module: str) -> ModuleTimings:
+    """Read the timings artefact for *module*: its keyed table (if any) and legacy list length.
+
+    A missing file, an unreadable shape or a module with no rows reads as "no timings".
+    The keyed table is returned verbatim (still unvalidated) so that
+    :func:`resolve_node_weights` is the single place that judges it.
+    """
+    try:
+        with open(timings_path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except FileNotFoundError:
+        return ModuleTimings(None, 0)
+    if not isinstance(payload, Mapping):
+        return ModuleTimings(None, 0)
+    keyed = payload.get(MODULE_NODE_DURATIONS_KEY)
+    raw_node_durations = keyed.get(module) if isinstance(keyed, Mapping) else None
+    legacy = payload.get("module_test_durations")
+    legacy_rows = legacy.get(module) if isinstance(legacy, Mapping) else None
+    return ModuleTimings(raw_node_durations, len(legacy_rows) if isinstance(legacy_rows, list) else 0)
 
 
 def escape_workflow_command_message(message: str) -> str:
@@ -334,15 +445,6 @@ def _collect_node_ids(python: str, test_dirs: Sequence[str]) -> list[str]:
     return [line for line in collected.stdout.splitlines() if _NODE_ID_SEPARATOR in line]
 
 
-def _load_durations(timings_path: str, module: str) -> list[float]:
-    try:
-        with open(timings_path, encoding="utf-8") as fh:
-            timings = json.load(fh)
-    except FileNotFoundError:
-        return []
-    return list(timings.get("module_test_durations", {}).get(module, []))
-
-
 _SHARD_SPEC: Final = re.compile(r"([0-9]+)/([0-9]+)")
 
 
@@ -379,7 +481,8 @@ def _select_module(args: argparse.Namespace) -> int:
     if not node_ids:
         return _error(f"pytest collected zero tests for module {args.module!r} under {test_dirs!r}")
 
-    resolution = resolve_positional_weights(node_ids, _load_durations(args.timings, args.module))
+    timings = load_module_timings(args.timings, args.module)
+    resolution = resolve_node_weights(node_ids, timings.node_durations, legacy_entries=timings.legacy_entries)
     report_mismatch(resolution, label=f"module {args.module}")
     selected = lpt_assign(list(zip(node_ids, resolution.weights, strict=True)), total)[idx - 1]
     Path(args.out).write_text("\n".join(selected), encoding="utf-8")

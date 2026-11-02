@@ -23,6 +23,7 @@ from typing import Any
 
 import pytest
 
+from scripts.ci.capture_shard_timings import MODULE_NODE_DURATIONS_KEY, validate_module_tables
 from scripts.ci.recapture_shard_timings import is_valid_capture
 from tests.architectural.test_module_shard_registry import (
     _MAX_SKEW,
@@ -136,6 +137,8 @@ def test_checker_tolerates_a_payload_with_no_provenance_section() -> None:
 # ---------------------------------------------------------------------------
 # FR-016 paired control: the skew check that governs `shard_count` must fire.
 # ---------------------------------------------------------------------------
+
+
 def _skew_exceeds_ceiling(durations: list[float], shard_count: int) -> bool:
     """`test_module_shard_registry.test_inter_shard_skew_within_twenty_percent`'s verdict for one module.
 
@@ -156,3 +159,109 @@ def test_skew_check_rejects_a_deliberately_skewed_two_shard_module() -> None:
 def test_skew_check_accepts_a_balanced_two_shard_module() -> None:
     """Symmetry: ten equal tests split evenly across two shards, so the control is not trivially red."""
     assert not _skew_exceeds_ceiling([1.0] * 10, 2)
+
+
+# ---------------------------------------------------------------------------
+# Identity-keyed table: the selector trusts it, so it must be self-consistent.
+# The positional `module_test_durations` list is a DERIVED projection of it; a
+# module whose two disagree would hand the selector one set of weights and the
+# skew gate another. Only modules that carry identities are checked, so this
+# gate is green while the legacy arrays are still being recaptured.
+# ---------------------------------------------------------------------------
+
+
+def _identity_keyed_modules(timings: Mapping[str, Any]) -> list[str]:
+    table = timings.get(MODULE_NODE_DURATIONS_KEY)
+    return list(table) if isinstance(table, Mapping) else []
+
+
+def _inconsistent_identity_modules(modules: list[str], timings: Mapping[str, Any]) -> dict[str, str]:
+    """``{module: why}`` for every identity-keyed module whose tables disagree with each other."""
+    return {module: problem for module in modules if (problem := validate_module_tables(timings, module)) is not None}
+
+
+def _half_migrated_modules(modules: list[str], timings: Mapping[str, Any]) -> list[str]:
+    """Modules whose provenance claims node ids the table does not carry (or vice versa)."""
+    records = _provenance_records(timings)
+    keyed = set(_identity_keyed_modules(timings))
+    half: list[str] = []
+    for module in modules:
+        record = records.get(module)
+        claims = isinstance(record, Mapping) and isinstance(record.get("node_ids_measured"), int) and record.get("node_ids_measured") > 0
+        if claims != (module in keyed):
+            half.append(module)
+    return half
+
+
+def test_identity_keyed_modules_are_internally_consistent() -> None:
+    """Wherever a module carries node ids, every derived table must agree with them."""
+    timings = _load_timings()
+
+    problems = _inconsistent_identity_modules(_identity_keyed_modules(timings), timings)
+
+    assert not problems, "identity-keyed timings disagree with their derived projections: " + repr(problems)
+
+
+def test_no_registry_module_carries_half_migrated_identity_data() -> None:
+    """A capture that recorded node ids must keep them; a legacy capture must not claim them."""
+    half = _half_migrated_modules(_registry_module_names(), _load_timings())
+    assert not half, (
+        f"half-migrated identity data for {half}: provenance claims node ids the {MODULE_NODE_DURATIONS_KEY} table does not carry "
+        "(or the reverse). Recapture the module rather than deleting one side."
+    )
+
+
+def _keyed_payload() -> dict[str, Any]:
+    """A synthetic, fully consistent identity-keyed module slice (the shape a capture writes)."""
+    node_ids = ["tests/x/test_a.py::test_one", "tests/x/test_a.py::test_two"]
+    return {
+        MODULE_NODE_DURATIONS_KEY: {"alpha": dict.fromkeys(node_ids, 1.5)},
+        "module_test_durations": {"alpha": [1.5, 1.5]},
+        "module_test_count": {"alpha": 2},
+        "module_duration_seconds": {"alpha": 3.0},
+        "module_capture_provenance": {"alpha": {"exit_code": 0, "unique_tests_measured": 2, "node_ids_measured": 2}},
+    }
+
+
+def test_the_identity_consistency_gate_accepts_a_consistent_synthetic_payload() -> None:
+    """Symmetry: the checker is not trivially red."""
+    assert _inconsistent_identity_modules(["alpha"], _keyed_payload()) == {}
+    assert _half_migrated_modules(["alpha"], _keyed_payload()) == []
+
+
+@pytest.mark.parametrize(
+    ("mutate", "needle"),
+    [
+        (lambda p: p["module_test_durations"].update({"alpha": [9.0, 1.5]}), "projection"),
+        (lambda p: p["module_test_count"].update({"alpha": 3}), "module_test_count"),
+        (lambda p: p["module_duration_seconds"].update({"alpha": 99.0}), "module_duration_seconds"),
+        (lambda p: p["module_capture_provenance"].update({"alpha": {"exit_code": 0, "unique_tests_measured": 9}}), "unique_tests_measured"),
+    ],
+)
+def test_the_identity_consistency_gate_fires_on_a_divergent_slice(mutate: Any, needle: str) -> None:
+    payload = copy.deepcopy(_keyed_payload())
+    mutate(payload)
+
+    problems = _inconsistent_identity_modules(["alpha"], payload)
+    assert "alpha" in problems
+    assert needle in problems["alpha"]
+
+
+def test_the_identity_consistency_gate_fires_on_a_negative_duration() -> None:
+    payload = copy.deepcopy(_keyed_payload())
+    payload[MODULE_NODE_DURATIONS_KEY]["alpha"]["tests/x/test_a.py::test_one"] = -1.0
+
+    problems = _inconsistent_identity_modules(["alpha"], payload)
+    assert "non-finite/negative" in problems["alpha"]
+
+
+def test_the_half_migration_gate_fires_when_the_table_is_dropped() -> None:
+    payload = copy.deepcopy(_keyed_payload())
+    payload.pop(MODULE_NODE_DURATIONS_KEY)
+    assert _half_migrated_modules(["alpha"], payload) == ["alpha"]
+
+
+def test_the_half_migration_gate_fires_when_the_provenance_claim_is_dropped() -> None:
+    payload = copy.deepcopy(_keyed_payload())
+    payload["module_capture_provenance"]["alpha"] = {"exit_code": 0, "unique_tests_measured": 2}
+    assert _half_migrated_modules(["alpha"], payload) == ["alpha"]

@@ -27,12 +27,14 @@ import yaml
 from scripts.ci.shard_select import (
     EXIT_NO_TESTS,
     EXIT_USAGE,
+    MODULE_NODE_DURATIONS_KEY,
     MODULE_SELECTION_MARKER_EXPR,
     BatteryPartition,
     WeightResolution,
     battery_parts,
     enumerate_base_files,
     escape_workflow_command_message,
+    load_module_timings,
     lpt_assign,
     lpt_loads,
     main,
@@ -40,7 +42,8 @@ from scripts.ci.shard_select import (
     report_mismatch,
     resolve_file_weights,
     resolve_module_test_dirs,
-    resolve_positional_weights,
+    resolve_node_weights,
+    validate_node_durations,
 )
 
 pytestmark = pytest.mark.fast
@@ -81,13 +84,18 @@ def _reference_select(node_ids: list[str], timing_durations: list[float], total:
     return bins[idx - 1]
 
 
-def _production_items(node_ids: list[str], timing_durations: list[float]) -> list[tuple[str, float]]:
-    """Pair ids with weights through the SHIPPED ``resolve_positional_weights`` (what the CLI runs).
+def _production_items(node_ids: list[str], node_durations: dict[str, float]) -> list[tuple[str, float]]:
+    """Pair ids with weights through the SHIPPED ``resolve_node_weights`` (what the CLI runs).
 
     Deliberately not a re-implementation: the characterization must fail if the
     shipped weighting drifts from the frozen oracle.
     """
-    return list(zip(node_ids, resolve_positional_weights(node_ids, timing_durations).weights, strict=True))
+    return list(zip(node_ids, resolve_node_weights(node_ids, node_durations).weights, strict=True))
+
+
+def _keyed(node_ids: list[str], durations: list[float]) -> dict[str, float]:
+    """A complete identity-keyed table: every collected id carries its own measured seconds."""
+    return dict(zip(node_ids, durations, strict=True))
 
 
 def _registry_rows() -> list[dict[str, Any]]:
@@ -106,6 +114,7 @@ def _row_ids() -> list[str]:
 
 @pytest.mark.parametrize("module", _row_ids())
 def test_every_registry_row_shard_assignment_is_identical_to_the_legacy_selector(module: str) -> None:
+    """Same LPT placement the heredoc produced, now fed identity-keyed weights."""
     row = next(r for r in _registry_rows() if r["module"] == module)
     total = int(row["shard_count"])
     durations = _timings()[module]
@@ -113,20 +122,22 @@ def test_every_registry_row_shard_assignment_is_identical_to_the_legacy_selector
 
     for idx in range(1, total + 1):
         expected = _reference_select(node_ids, durations, total, idx)
-        actual = lpt_assign(_production_items(node_ids, durations), total)[idx - 1]
+        actual = lpt_assign(_production_items(node_ids, _keyed(node_ids, durations)), total)[idx - 1]
         assert actual == expected, f"{module} shard {idx}/{total} diverged from the legacy selector"
 
 
 @pytest.mark.parametrize("module", ["kernel", "next", "charter"])
-def test_length_mismatch_uniform_fallback_assignment_is_identical(module: str) -> None:
-    """The silent uniform-weight fallback is pinned too (WP02 makes it loud)."""
+def test_legacy_positional_arrays_select_uniformly_like_the_old_fallback(module: str) -> None:
+    """A legacy array carries no identities, so the CLI must fail closed to uniform weights."""
     durations = _timings()[module]
     node_ids = [f"{module}::t{i}" for i in range(len(durations) + _MISMATCH_EXTRA_TESTS)]
     total = 3
+    resolution = resolve_node_weights(node_ids, None, legacy_entries=len(durations))
 
+    assert resolution.weights == (1.0,) * len(node_ids)
     for idx in range(1, total + 1):
-        expected = _reference_select(node_ids, durations, total, idx)
-        actual = lpt_assign(_production_items(node_ids, durations), total)[idx - 1]
+        expected = _reference_select(node_ids, [1.0] * len(node_ids), total, idx)
+        actual = lpt_assign(list(zip(node_ids, resolution.weights, strict=True)), total)[idx - 1]
         assert actual == expected
 
 
@@ -139,6 +150,18 @@ def test_randomized_tie_heavy_assignments_match_the_legacy_selector() -> None:
         node_ids = [f"case{case}::t{i}" for i in range(size)]
         expected = [_reference_select(node_ids, durations, total, idx) for idx in range(1, total + 1)]
         assert lpt_assign(list(zip(node_ids, durations, strict=True)), total) == expected, f"case {case}"
+
+
+def test_randomized_identity_keyed_assignments_match_the_legacy_selector() -> None:
+    """The shipped resolver's weights are the oracle's weights whenever identities are keyed."""
+    rng = random.Random(_RANDOM_SEED)
+    for case in range(_RANDOM_CASES):
+        size = rng.randint(1, 200)
+        total = rng.randint(1, 8)
+        durations = [rng.choice(_TIE_HEAVY_DURATIONS) for _ in range(size)]
+        node_ids = [f"case{case}::t{i}" for i in range(size)]
+        expected = [_reference_select(node_ids, durations, total, idx) for idx in range(1, total + 1)]
+        assert lpt_assign(_production_items(node_ids, _keyed(node_ids, durations)), total) == expected, f"case {case}"
 
 
 def test_lpt_loads_matches_the_bin_loads_of_lpt_assign() -> None:
@@ -185,24 +208,141 @@ def test_marker_constant_value() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# resolve_positional_weights (the production weighting; the fallback is loud since WP02)
+# resolve_node_weights -- identity-keyed weighting, never positional (no remap)
 # --------------------------------------------------------------------------- #
 
 
-def test_positional_weights_returns_the_committed_durations_when_the_counts_line_up() -> None:
-    durations = [3.5, 0.25, 9.0]
-    resolution = resolve_positional_weights(["a::1", "b::2", "c::3"], durations)
-    assert list(resolution.weights) == durations
+def test_node_weights_return_the_committed_durations_when_every_id_is_timed() -> None:
+    durations = {"a::1": 3.5, "b::2": 0.25, "c::3": 9.0}
+    resolution = resolve_node_weights(["a::1", "b::2", "c::3"], durations)
+    assert list(resolution.weights) == [3.5, 0.25, 9.0]
     assert not resolution.mismatch
     assert resolution.reason is None
 
 
-@pytest.mark.parametrize("durations", [[], [2.0], [2.0, 3.0, 4.0]])
-def test_positional_weights_degrades_to_uniform_on_a_length_mismatch(durations: list[float]) -> None:
-    resolution = resolve_positional_weights(["a::1", "b::2"], durations)
+def test_same_count_reorder_never_remaps_weights_onto_other_tests() -> None:
+    """THE defect this replaces: a positional list silently re-weighted a reordered suite."""
+    durations = {"x::test_heavy": 30.0, "x::test_light": 1.0, "x::test_mid": 5.0}
+    collected = ["x::test_light", "x::test_heavy", "x::test_mid"]
+
+    resolution = resolve_node_weights(collected, durations)
+
+    assert list(resolution.weights) == [1.0, 30.0, 5.0]
+    assert not resolution.mismatch
+
+
+def test_unchanged_tests_keep_their_measured_weights_when_the_count_drifts() -> None:
+    durations = {"x::test_a": 10.0, "x::test_b": 2.0}
+
+    resolution = resolve_node_weights(["x::test_a", "x::test_new", "x::test_b"], durations)
+
+    assert resolution.weights[0] == 10.0
+    assert resolution.weights[2] == 2.0
+    assert resolution.missing == ("x::test_new",)
+    assert resolution.stale == ()
+    assert resolution.mismatch
+
+
+def test_a_new_id_gets_the_deterministic_median_of_the_known_weights() -> None:
+    durations = {"x::test_a": 1.0, "x::test_b": 3.0, "x::test_c": 100.0}
+
+    first = resolve_node_weights(["x::test_a", "x::test_new", "x::test_b", "x::test_c"], durations)
+    second = resolve_node_weights(["x::test_a", "x::test_new", "x::test_b", "x::test_c"], durations)
+
+    assert first.weights[1] == 3.0, "median of 1/3/100, not the mean 34.7"
+    assert first.weights == second.weights
+    assert first.reason == second.reason
+
+
+def test_removed_tests_are_reported_stale_and_do_not_skew_the_median() -> None:
+    durations = {"x::test_a": 2.0, "x::test_b": 4.0, "x::gone": 1000.0}
+
+    resolution = resolve_node_weights(["x::test_a", "x::test_b", "x::test_new"], durations)
+
+    assert resolution.weights == (2.0, 4.0, 3.0)
+    assert resolution.stale == ("x::gone",)
+    assert resolution.missing == ("x::test_new",)
+    assert resolution.mismatch
+
+
+def test_stale_only_keys_are_a_mismatch_that_does_not_change_the_weights() -> None:
+    resolution = resolve_node_weights(["x::test_a"], {"x::test_a": 2.5, "x::gone": 9.0})
+    assert resolution.weights == (2.5,)
+    assert resolution.stale == ("x::gone",)
+    assert resolution.mismatch
+
+
+def test_a_legacy_positional_array_is_fail_closed_uniform_and_says_recapture() -> None:
+    resolution = resolve_node_weights(["x::test_a", "x::test_b"], None, legacy_entries=7)
+
     assert resolution.weights == (1.0, 1.0)
     assert resolution.mismatch
-    assert resolution.reason == f"{len(durations)} committed durations vs 2 collected \N{EM DASH} uniform weights"
+    assert "7 legacy positional durations" in str(resolution.reason)
+    assert "recapture" in str(resolution.reason)
+
+
+def test_no_timings_at_all_is_uniform_and_says_so() -> None:
+    resolution = resolve_node_weights(["x::test_a"], None)
+    assert resolution.weights == (1.0,)
+    assert resolution.mismatch
+    assert "no timings for this key" in str(resolution.reason)
+
+
+def test_only_stale_keys_count_as_no_usable_timing() -> None:
+    resolution = resolve_node_weights(["x::test_a"], {"x::other": 1.0})
+    assert resolution.weights == (1.0,)
+    assert resolution.stale == ("x::other",)
+    assert resolution.mismatch
+
+
+@pytest.mark.parametrize(
+    ("value", "needle"),
+    [
+        ([1.0, 2.0], "list"),
+        ({}, "no node-id"),
+        ({"no-ids-here": 1.0}, "not pytest node ids"),
+        ({"x::a": -1.0}, "non-finite/negative"),
+        ({"x::a": float("nan")}, "non-finite/negative"),
+        ({"x::a": float("inf")}, "non-finite/negative"),
+        ({"x::a": "1.0"}, "non-finite/negative"),
+        ({"x::a": True}, "non-finite/negative"),
+    ],
+)
+def test_validate_node_durations_rejects_unusable_tables(value: object, needle: str) -> None:
+    problem = validate_node_durations(value)
+    assert problem is not None
+    assert needle in problem
+
+
+def test_validate_node_durations_accepts_a_complete_table() -> None:
+    assert validate_node_durations({"x::a": 0.0, "x::b": 1.5}) is None
+
+
+def test_an_unusable_keyed_table_fails_closed_uniform_with_the_reason() -> None:
+    resolution = resolve_node_weights(["x::a", "x::b"], {"x::a": -3.0, "x::b": 1.0})
+    assert resolution.weights == (1.0, 1.0)
+    assert resolution.mismatch
+    assert "identity-keyed durations unusable" in str(resolution.reason)
+
+
+def test_load_module_timings_reads_the_keyed_table_and_counts_legacy_entries(tmp_path: Path) -> None:
+    timings = tmp_path / "timings.json"
+    timings.write_text(
+        json.dumps(
+            {
+                MODULE_NODE_DURATIONS_KEY: {"alpha": {"t::a": 1.0}},
+                "module_test_durations": {"alpha": [1.0, 2.0], "other": [3.0]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_module_timings(timings, "alpha")
+    assert loaded.node_durations == {"t::a": 1.0}
+    assert loaded.legacy_entries == 2
+    assert load_module_timings(timings, "other").node_durations is None
+    assert load_module_timings(timings, "other").legacy_entries == 1
+    assert load_module_timings(tmp_path / "absent.json", "alpha").node_durations is None
 
 
 # --------------------------------------------------------------------------- #
@@ -275,7 +415,17 @@ class _Fixture:
         self.python.chmod(self.python.stat().st_mode | stat.S_IXUSR)
 
     def write_timings(self, module: str, durations: list[float]) -> None:
+        """A LEGACY positional payload (node identities dropped) -- fail-closed uniform."""
         self.timings.write_text(json.dumps({"module_test_durations": {module: durations}}), encoding="utf-8")
+
+    def write_node_timings(self, module: str, node_durations: dict[str, float]) -> None:
+        """The identity-keyed payload a fresh capture writes (derived list beside it, as the producer does)."""
+        payload = {
+            MODULE_NODE_DURATIONS_KEY: {module: node_durations},
+            "module_test_durations": {module: list(node_durations.values())},
+            "module_test_count": {module: len(node_durations)},
+        }
+        self.timings.write_text(json.dumps(payload), encoding="utf-8")
 
     def argv(self, module: str, shard: str, *, test_dirs: str = "", timings: Path | None = None) -> list[str]:
         return [
@@ -301,7 +451,7 @@ def test_main_writes_the_oracle_selection_byte_exact_with_no_trailing_newline(
     node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(9)]
     durations = [5.0, 1.0, 1.0, 4.0, 2.0, 2.0, 3.0, 0.5, 0.5]
     fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
-    fx.write_timings("alpha", durations)
+    fx.write_node_timings("alpha", _keyed(node_ids, durations))
 
     assert main(fx.argv("alpha", "2/3")) == 0
 
@@ -316,7 +466,7 @@ def test_main_shards_partition_the_collected_tests_exactly_once(tmp_path: Path, 
     node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(11)]
     durations = [float(i % 4) for i in range(11)]
     fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
-    fx.write_timings("alpha", durations)
+    fx.write_node_timings("alpha", _keyed(node_ids, durations))
 
     seen: list[str] = []
     for idx in (1, 2, 3):
@@ -324,6 +474,19 @@ def test_main_shards_partition_the_collected_tests_exactly_once(tmp_path: Path, 
         assert fx.out.read_text(encoding="utf-8").splitlines() == _reference_select(node_ids, durations, 3, idx)
         seen += fx.out.read_text(encoding="utf-8").splitlines()
     assert sorted(seen) == sorted(node_ids)
+
+
+def test_main_keeps_every_test_in_its_own_shard_when_collection_order_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same ids, same count, different collection order: no weight may follow a position."""
+    node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(6)]
+    durations = [9.0, 0.1, 8.0, 0.2, 7.0, 0.3]
+    reordered = [node_ids[i] for i in (3, 1, 5, 0, 4, 2)]
+    fx = _fixture(tmp_path, monkeypatch, "alpha", reordered)
+    fx.write_node_timings("alpha", _keyed(node_ids, durations))
+
+    assert main(fx.argv("alpha", "1/2")) == 0
+
+    assert fx.out.read_text(encoding="utf-8").splitlines() == _reference_select(reordered, [durations[node_ids.index(i)] for i in reordered], 2, 1)
 
 
 def test_main_keeps_only_collected_node_lines_and_runs_the_shared_marker_over_the_resolved_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -339,11 +502,11 @@ def test_main_keeps_only_collected_node_lines_and_runs_the_shared_marker_over_th
     ]  # fmt: skip
 
 
-@pytest.mark.parametrize("timings", ["missing", "wrong-length", "module-absent"])
+@pytest.mark.parametrize("timings", ["missing", "legacy-positional", "module-absent"])
 def test_main_falls_back_to_uniform_weights_when_timings_are_unusable(timings: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(7)]
     fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
-    if timings == "wrong-length":
+    if timings == "legacy-positional":
         fx.write_timings("alpha", [9.0, 8.0, 7.0])
     elif timings == "module-absent":
         fx.write_timings("other", [9.0] * 7)
@@ -418,14 +581,14 @@ def test_main_reports_zero_collected_tests_with_the_error_annotation_and_exit_64
 
 
 def test_main_over_a_real_registry_row_matches_the_oracle_for_every_shard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Real row (shard_count, test_dirs) + real committed timings, end to end through ``main``."""
+    """Real row (shard_count, test_dirs) + real committed durations, end to end through ``main``."""
     row = next(r for r in _registry_rows() if r["module"] == "next")
     total = int(row["shard_count"])
     assert total > 1, "the multi-shard fixture row must stay multi-shard"
     durations = _timings()["next"]
     node_ids = [f"tests/next/test_x.py::t{i}" for i in range(len(durations))]
     fx = _fixture(tmp_path, monkeypatch, "next", node_ids)
-    fx.timings.write_bytes(_TIMINGS_PATH.read_bytes())
+    fx.write_node_timings("next", _keyed(node_ids, durations))
 
     for idx in range(1, total + 1):
         assert main(fx.argv("next", f"{idx}/{total}")) == 0
@@ -456,36 +619,65 @@ def _warning_lines(out: str) -> list[str]:
     return [line for line in out.splitlines() if line.startswith(_WARNING_PREFIX)]
 
 
-def test_module_mode_length_mismatch_keeps_uniform_weights_but_warns_and_writes_the_step_summary(
+def test_module_mode_reports_missing_and_stale_node_ids_and_still_weights_the_rest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(5)]
     fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
-    fx.write_timings("alpha", [9.0, 1.0, 5.0])
+    # `t3`/`t4` are new, `t9` was removed: the three surviving ids keep their own weights.
+    fx.write_node_timings(
+        "alpha", {"tests/alpha/test_a.py::t0": 9.0, "tests/alpha/test_a.py::t1": 1.0, "tests/alpha/test_a.py::t2": 5.0, "tests/alpha/test_a.py::t9": 100.0}
+    )
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv(_SUMMARY_ENV, str(summary))
+    weights = {"tests/alpha/test_a.py::t0": 9.0, "tests/alpha/test_a.py::t1": 1.0, "tests/alpha/test_a.py::t2": 5.0}
+    fill = 5.0
+    expected_weights = [weights.get(node_id, fill) for node_id in node_ids]
+
+    assert main(fx.argv("alpha", "2/3")) == 0
+
+    assert fx.out.read_text(encoding="utf-8").splitlines() == _reference_select(node_ids, expected_weights, 3, 2)
+    warnings = _warning_lines(capsys.readouterr().out)
+    assert len(warnings) == 1
+    assert "2 missing" in warnings[0]
+    assert "tests/alpha/test_a.py::t3" in warnings[0]
+    assert "1 stale" in warnings[0]
+    assert "tests/alpha/test_a.py::t9" in warnings[0]
+    summary_lines = summary.read_text(encoding="utf-8").splitlines()
+    assert len(summary_lines) == 1
+    assert "2 missing" in summary_lines[0]
+
+
+def test_module_mode_legacy_positional_timings_are_fail_closed_uniform_and_say_recapture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A positional list cannot be identity-matched, so it is never paired by position again."""
+    node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(5)]
+    fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
+    fx.write_timings("alpha", [9.0, 1.0, 5.0, 4.0, 3.0])
     summary = tmp_path / "summary.md"
     monkeypatch.setenv(_SUMMARY_ENV, str(summary))
 
     assert main(fx.argv("alpha", "2/3")) == 0
 
-    # assignment unchanged: uniform weights, exactly the legacy selector's result
+    # assignment unchanged: uniform weights, exactly the legacy selector's fallback result
     assert fx.out.read_text(encoding="utf-8").splitlines() == _reference_select(node_ids, [1.0] * 5, 3, 2)
     warnings = _warning_lines(capsys.readouterr().out)
     assert len(warnings) == 1
     assert "alpha" in warnings[0]
-    assert "3 committed" in warnings[0]
-    assert "5 collected" in warnings[0]
+    assert "5 legacy positional durations" in warnings[0]
+    assert "recapture" in warnings[0]
     summary_lines = summary.read_text(encoding="utf-8").splitlines()
     assert len(summary_lines) == 1
-    assert "alpha" in summary_lines[0]
-    assert "3 committed" in summary_lines[0]
+    assert "recapture" in summary_lines[0]
 
 
-def test_module_mode_agreeing_counts_print_no_warning_and_write_no_summary(
+def test_module_mode_agreeing_identity_keyed_timings_print_no_warning_and_write_no_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     node_ids = [f"tests/alpha/test_a.py::t{i}" for i in range(4)]
     fx = _fixture(tmp_path, monkeypatch, "alpha", node_ids)
-    fx.write_timings("alpha", [4.0, 3.0, 2.0, 1.0])
+    fx.write_node_timings("alpha", _keyed(node_ids, [4.0, 3.0, 2.0, 1.0]))
     summary = tmp_path / "summary.md"
     monkeypatch.setenv(_SUMMARY_ENV, str(summary))
 

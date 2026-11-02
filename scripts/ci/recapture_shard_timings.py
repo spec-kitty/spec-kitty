@@ -12,22 +12,31 @@ result is a pull request that refreshes the stale entries.
 
 What a ``capture`` run does
 ---------------------------
-1. **Count-only pass.** Each candidate module's test count is collected without running a
-   test (``pytest --collect-only``, over the directories and marker expression the
-   canonical producer uses, so "collected" means the same thing here and there). Each pass is
-   capped at :data:`COUNT_PASS_TIMEOUT_SECONDS`, and none starts once the time budget is
-   spent: the modules not counted are reported as ``deferred``, never as clean.
-2. A module is **drifted** when that count differs from the committed ``module_test_count``
-   or its provenance record is missing or not valid (:func:`is_valid_capture`,
-   :func:`drifted_modules`).
+1. **Collection-only pass.** Each candidate module's collected **node ids** are listed
+   without running a test (``pytest --collect-only``, over the directories and marker
+   expression the canonical producer uses, so "collected" means the same thing here and
+   there). Each pass is capped at :data:`COUNT_PASS_TIMEOUT_SECONDS`, and none starts once
+   the time budget is spent: the modules not collected are reported as ``deferred``, never
+   as clean.
+2. A module is **drifted** when its provenance record is missing or not valid
+   (:func:`is_valid_capture`), when the collected **identity set** differs from the
+   committed ``module_test_node_durations`` (a rename/replacement at an unchanged count
+   included -- a count-only check saw nothing), when the entry is still the retired
+   positional shape (no node ids: a recapture is what migrates it), or when its committed
+   tables disagree with each other (:func:`drift_reasons`).
 3. Each drifted module is captured by the canonical producer
    (``python -m scripts.ci.capture_shard_timings --module <m> --write``) in **its own
    subprocess**, oldest provenance first, until the time budget is spent. Modules left
    over are reported as ``deferred``; the next run recomputes drift, so no state is kept.
 4. A capture is **valid** when its provenance record carries the run id this script passed
-   in, exit status 0 or 1, and at least one measured test. An invalid capture (a crash,
-   a collection error, a timeout) restores the committed file byte for byte and the module
-   is reported as ``failed``; the remaining modules are still processed.
+   in, exit status 0 or 1, at least one measured test, and its committed slice is
+   structurally complete (:func:`capture_shard_timings.validate_module_tables`: exact
+   node ids, usable durations, and every derived projection agreeing). An invalid capture
+   (a crash, a collection error, a timeout, a payload whose ids and durations do not line
+   up) restores the committed file byte for byte and the module is reported as ``failed``;
+   the remaining modules are still processed. A capture whose pytest exit status was 1 is
+   kept -- the durations are complete -- but it is reported as **captured with failing
+   tests**, never as a clean capture.
 5. The machine-readable result (``drifted`` / ``captured`` / ``failed`` / ``deferred``)
    and a job-summary table are written. Exit status is 1 when any module failed.
 
@@ -127,7 +136,9 @@ _DURATIONS_KEY = "module_test_durations"
 _COUNT_KEY = "module_test_count"
 _SECONDS_KEY = "module_duration_seconds"
 _PROVENANCE_KEY = "module_capture_provenance"
-_MODULE_TABLE_KEYS = (_DURATIONS_KEY, _COUNT_KEY, _SECONDS_KEY, _PROVENANCE_KEY)
+#: The identity-keyed authority (``capture_shard_timings`` / ``shard_select`` own the name).
+_NODE_DURATIONS_KEY = capture_shard_timings.MODULE_NODE_DURATIONS_KEY
+_MODULE_TABLE_KEYS = (_NODE_DURATIONS_KEY, _DURATIONS_KEY, _COUNT_KEY, _SECONDS_KEY, _PROVENANCE_KEY)
 
 #: The producer's per-suite battery tables (``scripts/ci/recapture_battery_timings.py``
 #: refreshes them from nightly junit, #6365): durations and provenance, written as a pair.
@@ -152,6 +163,7 @@ PR_BODY_TEMPLATE = (
     "(`scripts/ci/recapture_shard_timings.py`, `scripts/ci/recapture_battery_timings.py`). "
     "Refreshes the drifted entries in `.github/ci-shard-timings.json`.\n\n"
     "- Captured: {captured}\n"
+    "- Captured with failing tests (durations complete): {captured_with_failures}\n"
     "- Failed (committed data left unchanged): {failed}\n"
     "- Deferred (time budget spent, retried next run): {deferred}\n"
     "- Battery tables refreshed from nightly junit: {battery_captured}\n"
@@ -216,23 +228,60 @@ def has_valid_provenance(timings: Mapping[str, Any], module: str) -> bool:
     return is_valid_capture(_provenance_of(timings, module))
 
 
-def drifted_modules(modules: Sequence[str], timings: Mapping[str, Any], counts: Mapping[str, int]) -> list[str]:
-    """The modules whose committed entry no longer matches reality.
+def _committed_node_durations(timings: Mapping[str, Any], module: str) -> Mapping[str, Any] | None:
+    table = timings.get(_NODE_DURATIONS_KEY)
+    row = table.get(module) if isinstance(table, Mapping) else None
+    return row if isinstance(row, Mapping) else None
 
-    A module is drifted when its provenance is missing or not valid, or when its collected
-    count (*counts*) differs from the committed ``module_test_count``. A module with a valid
-    provenance and no entry in *counts* cannot be judged and is left out; the caller reports
-    the failed count pass separately instead of treating the module as clean.
+
+def _identity_drift(collected_ids: Sequence[str], committed: Mapping[str, Any]) -> str | None:
+    """Why the collected *collected_ids* no longer match *committed*, or ``None`` when they do.
+
+    Identity, not count: a renamed or replaced test keeps the count identical, and a
+    reordered-but-identical set is NOT drift (the weights are keyed by id).
     """
-    drifted: list[str] = []
+    added = sorted(set(collected_ids) - set(committed))
+    removed = sorted(set(committed) - set(collected_ids))
+    if not added and not removed:
+        return None
+    return f"{len(added)} collected node id(s) not in the committed timings, {len(removed)} committed node id(s) no longer collected"
+
+
+def drift_reasons(modules: Sequence[str], timings: Mapping[str, Any], collected: Mapping[str, Sequence[str]]) -> dict[str, str]:
+    """``{module: why}`` for every module whose committed entry no longer matches reality.
+
+    A module drifts when its provenance is missing or not valid, when its committed tables
+    disagree with each other or still use the retired positional shape, when the collected
+    count differs, or when the collected **node ids** differ from the committed identity
+    table. A module with a valid provenance and no entry in *collected* cannot be judged
+    and is left out; the caller reports the failed collection pass separately instead of
+    treating the module as clean.
+    """
+    reasons: dict[str, str] = {}
     for module in modules:
         if not has_valid_provenance(timings, module):
-            drifted.append(module)
+            reasons[module] = "no valid capture provenance"
             continue
-        collected = counts.get(module)
-        if collected is not None and collected != _committed_count(timings, module):
-            drifted.append(module)
-    return drifted
+        collected_ids = collected.get(module)
+        if collected_ids is None:
+            continue
+        parts: list[str] = []
+        committed_count = _committed_count(timings, module)
+        if committed_count != len(collected_ids):
+            parts.append(f"count {committed_count if committed_count is not None else 'unrecorded'} -> {len(collected_ids)}")
+        problem = capture_shard_timings.validate_module_tables(timings, module)
+        if problem is not None:
+            parts.append(problem)
+        elif (identity := _identity_drift(collected_ids, _committed_node_durations(timings, module) or {})) is not None:
+            parts.append(identity)
+        if parts:
+            reasons[module] = "; ".join(parts)
+    return reasons
+
+
+def drifted_modules(modules: Sequence[str], timings: Mapping[str, Any], collected: Mapping[str, Sequence[str]]) -> list[str]:
+    """The modules whose committed entry no longer matches reality (see :func:`drift_reasons`)."""
+    return list(drift_reasons(modules, timings, collected))
 
 
 def order_oldest_first(modules: Sequence[str], timings: Mapping[str, Any]) -> list[str]:
@@ -300,6 +349,12 @@ class RecaptureResult:
     ``battery_captured`` / ``battery_failed`` name battery suites (not modules) refreshed, or
     not, from nightly junit by ``scripts/ci/recapture_battery_timings.py``; a battery failure's
     reason is keyed ``battery:<suite>`` in *reasons*.
+
+    ``drift_reasons`` says WHY each drifted module was picked (count change, identity
+    change, legacy shape, self-inconsistent tables), so a reader can tell a rename from a
+    growth. ``captured_with_failures`` names modules whose capture ran with pytest exit
+    status 1: their durations are complete and publishable, but the measured run had
+    failing tests and this result must never present that as a clean capture.
     """
 
     drifted: tuple[str, ...] = ()
@@ -309,6 +364,8 @@ class RecaptureResult:
     reasons: Mapping[str, str] = field(default_factory=dict)
     battery_captured: tuple[str, ...] = ()
     battery_failed: tuple[str, ...] = ()
+    captured_with_failures: tuple[str, ...] = ()
+    drift_reasons: Mapping[str, str] = field(default_factory=dict)
 
     def to_json(self) -> str:
         return json.dumps(
@@ -320,6 +377,8 @@ class RecaptureResult:
                 "reasons": dict(self.reasons),
                 "battery_captured": list(self.battery_captured),
                 "battery_failed": list(self.battery_failed),
+                "captured_with_failures": list(self.captured_with_failures),
+                "drift_reasons": dict(self.drift_reasons),
             },
             sort_keys=True,
         )
@@ -335,6 +394,8 @@ class RecaptureResult:
             reasons=dict(payload.get("reasons", {})),
             battery_captured=tuple(payload.get("battery_captured", ())),
             battery_failed=tuple(payload.get("battery_failed", ())),
+            captured_with_failures=tuple(payload.get("captured_with_failures", ())),
+            drift_reasons=dict(payload.get("drift_reasons", {})),
         )
 
     @property
@@ -342,12 +403,19 @@ class RecaptureResult:
         """True when at least one module or battery suite holds a fresh, valid capture to publish."""
         return bool(self.captured or self.battery_captured)
 
+    def _outcome_cell(self, module: str, outcome: str) -> str:
+        drift = self.drift_reasons.get(module)
+        return f"{outcome} \N{EM DASH} drifted: {drift}" if drift else outcome
+
     def summary_table(self) -> str:
         """A markdown job-summary table: one row per drifted module, then the failures' reasons."""
         lines = ["| module | outcome |", "| --- | --- |"]
-        lines += [f"| `{module}` | captured |" for module in self.captured]
-        lines += [f"| `{module}` | failed: {self.reasons.get(module, 'invalid capture')} |" for module in self.failed]
-        lines += [f"| `{module}` | deferred (time budget spent) |" for module in self.deferred]
+        for module in self.captured:
+            outcome = "captured (some measured tests failed; durations complete)" if module in self.captured_with_failures else "captured"
+            lines.append(f"| `{module}` | {self._outcome_cell(module, outcome)} |")
+        for module in self.failed:
+            lines.append(f"| `{module}` | {self._outcome_cell(module, 'failed: ' + self.reasons.get(module, 'invalid capture'))} |")
+        lines += [f"| `{module}` | {self._outcome_cell(module, 'deferred (time budget spent)')} |" for module in self.deferred]
         lines += [f"| battery `{suite}` | refreshed from nightly junit |" for suite in self.battery_captured]
         lines += [f"| battery `{suite}` | failed: {self.reasons.get(battery_reason_key(suite), 'invalid capture')} |" for suite in self.battery_failed]
         if len(lines) == 2:
@@ -357,6 +425,7 @@ class RecaptureResult:
     def proposal_body(self, run_url: str) -> str:
         return PR_BODY_TEMPLATE.format(
             captured=_format_modules(self.captured),
+            captured_with_failures=_format_modules(self.captured_with_failures),
             failed=_format_modules(self.failed),
             deferred=_format_modules(self.deferred),
             battery_captured=_format_modules(self.battery_captured),
@@ -368,6 +437,8 @@ class RecaptureResult:
         message = (
             f"{COMMIT_MESSAGE}\n\nCaptured: {_format_modules(self.captured)}\nFailed: {_format_modules(self.failed)}\nDeferred: {_format_modules(self.deferred)}"
         )
+        if self.captured_with_failures:
+            message += f"\nCaptured with failing tests (durations complete): {_format_modules(self.captured_with_failures)}"
         if self.battery_captured or self.battery_failed:
             message += f"\nBattery refreshed: {_format_modules(self.battery_captured)}\nBattery failed: {_format_modules(self.battery_failed)}"
         return message
@@ -518,13 +589,14 @@ def _registry_modules(registry: Mapping[str, Any]) -> list[str]:
     return [str(row["module"]) for row in registry.get("modules", []) if row.get("module")]
 
 
-def _collect_count(module: str, registry: dict[str, Any]) -> int:
-    """The number of tests *module*'s shard collects, without running any of them.
+def _collect_node_ids(module: str, registry: dict[str, Any]) -> tuple[str, ...]:
+    """The node ids *module*'s shard collects, without running any of them.
 
     Same test directories (the producer's resolver), marker expression and ``"::"`` node-id
-    filter the shard and the producer use. Raises ``RuntimeError`` (naming why) when the
-    pass fails, times out (:data:`COUNT_PASS_TIMEOUT_SECONDS`) or collects nothing -- the caller reports the module as failed rather than
-    treating an unknown count as clean.
+    filter the shard and the producer use. The exact ids -- not just their count -- are what
+    identity drift is judged on. Raises ``RuntimeError`` (naming why) when the pass fails,
+    times out (:data:`COUNT_PASS_TIMEOUT_SECONDS`) or collects nothing -- the caller reports
+    the module as failed rather than treating an unknown collection as clean.
     """
     try:
         test_dirs = capture_shard_timings.resolve_test_dirs(registry, module)
@@ -542,27 +614,27 @@ def _collect_count(module: str, registry: dict[str, Any]) -> int:
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"count-only collection timed out after {COUNT_PASS_TIMEOUT_SECONDS}s") from exc
-    node_ids = [line for line in proc.stdout.splitlines() if _NODE_ID_SEPARATOR in line]
+    node_ids = tuple(line for line in proc.stdout.splitlines() if _NODE_ID_SEPARATOR in line)
     if proc.returncode not in _VALID_EXIT_CODES or not node_ids:
         raise RuntimeError(f"count-only collection failed (exit {proc.returncode}, {len(node_ids)} node ids)")
-    return len(node_ids)
+    return node_ids
 
 
-def _collect_counts(
+def _collect_collections(
     modules: Sequence[str],
     registry: dict[str, Any],
     timings: Mapping[str, Any],
     *,
     budget_left: Callable[[], bool] = lambda: True,
-) -> tuple[dict[str, int], dict[str, str], list[str]]:
-    """Count every module that still has a valid provenance; return ``(counts, failures, uncounted)``.
+) -> tuple[dict[str, tuple[str, ...]], dict[str, str], list[str]]:
+    """Collect node ids for every module with a valid provenance; return ``(collected, failures, uncounted)``.
 
-    A module without a valid provenance is drifted whatever its count is, so it is not
-    counted (that saves a collection pass for exactly the modules that need a capture).
-    *budget_left* is asked before each count pass; a module whose pass would start after the
-    budget is spent is returned in *uncounted* (reported as deferred, never as clean).
+    A module without a valid provenance is drifted whatever it collects, so it is not
+    collected (that saves a pass for exactly the modules that need a capture). *budget_left*
+    is asked before each pass; a module whose pass would start after the budget is spent is
+    returned in *uncounted* (reported as deferred, never as clean).
     """
-    counts: dict[str, int] = {}
+    collected: dict[str, tuple[str, ...]] = {}
     failures: dict[str, str] = {}
     uncounted: list[str] = []
     for module in modules:
@@ -572,10 +644,10 @@ def _collect_counts(
             uncounted.append(module)
             continue
         try:
-            counts[module] = _collect_count(module, registry)
+            collected[module] = _collect_node_ids(module, registry)
         except RuntimeError as exc:
             failures[module] = str(exc)
-    return counts, failures, uncounted
+    return collected, failures, uncounted
 
 
 def _read_timings_after_capture() -> tuple[dict[str, Any] | None, str | None]:
@@ -594,30 +666,51 @@ def _read_timings_after_capture() -> tuple[dict[str, Any] | None, str | None]:
     return payload, None
 
 
-def _capture_failure(module: str, run_id: str, timeout_seconds: float) -> str | None:
-    """Run the producer for *module*; ``None`` when it left a valid, fresh capture behind,
-    otherwise why not. The caller restores the file on a reason."""
+@dataclass(frozen=True)
+class CaptureAttempt:
+    """One producer run's verdict: the reason it failed, or the pytest status it measured with."""
+
+    module: str
+    reason: str | None = None
+    exit_code: int | None = None
+
+    @property
+    def kept(self) -> bool:
+        return self.reason is None
+
+    @property
+    def measured_with_failures(self) -> bool:
+        return self.exit_code == 1
+
+
+def _capture_failure(module: str, run_id: str, timeout_seconds: float) -> CaptureAttempt:
+    """Run the producer for *module*; ``reason is None`` when it left a valid, fresh, complete
+    capture behind. The caller restores the file on a reason."""
     cmd = [sys.executable, "-m", "scripts.ci.capture_shard_timings", "--module", module, "--run-id", run_id, "--write"]
     try:
         proc = subprocess.run(cmd, cwd=REPO_ROOT, env=_scrubbed_env(), check=False, timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
-        return f"timed out after {int(timeout_seconds)}s"
+        return CaptureAttempt(module, f"timed out after {int(timeout_seconds)}s")
     if proc.returncode not in _VALID_EXIT_CODES:
-        return f"producer exited {proc.returncode}"
+        return CaptureAttempt(module, f"producer exited {proc.returncode}")
     payload, unreadable = _read_timings_after_capture()
     if payload is None:
-        return unreadable
+        return CaptureAttempt(module, unreadable)
     record = _provenance_of(payload, module)
     if record is None or record.get("run_id") != run_id:
-        return "producer wrote no provenance for this run (it crashed before writing)"
+        return CaptureAttempt(module, "producer wrote no provenance for this run (it crashed before writing)")
     if not is_valid_capture(record):
-        return f"invalid capture (exit_code={record.get('exit_code')!r}, unique_tests_measured={record.get('unique_tests_measured')!r})"
-    return None
+        return CaptureAttempt(module, f"invalid capture (exit_code={record.get('exit_code')!r}, unique_tests_measured={record.get('unique_tests_measured')!r})")
+    problem = capture_shard_timings.validate_module_tables(payload, module)
+    if problem is not None:
+        return CaptureAttempt(module, f"structurally incomplete capture: {problem}")
+    exit_code = record.get("exit_code")
+    return CaptureAttempt(module, None, exit_code if isinstance(exit_code, int) else None)
 
 
-def _capture_one(module: str, timeout_seconds: float) -> str | None:
+def _capture_one(module: str, timeout_seconds: float) -> CaptureAttempt:
     """Capture *module* in its own subprocess; on any failure put the committed file back
-    byte for byte and return the reason. ``None`` means the capture is valid and kept.
+    byte for byte and return the reason. A reason of ``None`` means the capture is valid and kept.
 
     An ``OSError`` from the subprocess call (it could not start, a pipe broke) is a failure of
     this module, not of the run; any other exception propagates, after the file is put back.
@@ -627,14 +720,14 @@ def _capture_one(module: str, timeout_seconds: float) -> str | None:
     kept = False
     try:
         try:
-            reason = _capture_failure(module, run_id, timeout_seconds)
+            attempt = _capture_failure(module, run_id, timeout_seconds)
         except OSError as exc:
-            reason = f"capture could not run ({type(exc).__name__}: {exc})"
-        kept = reason is None
+            attempt = CaptureAttempt(module, f"capture could not run ({type(exc).__name__}: {exc})")
+        kept = attempt.kept
     finally:
         if not kept:
             TIMINGS_PATH.write_bytes(before)
-    return reason
+    return attempt
 
 
 def _fetch_proposal_timings() -> dict[str, Any]:
@@ -720,9 +813,16 @@ def _baseline_timings() -> dict[str, Any]:
     return overlay_proposal(timings, _fetch_proposal_timings())
 
 
-def _capture_drifted(drifted: Sequence[str], timings: Mapping[str, Any], options: Options, started: float) -> RecaptureResult:
+def _capture_drifted(
+    drifted: Sequence[str],
+    timings: Mapping[str, Any],
+    options: Options,
+    started: float,
+    drift_reasons: Mapping[str, str] | None = None,
+) -> RecaptureResult:
     """Capture *drifted* modules, oldest first, until the budget is spent."""
     captured: list[str] = []
+    captured_with_failures: list[str] = []
     failed: list[str] = []
     deferred: list[str] = []
     reasons: dict[str, str] = {}
@@ -730,13 +830,23 @@ def _capture_drifted(drifted: Sequence[str], timings: Mapping[str, Any], options
         if options.budget_seconds is not None and _now_seconds() - started >= options.budget_seconds:
             deferred.append(module)
             continue
-        reason = _capture_one(module, options.capture_timeout_seconds)
-        if reason is None:
+        attempt = _capture_one(module, options.capture_timeout_seconds)
+        if attempt.kept:
             captured.append(module)
+            if attempt.measured_with_failures:
+                captured_with_failures.append(module)
         else:
             failed.append(module)
-            reasons[module] = reason
-    return RecaptureResult(tuple(drifted), tuple(captured), tuple(failed), tuple(deferred), reasons)
+            reasons[module] = str(attempt.reason)
+    return RecaptureResult(
+        drifted=tuple(drifted),
+        captured=tuple(captured),
+        failed=tuple(failed),
+        deferred=tuple(deferred),
+        reasons=reasons,
+        captured_with_failures=tuple(captured_with_failures),
+        drift_reasons=dict(drift_reasons or {}),
+    )
 
 
 def _emit_result(result: RecaptureResult) -> None:
@@ -747,10 +857,10 @@ def _emit_result(result: RecaptureResult) -> None:
 def run_capture_phase(options: Options) -> int:
     """The ``capture`` phase: no recapture token, no push, no ``gh`` call.
 
-    The time budget starts here, so the count-only pass is inside it: no count pass starts once
-    the budget is spent, and a module left uncounted is reported as ``deferred``. Returns 1 when
-    any module failed (a failed count pass or an invalid capture); modules it could not judge
-    are reported, never treated as clean.
+    The time budget starts here, so the collection pass is inside it: no pass starts once the
+    budget is spent, and a module left uncollected is reported as ``deferred``. Returns 1 when
+    any module failed (a failed collection pass or an invalid/incomplete capture); modules it
+    could not judge are reported, never treated as clean.
     """
     if _refuse_if_token_present():
         return 1
@@ -764,9 +874,14 @@ def run_capture_phase(options: Options) -> int:
     def budget_left() -> bool:
         return options.budget_seconds is None or _now_seconds() - started < options.budget_seconds
 
-    counts, count_failures, uncounted = _collect_counts(modules, registry, timings, budget_left=budget_left)
-    drifted = drifted_modules([m for m in modules if m not in count_failures], timings, counts)
-    result = _capture_drifted(drifted, timings, options, started) if options.write else RecaptureResult(drifted=tuple(drifted))
+    collected, count_failures, uncounted = _collect_collections(modules, registry, timings, budget_left=budget_left)
+    reasons_by_module = drift_reasons([m for m in modules if m not in count_failures], timings, collected)
+    drifted = list(reasons_by_module)
+    result = (
+        _capture_drifted(drifted, timings, options, started, reasons_by_module)
+        if options.write
+        else RecaptureResult(drifted=tuple(drifted), drift_reasons=reasons_by_module)
+    )
     if count_failures or uncounted:
         result = RecaptureResult(
             drifted=result.drifted,
@@ -774,6 +889,8 @@ def run_capture_phase(options: Options) -> int:
             failed=(*count_failures, *result.failed),
             deferred=(*uncounted, *result.deferred),
             reasons={**count_failures, **result.reasons},
+            captured_with_failures=result.captured_with_failures,
+            drift_reasons=result.drift_reasons,
         )
     _emit_result(result)
     return 1 if result.failed else 0

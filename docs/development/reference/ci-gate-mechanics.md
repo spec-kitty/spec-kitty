@@ -625,11 +625,14 @@ stash first to see a `reused` line. To force a fresh collection, run
 
 ## Scheduled shard-timings recapture
 
-`.github/ci-shard-timings.json` records, for each registry module, how many tests
-its shard collects and how long each took. The count drifts whenever tests are
-added or removed. The workflow `ci-shard-recapture.yml` (schedule 04:41 UTC daily,
-plus `workflow_dispatch`, and only on the primary branch (`main`)) refreshes the drifted entries for
-**every** registry module and proposes the change as a pull request. The code is
+`.github/ci-shard-timings.json` records, for each registry module, the exact node
+ids its shard collects and how long each took (`module_test_node_durations`, the
+identity-keyed authority `scripts/ci/shard_select.py` weights a shard by), their
+ordered projection (`module_test_durations`), the count and the summed seconds. The
+entry drifts whenever a test is added, removed, renamed or replaced. The workflow
+`ci-shard-recapture.yml` (schedule 04:41 UTC daily, plus `workflow_dispatch`, and
+only on the primary branch (`main`)) refreshes the drifted entries for **every**
+registry module and proposes the change as a pull request. The code is
 `scripts/ci/recapture_shard_timings.py`.
 
 The job `recapture-shard-timings` runs the script in three steps:
@@ -644,10 +647,15 @@ The `capture` phase runs test code for a long time, so it refuses to run when
 `CHARTER_SHARD_RECAPTURE_TOKEN` is in its environment and starts every subprocess
 without any token variable.
 
-**Finding drift.** A count-only pass (`pytest --collect-only`, over the same
-directories and marker expression the producer uses) counts each module whose
-committed provenance is valid. A module is drifted when its count differs from the
-committed `module_test_count`, or its provenance record is missing or not valid.
+**Finding drift.** A collection-only pass (`pytest --collect-only`, over the same
+directories and marker expression the producer uses) lists each module's **node
+ids** for every module whose committed provenance is valid. A module is drifted
+when its provenance record is missing or not valid, when its collected id set
+differs from the committed `module_test_node_durations` (a rename at an unchanged
+count included — a count-only check sees nothing), when the entry is still the
+retired positional shape with no node ids (a recapture is what migrates it), or
+when its committed tables disagree with each other. A reordered but identical id
+set is not drift: the weights are keyed by id.
 
 **Capturing.** Each drifted module is captured by
 `python -m scripts.ci.capture_shard_timings --module <m> --write` in its own
@@ -661,11 +669,17 @@ A count pass is capped at 300 s per module, a capture at 2,100 s, and the job at
 120 minutes.
 
 **The valid-capture rule.** A capture is kept when its provenance record carries
-the run id the script passed in, the pytest exit status was 0 or 1, and at least one
-test was measured. Anything else (a crash, a collection error, a timeout, an
-unreadable file) puts the committed file back byte for byte and reports the module
-as `failed`; the other modules still run. A count pass that fails or times out also
-reports its module as `failed`. The script exits 1 when any module failed.
+the run id the script passed in, the pytest exit status was 0 or 1, at least one
+test was measured, and the committed slice is structurally complete — exact, unique
+node ids, finite non-negative durations, and every derived table (ordered
+projection, count, summed seconds, `unique_tests_measured`) agreeing with the
+keyed table. Anything else (a crash, a collection error, a timeout, an unreadable
+file, an entry whose ids and durations do not line up) puts the committed file back
+byte for byte and reports the module as `failed`; the other modules still run. A
+capture whose pytest exit status was 1 keeps its complete durations but is reported
+as *captured with failing tests*, never as a clean capture. A count pass that fails
+or times out also reports its module as `failed`. The script exits 1 when any
+module failed.
 
 **Proposal.** The branch is `ci/recapture-shard-timings`, and GitHub allows one open
 pull request per head branch.
