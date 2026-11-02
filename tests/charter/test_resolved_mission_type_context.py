@@ -604,6 +604,12 @@ class TestRequiresSubstantiveSpecFailOpenIsObservable:
 
         from charter.activation.mission_type_profiles import requires_substantive_spec_for
 
+        # Positive control on the same seam: a healthy resolution is not routine noise.
+        _write_config(tmp_path, ["software-dev"])
+        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
+            assert requires_substantive_spec_for(tmp_path, "software-dev") is True
+        assert caplog.records == []
+
         def _boom(*_args: object, **_kwargs: object) -> object:
             raise ValueError("malformed mission-type layer")
 
@@ -620,18 +626,3 @@ class TestRequiresSubstantiveSpecFailOpenIsObservable:
         message = warnings[0].getMessage()
         assert "qa" in message
         assert "malformed mission-type layer" in message
-
-    def test_a_healthy_resolution_logs_nothing(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Positive control on the same seam: the warning means a failure, not routine noise."""
-        import logging
-
-        from charter.activation.mission_type_profiles import requires_substantive_spec_for
-
-        _write_config(tmp_path, ["software-dev"])
-
-        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
-            assert requires_substantive_spec_for(tmp_path, "software-dev") is True
-
-        assert [record for record in caplog.records if record.levelno >= logging.WARNING] == []
