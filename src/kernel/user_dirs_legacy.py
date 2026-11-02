@@ -2,9 +2,10 @@
 
 Before #6488 each caller resolved its own directory, so on macOS the upgrade,
 pack and service caches landed in ``~/.cache/spec-kitty`` while the upgrade-nag
-cache landed in ``~/Library/Caches/spec-kitty``. Those old trees hold only
-disposable caches and one one-time marker, so the operator's ruling is to
-discard them rather than migrate anything (issue #6488, C-004).
+cache landed in ``~/Library/Caches/spec-kitty``. Those old trees hold disposable
+caches and one one-time marker, so the operator's ruling is to discard them
+(issue #6488, C-004) -- except one operator-authored settings file, which is
+migrated before its tree goes (see the end of this docstring).
 
 Four invariants keep that safe. They are the whole contract of this module:
 
@@ -30,13 +31,19 @@ post-fix **cache** directory, so it survives under L1; the one file inside it th
 *was* state -- the runtime-cutover marker -- is discarded on its own, because
 leaving it behind would show that one-time notice a second time.
 
-No migration is performed: nothing is copied to the new location.
+One settings file is migrated instead of discarded. On Windows the pre-fix config
+rule (``platformdirs`` with its default appauthor) nested the app name twice, so
+the operator-authored ``upgrade.yaml`` (the upgrade-nag settings, read by
+``specify_cli.compat.config``) lived in ``%LOCALAPPDATA%\\spec-kitty\\spec-kitty``
+-- a tree this module removes. It is copied to the current config directory
+first and never over an existing file; nothing else is copied anywhere.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -66,6 +73,9 @@ class _Candidate:
     root: Path
     base: Path
     written_by: str
+    #: Operator-authored settings files copied to the current config directory
+    #: before the root is removed.
+    settings_to_migrate: tuple[str, ...] = ()
 
 
 def _xdg_base(variable: str, fallback: tuple[str, ...]) -> Path:
@@ -98,8 +108,16 @@ def _candidates() -> tuple[_Candidate, ...]:
         # upgrade_notifier's Windows branch: %LOCALAPPDATA%/<app> (now the live state dir).
         candidates.append(_Candidate(local_app_data / APP_NAME, local_app_data, "upgrade_notifier (Windows)"))
         # compat.cache and compat.config called platformdirs without appauthor=False,
-        # which nests the app name twice; nothing reads that tree any more.
-        candidates.append(_Candidate(local_app_data / APP_NAME / APP_NAME, local_app_data, "compat.cache, compat.config (platformdirs default author)"))
+        # which nests the app name twice; nothing reads that tree any more, but
+        # compat.config kept the operator's upgrade-nag settings there.
+        candidates.append(
+            _Candidate(
+                local_app_data / APP_NAME / APP_NAME,
+                local_app_data,
+                "compat.cache, compat.config (platformdirs default author)",
+                settings_to_migrate=("upgrade.yaml",),
+            )
+        )
     return tuple(candidates)
 
 
@@ -137,8 +155,41 @@ def _discard_legacy_state_files() -> tuple[Path, ...]:
     return tuple(removed)
 
 
+def _migrate_legacy_settings() -> tuple[Path, ...]:
+    """Copy operator-authored settings out of a legacy tree before it is removed.
+
+    Only ``upgrade.yaml`` (the upgrade-nag settings) is handled: the Windows
+    doubled-author tree held it, so removing that tree without a copy would
+    silently reset the operator's throttle and enabled choices. An existing file
+    at the new location always wins, and a failure is debug-logged and skipped
+    (L3) -- a settings file is never worth failing a command over.
+    """
+    target_dir = user_config_dir()
+    migrated: list[Path] = []
+    for candidate in _candidates():
+        for name in candidate.settings_to_migrate:
+            source = candidate.root / name
+            target = target_dir / name
+            try:
+                if source.is_symlink() or not source.is_file():
+                    continue
+                if target.is_symlink() or target.exists():
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
+            except OSError as exc:  # L3
+                _LOG.debug("could not migrate %s to %s: %s", source, target, exc)
+                continue
+            migrated.append(target)
+            _LOG.debug("migrated legacy settings file %s to %s", source, target)
+    return tuple(migrated)
+
+
 def discard_legacy_locations() -> tuple[Path, ...]:
     """Remove the pre-#6488 per-user directories that are no longer live (L1-L3).
+
+    The operator's upgrade-nag settings are migrated out of a legacy tree first
+    (see the module docstring); the return value lists removals only.
 
     Returns:
         What was actually removed (legacy files first, then roots), in the order it
@@ -147,6 +198,7 @@ def discard_legacy_locations() -> tuple[Path, ...]:
         error.
     """
     current = _current_directories()
+    _migrate_legacy_settings()
     removed: list[Path] = list(_discard_legacy_state_files())
     for candidate in _candidates():
         root = candidate.root
