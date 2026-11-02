@@ -1,7 +1,7 @@
 # Discovery — #6997 pre-existing red: two `tests/contract` guards
 
 Mission: `red-main-guard-subjects-01M6BTZS`
-Base: `origin/main` @ `287a226cfe` (clone `/home/exedev/work/sk-6997`), branch
+Base: `origin/main` @ `287a226cfe` (clone `<repo-root>`), branch
 `issue-6997-red-main-guard-subjects`.
 
 ## Reproduction (base commit, before any change)
