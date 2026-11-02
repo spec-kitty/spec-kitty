@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "mission_slug": "placement-fixture-real-git-01M6EJXH",
+  "mission_id": "01M6EJXHWJKD4745YCYYNZC1GD",
+  "mission_branch": "issue-7055-placement-fixture-real-git",
+  "target_branch": "issue-7055-placement-fixture-real-git",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/migration/test_runtime_state_cutover_placement.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:59:41.944513+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fb5feeec2f4d6e7f2ae2cb7e95c05605d4f4875d"
+}
