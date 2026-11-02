@@ -36,6 +36,7 @@ _REPO = Path(__file__).resolve().parents[2]
 _SCRIPT_PATH = _REPO / "scripts" / "sync_services.py"
 _ACTION = _REPO / ".github" / "actions" / "sync-services" / "action.yml"
 _PACKS_ACTION = _REPO / ".github" / "actions" / "sync-packs" / "action.yml"
+_PACKS_RESTORE_ACTION = _REPO / ".github" / "actions" / "restore-open-packs" / "action.yml"
 _WORKFLOWS = _REPO / ".github" / "workflows"
 _ACTION_REF = "./.github/actions/sync-services"
 _CACHE_STEP = "actions/cache@"
@@ -279,28 +280,80 @@ def _steps(path: Path) -> list[dict[str, Any]]:
     return steps
 
 
-def _cache_step(path: Path) -> dict[str, Any]:
-    (step,) = [step for step in _steps(path) if str(step.get("uses", "")).startswith(_CACHE_STEP)]
-    return step
+def _cache_steps(path: Path) -> list[dict[str, Any]]:
+    return [step for step in _steps(path) if str(step.get("uses", "")).startswith(_CACHE_STEP)]
 
 
-def test_action_restores_the_service_cache_keyed_on_the_pins() -> None:
-    step = _cache_step(_ACTION)
+def _cache_by_class() -> dict[str, dict[str, Any]]:
+    """The one cache entry per asset class, keyed by the class token in its key."""
+    by_class: dict[str, dict[str, Any]] = {}
+    for step in _cache_steps(_ACTION):
+        key = str(step["with"]["key"])
+        for asset_class in ("extras", "full"):
+            if f"-{asset_class}-" in key:
+                assert asset_class not in by_class, f"two cache entries claim the {asset_class} asset class"
+                by_class[asset_class] = step
+    return by_class
+
+
+def test_action_restores_one_cache_entry_per_asset_class() -> None:
+    """The extras-only and full runs carry different assets, so they never share an immutable entry."""
+    assert set(_cache_by_class()) == {"extras", "full"}
+    keys = {str(step["with"]["key"]) for step in _cache_steps(_ACTION)}
+    assert len(keys) == 2, keys
+
+
+def test_the_class_entries_are_gated_on_complementary_extras_only_conditions() -> None:
+    """Exactly one entry restores per run: no ungated double restore, no mode left uncovered."""
+    conditions = [str(step.get("if", "")) for step in _cache_steps(_ACTION)]
+    assert all(conditions), f"every class entry needs an explicit condition: {conditions}"
+    assert "inputs.extras-only == 'true'" in conditions
+    assert "inputs.extras-only != 'true'" in conditions
+
+
+def test_the_extras_entry_never_carries_a_service_build() -> None:
+    """A tiny extras-only consumer must not overfetch a native build from a full entry."""
+    path = str(_cache_by_class()["extras"]["with"]["path"])
+    patterns = [line.strip() for line in path.splitlines() if line.strip()]
+    assert patterns, path
+    for pattern in patterns:
+        assert pattern.endswith("*.tar.gz"), f"the extras entry may hold only extras archives, not a build or a stale tree: {pattern}"
+    assert "~/.cache/spec-kitty/services" not in patterns, "the whole-root path would restore native builds too"
+
+
+def test_the_full_entry_carries_the_host_asset_within_its_platform() -> None:
+    """The native build is platform-specific: it must not cross OS or architecture."""
+    step = _cache_by_class()["full"]
     assert step["with"]["path"] == "~/.cache/spec-kitty/services"
-    assert "hashFiles('pins/*.source.yaml')" in step["with"]["key"]
+    key = str(step["with"]["key"])
+    assert "hashFiles('pins/*.source.yaml')" in key, "a pin bump must invalidate the entry"
+    assert "runner.os" in key, "a native build must not be restored on another OS"
+    assert "runner.arch" in key, "a native build must not be restored on another architecture"
 
 
-def test_action_pins_actions_cache_to_the_same_commit_as_sync_packs() -> None:
-    ours = _cache_step(_ACTION)["uses"]
-    assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", ours), ours
-    assert ours == _cache_step(_PACKS_ACTION)["uses"]
+def test_action_pins_actions_cache_to_the_same_commit_as_the_packs_restore_helper() -> None:
+    ours = {step["uses"] for step in _cache_steps(_ACTION)}
+    assert len(ours) == 1, ours
+    (uses,) = ours
+    assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", uses), uses
+    packs = {step["uses"] for step in _cache_steps(_PACKS_RESTORE_ACTION)}
+    assert ours == packs, "one pinned actions/cache revision across the shared cache actions"
 
 
-def test_action_runs_the_script_for_every_service_after_the_cache() -> None:
+def test_action_runs_the_script_for_every_service_after_the_class_restore() -> None:
     steps = _steps(_ACTION)
     runs = [index for index, step in enumerate(steps) if "scripts/sync_services.py --service all" in str(step.get("run", ""))]
-    cache = [index for index, step in enumerate(steps) if str(step.get("uses", "")).startswith(_CACHE_STEP)]
-    assert runs and cache and cache[0] < runs[0]
+    caches = [index for index, step in enumerate(steps) if str(step.get("uses", "")).startswith(_CACHE_STEP)]
+    assert runs and caches and max(caches) < runs[0], "both class entries precede the fetch+verify step"
+
+
+def test_the_fetch_step_is_never_skipped_and_never_weakens_verification() -> None:
+    """No guard may turn a cache entry into trust: the script re-verifies every asset's pinned sha256."""
+    (fetch,) = [step for step in _steps(_ACTION) if "scripts/sync_services.py" in str(step.get("run", ""))]
+    assert "if" not in fetch, "a cache-hit must never skip the fetch/verify step"
+    run = str(fetch["run"])
+    for weakening in ("--check", "--offline", "--no-verify"):
+        assert weakening not in run, f"{weakening} would weaken the fail-closed verification"
 
 
 def _action_inputs(path: Path) -> dict[str, Any]:

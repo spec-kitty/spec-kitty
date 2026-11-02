@@ -1,24 +1,38 @@
 """Contract tests for the shared warmup / test-env-creation composite action.
 
-FR-003/#3283 (mission ci-pipeline-reinstatement-01M1X35E, WP04): a shared
-composite pre-builds the editable test environment exactly once and
-publishes it as a cache-keyed reusable artefact so downstream shards reuse it
-instead of re-running the install — dissolving the venv-lock bootstrap
-cascade. PR mode resolves a **pinned** `spec_kitty_events` rev (deterministic,
-cache-hit, charter pinned-rev policy); nightly/full mode resolves the
-**latest** mainline (upstream-drift signal) — see research.md D2 and
-data-model.md E8.
+FR-003/#3283 (mission ci-pipeline-reinstatement-01M1X35E, WP04) made the composite
+the one place that builds the editable pytest environment and lets downstream
+shards reuse it. The later cache-honesty fixes keep that single-build contract but
+remove what was not true about it:
 
-The YAML is loaded lazily inside each test (never at import time) so this
-module always collects, even on base where
-``.github/actions/warmup/action.yml`` does not yet exist — the T018 red-first
-state fails for the right reason (missing file), not a collection error.
+* **No duplicate checkout.** The action used to run ``actions/checkout`` itself,
+  though a local composite can only be loaded *after* the caller's checkout — so
+  every caller paid for two clones. The caller now owns the checkout; the action
+  fails closed when the repository is not on disk. ``test_every_caller_...`` is the
+  caller-side half of that contract.
+* **The revision is the lock's.** ``pr`` mode used to advertise a
+  ``pinned-events-rev`` default (10.4.6) that had drifted from ``uv.lock``
+  (``>=11.3.0,<12``); ``uv sync --frozen`` installs the locked version regardless,
+  so the input was an authority that lied. The revision now comes from
+  ``scripts/ci/warmup_events_rev.py`` (lock for ``pr``, PyPI for ``full``) and is
+  verified against the built environment afterwards.
+* **No fragile whole-``.venv`` cache.** A cached ``.venv`` is not self-contained:
+  its ``bin/python`` symlinks to a uv-managed interpreter outside the cache, which
+  is why the old fast path had to probe for a dangling symlink and rebuild anyway.
+  The action caches uv's dependency cache and the managed interpreter instead
+  (``setup-uv``) and always runs an honest ``uv sync`` — a warm cache makes it
+  cheap, and no ``cache-hit`` flag ever stands in for a working environment.
+* **Packs are cached before anything can fetch them.** The editable build hook
+  fetches ``packs/built-in`` when the tree is absent, so the restore-only
+  open-packs cache action runs before ``uv sync``; ``sync-packs`` still verifies
+  and places the trees afterwards.
+
+The YAML is loaded lazily inside each test so the module always collects.
 """
 
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -29,8 +43,15 @@ pytestmark = [pytest.mark.fast]
 
 ROOT = Path(__file__).resolve().parents[2]
 ACTION_PATH = ROOT / ".github" / "actions" / "warmup" / "action.yml"
+RESTORE_OPEN_PACKS_PATH = ROOT / ".github" / "actions" / "restore-open-packs" / "action.yml"
+WORKFLOWS = ROOT / ".github" / "workflows"
+RESOLVER_RELPATH = "scripts/ci/warmup_events_rev.py"
 
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+CHECKOUT_PREFIX = "actions/checkout@"
+SETUP_UV_PREFIX = "astral-sh/setup-uv@"
+RESTORE_OPEN_PACKS = "./.github/actions/restore-open-packs"
+SYNC_PACKS = "./.github/actions/sync-packs"
 
 
 def _load_action() -> dict[str, Any]:
@@ -49,6 +70,45 @@ def _steps() -> list[dict[str, Any]]:
     return steps
 
 
+def _run_texts() -> str:
+    return "\n".join(str(step.get("run", "")) for step in _steps())
+
+
+def _single_step(predicate: Any) -> dict[str, Any]:
+    matches = [step for step in _steps() if predicate(step)]
+    assert len(matches) == 1, f"expected exactly one matching step, found {len(matches)}"
+    return matches[0]
+
+
+def _setup_uv_step() -> dict[str, Any]:
+    return _single_step(lambda step: str(step.get("uses", "")).startswith(SETUP_UV_PREFIX))
+
+
+def _uses_uv_sync(step: dict[str, Any]) -> bool:
+    """True when the step actually *runs* ``uv sync`` (a comment mentioning it is not a run)."""
+    return any(line.strip().startswith("uv sync") for line in str(step.get("run", "")).splitlines())
+
+
+def _sync_step() -> dict[str, Any]:
+    return _single_step(_uses_uv_sync)
+
+
+def _index_of_predicate(predicate: Any) -> int:
+    for index, step in enumerate(_steps()):
+        if predicate(step):
+            return index
+    raise AssertionError("step not found")
+
+
+def _index_of_id(step_id: str) -> int:
+    return _index_of_predicate(lambda step: str(step.get("id", "")) == step_id)
+
+
+# --------------------------------------------------------------------------- #
+# The composite's shape
+# --------------------------------------------------------------------------- #
+
+
 def test_action_file_exists() -> None:
     assert ACTION_PATH.is_file(), (
         "expected the shared warmup composite at "
@@ -61,45 +121,6 @@ def test_action_file_exists() -> None:
 def test_is_a_composite_action() -> None:
     action = _load_action()
     assert action["runs"]["using"] == "composite"
-
-
-@pytest.mark.git_repo
-def test_checkout_preserves_pinned_history_for_shared_test_clones(tmp_path: Path) -> None:
-    """A nested checkout must not undo the module caller's full-history fetch."""
-
-    def git(repo: Path, *args: str) -> bytes:
-        return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True).stdout
-
-    origin = tmp_path / "origin"
-    origin.mkdir()
-    git(origin, "init", "--initial-branch=main")
-    git(origin, "config", "user.name", "Warmup history fixture")
-    git(origin, "config", "user.email", "warmup@example.invalid")
-    git(origin, "config", "commit.gpgsign", "false")
-    receipt = b"immutable reviewed receipt\n"
-    (origin / "receipt.json").write_bytes(receipt)
-    git(origin, "add", ".")
-    git(origin, "commit", "-m", "Reviewed receipt")
-    pinned = git(origin, "rev-parse", "HEAD").decode().strip()
-    (origin / "current.txt").write_text("later source revision\n")
-    git(origin, "add", ".")
-    git(origin, "commit", "-m", "Current source")
-    source = tmp_path / "source"
-    git(origin, "clone", "--shared", "--no-checkout", str(origin), str(source))
-
-    # Emulate the composite's checkout after the caller already fetched history.
-    # actions/checkout defaults to depth 1 unless its input explicitly says 0.
-    checkouts = [step for step in _steps() if str(step.get("uses", "")).startswith("actions/checkout@")]
-    assert checkouts, "warmup checkout contract disappeared"
-    for checkout in checkouts:
-        depth = int(checkout.get("with", {}).get("fetch-depth", 1))
-        git(source, "fetch", *([f"--depth={depth}"] if depth else []), "origin", "main")
-    assert git(source, "show", f"{pinned}:receipt.json") == receipt
-
-    # Shallowing leaves objects in source, but its test clone loses the old pin.
-    clone = tmp_path / "test-clone"
-    git(source, "clone", "--shared", "--no-checkout", str(source), str(clone))
-    assert git(clone, "show", f"{pinned}:receipt.json") == receipt
 
 
 def test_declares_a_mode_input_covering_pr_and_full() -> None:
@@ -116,37 +137,203 @@ def test_mode_defaults_to_pr() -> None:
     assert action["inputs"]["mode"].get("default") == "pr"
 
 
-def test_resolution_behavior_diverges_between_pinned_pr_and_latest_full() -> None:
-    """research D2: PR mode pins a recorded rev; full mode resolves latest mainline."""
-    steps = _steps()
-    resolve_steps = [s for s in steps if "resolve" in str(s.get("id", "")).lower()]
-    assert resolve_steps, "expected a spec_kitty_events rev-resolution step"
-    run_text = "\n".join(str(s.get("run", "")) for s in resolve_steps)
-    assert "full" in run_text and "pr" in run_text, "the resolution step must branch explicitly on mode: pr vs full"
-    assert "latest" in run_text.lower() or "pypi" in run_text.lower(), "full mode must resolve the latest spec_kitty_events mainline"
-    assert "pinned-events-rev" in run_text or "pinned_events_rev" in run_text, "pr mode must resolve the recorded pinned rev input, not a moving ref"
+# --------------------------------------------------------------------------- #
+# The checkout belongs to the caller, never to the composite
+# --------------------------------------------------------------------------- #
+
+
+def test_the_composite_does_not_check_out_the_repository() -> None:
+    """A local composite can only be loaded after the caller's checkout, so its own is a duplicate clone."""
+    assert CHECKOUT_PREFIX not in _action_text(), (
+        "warmup must not run actions/checkout: the caller already checked the repository out to load this "
+        "local action, so a second checkout re-clones and can shallow away the caller's full history"
+    )
+
+
+def test_the_composite_fails_closed_when_the_caller_did_not_check_out() -> None:
+    precondition = _single_step(lambda step: str(step.get("id", "")) == "require-checkout")
+    run = str(precondition["run"])
+    assert "pyproject.toml" in run and "uv.lock" in run, "the precondition step must look for the files it needs"
+    assert "actions/checkout" in run, "the error must name the fix: the caller adds actions/checkout before this step"
+    assert "::error::" in run and "exit 1" in run, "a missing checkout must be a named, fail-closed error, not a fallback"
+
+
+def _workflow_jobs() -> list[tuple[str, str, dict[str, Any]]]:
+    jobs: list[tuple[str, str, dict[str, Any]]] = []
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for job_id, job in (loaded.get("jobs") or {}).items():
+            if isinstance(job, dict) and "steps" in job:
+                jobs.append((path.name, job_id, job))
+    return jobs
+
+
+def _warmup_callers() -> list[tuple[str, str, dict[str, Any], int]]:
+    callers: list[tuple[str, str, dict[str, Any], int]] = []
+    for name, job_id, job in _workflow_jobs():
+        steps = job.get("steps") or []
+        for index, step in enumerate(steps):
+            if str(step.get("uses", "")).startswith("./.github/actions/warmup"):
+                callers.append((name, job_id, job, index))
+    return callers
+
+
+def test_every_caller_checks_out_before_warmup() -> None:
+    """The caller-side half of the contract: warmup never fixes the checkout up for it.
+
+    Every caller must own its checkout: a local composite can only load once the
+    repository is on disk, so warmup checking it out again was a duplicate clone.
+    How much history that checkout fetches is the caller's own requirement — jobs
+    whose tests ``git archive`` historical commits pin ``fetch-depth: 0`` in their
+    own tests (e.g. tests/ci/test_reducer_lock_census.py for module-tests) — so this
+    contract only insists the checkout exists first.
+    """
+    callers = _warmup_callers()
+    assert callers, "non-vacuity: at least one workflow job must call ./.github/actions/warmup"
+
+    problems = [
+        f"{name}:{job_id}: no actions/checkout before ./.github/actions/warmup"
+        for name, job_id, job, warmup_index in callers
+        if not any(str(step.get("uses", "")).startswith(CHECKOUT_PREFIX) for step in job["steps"][:warmup_index])
+    ]
+    assert problems == []
+
+
+# --------------------------------------------------------------------------- #
+# Resolution: uv.lock in pr mode, PyPI in full mode
+# --------------------------------------------------------------------------- #
+
+
+def test_resolution_runs_the_one_resolver_for_the_mode() -> None:
+    text = str(_single_step(lambda step: "resolve" in str(step.get("id", "")).lower()).get("run", ""))
+    assert RESOLVER_RELPATH in text, "the revision must come from the one resolver script, not inline re-implementations"
+    assert "--mode" in text and "resolved-events-rev" in text
+
+
+def test_pr_mode_has_no_stale_pinned_events_rev_authority() -> None:
+    assert "pinned-events-rev" not in _action_text(), "the pinned-events-rev input was a second authority that drifted from uv.lock; pr mode reads the lock instead"
+    assert "10.4.6" not in _action_text(), "the stale 10.4.6 default must not survive anywhere in the action"
+
+
+def test_the_resolver_reads_the_lock_in_pr_mode() -> None:
+    source = (ROOT / RESOLVER_RELPATH).read_text(encoding="utf-8")
+    assert "uv.lock" in source or "lock_path" in source
+    assert "10.4.6" not in source
+
+
+# --------------------------------------------------------------------------- #
+# Cache key: lock + revision, separated by mode, relevant to platform/runtime
+# --------------------------------------------------------------------------- #
+
+
+def test_cache_key_derives_from_uv_lock_and_the_resolved_events_rev() -> None:
+    """data-model E8: cache key = hash(uv.lock + resolved spec_kitty_events rev)."""
+    with_ = _setup_uv_step()["with"]
+    assert with_["cache-dependency-glob"] == "uv.lock", "a frozen sync is determined by uv.lock; a broader glob would also re-key on files the install ignores"
+    suffix = str(with_["cache-suffix"])
+    assert "steps.resolve-rev.outputs.resolved-events-rev" in suffix, "the resolved (lock-derived) rev must key the cache"
+
+
+def test_cache_key_separates_pr_from_full() -> None:
+    """The two modes build different environments (frozen lock vs upgrade-to-latest)."""
+    with_ = _setup_uv_step()["with"]
+    suffix = str(with_["cache-suffix"])
+    assert "inputs.mode" in suffix, "a mode-less key lets a pr-built env satisfy a full-mode run"
+
+
+def test_cache_key_is_relevant_to_platform_and_runtime() -> None:
+    with_ = _setup_uv_step()["with"]
+    suffix = str(with_["cache-suffix"])
+    assert "runner.os" in suffix, "uv cache entries are not portable across operating systems"
+    assert "runner.arch" in suffix, "uv cache entries are not portable across architectures"
+    assert with_.get("cache-python") is True, "the managed interpreter lives outside .venv and must be cached with it"
+
+
+def test_dependency_caching_is_enabled_explicitly() -> None:
+    """setup-uv's default ('auto') silently disables caching on some events; the policy is reviewed here."""
+    with_ = _setup_uv_step()["with"]
+    assert with_.get("enable-cache") is True, "the dependency cache policy must be explicit, not setup-uv's 'auto'"
+
+
+# --------------------------------------------------------------------------- #
+# An honest install every run — no whole-venv cache, no cache-hit skip
+# --------------------------------------------------------------------------- #
+
+
+def test_the_composite_caches_no_virtualenv() -> None:
+    cache_steps = [step for step in _steps() if str(step.get("uses", "")).startswith("actions/cache")]
+    assert cache_steps == [], (
+        "a cached .venv is not self-contained (bin/python symlinks outside it), so it must not be cached; "
+        "uv's dependency + managed-interpreter caches make an honest frozen sync cheap instead"
+    )
+    cached_paths = [str(step.get("with", {}).get("path", "")) for step in _steps()]
+    assert not any(".venv" in path for path in cached_paths), cached_paths
+
+
+def test_the_environment_is_synced_exactly_once_and_never_skipped() -> None:
+    sync_steps = [step for step in _steps() if _uses_uv_sync(step)]
+    assert len(sync_steps) == 1, "the editable install must run in exactly one step"
+    sync = sync_steps[0]
+    assert "if" not in sync, "the sync must never be skipped (no cache-hit fast path standing in for a real environment)"
+    run = str(sync["run"])
+    assert "cache-hit" not in run and "restore-cache" not in run, "a cache-hit flag is not proof the environment is the expected one; the sync always runs"
+
+
+def test_pr_mode_uses_the_frozen_lock_and_full_mode_upgrades_the_resolved_release() -> None:
+    sync = _sync_step()
+    run = str(sync["run"])
+    assert str(sync.get("env", {}).get("WARMUP_MODE")) == "${{ inputs.mode }}", "the sync must receive the mode"
+    assert '"$WARMUP_MODE" = "full"' in run, "the sync must branch on the mode"
+    assert "--frozen" in run, "pr mode installs exactly what uv.lock pins"
+    assert "--upgrade-package" in run and "spec-kitty-events" in run, "full mode resolves the latest release as an upstream-drift signal"
+    assert "steps.resolve-rev.outputs.resolved-events-rev" in run, "full mode installs the revision this run resolved"
+
+
+def test_the_mode_input_reaches_shell_steps_through_the_environment() -> None:
+    """An input interpolated into a `run:` body is shell injection (and unvalidated); pass it via env."""
+    for step in _steps():
+        assert "${{ inputs.mode }}" not in str(step.get("run", "")), f"step {step.get('name')!r} interpolates inputs.mode into its shell body"
+    mode_steps = [step for step in _steps() if str(step.get("env", {}).get("WARMUP_MODE", "")) == "${{ inputs.mode }}"]
+    assert len(mode_steps) >= 3, "resolution, sync and verification all need the mode"
+
+
+def test_the_built_environment_is_verified_against_the_resolved_revision() -> None:
+    verify = _single_step(lambda step: "verify" in str(step.get("id", "")).lower())
+    run = str(verify["run"])
+    assert "importlib.metadata" in run, "the check must read the installed distribution's version"
+    assert "spec-kitty-events" in run
+    assert "resolved-events-rev" in run, "the installed revision is compared with this run's resolved revision"
+    assert "::error::" in run and "exit 1" in run, "a mismatch fails closed — a cache hit cannot excuse it"
+    assert _index_of_id("sync-env") < _index_of_id("verify-env"), "verify the environment after the sync"
+
+
+# --------------------------------------------------------------------------- #
+# Packs: restore the cache before the build hook can fetch, then place+verify
+# --------------------------------------------------------------------------- #
+
+
+def test_the_open_packs_cache_is_restored_before_the_environment_sync() -> None:
+    """The hatch build hook fetches packs/built-in during `uv sync`; the cache must already be warm."""
+    restore_index = _index_of_predicate(lambda step: str(step.get("uses", "")) == RESTORE_OPEN_PACKS)
+    sync_index = _index_of_predicate(_uses_uv_sync)
+    assert restore_index < sync_index, "restore the open-packs cache before the editable install can fetch packs"
+    assert RESTORE_OPEN_PACKS_PATH.is_file(), "the reusable restore-only action must exist for raw pack-sync jobs too"
+
+
+def test_the_composite_still_places_and_verifies_the_packs_after_the_sync() -> None:
+    sync_index = _index_of_predicate(_uses_uv_sync)
+    sync_packs_index = _index_of_predicate(lambda step: str(step.get("uses", "")) == SYNC_PACKS)
+    assert sync_packs_index > sync_index, "placing packs needs the environment; sync-packs re-verifies every tree against its pin"
+
+
+# --------------------------------------------------------------------------- #
+# Supply chain and outputs
+# --------------------------------------------------------------------------- #
 
 
 def test_no_bare_upload_artifact_used_for_the_env_cache() -> None:
     text = _action_text()
     assert "upload-artifact" not in text, "research D2: cache semantics require actions/cache, not a bare upload-artifact (which conflates cache semantics)"
-
-
-def test_cache_key_derives_from_uv_lock_and_the_resolved_events_rev() -> None:
-    """data-model E8: cache key = hash(uv.lock + resolved spec_kitty_events rev)."""
-    steps = _steps()
-    cache_steps = [s for s in steps if str(s.get("uses", "")).startswith("actions/cache@")]
-    assert cache_steps, "expected an actions/cache step publishing the warmup artefact"
-    cache_step = cache_steps[0]
-    key_expr = cache_step["with"]["key"]
-
-    key_source_steps = [s for s in steps if "cache" in str(s.get("id", "")).lower() and "key" in str(s.get("id", "")).lower()]
-    assert key_source_steps, "expected a step computing the warmup cache key"
-    key_step = key_source_steps[0]
-    run_text = str(key_step.get("run", ""))
-    assert "uv.lock" in run_text, "cache key must be derived from uv.lock"
-    assert "resolved-events-rev" in run_text or "resolved_events_rev" in run_text, "cache key must be derived from the resolved spec_kitty_events rev"
-    assert str(key_step.get("id", "")) in key_expr or "cache-key" in key_expr, "the actions/cache key must consume the computed cache-key step output"
 
 
 def _remote_uses(action_path: Path, seen: frozenset[Path] = frozenset()) -> list[str]:
@@ -178,40 +365,19 @@ def test_every_uses_step_is_pinned_to_a_full_commit_sha() -> None:
     remote `uses:` are checked instead.
     """
     uses_steps = _remote_uses(ACTION_PATH)
-    assert uses_steps, "expected at least one `uses:` step (checkout / setup-uv / cache)"
+    assert uses_steps, "expected at least one `uses:` step (setup-uv / cache)"
     for uses in uses_steps:
         _, _, ref = uses.partition("@")
         assert ref and FULL_SHA_RE.match(ref), f"'{uses}' is not pinned to a full 40-character commit SHA (DIR-051)"
 
 
 def test_local_composite_uses_are_followed() -> None:
-    """The pin check reaches the remote actions of the local sync-packs composite (#6432)."""
-    sync_packs = ROOT / ".github" / "actions" / "sync-packs" / "action.yml"
-    own = [str(s["uses"]) for s in yaml.safe_load(sync_packs.read_text(encoding="utf-8"))["runs"]["steps"] if "uses" in s]
-    assert own, "sync-packs composite has no remote `uses:` to follow"
-    assert set(own) <= set(_remote_uses(ACTION_PATH))
-
-
-def test_editable_install_runs_exactly_once_gated_on_cache_miss() -> None:
-    """#3283: the composite must build the env once and let a cache hit skip the rebuild."""
-    steps = _steps()
-    cache_steps = [s for s in steps if str(s.get("uses", "")).startswith("actions/cache@")]
-    assert cache_steps, "expected an actions/cache step so a valid warmup can be reused"
-
-    build_steps = [s for s in steps if "uses" not in s and "uv sync" in str(s.get("run", ""))]
-    assert build_steps, "expected exactly one build step invoking `uv sync`"
-    assert len(build_steps) == 1, "the editable install must run in exactly one step — a single pre-warm reused by all downstream shards"
-    # #3283 reuse is gated INSIDE the build step's run body (not a bare step-level
-    # `if: cache-hit`): a restored `.venv` is not self-contained — its
-    # `bin/python` symlinks to a uv-managed interpreter outside the cache — so a
-    # blind cache-hit skip reuses a dangling venv and every downstream
-    # `.venv/bin/python` dies with exit 127. The step must reuse a VALID cache hit
-    # (fast-path) but rebuild when the restored interpreter is broken.
-    run_body = str(build_steps[0].get("run", ""))
-    assert "cache-hit" in run_body, "the build step must gate the reuse fast-path on the cache-hit signal so a valid cache hit skips the reinstall (#3283)"
-    assert ".venv/bin/python" in run_body, (
-        "the build step must validate the restored interpreter (and rebuild a dangling-symlink venv), not blindly reuse a cache hit"
-    )
+    """The pin check reaches the remote actions of the local composites the warmup calls."""
+    followed = set(_remote_uses(ACTION_PATH))
+    for local in (SYNC_PACKS, RESTORE_OPEN_PACKS):
+        local_action = ROOT / local / "action.yml"
+        assert local_action.is_file()
+        assert set(_remote_uses(local_action)) <= followed, local
 
 
 def test_composite_exposes_the_built_environment_for_downstream_reuse() -> None:
@@ -219,4 +385,4 @@ def test_composite_exposes_the_built_environment_for_downstream_reuse() -> None:
     outputs = action.get("outputs", {})
     assert outputs, "expected outputs exposing the built env for downstream shard reuse"
     assert any("venv" in name or "env" in name for name in outputs), "expected an output exposing the built environment path"
-    assert any("cache-hit" in name or "cache_hit" in name for name in outputs), "expected a cache-hit output so callers can observe single-build-then-reuse"
+    assert any("cache-hit" in name or "cache_hit" in name for name in outputs), "expected a cache-hit output so callers can observe the dependency-cache reuse"
