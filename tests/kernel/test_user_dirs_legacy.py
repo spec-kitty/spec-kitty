@@ -96,15 +96,31 @@ def test_linux_discards_only_the_marker_file_inside_the_live_cache(monkeypatch: 
 def test_windows_doubled_author_tree_is_discarded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     fake_platform(monkeypatch, tmp_path, "windows", {"LOCALAPPDATA": "lad"})
     legacy = _plant(tmp_path / "lad" / "spec-kitty" / "spec-kitty" / "Cache" / "upgrade-nag.json")
+    legacy_settings = _plant(tmp_path / "lad" / "spec-kitty" / "spec-kitty" / "upgrade.yaml", "nag:\n  enabled: false\n")
     live_state = _plant(user_state_dir() / "some-state.json")
     live_cache = _plant(user_cache_dir() / "open-packs" / "abc" / "tree.yaml")
 
     removed = user_dirs_legacy.discard_legacy_locations()
 
     assert legacy.exists() is False
+    assert legacy_settings.exists() is False
     assert (tmp_path / "lad" / "spec-kitty" / "spec-kitty") in removed
     assert live_state.exists(), "%LOCALAPPDATA%/spec-kitty is the live state directory"
     assert live_cache.exists()
+    migrated = user_config_dir() / "upgrade.yaml"
+    assert migrated.read_text(encoding="utf-8") == "nag:\n  enabled: false\n", "the settings are carried over, not lost"
+
+
+def test_windows_migrated_settings_never_overwrite_a_live_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The doubled-author tree held the operator's upgrade-nag settings; a live file wins."""
+    fake_platform(monkeypatch, tmp_path, "windows", {"LOCALAPPDATA": "lad"})
+    _plant(tmp_path / "lad" / "spec-kitty" / "spec-kitty" / "upgrade.yaml", "nag:\n  enabled: false\n")
+    live_settings = _plant(user_config_dir() / "upgrade.yaml", "nag:\n  enabled: true\n")
+
+    removed = user_dirs_legacy.discard_legacy_locations()
+
+    assert live_settings.read_text(encoding="utf-8") == "nag:\n  enabled: true\n", "a live settings file is never overwritten"
+    assert (tmp_path / "lad" / "spec-kitty" / "spec-kitty") in removed
 
 
 # -- bounds -----------------------------------------------------------------
