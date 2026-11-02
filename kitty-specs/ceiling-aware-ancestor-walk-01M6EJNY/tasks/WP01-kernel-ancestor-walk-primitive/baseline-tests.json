@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-11-02T17:58:52Z",
+  "base_branch": "issue-7056-ceiling-aware-ancestor-walk",
+  "base_commit": "89780a2648920a56a99073b7b972bf9501cf1378",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
