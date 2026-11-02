@@ -1,0 +1,69 @@
+{
+  "mission_slug": "acceptance-real-home-shared-host-01M6EJXK",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b ad-hoc acceptance run, SPEC_KITTY_ACCEPTANCE_SHARED_HOST=1 with a probe prompt file written into the real ~/.spec-kitty/spec-kitty-prompts/ during the window: 4 bound scenarios passed, 0 'changed the real' failures",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:17.105121+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same run with the switch unset and the same probe prompt write: 6/6 scenarios failed with 'scope=strict' - the strict comparison is unchanged",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:28.557333+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "control expectation: sharedHost({SPEC_KITTY_ACCEPTANCE_SHARED_HOST=1, GITHUB_ACTIONS=true}) is false; the JDK-25 harness printed 'ci(switch+CI marker)=strict' and 'ci forced-strict changed=true' for the prompt write",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:33.913302+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "proveStillDetectsLeaks passes on the shipped class; a copy whose exclusion returns true for every file raises 'Scenario isolation guard is vacuous: the root-level write, strict scope did not change the fingerprint'",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:39.146798+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "observed failure texts: 'changed the real /home/<host>/.spec-kitty (scope=strict, before: ...)' and '(scope=shared-host, before: absent, after: files=1,...)'",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:43.980082+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/development/testing/acceptance-scenarios.md isolation paragraph; check_docs_freshness --ci exit=0 errors=0; changelog-style and spelling green",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T18:11:48.558764+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
