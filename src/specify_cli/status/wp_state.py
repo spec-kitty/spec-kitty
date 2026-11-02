@@ -31,20 +31,41 @@ _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (re
 _DEPENDENCIES_UNSATISFIED = "Transition {source} -> {target} blocked: unsatisfied dependencies (force with reason to override)"
 
 #: Edges whose persisted events the status schema validator refuses without a
-#: ``review_ref`` (#6514). ONE owning definition, consumed by the write path
-#: (:meth:`WPState.check_transition`) and by the auditor
-#: (``status.validate.validate_event_schema``) -- see
+#: ``review_ref``. ONE owning definition, consumed by the write path
+#: (:meth:`WPState.check_transition`), by the auditor
+#: (``status.validate.validate_event_schema``) and by the emitter
+#: (``tasks_transition_core.build_transition_plan``'s sentinel fill) -- see
 #: :func:`requires_review_ref`. Force may bridge a missing structural edge;
-#: it may not produce an event this tool's own auditor calls malformed.
+#: it may not produce an event the shared wire contract -- the one any sync
+#: consumer of the log enforces -- calls malformed.
+#:
+#: The pinned ``spec_kitty_events`` contract gates three ``-> in_progress``
+#: rewinds on a non-empty ``review_ref`` **whether or not** the event is forced
+#: (its "Review-Ref-Gated Rewind Family"). The local set covers two of them
+#: (#6514's ``for_review`` edge and, since #6955, the ``approved`` reopen):
+#: before #6955 a forced ``approved -> in_progress`` reopen was accepted locally
+#: (and audited clean) while the contract rejected it, so the row never reached
+#: its sync consumer (the #3307 silent-sync-rejection class).
+#:
+#: ``in_review -> in_progress`` is deliberately still absent: that edge carries
+#: its evidence as a structured ``review_result`` on the status emit path, which
+#: does not thread the reviewer's reference onto the wire, so requiring a
+#: ``review_ref`` there without that second fix would refuse legitimate writes.
+#: Closing it is tracked separately (#7080); do not add the member here without
+#: threading the reference first.
 REVIEW_REF_REQUIRED_EDGES: frozenset[tuple[Lane, Lane]] = frozenset(
-    {(Lane.FOR_REVIEW, Lane.IN_PROGRESS)},
+    {
+        (Lane.FOR_REVIEW, Lane.IN_PROGRESS),
+        (Lane.APPROVED, Lane.IN_PROGRESS),
+    },
 )
 
 
 def requires_review_ref(from_lane: Lane | str, to_lane: Lane | str) -> bool:
-    """True when an event on this edge must carry a ``review_ref`` (#6514).
+    """True when an event on this edge must carry a ``review_ref``.
 
-    A plain membership test over :data:`REVIEW_REF_REQUIRED_EDGES`, tolerant of
+    A plain membership test over :data:`REVIEW_REF_REQUIRED_EDGES` (#6514, #6955),
+    tolerant of
     raw lane strings (the auditor reads decoded event dicts). It answers only
     *which* edges carry the requirement; *whether a given request satisfies it*
     is :func:`has_review_ref`, which the writer (:meth:`WPState.check_transition`)
@@ -245,6 +266,14 @@ class WPState(ABC):
             ok, error = self._check_force(ctx)
             if not ok:
                 return ok, error
+
+        if not ctx.force:
+            # Unforced moves keep their own entry guard and its historical message.
+            # The force-insurmountable requirement below is only needed where force
+            # would otherwise bypass that guard (#6514); running it here too would
+            # replace ``approved -> in_progress``'s established guard message with
+            # the newer one for no behavioural gain (#6955 parity baseline).
+            return self.guard_for(target, ctx)
 
         # A review_ref requirement is FORCE-INSURMOUNTABLE (#6514): force's contract is
         # to override a missing edge or a guard with actor + reason for audit, not to

@@ -53,6 +53,18 @@ logger = logging.getLogger(__name__)
 #: still present in older event logs (#2267).
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim", "workflow-review-claim"})
 
+#: The operator-rewind marker (#6955): a sanctioned, non-resolvable ``review_ref``
+#: meaning "an operator drove this rewind", NOT "a reviewer sent it back" and not a
+#: review claim. Readers that classify a lane event as a *reviewer act* must exclude
+#: it -- an approved-reopen forced by the operator is an implementing claim, not a
+#: reviewer verdict (``status.review_roles``).
+OPERATOR_REWIND_SENTINEL = "force-override"
+
+
+def is_operator_rewind_sentinel(value: object) -> bool:
+    """True when *value* is the operator-rewind ``review_ref`` marker (#6955)."""
+    return isinstance(value, str) and value.strip() == OPERATOR_REWIND_SENTINEL
+
 #: #4327: synthetic approval/rejection tokens ``move-task`` mints when no real
 #: pointer exists (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
 #: Like the exact-value sentinels above they are markers, not review-feedback

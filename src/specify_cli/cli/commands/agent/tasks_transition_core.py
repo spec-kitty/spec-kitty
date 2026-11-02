@@ -95,6 +95,7 @@ from specify_cli.status import (
     wp_state_for,
 )
 from specify_cli.status import _actor_key, is_latest_implementer
+from specify_cli.review.cycle import OPERATOR_REWIND_SENTINEL, is_operator_rewind_sentinel
 
 # Terminal lanes that build approval evidence + run the rejected-verdict guard.
 _APPROVAL_LANES: tuple[str, ...] = (Lane.APPROVED, Lane.DONE)
@@ -334,7 +335,7 @@ def build_transition_plan(
     if (is_review_rejection_edge(old_lane, target_lane) or _is_approved_reopen(old_lane, target_lane)) and review_feedback_pointer:
         emit_review_ref = review_feedback_pointer
     elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
-        emit_review_ref = "force-override"
+        emit_review_ref = OPERATOR_REWIND_SENTINEL
 
     # Arbiter override reuses the rejection's review_ref when no base ref applies.
     if arb_review_ref and emit_review_ref is None:
@@ -388,7 +389,7 @@ def build_transition_plan(
         emit_force = not (legal_force_free and wire_allows_force_free)
         original_reason = None if emit_reason is None or emit_reason.startswith("move-task: ") else emit_reason
         reason_parts = [f"backward rewind: {old_lane} -> {canonical_lane}"]
-        if review_feedback_pointer and review_feedback_pointer != "force-override":
+        if review_feedback_pointer and not is_operator_rewind_sentinel(review_feedback_pointer):
             reason_parts.append(review_feedback_pointer)
         if original_reason:
             reason_parts.append(original_reason)
@@ -396,14 +397,20 @@ def build_transition_plan(
 
     # #6514: whenever this plan EMITS force on a review-rewind edge it must carry a
     # ``review_ref`` -- ``force-override`` is this command's established sentinel for an
-    # operator-driven rewind (``review.cycle.REVIEW_FEEDBACK_SENTINELS``). Until now the
+    # operator-driven rewind (``review.cycle.REVIEW_FEEDBACK_SENTINELS``). Until #6514 the
     # sentinel was set only for an explicit ``--force``; an auto-promoted backward move
     # (the branch above) emitted ``force=True`` with no pointer, which is the same row
     # ``spec-kit status validate`` refuses (``for_review->in_progress without
     # review_ref``). Filling it here, after ``emit_force`` is final, keeps the two force
     # routes on one sentinel instead of two behaviours.
+    #
+    # #6955: the fill follows the owning edge set, so widening it to cover the
+    # ``approved -> in_progress`` reopen made this arm apply to that edge too -- the row that used to record
+    # ``force=True`` with ``review_ref: null`` and was rejected at hosted sync. The
+    # command's forced behaviour is unchanged; only the pointer on the wire is, and it
+    # now matches what ``start_implementation_status`` already emits on this hop.
     if emit_review_ref is None and emit_force and requires_review_ref(old_lane, canonical_lane):
-        emit_review_ref = "force-override"
+        emit_review_ref = OPERATOR_REWIND_SENTINEL
 
     transition_targets = [canonical_lane]
     if not emit_force:
@@ -659,8 +666,20 @@ def _feedback_edge_recordable(old_lane: str, target_lane: str) -> bool:
     and no on-wire ``review_ref`` exists, so a supplied file would be
     validated and then dropped. Reuses the canonical predicates — never a
     second source of truth for "which edges record review feedback".
+
+    The approved-implementation reopen is recordable too (#6955): the supplied
+    file becomes the event's ``review_ref`` through
+    :func:`_is_approved_reopen`'s plan arm, so it is not dropped. #6699's guard
+    shipped without it and refused that arm outright; the #6845 landing pass
+    amended this edge's contract test but re-ran only the fast gate, and the test
+    is ``integration``-marked, so the loss went unnoticed. This repair restores
+    the #6845 behaviour.
     """
-    return is_review_rejection_edge(old_lane, target_lane) or resolve_lane_alias(target_lane) in _APPROVAL_LANES
+    return (
+        is_review_rejection_edge(old_lane, target_lane)
+        or _is_approved_reopen(old_lane, target_lane)
+        or resolve_lane_alias(target_lane) in _APPROVAL_LANES
+    )
 
 
 def _feedback_file_no_effect_message(task_id: str, old_lane: str, target_lane: str) -> str:
@@ -672,6 +691,7 @@ def _feedback_file_no_effect_message(task_id: str, old_lane: str, target_lane: s
         "this edge writes no review cycle, so the file would be validated and then dropped.\n\n"
         "The flag is only used on:\n"
         "  - review-rejection edges: --to planned (from any lane), and in_review -> in_progress\n"
+        "  - the approved-implementation reopen: approved -> in_progress (recorded as the event's review_ref)\n"
         "  - approval edges: --to approved / --to done (recorded when a new approval review-cycle is written;\n"
         "    otherwise a warning on stderr says it was not recorded)\n\n"
         "Remove --review-feedback-file from this move, or put the rationale in --note."
