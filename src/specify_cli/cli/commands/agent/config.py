@@ -520,9 +520,9 @@ def _print_empty_agent_list(config: AgentConfig) -> None:
         return
     console.print("[cyan]No stated agent list.[/cyan]")
     console.print(
-        "\n.kittify/config.yaml has no `agents.available` list, so Spec Kitty treats every\n"
-        "supported agent as available (the legacy fallback) and writes a surface for any\n"
-        "agent it is asked to manage."
+        "\n.kittify/config.yaml has no `agents.available` list, so Spec Kitty uses the agent\n"
+        "surfaces this project already contains and writes a surface for any agent it is\n"
+        "asked to manage."
     )
 
 
@@ -541,8 +541,8 @@ def list_agents():
     if not config.available:
         # #6493: an empty agent list has two different meanings and neither is
         # "not set up". A stated-empty list means the CLI manages no surfaces
-        # (a harness plugin supplies them, #6494); no list at all means every
-        # supported agent is available (legacy fallback, #6501). Reporting
+        # (a harness plugin supplies them, #6494); no list at all means the
+        # agents this project already contains (#6501). Reporting
         # "No agents configured. Run init / agent config add" described both
         # wrongly and pointed at commands that write a second copy of surfaces
         # the harness already provides.

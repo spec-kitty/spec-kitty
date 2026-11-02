@@ -111,8 +111,8 @@ class TestListCommand:
             assert "agent config add" not in unwrapped
             assert "No agents configured" not in unwrapped
 
-    def test_list_no_agent_list_names_the_legacy_fallback(self, tmp_path):
-        """#6501/#6493: no list means every agent is available, so say that."""
+    def test_list_no_agent_list_names_the_observed_agents(self, tmp_path):
+        """#6501/#6493: no list means the agents the project already contains, so say that."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
@@ -123,7 +123,7 @@ class TestListCommand:
             unwrapped = " ".join(result.stdout.split())
             assert result.exit_code == 0
             assert "No stated agent list" in unwrapped
-            assert "every supported agent" in unwrapped
+            assert "surfaces this project already contains" in unwrapped
             assert "No agents configured" not in unwrapped
 
     def test_list_shows_available_agents(self, mock_project):
