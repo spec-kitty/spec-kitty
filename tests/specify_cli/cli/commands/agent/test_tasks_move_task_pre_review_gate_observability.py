@@ -34,6 +34,7 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import gate_bindings, gate_registry, pre_review_gate
 from specify_cli.review.gate_budget import assess_scope_budget
+from specify_cli.review.test_timeout import WHOLE_COMMAND_TEST_TIMEOUT_SECONDS
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.workspace.context import ResolvedWorkspace
@@ -884,9 +885,17 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
     tmp_path: Path,
     json_mode: bool,
 ) -> None:
-    """The registered public route emits real unknown-timeout evidence."""
+    """The registered public route emits real unknown-timeout evidence.
+
+    #6865: the fixture source narrows nothing per file, so the gate chose the
+    whole declared command and resolved the WHOLE-COMMAND budget — the case below
+    is scoped to that shape on purpose, so the evidence asserts the shape, the
+    command and the resolved budget the operator would see.
+    """
     ports, router = _build_command_fixture(tmp_path)
-    assessment = assess_scope_budget(("tests/example",), 300)
+    budget = WHOLE_COMMAND_TEST_TIMEOUT_SECONDS
+    assessment = assess_scope_budget(("tests/example",), budget)
+    heartbeats = budget // 30
     clock = SimpleNamespace(now=0.0)
     wait_calls = 0
 
@@ -898,8 +907,8 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
         nonlocal wait_calls
         del process
         wait_calls += 1
-        if wait_calls <= 10:
-            clock.now += timeout + (0.25 if wait_calls == 10 else 0.0)
+        if wait_calls <= heartbeats:
+            clock.now += timeout + (0.25 if wait_calls == heartbeats else 0.0)
             raise subprocess.TimeoutExpired(cmd="controlled gate", timeout=timeout)
         return "", "controlled timeout"
 
@@ -959,7 +968,8 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
     registered_evaluator.assert_called_once()
     shared_evaluator.assert_called_once()
     launch_spy.assert_called_once()
-    assert wait_calls == 11
+    # One heartbeat per interval, then the reap wait on the terminal timeout.
+    assert wait_calls == heartbeats + 1
     if json_mode:
         payload = json.loads(result.stdout)
         metadata = payload["pre_review_gate"]
@@ -968,13 +978,18 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
         assert metadata["budget_classification"] == "unknown"
         assert metadata["scope_identity"] == assessment.scope_identity.value
         assert metadata["test_targets"] == ["tests/example"]
-        assert metadata["effective_budget_seconds"] == 300
-        assert metadata["observed_elapsed_seconds"] == 300.25
+        assert metadata["effective_budget_seconds"] == budget
+        assert metadata["observed_elapsed_seconds"] == budget + 0.25
         assert metadata["classification_candidate"] is True
         assert metadata["matched_budget_rule"] is None
         assert "reviewed budget metadata" in metadata["classification_guidance"]
         assert "normalized targets: tests/example" in metadata["reason"]
         assert "lane remains unchanged" in metadata["reason"]
+        # #6865: the refusal names the scope shape, the command and the metadata.
+        assert "whole declared command" in metadata["reason"]
+        assert "declared command: pytest tests/example" in metadata["reason"]
+        assert "gate_budget.py" in metadata["reason"]
+        assert "pre_review_test_scope" in metadata["reason"]
         assert result.stdout.count("\n{") == 0
     else:
         output = result.output.lower()
@@ -982,10 +997,11 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
         assert "targets=tests/example" in output
         assert "still running" in output
         assert assessment.scope_identity.value in result.output
-        assert "configured budget: 300s" in output
-        assert "monotonic observed elapsed: 300.250s" in output
+        assert f"timed out after {budget}s on the whole declared command" in output
+        assert f"observed elapsed: {budget + 0.25:.3f}s" in output
         assert "lane remains unchanged" in output
-        assert "reviewed metadata update" in output
+        assert "whole declared command" in output
+        assert "reviewed update of it" in output
 
 
 @pytest.mark.parametrize(

@@ -148,6 +148,44 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 - `review.pre_review_test_command` -- **deprecated** and aliased to
   `review.test_command`. A config that still sets it keeps working but earns a
   one-time deprecation warning; move the value to `review.test_command`.
+- `review.test_timeout_seconds` -- the per-run budget for both legs (baseline
+  and candidate). See
+  [Review test execution budget](../../configuration/review-test-budget.md).
+  The default depends on the **scope shape** the gate chose (below).
+
+**Scope shapes and the budget (#6865).** The gate runs one of two shapes, and
+says which one on every refusal:
+
+- **whole declared command** -- the active `ScopeSource` contributes no
+  per-file narrowing (`DeclaredCommandScopeSource`, the shipped source, runs
+  `review.test_command` in full), so the declared command *is* the scope. This
+  shape is bounded by `review.test_timeout_seconds` when the project declares
+  one, otherwise by the whole-command default (1,200 s).
+- **bounded target list** -- an explicit target list narrows the run: either a
+  per-WP `pre_review_test_scope` (below) or a source that derives targets per
+  changed file. This shape keeps the scoped default (300 s).
+
+A `timed_out` refusal names the shape, the command that ran, the resolved
+budget, the policy metadata that classifies scopes
+(`src/specify_cli/review/gate_budget.py`, `_RULES`) and the recovery for that
+shape, so an operator can act without reading the source.
+
+**Pinning a bounded scope for one work package.** Add the documented
+frontmatter key to the WP file:
+
+```yaml
+# kitty-specs/<mission>/tasks/WP01-*.md
+pre_review_test_scope: "tests/review tests/status"
+```
+
+The value is a whitespace-separated pytest target list. The gate then runs
+exactly those targets at head instead of the whole declared command; the same
+resolved budget bounds it. The key is part of the strict `WPMetadata`
+surface, so a WP carrying it stays readable to every consumer (including the
+subtask-roster guard) -- a documented, gate-consumed field may never make a WP
+unreadable. An empty value is treated as absent. The pinned scope applies to
+the candidate (head) leg; the baseline capture still runs the whole declared
+command, so it remains a whole-suite reference to diff against.
 
 > **Inherited limitation (#2741, P1 — inherited, NOT fixed by this mission).**
 > The gate scopes off the WP worktree's *working-tree* diff rather than the WP

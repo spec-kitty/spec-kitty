@@ -135,6 +135,7 @@ history:
 | `review_status` | string | Empty, `has_feedback`, or `approved` |
 | `reviewed_by` | string | Reviewer name |
 | `review_feedback` | string | Feedback pointer to persisted artifact (for example, `feedback://001-feature/WP01/20260227T120000Z-ab12cd34.md`) |
+| `pre_review_test_scope` | string | Optional bounded pre-review test scope: a whitespace-separated pytest target list the `in_progress -> for_review` gate runs instead of the whole declared `review.test_command` (see [Review Gates](../development/how-to/review-gates.md#pre-review-regression-gate-move-task---to-for_review) and [Review test execution budget](../configuration/review-test-budget.md)). Parsed by the strict WP model, so the WP stays readable to every consumer. |
 | `history` | list | Activity log entries |
 
 ---

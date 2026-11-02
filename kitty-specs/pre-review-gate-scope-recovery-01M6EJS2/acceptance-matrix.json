@@ -1,0 +1,99 @@
+{
+  "mission_slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "WPMetadata accepts the documented, gate-consumed pre_review_test_scope key",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_wp_metadata.py::TestPinnedPreReviewScope::test_model_accepts_the_pinned_scope",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:21:54.999644+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "authored_subtask_roster resolves a WP file that carries pre_review_test_scope",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_wp_metadata.py::TestPinnedPreReviewScope::test_roster_reads_a_wp_that_carries_the_pinned_scope",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:01.356635+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The gate runs a WP's pinned pre_review_test_scope targets at head instead of the whole declared command",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_pre_review_gate_integration.py::test_frontmatter_override_end_to_end_bypasses_auto_derivation",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:08.082153+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A whole-declared-command run resolves the whole-command budget default (1200s)",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_review_budget_scope_shape.py::test_whole_command_shape_uses_the_whole_command_default",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:13.430495+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A declared review.test_timeout_seconds overrides the shape default for both shapes",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_review_budget_scope_shape.py::test_a_declared_budget_wins_over_the_shape_default",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:19.247504+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The timeout refusal names the scope shape, the executed command, the policy metadata and the shape recovery",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_pre_review_gate_scope_diagnostics.py::test_whole_command_timeout_names_the_scope_the_command_and_the_policy_metadata",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:25.881972+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The scope_oversized refusal names the bounded target-list shape alongside its targets",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_pre_review_gate_scope_diagnostics.py::test_oversized_refusal_names_the_bounded_shape",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:30.218137+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Baseline capture, the receipt match and the head run resolve one budget per transition",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_review_budget_scope_shape.py::test_production_seam_resolves_the_whole_command_default",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:35.398660+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Terminal, opt-in block and skip semantics are unchanged (no gate weakened)",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_pre_review_gate_integration.py::test_block_mode_blocks_without_force+test_force_bypasses_block_and_is_recorded+skip-flag tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:22:40.162800+00:00",
+      "notes": "Criterion authored from kitty-specs/pre-review-gate-scope-recovery-01M6EJS2/spec.md"
+    }
+  ],
+  "negative_invariants": []
+}
