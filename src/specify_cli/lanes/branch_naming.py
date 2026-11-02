@@ -61,6 +61,7 @@ __all__ = [
     "coord_mission_dir_name",
     "coordination_lock_dir_name",
     "coord_reconstruct_branch",
+    "human_slug_for_own_mid8",
     "is_valid_bare_slug_body",
     "lane_branch_shell_glob",
     "lane_id_for_worktree_dir",
@@ -222,13 +223,23 @@ def _mid8(mission_id: str) -> str:
 # module keeps working unchanged.
 
 
-def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
-    """Strip the embedded mid8 only when it matches mission_id's mid8; mismatched mid8 is not stripped."""
+def human_slug_for_own_mid8(mission_slug: str, mid8: str) -> str:
+    """Strip a stale ``NNN-`` prefix and the Mission's OWN trailing ``-<mid8>``.
+
+    The mid8 tail is stripped only when it equals ``mid8``; a coincidental
+    eight-character tail belonging to another identity is kept. An empty
+    ``mid8`` strips nothing beyond the numeric prefix.
+    """
     human_slug = strip_numeric_prefix(mission_slug)
-    suffix = f"-{_mid8(mission_id)}"
-    if human_slug.endswith(suffix):
+    suffix = f"-{mid8}"
+    if mid8 and human_slug.endswith(suffix):
         return human_slug[: -len(suffix)]
     return human_slug
+
+
+def _human_slug_for_mid8_branch(mission_slug: str, mission_id: str) -> str:
+    """Strip the embedded mid8 only when it matches mission_id's mid8; mismatched mid8 is not stripped."""
+    return human_slug_for_own_mid8(mission_slug, _mid8(mission_id))
 
 
 def _idempotent_legacy_body(mission_slug: str) -> str:
