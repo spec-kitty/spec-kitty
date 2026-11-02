@@ -1,43 +1,53 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M6ERJ5EZ10AE6F3990SB1Q5W",
-  "materialized_at": "2026-11-02T18:32:49.375565+00:00",
+  "event_count": 6,
+  "last_event_id": "01M6EWEZ7EFA06VBG1FMTZMVM4",
+  "materialized_at": "2026-11-02T19:40:58.990985+00:00",
   "mission_number": "",
   "mission_slug": "corpus-audit-budget-01M6EP9T",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
       "actor": "pi",
-      "agent": "pi:glm-5.3-flash:python-pedro",
+      "agent": "pi:tokenfactory/glm-5.3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M6ERJ5EZ10AE6F3990SB1Q5W",
-      "last_transition_at": "2026-11-02T18:32:49.375565+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6EWEZ7EFA06VBG1FMTZMVM4",
+      "last_transition_at": "2026-11-02T19:40:58.990985+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Runtime selected this package; recording the canonical owned claim before hosted measurement.",
-        "T001 instrumentation committed and locally checked; hosted measurement pending; no final limit selected."
+        "T001 instrumentation committed and locally checked; hosted measurement pending; no final limit selected.",
+        "All subtasks complete; normal hosted upgrade shard 2/4 passed 398 tests under final marker (run41506010620); independent reviewer-renata patch approval and KEEP verdict retained in traces/final-integrity-review.md.",
+        "Capture the independently dispatched reviewer-renata review; normal hosted validation condition now satisfied (398 passed in upgrade shard2/4).",
+        "Orchestrator captures actual independently dispatched reviewer-renata (pi/tokenfactory-glm5.3) APPROVE PATCH and KEEP verdict, not self-review. Its pending-CI condition is satisfied by normal upgrade shard2/4:398passed,full-corpusJUnit239.505s; all upgrade shards/blocking gates green. Source unchanged since review."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "review_result": {
+        "feedback_path": "/home/exedev/work/sk-5716/kitty-specs/corpus-audit-budget-01M6EP9T/tasks/WP01-corpus-budget/review-cycle-1.md",
+        "reference": "review-cycle://corpus-audit-budget-01M6EP9T/WP01-corpus-budget/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "subtasks": {
         "T001": "done",
         "T002": "done",
-        "T003": "done"
+        "T003": "done",
+        "T004": "done"
       }
     }
   }

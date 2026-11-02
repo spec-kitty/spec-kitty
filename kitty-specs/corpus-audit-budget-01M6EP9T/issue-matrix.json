@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5716": {
-      "evidence_ref": "Operator-authorized separate measurement-first work to unblock PR #7071.",
+      "evidence_ref": "Implemented in PR#7096, pending operator merge: normal upgrade shard2/4 run41506010620/job125485798815 passed398tests with450sfunctionmarker; completecontrols preserved; independent debugger-debbie and reviewer-renata approvals. No claim of mainline merge.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,59 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6058": {
+      "evidence_ref": "Context/PR reference only, no implementation owed here: #6058 last changed the original corpus test; #6846 merged independently and supplies baseline-red CI; #7071 owns a separately reviewed maintenance fixture and is intentionally untouched. This Mission fixes only #5716.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6846": {
+      "evidence_ref": "Context/PR reference only, no implementation owed here: #6058 last changed the original corpus test; #6846 merged independently and supplies baseline-red CI; #7071 owns a separately reviewed maintenance fixture and is intentionally untouched. This Mission fixes only #5716.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7071": {
+      "evidence_ref": "Context/PR reference only, no implementation owed here: #6058 last changed the original corpus test; #6846 merged independently and supplies baseline-red CI; #7071 owns a separately reviewed maintenance fixture and is intentionally untouched. This Mission fixes only #5716.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7081": {
       "evidence_ref": "Tooling friction tracked separately; owned tracer repair is outside this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7099": {
+      "evidence_ref": "Separate process blocker, not production work owed by this test-budget Mission: accept --owned-checkout reads authored ownership from primary and falsely reports IMPLEMENTATION_MISSING. No attestation/bypass; seeking operator scope approval for separate repair. https://github.com/spec-kitty/spec-kitty/issues/7099",
       "fr": null,
       "nfr": null,
       "repo": null,
