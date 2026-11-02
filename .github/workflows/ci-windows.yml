@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+# Only PR evidence is superseded. Every mainline push keeps its own group.
+concurrency:
+  group: ci-windows-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # #6164: removed the windows_critical filter glob for the deleted
 # tests/auth/secure_storage/test_file_fallback_windows_root.py.
 #
@@ -91,6 +96,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip pipx
           python -m pipx ensurepath
+
+      - name: Restore packs before the editable build hook
+        uses: ./.github/actions/restore-open-packs
 
       - name: Install spec-kitty-cli (editable) + test deps
         shell: bash

@@ -324,11 +324,11 @@ def test_reduced_ci_quality_has_exact_jobs() -> None:
     # all -- `tests/architectural/test_suite_jobs_gate_blocking.py` asserts
     # exactly that, and `test_no_duplicate_suite_execution.py` reds if any
     # change-triggered job reaches pytest outside the authorised matrix.
+    # Ruff and lock validation are owned by the required router gate, not
+    # duplicated here. The stable clean-install producer remains here.
     assert set(workflow["jobs"]) == {
-        "lint",
         "build-wheel",
         "clean-install-verification",
-        "uv-lock-check",
         "quality-gate",
     }
     assert workflow["jobs"]["clean-install-verification"]["needs"] == ["build-wheel"]
@@ -349,11 +349,11 @@ def test_quality_gate_blocks_every_reduced_producer_job() -> None:
     gate = workflow["jobs"]["quality-gate"]
 
     assert set(gate["needs"]) == {
-        "lint",
         "build-wheel",
         "clean-install-verification",
-        "uv-lock-check",
     }
+    router = load_workflow("ci-router.yml")
+    assert {"ruff", "uv-lock"} <= set(router["jobs"]["router-gate"]["needs"])
     assert "NEEDS_JSON: ${{ toJSON(needs) }}" in workflow_text("ci-quality.yml")
 
 

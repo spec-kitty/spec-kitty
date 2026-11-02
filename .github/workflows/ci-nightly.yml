@@ -1541,12 +1541,32 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Install the pinned Gradle (checksum verified before it runs)
+      # Cache the pinned Gradle tool and its dependency artefacts only -- never
+      # test results or acceptance-jvm/build. The tool cache is keyed on the pin
+      # file and re-verified by gradle_tool_cache.py against the manifest written
+      # after the canonical checksum-verified install; a corrupt or stale entry is
+      # reinstalled, never trusted. Gradle verifies cached dependency bytes against
+      # acceptance-jvm/gradle/verification-metadata.xml on use.
+      - name: Restore the pinned Gradle tool cache (checksum-verified on restore)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tools
+          key: gradle-tool-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json') }}
+
+      - name: Restore the Gradle dependency cache (never test results)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json', 'acceptance-jvm/build.gradle', 'acceptance-jvm/settings.gradle', 'acceptance-jvm/gradle/verification-metadata.xml') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+
+      - name: Install the pinned Gradle (checksum verified; cache re-verified before use)
         shell: bash
         run: |
           set -euo pipefail
           tools="$(PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
-          uv run --frozen --no-sync python "$tools/install_tools.py" --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+          uv run --frozen --no-sync python scripts/ci/gradle_tool_cache.py ensure --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --installer "$tools/install_tools.py"
 
       # GATING run: the ratified scenarios (`-Pacceptance.pass=gating` selects
       # `not @wip and not @manual` and its own build/acceptance/gating/ folder) with
@@ -1687,6 +1707,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
+      - uses: ./.github/actions/restore-open-packs
       - name: Install the locked Python environment
         run: uv sync --frozen
       - name: Sync packs

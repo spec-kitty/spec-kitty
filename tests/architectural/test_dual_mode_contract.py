@@ -216,10 +216,8 @@ def test_ci_modules_matrix_fail_fast_is_keyed_off_mode() -> None:
 
 
 def test_module_tests_shard_run_step_branches_pr_fail_fast_vs_full_run_all() -> None:
-    """module-tests.yml (WP09): the per-shard pytest run step propagates the
-    real exit status in pr mode (fail fast) but only warns and continues in
-    full mode (run-all-regardless); artefact upload always runs regardless of
-    shard outcome so full mode reports every failure (SC-009)."""
+    """Both modes propagate real pytest failure; run-all comes from the matrix
+    fail-fast policy, while unconditional upload retains every report."""
     path = _WORKFLOWS_DIR / "module-tests.yml"
     if not path.is_file():
         pytest.skip("module-tests.yml not yet reinstated")

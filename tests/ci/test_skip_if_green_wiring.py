@@ -374,10 +374,7 @@ def test_router_always_on_lanes_are_unaffected_by_a_skip() -> None:
     always_on = [
         "prose-scan",
         "ruff",
-        "commit-msg",
-        "markdownlint",
         "uv-lock",
-        "import-linter",
         "regen-check",
         "terminology",
         "docs-lint",

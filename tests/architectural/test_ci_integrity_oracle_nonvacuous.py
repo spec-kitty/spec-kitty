@@ -246,7 +246,6 @@ def test_unwired_must_run_gate_reds_the_oracle() -> None:
         filters={"cli": ("src/specify_cli/cli/**",), "any_src": ("src/**",)},
         job_gates={
             "ruff": frozenset(),
-            "import-linter": frozenset(),
             "regen-check": frozenset(),
             "layer-rules": frozenset(),
             "architectural-heavy": frozenset({"cli"}),

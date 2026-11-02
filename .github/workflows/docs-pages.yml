@@ -2,7 +2,7 @@ name: Deploy Docs to GitHub Pages
 
 on:
   push:
-    branches: [ main, 2.x ]
+    branches: [ main ]
     paths:
       - 'docs/**'
       - 'kitty-specs/**'
@@ -101,19 +101,42 @@ jobs:
     # docs-build-pr.yml's `PYTHONPATH: .`, extended with `src` for the kernel import.
     env:
       PYTHONPATH: .:src
+      # Intentional pin: the deploy workflow installs exactly this DocFX version.
+      # NuGet verifies the package hash on install, and the tool directory cache is
+      # keyed on the version so a cache hit restores that same package, never a
+      # floating "latest". Bump deliberately, in its own reviewed change.
+      DOCFX_VERSION: '2.81.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Fetch all history for git info
 
+      - name: Restore the pinned DocFX tool cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.dotnet/tools
+            ~/.nuget/packages
+          key: docfx-${{ runner.os }}-${{ env.DOCFX_VERSION }}
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
 
-      - name: Install DocFX
-        run: dotnet tool install -g docfx
+      - name: Install DocFX (pinned, NuGet-verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          installed="$(dotnet tool list --global | awk '$1 == "docfx" { print $2 }')"
+          if [ "$installed" = "$DOCFX_VERSION" ]; then
+            echo "::notice::DocFX $DOCFX_VERSION restored from the pinned tool cache"
+          else
+            dotnet tool uninstall --global docfx >/dev/null 2>&1 || true
+            dotnet tool install --global docfx --version "$DOCFX_VERSION"
+          fi
+          docfx --version
 
       - name: Build documentation
         run: |
@@ -132,6 +155,14 @@ jobs:
       - name: Auto-link glossary terms (FR-011)
         run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
 
+      # Cache the pinned jar; plantuml_invoke.ensure_jar re-verifies its sha256 on
+      # every run and re-downloads rather than trust a stale/corrupt cache entry.
+      - name: Restore the checksum-verified PlantUML jar cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: plantuml.jar
+          key: plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}
+
       # Render @startyaml schema diagrams to inline SVG — AFTER glossary_linker,
       # BEFORE redirect-stub/seo_verify. Host-native stdlib-only Python; the pinned
       # jar runs ONLY inside a digest-pinned JRE under docker --network=none (zero
@@ -139,25 +170,14 @@ jobs:
       - name: Render PlantUML schema diagrams (FR-001, no-egress)
         run: |
           python3 - <<'PY'
-          import hashlib, json, pathlib, subprocess, time, urllib.request
-          pins = json.loads(pathlib.Path("scripts/docs/plantuml_pins.json").read_text())
-          jar = pathlib.Path("plantuml.jar")
-          if not jar.exists():
-              last = None
-              for attempt in range(5):  # GitHub release downloads flake with RemoteDisconnected
-                  try:
-                      urllib.request.urlretrieve(pins["plantuml_jar_url"], jar)
-                      last = None
-                      break
-                  except Exception as exc:  # noqa: BLE001 - retry any transient download error
-                      last = exc
-                      time.sleep(2 * (attempt + 1))
-              if last is not None:
-                  raise SystemExit(f"plantuml.jar download failed after retries: {last}")
-          got = hashlib.sha256(jar.read_bytes()).hexdigest()
-          if got != pins["plantuml_jar_sha256"].lower():
-              raise SystemExit(f"plantuml.jar sha256 mismatch: {got}")
-          subprocess.run(["docker", "pull", pins["jre_image_digest"]], check=True)
+          import pathlib
+          import subprocess
+
+          from scripts.docs import plantuml_invoke
+
+          pins = plantuml_invoke.load_pins()
+          plantuml_invoke.ensure_jar(pins, pathlib.Path("plantuml.jar"))
+          subprocess.run(["docker", "pull", pins.jre_image_digest], check=True)
           PY
           python3 scripts/docs/plantuml_render.py docs/_site
 
@@ -194,13 +214,12 @@ jobs:
       # leave stub regressions unobserved. The verifier is strictly read-only —
       # it never mutates docs/_site.
       # Deploy-side trigger note (FR-007): this workflow — and therefore this
-      # seo_verify gate — runs push-only on `main`/`2.x` (see the `on:` block
-      # above: `push: [main, 2.x]` + `workflow_dispatch`, no `pull_request`
-      # trigger). So a rendered-HTML SEO regression is caught at deploy time on
-      # the target branches, NOT on the originating PR. This is the deploy-side
-      # analogue of the docs-freshness PR-scoping gap; recorded here
-      # deliberately and left verification-free (no pre-merge gate exists for
-      # the DocFX render output).
+      # seo_verify gate — runs push-only on `main` (see the `on:` block above:
+      # `push: [main]` + `workflow_dispatch`, no `pull_request` trigger). So a
+      # rendered-HTML SEO regression is caught at deploy time on the destination
+      # branch, NOT on the originating PR. This is the deploy-side analogue of the
+      # docs-freshness PR-scoping gap; recorded here deliberately and left
+      # verification-free (no pre-merge gate exists for the DocFX render output).
       - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
         run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
 

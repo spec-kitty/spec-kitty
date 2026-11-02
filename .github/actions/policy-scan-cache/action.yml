@@ -1,0 +1,33 @@
+name: Collection policy cache
+description: Reuse content-addressed policy results only within the trusted default-branch cache namespace; PRs keep fresh local enforcement.
+inputs:
+  python-exe:
+    description: Interpreter from the already-installed test environment.
+    required: false
+    default: .venv/bin/python
+runs:
+  using: composite
+  steps:
+    # The HMAC key travels with the result and is NOT an authentication boundary
+    # against a malicious cache writer. Actions' ref-scoped cache namespace is
+    # the trust boundary. Never restore OR publish this directory from PR runs:
+    # a later benign PR revision could otherwise read a forged prior-PR entry.
+    - name: Address policy inputs and runtime
+      if: (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      id: identity
+      shell: bash
+      env:
+        POLICY_PYTHON: ${{ inputs.python-exe }}
+      run: |
+        set -euo pipefail
+        key="$("$POLICY_PYTHON" -m scripts.ci.policy_scan_cache)"
+        echo "key=$key" >> "$GITHUB_OUTPUT"
+    - name: Restore the policy scanner's validated candidate cache
+      if: (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .pytest_cache/wall-clock-assertion-scan
+        # Exact only: source/helper/config/lock changes produce another key.
+        # Default-branch runs cannot read PR-scoped caches. The event/ref guard
+        # above prevents PRs from participating in this cross-run reuse at all.
+        key: ${{ steps.identity.outputs.key }}

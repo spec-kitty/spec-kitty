@@ -7,6 +7,8 @@ import hmac
 import json
 import os
 import secrets
+import sys
+import time
 import uuid
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
@@ -43,7 +45,7 @@ _ClassInitializers = dict[tuple[str, ...], ast.FunctionDef | ast.AsyncFunctionDe
 _SHADOWED_PATH = ("<shadowed>",)
 _SETUP_METHOD_NAMES = {"setup", "setup_method", "setup_class", "setUp", "setUpClass"}
 _MODULE_SETUP_NAMES = {"setup_module", "setup_function", "setUpModule"}
-_SCAN_CACHE_VERSION = 3
+_SCAN_CACHE_VERSION = 4
 _SCAN_CACHE_LOCK_TIMEOUT_S = 600.0
 _SCAN_CACHE_AUTHORITY_KEY_NAME = "authority.key"
 _SCAN_CACHE_AUTHORITY_KEY_BYTES = 32
@@ -106,20 +108,35 @@ def find_wall_clock_assertion_violations_cached(
     config_paths: Iterable[Path] = (),
 ) -> list[WallClockAssertionViolation]:
     """Share one content-addressed scan safely across pytest processes."""
+    started = time.perf_counter()
     python_paths = sorted({Path(p) for p in paths if Path(p).suffix == ".py"})
     sources = {path: path.read_text(encoding="utf-8") for path in python_paths}
     digest = _wall_clock_scan_digest(python_paths, sources, config_paths)
+    hashed = time.perf_counter()
     cache_root.mkdir(parents=True, exist_ok=True)
     result_path = cache_root / f"{digest}.json"
     lock_path = cache_root / "scan.lock"
     with machine_file_lock(lock_path, blocking=True, timeout_s=_SCAN_CACHE_LOCK_TIMEOUT_S):
+        acquired = time.perf_counter()
         authority_key = _load_or_create_wall_clock_scan_authority_key(cache_root)
         cached = _read_wall_clock_scan_cache(result_path, digest, authority_key)
         if cached is not None:
+            _report_scan_timing(len(python_paths), True, hashed - started, acquired - hashed, 0.0)
             return cached
+        scan_started = time.perf_counter()
         violations = _find_wall_clock_assertion_violations_from_sources(python_paths, sources)
         _write_wall_clock_scan_cache(result_path, digest, violations, authority_key)
+        _report_scan_timing(len(python_paths), False, hashed - started, acquired - hashed, time.perf_counter() - scan_started)
         return violations
+
+
+def _report_scan_timing(files: int, hit: bool, read_hash: float, wait: float, scan: float) -> None:
+    """Expose CPU versus lock/setup costs in CI without changing enforcement."""
+    if os.environ.get("CI") == "true":
+        print(
+            f"policy-scan: files={files} cache_hit={hit} read_hash={read_hash:.3f}s lock_setup={wait:.3f}s scan_write={scan:.3f}s",
+            file=sys.stderr,
+        )
 
 
 def _wall_clock_scan_digest(
@@ -129,7 +146,7 @@ def _wall_clock_scan_digest(
 ) -> str:
     # File-integrity identity, not charter content hashing.
     digest = hashlib.sha256()  # noqa: TID251
-    digest.update(f"wall-clock-scan-v{_SCAN_CACHE_VERSION}\0".encode())
+    digest.update(f"wall-clock-scan-v{_SCAN_CACHE_VERSION}\0{sys.platform}\0{sys.version}\0".encode())
     all_paths = [*paths, *sorted({Path(path) for path in config_paths})]
     root = (
         Path(os.path.commonpath([str(path.parent) for path in all_paths]))

@@ -28,42 +28,45 @@ permissions:
 # only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
 # run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
-  lint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: Lint
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: uv sync --frozen --all-extras
-      - name: Run ruff checks
-        run: |
-          uv run --frozen ruff check .
-          uv run --frozen ruff format --check .
-
+  # Ruff (including TID251) and uv lock --check have one execution owner:
+  # CI Router. Its stable required `router gate` awaits both. This workflow
+  # owns wheel construction and genuine clean-install verification only.
   build-wheel:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Build wheel
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      build-required: ${{ steps.package-scope.outputs.build-required }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Determine whether package inputs changed (fail closed)
+        id: package-scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: python3 scripts/ci/packaging_scope.py
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        if: steps.package-scope.outputs.build-required != 'false'
         with:
           python-version: '3.12'
       - name: Install the locked Python environment (pack sync dependencies)
+        if: steps.package-scope.outputs.build-required != 'false'
         run: uv sync --frozen --no-install-project
       - name: Sync packs
+        if: steps.package-scope.outputs.build-required != 'false'
         uses: ./.github/actions/sync-packs
       - name: Build wheel
+        if: steps.package-scope.outputs.build-required != 'false'
         run: |
           uv build --wheel
           ls -la dist/
       - name: Upload wheel
+        if: steps.package-scope.outputs.build-required != 'false'
         uses: actions/upload-artifact@v4
         with:
           name: spec-kitty-cli-wheel
@@ -85,30 +88,40 @@ jobs:
         run: |
           echo "::error::CI is paused on this PR by the pr:pause-ci label; remove the label to run CI."
           exit 1
+      - name: Report proven package-irrelevant prose change
+        if: needs.build-wheel.outputs.build-required == 'false'
+        run: echo 'No package inputs changed; wheel and clean-install execution not needed.'
       - uses: actions/checkout@v4
+        if: needs.build-wheel.outputs.build-required != 'false'
       - uses: actions/setup-python@v5
+        if: needs.build-wheel.outputs.build-required != 'false'
         with:
           python-version: '3.13'
       - name: Download CLI wheel
+        if: needs.build-wheel.outputs.build-required != 'false'
         uses: actions/download-artifact@v4
         with:
           name: spec-kitty-cli-wheel
           path: dist/
       - name: Create clean venv
+        if: needs.build-wheel.outputs.build-required != 'false'
         run: |
           python -m venv "$RUNNER_TEMP/clean-venv"
           "$RUNNER_TEMP/clean-venv/bin/pip" install --upgrade pip
       - name: Install CLI from wheel
+        if: needs.build-wheel.outputs.build-required != 'false'
         run: |
           "$RUNNER_TEMP/clean-venv/bin/pip" install dist/spec_kitty_cli-*.whl
           "$RUNNER_TEMP/clean-venv/bin/pip" list
       - name: Assert spec-kitty-runtime is not installed
+        if: needs.build-wheel.outputs.build-required != 'false'
         run: |
           if "$RUNNER_TEMP/clean-venv/bin/pip" show spec-kitty-runtime >/dev/null 2>&1; then
             echo "::error::spec-kitty-runtime is installed; the clean-install contract regressed."
             exit 1
           fi
       - name: Assert no runtime import side effect
+        if: needs.build-wheel.outputs.build-required != 'false'
         run: |
           "$RUNNER_TEMP/clean-venv/bin/python" -c "
           import sys
@@ -117,6 +130,7 @@ jobs:
           assert not leaked, f'spec_kitty_runtime imported: {leaked}'
           "
       - name: Run spec-kitty next against fixture mission
+        if: needs.build-wheel.outputs.build-required != 'false'
         run: |
           cp -r tests/fixtures/clean_install_fixture_mission "$RUNNER_TEMP/fixture"
           cd "$RUNNER_TEMP/fixture"
@@ -134,28 +148,13 @@ jobs:
           assert isinstance(payload, dict), payload
           "
 
-  uv-lock-check:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: uv lock --check
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      - name: Assert uv.lock is up to date
-        run: uv lock --check
-
   quality-gate:
     name: Quality gate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs:
-      - lint
       - build-wheel
       - clean-install-verification
-      - uv-lock-check
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Evaluate quality-gate decision
@@ -169,10 +168,8 @@ jobs:
 
           needs = json.loads(os.environ["NEEDS_JSON"])
           expected = {
-              "lint",
               "build-wheel",
               "clean-install-verification",
-              "uv-lock-check",
           }
           if set(needs) != expected:
               raise SystemExit(f"quality-gate needs changed: {sorted(needs)}")

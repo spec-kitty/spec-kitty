@@ -202,9 +202,10 @@ def test_ci_quality_runs_no_suite_and_the_derivation_can_still_see_one_live(tmp_
 
 def test_reduced_quality_gate_needs_exact_blocking_set_live() -> None:
     """Every non-gate producer job blocks the reduced quality gate."""
-    assert _ci_quality_needs() == frozenset(
-        {"lint", "build-wheel", "clean-install-verification", "uv-lock-check"}
-    )
+    assert _ci_quality_needs() == frozenset({"build-wheel", "clean-install-verification"})
+    router = gc.load_workflow_model(gc.WORKFLOWS_DIR / "ci-router.yml")
+    assert {"ruff", "uv-lock"} <= set(router.job_needs["router-gate"])
+
 
 
 def test_allowlist_entries_carry_rationale() -> None:

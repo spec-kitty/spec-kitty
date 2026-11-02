@@ -128,6 +128,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
+      - name: Restore packs before the editable build hook
+        uses: ./.github/actions/restore-open-packs
+
       - name: Install tooling
         run: |
           uv sync --frozen --python "$(which python)" --extra test --extra lint
@@ -380,6 +383,9 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Restore packs before the editable build hook
+        uses: ./.github/actions/restore-open-packs
 
       - name: Install tooling
         run: |

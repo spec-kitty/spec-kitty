@@ -79,8 +79,8 @@ RUNTIME_EVIDENCE_BOUNDARY = (
 #: ``SKILL.md`` with the pinned reference validator ``skills-ref``.
 MUST_RUN_ALWAYS_ON_GATES = frozenset(
     {
+        # Ruff's configured TID251 rule is the single import-boundary carrier.
         "ruff",
-        "import-linter",
         "regen-check",
         "terminology",
         "layer-rules",
