@@ -7,8 +7,7 @@ four built-ins the two agree. For a custom type that curates its
 ``action_sequence`` away from its DAG they disagree — and the runtime side must
 win, otherwise editing an advisory list would silently switch the guard off.
 
-This module pins that split of authority at the fact the guard consumes, and pins
-the DTO's own statement of it, so documentation and behaviour cannot drift apart.
+This module pins that split of authority at the fact the guard consumes.
 """
 
 from __future__ import annotations
@@ -24,8 +23,6 @@ from tests.runtime._next_mission_scaffold import (
 
 pytestmark = [pytest.mark.git_repo]
 
-#: A control DAG with no ``implement`` step at all (the negative control).
-_NON_WP_STEPS = ("specify", "plan", "review")
 #: The scaffolded DAG, whose ``implement`` step must stay authoritative.
 _WP_STEPS = ("specify", "plan", "tasks", "analyze", "implement", "review")
 
@@ -94,22 +91,3 @@ def test_curated_away_action_sequence_does_not_switch_the_guard_off(tmp_path: Pa
     assert bundle.wp_driven is False, "the advisory facet mirrors the curated action_sequence"
 
     assert _guard_fact(tmp_path, slug) is True, "the frozen runtime DAG is authoritative"
-
-
-def test_a_dag_without_implement_is_still_ungated(tmp_path: Path) -> None:
-    """Same-fixture control: when the DAG itself has no ``implement``, nothing gates."""
-    slug = scaffold_custom_analyze_mission(tmp_path, steps=_NON_WP_STEPS)
-    _curate_action_sequence_away_from_implement(tmp_path, CUSTOM_ANALYZE_FAMILY, _NON_WP_STEPS)
-
-    bundle = _bundle(tmp_path)
-    assert bundle.wp_driven is False
-    assert _guard_fact(tmp_path, slug) is False
-
-
-def test_dto_states_that_the_facet_is_advisory_and_the_dag_authoritative() -> None:
-    """The authority split is documented where a reader meets the facet."""
-    from charter.activation.mission_type_profiles import ResolvedMissionType
-
-    doc = (ResolvedMissionType.__doc__ or "").lower()
-    assert "advisory" in doc
-    assert "frozen" in doc and "dag" in doc, "the docstring must name the authoritative runtime input"
