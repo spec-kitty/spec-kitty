@@ -96,7 +96,7 @@ Nothing found. The diff is tight (two code commits cleanly split reader/guard, t
 
 ## Commands run (with counts)
 
-From `/home/exedev/work/sk-6948`, `uv run --frozen`:
+From `<repo-root>`, `uv run --frozen`:
 
 | Command | Result |
 |---------|--------|
