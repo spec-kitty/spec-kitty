@@ -81,12 +81,16 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
 
     task_file = tasks_dir / "WP01-test-task.md"
+    # WP01 declares ``owned_files`` deliberately: #6715's review-ward evidence gate refuses a WP whose
+    # evidence window (planning commit..lane branch) shows no change inside those files.
     task_content = """---
 work_package_id: "WP01"
 title: "Test Task"
 agent: "test-agent"
 shell_pid: ""
 subtasks: []
+owned_files:
+  - "src/**"
 ---
 
 # Work Package: WP01 - Test Task
@@ -134,8 +138,10 @@ Test content here.
         capture_output=True,
     )
 
-    # Add a commit in the worktree (so branch has commits beyond main)
-    (worktree_dir / "implementation.txt").write_text("Implementation work\n")
+    # Add an owned-file commit in the worktree (so the branch has commits beyond main
+    # AND carries the implementation evidence #6715's review-ward gate requires).
+    (worktree_dir / "src").mkdir()
+    (worktree_dir / "src" / "implementation.py").write_text("IMPLEMENTED = True\n")
     subprocess.run(["git", "add", "."], cwd=worktree_dir, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Add implementation"],
@@ -255,6 +261,9 @@ class TestMoveTaskGitValidation:
                 "done",
                 "--done-override-reason",
                 "Validated manually in post-merge audit",
+                # A done move is an approval: #6715 refuses a placeholder approver, so name one.
+                "--agent",
+                "reviewer-renata",
                 "--json",
             ],
         )
