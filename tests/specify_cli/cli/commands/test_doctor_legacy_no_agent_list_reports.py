@@ -1,17 +1,17 @@
 """``doctor`` must not claim health over surfaces it never examined (#6891).
 
-A ``.kittify/config.yaml`` with **no** ``agents.available`` list is the legacy
-every-agent fallback (#6501): the CLI treats every supported agent as available.
-Both audits derive their examined set from ``config.available`` — empty here —
-and then printed health over nothing:
+A ``.kittify/config.yaml`` with **no** ``agents.available`` list states no agents
+(#6501; since #6890 such a project reads as the agents whose project surface
+already exists). Both audits derive their examined set from ``config.available`` —
+empty here — and then printed health over nothing:
 
     $ spec-kitty doctor skills
     Command Skills: all manifest entries healthy (0 file(s))
     $ spec-kitty doctor tool-surfaces
     Tool Surfaces: all surfaces healthy (0 checked)
 
-The fix names the cause instead: the project states no agent list, so the CLI
-cannot tell which surfaces to verify, and nothing was checked. These tests hold
+The fix names the cause instead: the project states no agent list, so no agent
+surfaces were collected to verify, and nothing was checked. These tests hold
 the standing invariant that a summary may assert health only over a non-empty
 examined set, and pair every "no health claim" assertion on the legacy fixture
 with a positive control on the same fixture family (a stated agent list still
@@ -46,9 +46,9 @@ runner = CliRunner()
 #: A legacy project: the ``agents`` section exists but states no agent list.
 LEGACY_CONFIG = "agents:\n  auto_commit: true\n"
 
-#: The every-agent fallback assumes every tool; one existing tool folder is
-#: enough for the ``no_tool_folder`` check to stay quiet, which is what makes
-#: these commands reach their healthy summary in the first place.
+#: One existing tool folder keeps the ``no_tool_folder`` check quiet (an observed
+#: agent satisfies it), which is what let these commands reach their pre-#6891
+#: healthy summary in the first place.
 COMMANDS = (
     "accept",
     "analyze",
