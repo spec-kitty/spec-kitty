@@ -15,9 +15,12 @@ directory there stops discovery from climbing above it, for git itself and for
 both root walks of :mod:`specify_cli.core.paths` (``locate_project_root`` and
 ``resolve_canonical_root``), which honor the same variable. ``tests/conftest.py`` installs the roots this harness owns -- the
 run's basetemp and the worker's isolated home base -- once per process from
-``pytest_configure``, before collection, so every test, xdist worker and
-spawned subprocess inherits it. A repository a test creates *inside* its own
-``tmp_path`` is below the ceiling and is still found.
+``pytest_configure``, before collection, so every test and xdist worker sees
+it, and so does every subprocess spawned with the inherited environment. A
+child given an environment built from scratch, a fixture that clears the
+``GIT_*`` variables, or a directory made with ``tempfile`` outside basetemp
+does not get it; such a test sets the variable itself. A repository a test
+creates *inside* its own ``tmp_path`` is below the ceiling and is still found.
 """
 
 from __future__ import annotations
