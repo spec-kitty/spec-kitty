@@ -891,9 +891,9 @@ def _resolve_graph_kind_parity_stem(
     if urn in full_urns:
         suggestions.append(
             f"{cli_kind}/{stem}: Resolves in graph.yaml but the activation filter drops it. "
-            f"Check 'activated_mission_types' (a mission step contract is kept only while its "
-            f"owning mission type is active) and 'activated_kinds' in config.yaml; regenerating "
-            f"the graph will not change this."
+            f"Check 'mission_type_activations' (a mission step contract is kept only while its "
+            f"owning mission type is active) and 'activated_kinds' in .kittify/charter/activation.yaml "
+            f"(config.yaml on an unmigrated project); regenerating the graph will not change this."
         )
         return
     suggestions.append(

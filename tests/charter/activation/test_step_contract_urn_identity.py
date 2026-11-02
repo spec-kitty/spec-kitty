@@ -119,7 +119,8 @@ def test_a_filtered_out_step_contract_names_the_activation_keys_not_a_resynthesi
     gap_suggestions = [entry for entry in suggestions if entry.startswith("mission-step-contract/")]
     assert gaps == ["mission-step-contract/documentation-accept"]
     assert len(gap_suggestions) == 1, suggestions
-    assert "activated_mission_types" in gap_suggestions[0]
+    assert "mission_type_activations" in gap_suggestions[0]
+    assert "activated_mission_types" not in gap_suggestions[0]  # the PackContext attribute, never an operator key
     assert "resynthesize" not in gap_suggestions[0]
     assert "will not change this" in gap_suggestions[0]
 
