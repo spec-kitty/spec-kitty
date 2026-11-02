@@ -282,7 +282,7 @@ def _load_command_skill_state(
 
     The loaded ``AgentConfig`` rides along because the summary needs to know whether
     the project *states* an agent list at all: a config with no ``agents.available``
-    is the legacy every-agent fallback (#6501), and an audit over that shape must not
+    states no agent list (#6501), and an audit over that shape must not
     claim health over the surfaces it never examined (#6891). Carrying it here adds
     no YAML read of its own.
     """
@@ -483,11 +483,11 @@ _NO_STATED_AGENT_LIST_KEY = "_no_stated_agent_list"
 _HUMAN_ONLY_KEYS = frozenset({_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY})
 
 #: The truthful summary clause for an audit that examined nothing in a legacy project
-#: (``.kittify/config.yaml`` with no ``agents.available``, the #6501 every-agent fallback).
-_NO_STATED_AGENT_LIST = "no stated agent list (every agent is available) — nothing to check"
+#: (``.kittify/config.yaml`` with no ``agents.available`` list, the #6501 legacy shape).
+_NO_STATED_AGENT_LIST = "no stated agent list — nothing to check"
 _NO_STATED_AGENT_LIST_DETAIL = (
-    ".kittify/config.yaml does not state an agents.available list, so the CLI cannot tell "
-    "which surfaces to verify"
+    ".kittify/config.yaml does not state an agents.available list, so no agent surfaces "
+    "were collected to verify"
 )
 
 
@@ -906,9 +906,9 @@ def _tool_config_or_exit(project_path: Path, json_output: bool) -> AgentConfig:
     """Load the agent config for ``doctor tool-surfaces``, translating a load failure to exit 2.
 
     Returns the whole :class:`AgentConfig`, not just its keys, because the human
-    summary needs ``explicit_agent_list``: an audit over the legacy every-agent
-    fallback (#6501) has no surfaces to check and must say so instead of claiming
-    health (#6891). Loading it here adds no YAML read
+    summary needs ``explicit_agent_list``: an audit over a legacy config that states
+    no agent list (#6501) has no surfaces to check and must say so instead of
+    claiming health (#6891). Loading it here adds no YAML read
     beyond the one the command already made.
 
     Mirrors :func:`_load_skills_state_or_exit`'s ``AgentConfigError`` handling
