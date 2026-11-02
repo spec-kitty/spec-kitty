@@ -87,7 +87,7 @@ and the post-fix **cache** rule on Linux are the *same directory*:
 live pack cache, the live service cache and the live upgrade-check cache on every Linux
 machine — a data-loss bug, and specifically a hazard on this shared build host, where
 `~/.cache/spec-kitty/open-packs/<sha>/` is a cache twenty agents share
-(`/home/exedev/work/MISSION-BRIEF.md`, "Shared machine state").
+(`<workspace>/MISSION-BRIEF.md`, "Shared machine state").
 
 Decision: cleanup computes the legacy roots from the **old** rules, then removes a
 candidate only when it is not the current cache, state or config directory. On Linux that

@@ -7,7 +7,7 @@ the faked-platform tests pin; the commands show how to reproduce them.
 
 ```bash
 cd <repo-root>
-XDG_CACHE_HOME=/tmp/xdg XDG_STATE_HOME=/tmp/state uv run python - <<'EOF'
+XDG_CACHE_HOME=<scratch>/xdg XDG_STATE_HOME=<scratch>/state uv run python - <<'EOF'
 from charter.offering.packs.pack_fetch import default_cache_root
 from specify_cli.compat.cache import _resolve_cache_dir
 print("pack_fetch      :", default_cache_root())
