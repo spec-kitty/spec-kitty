@@ -351,6 +351,7 @@ def build_active_charter_service(
         prefer_interview=prefer_interview,
     )
 
+
 def build_agent_profile_sentinels(repo_root: Path, profile_ids: Iterable[str]) -> dict[str, bool]:
     """Resolve the structural ``sentinel`` flag for *profile_ids* only (#6917).
 
