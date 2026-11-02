@@ -966,6 +966,14 @@ digest-verify; `tests/pinned_service_assets.py` fails closed when they are missi
   The modules of both router jobs are deselected from the Packs advisory corpus run, so each runs
   once. `tests/ci/test_contracts_routing.py` fails when a corpus-marked `tests/contract` module is
   run by neither router job, or by both, and when Packs deselects a module that does not exist.
+  **The reality check reads the repository's primary worktree**, not the checkout that imports it
+  (`oracles.primary_worktree_root`; #6966). The Mission resolver answers a coord-less or
+  un-backfilled Mission's read directory with the primary worktree, so a check rooted at the
+  checkout would enumerate one `kitty-specs/` tree and read Missions out of another whenever the
+  checkout is a linked worktree — the drift read then refuses the whole report with
+  `500 drift_scan_unreadable` and the Project read reports an `outside root` fallback the oracle
+  never derives. From a `git worktree` the check therefore judges the primary worktree's corpus;
+  from the primary checkout (CI, a plain clone) nothing differs.
 - **The nightly corpus compare** (`mission-status-corpus` in `ci-nightly.yml`) starts the pinned
   native read-service binary and compares it with the Python reference over the whole corpus, with
   no exemption list (`scripts/ci/mission_status_corpus_compare.py`).
