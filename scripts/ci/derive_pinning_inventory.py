@@ -507,6 +507,25 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
         "the rule entered the tree with the pause contract (#6961) and no per-PR gate re-derives "
         "this artefact (#6998).",
     ),
+    "scripts/ci/fleet_verdict.py::LABEL_TRIGGERED_WORKFLOWS": (
+        "none",
+        "Set of WORKFLOW FILE names whose PR runs also fire on labeled/unlabeled (#7019). "
+        "ci-quality.yml still carries that trigger -- its clean-install-verification gate must run "
+        "under pr:pause-ci -- and only a job inside it left, so the membership is unchanged.",
+    ),
+    "tests/ci/test_pause_ci_unlabel.py::<module>": (
+        "none",
+        "Module-level parametrize of the push/merge_group concurrency groups per producer "
+        "workflow, one row being ci-quality.yml's workflow-level group. Concurrency is keyed on "
+        "the workflow, not a job; the retired job never appears, so the expected group is "
+        "unchanged.",
+    ),
+    "tests/ci/test_pause_ci_unlabel.py::test_the_required_producers_are_the_three_gate_workflows": (
+        "none",
+        "Set-equality over the three required-check producer FILES and their gate names; "
+        "ci-quality.yml's member is the surviving Clean install verification gate, never the "
+        "retired job, so nothing the rule asserts changes.",
+    ),
     # -- no dependency (derived false positives, recorded per the contract) ---
     "tests/architectural/test_no_duplicate_suite_execution.py::real_suite_step_host": (
         "none",
