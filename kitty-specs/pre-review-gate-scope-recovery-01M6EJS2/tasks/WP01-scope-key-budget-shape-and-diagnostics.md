@@ -21,6 +21,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-pre-review-gate-scope-recovery-01M6EJS2
+base_commit: d3d24d41b930aaf0d9779801ed60dbfd323db7dc
+created_at: '2026-11-02T17:01:50.314000+00:00'
 subtasks:
 - T001
 - T002
