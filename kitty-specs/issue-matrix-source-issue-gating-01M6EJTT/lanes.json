@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "issue-matrix-source-issue-gating-01M6EJTT",
+  "mission_id": "01M6EJTT36CSYFRJRWNB4HJGGN",
+  "mission_branch": "kitty/mission-issue-matrix-source-issue-gating-01M6EJTT",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7011-issue-matrix-source-issue-gating.fixed.md",
+        "docs/development/reference/issue-matrix-verdicts.md",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/tasks/issue_reference_discovery.py",
+        "tests/policy/test_issue_matrix_cross_site_consistency.py",
+        "tests/tasks/test_issue_matrix_citation_label_scope_7011.py",
+        "tests/tasks/test_issue_matrix_source_issue_7011.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:56:29.636749+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9aed3a8012cb5eb22c0128b14d525039f95fea7a"
+}
