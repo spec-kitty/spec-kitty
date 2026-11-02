@@ -110,7 +110,7 @@ job shape, `tests.ci._gh_if.eval_gh_if` for the `if:` goldens — and assert:
    `tests/audit/test_no_legacy_path_literals.py` (positive control);
 2. the same for `src/specify_cli/paths/windows_paths.py`, `src/kernel/paths.py` and
    `tests/audit/test_no_legacy_path_literals.py` (FR-003);
-3. negative controls on the same fixture: `docs/**`, `src/specify_cli/dashboard/**` and a
+3. negative controls on the same fixture: `docs/**`, `src/specify_cli/review/gate.py` and a
    `packs/**` path do NOT match the group (non-vacuity: proves the probe can distinguish);
 4. the lane's pytest invocation tokenises to exactly one path argument — that guard file —
    with no `-m`/`--ignore`/`-k` narrowing (FR-002/FR-005), and the job is in
