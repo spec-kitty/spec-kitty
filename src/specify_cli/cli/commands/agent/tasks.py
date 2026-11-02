@@ -738,7 +738,7 @@ def move_task(
     ] = None,
     model: Annotated[
         str | None,
-        typer.Option("--model", help="Dispatch-resolved model actual"),
+        typer.Option("--model", help="Refused: the dispatch Op carries no model identifier (#7013); omit it"),
     ] = None,
     profile: Annotated[
         str | None,

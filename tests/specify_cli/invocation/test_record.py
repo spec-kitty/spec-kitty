@@ -117,13 +117,27 @@ class TestOpStartedEvent:
             **_started_kwargs(
                 mission_id="01KTK5JBD69FQ8XVRFV1J630MJ",
                 wp_id="WP01",
-                model_id="claude-opus-4-6",
             )  # type: ignore[arg-type]
         )
         data = json.loads(event.to_jsonl_line())
         assert data["mission_id"] == "01KTK5JBD69FQ8XVRFV1J630MJ"
         assert data["wp_id"] == "WP01"
-        assert data["model_id"] == "claude-opus-4-6"
+
+    def test_schema_declares_no_model_identifier(self) -> None:
+        """#7013: no field of the started event names a model."""
+        assert "model_id" not in OpStartedEvent.model_fields
+
+    def test_legacy_line_with_model_id_parses_and_is_not_re_emitted(self) -> None:
+        """#7013: a pre-change record stays readable and is never re-written with the key."""
+        legacy = {**CONTRACT_STARTED, "model_id": "claude-opus-4-6"}
+        # Positive control on the same fixture: the probe can see the key when it
+        # is there, so the absence assertions below are not vacuous.
+        assert legacy["model_id"] == "claude-opus-4-6"
+
+        event = parse_op_event(legacy)
+        assert isinstance(event, OpStartedEvent)
+        assert "model_id" not in json.loads(event.to_jsonl_line())
+        assert "claude-opus-4-6" not in event.to_jsonl_line()
 
     def test_request_text_may_be_empty(self) -> None:
         # Empty only legitimate for query mode — no model-level gate (executor enforces).

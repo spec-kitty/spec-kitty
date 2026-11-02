@@ -243,7 +243,7 @@ class InvocationWriter:
         path = self.invocation_path(record.invocation_id)
         try:
             # Exclusive create (O_EXCL) detects a ULID collision (extremely rare).
-            # Optional fields (router_confidence, mission_id, wp_id, model_id)
+            # Optional fields (router_confidence, mission_id, wp_id)
             # are omitted when None. The create runs under the trail family's
             # interim lock, so a concurrent append never sees the empty file,
             # and the trail is owner-only (``_RECORD_MODE``) like the index.

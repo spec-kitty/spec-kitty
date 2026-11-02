@@ -104,7 +104,6 @@ def _write_dispatch_op(
     invocation_id: str = _INVOCATION_ID,
     embedded_invocation_id: str | None = None,
     profile_id: str = "python-pedro",
-    model_id: str | None = "claude-opus-4-6",
     action: str = "implement",
     mission_id: str = _MISSION_ID,
     wp_id: str = _WP_ID,
@@ -112,7 +111,6 @@ def _write_dispatch_op(
     event = OpStartedEvent(
         invocation_id=embedded_invocation_id or invocation_id,
         profile_id=profile_id,
-        model_id=model_id,
         action=action,
         request_text=f"{action} {wp_id}",
         actor="claude",
@@ -203,8 +201,10 @@ def test_resolve_dispatch_binding_uses_correlated_durable_op_evidence(
     ) == ResolvedBinding(
         agent_profile="python-pedro",
         agent_profile_version="1.0",
-        model="claude-opus-4-6",
-        provider="anthropic",
+        # #7013: the Op record carries no model identifier any more, so the
+        # dispatch path resolves the profile and records the model as absent.
+        model=None,
+        provider=None,
     )
 
 
@@ -215,7 +215,8 @@ def test_resolve_dispatch_binding_uses_correlated_durable_op_evidence(
         (_MISSION_ID, "WP02", "implement", None, None, "work package"),
         (_MISSION_ID, _WP_ID, "review", None, None, "action"),
         (_MISSION_ID, _WP_ID, "implement", "reviewer-renata", None, "profile"),
-        (_MISSION_ID, _WP_ID, "implement", None, "claude-haiku-4-5", "model"),
+        # #7013: any --model is unprovable from the Op record, matching scope or not.
+        (_MISSION_ID, _WP_ID, "implement", None, "claude-haiku-4-5", "no longer carries a model"),
     ],
 )
 def test_resolve_dispatch_binding_rejects_claim_and_op_mismatch(
@@ -262,12 +263,17 @@ def test_resolve_dispatch_binding_rejects_embedded_invocation_id_mismatch(
         )
 
 
-def test_resolve_dispatch_binding_rejects_model_when_legacy_op_lacks_model_evidence(
+def test_resolve_dispatch_binding_refuses_a_model_the_op_cannot_evince(
     tmp_path: Path,
 ) -> None:
-    _write_dispatch_op(tmp_path, model_id=None)
+    """#7013: with no model on the record, a --model assertion cannot be honoured.
 
-    with pytest.raises(ValueError, match="model"):
+    The refusal is the honest outcome: recording the supplied string would make an
+    unprovable claim into a fabricated resolved actual.
+    """
+    _write_dispatch_op(tmp_path)
+
+    with pytest.raises(ValueError, match="no longer carries a model"):
         _resolve_dispatch_binding(
             model="claude-opus-4-6",
             profile=None,
@@ -277,6 +283,43 @@ def test_resolve_dispatch_binding_rejects_model_when_legacy_op_lacks_model_evide
             wp_id=_WP_ID,
             action="implement",
         )
+
+
+def test_claim_after_a_correlated_op_records_the_model_as_explicit_absent(
+    tmp_path: Path,
+) -> None:
+    """#7013: the claim still records a binding, with the model explicitly absent."""
+    _write_dispatch_op(tmp_path)
+    feature_dir = _make_feature_dir(tmp_path)
+
+    binding = _resolve_dispatch_binding(
+        model=None,
+        profile=None,
+        invocation_id=_INVOCATION_ID,
+        repo_root=tmp_path,
+        mission_id=_MISSION_ID,
+        wp_id=_WP_ID,
+        action="implement",
+    )
+    assert binding.agent_profile == "python-pedro"
+    assert binding.model is None
+
+    emit_resolved_binding(
+        feature_dir,
+        _WP_ID,
+        mission_slug=_MISSION_SLUG,
+        actor="claude",
+        role="implementer",
+        binding=binding,
+        tool="claude",
+        repo_root=tmp_path,
+    )
+    slots = _resolved_slots(feature_dir)
+    assert slots["model"] == RESOLVED_MODEL_ABSENT
+    assert slots["model"] != _FRONTMATTER_MODEL  # never frontmatter-coerced
+    # Positive control on the same snapshot: the profile half really was recorded,
+    # so the absent model is a property of the evidence, not of a dead emit.
+    assert slots["agent_profile"] == "python-pedro"
 
 
 def test_implement_claim_records_resolver_binding_not_frontmatter(tmp_path: Path) -> None:

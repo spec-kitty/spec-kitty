@@ -196,7 +196,7 @@ def _build_started_event_dict(
 
     No wire-compat with the pre-mission envelope (decision
     01KTSJEQANMNEV16WMSAJP6FR1). Optional fields (router_confidence,
-    mission_id, wp_id, model_id) are omitted when absent, mirroring the on-disk
+    mission_id, wp_id) are omitted when absent, mirroring the on-disk
     JSONL shape. request_text is policy-gated
     (projection_policy.include_request_text).
     """

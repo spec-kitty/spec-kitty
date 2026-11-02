@@ -58,7 +58,8 @@ class OpStartedEvent(BaseModel):
     started_at: str = Field(min_length=1)  # ISO-8601 UTC
     mission_id: str | None = None
     wp_id: str | None = None
-    model_id: str | None = Field(default=None, min_length=1)
+    # No model identifier is recorded here (#7013): ``actor`` is the harness key
+    # and the only runtime identity a committed record carries.
 
     model_config = {"frozen": True}
 
