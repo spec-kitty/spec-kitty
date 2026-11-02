@@ -431,6 +431,31 @@ guard (`tests/architectural/test_module_shard_registry.py`,
   the gate-selection logic (`scripts/ci/gate_selection.py`) rather than
   hand-authoring a second map.
 
+### An extra narrow lane for an out-of-matrix test
+
+Not every test tree gets a module row. When a single out-of-matrix test file must run per
+PR on a specific diff — the precedent is `mission_state` (#5864) and the runtime-home
+path-literal guard (#6879) — add a **non-src** router group plus one job, not a registry row:
+
+- declare the group's globs in `tests/release/ci_retirement_scrub.json`
+  **`non_src_router_groups`** and transcribe them verbatim into the filter block, `changes.outputs`
+  and the job's `if:`, plus a row in
+  `tests/architectural/test_no_duplicate_suite_execution.AUTHORIZED_PER_CHANGE_SUITE_JOBS` and the
+  `router-gate` `needs:` list;
+- spell the globs `**/`-prefixed (e.g. `**/specify_cli/status/**`). A `src/`-spelled glob makes the
+  group *src-backed*, and every src-backed group must also be a module-registry row
+  (`test_gate_selection_authority.py`), so the lane becomes a CI-matrix change;
+- keep it **out** of the FR-004 `unmatched` union and `architectural-heavy`'s `if:` — both are
+  derived from the src-backed group set and the transcription guards red if they diverge;
+- do not name a directory that no src-backed group owns (e.g. `src/specify_cli/paths/**`). Such a
+  directory trips the fail-closed catch-all and already runs *every* job, this lane included;
+  naming it turns that sensor off and narrows the run to your lane.
+
+**Trips it:** adding the globs to the filter block only, or to a src-backed group without a
+module row. **Symptom:** the transcription guard in
+`tests/architectural/test_ci_router_transcription_guards.py`, or
+`test_select_modules_full_mode_selects_all_registry_modules`, or the duplicate-suite ledger.
+
 ## Stored test-universe collection
 
 Several architectural gates need the full list of collected tests with their

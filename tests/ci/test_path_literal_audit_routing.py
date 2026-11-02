@@ -9,8 +9,9 @@ the literal.
 
 The router's ``status`` group selects the module matrix's ``status`` row; ``tests/audit`` is an
 ``out_of_matrix_test_dirs`` entry with no per-PR lane, so a ``src/specify_cli/status/**`` diff ran
-no audit test at all. This module pins the fix: a narrow src-backed ``path_literal_audit`` group
-gating one blocking job that executes exactly that one guard file.
+no audit test at all. This module pins the fix: a narrow NON-src ``path_literal_audit`` group
+(``**/``-spelled, the ``mission_state`` precedent) gating one blocking job that executes exactly
+that one guard file.
 
 Every assertion reads the parsed router (``scripts/ci/gate_selection.py``) and the on-disk
 workflow/scrub, never a restated copy of the routing.
@@ -63,10 +64,9 @@ NEGATIVE_PATHS = (
 )
 
 # The guard module's collected test count, recorded from `pytest tests/audit/test_no_legacy_path_literals.py
-# --collect-only -q` (8 tests = 7 test functions, one of them parametrized twice). The lane runs the file
-# with NO marker expression, so the collected count is exactly this; both halves are re-derived below from
-# the module's AST, not trusted blindly.
-EXPECTED_GUARD_TEST_FUNCTIONS = 7
+# --collect-only -q` (8 tests). The lane runs the file with NO marker expression, so the collected count is
+# exactly this; it is re-derived below from the module's AST (functions + extra parametrize cases), not
+# trusted blindly.
 EXPECTED_GUARD_TEST_COUNT = 8
 
 
@@ -78,7 +78,7 @@ def _pytest_invocations(job: dict[str, Any]) -> list[str]:
     return [line for step in job.get("steps", []) for line in str(step.get("run", "")).splitlines() if " pytest " in f" {line} " or line.startswith("pytest ")]
 
 
-def _marker_terms(command: str) -> bool:
+def _narrows_by_marker_or_name(command: str) -> bool:
     """Whether a pytest command narrows by marker/name (exactly what must be absent here)."""
     return any(flag in command for flag in (" -m ", " -k ", "--ignore", "--deselect", "-m=", "-k="))
 
@@ -148,7 +148,7 @@ def test_the_lane_runs_exactly_one_file_with_no_marker_filter() -> None:
 
     assert len(invocations) == 1, f"the lane must run one pytest invocation, found {invocations}"
     (command,) = invocations
-    assert not _marker_terms(command), f"the lane must not narrow by marker/name: {command}"
+    assert not _narrows_by_marker_or_name(command), f"the lane must not narrow by marker/name: {command}"
     assert "tests/audit" in command, f"the lane no longer runs tests/audit: {command}"
     assert command.count(GUARD) == 1
     # The one path argument beyond the module: no directory lane sneaked in beside the file.
@@ -159,6 +159,18 @@ def test_the_guard_file_still_has_the_tests_the_lane_counts_on() -> None:
     """SC-002: the lane's selection is 8 tests, re-derived from the module (no vacuous count)."""
     tree = ast.parse((ROOT / GUARD).read_text(encoding="utf-8"))
     tests = [node.name for node in tree.body if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")]
+    collected = 0
+    for node in tree.body:
+        if not (isinstance(node, ast.FunctionDef) and node.name.startswith("test_")):
+            continue
+        cases = 1
+        for decorator in node.decorator_list:
+            if not (isinstance(decorator, ast.Call) and getattr(decorator.func, "attr", "") == "parametrize"):
+                continue
+            values = decorator.args[1] if len(decorator.args) > 1 else None
+            if isinstance(values, (ast.List, ast.Tuple)):
+                cases = max(cases, len(values.elts))
+        collected += cases
     module_marks: list[str] = []
     for node in tree.body:
         if not (isinstance(node, ast.Assign) and any(getattr(target, "id", "") == "pytestmark" for target in node.targets)):
@@ -166,8 +178,7 @@ def test_the_guard_file_still_has_the_tests_the_lane_counts_on() -> None:
         if isinstance(node.value, ast.List):
             module_marks = [element.attr for element in node.value.elts if isinstance(element, ast.Attribute)]
 
-    assert len(tests) == EXPECTED_GUARD_TEST_FUNCTIONS, f"the lane expects {EXPECTED_GUARD_TEST_FUNCTIONS} test functions, the module has {tests}"
-    assert EXPECTED_GUARD_TEST_FUNCTIONS < EXPECTED_GUARD_TEST_COUNT, "the parametrized duplication is what makes the collected count larger"
+    assert collected == EXPECTED_GUARD_TEST_COUNT, f"the lane expects {EXPECTED_GUARD_TEST_COUNT} collected tests, the module derives {collected} from {tests}"
     assert module_marks == ["integration"], f"the module-level marker changed: {module_marks}"
     assert any(name == "test_no_handrolled_spec_kitty_home_in_global_state_modules" for name in tests), "the runtime-home limb this lane exists for is gone"
 
