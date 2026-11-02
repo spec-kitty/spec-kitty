@@ -1,6 +1,6 @@
 # Research: Audit and remove special-case workarounds (#6745)
 
-Grounding date: 2026-10-31, `origin/main` at `dfe9efb0e8` (clone `/home/exedev/work/sk-6745`).
+Grounding date: 2026-10-31, `origin/main` at `dfe9efb0e8` (clone `<repo-root>`).
 
 ## 1. What the issue asks, and what the operator added
 
