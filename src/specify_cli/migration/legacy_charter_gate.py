@@ -32,8 +32,8 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from kernel.ancestor_walk import iter_ancestors
 from kernel.charter_pack_paths import KITTIFY_DIRNAME
-
 from specify_cli.migration.legacy_charter_layout import detect_legacy_charter_layout
 
 __all__ = [
@@ -85,7 +85,7 @@ def find_checkout_root(start: Path) -> Path | None:
     A ``.git`` file (a worktree pointer) counts as well as a directory. No
     subprocess; ``None`` outside a git checkout.
     """
-    for candidate in (start, *start.parents):
+    for candidate in iter_ancestors(start):
         if os.path.lexists(candidate / _GIT_MARKER):
             return candidate
     return None

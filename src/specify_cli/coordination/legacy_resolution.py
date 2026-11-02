@@ -24,12 +24,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import assert_safe_path_segment
+from kernel.ancestor_walk import iter_ancestors
 from specify_cli.coordination.transaction_errors import (
     BookkeepingError,
     BookkeepingLegacyResolutionFailed,
 )
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
 )
@@ -206,7 +207,7 @@ def _resolve_legacy_lane_destination(
     """
     cwd = Path.cwd().resolve()
     worktree_root: Path | None = None
-    for ancestor in [cwd, *cwd.parents]:
+    for ancestor in iter_ancestors(cwd):
         marker = ancestor / ".git"
         if marker.exists():
             worktree_root = ancestor

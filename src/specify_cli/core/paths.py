@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import os
 import re
@@ -10,7 +9,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from kernel.ancestor_walk import git_ceiling_dirs as _git_ceiling_dirs
+from kernel.ancestor_walk import iter_ancestors
 from kernel.errors import GuardedReadError
+from specify_cli.core.constants import KITTY_SPECS_DIR
 
 from .constants import KITTIFY_DIR, LINT_REPORT_FILENAME, WORKTREES_DIR
 
@@ -164,20 +166,20 @@ def safe_mission_slug(slug: str | None, fallback: str) -> str:
 def git_ceiling_dirs() -> frozenset[Path]:
     """The resolved ``GIT_CEILING_DIRECTORIES`` entries the root walks stop at.
 
-    One reading of the discovery ceiling for :func:`locate_project_root`,
-    :func:`resolve_canonical_root` and ``task_utils.support.find_repo_root``, so
-    the root authorities agree on where a walk ends (#7022). A listed directory
-    is still examined and the walk never continues above it. That is one step
-    looser than git, which does not examine a ceiling directory unless the
-    search starts there. Relative entries are ignored, as git ignores them;
-    every absolute entry is resolved, where git leaves those after an empty
+    The name #7022 shipped for the single reading of the discovery ceiling; the
+    reading itself lives at the ``kernel`` floor
+    (:func:`kernel.ancestor_walk.git_ceiling_dirs`) because ``charter`` and
+    ``runtime`` walk ancestors too and may not import ``specify_cli`` (#7056).
+    This stays as the delegating name so every existing caller, test and doc
+    keeps working.
+
+    A listed directory is still examined and the walk never continues above it.
+    That is one step looser than git, which does not examine a ceiling directory
+    unless the search starts there. Relative entries are ignored, as git ignores
+    them; every absolute entry is resolved, where git leaves those after an empty
     entry unresolved.
     """
-    return frozenset(
-        Path(part).resolve()
-        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
-        if part and Path(part).is_absolute()
-    )
+    return _git_ceiling_dirs()
 
 
 def _is_worktree_gitdir(gitdir: Path) -> bool:
@@ -285,7 +287,7 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
     boundary = stop.resolve() if stop is not None else None
     ceilings = git_ceiling_dirs()
 
-    for candidate in [current, *current.parents]:
+    for candidate in iter_ancestors(current, ceilings=ceilings):
         git_path = candidate / ".git"
 
         if git_path.is_file():
@@ -328,8 +330,6 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
             return candidate
 
         if boundary is not None and candidate == boundary:
-            break
-        if candidate in ceilings:
             break
 
     return None
@@ -377,7 +377,7 @@ def is_worktree_context(path: Path) -> bool:
     # Only recognise true worktrees (.git/worktrees/<name> topology),
     # NOT submodules (.git/modules/<mod>) or separate-git-dir clones.
     resolved = path.resolve()
-    for candidate in [resolved, *resolved.parents]:
+    for candidate in iter_ancestors(resolved):
         git_path = candidate / ".git"
         if git_path.is_file():
             try:
@@ -449,7 +449,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
     start = (cwd or Path.cwd()).resolve()
     ceilings = git_ceiling_dirs()
 
-    for candidate in [start, *start.parents]:
+    for candidate in iter_ancestors(start, ceilings=ceilings):
         git_path = candidate / ".git"
 
         if git_path.is_dir():
@@ -467,14 +467,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 if (candidate / KITTIFY_DIR).is_dir():
                     return candidate.resolve()
                 # No canonical marker — keep walking so an enclosing repo is still
-                # resolved, but never above a ceiling (#7022).
-                if candidate in ceilings:
-                    break
+                # resolved, but never above a ceiling (#7022; the walk itself stops
+                # there).
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
-        if candidate in ceilings:
-            break
 
     raise WorkspaceRootNotFound(start)
 
@@ -617,8 +614,9 @@ def get_status_read_root(start: Path | None = None) -> Path:
         PosixPath('/repo/.worktrees/feature-001')
     """
     cwd = (start or Path.cwd()).resolve()
-    # Walk up until we find a .git file (worktree) OR a .git directory (main).
-    for ancestor in [cwd, *cwd.parents]:
+    # Walk up until we find a .git file (worktree) OR a .git directory (main). The
+    # walk stops at ``GIT_CEILING_DIRECTORIES`` (#7056).
+    for ancestor in iter_ancestors(cwd):
         git_marker = ancestor / ".git"
         if git_marker.is_file():
             if _read_worktree_gitdir(git_marker) is not None:

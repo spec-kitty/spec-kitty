@@ -23,12 +23,13 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from charter.activation.api import read_mission_type
-from specify_cli.core.atomic import atomic_write
-from specify_cli.core.paths import safe_mission_slug
+from kernel.ancestor_walk import iter_ancestors
 from kernel.clock import now_utc_iso
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from mission_runtime import resolve_mid8
+from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import safe_mission_slug
 from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
@@ -606,7 +607,7 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
 
 def _has_no_git_anchor(feature_dir: Path) -> bool:
     """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
-    for candidate in (feature_dir, *feature_dir.parents):
+    for candidate in iter_ancestors(feature_dir):
         try:
             if (candidate / ".git").exists():
                 return False

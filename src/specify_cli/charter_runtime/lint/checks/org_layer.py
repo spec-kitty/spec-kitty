@@ -18,6 +18,7 @@ from typing import Any
 
 from charter.drg import LAYERED_REPOSITORY_KIND_PLURALS
 from charter.packs import RETIRED_PACK_FIELD, RetiredPackFieldError
+from kernel.ancestor_walk import find_ancestor
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
 KITTIFY_DIR_NAME = ".kittify"
@@ -39,13 +40,7 @@ def _find_repo_root_from_drg(drg: Any) -> Path | None:
     checker directly.
     """
     _ = drg  # drg carries no repo-root metadata today
-    cwd = Path.cwd()
-    if (cwd / KITTIFY_DIR_NAME).exists():
-        return cwd
-    for parent in cwd.parents:
-        if (parent / KITTIFY_DIR_NAME).exists():
-            return parent
-    return None
+    return find_ancestor(Path.cwd(), lambda parent: (parent / KITTIFY_DIR_NAME).exists())
 
 
 class OrgOverridesBuiltinChecker:

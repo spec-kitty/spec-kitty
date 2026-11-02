@@ -31,6 +31,7 @@ from pathlib import Path
 
 import typer
 
+from kernel.ancestor_walk import iter_ancestors
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.skills.command_renderer import render as render_skill
 from specify_cli.skills.render_versions import (
@@ -79,7 +80,7 @@ def _repo_root() -> Path:
     silent wrong-directory write.
     """
     for anchor in (Path(__file__).resolve(), Path.cwd().resolve()):
-        for candidate in (anchor, *anchor.parents):
+        for candidate in iter_ancestors(anchor):
             if (candidate / _TEMPLATES_REL).is_dir() and (
                 candidate / "tests" / "specify_cli"
             ).is_dir():
