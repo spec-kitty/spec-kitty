@@ -539,8 +539,9 @@ class ProfileInvocationExecutor:
         ctx_available = resolution.ctx_available
         bundle = resolution.bundle
 
-        catalog_candidate = recommendation.catalog_candidate if recommendation is not None else None
-        durable_model_id = catalog_candidate.model_id if catalog_candidate is not None else None
+        # #7013: the routing recommendation stays advisory and is returned on the
+        # payload; its catalog pick is deliberately NOT written to the record,
+        # because a committed Op journal must carry no AI model identifier.
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -559,7 +560,6 @@ class ProfileInvocationExecutor:
             mode_of_work=mode_of_work.value if mode_of_work else ModeOfWork.TASK_EXECUTION.value,
             mission_id=mission_id,
             wp_id=wp_id,
-            model_id=durable_model_id,
         )
         self._writer.write_started(record)  # raises InvocationWriteError → non-zero exit
 

@@ -101,18 +101,20 @@ class TestInvokeWithProfileHint:
         assert data["event"] == "started"
         assert data["profile_id"] == "implementer-fixture"
 
-    def test_invoke_persists_catalog_winning_model_in_started_event(
+    def test_invoke_writes_no_model_identifier_to_the_started_event(
         self,
         tmp_path: Path,
     ) -> None:
+        """#7013: the committed record names no AI model, whatever the router picks."""
         _setup_fixture_profiles(tmp_path)
+        model_id = "claude-opus-4-6"
         recommendation = RoutingRecommendation(
             task_type="implementation",
             objective="quality_first",
             override_mode="advisory",
             candidates=(
                 RoutingCandidate(
-                    model_id="claude-opus-4-6",
+                    model_id=model_id,
                     source="catalog",
                     score=0.99,
                 ),
@@ -133,12 +135,19 @@ class TestInvokeWithProfileHint:
                 wp_id="WP01",
             )
 
-        record = json.loads(
-            (tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()[0]
-        )
-        assert record["model_id"] == "claude-opus-4-6"
+        # Positive control: the router really did recommend that model, so the
+        # absence assertions below are about the record, not about a fixture that
+        # never carried the value.
+        assert payload.recommendation is not None
+        assert payload.recommendation.catalog_candidate is not None
+        assert payload.recommendation.catalog_candidate.model_id == model_id
+
+        raw_line = (
+            tmp_path / EVENTS_DIR / f"{payload.invocation_id}.jsonl"
+        ).read_text(encoding="utf-8").splitlines()[0]
+        record = json.loads(raw_line)
+        assert "model_id" not in record
+        assert model_id not in raw_line
 
 
 class TestInvokeNoRouterNoHintRaises:
