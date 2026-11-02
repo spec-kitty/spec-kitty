@@ -6,8 +6,10 @@ description: >-
   this step (or the warmup action, which wraps it) after its dependencies are
   installed. Fails closed: an unresolvable pin, a digest mismatch or a
   placeholder pin exits 1 with a stable PACK_* code. The open-packs clone cache
-  is restored keyed on the pin files, so only a pin bump pays a cold fetch.
-  Guarded by tests/ci/test_workflows_sync_packs.py.
+  is restored through the restore-only `.github/actions/restore-open-packs`
+  action (one key authority, also usable by jobs that call the script directly),
+  so only a pin bump pays a cold fetch. Guarded by
+  tests/ci/test_workflows_sync_packs.py.
 
 inputs:
   python:
@@ -29,10 +31,7 @@ runs:
   using: composite
   steps:
     - name: Restore the open-packs clone cache
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/.cache/spec-kitty/open-packs
-        key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
+      uses: ./.github/actions/restore-open-packs
 
     - name: Sync packs from the pinned open-packs commits
       shell: bash

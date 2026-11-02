@@ -193,13 +193,39 @@ def test_warmup_action_syncs_packs() -> None:
 
 
 def test_sync_action_caches_on_the_pin_files() -> None:
+    """One authority for the cache key: the restore-only helper sync-packs delegates to."""
     steps = _load(_ACTIONS / "sync-packs" / "action.yml")["runs"]["steps"]
-    cache = [s for s in steps if str(s.get("uses", "")).startswith("actions/cache@")]
+    assert not [s for s in steps if str(s.get("uses", "")).startswith("actions/cache")], (
+        "sync-packs must restore through ./.github/actions/restore-open-packs, so raw pack-sync jobs share the same key"
+    )
+    (restore,) = [s for s in steps if str(s.get("uses", "")) == "./.github/actions/restore-open-packs"]
+    assert steps.index(restore) < len(steps) - 1, "restore before the script that fetches the trees"
+
+    cache = [s for s in _load(_ACTIONS / "restore-open-packs" / "action.yml")["runs"]["steps"] if str(s.get("uses", "")).startswith("actions/cache@")]
     assert len(cache) == 1
     assert re.search(r"@[0-9a-f]{40}\b", cache[0]["uses"]), "action must be SHA-pinned (DIRECTIVE_051)"
     assert "hashFiles('packs/*.source.yaml')" in cache[0]["with"]["key"]
     assert cache[0]["with"]["path"] == "~/.cache/spec-kitty/open-packs"
     assert any(_SYNC_SCRIPT in str(s.get("run", "")) for s in steps)
+
+
+def test_restore_open_packs_helper_is_restore_only() -> None:
+    """It warms the clone cache; it never places a tree, so a job may call it before any build."""
+    helper = _load(_ACTIONS / "restore-open-packs" / "action.yml")
+    assert helper["runs"]["using"] == "composite"
+    steps = helper["runs"]["steps"]
+    assert steps, "the helper must restore a cache"
+    assert all(str(step.get("uses", "")).startswith("actions/cache@") for step in steps), (
+        "a restore-only helper runs no shell: placement plus digest verification stays in sync-packs"
+    )
+    assert not any("run" in step for step in steps)
+
+
+def test_every_pack_tree_job_can_restore_the_cache_without_running_the_script() -> None:
+    """Raw `sync_packs.py` jobs bypass the composite; the restore-only action is their early-warm entry point."""
+    helper = _load(_ACTIONS / "restore-open-packs" / "action.yml")["runs"]["steps"]
+    key = helper[0]["with"]["key"]
+    assert key == "open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}"
 
 
 def test_pin_gate_checks_placed_trees_after_a_sync() -> None:

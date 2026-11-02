@@ -7,9 +7,12 @@ description: >-
   230 KB): the conformance and golden suites read those, and only the nightly
   corpus compare and the release need a service build. Fails closed: an
   invalid pin, an unreachable asset, a digest mismatch or an unsafe archive
-  member exits 1 with a stable SERVICE_* code. The asset cache is restored
-  keyed on the pin files, so only a pin bump pays a cold fetch. Guarded by
-  tests/ci/test_sync_services.py.
+  member exits 1 with a stable SERVICE_* code. The asset cache is split by
+  asset class — the extras-only entry holds the extras archives only (a few
+  hundred KB; the script re-unpacks them under their verified digest), so it
+  never carries or overfetches a native build, while the full entry covers the
+  whole platform-specific cache. Every cached asset is re-verified against its
+  pinned sha256 before use. Guarded by tests/ci/test_sync_services.py.
 inputs:
   python:
     description: >-
@@ -35,11 +38,29 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Restore the service asset cache
+    # One cache entry per asset class. A single entry cannot serve both: an
+    # immutable extras-only entry would make a later native-asset consumer
+    # redownload the missing build, and a full entry would make every tiny
+    # extras-only consumer fetch it. The conditions are complementary, so
+    # exactly one entry restores per run.
+    - name: Restore the pinned extras cache (extras-only)
+      if: inputs.extras-only == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        # The extras archives only (#6590): no native build, no jar, no stale
+        # extraction tree. The script re-unpacks each verified archive under its
+        # pinned digest, and the paths live under the canonical cache root so
+        # downstream tests that read the extras keep finding them.
+        path: ~/.cache/spec-kitty/services/*/*/*.tar.gz
+        key: services-extras-${{ runner.os }}-${{ hashFiles('pins/*.source.yaml') }}
+
+    - name: Restore the pinned service-asset cache (host build + extras)
+      if: inputs.extras-only != 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/spec-kitty/services
-        key: services-${{ runner.os }}-${{ hashFiles('pins/*.source.yaml') }}
+        # The native build is platform-specific: it must not cross OS or arch.
+        key: services-full-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pins/*.source.yaml') }}
 
     - name: Fetch and verify the pinned service assets
       shell: bash

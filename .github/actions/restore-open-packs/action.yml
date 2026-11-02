@@ -1,0 +1,19 @@
+name: "Restore the open-packs cache"
+description: >-
+  Restore-only: warms the spec-kitty-open-packs clone cache from the commits
+  pinned in packs/*.source.yaml, keyed on those pin files (#6451). It places no
+  tree and runs no script, so a job may call it at any point — in particular
+  before an editable install whose hatch build hook could fetch packs/built-in.
+  `sync-packs` restores through this same action and then places and verifies
+  the trees; jobs that call scripts/sync_packs.py directly (bypassing the
+  composite) call this action first. Nothing is trusted from the cache: the
+  placing script re-verifies each tree against its pinned digest. Guarded by
+  tests/ci/test_workflows_sync_packs.py.
+runs:
+  using: composite
+  steps:
+    - name: Restore the open-packs clone cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/spec-kitty/open-packs
+        key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}

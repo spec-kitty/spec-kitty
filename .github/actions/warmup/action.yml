@@ -1,142 +1,164 @@
 name: "Warmup / test-env creation"
 description: >-
-  Shared composite that resolves spec_kitty_events and builds the editable
-  pytest environment exactly once, publishing it as a cache-keyed reusable
-  artefact so downstream shards reuse it instead of re-running `uv sync` —
-  dissolving the #3283 venv-lock bootstrap cascade (FR-003). mode: "pr"
-  (default) resolves the recorded pinned spec_kitty_events rev for
-  deterministic, cache-hit PR builds (charter Shared-Package pinned-rev
-  policy — never a moving branch ref). mode: "full" resolves the latest
-  published spec_kitty_events mainline release to surface upstream drift
-  early (nightly / workflow_dispatch "run full"). See research.md D2 and
-  data-model.md E8 in kitty-specs/ci-pipeline-reinstatement-01M1X35E/.
+  Shared composite that builds the editable pytest environment once per job for
+  downstream shards. The calling job owns the checkout (a local composite can
+  only load after it); this action never clones the repository again. mode:
+  "pr" (default) installs exactly what uv.lock pins — the lock is the single
+  authority for the spec_kitty_events revision, so there is no drifting pinned
+  input — while mode: "full" resolves the latest published mainline release on
+  top of the lock to surface upstream drift early (nightly / workflow_dispatch
+  "run full", charter Shared-Package pinned-rev policy: pr never follows a moving
+  ref).
+
+  Caching is honest: uv's dependency cache and the uv-managed interpreter are
+  cached (setup-uv), and the frozen `uv sync` always runs — a cache hit makes it
+  cheap, it never stands in for the expected environment. The whole `.venv` is
+  deliberately not cached: its `bin/python` symlinks to an interpreter outside
+  the cache, so a restored venv could dangle (#3283). The built environment is
+  then verified against the resolved revision, and the packs clone cache is
+  restored *before* the editable build hook can fetch packs/built-in. See
+  research.md D2 and data-model.md E8 in
+  kitty-specs/ci-pipeline-reinstatement-01M1X35E/.
 
 inputs:
   mode:
     description: >-
-      Resolution mode. "pr" resolves the recorded pinned-events-rev input —
-      deterministic, cache-hit, no moving ref. "full" resolves the latest
-      published spec_kitty_events mainline release — an upstream-drift
-      signal for nightly / workflow_dispatch "run full" runs. Defaults to
-      "pr".
+      Resolution mode. "pr" installs exactly the spec_kitty_events revision
+      uv.lock locks — deterministic, cache-keyed on the lock, no moving ref and
+      no separate pinned input to drift. "full" upgrades to the latest published
+      spec_kitty_events release — an upstream-drift signal for nightly /
+      workflow_dispatch "run full" runs. Defaults to "pr".
     required: false
     default: "pr"
-  pinned-events-rev:
-    description: >-
-      The recorded spec_kitty_events version resolved when mode is "pr".
-      Must be an explicit, non-moving version — never a moving branch ref
-      (charter Shared-Package pinned-rev policy). Bump this input, reviewed,
-      when the recorded pin advances.
-    required: false
-    default: "10.4.6"
 
 outputs:
   resolved-events-rev:
     description: >-
-      The spec_kitty_events version actually resolved for this run: the
-      pinned-events-rev input in pr mode, or the latest published mainline
-      release in full mode.
+      The spec_kitty_events version this run resolved: the version uv.lock locks
+      in pr mode, or the latest published mainline release in full mode. The
+      cache suffix and the post-install verification both use it.
     value: ${{ steps.resolve-rev.outputs.resolved-events-rev }}
   cache-hit:
     description: >-
-      "true" when the built environment was restored from cache (the
-      editable install was skipped this run); "false" when a fresh build
-      ran. Lets callers observe the #3283 single-build-then-reuse contract.
-    value: ${{ steps.restore-cache.outputs.cache-hit }}
+      "true" when uv's dependency cache was restored. A warm dependency cache
+      makes the always-run frozen sync cheap; this flag is never proof that the
+      environment itself is the expected one (the verification step decides
+      that).
+    value: ${{ steps.install-uv.outputs.cache-hit }}
+  python-cache-hit:
+    description: >-
+      "true" when the uv-managed interpreter cache was restored — the piece the
+      old whole-`.venv` cache was missing.
+    value: ${{ steps.install-uv.outputs.python-cache-hit }}
   venv-path:
     description: >-
-      Absolute path to the built virtual environment, for downstream shards
-      to reuse without re-running the install.
+      Absolute path to the built virtual environment, for downstream shards to
+      reuse without re-running the install.
     value: ${{ steps.expose-env.outputs.venv-path }}
 
 runs:
   using: composite
   steps:
-    - name: Checkout
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        # Keep the caller's full history: recovery tests clone this checkout
-        # and must retain pinned historical commits, not just source files.
-        fetch-depth: 0
-    - name: Install uv
-      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+    - name: Require the caller's checkout
+      id: require-checkout
+      shell: bash
+      run: |
+        set -euo pipefail
+        # A local composite action only resolves after the calling job checks the
+        # repository out, so checking it out here again is a duplicate clone (and
+        # can shallow away the caller's full history). Fail closed, naming the
+        # fix, when a caller forgot: resolving packs or the lock from a partial
+        # tree would fail later with an opaque error.
+        missing=""
+        for required in pyproject.toml uv.lock .python-version .git; do
+          if [ ! -e "$required" ]; then missing="$missing $required"; fi
+        done
+        if [ -n "$missing" ]; then
+          echo "::error::warmup: missing$missing in $PWD — ./.github/actions/warmup does not check the repository out; add actions/checkout before this step in the calling job"
+          exit 1
+        fi
 
-    - name: Resolve spec_kitty_events rev (mode ${{ inputs.mode }})
+    - name: Resolve the spec_kitty_events revision (mode ${{ inputs.mode }})
       id: resolve-rev
       shell: bash
+      env:
+        WARMUP_MODE: ${{ inputs.mode }}
       run: |
         set -euo pipefail
-        mode="${{ inputs.mode }}"
-        if [ "$mode" = "full" ]; then
-          # full/nightly mode: resolve the latest published mainline release
-          # (research D2 — catches upstream drift early; never a pinned ref).
-          rev="$(curl -fsSL https://pypi.org/pypi/spec-kitty-events/json \
-            | python3 -c 'import json, sys; print(json.load(sys.stdin)["info"]["version"])')"
-        elif [ "$mode" = "pr" ]; then
-          # pr mode: the recorded pinned-events-rev — deterministic, cache-hit,
-          # charter Shared-Package pinned-rev policy (never a moving ref).
-          rev="${{ inputs.pinned-events-rev }}"
-        else
-          echo "::error::warmup: unknown mode '$mode' (expected 'pr' or 'full')"
-          exit 64
-        fi
+        # pr: the version uv.lock locks — the only authority `uv sync --frozen`
+        # follows, so it cannot drift from the environment that gets installed.
+        # full: the newest published mainline release (research D2 — catches
+        # upstream drift early; never a pinned ref). The resolver is stdlib-only
+        # so it runs before uv or the project environment exist, and it fails
+        # closed with a WARMUP_* code when the lock cannot name one version.
+        rev="$(python3 scripts/ci/warmup_events_rev.py --mode "$WARMUP_MODE")"
         echo "resolved-events-rev=$rev" >> "$GITHUB_OUTPUT"
 
-    - name: Compute warmup cache key
-      id: cache-key
-      shell: bash
-      run: |
-        set -euo pipefail
-        # data-model E8: cache key = hash(uv.lock + resolved spec_kitty_events rev),
-        # deterministic per (lockfile, rev) — reused via actions/cache below, not
-        # a generic build-artifact upload (research D2). `mode` is part of the key
-        # because the two modes build DIFFERENT environments (pr: a frozen
-        # install; full: an upgrade-package install); when the resolved rev
-        # coincides (latest published == pinned) a mode-less key would let a
-        # pr-built frozen env satisfy a full run and skip the upstream-drift
-        # resolution that full mode exists to run.
-        lock_hash="$(sha256sum uv.lock | cut -d ' ' -f1)"
-        echo "key=warmup-venv-${{ inputs.mode }}-${lock_hash}-${{ steps.resolve-rev.outputs.resolved-events-rev }}" >> "$GITHUB_OUTPUT"
-
-    - name: Restore cached environment
-      id: restore-cache
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    - name: Install uv with dependency and managed-interpreter caching
+      id: install-uv
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
-        path: .venv
-        key: ${{ steps.cache-key.outputs.key }}
+        # Explicit policy (setup-uv's "auto" silently disables caching on some
+        # events). `cache-python` caches the uv-managed interpreter, which the
+        # old whole-.venv cache could not deliver — its bin/python symlink
+        # pointed outside the cache and dangled on a cache-hit runner (#3283).
+        enable-cache: true
+        cache-python: true
+        # A frozen sync is determined by the lock alone; the suffix separates the
+        # two environments (frozen vs upgrade-to-latest) and this run's resolved
+        # revision, and names the OS/architecture the cached artefacts are valid
+        # for (setup-uv also keys on them, but the contract is explicit here).
+        cache-dependency-glob: "uv.lock"
+        cache-suffix: "warmup-venv-${{ inputs.mode }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve-rev.outputs.resolved-events-rev }}"
 
-    - name: Build the editable environment once
-      id: build-env
+    # The editable install's hatch build hook fetches packs/built-in when the
+    # tree is missing, so warm the clone cache before `uv sync` can trigger it.
+    # `sync-packs` below still places and re-verifies every tree against its pin.
+    - name: Restore the open-packs cache before the build hook can fetch packs
+      uses: ./.github/actions/restore-open-packs
+
+    - name: Sync the editable environment (every run, no cache-hit shortcut)
+      id: sync-env
       shell: bash
+      env:
+        WARMUP_MODE: ${{ inputs.mode }}
       run: |
         set -euo pipefail
-        # #3283: exactly one build per (lockfile, rev) — a valid cache hit skips
-        # the install so downstream shards reuse the artefact. BUT a cached
-        # `.venv` is not self-contained: `uv` builds it with `.venv/bin/python`
-        # as a SYMLINK to a uv-managed interpreter that lives OUTSIDE `.venv`
-        # (and so is not in this cache). On a cache-hit runner that never ran the
-        # interpreter download, that symlink dangles and every `.venv/bin/python`
-        # invocation dies with "No such file or directory" (exit 127). So keep
-        # the fast-path only when the restored interpreter actually works;
-        # otherwise fall through and (re)build — the setup-uv + `.venv` caches
-        # keep that near-instant.
-        if [ "${{ steps.restore-cache.outputs.cache-hit }}" = "true" ] \
-            && [ -x .venv/bin/python ] \
-            && .venv/bin/python -c "import sys" >/dev/null 2>&1; then
-          echo "warmup: cache hit and .venv interpreter is valid — reusing (#3283)."
-          exit 0
-        fi
-        echo "warmup: building the environment (cache miss, or the restored .venv interpreter symlink is dangling)."
-        mode="${{ inputs.mode }}"
-        if [ "$mode" = "full" ]; then
-          uv sync --all-extras --upgrade-package "spec-kitty-events==${{ steps.resolve-rev.outputs.resolved-events-rev }}"
+        rev="${{ steps.resolve-rev.outputs.resolved-events-rev }}"
+        # A cache hit only makes the download cheap; it is never proof that the
+        # environment is the expected one. The mode arrives through the
+        # environment (never interpolated into this shell body), and the install
+        # therefore always runs:
+        # with uv's dependency cache warm it is a fast, honest sync. pr installs
+        # exactly the lock (--frozen); full resolves the latest release on top.
+        if [ "$WARMUP_MODE" = "full" ]; then
+          uv sync --all-extras --upgrade-package "spec-kitty-events==$rev"
         else
           uv sync --frozen --all-extras
         fi
+        echo "warmup-venv-$WARMUP_MODE: synced spec-kitty-events=$rev"
+
+    - name: Verify the environment carries the resolved spec_kitty_events revision
+      id: verify-env
+      shell: bash
+      env:
+        WARMUP_MODE: ${{ inputs.mode }}
+      run: |
+        set -euo pipefail
+        rev="${{ steps.resolve-rev.outputs.resolved-events-rev }}"
+        installed="$(
+          .venv/bin/python -c 'import importlib.metadata as metadata; print(metadata.version("spec-kitty-events"))'
+        )"
+        if [ "$installed" != "$rev" ]; then
+          echo "::error::warmup: the environment has spec-kitty-events $installed but this run resolved $rev (mode $WARMUP_MODE) — a restored cache is not proof of the expected environment"
+          exit 1
+        fi
+        echo "warmup-venv-$WARMUP_MODE: verified spec-kitty-events $installed (expected $rev)"
 
     # #6451: packs/built-in and packs/internal are fetched from the pinned open-packs
     # commits, never checked in; every shard that reads a pack needs them placed.
-    # Runs on a cache hit too (the placed trees are not part of the .venv cache).
+    # Runs after the sync (the script needs the environment) and re-verifies each
+    # tree against its pinned digest, whether it was fetched or cache-restored.
     - name: Sync packs
       uses: ./.github/actions/sync-packs
       with:
