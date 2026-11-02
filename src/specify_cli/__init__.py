@@ -173,8 +173,9 @@ def _discard_legacy_user_dirs() -> None:
 def _startup_owners(argv: list[str]) -> list[tuple[str, Callable[[], None]]]:
     """The per-invocation home-folder owners, in run order (#6473, #6488).
 
-    ``prepare_startup_assets`` isolates an unwritable home per owner, so one failing
-    owner only warns and the command still runs.
+    ``prepare_startup_assets`` catches each owner's unwritable-home failure
+    (``StartupAssetError`` / ``OSError``; any other failure stays fatal), so one
+    failing owner only warns and the command still runs.
     """
     from specify_cli.runtime.agent_commands import ensure_global_agent_commands
     from specify_cli.runtime.agent_skills import ensure_global_agent_skills
