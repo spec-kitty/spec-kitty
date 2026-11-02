@@ -1,0 +1,1 @@
+- Reduce duplicate CI scans, setup and checks; use identity-keyed timings, validated caches, truthful shard failures and revision-bound coverage (#7078).
