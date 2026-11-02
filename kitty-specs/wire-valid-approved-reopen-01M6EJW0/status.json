@@ -2,9 +2,9 @@
   "event_count": 18,
   "last_event_id": "01M6F0WJ82K4XKRPTXCSZ5GY22",
   "materialized_at": "2026-11-02T20:58:18.754622+00:00",
-  "mission_number": "",
+  "mission_number": "248",
   "mission_slug": "wire-valid-approved-reopen-01M6EJW0",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -19,35 +19,72 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "pi",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M6F0WGQ0F1XH1YSKX4Q7KTJS",
       "last_transition_at": "2026-11-02T20:58:17.184433+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 complete: review-ref set extended to the approved reopen, evidence arm restored (#6699 merge-order regression), sentinel fill covers the forced reopen, parity baseline amended by exactly the two intended rows; targeted suites green.",
+        "Review passed (2 rounds). Round 1 (independent, stronger tier) found one blocking issue: the new force-override pointer on approved->in_progress was read by status.review_roles as a reviewer rework verdict, so a re-opener dropped out of the implementer projection and their own later approval read as independent (_independent_reviewer_confirmed flipped False->True). Fixed in 743bacc187 by making review.cycle own the marker and excluding it in review_roles; both new pins verified red without the guard. Round 2: diff re-read; FR-001..FR-006/008/009 covered; evidence arm restored; parity baseline moves exactly two intended rows; no second edge-set source; targeted suites green."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261102",
         "reviewer": "reviewer-renata",
         "verdict": "approved"
       },
-      "shell_pid": 616887,
-      "shell_pid_created_at": "1793638706.35"
+      "role": "reviewer",
+      "shell_pid": 1903968,
+      "shell_pid_created_at": "1793645635.27",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6955"
+      ]
     },
     "WP02": {
       "actor": "merge",
-      "agent": "pi",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M6F0WJ82K4XKRPTXCSZ5GY22",
       "last_transition_at": "2026-11-02T20:58:18.754622+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 complete: status-model reference states the gated family, per-writer pointer table and append-only position; per-PR changelog fragment (style gate 0 errors); reference pinned by grep test; docs freshness errors=0.",
+        "Review passed. Verified every claim on the page against the implemented code: both force-insurmountable edges, the four writers and the pointer each records (sentinel vs supplied file), the in_review carve-out with its tracked follow-up (#7080), the migration exemption, and the append-only position now covering pointerless approved rows. Fragment passes check_changelog_style (0 errors) and check_spelling; the reference is pinned by a grep test; docs freshness errors=0.",
+        "Reopening to record the aggregate-review corrections (docs wording, carve-out pin, provenance) before consolidation.",
+        "Aggregate-review corrections recorded: carve-out pin restored, docs force-free wording qualified, append-only position corrected, #6699 provenance fixed. Ready for re-review."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261102",
         "reviewer": "reviewer-renata",
         "verdict": "approved"
       },
-      "shell_pid": 2551761,
-      "shell_pid_created_at": "1793651818.31"
+      "role": "reviewer",
+      "shell_pid": 2605790,
+      "shell_pid_created_at": "1793653032.09",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6955"
+      ]
     }
   }
 }
