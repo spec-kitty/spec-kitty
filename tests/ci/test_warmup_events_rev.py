@@ -17,6 +17,7 @@ by file path, the way ``tests/ci/test_sync_services.py`` loads its script.
 from __future__ import annotations
 
 import importlib.util
+import io
 import re
 import sys
 import tomllib
@@ -148,6 +149,36 @@ def test_full_mode_refuses_a_payload_without_a_version(resolver: ModuleType) -> 
         resolver.resolve("full", latest=lambda _package: {"info": {}})
 
     assert raised.value.code == "WARMUP_EVENTS_LOOKUP_FAILED"
+
+
+def test_full_mode_fetch_is_bounded_and_reads_the_pypi_response(resolver: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    def response(url: str, *, timeout: int) -> io.BytesIO:
+        assert url == "https://pypi.org/pypi/spec-kitty-events/json"
+        assert timeout == 30
+        return io.BytesIO(b'{"info": {"version": "12.0.1"}}')
+
+    monkeypatch.setattr(resolver.urllib.request, "urlopen", response)
+    assert resolver.resolve("full") == "12.0.1"
+
+
+@pytest.mark.parametrize("payload", [b"invalid JSON", b"[]", None])
+def test_full_mode_transport_and_payload_failures_are_coded_refusals(resolver: ModuleType, monkeypatch: pytest.MonkeyPatch, payload: bytes | None) -> None:
+    def response(_url: str, *, timeout: int) -> io.BytesIO:
+        assert timeout == 30
+        if payload is None:
+            raise OSError("test transport failure")
+        return io.BytesIO(payload)
+
+    monkeypatch.setattr(resolver.urllib.request, "urlopen", response)
+    with pytest.raises(resolver.EventsRevError, match="WARMUP_EVENTS_LOOKUP_FAILED"):
+        resolver.resolve("full")
+
+
+def test_malformed_toml_is_a_coded_refusal(resolver: ModuleType, tmp_path: Path) -> None:
+    path = tmp_path / "uv.lock"
+    path.write_text("invalid =", encoding="utf-8")
+    with pytest.raises(resolver.EventsRevError, match="WARMUP_EVENTS_INVALID"):
+        resolver.locked_version(path)
 
 
 def test_an_unknown_mode_is_refused(resolver: ModuleType) -> None:
