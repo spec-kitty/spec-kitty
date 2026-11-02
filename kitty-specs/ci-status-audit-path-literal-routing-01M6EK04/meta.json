@@ -12,5 +12,7 @@
   "purpose_tldr": "ci status audit path literal routing",
   "slug": "ci-status-audit-path-literal-routing-01M6EK04",
   "target_branch": "issue-6879-ci-status-audit-path-literal-routing",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-02T16:59:44.669114+00:00"
 }

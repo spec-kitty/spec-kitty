@@ -45,7 +45,7 @@ added, 1 additive ledger row
 | Domain-driven splits / tiered rigour | Small, single-concern change: one group, one job, one guard test. Proportional squad (one reviewer round, correctness + routing-boundary focus). |
 | Locality of change (DIRECTIVE_024) | No existing job's command or `if:` changes; the only edits outside the two routing authorities are additive (workflow outputs/union/needs OR-term, one duplicate-suite ledger row). |
 | Boy Scout Rule (DIRECTIVE_025) | Not exercised as scope creep: the adjacent `tests/audit` registry claim is a maintainer cost decision (C-001), recorded as Deferred, not folded in. |
-| Acceptance-criteria non-vacuity | FR-006 pairs the positive routing assertion with negative controls on the same router fixture (docs-only, paths-only, a `review/**` diff); SC-002 asserts the collected test count, so "0 collected" cannot pass. |
+| Acceptance-criteria non-vacuity | FR-006 pairs the positive routing assertion with negative controls on the same router fixture (docs-only, paths-only, dashboard diff); SC-002 asserts the collected test count, so "0 collected" cannot pass. |
 
 No charter violation; nothing to justify in Complexity Tracking.
 
@@ -86,10 +86,15 @@ involved.
 
 ## Design decisions
 
-1. **A new group, not a widened existing one.** `status` already matches five groups; a
-   sixth src-backed group is the only way to name "a status diff runs this one audit file"
+1. **A new non-src group, not a widened existing one.** `status` already matches five
+   groups; a new group is the only way to name "a status diff runs this one audit file"
    without changing the `status` module row's `test_dirs` (which are directories, and whose
-   shard timings are measured data).
+   shard timings are measured data). The globs are `**/`-spelled (the `mission_state`
+   precedent): a src-backed group must also be a module-registry row
+   (`test_gate_selection_authority.py::test_select_modules_full_mode_selects_all_registry_modules`),
+   and that row is exactly the out-of-scope candidate 2. Staying non-src also keeps the
+   lane out of the code-shard set and out of the FR-004 unmatched union, which is what
+   preserves run-all over the unmapped `src/specify_cli/paths/**`.
 2. **A new job, not a step in an existing one.** `AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1`
    (`tests/architectural/test_no_duplicate_suite_execution.py`) and the battery partition
    proof pin one suite invocation per job; `tests-events-consumers` (#6605) is the
@@ -99,9 +104,14 @@ involved.
    why its only named lane (nightly interpreter shard-5, `-m "fast or unit"`) deselects all
    8 tests. The lane runs the file with no `-m`, so `exit 5` (nothing collected) fails it
    (FR-005).
-4. **`src/kernel/paths.py` and `src/specify_cli/paths/**` join the group** because
+4. **`src/kernel/paths.py` joins the group** because
    `test_home_literal_guard_is_non_vacuous` asserts the keystone literal is *detected*;
    deleting it inverts the guard and must run the guard (FR-003).
+   **`src/specify_cli/paths/**` deliberately does not**: it is unmapped by every src-backed
+   group today, so a diff there already forces run-all (which selects this lane). Naming it
+   would satisfy the same FR-003 instinct while *narrowing* the fail-closed sensor to this
+   one lane — the opposite of what the sensor is for. A pinned test records that
+   (`test_the_unmapped_keystone_directory_still_forces_run_all`).
 5. **Prose-only down-route is inherited, not re-invented.** The job's `if:` carries the
    same `prose_only != 'true'` term as every code shard (FR/edge case; pinned by the
    `test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards` golden).
@@ -116,9 +126,11 @@ involved.
 - **Affected surfaces**: `tests/release/ci_retirement_scrub.json`,
   `.github/workflows/ci-router.yml`
 - **Sequencing/depends-on**: none
-- **Risks**: the router's derived set equalities (src-backed group set = scrub src-backed
-  set; `changes.outputs` = routing groups; unmatched union = src-backed groups; heavy
-  battery OR-list = src-backed groups ∪ non-src battery groups). Miss one and a
+- **Risks**: the router's derived set equalities — the src-backed group set = the scrub's
+  src-backed set (so a NON-src group must live in `non_src_router_groups`, and must not be
+  src-spelled), `changes.outputs` = routing groups, the unmatched union = src-backed groups
+  (so this group must be absent), and the heavy battery OR-list = src-backed groups ∪ the
+  battery's non-src groups (so this group must be absent there too). Miss one and a
   `tests/architectural` guard reds — which is the point of writing the guard test first.
 
 ### IC-02 — The lane body and its ledger row

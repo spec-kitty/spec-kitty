@@ -52,8 +52,8 @@ profile `python-pedro`. Details: [tasks/WP01-path-literal-audit-routing.md](./ta
 | ID | Description | WP | Parallel |
 | --- | --- | --- | --- |
 | T001 | Red-first live-routing guard `tests/ci/test_path_literal_audit_routing.py` (positive + negative controls, job shape, prose-only golden) | WP01 | |
-| T002 | Declare `path_literal_audit` in the scrub `groups[]` row and transcribe it verbatim into the router filter block, `changes.outputs` and the fail-closed `unmatched` union | WP01 | |
-| T003 | Add the `tests-path-literal-audit` job (one pytest file, no marker filter), the heavy-battery OR term and the `router-gate` needs row | WP01 | |
+| T002 | Declare `path_literal_audit` as a NON-src group in the scrub `non_src_router_groups` and transcribe it verbatim into the router filter block and `changes.outputs` (deliberately not in the `unmatched` union or the heavy-battery `if:`) | WP01 | |
+| T003 | Add the `tests-path-literal-audit` job (one pytest file, no marker filter) and its `router-gate` needs row | WP01 | |
 | T004 | Add the additive `AUTHORIZED_PER_CHANGE_SUITE_JOBS` ledger row with rationale | WP01 | |
 | T005 | Verification sweep: `tests/ci`, the six router/architectural guards, the guard file itself, a planted-literal red, ruff | WP01 | |
 | T006 | Changelog fragment `docs/changelog/unreleased/<pr>.internal.md` (wrap-up, needs the PR number) | WP01 | |

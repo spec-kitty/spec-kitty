@@ -4,36 +4,29 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: ci-status-audit-path-literal-routing-01M6EK04
 mission_id: 01M6EK04QX173M8CHW8EYKVZNT
-generated_at: '2026-11-02T16:59:24.277751+00:00'
+generated_at: '2026-11-02T17:55:03.055900+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
     path: kitty-specs/ci-status-audit-path-literal-routing-01M6EK04/spec.md
-    sha256: e34d6e6f2ee40b60d8f321e5d794e6bffb0e23f97c60bb0b7aedf6c73dd14670
+    sha256: 6fb7565e288396bfff08210a9089dd102d90bf6337e65a34037a05846641fad9
   plan.md:
     path: kitty-specs/ci-status-audit-path-literal-routing-01M6EK04/plan.md
-    sha256: 9aa8699d457cacf572292de066c28ef57415e6745bbc7ca091bd0b5092a1817d
+    sha256: 95e4195f6738751895fa52474f967beb48a051bad0fbf06c781d16fde417fc94
   tasks.md:
     path: kitty-specs/ci-status-audit-path-literal-routing-01M6EK04/tasks.md
-    sha256: 2258000358f6ec4dc1ee6d581f1145047af5b607ba7487236b4269dfb557cb47
+    sha256: f8e87d64478630266608748fca640fd8c711fd5c759d794af726c5c77cf6f93b
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
-verdict: ready
+verdict: unknown
 issue_counts:
-  critical: 0
-  low: 1
-  medium: 0
-  high: 0
-  info: 1
-findings:
-- id: A1
-  severity: low
-  category: ambiguity
-  summary: >-
-    A negative routing control is only honest when the same fixture proves the
-    probe can match something; T001 items (1)-(2) assert the positive case on
-    the same select_gates fixture, so the control is not blind.
+  low:
+  critical:
+  high:
+  info:
+  medium:
+findings: []
 ---
 
 # Specification Analysis Report — ci-status-audit-path-literal-routing-01M6EK04
@@ -59,7 +52,7 @@ Analyzed after `spec-kitty agent mission finalize-tasks` (planning commit `61635
 | FR-005 | WP01 (T001, T003) | SC-002 | WP01 (T001, T005) |
 | FR-006 | WP01 (T001) | SC-003 | WP01 (T005) |
 
-9/9 FR+NFR mapped, 3/3 success criteria referenced, 0 unmapped subtasks: T001–T006 each appear in
+9/9 FR+NFR mapped (C-005 was added after the first recording: the group stays non-src so it is not a code shard and does not narrow the FR-004 sensor over src/specify_cli/paths/**), 3/3 success criteria referenced, 0 unmapped subtasks: T001–T006 each appear in
 WP01's `subtasks` frontmatter and in the tasks.md subtask index. Constraints C-001 (no registry
 row), C-002 (guard file untouched) and C-003 (two authorities only) are restated in the WP prompt's
 Definition of Done, so they are enforced at review, not only declared.
