@@ -133,26 +133,6 @@ def test_simulation_renders_backslashes_for_a_bare_str(tmp_path: Path, monkeypat
 # ---------------------------------------------------------------------------
 
 
-def test_fresh_seed_json_reports_only_posix_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    project = _fresh_project(tmp_path)
-    install_windows_path_rendering(monkeypatch)
-
-    result = _run_synthesize(project, "--json")
-    assert result.exit_code == 0, result.stdout
-    payload = json.loads(result.stdout)
-
-    assert payload["mode"] == "fresh_project_seed"
-    reported = _reported_paths(payload)
-    assert reported, "the fresh-seed envelope must report at least one path"
-    assert [path for path in reported if "\\" in path] == []
-    assert sorted(set(reported)) == [
-        ".kittify/charter-packs/PROVENANCE.md",
-        ".kittify/charter/synthesis-manifest.yaml",
-    ]
-    for path in reported:
-        assert (project / path).exists(), f"reported path does not resolve on disk: {path}"
-
-
 def test_fresh_seed_dry_run_and_real_run_report_identical_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     project = _fresh_project(tmp_path)
     install_windows_path_rendering(monkeypatch)
@@ -166,6 +146,17 @@ def test_fresh_seed_dry_run_and_real_run_report_identical_paths(tmp_path: Path, 
     real = _run_synthesize(project, "--json")
     assert real.exit_code == 0, real.stdout
     real_payload = json.loads(real.stdout)
+
+    assert real_payload["mode"] == "fresh_project_seed"
+    reported = _reported_paths(real_payload)
+    assert reported, "the fresh-seed envelope must report at least one path"
+    assert [path for path in reported if "\\" in path] == []
+    assert sorted(set(reported)) == [
+        ".kittify/charter-packs/PROVENANCE.md",
+        ".kittify/charter/synthesis-manifest.yaml",
+    ]
+    for path in reported:
+        assert (project / path).exists(), f"reported path does not resolve on disk: {path}"
 
     assert dry_payload["files_planned"] == real_payload["files_written"]
     assert [entry["path"] for entry in dry_payload["written_artifacts"]] == [entry["path"] for entry in real_payload["written_artifacts"]]
