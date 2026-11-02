@@ -61,7 +61,7 @@
       "wp": null
     },
     "#7099": {
-      "evidence_ref": "Separate process blocker, not production work owed by this test-budget Mission: accept --owned-checkout reads authored ownership from primary and falsely reports IMPLEMENTATION_MISSING. No attestation/bypass; seeking operator scope approval for separate repair. https://github.com/spec-kitty/spec-kitty/issues/7099",
+      "evidence_ref": "Separate repair delivered by PR#7103 (8eeb0d43f6), independently reviewed and54hostedchecks passed/9skipped. Its explicit candidate CLI recorded this Mission acceptance at2da76dac39427e6281cb59c068cdf318c0cd46a0 without waiver. Production repair remains outside this test-budget Mission; operator merge order7103->7096->7071.",
       "fr": null,
       "nfr": null,
       "repo": null,
