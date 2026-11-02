@@ -20,7 +20,9 @@ import sys
 from pathlib import Path
 from typing import Final
 
-from scripts.docs._dockitty_contract import EXCLUDED_FOLDERS, INDEX_BASENAMES
+# Runnable bare (`python3 scripts/docs/site_contract.py`): resolve `scripts.*` from the script, not the cwd.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.docs._dockitty_contract import EXCLUDED_FOLDERS, INDEX_BASENAMES  # noqa: E402
 
 __all__ = ["CONTRACT_PATH", "check", "main", "render", "write"]
 
