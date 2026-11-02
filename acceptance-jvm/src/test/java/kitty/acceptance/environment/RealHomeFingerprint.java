@@ -160,7 +160,10 @@ final class RealHomeFingerprint {
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                if (attributes.isRegularFile() && !file.getFileName().toString().endsWith(".lock")) {
+                // Follow a leaf symlink exactly as the strict walk's Files::isRegularFile does, so the two
+                // scopes differ only by the pruned subtrees - a symlink at the root, or through a
+                // credentials symlink, must stay compared.
+                if (Files.isRegularFile(file) && !file.getFileName().toString().endsWith(".lock")) {
                     accumulate(stats, file);
                 }
                 return FileVisitResult.CONTINUE;
@@ -203,7 +206,10 @@ final class RealHomeFingerprint {
      *   <li>appending a byte to that excused file changes the strict fingerprint and still not the
      *       shared-host one;
      *   <li>a root that holds nothing but a concurrent Mission's prompt reports the same value as a root
-     *       that does not exist yet, so a fresh machine's first Mission cannot fail the guard.
+     *       that does not exist yet, so a fresh machine's first Mission cannot fail the guard;
+     *   <li>a content change to the tracker {@code credentials} file, and a symlink created at the root,
+     *       each change the shared-host fingerprint too — the two surfaces a narrowed walk could quietly
+     *       stop following.
      * </ol>
      *
      * <p>Plus the scope policy itself: the switch alone selects shared-host, and the CI marker wins over
@@ -237,6 +243,16 @@ final class RealHomeFingerprint {
             Files.delete(tree.resolve("activation-ledger.json"));
             requireUnchanged(shared, sharedBase, "root-level write removed again, shared-host scope");
 
+            // The tracker credentials file is the surface a widened exclusion would most plausibly swallow:
+            // it sits one level below the root like the excused directories do.
+            Files.writeString(tree.resolve("credentials"), "token=rotated\n", StandardCharsets.UTF_8);
+            requireChanged(strict, strictBase, "credentials content change, strict scope");
+            requireChanged(shared, sharedBase, "credentials content change, shared-host scope");
+            strictBase = strict.value();
+            sharedBase = shared.value();
+
+            requireSymlinkStaysCompared(tree, strict, shared);
+
             Path prompt = tree.resolve(PROMPT_NAMESPACE_DIRECTORY)
                     .resolve("0123456789abcdef")
                     .resolve("spec-kitty-next-control.md");
@@ -269,6 +285,33 @@ final class RealHomeFingerprint {
         } finally {
             if (tree != null) {
                 deleteQuietly(tree);
+            }
+        }
+    }
+
+    /**
+     * A symlink at the root must be counted exactly as the strict walk counts it ({@code Files.isRegularFile}
+     * follows a leaf link). A platform that cannot create symlinks without extra privilege - Windows unless
+     * the runner has developer mode - cannot express the case; the POSIX legs exercise it on every nightly.
+     */
+    private static void requireSymlinkStaysCompared(Path tree, RealHomeFingerprint strict,
+            RealHomeFingerprint shared) {
+        Path link = tree.resolve("credentials-link");
+        String strictBefore = strict.value();
+        String sharedBefore = shared.value();
+        try {
+            Files.createSymbolicLink(link, Path.of("credentials"));
+        } catch (UnsupportedOperationException | IOException | SecurityException refused) {
+            return;
+        }
+        try {
+            requireChanged(strict, strictBefore, "root-level symlink, strict scope");
+            requireChanged(shared, sharedBefore, "root-level symlink, shared-host scope");
+        } finally {
+            try {
+                Files.deleteIfExists(link);
+            } catch (IOException ignored) {
+                // Best-effort cleanup of the probe.
             }
         }
     }
