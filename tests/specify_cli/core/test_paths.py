@@ -17,7 +17,12 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.constants import KITTIFY_DIR, LINT_REPORT_FILENAME
-from specify_cli.core.paths import lint_report_path, locate_project_root
+from specify_cli.core.paths import (
+    WorkspaceRootNotFound,
+    lint_report_path,
+    locate_project_root,
+    resolve_canonical_root,
+)
 
 
 def test_lint_report_path_is_canonical(tmp_path: Path) -> None:
@@ -177,3 +182,33 @@ def test_a_project_at_the_ceiling_itself_is_still_found(tmp_path: Path, monkeypa
 
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
     assert locate_project_root(start=sandbox) == ceiling.resolve()
+
+
+def test_both_walks_stop_at_a_ceiling_holding_a_non_worktree_git_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A submodule-style ``.git`` file at the ceiling must not let a walk climb past it.
+
+    ``resolve_canonical_root`` keeps walking past a non-worktree pointer without
+    ``.kittify``; the ceiling must still end that walk where it ends
+    ``locate_project_root``'s.
+    """
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    _ambient, ceiling, sandbox = _ambient_repo_with_sandbox(tmp_path)
+    (ceiling / ".git").write_text("gitdir: ../.git/modules/tmp\n", encoding="utf-8")
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    assert locate_project_root(start=sandbox) is None
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(sandbox)
+
+
+def test_relative_ceiling_entries_are_ignored_like_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Git skips a non-absolute ``GIT_CEILING_DIRECTORIES`` entry; so do the walks."""
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    ambient, _ceiling, sandbox = _ambient_repo_with_sandbox(tmp_path)
+    monkeypatch.chdir(sandbox)
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", ".")
+    assert locate_project_root(start=sandbox) == ambient.resolve()
+    assert resolve_canonical_root(sandbox) == ambient.resolve()
