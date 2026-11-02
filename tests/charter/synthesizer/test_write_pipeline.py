@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -386,8 +387,23 @@ def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
     assert staging_root.exists(), "Gate must not wipe staging dir on violation"
 
 
-def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path) -> None:
-    """promote() writes a manifest whose self-hash verifies after reload."""
+def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """promote() writes a manifest whose self-hash verifies after reload.
+
+    It also records POSIX artifact paths when ``Path.relative_to`` renders
+    Windows-style (#6277): the recorded path is committed, so it must not depend on
+    the host OS. The simulation re-flavours only ``.kittify`` results, as
+    ``tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py`` does.
+    """
+    from pathlib import PureWindowsPath
+
+    real_relative_to = Path.relative_to
+
+    def windows_relative_to(self: Path, *args: Any, **kwargs: Any) -> Any:
+        result = real_relative_to(self, *args, **kwargs)
+        return PureWindowsPath(*result.parts) if result.parts[:1] == (".kittify",) else result
+
+    monkeypatch.setattr(Path, "relative_to", windows_relative_to)
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
     from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
     from charter.activation.synthesizer.staging import StagingDir
@@ -438,6 +454,7 @@ def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path) -> None:
 
     loaded = load_yaml(tmp_path / MANIFEST_PATH)
     verify_manifest_hash(loaded)
+    assert [entry.path for entry in loaded.artifacts] == [".kittify/charter-packs/tactic/testing-philosophy.tactic.yaml"]
 
 
 def _bundle_with_scope(scope_tag: str):
