@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
 from kernel.git import GitCommandError, StatusEntry, status_entries
-from specify_cli.core.paths import get_main_repo_root, locate_project_root
+from specify_cli.core.paths import get_main_repo_root, git_ceiling_dirs, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
 # Canonical lane tuple — imported from the leaf module to avoid pulling in the
@@ -77,6 +77,8 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
         return get_main_repo_root(detected_root)
 
     # Fallback: support plain git repositories that do not contain .kittify yet.
+    # It stops at the same ``GIT_CEILING_DIRECTORIES`` as locate_project_root (#7022).
+    ceilings = git_ceiling_dirs()
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
@@ -89,6 +91,8 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
                 return resolved
 
         if boundary is not None and candidate == boundary:
+            break
+        if candidate in ceilings:
             break
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
