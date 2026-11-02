@@ -295,8 +295,11 @@ always-on lanes own (`test_no_legacy_terminology.py`, `test_layer_rules.py`,
   that matches no declared scope still skips the battery. The companion output,
   rather than a second reference to `needs.changes.outputs.arch_scan_scope`, keeps
   the parsed group set honest: deleting the group's own OR term still reds
-  `tests/architectural/test_battery_scan_scope_routing.py`. Declared scopes only;
-  a gate that reads an undeclared path is #7000's completeness question.
+  `tests/architectural/test_battery_scan_scope_routing.py`. Declared scopes only:
+  for a prose-only diff the battery relies on the `scan_scopes` rows being
+  complete (checked by `tests/architectural/test_gate_scan_scope_completeness.py`,
+  #7016), so a gate that reads prose more widely than its declared scope is
+  skipped for a prose edit outside that scope.
 - **The roster is registry-held.** Each entry in
   `special_tiers.architectural.fast_gate.roster` carries a path, a
   `budget_seconds` and a reason. A file earns a roster slot only if it is a
