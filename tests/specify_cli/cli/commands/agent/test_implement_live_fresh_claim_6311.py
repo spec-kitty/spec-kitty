@@ -47,8 +47,9 @@ restored in-process (compact string projected verbatim, in
     'claude:opus-5.5:python-pedro:implementer'
 
 and exits 1. On this branch the identical flow exits 0 and renders the prompt.
-The scenarios below are ordered so a vacuous pass is impossible: a genuinely
-different tool must still be refused (``test_different_tool_is_still_refused``).
+Resume under the same identity and refusal of a different one are guarded by
+``test_implement_compact_identity_4665.py`` (``test_same_identity_reinvoke_is_idempotent_resume``,
+``test_different_identity_is_refused``), so this module keeps only the fresh live claim.
 """
 
 from __future__ import annotations
@@ -74,7 +75,6 @@ _MISSION_ID = derive_mission_id(_MISSION_SLUG)
 _TARGET_BRANCH = "feat/live-claim-6311"
 # The exact identity shape the issue reports, and the shape the docs teach.
 _FULL_IDENTITY = "claude:opus-5.5:python-pedro:implementer"
-_OTHER_TOOL_IDENTITY = "codex:gpt-6:python-pedro:implementer"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -258,38 +258,3 @@ def test_fresh_compact_claim_completes_in_one_invocation(live_repo: Path) -> Non
     # ``rev-parse``, so this is what keeps the guard live.
     assert worktree.is_dir()
     assert _git(worktree, "rev-parse", "--is-inside-work-tree") == "true"
-
-
-# ---------------------------------------------------------------------------
-# Scenario 2 (FR-003) — a retry under the same identity resumes.
-# ---------------------------------------------------------------------------
-
-
-def test_same_identity_reinvoke_resumes_without_conflict(live_repo: Path) -> None:
-    first = _run_implement(_FULL_IDENTITY)
-    assert first.exit_code == 0, first.stdout
-    lanes_before = [event.to_lane for event in _wp01_events(live_repo)]
-
-    second = _run_implement(_FULL_IDENTITY)
-
-    assert second.exit_code == 0, second.stdout
-    assert "already claimed" not in second.stdout
-    # A resume is a no-op on the LANE, not just an exit code: the resume refresh
-    # may add an off-axis annotation, but it must never re-transition the WP.
-    assert [event.to_lane for event in _wp01_events(live_repo)] == lanes_before
-
-
-# ---------------------------------------------------------------------------
-# Scenario 3 (FR-004) — the positive control.
-# ---------------------------------------------------------------------------
-
-
-def test_different_tool_is_still_refused(live_repo: Path) -> None:
-    """FR-004: refusal still works, so scenarios 1-3 cannot pass vacuously."""
-    first = _run_implement(_FULL_IDENTITY)
-    assert first.exit_code == 0, first.stdout
-
-    result = _run_implement(_OTHER_TOOL_IDENTITY)
-
-    assert result.exit_code != 0
-    assert "already claimed" in result.stdout
