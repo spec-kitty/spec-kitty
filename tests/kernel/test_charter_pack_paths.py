@@ -6,7 +6,8 @@ Covers every public constant and helper. There is no legacy read fallback
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from typing import cast
 
 import pytest
 
@@ -43,6 +44,12 @@ class TestHelpers:
 
     def test_project_pack_path_without_parts_is_the_root(self, tmp_path: Path) -> None:
         assert paths.project_pack_path(tmp_path) == paths.project_pack_root(tmp_path)
+
+    def test_repo_relative_posix_spells_a_windows_path_with_forward_slashes(self) -> None:
+        """#6277: a reported repo-relative path is POSIX whatever the host's separator."""
+        windows_path = cast("Path", PureWindowsPath("C:/repo/.kittify/charter-packs/PROVENANCE.md"))
+        windows_root = cast("Path", PureWindowsPath("C:/repo"))
+        assert paths.repo_relative_posix(windows_path, windows_root) == ".kittify/charter-packs/PROVENANCE.md"
 
     def test_pack_drg_fragment(self, tmp_path: Path) -> None:
         assert paths.pack_drg_fragment(tmp_path) == tmp_path / "drg" / "fragment.yaml"
