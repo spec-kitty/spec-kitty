@@ -838,10 +838,12 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     # Priority 4: Human slug, i.e. the slug without its ``NNN-`` prefix and
     # without this Mission's own trailing ``-<mid8>`` (e.g. "foo-bar" for
     # "083-foo-bar", and "smoke-test" for "smoke-test-01M6BTQX"). #6278:
-    # two Missions sharing a human slug still raise AmbiguousHandleError.
+    # two Missions sharing a human slug still raise AmbiguousHandleError. The
+    # prefix-only form ("foo-bar-01M6BTQX" for "083-foo-bar-01M6BTQX") keeps
+    # resolving, as it did before the mid8 fold.
     # ------------------------------------------------------------------
     if not _is_numeric_prefix(handle):
-        human_matches = [m for m in missions if _human_slug_for_index_entry(m) == handle]
+        human_matches = [m for m in missions if handle in {strip_numeric_prefix(m.mission_slug), _human_slug_for_index_entry(m)}]
         if human_matches:
             return _resolve_or_raise(handle, human_matches)
 

@@ -730,6 +730,7 @@ def _seed_parity_missions(repo_root: Path) -> None:
         (_PARITY_SLUG, _PARITY_MISSION_ID),
         ("083-foo-bar", "01AAAAAABFZMBKVGB8VXBRQW07"),
         ("plain", "01BBBBBBBFZMBKVGB8VXBRQW07"),
+        ("042-legacy-01CCCCCC", "01CCCCCCBFZMBKVGB8VXBRQW07"),
     ):
         mission_dir = repo_root / "kitty-specs" / slug
         mission_dir.mkdir(parents=True)
@@ -762,6 +763,10 @@ def _read_path_dir(handle: str, repo_root: Path) -> Path:
         ("083-foo-bar", "083-foo-bar"),
         ("foo-bar", "083-foo-bar"),
         ("01AAAAAA", "083-foo-bar"),
+        # A legacy NNN- prefix on a mid8-composed slug: both the prefix-stripped
+        # and the fully folded forms resolve (the prefix-stripped one did before).
+        ("legacy-01CCCCCC", "042-legacy-01CCCCCC"),
+        ("legacy", "042-legacy-01CCCCCC"),
         # A directory that is literally the handle still wins at the exact rung.
         ("plain", "plain"),
     ],
