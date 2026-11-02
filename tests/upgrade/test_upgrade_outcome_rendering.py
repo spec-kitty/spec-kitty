@@ -46,6 +46,10 @@ _OWNER = "agent_profiles"
 _DRIFTED_PATH = ".claude/agents/reviewer.md"
 _DRIFTED_REASON = "edited by hand"
 _PREVIEW_NOTICE = "Supporting repair preview incomplete: stub owner assessment."
+# The golden dry-run pins rendered text, not the pytest-isolated home's repair inventory: the live
+# preview counts the whole managed tree on an empty worker home (125 effects) and one effect once an
+# earlier test in the same worker has materialized it, so the count is order-dependent (#7030).
+_GOLDEN_DRY_RUN_PREVIEW = "Would repair 1 supporting surface paths (including 0 manifests). Use --plan-json for full repair details."
 _WORKTREE_FAILURE = "Worktree lane-x: stamp failed"
 _MIGRATION_ERROR = "migration boom"
 _ACTIVATION_ERROR = "forced activation failure"
@@ -261,11 +265,21 @@ def test_golden_applied_dry_run(project: Path, monkeypatch: pytest.MonkeyPatch) 
     and closing line around it.
     """
     _stub_applied_migration(monkeypatch)
+    previewed: list[Path] = []
+
+    def _preview(project_path: Path) -> tuple[str, bool]:
+        previewed.append(project_path)
+        return _GOLDEN_DRY_RUN_PREVIEW, False
+
+    monkeypatch.setattr(upgrade_module, "_supporting_repair_preview", _preview)
 
     result = _invoke(project, ["--target", _MIGRATED_VERSION, "--yes", "--no-worktrees", "--dry-run"])
 
     assert result.exit_code == 0, result.output
     assert result.output == _GOLDEN_APPLIED_DRY_RUN
+    # The pinned preview line is only asserted if the dry run consults the preview exactly once: a
+    # refactor that stops previewing must fail here rather than silently drop the line (#7030).
+    assert [path.resolve() for path in previewed] == [project.resolve()]
 
 
 # ---------------------------------------------------------------------------

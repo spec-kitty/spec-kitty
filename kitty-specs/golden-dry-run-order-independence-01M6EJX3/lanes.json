@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "mission_slug": "golden-dry-run-order-independence-01M6EJX3",
+  "mission_id": "01M6EJX3MB9TV50KBSDBQVX07E",
+  "mission_branch": "kitty/mission-golden-dry-run-order-independence-01M6EJX3",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/upgrade/test_upgrade_outcome_rendering.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:57:22.941148+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9aed3a8012cb5eb22c0128b14d525039f95fea7a"
+}
