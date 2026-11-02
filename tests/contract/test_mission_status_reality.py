@@ -76,7 +76,7 @@ from tests.pinned_service_assets import expected_extra_root, require_pinned_extr
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = oracles.primary_worktree_root(Path(__file__).resolve().parents[2])
 KITTY_SPECS = "kitty-specs"
 #: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
 MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE

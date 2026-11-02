@@ -214,6 +214,28 @@ def live_remote_heads(repo_root: Path, *, timeout: float = PROBE_TIMEOUT) -> Liv
     return LiveRemoteHeads(frozenset(heads), inconclusive)
 
 
+def primary_worktree_root(repo_root: Path) -> Path:
+    """The repository's primary worktree root for *repo_root*, or *repo_root* itself when git cannot answer (#6966).
+
+    The reference readers take a Mission's read directory from the resolver, and for a coord-less or un-backfilled Mission the
+    resolver answers PRIMARY (``candidate_feature_dir_for_mission``): the primary worktree, which ``git worktree list`` prints
+    first. A corpus read is therefore only about one tree when it is rooted there -- from a linked worktree, rooting it at the
+    checkout enumerates one corpus and reads Missions out of another, which is the ``500 drift_scan_unreadable`` and the
+    invented Project fallback of #6966 and #5927. Answers *repo_root* on a host without git, outside a repository, or when the
+    listing fails: there is no worktree layout to get wrong there, and the callers evaluate this at import.
+    """
+    try:
+        listing = run_git(repo_root, "worktree", "list", "--porcelain")
+    except (OSError, subprocess.SubprocessError):
+        return repo_root.resolve()
+    if listing.returncode != 0:
+        return repo_root.resolve()
+    for line in listing.stdout.splitlines():
+        if line.startswith("worktree "):
+            return Path(line.removeprefix("worktree ")).resolve()
+    return repo_root.resolve()
+
+
 def current_branch(repo_root: Path) -> str | None:
     """The branch ``HEAD`` points at (with or without a commit), asked of git; None for a detached ``HEAD`` or a name this contract cannot carry."""
     result = run_git(repo_root, "symbolic-ref", "--short", "-q", "HEAD")
