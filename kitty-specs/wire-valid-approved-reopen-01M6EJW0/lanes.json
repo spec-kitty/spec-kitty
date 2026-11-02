@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "wire-valid-approved-reopen-01M6EJW0",
+  "mission_id": "01M6EJW0W1F43F2ZS06QXWPXXH",
+  "mission_branch": "kitty/mission-wire-valid-approved-reopen-01M6EJW0",
+  "target_branch": "issue-6955-wire-valid-approved-reopen",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/status/validate.py",
+        "src/specify_cli/status/wp_state.py",
+        "tests/integration/test_owned_reopen_feedback.py",
+        "tests/specify_cli/status/test_wp_state.py",
+        "tests/status/test_forced_rewind_requires_review_ref.py",
+        "tests/status/test_validate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/status-model.md",
+        "docs/changelog/unreleased/",
+        "tests/status/test_status_model_reference.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-02T16:57:13.405181+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "d221721fe4f4e55390dd03b2321bee0f5dc5cf7b"
+}
