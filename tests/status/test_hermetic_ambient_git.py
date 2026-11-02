@@ -10,13 +10,14 @@ checkout — and when it is read-only, :func:`append_lifecycle_event` swallows
 the ``PermissionError`` and silently persists nothing (130 nodes red in the
 #142 repro on main ``8321594a``).
 
-The fix is the autouse ``_hermetic_canonical_root`` fixture in this package's
-conftest. These tests pin it in place from both directions:
-
-* an in-process check that pinning stops resolution at the sandbox root and
-  puts the lock file inside it;
-* the end-to-end repro: a child pytest run with a read-only ``.git`` planted
-  above its ``--basetemp`` must still record events.
+The original fix was an autouse fixture in this package's conftest that ran
+``git init`` in every ``tmp_path`` whose resolution escaped. #7022 replaced it
+with one run-wide authority: the root conftest makes the run's basetemp a
+``GIT_CEILING_DIRECTORIES`` entry (``tests/_support/git_ceiling.py``), which
+git and both root walks of ``specify_cli.core.paths`` honor, so resolution
+never escapes in the first place. The end-to-end repro below keeps that
+guarantee pinned for this package: a child pytest run with a read-only
+``.git`` planted above its ``--basetemp`` must still record events.
 """
 
 from __future__ import annotations
@@ -30,9 +31,9 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.paths import resolve_canonical_root
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from specify_cli.status.locking import feature_status_lock_path
-from tests.status.conftest import pin_canonical_root_inside_sandbox
+
 
 pytestmark = pytest.mark.fast
 
@@ -73,33 +74,34 @@ def _read_only_ancestor_git(host: Path) -> Iterator[Path]:
             path.chmod(0o755 if path.is_dir() else 0o644)
 
 
-def test_pinning_stops_resolution_at_the_sandbox_root(tmp_path: Path) -> None:
-    """With an ambient repo above, pinning keeps lock resolution local (#142)."""
+def test_ceiling_keeps_the_status_lock_inside_the_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """In-process and root-safe: with a ceiling, the lock never lands in an ambient ``.git``.
+
+    The run-wide ceiling sits at basetemp, above this test's ``tmp_path``, so the
+    test narrows it to a directory between the ambient checkout and the sandbox --
+    the same shape a host with an enclosing repository has around basetemp.
+    """
     host = tmp_path / "ambient-checkout"
-    git_dir = host / ".git"
-    git_dir.mkdir(parents=True)
-    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
-    project = host / "checkout" / "kitty-specs" / "demo-mission"
-    project.mkdir(parents=True)
+    host.mkdir()
+    _git_init(host)
+    ceiling = host / "tmp"
+    escaped = ceiling / "unceiled" / "kitty-specs" / "demo-mission"
+    sandboxed = ceiling / "sandbox" / "kitty-specs" / "demo-mission"
+    escaped.mkdir(parents=True)
+    sandboxed.mkdir(parents=True)
 
-    # Unpinned, resolution escapes the project to the ambient checkout --
-    # exactly the leak that lands the lock outside the test.
-    assert resolve_canonical_root(project) == host.resolve()
+    # Non-vacuity, on a separate path (git_common_dir caches per path): without a
+    # ceiling, resolution and the lock escape into the ambient checkout.
+    monkeypatch.delenv("GIT_CEILING_DIRECTORIES", raising=False)
+    assert resolve_canonical_root(escaped) == host.resolve()
+    assert (host / ".git").resolve() in feature_status_lock_path(escaped, "demo-mission").parents
 
-    assert pin_canonical_root_inside_sandbox(project) is True
-
-    deep = project / "tasks"
-    deep.mkdir()
-    assert resolve_canonical_root(deep) == project.resolve()
-    # The failure surface itself: the lock file now resolves inside the
-    # sandbox instead of into <ambient>/.git/spec-kitty-locks/.
-    lock = feature_status_lock_path(project, "demo-mission")
-    assert project.resolve() in lock.parents
-    assert lock.parent.name == "spec-kitty-locks"
-    assert lock.name == "demo-mission.status.lock"
-
-    # Pinning twice is a no-op.
-    assert pin_canonical_root_inside_sandbox(project) is False
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(sandboxed)
+    lock = feature_status_lock_path(sandboxed, "demo-mission")
+    assert (host / ".git").resolve() not in lock.parents
+    assert sandboxed.resolve() in lock.parents
 
 
 @pytest.mark.skipif(
@@ -134,5 +136,5 @@ def test_suite_records_events_under_read_only_ancestor_git(tmp_path: Path) -> No
             check=False,
         )
     assert completed.returncode == 0, (
-        f"representative node failed under a read-only ancestor .git; the conftest hermetic fixture did not neutralize the ambient repo:\n{completed.stdout}"
+        f"representative node failed under a read-only ancestor .git; the harness git ceiling did not keep resolution inside the sandbox:\n{completed.stdout}"
     )
