@@ -83,7 +83,7 @@ job's command fail.
 
 ### User story 3 — nothing else pays for it (P3)
 
-1. A docs-only PR, a corpus-only PR, and a `src/specify_cli/dashboard/**` PR select no
+1. A docs-only PR, a corpus-only PR, and a `src/specify_cli/review/**` PR select no
    part of the new lane.
 2. A prose-only `status/**` diff still down-routes it (the #4842 rule) like every other
    code shard.
@@ -146,7 +146,7 @@ job's command fail.
 - **SC-001**: For a `src/specify_cli/status/**` diff, `scripts.ci.gate_selection.select_gates`
   reports the `path_literal_audit` group and the job gated on it runs
   `tests/audit/test_no_legacy_path_literals.py`; for a `docs/**` or
-  `src/specify_cli/dashboard/**` diff it reports neither. — [build] · no-op passable: no
+  `src/specify_cli/review/**` diff it reports neither. — [build] · no-op passable: no
 - **SC-002**: The lane's pytest command names exactly one test file and no marker
   expression, and that file collects 8 tests. — [build] · no-op passable: no
 - **SC-003**: `tests/ci` and the router/architectural guard suites pass with the change,

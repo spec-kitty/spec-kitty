@@ -45,7 +45,7 @@ added, 1 additive ledger row
 | Domain-driven splits / tiered rigour | Small, single-concern change: one group, one job, one guard test. Proportional squad (one reviewer round, correctness + routing-boundary focus). |
 | Locality of change (DIRECTIVE_024) | No existing job's command or `if:` changes; the only edits outside the two routing authorities are additive (workflow outputs/union/needs OR-term, one duplicate-suite ledger row). |
 | Boy Scout Rule (DIRECTIVE_025) | Not exercised as scope creep: the adjacent `tests/audit` registry claim is a maintainer cost decision (C-001), recorded as Deferred, not folded in. |
-| Acceptance-criteria non-vacuity | FR-006 pairs the positive routing assertion with negative controls on the same router fixture (docs-only, paths-only, dashboard diff); SC-002 asserts the collected test count, so "0 collected" cannot pass. |
+| Acceptance-criteria non-vacuity | FR-006 pairs the positive routing assertion with negative controls on the same router fixture (docs-only, paths-only, a `review/**` diff); SC-002 asserts the collected test count, so "0 collected" cannot pass. |
 
 No charter violation; nothing to justify in Complexity Tracking.
 
