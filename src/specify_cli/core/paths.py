@@ -169,13 +169,14 @@ def git_ceiling_dirs() -> frozenset[Path]:
     the root authorities agree on where a walk ends (#7022). A listed directory
     is still examined and the walk never continues above it. That is one step
     looser than git, which does not examine a ceiling directory unless the
-    search starts there; every entry is also resolved, where git skips relative
-    entries and leaves those after an empty entry unresolved.
+    search starts there. Relative entries are ignored, as git ignores them;
+    every absolute entry is resolved, where git leaves those after an empty
+    entry unresolved.
     """
     return frozenset(
         Path(part).resolve()
         for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
-        if part
+        if part and Path(part).is_absolute()
     )
 
 
@@ -459,7 +460,9 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 if (candidate / KITTIFY_DIR).is_dir():
                     return candidate.resolve()
                 # No canonical marker — keep walking so an enclosing repo is still
-                # resolved.
+                # resolved, but never above a ceiling (#7022).
+                if candidate in ceilings:
+                    break
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
