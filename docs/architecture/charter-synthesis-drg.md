@@ -188,11 +188,11 @@ from charter.offering.drg.loader import load_built_in_graph
 g = load_built_in_graph()
 incident = {u for e in g.edges for u in (e.source, e.target)}
 orphans = sorted({n.urn for n in g.nodes} - incident)
-print(len(orphans))  # 25
+print(len(orphans))
 print(*orphans, sep="\n")  # the membership the block below must equal
 ```
 
-**Current state (25 orphans, 358 nodes, 1,069 edges):**
+**Current state:**
 
 <!-- drg-orphan-residual:begin -->
 
@@ -234,10 +234,11 @@ print(*orphans, sep="\n")  # the membership the block below must equal
 | `styleguide:deployable-skill-authoring` | 1 | **Direct-activation-only.** Reached by `charter activate styleguide deployable-skill-authoring`; no defensible source artifact exists to carry an inbound edge (a guessed one is refused, C-003). Pinned in `_DIRECT_ACTIVATION_ONLY`. |
 | `toolguide:powershell-syntax` | 1 | **Runtime tooling.** Real PowerShell-authoring content consumed by agents at runtime; no built-in artifact cites it. Admitted by PR #2936. |
 
-### Ceiling ledger
+### Ceiling history
 
-`DOCUMENTED_ORPHAN_RESIDUAL` in the test module above is the numeric regression guard. It may move
-only together with this record. The history, so the number is never bare:
+There is no numeric ceiling any more: the membership block above, checked for equality against the
+measured shipped orphans, is the only guard (a ceiling could not see a shrink or a silent raise). The
+history of the retired ceiling, so the old numbers are never bare:
 
 | Ceiling | Cause |
 |---|---|
@@ -259,7 +260,7 @@ only together with this record. The history, so the number is never bare:
 - `_INTENTIONAL_ORPHANS` / `_SHIPPED_ORPHANS` in
   `tests/charter_offering/drg/migration/test_extractor_projection.py` are the **pure-extractor frame**
   membership pins. This page records the **shipped** frame (`load_built_in_graph()`), which is the
-  frame the ceiling measures; the two differ only by `_ORPHANS_RESOLVED_BY_OVERLAY`, so neither may
+  frame the membership guard measures; the two differ only by `_ORPHANS_RESOLVED_BY_OVERLAY`, so neither may
   be "corrected" against the other.
 - `tests/charter_offering/drg/test_reachability.py` pins the companion **reachability** measure
   (action-unreachable vs profile-delivered), which is a different question from incidence: a node

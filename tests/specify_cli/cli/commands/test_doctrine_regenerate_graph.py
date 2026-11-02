@@ -39,7 +39,7 @@ DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "packs" / "built-in"
 
 #: The LIVE, non-frozen current-state record of the shipped-graph orphan residual.
 #:
-#: The historical record the ceiling's own docstring cites,
+#: The historical record,
 #: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``,
 #: is parked under ``kitty-specs/`` — an immutable archive root
 #: (``tests/architectural/test_archive_root_byte_identical.py``) — so it can be *cited*
@@ -85,106 +85,15 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
         return [single]
     return sorted(doctrine_dir.glob("*.graph.yaml"))
 
-#: WP05 / FR-009 / C-003 — orphan-count regression ceiling.
-#:
-#: After repairing the phantom ``java-implementer`` reference and wiring the
-#: refactoring-procedure → Fowler-catalog and mutation-workflow → mutation-tools
-#: inbound edges, the shipped DRG carried 14 orphaned-but-valid doctrine
-#: artifacts. Each is a deliberately-authored artifact with no single natural
-#: referent and is documented (with per-orphan rationale) in
-#: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``.
-#:
-#: 2026-07-16 (ceiling stays 14; empirical residual 10): an interim curation pass
-#: had briefly raised this to 18 to *accept* 8 structural mission-type nodes
-#: (``mission_type:{documentation,plan,research,software-dev}`` +
-#: ``action:plan/{plan,research,review,specify}``) as edgeless residuals, because
-#: the generator emitted mission-type nodes nodes-only pending a deferred
-#: S0-continuation edge feature. **Mission ``mission-type-drg-edges-01KXKY2N``
-#: (#2677) implemented that feature**: the generator now emits
-#: ``mission_type:X → action:X/<step>`` ``requires`` edges from each type's
-#: ``action_sequence`` (21 edges), so all 8 structural nodes are wired and leave
-#: the orphan set — the 18 raise is reverted to 14. In the same pass 4 of the
-#: original residuals were found already-wired (stale rows), taking the empirical
-#: residual from 14 to **10**. Full narrative + the 10 surviving rows are in
-#: ``drg-orphan-residual.md``.
-#:
-#: D-C2 / C-003 forbid deleting valid orphans to shrink this metric. This ceiling
-#: is a regression guard against the count silently *growing* — a new orphan must
-#: either be wired or added to the documented residual (and this ceiling raised
-#: with a rationale). It is NOT a mandate to prune to reach a lower number.
-#:
-#: Mission ``doctrine-controlled-transition-gates`` (epic #2535 half A) shipped the
-#: 17 built-in ``mission_step_contract:<mission>/<action>`` nodes as intentionally
-#: edge-less residuals: the MSC fragment ships ``edges: []`` because the activation
-#: join gates on the node's *presence*, not on edges. That raises the ceiling from
-#: the historical 14 baseline to 29 (empirical 29, no slack). Full narrative in
-#: ``drg-orphan-residual.md``.
-#:
-#: 2026-07-26 (PR #2936 fold): #2936 promoted ``toolguide:powershell-syntax`` from a
-#: dead, unreachable file into a live graph node with no inbound/outbound edge (real
-#: PowerShell-authoring content, consumed at runtime, no doctrinal static referent —
-#: same class as the then-existing ``toolguide:rtk-search-tooling`` /
-#: ``toolguide:python-review-checks`` residuals). Accepted as an edge-less residual per
-#: D-C2 / C-003 rather than a manufactured edge. Raised the ceiling 29 -> 30. Full
-#: narrative in ``drg-orphan-residual.md``.
-#:
-#: 2026-07-28 (PR #3007 landing folds, operator ruling on #3009): ratcheted
-#: 30 -> 21, measured. BOTH residuals the 2026-07-26 note cites are gone --
-#: ``rtk-search-tooling`` was DELETED outright and ``python-review-checks`` was
-#: WIRED (``styleguide:python-conventions --suggests-->``), along with six other
-#: activated-but-unreachable artefacts. The ceiling stayed green at 30 through
-#: all of that because a ceiling cannot see a shrink, which is exactly why it is
-#: being ratcheted rather than left with nine points of silent slack. The
-#: authoritative membership record is ``_INTENTIONAL_ORPHANS`` in
-#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` (pure-extractor
-#: view, 23); this ceiling is the shipped-graph view (21) and the two differ by
-#: the hand-authored overlay, per that module's own stated cause.
-#:
-#: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
-#: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (today the built-in ``minimal`` preset,
-#: applied via ``spec-kitty charter activate --preset minimal``) — it is structurally a
-#: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
-#: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
-#:
-#: Mission drg-reachability-metric-wiring-01KZS5VR (WP01, #3009 point 3): the six
-#: curated edges de-orphan three pure-extractor nodes (``directive:RECONCILE_
-#: CHANGE_SCOPE_TENSIONS``, ``directive:DISCIPLINED_REFACTORING``,
-#: ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` — see
-#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` ledger entry
-#: 19), but all three were ALREADY resolved by the hand-authored overlay in the
-#: *shipped* graph, so ``_orphan_urns(load_built_in_graph())`` measures
-#: UNCHANGED at 21 — verified empirically, not assumed. The ceiling is already
-#: tight (no leftover slack) both before and after this wiring; it is NOT
-#: ratcheted, because there is nothing to ratchet down to.
-#:
-#: 2026-10-19 (mission charter-synthesis-graph-and-languages-01M59RZ5, WP01,
-#: #6379 / #6432): the built-in pin bump of PR #6379 vendored the plan mission's
-#: four step contracts, so the shipped graph gained
-#: ``mission_step_contract:plan/{plan,research,review,specify}``. Like every other
-#: step-contract node they are edge-less by construction (resolved by the
-#: ``(mission_type, action)`` join, never by traversal; see
-#: ``_EDGELESS_BY_CONSTRUCTION`` in ``test_extractor_projection.py``), so the
-#: ceiling rises **21 -> 25**. No edge was wired and ``packs/built-in/`` is untouched.
-#:
-#: 2026-10-31 (#6513, mission drg-orphan-residual-live-record-01M68ZV0): the
-#: CURRENT-STATE record moved to a writable home. The historical
-#: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``
-#: is a frozen archive root (``tests/architectural/test_archive_root_byte_identical.py``),
-#: so "update drg-orphan-residual.md" — what this ceiling's failure message used to
-#: say — was an unexecutable remedy, and that file's last recorded state (29 -> 30
-#: over 17 step contracts) is as-of-date history, not current state. The LIVE record
-#: is the "The shipped-graph orphan residual (current state)" section of
-#: ``docs/architecture/charter-synthesis-drg.md``, and it is bound to the
-#: measurement by ``test_documented_residual_matches_measured_shipped_orphans``:
-#: the record's URN set must equal ``_orphan_urns(load_built_in_graph())`` exactly.
-#: A raise of this ceiling therefore requires a recorded row in the SAME change —
-#: the numeric assertion alone cannot see a raise, only an excess. The pure-extractor
-#: membership pins (``_INTENTIONAL_ORPHANS`` / ``_SHIPPED_ORPHANS`` in
-#: ``tests/charter_offering/drg/migration/test_extractor_projection.py``) remain the
-#: extracted-frame authority; this ceiling remains the *shipped*-frame guard, and the
-#: two differ only by ``_ORPHANS_RESOLVED_BY_OVERLAY``.
-DOCUMENTED_ORPHAN_RESIDUAL = 25
+#: The shipped-graph orphan residual has ONE source of truth: the delimited block in
+#: ``LIVE_RESIDUAL_RECORD``. ``test_documented_residual_matches_measured_shipped_orphans``
+#: requires its URN set to equal the measured shipped orphans exactly, so there is no
+#: separate numeric ceiling to keep in step (a ceiling cannot see a shrink or a silent
+#: raise). The pure-extractor membership pins (``_INTENTIONAL_ORPHANS`` /
+#: ``_SHIPPED_ORPHANS`` in ``tests/charter_offering/drg/migration/test_extractor_projection.py``)
+#: remain the extracted-frame authority; the two frames differ only by
+#: ``_ORPHANS_RESOLVED_BY_OVERLAY``. The history of the retired ceiling is in the
+#: "Ceiling history" section of the record.
 
 
 def _orphan_urns(graph: DRGGraph) -> set[str]:
@@ -194,8 +103,7 @@ def _orphan_urns(graph: DRGGraph) -> set[str]:
     read *whatever layout is on disk* through the seam (monolith today, fragments
     post-WP05) rather than re-parsing a hardcoded ``graph.yaml`` path.
 
-    The membership form is what binds the live record to the graph (#6513); the count
-    form is the regression ceiling.
+    This membership is what binds the live record to the graph (#6513).
     """
     urns = {node.urn for node in graph.nodes}
     incident: set[str] = set()
@@ -203,11 +111,6 @@ def _orphan_urns(graph: DRGGraph) -> set[str]:
         incident.add(edge.source)
         incident.add(edge.target)
     return urns - incident
-
-
-def _count_orphans(graph: DRGGraph) -> int:
-    """Return the number of nodes with no inbound or outbound edge."""
-    return len(_orphan_urns(graph))
 
 
 def _documented_orphan_urns(record_path: Path = LIVE_RESIDUAL_RECORD) -> set[str] | None:
@@ -305,36 +208,15 @@ def test_check_detects_stale_graph(
     assert payload["status"] == "stale"
 
 
-def test_shipped_graph_orphan_count_within_documented_residual() -> None:
-    """Orphan count must not exceed the documented residual (WP05 / C-003).
-
-    Guards against orphan growth without forcing valid-artifact deletion: a new
-    orphan must be wired or added to the documented residual (raising the
-    ceiling with rationale), per the no-bulk-delete correction (D-C2).
-    """
-    orphans = _count_orphans(load_built_in_graph())
-    assert orphans <= DOCUMENTED_ORPHAN_RESIDUAL, (
-        f"DRG orphan count {orphans} exceeds documented residual "
-        f"{DOCUMENTED_ORPHAN_RESIDUAL}. Two honest remedies, no third: wire a real "
-        f"inbound edge, or record the new orphan(s) in the LIVE residual record "
-        f"({LIVE_RESIDUAL_RECORD.relative_to(LIVE_RESIDUAL_RECORD.parents[2])}) and "
-        f"raise this ceiling in the same change, with the rationale. The historical "
-        f"``kitty-specs/.../drg-orphan-residual.md`` is a frozen archive: cite it, "
-        f"never edit it."
-    )
-
-
 def test_documented_residual_matches_measured_shipped_orphans() -> None:
     """The live record's membership must equal the measured shipped orphan set (#6513).
 
-    A numeric ceiling alone cannot see a *raise*: bumping
-    ``DOCUMENTED_ORPHAN_RESIDUAL`` with a comment goes green while the documented
-    residual says nothing about the new orphan. This guard closes that hole in both
-    directions — an orphan measured but not recorded fails, and a recorded URN that is
+    A numeric ceiling could not see a *raise* or a shrink, so the record's membership is
+    the only guard. It fails in both directions — an orphan measured but not recorded fails, and a recorded URN that is
     no longer an orphan fails, so a shrink has to be recorded too.
 
     The record is the *shipped* frame (``load_built_in_graph()``), matching what the
-    ceiling measures. ``_SHIPPED_ORPHANS`` in
+    guard measures. ``_SHIPPED_ORPHANS`` in
     ``tests/charter_offering/drg/migration/test_extractor_projection.py`` is the
     *pure-extractor* frame; the two differ only by ``_ORPHANS_RESOLVED_BY_OVERLAY``,
     so neither may be "corrected" against the other.
@@ -354,8 +236,7 @@ def test_documented_residual_matches_measured_shipped_orphans() -> None:
         f"({LIVE_RESIDUAL_RECORD}).\n"
         f"  Measured but not recorded ({len(undocumented)}): {undocumented}\n"
         f"  Recorded but no longer an orphan ({len(stale)}): {stale}\n"
-        "Update the record's current-state block and, if the measured count moved, "
-        "DOCUMENTED_ORPHAN_RESIDUAL, in the same change — wire a real inbound edge "
+        "Update the record's current-state block in the same change — wire a real inbound edge "
         "first if a genuine referent exists (D-C2 / C-003 forbid deleting or "
         "manufacturing an edge to zero the metric)."
     )
