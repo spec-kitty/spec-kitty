@@ -232,40 +232,28 @@ def _failed_outcome(*, failed: tuple[str, ...]) -> object:
     return ToolSurfaceOutcome(report=report, repair=repair)
 
 
-def test_failed_repair_names_surfaces_and_exits_nonzero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("as_json", [False, True])
+def test_failed_repair_is_visible_and_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, as_json: bool
 ) -> None:
     """A failed ``--fix`` is visible and non-zero, even though OPTIONAL gaps keep ok=True (#6273)."""
     from typer.testing import CliRunner
     from specify_cli import app
     from specify_cli.tool_surface import service
 
+    surface = "claude_code_plugin.plugin_manifest.plugin.json"
     project = write_controlled_project(tmp_path, agents=["claude"])
     monkeypatch.chdir(project)
-    monkeypatch.setattr(service, "run_tool_surfaces", lambda *a, **k: _failed_outcome(failed=("claude_code_plugin.plugin_manifest.plugin.json",)))
+    monkeypatch.setattr(service, "run_tool_surfaces", lambda *a, **k: _failed_outcome(failed=(surface,)))
 
-    result = CliRunner().invoke(app, ["doctor", "tool-surfaces", "--fix"])
-
-    assert result.exit_code == 1, result.output
-    assert "Failed to repair: 1 surface(s)" in result.output
-    assert "claude_code_plugin.plugin_manifest.plugin.json" in result.output
-    assert "Unsafe bundle parent: dist/x" in result.output
-
-
-def test_failed_repair_is_reported_in_json_and_exits_nonzero(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from typer.testing import CliRunner
-    from specify_cli import app
-    from specify_cli.tool_surface import service
-
-    project = write_controlled_project(tmp_path, agents=["claude"])
-    monkeypatch.chdir(project)
-    monkeypatch.setattr(service, "run_tool_surfaces", lambda *a, **k: _failed_outcome(failed=("claude_code_plugin.plugin_manifest.plugin.json",)))
-
-    result = CliRunner().invoke(app, ["doctor", "tool-surfaces", "--fix", "--json"])
+    result = CliRunner().invoke(app, ["doctor", "tool-surfaces", "--fix", *(["--json"] if as_json else [])])
 
     assert result.exit_code == 1, result.output
-    payload = json.loads(result.output)
-    assert payload["repair"]["failed"] == ["claude_code_plugin.plugin_manifest.plugin.json"]
-    assert payload["repair"]["findings_after"][0]["message"] == "Unsafe bundle parent: dist/x"
+    if as_json:
+        payload = json.loads(result.output)
+        assert payload["repair"]["failed"] == [surface]
+        assert payload["repair"]["findings_after"][0]["message"] == "Unsafe bundle parent: dist/x"
+    else:
+        assert "Failed to repair: 1 surface(s)" in result.output
+        assert surface in result.output
+        assert "Unsafe bundle parent: dist/x" in result.output

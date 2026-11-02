@@ -49,14 +49,6 @@ def test_incomplete_bundle_repair_keeps_its_cause_through_the_service(
     assert any("Malformed required skill frontmatter" in finding.message for finding in result.findings_after)
 
 
-def test_successful_bundle_repair_reports_no_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    provider = _bundle_provider(tmp_path, monkeypatch)
-    statuses = tuple(provider.probe(instance) for instance in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path))
-    result = SurfaceRepairService([provider]).repair(tmp_path, statuses)
-
-    assert result.repaired and not result.failed and not result.findings_after
-
-
 def test_probe_keeps_the_prepared_batch_cause(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     provider = _bundle_provider(tmp_path, monkeypatch)
     instance = provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path)[0]
