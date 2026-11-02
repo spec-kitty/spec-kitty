@@ -25,6 +25,7 @@ spec-kitty charter org remove <name> [--json]
 `.kittify/config.yaml`, and only `OrgPackConfig`'s declared fields:
 
 ```yaml
+# round-trip: skip: .kittify/config.yaml shape sketch (non-Pydantic operator config); OrgPackConfig round-trips in tests/charter_offering/drg/test_org_pack_config_write_seam.py
 charter_packs:
   org:
     packs:
