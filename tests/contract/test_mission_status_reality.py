@@ -3995,9 +3995,13 @@ def test_the_corpus_root_is_the_repository_primary_worktree(scratch_git: Path) -
     assert (linked / "README.md").is_file(), "the linked worktree is a real checkout of the same repository"
     assert oracles.primary_worktree_root(linked) == primary.resolve(), "a linked worktree must scan the primary worktree"
     assert oracles.primary_worktree_root(primary) == primary.resolve(), "the primary worktree is its own answer"
+    spaced = scratch_git / "a worktree with spaces"
+    _git(primary, "worktree", "add", "-q", "--detach", str(spaced), "HEAD")
+    assert oracles.primary_worktree_root(spaced) == primary.resolve(), "a worktree path with spaces is not split"
     plain = scratch_git / "not-a-repository"
     plain.mkdir()
     assert oracles.primary_worktree_root(plain) == plain.resolve(), "a directory git cannot answer for answers itself"
+    assert oracles.primary_worktree_root(primary / "missing") == (primary / "missing").resolve(), "a missing path answers itself"
 
 
 # Keep this test LAST in the file: under ``--dist loadfile`` the file runs on one worker in
