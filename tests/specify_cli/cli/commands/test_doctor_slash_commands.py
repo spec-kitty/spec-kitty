@@ -387,8 +387,6 @@ class TestDoctorSkillsJson:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from types import SimpleNamespace
-
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands import _command_surface_doctor, doctor
