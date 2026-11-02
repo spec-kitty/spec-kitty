@@ -32,7 +32,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.status import actor_from_option, build_status_actor, is_migration_actor
+from specify_cli.status import actor_from_option, actor_identity_str, build_status_actor, is_migration_actor
 from specify_cli.status.models import MIGRATION_ACTOR_PREFIX
 from specify_cli.status.store import read_events_raw
 from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
@@ -230,7 +230,7 @@ def test_the_backfill_writer_still_builds_a_seed_row() -> None:
 
     event = _planned_event(_SLUG, None, "seed-probe", "WP01", "2026-01-01T00:00:00+00:00")
 
-    assert event.actor == "migration:backfill_wp_status"
+    assert actor_identity_str(event.actor) == "migration:backfill_wp_status"
     assert is_migration_actor(event.actor) is True
     assert reduces_as_reconstruction_seed(event.actor) is True
 
