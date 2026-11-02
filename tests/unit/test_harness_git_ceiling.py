@@ -24,6 +24,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from specify_cli.core.paths import WorkspaceRootNotFound, locate_project_root, resolve_canonical_root
 from tests._support.git_ceiling import GIT_CEILING_ENV, harness_git_ceilings, install_git_ceilings
 from tests.utils import REPO_ROOT
 
@@ -73,10 +74,15 @@ def test_install_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_this_session_has_its_basetemp_as_a_ceiling(tmp_path_factory: pytest.TempPathFactory) -> None:
-    """The conftest wiring, observed in-process: the live basetemp is listed."""
+    """The conftest wiring, observed in-process: the live basetemp itself is listed.
+
+    Exact membership, not "some ancestor is listed": a developer who already
+    exports a broad ceiling must not mask a removed conftest call. Under xdist
+    the worker's basetemp is ``<run basetemp>/popen-gwN``, so its parent counts.
+    """
     basetemp = tmp_path_factory.getbasetemp().resolve()
     listed = {Path(part).resolve() for part in os.environ.get(GIT_CEILING_ENV, "").split(os.pathsep) if part}
-    assert any(basetemp == entry or entry in basetemp.parents for entry in listed), listed
+    assert basetemp in listed or basetemp.parent in listed, listed
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +114,10 @@ def test_inner_tmp_path_is_outside_every_repository(tmp_path: Path) -> None:
         check=False,
     )
     assert probe.returncode != 0, f"tmp_path resolved into an enclosing repository: {probe.stdout}"
+    # The Python root walks the status lock and project detection use agree.
+    assert locate_project_root(tmp_path) is None
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(tmp_path)
 
 
 @pytest.mark.integration

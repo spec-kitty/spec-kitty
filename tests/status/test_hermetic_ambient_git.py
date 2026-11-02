@@ -31,6 +31,9 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+from specify_cli.status.locking import feature_status_lock_path
+
 
 pytestmark = pytest.mark.fast
 
@@ -69,6 +72,36 @@ def _read_only_ancestor_git(host: Path) -> Iterator[Path]:
     finally:
         for path in (git_dir, *git_dir.rglob("*")):
             path.chmod(0o755 if path.is_dir() else 0o644)
+
+
+def test_ceiling_keeps_the_status_lock_inside_the_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """In-process and root-safe: with a ceiling, the lock never lands in an ambient ``.git``.
+
+    The run-wide ceiling sits at basetemp, above this test's ``tmp_path``, so the
+    test narrows it to a directory between the ambient checkout and the sandbox --
+    the same shape a host with an enclosing repository has around basetemp.
+    """
+    host = tmp_path / "ambient-checkout"
+    host.mkdir()
+    _git_init(host)
+    ceiling = host / "tmp"
+    escaped = ceiling / "unceiled" / "kitty-specs" / "demo-mission"
+    sandboxed = ceiling / "sandbox" / "kitty-specs" / "demo-mission"
+    escaped.mkdir(parents=True)
+    sandboxed.mkdir(parents=True)
+
+    # Non-vacuity, on a separate path (git_common_dir caches per path): without a
+    # ceiling, resolution and the lock escape into the ambient checkout.
+    monkeypatch.delenv("GIT_CEILING_DIRECTORIES", raising=False)
+    assert resolve_canonical_root(escaped) == host.resolve()
+    assert (host / ".git").resolve() in feature_status_lock_path(escaped, "demo-mission").parents
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(sandboxed)
+    lock = feature_status_lock_path(sandboxed, "demo-mission")
+    assert (host / ".git").resolve() not in lock.parents
+    assert sandboxed.resolve() in lock.parents
 
 
 @pytest.mark.skipif(
