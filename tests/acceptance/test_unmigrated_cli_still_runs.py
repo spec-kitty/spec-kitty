@@ -27,6 +27,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.activation_ledger import DENY_KEYS, LEDGER_KEYS
+from charter.activation.pack_manager import ACTIVATION_YAML_KEYS
 from charter.activation.schemas import CharterYaml
 from kernel.activation_ledger_store import activation_ledger_path
 from tests._support.activation_cli import cli, git, init_git_repo, snapshot, unwrapped
@@ -132,10 +133,14 @@ def test_charter_context_matches_main(repo: Path) -> None:
     assert not activation_ledger_path(repo).exists()
 
 
-def test_charter_yaml_with_all_ten_activation_fields_still_loads(repo: Path) -> None:
-    """Hole 5: the ``CharterYaml`` activation fields stay (``extra="forbid"``)."""
+def test_charter_yaml_with_all_activation_fields_still_loads(repo: Path) -> None:
+    """Hole 5: the ``CharterYaml`` activation fields stay (``extra="forbid"``).
+
+    The expected set is the writer's vocabulary authority (``ACTIVATION_YAML_KEYS``), not a
+    hand-counted literal: #6556 (4d948f52c) grew it from 10 to 13 keys.
+    """
     fields = [name for name in CharterYaml.model_fields if name.startswith("activated_") or name == "mission_type_activations"]
-    assert len(fields) == 10
+    assert set(fields) == set(ACTIVATION_YAML_KEYS)
     document = _load(repo / _POINTER) | {name: [] for name in fields if name not in ("activated_directives", "mission_type_activations")}
     document["catalog"] = {"mission": "software-dev", "template_set": "software-dev-default"}
     (repo / _POINTER).write_text(json.dumps(document), encoding="utf-8")
