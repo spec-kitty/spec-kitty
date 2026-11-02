@@ -1,6 +1,6 @@
 # Discovery: plugin-owned surface reports (#6493)
 
-Recorded 2026-10-31 on `origin/main` @ `35318ef51c` (clone `/home/exedev/work/sk-6493`),
+Recorded 2026-10-31 on `origin/main` @ `35318ef51c` (clone `<repo-root>`),
 CLI `spec-kitty-cli 4.0.0rc8` installed at `~/.local/bin/spec-kitty`.
 
 ## Evidence — the reported symptom set, reproduced
