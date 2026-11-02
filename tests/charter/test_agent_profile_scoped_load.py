@@ -161,9 +161,7 @@ def test_org_pack_override_flips_the_sentinel_and_project_restores_it(tmp_path: 
     assert org_only == {_HIC_ID: False}
 
     _write_profile(overlay, _HIC_ID, _shipped_profile_yaml())
-    with_project = _offering_service(org_dir=tmp_path / "org-pack", overlay_dir=overlay).agent_profile_sentinels(
-        [_HIC_ID]
-    )
+    with_project = _offering_service(org_dir=tmp_path / "org-pack", overlay_dir=overlay).agent_profile_sentinels([_HIC_ID])
     assert with_project == {_HIC_ID: True}
 
 
@@ -176,21 +174,13 @@ def test_language_scoped_profile_answers_false_like_the_full_repository(tmp_path
     """``applies_to_languages`` excludes an id here exactly as ``get()`` excludes it."""
     overlay = tmp_path / "agent_profiles"
     custom = _shipped_profile_yaml().replace('profile-id: "human-in-charge"', 'profile-id: "custom-java-only"')
-    custom = _with_sentinel(custom, True).replace(
-        'schema-version: "1.0"', 'schema-version: "1.0"\napplies_to_languages:\n- java'
-    )
+    custom = _with_sentinel(custom, True).replace('schema-version: "1.0"', 'schema-version: "1.0"\napplies_to_languages:\n- java')
     _write_profile(overlay, "custom-java-only", custom)
 
-    python_only = _offering_service(overlay_dir=overlay, active_languages=["python"]).agent_profile_sentinels(
-        ["custom-java-only"]
-    )
-    java = _offering_service(overlay_dir=overlay, active_languages=["java"]).agent_profile_sentinels(
-        ["custom-java-only"]
-    )
+    python_only = _offering_service(overlay_dir=overlay, active_languages=["python"]).agent_profile_sentinels(["custom-java-only"])
+    java = _offering_service(overlay_dir=overlay, active_languages=["java"]).agent_profile_sentinels(["custom-java-only"])
 
-    full_python = AgentProfileRepository(
-        built_in_dir=_SHIPPED_DIR, project_dir=overlay, active_languages=["python"]
-    )
+    full_python = AgentProfileRepository(built_in_dir=_SHIPPED_DIR, project_dir=overlay, active_languages=["python"])
     assert python_only == {"custom-java-only": False}
     assert full_python.get("custom-java-only") is None
     # Positive control on the same fixture: admitted when the language matches.
@@ -233,6 +223,7 @@ def test_scoped_and_plain_reads_do_not_parse_the_lineage_graph(tmp_path: Path, m
     assert isinstance(scoped.drg.nodes, list)
     assert calls == [1]
 
+
 # --------------------------------------------------------------------------- #
 # The sole-door accessor and the light builder agree with the full service
 # --------------------------------------------------------------------------- #
@@ -268,9 +259,7 @@ def test_light_builder_matches_the_charter_service_accessor() -> None:
         ("charter: .kittify/does-not-exist.yaml\n", "dangling-charter-pointer"),
     ],
 )
-def test_light_builder_rejects_a_config_the_service_path_rejects(
-    tmp_path: Path, config_text: str, label: str
-) -> None:
+def test_light_builder_rejects_a_config_the_service_path_rejects(tmp_path: Path, config_text: str, label: str) -> None:
     """The scoped read is lenient in *what it reads*, never in what it validates.
 
     The layer resolution logs and skips an unreadable config; that would turn a

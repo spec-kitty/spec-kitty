@@ -131,9 +131,7 @@ def _invoke_status(tmp_path: Path) -> Any:
 # --------------------------------------------------------------------------- #
 
 
-def test_board_render_parses_only_the_profiles_its_rows_name(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_board_render_parses_only_the_profiles_its_rows_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Two named profiles ⇒ two documents, not the 26-document catalogue."""
     _create_project(
         tmp_path,
@@ -153,9 +151,7 @@ def test_board_render_parses_only_the_profiles_its_rows_name(
     assert names == {f"{_HIC_PROFILE}.agent.yaml", f"{_SECOND_PROFILE}.agent.yaml"}, sorted(names)
 
 
-def test_catalogue_is_much_larger_than_the_board_needs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_catalogue_is_much_larger_than_the_board_needs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Positive control: the counter does see the whole catalogue on a plain read."""
     _create_project(tmp_path, {"WP01": (_HIC_PROFILE, "in_progress")})
     parsed = _count_profile_parses(monkeypatch)
@@ -177,9 +173,7 @@ def test_empty_board_parses_no_profile_at_all(tmp_path: Path, monkeypatch: pytes
     assert parsed == []
 
 
-def test_unknown_profile_id_renders_without_a_marker_or_an_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unknown_profile_id_renders_without_a_marker_or_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An id no layer ships degrades to no marker; the board still renders."""
     _create_project(tmp_path, {"WP01": (_UNKNOWN_PROFILE, "in_progress")})
     parsed = _count_profile_parses(monkeypatch)
@@ -201,9 +195,7 @@ def test_unknown_profile_id_renders_without_a_marker_or_an_error(
         ("charter: .kittify/does-not-exist.yaml\n", "dangling-charter-pointer"),
     ],
 )
-def test_broken_config_still_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_text: str, label: str
-) -> None:
+def test_broken_config_still_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_text: str, label: str) -> None:
     """A broken ``.kittify/config.yaml`` must not degrade to a markerless board.
 
     The scoped read does not use activation *state*, but it must not turn a config
