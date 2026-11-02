@@ -12,8 +12,10 @@ derived from the directory name again.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -53,10 +55,75 @@ def _rename_away_from_the_handle(feature_dir: Path) -> Path:
     return renamed
 
 
-def test_wp_driven_custom_family_holds_at_implement_with_a_pending_wp(tmp_path: Path) -> None:
-    slug = scaffold_custom_analyze_mission(tmp_path)
+def test_wp_driven_custom_family_holds_at_implement_with_a_pending_wp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The guard sees ``wp_driven`` for a custom family, driven through ``next``.
 
+    A pending WP holds ``implement`` (``[_PENDING]``) when the guard is called
+    directly with the run.
+
+    The ``next`` half drives ``decide_next_via_runtime`` -- the production caller
+    that threads ``ctx.run_dir`` -- addressing the Mission by its ULID while the
+    planning directory carries an unrelated name, so ``feature_dir.name`` resolves
+    to no mission. Both guard hand-offs (the dependency gate and the composition
+    dispatch) must therefore pass the run they hold: reverting either
+    ``run_dir=ctx.run_dir`` leaves ``wp_driven`` False on that snapshot.
+    """
+    from runtime.next import runtime_bridge_io
+    from runtime.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
+    from specify_cli.mission_step_contracts import executor as executor_module
+    from specify_cli.status.models import Lane, StatusEvent
+    from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current, commit_all
+    from tests._support.status_seed import seed_status_event
+
+    slug = scaffold_custom_analyze_mission(tmp_path)
     assert _guard(tmp_path, slug, CUSTOM_ANALYZE_FAMILY, "implement") == [_PENDING]
+
+    # The WP is handed off, so ``next`` reaches both guard hand-offs below.
+    seed_status_event(
+        tmp_path / "kitty-specs" / slug,
+        StatusEvent(
+            event_id="handoff-WP01",
+            mission_slug=slug,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.FOR_REVIEW,
+            at="2026-02-01T00:00:00+00:00",
+            actor="fixture",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+    feature_dir = tmp_path / "kitty-specs" / slug
+    mission_id = "01KP6330WPDRIVEN0000000000"
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": CUSTOM_ANALYZE_FAMILY, "mission_id": mission_id}), encoding="utf-8")
+    advance_to_step(tmp_path, mission_id, CUSTOM_ANALYZE_FAMILY, "implement")
+    run_dir = Path(get_or_start_run(mission_id, tmp_path, CUSTOM_ANALYZE_FAMILY).run_dir)
+    _rename_away_from_the_handle(feature_dir)
+    commit_all(tmp_path, "rename the planning directory")
+
+    class _StubExecutor:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def execute(self, _context: object, contract: object = None) -> SimpleNamespace:
+            return SimpleNamespace(invocation_ids=(), steps=())
+
+    monkeypatch.setattr(executor_module, "StepContractExecutor", _StubExecutor)
+    seen: list[tuple[Path | None, bool]] = []
+    real_gather = runtime_bridge_io.gather_artifact_presence
+
+    def _spy(*args: Any, **kwargs: Any) -> Any:
+        snapshot = real_gather(*args, **kwargs)
+        if kwargs.get("step_id") == "implement" or kwargs.get("legacy_step_id") == "implement":
+            seen.append((kwargs.get("run_dir"), snapshot.wp_driven))
+        return snapshot
+
+    monkeypatch.setattr(runtime_bridge_io, "gather_artifact_presence", _spy)
+
+    decide_next_via_runtime("codex", mission_id, "success", tmp_path, analysis_currency=analysis_is_current)
+
+    assert len(seen) >= 2, seen  # the dependency gate AND the composition dispatch
+    assert seen == [(run_dir, True)] * len(seen)
 
 
 def test_software_dev_still_holds_at_implement_with_a_pending_wp(tmp_path: Path) -> None:
