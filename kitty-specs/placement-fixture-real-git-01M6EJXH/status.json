@@ -1,0 +1,59 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6EMCQ2VQEHXGCM1MTVQ2NNV",
+  "materialized_at": "2026-11-02T17:19:56.507509+00:00",
+  "mission_number": "248",
+  "mission_slug": "placement-fixture-real-git-01M6EJXH",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6EMCQ2VQEHXGCM1MTVQ2NNV",
+      "last_transition_at": "2026-11-02T17:19:56.507509+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T17:09:26Z – pi – shell_pid=728502 – T001 red baseline: module 1 failed, 8 passed on the unmodified tree (node test_mismatched_feature_dir_fails_closed_without_writing). Two-shape probe: bare marker -> CutoverResult(skipped_notice=...TRACKED_META_UNAVAILABLE); real git init -> PlacementMismatchError. T002: renamed _init_bare_git_marker to _init_git_repo (git init -q, no commit) at all six call sites; added _init_unusable_git_anchor for the refusal pin; module docstring states the distinction. T003: module 10 passed in 113s with the mismatch assertion byte-identical (pytest.raises + nothing written). T004: new test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing asserts flipped=False, seeded_count=0, notice ends [TRACKED_META_UNAVAILABLE], no meta.json at either location, no raise; mutation check (anchor -> real repo) makes it fail with PlacementMismatchError, so the pin is live. T005: tests/specify_cli/upgrade/test_read_tracked_meta_6673.py 14 passed, 1 failed on test_nothing_tracked_is_not_a_refusal — host-only: /tmp/.git (a spec-kitty lock fallback dir) is an ancestor of pytest's tmp root and read_tracked_meta's _has_no_git_anchor ignores GIT_CEILING_DIRECTORIES (#7056); the same node passes with --basetemp outside /tmp. ruff: All checks passed. mypy: Success (1 file).",
+        "Ready for review: fixture is a real git repo; seam-distinction regression pin added; 10/10 module green",
+        "- 2026-11-02T17:17:32Z – pi – shell_pid=728502 – Review round 1 (reviewer-renata): anti-pattern checklist — dead code PASS (no production code added); synthetic fixture PASS (the new test drives real cutover_mission; mutation check makes it fail when the anchor is a real repo); silent empty return PASS (none added); FR coverage PASS (FR-001..004 asserted, FR-005 visible as a zero-src diff); frozen surface PASS; locked decision PASS; shared-file ownership N/A (single WP); production fragility N/A. Findings fixed in 6c8edcd0: the pin now has its own section header, and tasks.md/WP prompt say six call sites. Note: the pre-review regression gate reported 'no_coverage — no changed files detected', a repo-root lane quirk; the targeted module run is the real evidence.",
+        "Review passed (reviewer-renata): fixture is a real repo, mismatch assertion unchanged and live, refusal seam pinned with a mutation-checked test; no src changes"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 728502,
+      "shell_pid_created_at": "1793639340.89",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#7055"
+      ]
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "mission_slug": "placement-fixture-real-git-01M6EJXH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "6c8edcd08d: _init_git_repo (git init -q) at all six call sites; the mismatch test reaches the placement check and raises PlacementMismatchError",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T17:18:54.125233+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "uv run --frozen pytest -q -p no:randomly -n0 tests/specify_cli/migration/test_runtime_state_cutover_placement.py: 10 passed; the mismatch test body is byte-identical to origin/main (pytest.raises + both 'nothing written' asserts)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T17:18:59.571080+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing: flipped=False, seeded_count=0, notice ends [TRACKED_META_UNAVAILABLE], no meta.json written, no raise; mutation check (anchor->real repo) fails the test with PlacementMismatchError",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T17:19:02.527682+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "all nine pre-existing tests in the module pass unchanged plus the new pin (10 passed in 120s)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T17:19:05.629412+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "git diff --stat origin/main..HEAD -- src/ is empty: zero production files in the mission diff",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T17:19:08.723010+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

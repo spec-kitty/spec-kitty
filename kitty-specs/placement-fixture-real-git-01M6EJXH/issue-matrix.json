@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6673": {
+      "evidence_ref": "context only: #6673 is closed; this mission consumes its pinned refusal behaviour (tests/specify_cli/upgrade/test_read_tracked_meta_6673.py) without changing it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7055": {
+      "evidence_ref": "6c8edcd08d (module 10/10; mismatch test raises PlacementMismatchError; new refusal pin)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
