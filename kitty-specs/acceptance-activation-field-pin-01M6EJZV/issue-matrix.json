@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6496": {
+      "evidence_ref": "a58a8ef830 introduced the test when the model had ten fields; context only, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6556": {
+      "evidence_ref": "4d948f52c9 grew the model to thirteen fields; context only, this mission fixes the test it missed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7038": {
+      "evidence_ref": "ccae3b259d: acceptance test derives its activation key list from ACTIVATION_YAML_KEYS and is green; PR carries the red-first proof",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

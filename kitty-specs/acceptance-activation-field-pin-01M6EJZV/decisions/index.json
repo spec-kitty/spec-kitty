@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-02T16:56:37.863479Z",
+      "decision_id": "01M6EK2177GR0G11XGVPF74D9G",
+      "final_answer": "The test is stale and the model is right. CharterYaml's 13 activation fields are intentional: #6556 added activated_glossary_packs, activated_skills and activated_anti_patterns because the activation writer writes them to charter.yaml, ACTIVATION_YAML_KEYS (the single vocabulary authority) holds exactly 13, and the model-vs-authority parity gate is green. The test's hard-coded len(...) == 10 was true at #6496 when the model had ten and went stale; it also derived its names from the model, so it could never detect a wrong key set. Fix: take the field set from pack_manager.ACTIVATION_YAML_KEYS, keep the behavioural model_validate + real-CLI proof, add a non-vacuity guard, and rename the test.",
+      "input_key": "pin_which_side",
+      "mission_id": "01M6EJZVV7YAP5ZQ8DMWK83DAK",
+      "mission_slug": "acceptance-activation-field-pin-01M6EJZV",
+      "opened_by": "cli",
+      "options": [
+        "The test is stale: derive from the vocabulary authority",
+        "The model is wrong: remove three fields",
+        "Pin the intended count with a rationale"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The acceptance test pins 10 activation fields and CharterYaml declares 13. Is the test stale or is the model wrong?",
+      "rationale": null,
+      "resolved_at": "2026-11-02T16:56:43.308423Z",
+      "resolved_by": null,
+      "slot_key": "specify.pin.which-side",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6EJZVV7YAP5ZQ8DMWK83DAK",
+  "version": 1
+}

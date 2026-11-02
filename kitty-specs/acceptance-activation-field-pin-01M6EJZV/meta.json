@@ -1,0 +1,33 @@
+{
+  "accept_commit": "d8843175405c07d47e00aa0e1e0db94851699ad6",
+  "acceptance_history": [
+    {
+      "accept_commit": "d8843175405c07d47e00aa0e1e0db94851699ad6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T17:39:43.124130+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ea0d5fc1ffddabf43cf338a24fd83e9672b4c4d0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T17:39:43.124130+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ea0d5fc1ffddabf43cf338a24fd83e9672b4c4d0",
+  "baseline_merge_commit": "b871593c3744658992fc7d737492845c74c0966f",
+  "created_at": "2026-11-02T16:55:26.985642+00:00",
+  "flattened": false,
+  "friendly_name": "Acceptance test measures the activation field set, not a count",
+  "merged_at": "2026-11-02T17:40:12.771201+00:00",
+  "merged_commit": "b871593c3744658992fc7d737492845c74c0966f",
+  "mid8": "01M6EJZV",
+  "mission_id": "01M6EJZVV7YAP5ZQ8DMWK83DAK",
+  "mission_number": 248,
+  "mission_slug": "acceptance-activation-field-pin-01M6EJZV",
+  "mission_type": "software-dev",
+  "purpose_context": "The acceptance test pins ten activation fields while CharterYaml declares thirteen; derive the field set from the vocabulary authority so the pin cannot go stale again.",
+  "purpose_tldr": "Fix the stale hard-coded activation-field count in the unmigrated-CLI acceptance test",
+  "slug": "acceptance-activation-field-pin-01M6EJZV",
+  "status_phase": "1",
+  "target_branch": "issue-7038-acceptance-activation-field-pin",
+  "topology": "single_branch"
+}

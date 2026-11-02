@@ -1,0 +1,59 @@
+{
+  "mission_slug": "acceptance-activation-field-pin-01M6EJZV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/test_unmigrated_cli_still_runs.py::test_charter_yaml_loads_every_activation_field_the_writer_may_write reads the key list from pack_manager.ACTIVATION_YAML_KEYS (helper _activation_field_names); 1 passed in 116.69s",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-02T17:18:04.248691+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "The same test writes a charter.yaml carrying every authority key, calls CharterYaml.model_validate(document) and the real charter context --action implement CLI; negative control removing activated_skills from the model failed with extra_forbidden, then src restored byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-02T17:18:07.668947+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "assert fields guard precedes document construction, so an empty authority fails instead of passing over an empty loop",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-02T17:18:10.692863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Test renamed to test_charter_yaml_loads_every_activation_field_the_writer_may_write; grep for ten_activation/len(fields)/== 10 in the file is empty",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-02T17:18:13.669684+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NO-FIXED-FIELD-COUNT",
+      "description": "The acceptance test must not pin a hard-coded activation-field count; SC-003",
+      "verification_method": "grep_absence",
+      "verification_command": "len(fields) == 10",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "tests/acceptance"
+    }
+  ]
+}

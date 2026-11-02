@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "mission_slug": "acceptance-activation-field-pin-01M6EJZV",
+  "mission_id": "01M6EJZVV7YAP5ZQ8DMWK83DAK",
+  "mission_branch": "issue-7038-acceptance-activation-field-pin",
+  "target_branch": "issue-7038-acceptance-activation-field-pin",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/acceptance/test_unmigrated_cli_still_runs.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:59:04.462310+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7b5e19054daf75df17e4cbdfb86fc49320c9508c"
+}
