@@ -221,19 +221,25 @@ def primary_worktree_root(repo_root: Path) -> Path:
     resolver answers PRIMARY (``candidate_feature_dir_for_mission``): the primary worktree, which ``git worktree list`` prints
     first. A corpus read is therefore only about one tree when it is rooted there -- from a linked worktree, rooting it at the
     checkout enumerates one corpus and reads Missions out of another, which is the ``500 drift_scan_unreadable`` and the
-    invented Project fallback of #6966 and #5927. Answers *repo_root* on a host without git, outside a repository, or when the
-    listing fails: there is no worktree layout to get wrong there, and the callers evaluate this at import.
+    invented Project fallback of #6966 and #5927.
+
+    ``-z`` rather than the line form: a worktree path may hold any byte, and the line form would split it. The one bounded
+    process (``PROBE_TIMEOUT``) runs at import in the callers, and every way it can fail -- no git, not a repository, a
+    non-zero exit, an empty listing, a timeout, an unresolvable path -- answers *repo_root*: the module must still collect
+    there, and on such a host there is no worktree layout to get wrong. *repo_root* is the answer whenever the primary
+    worktree cannot be named, so the linked-worktree mixing of #6966 can come back only on a host where git cannot answer
+    either; that is the price of a root that is evaluated at import, not a silent improvement.
     """
     try:
-        listing = run_git(repo_root, "worktree", "list", "--porcelain")
+        listing = run_git(repo_root, "worktree", "list", "--porcelain", "-z", timeout=PROBE_TIMEOUT)
+        if listing.returncode != 0:
+            raise OSError(listing.stderr or "git worktree list failed")
+        head = listing.stdout.split(chr(0), 1)[0]
+        if not head.startswith("worktree "):
+            raise OSError("git worktree list printed no worktree entry")
+        return Path(head.removeprefix("worktree ")).resolve()
     except (OSError, subprocess.SubprocessError):
         return repo_root.resolve()
-    if listing.returncode != 0:
-        return repo_root.resolve()
-    for line in listing.stdout.splitlines():
-        if line.startswith("worktree "):
-            return Path(line.removeprefix("worktree ")).resolve()
-    return repo_root.resolve()
 
 
 def current_branch(repo_root: Path) -> str | None:

@@ -50,10 +50,12 @@ per test
   --porcelain` lists the primary worktree first; its root is the tree the resolver, the corpus and the
   oracle all mean. `Path.resolve()` normalises both sides, matching the readers' existing resolved-path
   comparisons.
-- **D-2 — Fail soft, never silently wrong.** When git is absent, the directory is not a repository, or
-  the listing fails (non-zero exit, `OSError`, `subprocess.SubprocessError`), the helper answers the
-  given path. On such a host there is no worktree layout to get wrong, and the module must still import
-  and collect: `REPO_ROOT` is evaluated at import time.
+- **D-2 — Fail soft, and say what the fallback costs.** When git is absent, the directory is not a
+  repository, or the listing fails (non-zero exit, empty output, `OSError`, `subprocess.SubprocessError`,
+  the `PROBE_TIMEOUT`), the helper answers the given path. It must not raise: `REPO_ROOT` is evaluated at
+  import, so a raise would stop the module collecting at all. That fallback is not free — on such a host
+  the linked-worktree mixing of #6966 returns, because the checkout root is all that is known. The
+  docstring states that cost rather than claiming the fallback is always right.
 - **D-3 — One call, at import.** `REPO_ROOT` is a module constant used by parametrisation and by the
   oracle helpers, so the lookup cannot be a fixture. It is evaluated once per test process.
 - **D-4 — Do not fix the readers.** `resolve_scan_dir`'s 500 for a read directory outside the checkout
