@@ -344,6 +344,16 @@
         ".github/workflows/ci-router.yml"
       ],
       "note": "The doc-kitty docsite build inputs (#6930, ADR 2026-10-31-1 D-11): the pages, the site/ project, its folder contract and the router workflow; gates only docs-site; non-src, no --cov subject."
+    },
+    {
+      "group": "path_literal_audit",
+      "roots": [
+        "**/specify_cli/status/**",
+        "**/kernel/paths.py",
+        "tests/audit/test_no_legacy_path_literals.py"
+      ],
+      "census_evidence": "known-live",
+      "note": "#6879: the runtime-home path-literal guard (tests/audit/test_no_legacy_path_literals.py, the #2171 limb) had no per-PR lane at all -- tests/audit is out_of_matrix_test_dirs and the only nightly lane naming it runs -m \"fast or unit\", which deselects the whole integration-marked module -- so a src/specify_cli/status/** diff ran no audit test, which is how #6367's literal reached main unseen (#6582). NON-src on purpose, like mission_state: the globs are **/-spelled so this stays an extra narrow lane gating one job, not a code-shard group (a src-backed group must also be a module-registry row, and claiming tests/audit as a module is a separate CI-budget decision -- issue candidate 2). It also must not narrow the FR-004 fail-closed sensor: every path it names is already mapped by a src-backed group, and src/specify_cli/paths/** -- the keystone resolver directory -- stays unmapped so a diff there still forces run-all, which runs this lane too. The deliberate over-match **/specify_cli/status/** also matches tests/specify_cli/status/**, so a status-test-only PR pays the same ~2 s of pytest (cost only, correctness unaffected; mirrors mission_state)."
     }
   ],
   "excluded_surfaces": [

@@ -258,6 +258,14 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
         "otherwise; the nightly events-latest lane is not change-triggered. tests/ci/test_reducer_lock_census.py "
         "pins the job's paths and gating."
     ),
+    ("ci-router.yml", "tests-path-literal-audit"): (
+        "Path-routed lane: the runtime-home path-literal guard (tests/audit/test_no_legacy_path_literals.py), "
+        "on the `path_literal_audit` group a src/specify_cli/status/** diff matches (#6879). One invocation of "
+        "exactly one file, so no other lane can host it: tests/audit is out_of_matrix_test_dirs, the nightly "
+        "lane that names it deselects its integration-marked tests under -m 'fast or unit', and the "
+        "architectural batteries are file-partitioned over tests/architectural with one suite invocation per "
+        "job. tests/ci/test_path_literal_audit_routing.py pins the group, the job and its negative controls."
+    ),
     ("ci-windows.yml", "windows-critical"): ("Platform lane: the windows_ci marker family, which no Linux gate can run."),
     ("packs.yml", "built-in-pack-manifest"): "Packs lane: the pack-manifest guard.",
     ("packs.yml", "built-in-corpus-suite"): "Packs lane: corpus suite, sole owner bar the blocking node-ids; advisory (continue-on-error), FR-009.",
