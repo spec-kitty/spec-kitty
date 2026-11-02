@@ -60,7 +60,7 @@ from typing import cast
 
 from kernel.git import GitCommandError, is_tracked, run_git, tracked_paths
 from mission_runtime import MissionResolver
-from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
+from specify_cli.lanes.branch_naming import human_slug_for_own_mid8, resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
 
 _logger = logging.getLogger(__name__)
@@ -780,11 +780,7 @@ def _human_slug_for_index_entry(mission: ResolvedMission) -> str:
         ``083-foo-bar`` (no mid8 tail)            -> ``foo-bar``
         ``foo-bar-01M6BTQX`` (mid8 ``01ZZZZZZ``)  -> ``foo-bar-01M6BTQX``
     """
-    human_slug = strip_numeric_prefix(mission.mission_slug)
-    suffix = f"-{mission.mid8}"
-    if mission.mid8 and human_slug.endswith(suffix):
-        return human_slug[: -len(suffix)]
-    return human_slug
+    return human_slug_for_own_mid8(mission.mission_slug, mission.mid8)
 
 
 # ---------------------------------------------------------------------------
