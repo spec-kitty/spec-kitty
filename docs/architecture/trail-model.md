@@ -36,12 +36,24 @@ When `spec-kitty profile-invocation complete` is called, a `completed` event is 
 
 This is the unconditional minimum — it is always written, regardless of SaaS connectivity, charter state, or sync configuration. The data model is defined in `src/specify_cli/invocation/record.py`.
 
-Mission-scoped dispatchers may also record `mission_id`, `wp_id`, and the
-catalog-winning `model_id` on the `started` event. An implement or review claim
-that supplies `--invocation-id` treats those values as a provenance assertion:
-the requested ULID and the record's embedded ID, mission, WP, action, profile,
-and model must agree exactly. Uncorrelated legacy records remain readable, but
-cannot prove a resolved model actual for a claim.
+Mission-scoped dispatchers may also record `mission_id` and `wp_id` on the
+`started` event. An implement or review claim that supplies `--invocation-id`
+treats those values as a provenance assertion: the requested ULID and the
+record's embedded ID, mission, WP, action and profile must agree exactly.
+
+**No model identifier is recorded (#7013).** `actor` carries the harness key
+(`claude`, `codex`, …) and is the only runtime identity a committed record holds.
+The router's catalog pick stays advisory on the dispatch payload and is never
+written into the journal, because a committed artifact may not carry an AI model
+identifier. A claim therefore has no durable evidence for a resolved model: it
+refuses `--model` and records the model slot as explicitly absent
+(`RESOLVED_MODEL_ABSENT` in the WP's status snapshot) rather than fabricating one.
+
+**Records written before #7013 still carry `model_id`, and they stay that way.**
+`kitty-ops/<ULID>.jsonl` is an immutable archive root (the
+historical-preservation gate), so no migration rewrites them; they keep parsing
+because the record model ignores keys it no longer declares, and nothing copies
+the value forward into a new record.
 
 ## Mode-of-Work Taxonomy
 
