@@ -16,12 +16,17 @@ Red-first proof (contract C-WRITER-1, WP01 T001/T002) for
   there is a bare ``tmp_path`` with no ``.git``), so this file adds one explicit,
   self-documenting instance of it;
 * a genuine PRIMARY dir (the resolved-home == write-target case) still flips
-  normally — the non-mismatch regression anchor.
+  normally — the non-mismatch regression anchor;
+* an UNUSABLE ``.git`` anchor (git runs and refuses) is the other fail-safe path:
+  the #6673 tracked-``meta.json`` seam refuses with ``TRACKED_META_UNAVAILABLE``
+  before the placement check, so the placement fixtures use a REAL repository
+  (:func:`_init_git_repo`) and that refusal is pinned separately (#7055).
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -41,13 +46,36 @@ def _hermetic_git_ceiling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
 
-def _init_bare_git_marker(repo_root: Path) -> None:
-    """Create the minimal ``.git`` ancestor marker :func:`resolve_canonical_root` needs.
+def _init_git_repo(repo_root: Path) -> None:
+    """Create a real git repository at *repo_root* — the shape every live Mission has.
 
-    :func:`~specify_cli.core.paths.resolve_canonical_root` only inspects whether
-    ``.git`` is a directory or a worktree-pointer file — it never shells out to
-    git — so a bare directory marker is a faithful, cheap fixture (no
-    ``subprocess`` git-init needed for this contract).
+    A bare ``.git`` directory marker is NOT faithful here: the cutover path now
+    asks git what it holds for the Mission's ``meta.json``
+    (:func:`~specify_cli.migration.runtime_state_cutover._tracked_meta_notice`,
+    #6673) and does so BEFORE the placement check. A marker makes git run and
+    refuse (``fatal: not a git repository``), which
+    :func:`~specify_cli.mission_metadata.read_tracked_meta` deliberately reads as
+    "the tracked copy is unknown" — so the cutover skips with
+    ``TRACKED_META_UNAVAILABLE`` and never reaches ``_flip_phase``. A real repo
+    that tracks nothing for the path classifies as "nothing tracked"
+    (``TrackedMeta(None, unavailable=False)``) and lets the placement check run.
+
+    No commit is needed: an unborn ``HEAD`` also classifies as "nothing
+    tracked", so ``git init`` alone is the cheapest faithful fixture.
+    """
+    subprocess.run(
+        ["git", "init", "-q", str(repo_root)],
+        check=True,
+        capture_output=True,
+    )
+
+
+def _init_unusable_git_anchor(repo_root: Path) -> None:
+    """Plant a ``.git`` anchor git cannot read: it runs and refuses (#6673).
+
+    Used ONLY by the seam-distinction regression test, which pins the deliberate
+    refusal path. Placement-contract fixtures must use :func:`_init_git_repo`
+    instead, or they short-circuit before the check they exist to exercise.
     """
     (repo_root / ".git").mkdir(parents=True)
 
@@ -86,7 +114,7 @@ def _build_empty_tasks_leg(feature_dir: Path) -> None:
 def test_mismatched_feature_dir_fails_closed_without_writing(tmp_path: Path) -> None:
     """A divergent ``feature_dir`` makes the flip fail closed; writes nothing."""
     repo_root = tmp_path / "repo"
-    _init_bare_git_marker(repo_root)
+    _init_git_repo(repo_root)
 
     # The canonical-primary dir for this slug is PRESENT (a real, existing
     # directory) — proves the mismatch is genuine, not an artifact of a
@@ -133,7 +161,7 @@ def test_flip_phase_raises_distinct_mismatch_marker(tmp_path: Path) -> None:
     below), so only this specific marker may signal the fail-close.
     """
     repo_root = tmp_path / "repo"
-    _init_bare_git_marker(repo_root)
+    _init_git_repo(repo_root)
     canonical_dir = repo_root / "kitty-specs" / _SLUG
     _build_empty_tasks_leg(canonical_dir)
     divergent_dir = repo_root / "stale-worktree-copy" / _SLUG
@@ -143,6 +171,47 @@ def test_flip_phase_raises_distinct_mismatch_marker(tmp_path: Path) -> None:
         rsc._flip_phase(divergent_dir)
 
     assert not (divergent_dir / "meta.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# #7055 — the OTHER fail-safe path: the tracked-meta refusal (#6673)
+# ---------------------------------------------------------------------------
+
+
+def test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing(
+    tmp_path: Path,
+) -> None:
+    """An unusable ``.git`` anchor is the OTHER fail-safe path: a #6673 refusal, not a mismatch.
+
+    A ``.git`` anchor that git runs and refuses (a bare marker, a garbled gitdir,
+    dubious ownership) makes the tracked-``meta.json`` classifier answer "the
+    tracked copy is unknown" — never "nothing is tracked" — because fabricating an
+    identity over an unreadable copy is the failure #6673 exists to prevent. So
+    ``cutover_mission`` refuses BEFORE seeding or flipping: it returns a
+    ``CutoverResult`` with a ``TRACKED_META_UNAVAILABLE`` notice, raises nothing,
+    and writes no ``meta.json`` anywhere.
+
+    This pins WHY the placement fixtures above must build a real repository
+    (:func:`_init_git_repo`): with a marker they would short-circuit here instead
+    of reaching the placement check they exist to exercise (#7055).
+    """
+    repo_root = tmp_path / "repo"
+    _init_unusable_git_anchor(repo_root)
+    canonical_dir = repo_root / "kitty-specs" / _SLUG
+    _build_empty_tasks_leg(canonical_dir)
+    divergent_dir = repo_root / "stale-worktree-copy" / _SLUG
+    _build_empty_tasks_leg(divergent_dir)
+    status_dir = tmp_path / "coord-leg"
+    _build_status_leg(status_dir)
+
+    result = rsc.cutover_mission(divergent_dir, status_feature_dir=status_dir)  # must not raise
+
+    assert result.flipped is False
+    assert result.seeded_count == 0
+    assert result.skipped_notice is not None
+    assert result.skipped_notice.endswith("[TRACKED_META_UNAVAILABLE]")
+    assert not (divergent_dir / "meta.json").exists()
+    assert not (canonical_dir / "meta.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +255,7 @@ def test_flip_phase_degrades_directly_on_workspace_root_not_found(tmp_path: Path
 def test_genuine_primary_dir_still_flips(tmp_path: Path) -> None:
     """feature_dir == the port's own resolved PRIMARY home: no mismatch, flips."""
     repo_root = tmp_path / "repo"
-    _init_bare_git_marker(repo_root)
+    _init_git_repo(repo_root)
     feature_dir = repo_root / "kitty-specs" / _SLUG
     _build_empty_tasks_leg(feature_dir)
     (feature_dir / "meta.json").write_text(
@@ -215,7 +284,7 @@ def test_placement_home_and_canonicalize_agree_through_symlinked_root(tmp_path: 
     Pin the contract: the two normalizers agree, and the flip succeeds through the link.
     """
     real_root = tmp_path / "real-repo"
-    _init_bare_git_marker(real_root)
+    _init_git_repo(real_root)
     feature_dir_real = real_root / "kitty-specs" / _SLUG
     _build_empty_tasks_leg(feature_dir_real)
     (feature_dir_real / "meta.json").write_text(
@@ -335,7 +404,7 @@ def test_resolve_primary_home_or_degrade_absorbs_action_context_error(
     # A real resolvable git root, so the function reaches
     # resolve_artifact_surface instead of degrading earlier on
     # WorkspaceRootNotFound.
-    _init_bare_git_marker(tmp_path)
+    _init_git_repo(tmp_path)
 
     def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
         raise mission_runtime.ActionContextError(
@@ -354,7 +423,7 @@ def test_flip_phase_degrades_on_action_context_error_and_still_flips(
     import mission_runtime
 
     feature_dir = build_mission(tmp_path)
-    _init_bare_git_marker(tmp_path)
+    _init_git_repo(tmp_path)
     rsc._seed_phase(feature_dir, dry_run=False)
 
     def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
