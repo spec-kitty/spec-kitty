@@ -114,6 +114,8 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "charter deactivate": (("nonsense", "x"), 1, "outside"),
     "charter status": ((), 1, "outside"),
     "charter mission-type list": ((), 1, "badconfig"),
+    "charter org add": (("missing", "--local-path", "missing"), 1, "outside"),
+    "charter org remove": (("missing",), 1, "outside"),
     "context info": ((), 1, "outside"),
     "context list": ((), 1, "outside"),
     "context mission-resolve": (("--wp", "missing"), 1, "outside"),
