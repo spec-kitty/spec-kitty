@@ -44,7 +44,8 @@ Rules the plugin keeps
   spread is ~1.77x, so a hard runtime budget would mint a flake class; the static budget
   check is a test.
 
-Standard library plus ``pytest``/``yaml`` only; ``yaml`` is imported lazily.
+Standard library, ``pytest`` and the sibling CI helpers ``scripts.ci.battery_scope`` and
+``scripts.ci.shard_select`` only; ``yaml`` is imported lazily.
 """
 
 from __future__ import annotations
