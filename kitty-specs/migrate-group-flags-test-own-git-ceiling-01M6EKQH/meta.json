@@ -1,0 +1,33 @@
+{
+  "accept_commit": "f63723b0562b356f2dd4b713be61880e0ff7887a",
+  "acceptance_history": [
+    {
+      "accept_commit": "f63723b0562b356f2dd4b713be61880e0ff7887a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T18:25:28.186894+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "86d823338bd82694e941bc5225037318cdf513c9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T18:25:28.186894+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "86d823338bd82694e941bc5225037318cdf513c9",
+  "baseline_merge_commit": "9aed3a8012cb5eb22c0128b14d525039f95fea7a",
+  "created_at": "2026-11-02T17:08:24.394223+00:00",
+  "flattened": false,
+  "friendly_name": "migrate group flags test own git ceiling",
+  "merged_at": "2026-11-02T18:26:03.115835+00:00",
+  "merged_commit": "92459539d3ae74f3b49f3e4b835a387680b813e7",
+  "mid8": "01M6EKQH",
+  "mission_id": "01M6EKQH2BR6XEQ0TGBQB1AZEJ",
+  "mission_number": 248,
+  "mission_slug": "migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances migrate group flags test own git ceiling on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "migrate group flags test own git ceiling",
+  "slug": "migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

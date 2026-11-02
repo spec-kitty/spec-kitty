@@ -1,0 +1,59 @@
+{
+  "mission_slug": "migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest tests/cli/test_migrate_group_flags_4964.py -q (81 passed) + test_module_pins_git_discovery_to_its_own_test_root",
+      "evidence": "tests/cli/test_migrate_group_flags_4964.py::test_module_pins_git_discovery_to_its_own_test_root",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:24:58.265122+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "pytest -k append_ceiling (3 unit tests: verbatim/append-only, relative entries, symlinked alias)",
+      "evidence": "tests/cli/test_migrate_group_flags_4964.py::test_append_ceiling_is_append_only_and_idempotent",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:25:02.172635+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "Guard B drives the real CLI seam with only the fixture-installed pin in force",
+      "evidence": "tests/cli/test_migrate_group_flags_4964.py::test_positive_control_survives_a_temp_root_inside_a_repository",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:25:07.250259+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "revert fixture wiring -> both guards red; neuter helper -> both guards + 3 unit tests red; old resolved-dedupe -> relative-entry test red (observed)",
+      "evidence": "commit d26aa6190d/d3d5b8d6c3 evidence + PR Tests run section",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:25:10.374455+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "Guard A positive control: a repository created inside tmp_path resolves to itself",
+      "evidence": "tests/cli/test_migrate_group_flags_4964.py::test_module_pins_git_discovery_to_its_own_test_root (positive control)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:25:15.209126+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

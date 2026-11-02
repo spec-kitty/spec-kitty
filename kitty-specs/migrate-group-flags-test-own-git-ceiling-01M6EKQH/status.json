@@ -1,0 +1,57 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6ER5DVEEWF491D9W9VXS9V7",
+  "materialized_at": "2026-11-02T18:25:51.982840+00:00",
+  "mission_number": "248",
+  "mission_slug": "migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6ER5DVEEWF491D9W9VXS9V7",
+      "last_transition_at": "2026-11-02T18:25:51.982840+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T18:16:49Z – unknown – Implementation complete pending the PR-numbered changelog fragment (T005): guards, fixture pin, three review rounds folded, 81 passed.",
+        "- 2026-11-02T18:17:54Z – unknown – T005 done with the issue-numbered fragment name (README allows renaming to the PR number once known); renamed on the PR head before the flip.",
+        "All five subtasks done and committed; --force because the implement action recorded its claim base after the implementation commits (I implemented before running the action command). Reviewed by three delegated review rounds.",
+        "- 2026-11-02T18:23:24Z – python-pedro – shell_pid=1477884 – Review verdict: APPROVE (WP01).\n\nChecklist (WP-level anti-pattern pass):\n1. Dead code — N/A: the WP adds no production symbol; `_append_ceiling` is used by the module's\n   autouse fixture and asserted by its own unit tests, `git_ceiling_dirs`/`resolve_canonical_root` are\n   imported from production code. PASS.\n2. Synthetic fixture — PASS: Guard B drives the real CLI seam (`_invoke([\"backfill-runtime-state\",\n   \"--json\"])`) against the real `build_mission` corpus and asserts `summary.flipped == 1` plus the\n   written `status_phase`. Deleting the fixture's ceiling append reds both guards (verified).\n3. Silent empty return — PASS: no new `except: return` path. Guard B's two `pytest.skip` calls carry\n   explicit reasons naming the absent host shape; a skip is not a silent pass.\n4. FR coverage — FR-001..FR-005 each have an assertion: FR-001/FR-002 (fixture ceiling + helper unit\n   tests), FR-003 (Guard B production path), FR-004 (both guards red on revert, verified three ways),\n   FR-005 (Guard A's nested-repository positive control). PASS.\n5. Frozen surface — PASS: `git diff origin/main -- src/ packs/ tests/conftest.py tests/_support/` is\n   empty; the only code file touched is the acceptance module (+ its changelog fragment).\n6. Locked decision — PASS: the fail-close in `_flip_phase` is untouched; nothing in the diff weakens\n   or bypasses a gate.\n\nEvidence: three independent delegated review rounds (R1 REJECT -> 4 findings folded; R2 HOLD -> 2\nshould-fix + doc nits folded, including making the relative-entry regression reproduce the old helper\nexactly; R3 LAND with two prose nits folded). Module run: 81 passed (76 pre-existing + 5 new).\nChangelog fragment: docs/changelog/unreleased/6957-migrate-group-flags-test-own-git-ceiling.internal.md\n(renamed to the PR number before the flip).",
+        "Review passed: three delegated review rounds (R1 four findings folded, R2 should-fix + doc nits folded, R3 LAND); FR-001..FR-005 covered; no production change; no weakened assertion; module 81 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1477884,
+      "shell_pid_created_at": "1793643490.61",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}
