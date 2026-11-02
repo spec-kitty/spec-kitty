@@ -63,9 +63,18 @@ def _payload(result: Result) -> Any:
     return json.loads(result.stdout)
 
 
+# The charter-synthesis lock (#7009) is taken before the read it protects, so a refused
+# write still leaves its lock file behind; it is runtime bookkeeping, not project state.
+_RUNTIME_LOCKS = Path("runtime") / "locks"
+
+
 def _kittify(root: Path) -> dict[str, bytes]:
     base = root / ".kittify"
-    return {str(path.relative_to(base)): path.read_bytes() for path in sorted(base.rglob("*")) if path.is_file()}
+    return {
+        str(path.relative_to(base)): path.read_bytes()
+        for path in sorted(base.rglob("*"))
+        if path.is_file() and not path.relative_to(base).is_relative_to(_RUNTIME_LOCKS)
+    }
 
 
 def _cascade(**outcomes: list[dict[str, Any]]) -> dict[str, Any]:
