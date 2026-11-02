@@ -1,37 +1,37 @@
 {
   "mission_slug": "corpus-reality-root-primary-worktree-01M6ER45",
   "mission_number": "",
-  "mission_type": "",
-  "overall_verdict": "pending",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "PR #7095: from a linked worktree of a clone whose primary is at faaceb314f, the eight cases named in #6966 go from 5 failed to 8 passed; the full corpus suite is 874 passed, 5 skipped",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:13:44.553672+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/contract/test_mission_status_reality.py::test_the_corpus_root_is_the_repository_primary_worktree pins both entry points, a spaced path, a non-repository path and a missing path",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:13:49.154073+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "same test: primary_worktree_root(non-repository) == its own resolved path, so collection survives a host without a worktree layout",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:13:55.510480+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
