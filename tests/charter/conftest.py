@@ -36,9 +36,69 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.fast)
 
 
+#: Root-conftest autouse fixtures that request ``tmp_path`` for isolation only.
+#: ``_isolate_global_encoding_provenance`` gives every test a ``tmp_path``, so
+#: membership in ``request.fixturenames`` is NOT evidence that the test needs a
+#: repository. Keep this list explicit: a new harness-only autouse fixture
+#: added here avoids needless ``git init``; a new consumer must NOT be added.
+_UNRELATED_TMP_PATH_AUTOUSE = frozenset({"_isolate_global_encoding_provenance"})
+
+#: Existing explicit repository opt-in marker (a real ``git init`` is created).
+_GIT_REPO_MARKER = "git_repo"
+
+
+def _consumer_requests_tmp_path(request: pytest.FixtureRequest) -> bool:
+    """Return whether this test's own fixture graph explicitly requests ``tmp_path``.
+
+    The search starts from the test's declared arguments plus its autouse
+    fixtures, but does not follow pytest's harness-only isolation fixtures
+    (:data:`_UNRELATED_TMP_PATH_AUTOUSE`). A repository consumer always requests
+    ``tmp_path`` directly, through a fixture it declares, or through a
+    non-harness autouse fixture — all three are followed. If pytest's fixture
+    metadata is unavailable we fail safe and keep the historical init.
+    """
+    info = getattr(request.node, "_fixtureinfo", None)
+    if info is None:
+        return "tmp_path" in request.fixturenames
+
+    pending = [name for name in info.initialnames if name not in _UNRELATED_TMP_PATH_AUTOUSE]
+    seen: set[str] = set()
+    while pending:
+        name = pending.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        if name == "tmp_path":
+            return True
+        if name in _UNRELATED_TMP_PATH_AUTOUSE:
+            continue
+        for fixture_def in info.name2fixturedefs.get(name, ()):
+            pending.extend(fixture_def.argnames)
+    return False
+
+
+def _needs_repository_tmp_path(request: pytest.FixtureRequest) -> bool:
+    """Whether this test should pay for a repository-backed ``tmp_path``."""
+    if request.node.get_closest_marker(_GIT_REPO_MARKER) is not None:
+        return True
+    return _consumer_requests_tmp_path(request)
+
+
+def _git_init(path: Path) -> None:
+    """Initialize ``path`` as a quiet git work tree; ignore environment failure."""
+    try:
+        subprocess.run(
+            ["git", "init", "--quiet", str(path)],
+            check=False,
+            capture_output=True,
+        )
+    except (FileNotFoundError, OSError):
+        pass
+
+
 @pytest.fixture(autouse=True)
 def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
-    """Initialize a git repo in ``tmp_path`` whenever a charter test uses it.
+    """Initialize a git repo in ``tmp_path`` only for real repository consumers.
 
     WP02 introduced ``resolve_canonical_repo_root`` in
     ``ensure_charter_bundle_fresh``, which raises
@@ -47,21 +107,20 @@ def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
     git-tracked. Initializing an empty repo is the minimal-touch fix and
     matches how real users invoke the chokepoint.
 
+    **Consumer criterion (CI speed hardening).** The root autouse
+    ``_isolate_global_encoding_provenance`` fixture requests ``tmp_path`` for
+    every test, which previously made this fixture effectively universal. A
+    test now gets a repository only when it explicitly requests ``tmp_path``
+    through its own fixture graph, or carries the ``git_repo`` marker. Tests
+    that merely inherit the isolation ``tmp_path`` keep a plain temporary
+    directory.
+
     The resolver also caches its results, so we reset its LRU after each
-    test to keep tests independent on shared fixtures.
+    test to keep tests independent on shared fixtures — whether or not this
+    fixture initialized a repository.
     """
-    if "tmp_path" in request.fixturenames:
-        tmp_path: Path = request.getfixturevalue("tmp_path")
-        # Run git init quietly; ignore failure (some tests may not need git
-        # but the fixture activates whenever tmp_path is requested).
-        try:
-            subprocess.run(
-                ["git", "init", "--quiet", str(tmp_path)],
-                check=False,
-                capture_output=True,
-            )
-        except (FileNotFoundError, OSError):
-            pass
+    if _needs_repository_tmp_path(request):
+        _git_init(request.getfixturevalue("tmp_path"))
     yield
     # Drop the cache so paths from previous tests don't shadow this one.
     try:

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import ast
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -446,18 +447,47 @@ class InlineMetaReadSite:
     lineno: int
 
 
-def scan_inline_meta_reads(src_root: Path) -> list[InlineMetaReadSite]:
+def scan_inline_meta_reads(
+    src_root: Path,
+    *,
+    source_tree: Mapping[Path, object] | None = None,
+) -> list[InlineMetaReadSite]:
     """AST-walk ``src/**/*.py`` for inline ``json.loads``/``json.load`` reads of meta.json.
 
     Scans every file under ``src_root``, with no per-file exemption (FR-012):
     a prior exclusion for ``mission_metadata.py`` and the ``task_utils`` adapter
     was removed once measured to hide zero inline-read sites.
+
+    ``source_tree`` is the optional read-only session cache from
+    ``tests/architectural/conftest.py`` (``{path: SourceFile}``). Supplying it
+    reuses already-read source text and ASTs for the immutable repository tree;
+    omitting it reads every file fresh, which is what the scratch-tree mutation
+    tests require. The cache is keyed by the caller, never by an arbitrary path,
+    so a rewritten ``tmp_path`` tree can never be served stale facts.
     """
     sites: list[InlineMetaReadSite] = []
     repo_root = src_root.parent
-    for path in _iter_source_files(src_root):
-        rel = _rel(path, repo_root)
-        sites.extend(_scan_file_for_inline_meta_reads(path, rel))
+    if source_tree is None:
+        for path in _iter_source_files(src_root):
+            rel = _rel(path, repo_root)
+            sites.extend(_scan_file_for_inline_meta_reads(path, rel))
+        return sites
+
+    for path in sorted(source_tree):
+        if path.suffix != ".py" or "__pycache__" in path.parts:
+            continue
+        try:
+            path.relative_to(src_root)
+        except ValueError:
+            continue
+        entry = source_tree[path]
+        sites.extend(
+            _scan_parsed_source(
+                _rel(path, repo_root),
+                entry.source,  # type: ignore[attr-defined]
+                entry.tree,  # type: ignore[attr-defined]
+            )
+        )
     return sites
 
 
@@ -469,6 +499,11 @@ def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaRea
         # Fail closed (#4362): a skipped file would drop its inline reads from
         # the census and let the gate pass over unread code.
         raise AssertionError(f"inline meta-read scanner cannot read {rel}: {exc}") from exc
+    return _scan_parsed_source(rel, source, tree)
+
+
+def _scan_parsed_source(rel: str, source: str, tree: ast.AST) -> list[InlineMetaReadSite]:
+    """Find inline meta reads in an already-read source text and parsed AST."""
     parents = _parent_map(tree)
     bindings = _collect_json_import_bindings(tree)
     token_map = code_tokens_by_line(source)
@@ -493,10 +528,16 @@ def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaRea
     return found
 
 
-def check_inline_meta_read_gate(src_root: Path, allowlist: set[InlineMetaReadKey]) -> list[str]:
+def check_inline_meta_read_gate(
+    src_root: Path,
+    allowlist: set[InlineMetaReadKey],
+    *,
+    sites: Sequence[InlineMetaReadSite] | None = None,
+) -> list[str]:
     """Return violation strings for un-allowlisted inline meta.json reads."""
     violations: list[str] = []
-    for site in scan_inline_meta_reads(src_root):
+    scanned = sites if sites is not None else scan_inline_meta_reads(src_root)
+    for site in scanned:
         if site.key in allowlist:
             continue
         violations.append(
@@ -509,8 +550,13 @@ def check_inline_meta_read_gate(src_root: Path, allowlist: set[InlineMetaReadKey
     return sorted(violations)
 
 
-def _live_inline_meta_read_keys(src_root: Path) -> set[InlineMetaReadKey]:
-    return {site.key for site in scan_inline_meta_reads(src_root)}
+def _live_inline_meta_read_keys(
+    src_root: Path,
+    *,
+    sites: Sequence[InlineMetaReadSite] | None = None,
+) -> set[InlineMetaReadKey]:
+    scanned = sites if sites is not None else scan_inline_meta_reads(src_root)
+    return {site.key for site in scanned}
 
 
 # --------------------------------------------------------------------------- #
@@ -557,25 +603,44 @@ def _live_inline_meta_read_keys(src_root: Path) -> set[InlineMetaReadKey]:
 _FR010_KERNEL_L1_REL = "src/kernel/meta_decode.py"
 
 
-def _count_kernel_l1_meta_decoders(src_root: Path) -> int:
+def _count_kernel_l1_meta_decoders(
+    src_root: Path,
+    *,
+    source_tree: Mapping[Path, object] | None = None,
+) -> int:
     """Count ``json.loads``/``json.load`` calls in the kernel L1 module.
 
     The kernel L1 primitive is the single sanctioned raw-content meta decoder
     (the malformed authority). It is identified by its module path rather than a
     meta-path read because it decodes a ``raw: str | bytes`` parameter, not a
     file it opens itself. A healthy tree has exactly one such call.
+
+    ``source_tree`` reuses the session AST for the real tree; omit it for a
+    scratch tree so the read is fresh.
     """
     l1_path = src_root.parent / _FR010_KERNEL_L1_REL
-    if not l1_path.exists():
-        return 0
-    tree = parse_file(l1_path, display=_FR010_KERNEL_L1_REL)
+    if source_tree is not None:
+        entry = source_tree.get(l1_path)
+        if entry is None:
+            return 0
+        tree = entry.tree  # type: ignore[attr-defined]
+    else:
+        if not l1_path.exists():
+            return 0
+        tree = parse_file(l1_path, display=_FR010_KERNEL_L1_REL)
     bindings = _collect_json_import_bindings(tree)
     return sum(
         1 for node in ast.walk(tree) if isinstance(node, ast.Call) and node.args and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))
     )
 
 
-def independent_meta_decoders(src_root: Path, allowlist: set[InlineMetaReadKey]) -> set[str]:
+def independent_meta_decoders(
+    src_root: Path,
+    allowlist: set[InlineMetaReadKey],
+    *,
+    sites: Sequence[InlineMetaReadSite] | None = None,
+    source_tree: Mapping[Path, object] | None = None,
+) -> set[str]:
     """Return the repo-relative modules that decode meta content as an authority.
 
     An *independent* meta decoder is a site that applies the malformed definition
@@ -591,9 +656,10 @@ def independent_meta_decoders(src_root: Path, allowlist: set[InlineMetaReadKey])
     else grows this set and reds :func:`test_fr010_single_meta_decoder`.
     """
     decoders: set[str] = set()
-    if _count_kernel_l1_meta_decoders(src_root):
+    if _count_kernel_l1_meta_decoders(src_root, source_tree=source_tree):
         decoders.add(_FR010_KERNEL_L1_REL)
-    for site in scan_inline_meta_reads(src_root):
+    scanned = sites if sites is not None else scan_inline_meta_reads(src_root, source_tree=source_tree)
+    for site in scanned:
         if site.key not in allowlist:
             decoders.add(site.rel_path)
     return decoders
@@ -932,7 +998,9 @@ def test_scan_reports_sites_inside_the_formerly_excluded_paths(tmp_path: Path) -
 
 
 # --- T046: gate mechanic 1+2 — concrete floor + margin ----------------------
-def test_inline_meta_read_floor() -> None:
+def test_inline_meta_read_floor(
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+) -> None:
     """Concrete CEILING: the live inline-read census stays <= INLINE_META_READ_FLOOR.
 
     ``INLINE_META_READ_FLOOR`` is a shrink-only ceiling (fewer inline reads is
@@ -941,7 +1009,7 @@ def test_inline_meta_read_floor() -> None:
     is why mechanic 2 (margin) exists: it independently pins the floor close to
     the live count so it cannot be set to an arbitrarily high, masking value.
     """
-    count = len(scan_inline_meta_reads(SRC_ROOT))
+    count = len(src_meta_read_sites)
     assert count <= INLINE_META_READ_FLOOR, (
         f"inline meta-read census grew to {count}; expected <= {INLINE_META_READ_FLOOR}. "
         "A new inline json.loads/json.load read of meta.json regressed the drain — "
@@ -955,10 +1023,12 @@ def test_inline_meta_read_floor() -> None:
 
 
 # --- T046: gate mechanic 3 — real-tree allow-list + staleness --------------
-def test_inline_meta_read_gate_green_against_seeded_allowlist() -> None:
+def test_inline_meta_read_gate_green_against_seeded_allowlist(
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+) -> None:
     """With the seeded allow-list, the gate reports zero violations."""
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
-    violations = check_inline_meta_read_gate(SRC_ROOT, allowlist)
+    violations = check_inline_meta_read_gate(SRC_ROOT, allowlist, sites=src_meta_read_sites)
     assert violations == [], "\n".join(violations)
 
 
@@ -1007,20 +1077,25 @@ def test_new_inline_meta_read_is_flagged(tmp_path: Path) -> None:
 
 
 # --- T047 self-test 2/3: stale-entry twin-guard on the real allow-list -----
-def test_allowlist_entries_are_still_live() -> None:
+def test_allowlist_entries_are_still_live(
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+) -> None:
     """NFR-003 twin-guard: every seeded allow-list entry matches a live site.
 
     Ships as a self-test per the contract's T047 list: a routed-away entry left
     in the allow-list (masking a drain that already happened) must fail here.
     """
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
-    live = _live_inline_meta_read_keys(SRC_ROOT)
+    live = _live_inline_meta_read_keys(SRC_ROOT, sites=src_meta_read_sites)
     stale = staleness_twin_guard(allowlist, live)
     assert stale == [], f"stale inline_meta_read allow-list entries: {stale}"
 
 
 # --- FR-010: single-decoder enumeration + completeness + anti-vacuity canary -
-def test_fr010_single_meta_decoder() -> None:
+def test_fr010_single_meta_decoder(
+    src_source_tree: object,
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+) -> None:
     """SC-003 / FR-010: the independent meta-content decoder set is exactly kernel L1.
 
     Enumerates every module that decodes ``meta.json`` content as an authority
@@ -1030,7 +1105,12 @@ def test_fr010_single_meta_decoder() -> None:
     here. A hand-rolled second decoder grows the set and reds this gate.
     """
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
-    decoders = independent_meta_decoders(SRC_ROOT, allowlist)
+    decoders = independent_meta_decoders(
+        SRC_ROOT,
+        allowlist,
+        sites=src_meta_read_sites,
+        source_tree=src_source_tree,  # type: ignore[arg-type]
+    )
     assert decoders == {_FR010_KERNEL_L1_REL}, (
         "FR-010: expected exactly one independent meta.json decoder "
         f"({_FR010_KERNEL_L1_REL}, kernel L1); found {sorted(decoders)}. A new "
@@ -1040,17 +1120,25 @@ def test_fr010_single_meta_decoder() -> None:
     )
 
 
-def test_fr010_kernel_l1_is_the_single_authority() -> None:
+def test_fr010_kernel_l1_is_the_single_authority(src_source_tree: object) -> None:
     """The kernel L1 module holds exactly one ``json.loads``/``json.load`` call.
 
     The malformed *definition* lives once, in ``kernel.meta_decode`` (D2). A
     second decode call inside the kernel module -- or its disappearance -- is a
     regression this pins directly (complements the tree-wide enumeration above).
     """
-    assert _count_kernel_l1_meta_decoders(SRC_ROOT) == 1, "kernel.meta_decode must contain exactly one json decode call (the single malformed authority)."
+    assert (
+        _count_kernel_l1_meta_decoders(
+            SRC_ROOT,
+            source_tree=src_source_tree,  # type: ignore[arg-type]
+        )
+        == 1
+    ), "kernel.meta_decode must contain exactly one json decode call (the single malformed authority)."
 
 
-def test_fr010_completeness_no_hidden_meta_bypass() -> None:
+def test_fr010_completeness_no_hidden_meta_bypass(
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+) -> None:
     """FR-010 completeness: 0 un-routed ``meta.json`` bypass reads beyond the set.
 
     Every live inline meta-path read must be an enumerated allow-list entry, so a
@@ -1060,7 +1148,7 @@ def test_fr010_completeness_no_hidden_meta_bypass() -> None:
     accounting against the deferred set, not merely staying under a count.
     """
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
-    unrouted = [site for site in scan_inline_meta_reads(SRC_ROOT) if site.key not in allowlist]
+    unrouted = [site for site in src_meta_read_sites if site.key not in allowlist]
     assert unrouted == [], "FR-010 completeness: un-routed meta.json bypass read(s) beyond the enumerated allow-list:\n" + "\n".join(
         f"  {s.rel_path}:{s.lineno} ({s.key.enclosing_qualname})" for s in unrouted
     )
@@ -1086,7 +1174,7 @@ def test_fr010_canary_flags_planted_meta_decoder(tmp_path: Path) -> None:
     assert "src/fr010_planted_pkg/reader.py" in decoders, "self-test: a planted meta json.loads must surface as an independent decoder"
 
 
-def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
+def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path, src_meta_read_sites: tuple[InlineMetaReadSite, ...]) -> None:
     """Anti-vacuity: the two allowed non-meta shapes do NOT trip the meta scope.
 
     (a) the kernel L1 raw-content shape (``json.loads(text)`` where ``text`` is a
@@ -1126,11 +1214,76 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
         "consolidation/drivers.py must still define _parse_json_document -- the row-matrix exclusion re-pin below would be vacuous otherwise"
     )
     row_matrix = [
-        site
-        for site in scan_inline_meta_reads(SRC_ROOT)
-        if site.rel_path.endswith("consolidation/drivers.py") and site.key.enclosing_qualname == "_parse_json_document"
+        site for site in src_meta_read_sites if site.rel_path.endswith("consolidation/drivers.py") and site.key.enclosing_qualname == "_parse_json_document"
     ]
     assert row_matrix == [], "the row-matrix decoder (_parse_json_document) must be excluded from the meta scope (it decodes issue/row-matrix docs, not meta.json)"
+
+
+# --- regression pins: immutable real-tree facts -----------------------------
+@pytest.fixture(scope="session")
+def src_meta_read_sites(src_source_tree: object) -> tuple[InlineMetaReadSite, ...]:
+    """Scan the immutable repository tree once for every read-only real-tree assertion."""
+    return tuple(
+        scan_inline_meta_reads(SRC_ROOT, source_tree=src_source_tree)  # type: ignore[arg-type]
+    )
+
+
+def test_real_tree_scan_reuses_immutable_source_facts(
+    src_source_tree: object,
+    src_meta_read_sites: tuple[InlineMetaReadSite, ...],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RED before the reuse change: the scanner had no source-tree path.
+
+    A real-tree scan supplied with the read-only session AST must not touch the
+    disk at all, and must produce the same sites as the fixture built from it.
+    """
+
+    def _unexpected_disk_access(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a source-tree-backed scan must not read or parse files again")
+
+    monkeypatch.setattr(Path, "read_text", _unexpected_disk_access)
+    monkeypatch.setattr(ast, "parse", _unexpected_disk_access)
+
+    sites = scan_inline_meta_reads(SRC_ROOT, source_tree=src_source_tree)  # type: ignore[arg-type]
+    assert sites == list(src_meta_read_sites)
+
+
+def test_scratch_tree_scan_observes_each_mutation(tmp_path: Path) -> None:
+    """Scratch-tree scans stay fresh: cleaning a planted read must clear it.
+
+    This is the safety twin of the immutable-facts reuse above. A cache keyed
+    on a scratch path would keep reporting the first mutation.
+    """
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "freshness_pkg",
+        "class FreshnessReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return meta_path.read_text(encoding='utf-8')\n",
+    )
+    reader = scratch_src / "freshness_pkg" / "reader.py"
+
+    assert scan_inline_meta_reads(scratch_src) == []
+
+    reader.write_text(
+        "class FreshnessReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return json.loads(meta_path.read_text(encoding='utf-8'))\n",
+        encoding="utf-8",
+    )
+    assert any(site.key.enclosing_qualname == "FreshnessReader.load" for site in scan_inline_meta_reads(scratch_src))
+
+    reader.write_text(
+        "class FreshnessReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return meta_path.read_text(encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    assert scan_inline_meta_reads(scratch_src) == []
 
 
 # --- timing (fast-tier budget) ----------------------------------------------

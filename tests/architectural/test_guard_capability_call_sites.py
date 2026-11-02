@@ -23,7 +23,10 @@ expressions), so prose mentions in docstrings/comments do not trip it.
 from __future__ import annotations
 
 import ast
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -91,9 +94,8 @@ def _rel(path: Path, repo_root: Path = _REPO_ROOT) -> str:
     return path.relative_to(repo_root).as_posix()
 
 
-def _guard_capability_members_referenced(path: Path) -> set[str]:
-    """Return the ``GuardCapability.<MEMBER>`` attribute names used in ``path``."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+def _members_referenced_in_tree(tree: ast.AST) -> set[str]:
+    """Return the ``GuardCapability.<MEMBER>`` attribute names used in ``tree``."""
     members: set[str] = set()
     for node in ast.walk(tree):
         if (
@@ -103,6 +105,75 @@ def _guard_capability_members_referenced(path: Path) -> set[str]:
         ):
             members.add(node.attr)
     return members
+
+
+def _guard_capability_members_referenced(path: Path) -> set[str]:
+    """Return the ``GuardCapability.<MEMBER>`` attribute names used in ``path``.
+
+    Reads ``path`` fresh on every call. This is deliberate: the two-sided
+    fault-bite test below rewrites a scratch file and must observe each
+    mutation. Real-tree checks use :func:`_build_capability_facts` instead.
+    """
+    return _members_referenced_in_tree(ast.parse(path.read_text(encoding="utf-8")))
+
+
+@dataclass(frozen=True)
+class _CapabilityFacts:
+    """Read-only ``member -> repo-relative source paths`` map for the live tree."""
+
+    paths_by_member: Mapping[str, frozenset[str]]
+
+
+def _build_capability_facts(source_tree: Mapping[Path, object]) -> _CapabilityFacts:
+    """Derive the live capability-site map from an immutable ``src/`` source tree.
+
+    One walk over the session-cached AST answers every per-member unexpected-site
+    and stale-allowlist assertion. It never accepts a mutable scratch root: the
+    mutation control keeps using :func:`_unexpected_protected_flow_sites`.
+    """
+    paths_by_member: dict[str, set[str]] = {
+        member: set() for member in _PROTECTED_FLOW_ALLOWLISTS
+    }
+    for path in sorted(source_tree):
+        if "__pycache__" in path.parts:
+            continue
+        tree = source_tree[path].tree  # type: ignore[attr-defined]
+        for member in _members_referenced_in_tree(tree):
+            if member in paths_by_member:
+                paths_by_member[member].add(_rel(path))
+    return _CapabilityFacts(
+        MappingProxyType(
+            {member: frozenset(paths) for member, paths in paths_by_member.items()}
+        )
+    )
+
+
+def _unexpected_protected_flow_sites_from_facts(
+    facts: _CapabilityFacts, member: str, allowlist: frozenset[str]
+) -> set[str]:
+    """Live capability sites outside *allowlist*, from the immutable facts."""
+    return set(facts.paths_by_member.get(member, frozenset())) - allowlist
+
+
+def _stale_allowlist_entries_from_facts(
+    facts: _CapabilityFacts, member: str, allowlist: frozenset[str]
+) -> set[str]:
+    """Allowlist entries with no live site, from the immutable facts."""
+    live = facts.paths_by_member.get(member, frozenset())
+    return {
+        entry
+        for entry in allowlist
+        if entry not in live
+        and entry != _ENUM_HOME  # the enum home may reference members only via the policy set
+    }
+
+
+@pytest.fixture(scope="session")
+def live_capability_facts(
+    src_source_tree: Mapping[Path, object],
+) -> _CapabilityFacts:
+    """Build the real-tree capability map once per session from cached ASTs."""
+    return _build_capability_facts(src_source_tree)
 
 
 def _unexpected_protected_flow_sites(
@@ -132,7 +203,9 @@ def test_guard_capability_enforcement_has_two_sided_fault_bite(tmp_path: Path) -
 
 
 @pytest.mark.parametrize("member", sorted(_PROTECTED_FLOW_ALLOWLISTS))
-def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> None:
+def test_protected_flow_capability_call_sites_are_allowlisted(
+    member: str, live_capability_facts: _CapabilityFacts
+) -> None:
     """Each protected-flow GuardCapability member binds to its ONE flow.
 
     ``STANDARD`` is freely assertable (it grants nothing on protected refs);
@@ -142,7 +215,9 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
     rationale comment naming the ONE flow it authorizes.
     """
     allowlist = _PROTECTED_FLOW_ALLOWLISTS[member]
-    unexpected = _unexpected_protected_flow_sites(_REPO_ROOT, member, allowlist)
+    unexpected = _unexpected_protected_flow_sites_from_facts(
+        live_capability_facts, member, allowlist
+    )
     assert not unexpected, (
         f"GuardCapability.{member} is asserted outside its flow: "
         f"{sorted(unexpected)}. Each non-standard capability authorizes "
@@ -151,20 +226,51 @@ def test_protected_flow_capability_call_sites_are_allowlisted(member: str) -> No
         "refused. PR #1850's guard-bypass regression is exactly this misuse."
     )
 
-    stale = {
-        entry
-        for entry in allowlist
-        if entry
-        not in {
-            _rel(path)
-            for path in _iter_src_python_files()
-            if member in _guard_capability_members_referenced(path)
-        }
-        if entry != _ENUM_HOME  # the enum home may reference members only via the policy set
-    }
+    stale = _stale_allowlist_entries_from_facts(
+        live_capability_facts, member, allowlist
+    )
     if member in {"MERGE_BOOKKEEPING", "UPGRADE_BOOKKEEPING"}:
         assert not stale, (
             f"Allowlisted GuardCapability.{member} flow module(s) no longer "
             f"assert it: {sorted(stale)}. Remove them from "
             "_PROTECTED_FLOW_ALLOWLISTS so the binding stays exact."
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Regression pins for the immutable-facts reuse (CI speed hardening).
+# --------------------------------------------------------------------------- #
+def test_live_capability_facts_are_reusable_without_scanning_disk(
+    live_capability_facts: _CapabilityFacts, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The session facts replace per-test whole-tree reads and AST parses.
+
+    RED before the reuse change: ``_CapabilityFacts`` and the facts-based
+    helpers did not exist, so the real-tree checks re-walked ``src/`` once per
+    capability member and once more per allow-list entry. Green afterwards
+    proves both the unexpected-site and stale-entry assertions can be answered
+    from the read-only ``src_source_tree`` fixture alone.
+    """
+
+    def _unexpected_disk_access(*args: object, **kwargs: object) -> None:
+        raise AssertionError(
+            "live capability facts must come from the immutable source-tree "
+            "fixture, not a fresh disk scan"
+        )
+
+    monkeypatch.setattr(Path, "read_text", _unexpected_disk_access)
+    monkeypatch.setattr(Path, "rglob", _unexpected_disk_access)
+
+    for member, allowlist in _PROTECTED_FLOW_ALLOWLISTS.items():
+        assert (
+            _unexpected_protected_flow_sites_from_facts(
+                live_capability_facts, member, allowlist
+            )
+            == set()
+        )
+        assert (
+            _stale_allowlist_entries_from_facts(
+                live_capability_facts, member, allowlist
+            )
+            == set()
         )
