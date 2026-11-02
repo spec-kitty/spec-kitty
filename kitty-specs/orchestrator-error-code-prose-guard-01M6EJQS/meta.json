@@ -1,5 +1,4 @@
 {
-  "accept_commit": "b1af8c3f05405f9cd96ed8344ec58c7967cf21e7",
   "acceptance_history": [
     {
       "accept_commit": "b1af8c3f05405f9cd96ed8344ec58c7967cf21e7",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-11-02T18:19:55.301438+00:00",
       "accepted_by": "exedev",
       "accepted_from_commit": "468fddc98fd56b45c5cd1a71c221d7eee460faec"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T18:20:05.671166+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "893b95d39ac139afba8b64b2c4fa7d499f9e23a0"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-11-02T18:19:55.301438+00:00",
+  "accepted_at": "2026-11-02T18:20:05.671166+00:00",
   "accepted_by": "exedev",
-  "accepted_from_commit": "468fddc98fd56b45c5cd1a71c221d7eee460faec",
+  "accepted_from_commit": "893b95d39ac139afba8b64b2c4fa7d499f9e23a0",
   "coordination_branch": "kitty/mission-orchestrator-error-code-prose-guard-01M6EJQS",
   "created_at": "2026-11-02T16:51:03.306418+00:00",
   "flattened": false,
@@ -25,6 +30,7 @@
   "purpose_context": "This mission advances orchestrator error code prose guard on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "orchestrator error code prose guard",
   "slug": "orchestrator-error-code-prose-guard-01M6EJQS",
+  "status_phase": "1",
   "target_branch": "issue-7035-orchestrator-error-code-prose-guard",
   "topology": "coord",
   "vcs": "git",
