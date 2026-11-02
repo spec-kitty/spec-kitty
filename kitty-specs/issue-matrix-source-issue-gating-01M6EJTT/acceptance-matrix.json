@@ -1,0 +1,59 @@
+{
+  "mission_slug": "issue-matrix-source-issue-gating-01M6EJTT",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_citation_label_scope_7011.py 7 passed: epic-label line keeps #6926 gating and #6100 context; positive controls for all three positional arms",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:04:46.767791+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_source_issue_7011.py: all three derivation sources (meta.json source_description, **Input**:, Closes #N) plus leading-# form",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:04:51.902589+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_matrix_source_issue_7011.py: source issue scaffolds unknown despite context-marked prose; promotion never invents a row",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:04:55.705705+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_issue_matrix_cross_site_consistency.py 5 passed: blocker, merge_gates, doctor and mission-review Gate 4 agree; omitted source row reported missing",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:04:59.239000+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_issue_reference_classification.py + tests/specify_cli/tasks/test_issue_matrix_structured.py 55 passed unchanged; make test-fast 2786 passed, 6 skipped",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T18:05:02.679739+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

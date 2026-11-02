@@ -1,0 +1,33 @@
+{
+  "accept_commit": "a571bb613b93ee3185802d4b9fa1961c167a5bb3",
+  "acceptance_history": [
+    {
+      "accept_commit": "a571bb613b93ee3185802d4b9fa1961c167a5bb3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T18:05:08.631339+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "3803a15af04ac2b6adb51dfbd5cae22626d4f614"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T18:05:08.631339+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "3803a15af04ac2b6adb51dfbd5cae22626d4f614",
+  "contracts": "none",
+  "contracts_rationale": "Internal classification fix: no API, CLI surface, payload or persisted schema changes. The issue-matrix JSON schema, the closed verdict vocabulary and every command's output shape are unchanged; only which rows are gated is corrected.",
+  "created_at": "2026-11-02T16:52:41.337657+00:00",
+  "flattened": false,
+  "friendly_name": "issue matrix source issue gating",
+  "mid8": "01M6EJTT",
+  "mission_branch": "kitty/mission-issue-matrix-source-issue-gating-01M6EJTT",
+  "mission_id": "01M6EJTT36CSYFRJRWNB4HJGGN",
+  "mission_number": null,
+  "mission_slug": "issue-matrix-source-issue-gating-01M6EJTT",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances issue matrix source issue gating on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "issue matrix source issue gating",
+  "slug": "issue-matrix-source-issue-gating-01M6EJTT",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
