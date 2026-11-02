@@ -19,7 +19,7 @@
   "friendly_name": "pre review gate scope recovery",
   "mid8": "01M6EJS2",
   "mission_id": "01M6EJS28KN871H2E15PSJTTYS",
-  "mission_number": null,
+  "mission_number": 248,
   "mission_slug": "pre-review-gate-scope-recovery-01M6EJS2",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances pre review gate scope recovery on main so stakeholders can track the work from mission creation onward.",
