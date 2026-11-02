@@ -976,6 +976,72 @@ def _backfill_context_if_missing(
     persist_lane_context(repo_root, context)
 
 
+def adopt_lane_ancestry(
+    repo_root: Path,
+    worktree_path: Path,
+    mission_slug: str,
+    lane: ExecutionLane,
+    lanes_manifest: LanesManifest,
+    *,
+    clean_worktree_policy: Literal["refuse-dirty", "allow-dirty"],
+    target_tip: str | None = None,
+) -> None:
+    """Adopt the recorded planning commit and the approved dependency tips onto *worktree_path*.
+
+    The single owner of "make a reused lane worktree current" (#6898): merge
+    the recorded finalize-tasks planning commit (FR-009 / ADR
+    ``2026-07-29-1``, #2993) and then every approved dependency lane's tip
+    (#1684), in that order, so the allocator's own REUSE / CRASH_RECOVERY /
+    FRESH routes and a caller-side self-heal re-entry cannot drift on the
+    ordering.
+
+    ``clean_worktree_policy`` is REQUIRED and keyword-only: the tolerance for
+    an already-dirty worktree is a decision for this seam, not something a
+    caller infers from which private helper it imports.
+
+    * ``"refuse-dirty"`` -- ``_validate_worktree_clean`` runs BEFORE either
+      merge and raises :class:`DirtyWorktreeError` naming the lane. This is
+      the policy for allocator-owned lane checkouts (a NEW work package must
+      not inherit a previous WP's dirt) and for the shared repository-root
+      planning checkout (reconciling it must not run over uncommitted work).
+    * ``"allow-dirty"`` -- the clean check is skipped. Only a re-entry for the
+      SAME in-flight work package may ask for this: its uncommitted
+      work-in-progress is legitimate, and git's own merge machinery already
+      refuses a merge that would clobber a dirty path, so no separate upfront
+      gate is needed. Nothing here creates or moves a worktree.
+
+    ``target_tip`` MUST be the planning TARGET-branch tip, never a lane
+    worktree's HEAD (#4827/WP03 D5/D6, C-006) -- passing a lane HEAD would
+    misfire on every healthy fresh coord lane. ``None`` lets this seam capture
+    it from ``lanes_manifest.target_branch``, which is the safe default; the
+    allocator's own routes pass the tip they already captured once per
+    allocation, so no caller pays for a second capture.
+
+    A worktree whose ancestry is already correct is a true no-op: both merge
+    helpers short-circuit on their own ``git merge-base --is-ancestor`` check
+    (and a manifest with no ``planning_commit_sha`` / no ``depends_on_lanes``
+    short-circuits before any git call at all). A genuine merge conflict
+    propagates as the allocator's own structured exception
+    (:class:`PlanningCommitMergeConflictError`,
+    :class:`DependencyLaneMergeConflictError`); this seam never swallows it.
+
+    Raises:
+        ValueError: *clean_worktree_policy* is neither of the two policies.
+        DirtyWorktreeError: ``"refuse-dirty"`` and the worktree has
+            uncommitted changes.
+    """
+    if clean_worktree_policy == "refuse-dirty":
+        _validate_worktree_clean(worktree_path, lane.lane_id)
+    elif clean_worktree_policy != "allow-dirty":
+        raise ValueError(f"unknown clean_worktree_policy {clean_worktree_policy!r}; expected 'refuse-dirty' or 'allow-dirty'")
+
+    if target_tip is None:
+        target_tip = capture_branch_tip(repo_root, lanes_manifest.target_branch)
+
+    _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
+    _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -1102,7 +1168,7 @@ def allocate_lane_worktree(
     # only ``info/exclude`` git honours for every linked worktree (a worktree's own per-worktree
     # ``info/exclude`` is ignored), so it lands in the shared file whether ``repo_root`` is the
     # main checkout or a linked worktree. Running it here, at the single code-lane choke point
-    # before both ``_validate_worktree_clean`` calls, is safe and idempotent.
+    # before every ``adopt_lane_ancestry`` call, is safe and idempotent.
     exclude_from_git_index(repo_root, [".spec-kitty/"])
 
     if worktree_path.exists():
@@ -1115,17 +1181,20 @@ def allocate_lane_worktree(
             mission_branch=lanes_manifest.mission_branch,
             wp_id=wp_id,
         )
-        # Reuse existing lane worktree — validate it is clean first.
-        _validate_worktree_clean(worktree_path, lane.lane_id)
-        # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
-        # (or before a later finalize-tasks re-run recorded a newer SHA) picks
-        # up the recorded planning commit here. Idempotent no-op once merged.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
-        # #1684 reuse-path catch-up: a dependency lane may have been approved
-        # *after* this worktree was created. Merge any newly-approved dep tips
-        # so the dependent lane sees them. Idempotent: already-merged tips are
-        # ancestors and skip.
-        _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+        # Reuse existing lane worktree. The seam validates it is clean first
+        # (``refuse-dirty``) -- a new WP in this lane must not inherit the
+        # previous WP's uncommitted state -- and then runs the FR-009 (#2993)
+        # reuse-path self-heal (merge the recorded planning commit) and the
+        # #1684 dependency catch-up in one place, in one order.
+        adopt_lane_ancestry(
+            repo_root,
+            worktree_path,
+            mission_slug,
+            lane,
+            lanes_manifest,
+            clean_worktree_policy="refuse-dirty",
+            target_tip=target_tip,
+        )
         # #5115/WP07 (FR-018/FR-021): refresh the lane-tip ref to the reused
         # worktree's current HEAD -- backfills a lane that predates tip
         # recording, and self-heals a stale tip left by a prior touch with
@@ -1174,7 +1243,6 @@ def allocate_lane_worktree(
         )
         guarded_worktree_prune(repo_root)
         _recover_lane_worktree(repo_root, worktree_path, branch)
-        _validate_worktree_clean(worktree_path, lane.lane_id)
         # #2514: re-register the sparse-checkout exclusion on recovery too —
         # a recovered coord-topology lane worktree must not re-leak
         # status.events.jsonl / status.json (Scenario 2).
@@ -1184,10 +1252,19 @@ def allocate_lane_worktree(
             coordination_branch,
             short_id,
         )
-        # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
-        # below — a re-attached lane picks up the recorded planning commit too.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
-        _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
+        # FR-009 (#2993) crash-recovery self-heal: the seam validates the
+        # re-attached worktree (``refuse-dirty``) and merges the recorded
+        # planning commit plus the approved dependency tips, exactly as the
+        # REUSE route above does.
+        adopt_lane_ancestry(
+            repo_root,
+            worktree_path,
+            mission_slug,
+            lane,
+            lanes_manifest,
+            clean_worktree_policy="refuse-dirty",
+            target_tip=target_tip,
+        )
         # #5115/WP07 (FR-018/FR-021): the branch survived (worktree dir was
         # lost) -- backfill/refresh its tip from the re-attached HEAD.
         record_tip(repo_root, branch)
@@ -1315,8 +1392,41 @@ def allocate_lane_worktree(
     # the just-created worktree registered rather than being removed and
     # re-tried forever via crash-recovery, which would just re-classify
     # `orphaned` again on every attempt until an operator re-pins.
+    # #1684 fresh-path propagation: adopt the recorded planning commit and the
+    # approved dependency-lane tips onto the worktree this route just created.
+    # ``allow-dirty`` on purpose: the worktree did not exist before this call,
+    # so it holds no user state to protect, and a clean check here would only
+    # add a spurious refusal for repositories whose checkout is dirty by
+    # construction (smudge filters, line-ending normalisation) -- git's own
+    # merge machinery is the meaningful gate for these two merges.
+    #
+    # FR-006/#3281 (T010): fresh-path atomicity, scoped. A conflict here is
+    # not itself catastrophic — the merge helper already aborts the
+    # half-merge before raising (the worktree's tree is clean, never left
+    # conflicted) — but without this the just-created worktree stays
+    # registered with nothing further ever touching it: a bare retry would
+    # hit ``worktree_path.exists()`` above and take the REUSE route, which
+    # re-runs this exact merge and fails identically forever. Removing the
+    # worktree (branch intentionally kept — see below) makes a retry take
+    # the CRASH-RECOVERY route instead, which re-attaches and re-runs the
+    # same idempotent self-heal, so the operator's manual fix (per the
+    # error's own ``next_step``) is picked up on the next attempt.
+    # #4827/WP03: deliberately narrow to the GENERIC conflict only.
+    # `OrphanedPlanningCommitError` is a sibling, not a subclass (see its
+    # docstring), so it is NOT caught here -- an orphaned/foreign pin leaves
+    # the just-created worktree registered rather than being removed and
+    # re-tried forever via crash-recovery, which would just re-classify
+    # `orphaned` again on every attempt until an operator re-pins.
     try:
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
+        adopt_lane_ancestry(
+            repo_root,
+            worktree_path,
+            mission_slug,
+            lane,
+            lanes_manifest,
+            clean_worktree_policy="allow-dirty",
+            target_tip=target_tip,
+        )
     except PlanningCommitMergeConflictError:
         # Only the WORKTREE is removed, not the branch: a retry then resolves
         # via the crash-recovery path above (branch exists, worktree dir
@@ -1324,11 +1434,6 @@ def allocate_lane_worktree(
         # function to duplicate that recovery logic.
         _remove_lane_worktree(repo_root, worktree_path, mission_slug)
         raise
-
-    # #1684 fresh-path propagation: merge approved dependency-lane tips on top
-    # of the chosen base (coordination or legacy mission branch) so the
-    # dependent lane sees sibling code.
-    _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
 
     # #5115/WP07 (FR-018): record the freshly created lane's tip. At this
     # point HEAD is still the fork point (equal to the chosen parent/base --
