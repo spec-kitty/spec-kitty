@@ -29,14 +29,7 @@ from rich.markup import escape
 
 from ._doctor_shared import console
 
-__all__ = [
-    "DEFAULT_CHECKS",
-    "CheckResult",
-    "DefaultCheck",
-    "render_default_run",
-    "run_default_checks",
-    "run_default_doctor",
-]
+__all__ = ["run_default_doctor"]
 
 
 @dataclass(frozen=True)
