@@ -25,7 +25,7 @@
       "wp": null
     },
     "#7035": {
-      "evidence_ref": "spec.md FR-001..FR-010; WP01 guard + WP02 enumerations",
+      "evidence_ref": "tests/contract/test_orchestrator_api.py::TestProseErrorCodeEnumerations (11 tests green; half-by-half reverts name 22 and 23 codes); both surfaces enumerate all 80 contract codes; changelog fragment docs/changelog/unreleased/7035-orchestrator-error-code-prose-guard.fixed.md",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     }
   },
