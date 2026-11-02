@@ -366,6 +366,24 @@ class TestStatusCommand:
             assert "Orphaned" in result.stdout
             assert "orphaned directories found" in result.stdout
 
+    def test_status_on_a_legacy_project_does_not_report_its_observed_agents_as_orphans(self, tmp_path):
+        """A no-list project reads as the agents whose project surface already
+        exists (#6501), so they are the configured set here: rendering them as
+        orphans would end in the `sync --remove-orphaned` advice that sync_agents
+        itself refuses for this shape."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["status"])
+
+            assert result.exit_code == 0
+            assert "Orphaned" not in result.stdout
+            assert "remove-orphaned" not in result.stdout
+            assert "No agents.available list is stated" in result.stdout
+
 
 class TestSyncCommand:
     """Tests for 'spec-kitty agent config sync' command."""
