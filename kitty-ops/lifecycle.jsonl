@@ -559,17 +559,3 @@
 {"agent": "python-pedro", "at": "2026-11-01T18:06:04.673556+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BV17AX1BV04ZMDHAHDT5A0", "phase": "started", "reason": null, "wp_id": "WP03"}
 {"agent": "python-pedro", "at": "2026-11-01T18:21:21.905711+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BV17AX1BV04ZMDHAHDT5A0", "phase": "completed", "reason": null, "wp_id": "WP03"}
 {"agent": "python-pedro", "at": "2026-11-01T18:21:47.240999+00:00", "canonical_action_id": "review::review", "mission_id": "01M6BV17AX1BV04ZMDHAHDT5A0", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:52:04.567357+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:55:18.418290+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:55:22.850618+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:55:29.948829+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:57:50.797902+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:58:53.996627+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T16:59:21.173194+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T17:00:20.032629+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T17:00:38.025374+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T17:01:17.907395+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": null}
-{"agent": "pi-b1", "at": "2026-11-02T17:01:22.426001+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": "WP01"}
-{"agent": "reviewer-renata", "at": "2026-11-02T18:14:53.157862+00:00", "canonical_action_id": "review::review", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": "WP01"}
-{"agent": "pi-b1", "at": "2026-11-02T18:20:01.907895+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "completed", "reason": null, "wp_id": "WP01"}
-{"agent": "pi-b1", "at": "2026-11-02T18:20:40.806436+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M6EJS28KN871H2E15PSJTTYS", "phase": "started", "reason": null, "wp_id": null}
