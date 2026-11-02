@@ -250,3 +250,7 @@ acceptance-jvm/allure-report/
 # never authored here: run `make sync-packs`.
 /packs/built-in/
 /packs/internal/
+
+# doc-kitty docsite (site/, #6930): Astro's generated types and cache. node_modules/ and dist/
+# are ignored above.
+site/.astro/

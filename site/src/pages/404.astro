@@ -1,0 +1,12 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+---
+
+<StarlightPage frontmatter={{ title: 'Page not found', description: 'This page does not exist on docs.spec-kitty.ai.', template: 'splash' }}>
+  <p>This page does not exist. Use the search or start from the <a href="/">documentation home</a>.</p>
+  <p>
+    Looking for a Mission under <code>/kitty-specs/</code>? The Mission dashboards are no longer published on this
+    site. Read a Mission's specification and status in the
+    <a href="https://github.com/spec-kitty/spec-kitty/tree/main/kitty-specs">kitty-specs folder on GitHub</a>.
+  </p>
+</StarlightPage>
