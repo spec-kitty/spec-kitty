@@ -3979,6 +3979,27 @@ def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_int
     assert not PERFORMANCE_CASES & plan_for_environment(case_plan(True), {}).run, "a per-PR run does not plan the wall-clock cases"
 
 
+def test_the_corpus_root_is_the_repository_primary_worktree(scratch_git: Path) -> None:
+    """The corpus this module scans is the repository's primary worktree, whatever checkout imports it (#6966, #5927).
+
+    A Mission's read directory is the resolver's answer, and for a coord-less or un-backfilled Mission that answer is the
+    PRIMARY worktree. A linked worktree that scanned its own tree would therefore enumerate one corpus and read Missions out
+    of another: the drift read refuses the whole report (``500 drift_scan_unreadable``, the ``KeyError: 'findings'`` of #5927)
+    and the Project read falls back to a directory the oracle never derives. The root is the repository's, not the checkout's.
+    """
+    primary = new_git_repo(scratch_git, "primary")
+    (primary / "README.md").write_text("the primary worktree\n", encoding="utf-8")
+    helper.commit_all(primary)
+    linked = scratch_git / "linked"
+    _git(primary, "worktree", "add", "-q", "-b", "linked-worktree", str(linked))
+    assert (linked / "README.md").is_file(), "the linked worktree is a real checkout of the same repository"
+    assert oracles.primary_worktree_root(linked) == primary.resolve(), "a linked worktree must scan the primary worktree"
+    assert oracles.primary_worktree_root(primary) == primary.resolve(), "the primary worktree is its own answer"
+    plain = scratch_git / "not-a-repository"
+    plain.mkdir()
+    assert oracles.primary_worktree_root(plain) == plain.resolve(), "a directory git cannot answer for answers itself"
+
+
 # Keep this test LAST in the file: under ``--dist loadfile`` the file runs on one worker in
 # definition order, so the case counter is complete when it runs.
 def test_every_generated_case_executed_and_the_count_is_not_vacuous(remote_state: oracles.RemoteState, capsys: pytest.CaptureFixture[str]) -> None:
