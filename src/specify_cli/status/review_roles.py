@@ -45,7 +45,20 @@ def _is_reviewer_rework_verdict(event: StatusEvent) -> bool:
     reviewer verdict" must be weighed against both. (#5196)
     The retrospective and hollow-review signal reads a third variant:
     ``review.rejection_signal.is_documented_review_rejection`` (#2267).
+
+    The operator-rewind sentinel (``force-override``) is NOT a reviewer verdict
+    (#6955): it means "an operator forced this rewind", so the actor *is* the
+    implementer of record for the rework that follows. Reading it as a reviewer
+    verdict made a forced ``approved -> in_progress`` reopen invisible to this
+    projection, which in turn made a later approval by the same actor look like an
+    independent review. The review-claim markers in the same sentinel set stay
+    counted -- they are reviewer acts (``test_review_roles`` pins the legacy
+    review-claim case).
     """
+    from specify_cli.review.cycle import is_operator_rewind_sentinel
+
+    if is_operator_rewind_sentinel(event.review_ref):
+        return False
     return Lane(event.from_lane).value in _REVIEWER_SOURCE_LANES and bool(event.review_ref)
 
 
