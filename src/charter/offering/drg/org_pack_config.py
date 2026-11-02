@@ -36,6 +36,7 @@ from kernel.resolution import resolve_rejecting_loops
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "RESERVED_PACK_NAMES",
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
     "OrgPackSubdirEscapeError",
@@ -57,6 +58,9 @@ _CONFIG_REL_PATH = Path(".kittify") / "config.yaml"
 #: The ``name`` of the built-in pack (``packs/built-in/pack.yaml``); only it
 #: gets the fixed built-in ``pack_id`` from :func:`ensure_pack_identity`.
 _BUILTIN_PACK_NAME = "built-in"
+#: Names the offering resolves by tier; an org pack may not register under them
+#: (``ensure_pack_identity`` would hand ``built-in`` the fixed built-in ULID).
+RESERVED_PACK_NAMES = (_BUILTIN_PACK_NAME, "project")
 
 #: The top-level ``.kittify/config.yaml`` key of the org-pack registry block.
 _CANONICAL_ORG_PACKS_KEY = "charter_packs"
@@ -816,6 +820,10 @@ def register_org_pack(repo_root: Path, pack: OrgPackConfig, *, replace: bool = F
     same ``validate_pack_with_org_charter`` door as ``charter org validate``
     before calling this); this function owns the config shape only.
     """
+    if pack.name in RESERVED_PACK_NAMES:
+        raise ValueError(
+            f"pack name {pack.name!r} is reserved (the {', '.join(RESERVED_PACK_NAMES)} tiers are not org packs)"
+        )
     registry = load_pack_registry(repo_root, strict=True)
     existing = registry.get(pack.name)
     if existing is not None and not replace:

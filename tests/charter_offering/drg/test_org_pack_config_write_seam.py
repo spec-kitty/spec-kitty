@@ -89,6 +89,17 @@ def test_register_is_idempotent_only_with_replace(project: Path) -> None:
     assert registry.names() == ["existing"]
 
 
+@pytest.mark.parametrize("name", ["built-in", "project"])
+def test_register_refuses_reserved_tier_names(project: Path, name: str) -> None:
+    config_path = project / ".kittify" / "config.yaml"
+    before = config_path.read_bytes()
+
+    with pytest.raises(ValueError, match="reserved"):
+        register_org_pack(project, _local_pack(name=name), replace=True)
+
+    assert config_path.read_bytes() == before
+
+
 def test_replace_keeps_declaration_order(project: Path) -> None:
     register_org_pack(project, _local_pack())
     register_org_pack(
