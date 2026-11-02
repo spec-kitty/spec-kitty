@@ -432,7 +432,6 @@ def _check_composed_action_guard(
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
     run_dir: Path | None = None,
-    mission_slug: str | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -487,7 +486,7 @@ def _check_composed_action_guard(
     Returns a list of failure descriptions; an empty list means all guards
     pass.
 
-    ``run_dir`` / ``mission_slug`` (#6330) are forwarded to
+    ``run_dir`` (#6330) is forwarded to
     :func:`runtime_bridge_io.gather_artifact_presence` for the ``wp_driven``
     fact. The live dispatch path threads the run it already resolved
     (``ctx.run_dir``), so the fact never re-resolves a mission handle from
@@ -501,7 +500,6 @@ def _check_composed_action_guard(
         repo_root=repo_root,
         owned=owned,
         run_dir=run_dir,
-        mission_slug=mission_slug,
     )
     # WP-driven = the built-in software-dev or any family whose runtime DAG declares ``implement``.
     if action in ("implement", "review") and (mission == "software-dev" or snapshot.wp_driven):
@@ -544,7 +542,6 @@ def _dispatch_via_composition(
     contract: Any | None = None,
     owned: OwnedCheckout | None = None,
     run_dir: Path | None = None,
-    mission_slug: str | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -570,7 +567,7 @@ def _dispatch_via_composition(
     would. The legacy ``runtime_next_step`` is **not** called for
     composition-backed actions (FR-001).
 
-    ``run_dir`` / ``mission_slug`` (#6330) are forwarded to the post-action guard
+    ``run_dir`` (#6330) is forwarded to the post-action guard
     so its ``wp_driven`` fact reads the run this dispatch already resolved.
     """
     # Local import keeps module load lean and avoids circular import risk.
@@ -668,7 +665,6 @@ def _dispatch_via_composition(
         repo_root=repo_root,
         owned=owned,
         run_dir=run_dir,
-        mission_slug=mission_slug,
     )
     if failures:
         return failures
