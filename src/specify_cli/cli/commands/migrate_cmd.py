@@ -197,23 +197,15 @@ _NOT_MISSION_SCOPED_MSG = "`--mission` is not supported by this command: it is n
 def _scoped_mission_slug(mission: str | None, repo_root: Path, *, json_output: bool) -> str | None:
     """Resolve ``--mission`` to a canonical Mission slug, or ``None`` when absent (#6347).
 
-    The three corpus-walking ``migrate`` commands (``backfill-provenance``,
-    ``charter-encoding``, ``rebaseline-dossier-hashes``) resolve the handle ONCE
-    here, in the CLI, through the same canonical selector resolver
-    ``backfill-merge-commit`` uses -- so ``mission_id``, ``mid8`` and
-    ``mission_slug`` all work and an unknown or ambiguous handle fails closed
-    (exit 2 human / exit 1 with ``--json``) instead of degrading into an
-    unscoped walk. The backends only ever receive a resolved directory slug.
+    Delegates to the shared :func:`~specify_cli.cli.commands.migrate.backfill_wp_status.resolve_mission_scope`
+    which includes the legacy-Mission short-circuit (exact ``kitty-specs/``
+    directory name) that the canonical resolver cannot serve.
     """
-    if mission is None:
-        return None
-    from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: PLC0415
+    from specify_cli.cli.commands.migrate.backfill_wp_status import (  # noqa: PLC0415
+        resolve_mission_scope,
+    )
 
-    resolved = resolve_mission_handle(mission, repo_root, json_mode=json_output)
-    # The port's structural return type reads as ``Any`` to mypy; the canonical
-    # slug is always a plain string once the handle has resolved.
-    slug: str = resolved.mission_slug
-    return slug
+    return resolve_mission_scope(mission, repo_root, json_output=json_output)
 
 
 class CorpusWideCommand(TyperCommand):
@@ -1138,8 +1130,9 @@ def charter_encoding(
     - ``0`` — the walked corpus (the scoped Mission, or the whole corpus when
       ``--mission`` is omitted) is fully UTF-8 compliant (all files
       already-UTF-8 or successfully normalized)
-    - ``1`` — one or more walked files are ambiguous (manual repair required),
-      or the ``--mission`` handle does not resolve
+    - ``1`` — one or more walked files are ambiguous (manual repair required)
+    - ``2`` — the ``--mission`` handle does not resolve (human mode)
+    - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
     Examples:
 
@@ -1228,8 +1221,9 @@ def backfill_provenance(
     Exit codes:
 
     - ``0`` — every matrix migrated cleanly (or needed no change)
-    - ``1`` — one or more matrices could not be parsed (see the reported errors),
-      or the ``--mission`` handle does not resolve
+    - ``1`` — one or more matrices could not be parsed (see the reported errors)
+    - ``2`` — the ``--mission`` handle does not resolve (human mode)
+    - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
     Examples:
 
@@ -1666,8 +1660,9 @@ def rebaseline_dossier_hashes(
     Exit codes:
 
     - ``0`` — completed (some snapshots may be reported as errors and skipped)
-    - ``1`` — project root could not be located, or the ``--mission`` handle
-      does not resolve
+    - ``1`` — project root could not be located
+    - ``2`` — the ``--mission`` handle does not resolve (human mode)
+    - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
     Examples:
 

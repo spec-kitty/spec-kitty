@@ -435,7 +435,8 @@ _Charter management commands_
 │ mission-type       Mission type commands (activated types only).             │
 │ list               List activated charter artifacts by kind.                 │
 │ pack               Charter pack management commands.                         │
-│ org                Manage org Charter Pack authoring (init, validate).       │
+│ org                Manage org Charter Pack authoring (init, validate) and    │
+│                    registration (add, remove).                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3735,8 +3736,9 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  Exit codes:
 
  - ``0`` — every matrix migrated cleanly (or needed no change)
- - ``1`` — one or more matrices could not be parsed (see the reported errors),
-   or the ``--mission`` handle does not resolve
+ - ``1`` — one or more matrices could not be parsed (see the reported errors)
+ - ``2`` — the ``--mission`` handle does not resolve (human mode)
+ - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
  Examples:
 
@@ -3969,8 +3971,9 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  - ``0`` — the walked corpus (the scoped Mission, or the whole corpus when
    ``--mission`` is omitted) is fully UTF-8 compliant (all files
    already-UTF-8 or successfully normalized)
- - ``1`` — one or more walked files are ambiguous (manual repair required),
-   or the ``--mission`` handle does not resolve
+ - ``1`` — one or more walked files are ambiguous (manual repair required)
+ - ``2`` — the ``--mission`` handle does not resolve (human mode)
+ - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
  Examples:
 
@@ -4082,8 +4085,9 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  Exit codes:
 
  - ``0`` — completed (some snapshots may be reported as errors and skipped)
- - ``1`` — project root could not be located, or the ``--mission`` handle
-   does not resolve
+ - ``1`` — project root could not be located
+ - ``2`` — the ``--mission`` handle does not resolve (human mode)
+ - ``1`` — the ``--mission`` handle does not resolve (``--json`` mode)
 
  Examples:
 
