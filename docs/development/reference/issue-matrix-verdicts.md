@@ -117,14 +117,41 @@ prose always gates. The demoting signals are:
 - A `PR ` or `pull` token immediately associated with the reference (either
   hash form, `PR #300`, or a full `/pull/<n>` URL) — classified as a
   PR/commit reference.
-- A context marker on the same line: `Follow-up:`, `baseline-red`, `see #`,
-  `parent`, `epic` — classified as context-only.
+- A **line-scoped** context marker anywhere on the line: `Follow-up:`,
+  `baseline-red` — the whole statement, and every reference in it, is context.
+- A **positional** citation label: `see #`, `parent`, `epic`. These bind to the
+  reference they lead into, not to the line: in
+  `**Input**: Issue #6926 (part of epic #6100)`, the `epic` label demotes
+  `#6100` and leaves `#6926` gating (#7011).
 - A cross-repo reference (`owner/repo#NN`, or a full `/issues/<n>` URL for a
   different repository) — already excluded from discovery entirely; it never
   becomes a row of any kind.
 
 Ambiguity never fails open: if none of the above signals is present, the
 reference gates.
+
+### The Mission's own source issue is never non-gating
+
+The issue a Mission exists to fix always gates, whatever its prose looks like
+(#7011). The source issue is read from the Mission's own record — every one of
+these sources that is present contributes:
+
+- `meta.json` `source_description`, when it **opens** with the issue form
+  (`Issue #N: …`, `GitHub issue N …`, `Ticket #N …`, `#N …`); a passing mention
+  of another number deeper in the blurb is not a source issue.
+- the spec's `**Input**:` header line — its first same-repo reference;
+- any `Closes`/`Fixes`/`Resolves #NNNN` line in the spec.
+
+A source issue that some scanned artifact cites is promoted to
+`implementation_target` before classification reaches any consumer, so the
+scaffold writes it an `unknown` row and the approval gate forces an explicit
+verdict. Promotion never invents a row for a number no artifact cites, and it
+never demotes: it is a guarantee layered on top of the heuristic, not a
+replacement for it. The `not-applicable` verdict remains legitimate for
+references the Mission genuinely owes no work — it just cannot be reached by
+automatic classification for the Mission's own issue (ADR
+[2026-09-20-1](../../adr/3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md)
+unchanged).
 
 ### Multi-occurrence aggregation: implementation-target wins
 
