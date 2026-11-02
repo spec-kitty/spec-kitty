@@ -267,11 +267,12 @@ _Mission action commands that display prompts and instructions for agents_
 │                                              --force, name the agent that    │
 │                                              will implement: it is recorded  │
 │                                              as the implementer of record.   │
-│ --model                              <str>   Dispatch-resolved model         │
-│                                              asserted against the correlated │
-│                                              Op record (requires             │
-│                                              --invocation-id; never the      │
-│                                              frontmatter recommendation)     │
+│ --model                              <str>   Retired for claims: the         │
+│                                              correlated Op record carries no │
+│                                              model identifier (#7013), so    │
+│                                              --model is refused; omit it and │
+│                                              the claim records the model as  │
+│                                              explicitly absent               │
 │ --profile                            <str>   Agent profile id — a dispatch   │
 │                                              registry / Op record profile or │
 │                                              a local charter profile (the    │
@@ -280,8 +281,9 @@ _Mission action commands that display prompts and instructions for agents_
 │                                              work package's frontmatter      │
 │                                              agent_profile is used.          │
 │ --invocation-id                      <str>   Correlated Op record ULID whose │
-│                                              mission, WP, action, profile,   │
-│                                              and model are authoritative     │
+│                                              mission, WP, action and profile │
+│                                              are authoritative (the record   │
+│                                              carries no model, #7013)        │
 │ --force                                      Operator override: take a WP    │
 │                                              out of for_review, in_review or │
 │                                              approved. Requires --note.      │
@@ -344,10 +346,11 @@ _Mission action commands that display prompts and instructions for agents_
 │ --mission                 <str>   Mission slug                               │
 │ --agent                   <str>   Agent name (required for auto-move to      │
 │                                   in_progress)                               │
-│ --model                   <str>   Dispatch-resolved model asserted against   │
-│                                   the correlated Op record (requires         │
-│                                   --invocation-id; never the frontmatter     │
-│                                   recommendation)                            │
+│ --model                   <str>   Retired for claims: the correlated Op      │
+│                                   record carries no model identifier         │
+│                                   (#7013), so --model is refused; omit it    │
+│                                   and the claim records the model as         │
+│                                   explicitly absent                          │
 │ --profile                 <str>   Agent profile id — a dispatch registry /   │
 │                                   Op record profile or a local charter       │
 │                                   profile (the same ids `agent profile show` │
@@ -355,8 +358,8 @@ _Mission action commands that display prompts and instructions for agents_
 │                                   package's frontmatter agent_profile is     │
 │                                   used.                                      │
 │ --invocation-id           <str>   Correlated Op record ULID whose mission,   │
-│                                   WP, action, profile, and model are         │
-│                                   authoritative                              │
+│                                   WP, action and profile are authoritative   │
+│                                   (the record carries no model, #7013)       │
 │ --owned-checkout          <path>  Not yet supported. Refused: owned          │
 │                                   checkouts use 'spec-kitty next             │
 │                                   --owned-checkout' and 'spec-kitty agent    │
@@ -2180,8 +2183,10 @@ _Task workflow commands for AI agents_
 │                                                         are given, the one   │
 │                                                         supplied LAST on the │
 │                                                         command line wins.   │
-│    --model                                      <str>   Dispatch-resolved    │
-│                                                         model actual         │
+│    --model                                      <str>   Refused: the         │
+│                                                         dispatch Op carries  │
+│                                                         no model identifier  │
+│                                                         (#7013); omit it     │
 │    --profile                                    <str>   Dispatch-resolved    │
 │                                                         agent profile actual │
 │    --invocation-id                              <str>   Authoritative        │
