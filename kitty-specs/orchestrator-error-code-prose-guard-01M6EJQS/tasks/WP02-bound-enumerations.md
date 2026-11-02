@@ -14,9 +14,9 @@ requirement_refs:
 - SC-001
 - SC-004
 - SC-005
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on the coordination branch kitty/mission-orchestrator-error-code-prose-guard-01M6EJQS as of main 9aed3a8012. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+planning_base_branch: issue-7035-orchestrator-error-code-prose-guard
+merge_target_branch: issue-7035-orchestrator-error-code-prose-guard
+branch_strategy: Planning artifacts for this mission were generated on issue-7035-orchestrator-error-code-prose-guard. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7035-orchestrator-error-code-prose-guard unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
