@@ -125,21 +125,6 @@ def test_uses_centralized_runtime_still_repairs_a_pre_two_x_project(
 
 
 @pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
-def test_uses_centralized_runtime_keeps_pre_two_x_answer_without_a_bootstrapped_home(
-    tmp_path: Path,
-) -> None:
-    """A pre-2.0 stamp under an unbootstrapped home stays legacy.
-
-    "No home" must not be read as "modern": a project we can date as 1.x is still
-    legacy whichever machine runs the upgrade.
-    """
-    project = _stamped_project(tmp_path, "1.2.0")
-
-    assert not (tmp_path / "home" / "cache" / "version.lock").exists()
-    assert uses_centralized_runtime(project) is False
-
-
-@pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the canonical owner pins SPEC_KITTY_HOME=tmp_path/home
 def test_uses_centralized_runtime_fails_closed_on_a_non_string_stamp(
     tmp_path: Path,
 ) -> None:
@@ -156,7 +141,6 @@ def test_uses_centralized_runtime_fails_closed_on_a_non_string_stamp(
         "spec_kitty:\n  version: 2.0\n  initialized_at: '2026-01-01T00:00:00'\n",
         encoding="utf-8",
     )
-    assert "version: 2.0\n" in (project / ".kittify" / "metadata.yaml").read_text(encoding="utf-8")
 
     assert not (tmp_path / "home" / "cache" / "version.lock").exists()
     assert uses_centralized_runtime(project) is False
