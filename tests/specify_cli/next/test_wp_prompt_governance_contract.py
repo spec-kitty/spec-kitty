@@ -1054,6 +1054,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
         repo_root, feature_dir, mission_slug = project_with_implement_wp
 
         captured_feature_dir: list[Path] = []
+        captured_owned: list[object] = []
 
         orig_governance_context = __import__(
             "runtime.next.prompt_builder",
@@ -1066,10 +1067,12 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             feature_dir: Path | None = None,
             action: str | None = None,
             profile: str | None = None,
+            owned: object = None,
         ) -> str:
             if feature_dir is not None:
                 captured_feature_dir.append(feature_dir)
-            return orig_governance_context(r, feature_dir=feature_dir, action=action, profile=profile)
+            captured_owned.append(owned)
+            return orig_governance_context(r, feature_dir=feature_dir, action=action, profile=profile, owned=owned)
 
         with patch(
             "runtime.next.prompt_builder._governance_context",
@@ -1091,6 +1094,8 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             "Without it, monorepo operators always get the root-project charter."
         )
         assert captured_feature_dir[0] == feature_dir
+        # The owned-checkout fact (8a64f6053) is forwarded too; this fixture has none.
+        assert captured_owned == [None] * len(captured_owned)
 
     def test_governance_context_does_not_mask_scope_routing_failures(
         self, project_with_implement_wp: tuple[Path, Path, str]
