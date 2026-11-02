@@ -3,14 +3,16 @@ title: 'Auditing special-case workarounds'
 description: 'How to find, classify and remove the branches that tolerate a wrong input, a private seam or a test double instead of fixing the cause, with the dispositions from issue #6745.'
 doc_status: active
 updated: '2026-10-31'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: how-to
 related:
-- docs/development/how-to/review-gates.md
-- docs/development/how-to/pr-landing.md
-- docs/development/reference/quality-and-tech-debt-standing-orders.md
-- docs/adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md
-- docs/changelog/index.md
+- development/how-to/review-gates
+- development/how-to/pr-landing
+- development/reference/quality-and-tech-debt-standing-orders
+- adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt
+- changelog
 ---
 # Auditing special-case workarounds
 
