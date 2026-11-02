@@ -49,7 +49,7 @@ import subprocess
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
 from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range, commit_parents, sha_reachable_from
@@ -57,6 +57,9 @@ from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lan
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import is_migration_actor
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 logger = logging.getLogger(__name__)
 
@@ -221,36 +224,40 @@ def _approved_wp_ids(work_packages: Mapping[str, Any], excluded_canceled_wp_ids:
     )
 
 
-def _wp_task_dir(repo_root: Path, mission_slug: str, feature_dir: Path) -> Path:
+def _wp_task_dir(repo_root: Path, mission_slug: str, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Path:
     """The mission dir the ``tasks/`` work-package files are read from.
 
-    ``WORK_PACKAGE_TASK`` is a PRIMARY-partition kind: under coordination topology the
-    coord-aware *feature_dir* is the coordination worktree, which carries only the status and
-    matrix artifacts, so a ``tasks/`` read there comes back empty and every work package would
-    read as "ownership unresolved" (#2118). The kind-aware placement seam resolves the
-    topology-blind primary dir, and it is the only dir read: a coordination copy of ``tasks/``
-    may be stale, so no ``tasks/`` on the primary partition leaves ownership unresolved (every
-    approved work package then refuses, fail closed). *feature_dir* is accepted for the call
-    shape only.
+    Without *owned*, ``WORK_PACKAGE_TASK`` belongs to PRIMARY, never a possibly stale
+    coordination copy (#2118). A validated *owned* fact selects the placement seam's
+    owned authority instead (#7099). Missing ownership fails closed in either case;
+    *feature_dir* is retained for compatibility, never used as a fallback.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
     del feature_dir  # never a fallback: see the docstring
-    primary: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    primary: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return primary
 
 
-def _owned_patterns_by_wp(repo_root: Path, mission_slug: str, feature_dir: Path, wp_ids: Iterable[str]) -> dict[str, tuple[str, ...]]:
+def _owned_patterns_by_wp(
+    repo_root: Path,
+    mission_slug: str,
+    feature_dir: Path,
+    wp_ids: Iterable[str],
+    *,
+    owned: OwnedCheckout | None = None,
+) -> dict[str, tuple[str, ...]]:
     """Each wanted work package's authored ownership globs (static frontmatter, never runtime state).
 
     A work package file that cannot be read stays unresolved; the caller reads an absent or empty
-    pattern set as "implementation cannot be proven" and refuses (fail closed).
+    pattern set as "implementation cannot be proven" and refuses (fail closed). *owned* threads
+    the validated owned-checkout fact to the one ``tasks/`` read (:func:`_wp_task_dir`, #7099).
     """
     from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
 
     wanted = set(wp_ids)
     resolved: dict[str, tuple[str, ...]] = {}
-    for wp_file in wp_task_files(_wp_task_dir(repo_root, mission_slug, feature_dir) / "tasks"):
+    for wp_file in wp_task_files(_wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"):
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
         except Exception:  # noqa: BLE001 — an unreadable WP file leaves it unresolved; the caller fails closed
@@ -725,6 +732,7 @@ def evaluate_evidence(
     events: Callable[[], Sequence[Any] | None],
     is_single_branch: bool | None = None,
     landed_commit: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> EvidenceReport:
     """The evidence + independence verdict for every approved work package of a Mission.
 
@@ -734,7 +742,8 @@ def evaluate_evidence(
     *landed_commit* is a commit the CALLER has already verified as this Mission's PR landing
     commit; a lanes/coord lane whose window tip no longer resolves is then judged on
     ``planning_commit..landed_commit`` instead (:func:`_landed_window`, #6780). ``None`` keeps
-    every other caller on the lane window, unchanged.
+    every other caller on the lane window, unchanged. The validated *owned* fact selects
+    ownership and stored-topology authority; ``None`` preserves PRIMARY reads.
     """
     from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
 
@@ -742,8 +751,8 @@ def evaluate_evidence(
     approved = _approved_wp_ids(work_packages, excluded)
     if not approved:
         return EvidenceReport()
-    scan = _Scan(feature_dir, events, _owned_patterns_by_wp(repo_root, lanes_manifest.mission_slug, feature_dir, approved), [], set())
-    single_branch = is_single_branch_mission(repo_root, lanes_manifest) if is_single_branch is None else is_single_branch
+    scan = _Scan(feature_dir, events, _owned_patterns_by_wp(repo_root, lanes_manifest.mission_slug, feature_dir, approved, owned=owned), [], set())
+    single_branch = is_single_branch_mission(repo_root, lanes_manifest, owned=owned) if is_single_branch is None else is_single_branch
     if single_branch:
         window = single_branch_evidence_window(repo_root, lanes_manifest, assume_single_branch=True)
         refusal = _single_branch_scan(repo_root, lanes_manifest, scan, approved, window)
@@ -759,6 +768,7 @@ def mission_evidence_report(
     *,
     excluded_canceled_wp_ids: Iterable[str] = (),
     landed_commit: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> EvidenceReport:
     """Public entry for callers outside the claim builder (``accept``, ``orchestrator-api``).
 
@@ -766,6 +776,7 @@ def mission_evidence_report(
     claim builder does. A snapshot or status log that cannot be read raises (``StoreError``) so
     the caller refuses; nothing here passes on an unreadable input. *landed_commit* is passed
     straight to :func:`evaluate_evidence` (a caller-verified PR landing commit, #6780).
+    *owned* carries the caller's validated checkout authority into the evidence reads.
     """
     from specify_cli.status import materialize_snapshot, read_events
 
@@ -778,6 +789,7 @@ def mission_evidence_report(
         excluded_canceled_wp_ids,
         events=lambda: read_events(feature_dir),
         landed_commit=landed_commit,
+        owned=owned,
     )
 
 

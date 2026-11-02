@@ -47,6 +47,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.status import Lane, StatusEvent, StoreError, TransitionRequest, materialize_snapshot
@@ -63,6 +64,9 @@ from .wp_evidence import (
     evaluate_evidence,
     in_force_no_implementation_attestation,
 )
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 #: Prefix of the recorded ``reason`` so the status log says what the operator attested.
 _REASON_PREFIX = "operator attests no implementation is owed: "
@@ -123,14 +127,17 @@ def plan_no_implementation_attestations(
     repo_root: Path,
     excluded_canceled_wp_ids: Iterable[str],
     landed_commit: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> dict[str, str]:
     """Validate the request against the status snapshot and the evidence verdict: work package id -> current lane, in request order.
 
     *feature_dir* is the status-bearing mission dir; *repo_root* the repository the evidence windows
     are diffed in. *landed_commit* is a caller-verified PR landing commit, threaded to
     :func:`~specify_cli.consolidation.wp_evidence.evaluate_evidence` so this planner and the
-    gate it runs before judge the same window (#6780). Raises :class:`AttestationError` (nothing
-    recorded) for an invalid request, an unreadable status log, or a work package whose evidence
+    gate it runs before judge the same window (#6780). *owned* carries the same validated
+    checkout authority into this evaluation and the subsequent gate (#7099).
+    Raises :class:`AttestationError` (nothing recorded) for an invalid request, an unreadable
+    status log, or a work package whose evidence
     verdict an attestation cannot lift (:func:`_refuse_unliftable`). An empty request returns an
     empty mapping without reading.
     """
@@ -149,7 +156,7 @@ def plan_no_implementation_attestations(
     claim_lanes = approved_claim_lanes(work_packages, lanes_manifest, excluded)
     validated = _validate_no_implementation_request(requested, reason, claim_lanes=claim_lanes)
     report = evaluate_evidence(
-        repo_root, feature_dir, lanes_manifest, work_packages, excluded, events=lambda: read_events(feature_dir), landed_commit=landed_commit
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded, events=lambda: read_events(feature_dir), landed_commit=landed_commit, owned=owned
     )
     _refuse_unliftable(report, validated)
     return {wp_id: claim_lanes[wp_id] for wp_id in validated}

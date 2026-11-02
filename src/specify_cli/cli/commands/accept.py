@@ -1193,6 +1193,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
             repo_root=run.repo_root,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
             landed_commit=landed_commit,
+            owned=run.owned,
         )
     except AttestationError as exc:
         _fail(run.json_output, str(exc))
@@ -1226,7 +1227,9 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
     blocked check beside the rest of the readiness report (:func:`_report_evidence_diagnosis`).
     *landed_commit* is the PR landing commit this run already verified
     (``--merge-commit``, :func:`_verify_merge_commit`); it lets a lane whose branch ref was
-    pruned be judged on the landed tree instead of refusing the whole lane (#6780).
+    pruned be judged on the landed tree instead of refusing the whole lane (#6780). The run's
+    validated ``run.owned`` fact selects ownership/topology authority in that predicate
+    without falling back to an unvalidated primary copy (#7099).
     """
     manifest = _evidence_lanes_manifest(run)
     if manifest is None:
@@ -1238,6 +1241,7 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
             manifest,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
             landed_commit=landed_commit,
+            owned=run.owned,
         )
     except (StoreError, OSError) as exc:
         _fail(run.json_output, f"The Mission could not be checked for implementation evidence ({exc}); nothing was accepted.")

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from mission_runtime import OwnedCheckout
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 
@@ -180,7 +181,7 @@ def is_single_branch_meta(meta: Mapping[str, Any]) -> bool:
     return is_single_branch(stored_topology(meta))
 
 
-def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
+def is_single_branch_mission(repo: Path, manifest: LanesManifest, *, owned: OwnedCheckout | None = None) -> bool:
     """True when the mission's STORED topology is single_branch.
 
     Distinct from :func:`single_branch_evidence_window`, which also returns ``None`` when the
@@ -197,12 +198,16 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest) -> bool:
     lanes trips ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED`` first. Topology is read STORED (never
     derived), so this is deliberate: the axis does not re-derive topology from in-flight
     ``lanes.json`` signals.
+
+    A validated *owned* fact selects that checkout's stored metadata through the placement
+    seam; ``None`` keeps PRIMARY authority. Never infer topology from a stale primary copy
+    when the caller explicitly validated an owned checkout (#7099).
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA))
     return is_single_branch_meta(meta)
 
 
