@@ -594,55 +594,72 @@ _Charter bundle validation commands._
  Render charter context for a specific workflow action.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --action                                <str>  Workflow action               │
-│                                                (specify|plan|implement|revi… │
-│ --include                               <str>  Fetch selector, e.g.          │
-│                                                agent-profile:<id>,           │
-│                                                template:<mission>/<name>,    │
-│                                                directive:<id>,               │
-│                                                section:<slug>.               │
-│ --mark-loaded       --no-mark-loaded           Persist first-load state      │
-│                                                [default: mark-loaded]        │
-│ --profile                               <str>  Agent profile whose cited     │
-│                                                directives and tactics are    │
-│                                                added to the rendered text    │
-│                                                (same id `spec-kitty dispatch │
-│                                                --profile` accepts). With     │
-│                                                --include it is ignored; the  │
-│                                                structured --json blocks stay │
-│                                                profile-agnostic.             │
-│ --mission-type                          <str>  Canonical mission type (e.g.  │
-│                                                documentation|research|plan|… │
-│                                                for the action doctrine       │
-│                                                grain. Required when          │
-│                                                rendering action context from │
-│                                                the repo root — without it,   │
-│                                                and without a mission's       │
-│                                                meta.json, the action grain   │
-│                                                is typeless and never         │
-│                                                inherits software-dev (#883). │
-│ --json                                         Output JSON.                  │
-│                                                `context_schema_version`      │
-│                                                stamps the top-level payload  │
-│                                                shape (#2787, tracking        │
-│                                                contract -- not yet frozen).  │
-│                                                `directives` is               │
-│                                                action-scoped;                │
-│                                                `all_directives` and          │
-│                                                `project_charter` describe    │
-│                                                the project-local charter,    │
-│                                                while `org_charter` describes │
-│                                                imported org packs.           │
-│ --include-all                                  Escape hatch: materialise the │
-│                                                entire reachable closure      │
-│                                                inline in the structured      │
-│                                                (--json) payload instead of   │
-│                                                the default progressive       │
-│                                                disclosure (requires eager,   │
-│                                                suggests linked). Output is a │
-│                                                superset of the progressive   │
-│                                                render for the same grain.    │
-│ --help          -h                             Show this message and exit.   │
+│ --owned-checkout                          <path>  Run against an owned       │
+│                                                   checkout: a linked         │
+│                                                   checkout that owns this    │
+│                                                   mission. Refuses the       │
+│                                                   repository root checkout,  │
+│                                                   lane worktrees and         │
+│                                                   coordination worktrees.    │
+│ --mission                                 <str>   Mission handle bound to    │
+│                                                   the explicitly selected    │
+│                                                   owned checkout.            │
+│ --action                                  <str>   Workflow action            │
+│                                                   (specify|plan|implement|r… │
+│ --include                                 <str>   Fetch selector, e.g.       │
+│                                                   agent-profile:<id>,        │
+│                                                   template:<mission>/<name>, │
+│                                                   directive:<id>,            │
+│                                                   section:<slug>.            │
+│ --mark-loaded         --no-mark-loaded            Persist first-load state   │
+│                                                   [default: mark-loaded]     │
+│ --profile                                 <str>   Agent profile whose cited  │
+│                                                   directives and tactics are │
+│                                                   added to the rendered text │
+│                                                   (same id `spec-kitty       │
+│                                                   dispatch --profile`        │
+│                                                   accepts). With --include   │
+│                                                   it is ignored; the         │
+│                                                   structured --json blocks   │
+│                                                   stay profile-agnostic.     │
+│ --mission-type                            <str>   Canonical mission type     │
+│                                                   (e.g.                      │
+│                                                   documentation|research|pl… │
+│                                                   for the action doctrine    │
+│                                                   grain. Required when       │
+│                                                   rendering action context   │
+│                                                   from the repo root —       │
+│                                                   without it, and without a  │
+│                                                   mission's meta.json, the   │
+│                                                   action grain is typeless   │
+│                                                   and never inherits         │
+│                                                   software-dev (#883).       │
+│ --json                                            Output JSON.               │
+│                                                   `context_schema_version`   │
+│                                                   stamps the top-level       │
+│                                                   payload shape (#2787,      │
+│                                                   tracking contract -- not   │
+│                                                   yet frozen). `directives`  │
+│                                                   is action-scoped;          │
+│                                                   `all_directives` and       │
+│                                                   `project_charter` describe │
+│                                                   the project-local charter, │
+│                                                   while `org_charter`        │
+│                                                   describes imported org     │
+│                                                   packs.                     │
+│ --include-all                                     Escape hatch: materialise  │
+│                                                   the entire reachable       │
+│                                                   closure inline in the      │
+│                                                   structured (--json)        │
+│                                                   payload instead of the     │
+│                                                   default progressive        │
+│                                                   disclosure (requires       │
+│                                                   eager, suggests linked).   │
+│                                                   Output is a superset of    │
+│                                                   the progressive render for │
+│                                                   the same grain.            │
+│ --help            -h                              Show this message and      │
+│                                                   exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1788,6 +1805,35 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            report (required  │
 │                                                            with              │
 │                                                            --release-branch… │
+│ --dependency-ref                          <str>            External          │
+│                                                            dependency ref    │
+│                                                            (repeatable) that │
+│                                                            a work-package    │
+│                                                            branch brought in │
+│                                                            with (for example │
+│                                                            `git merge        │
+│                                                            --no-ff <dep>`),  │
+│                                                            so its commits    │
+│                                                            are attributed as │
+│                                                            inherited history │
+│                                                            instead of        │
+│                                                            removed/canceled  │
+│                                                            work (#6771).     │
+│                                                            Verified          │
+│                                                            fail-closed: the  │
+│                                                            ref must resolve, │
+│                                                            the mission       │
+│                                                            branch must reach │
+│                                                            it, and no commit │
+│                                                            of any mission    │
+│                                                            lane or mission   │
+│                                                            branch may sit in │
+│                                                            it. Without a     │
+│                                                            declaration the   │
+│                                                            closed-world      │
+│                                                            check stays       │
+│                                                            exactly as strict │
+│                                                            as before.        │
 │ --origin-check                            <function>       Origin freshness  │
 │                                                            check before      │
 │                                                            anything lands:   │
@@ -3683,10 +3729,14 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  reported as an error and skipped; it never routes into an archive
  operation.
 
+ ``--mission`` (#6347) narrows the walk to that one Mission's acceptance
+ matrix; omitting it keeps the whole-corpus walk exactly as before.
+
  Exit codes:
 
  - ``0`` — every matrix migrated cleanly (or needed no change)
- - ``1`` — one or more matrices could not be parsed (see the reported errors)
+ - ``1`` — one or more matrices could not be parsed (see the reported errors),
+   or the ``--mission`` handle does not resolve
 
  Examples:
 
@@ -3694,17 +3744,21 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
      spec-kitty migrate backfill-provenance --json
 
+     spec-kitty migrate backfill-provenance --mission 042-my-mission --dry-run
+
      spec-kitty migrate backfill-provenance
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                    Report what would be stamped without writing    │
-│                              any files. The JSON shape is identical to a     │
-│                              live run.                                       │
-│ --json                       Emit a JSON-stable summary report on stdout.    │
-│ --project-root          DIR  Root of the Spec Kitty project (default:        │
-│                              current working directory).                     │
-│                              [default: .]                                    │
-│ --help          -h           Show this message and exit.                     │
+│ --dry-run                       Report what would be stamped without writing │
+│                                 any files. The JSON shape is identical to a  │
+│                                 live run.                                    │
+│ --json                          Emit a JSON-stable summary report on stdout. │
+│ --mission               HANDLE  Scope to a single mission (mission_id / mid8 │
+│                                 / slug). Omit to process the whole corpus.   │
+│ --project-root          DIR     Root of the Spec Kitty project (default:     │
+│                                 current working directory).                  │
+│                                 [default: .]                                 │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3904,11 +3958,19 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
  Implements FR-026, FR-027, NFR-006.
 
+ ``--mission`` (#6347) narrows the walk to one Mission's charter content and
+ **excludes the global charter store**, which is reported in both the human
+ summary and the ``--json`` payload (``global_store_excluded``) and left
+ byte-for-byte untouched. Omitting ``--mission`` keeps the corpus-wide walk,
+ global store included, exactly as before.
+
  Exit codes:
 
- - ``0`` — corpus is fully UTF-8 compliant (all files already-UTF-8 or
-   successfully normalized)
- - ``1`` — one or more files are ambiguous (manual repair required)
+ - ``0`` — the walked corpus (the scoped Mission, or the whole corpus when
+   ``--mission`` is omitted) is fully UTF-8 compliant (all files
+   already-UTF-8 or successfully normalized)
+ - ``1`` — one or more walked files are ambiguous (manual repair required),
+   or the ``--mission`` handle does not resolve
 
  Examples:
 
@@ -3916,21 +3978,26 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 
      spec-kitty migrate charter-encoding --yes --json
 
+     spec-kitty migrate charter-encoding --mission 042-my-mission --yes
+
      spec-kitty migrate charter-encoding
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                    Show what would change without writing any      │
-│                              files.  Returns exit 0 unless ambiguous files   │
-│                              are found.                                      │
-│ --yes           -y           Apply normalizations without prompting.  Exits  │
-│                              non-zero if any file is ambiguous (CI-safe).    │
-│                              Do NOT pass --yes to silently bypass ambiguous  │
-│                              files — manual repair is required for those.    │
-│ --json                       Emit a JSON-stable summary report on stdout.    │
-│ --project-root          DIR  Root of the Spec Kitty project (default:        │
-│                              current working directory).                     │
-│                              [default: .]                                    │
-│ --help          -h           Show this message and exit.                     │
+│ --dry-run                       Show what would change without writing any   │
+│                                 files.  Returns exit 0 unless ambiguous      │
+│                                 files are found.                             │
+│ --yes           -y              Apply normalizations without prompting.      │
+│                                 Exits non-zero if any file is ambiguous      │
+│                                 (CI-safe).  Do NOT pass --yes to silently    │
+│                                 bypass ambiguous files — manual repair is    │
+│                                 required for those.                          │
+│ --json                          Emit a JSON-stable summary report on stdout. │
+│ --mission               HANDLE  Scope to a single mission (mission_id / mid8 │
+│                                 / slug). Omit to process the whole corpus.   │
+│ --project-root          DIR     Root of the Spec Kitty project (default:     │
+│                                 current working directory).                  │
+│                                 [default: .]                                 │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4009,16 +4076,28 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  already in canonical ``sha256:`` form are skipped) and read-only over source
  artifacts — only the recorded snapshot cache files are written (#2263).
 
+ ``--mission`` (#6347) narrows the sweep to that one Mission's recorded
+ snapshot(s); omitting it keeps the whole-backlog sweep exactly as before.
+
  Exit codes:
 
  - ``0`` — completed (some snapshots may be reported as errors and skipped)
- - ``1`` — project root could not be located
+ - ``1`` — project root could not be located, or the ``--mission`` handle
+   does not resolve
+
+ Examples:
+
+     spec-kitty migrate rebaseline-dossier-hashes --dry-run
+
+     spec-kitty migrate rebaseline-dossier-hashes --mission 042-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json               Emit a structured per-mission re-baseline report        │
-│ --dry-run            Preview which recorded snapshot hashes would be         │
-│                      re-baselined, without writing                           │
-│ --help     -h        Show this message and exit.                             │
+│ --json                     Emit a structured per-mission re-baseline report  │
+│ --dry-run                  Preview which recorded snapshot hashes would be   │
+│                            re-baselined, without writing                     │
+│ --mission          HANDLE  Scope to a single mission (mission_id / mid8 /    │
+│                            slug). Omit to process the whole corpus.          │
+│ --help     -h              Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5869,7 +5948,8 @@ _Fetch, vendor, inspect and stop the pinned service binaries_
 │ --service          <str>  The service: one of charter-service, read-service, │
 │                           write-service.                                     │
 │                           [default: write-service]                           │
-│ --all                     Every service this spec-kitty version pins.        │
+│ --all                     Every pinned service this CLI launches (the        │
+│                           CI-only read service only with --service).         │
 │ --offline                 Never download: use the cache or                   │
 │                           SPEC_KITTY_SERVICE_ASSET_DIR only.                 │
 │ --json                    Print JSON.                                        │
