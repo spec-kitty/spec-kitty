@@ -166,8 +166,16 @@ def _floor_violation(target: str, binaries: dict[str, bytes], declared: dict[str
         return None
     return SERVICE_PLATFORM_FLOOR_EXCEEDED, (
         f"{target}: {need.asset} needs {label} {need.floor}, above the {declared[kind]} its wheel tag claims; "
-        f"raise {option} to {need.floor} in release.yml (and the published tag with it), or pin a build that does not need it"
+        f"raise {option} to {_advised_floor(kind, need.floor)} in release.yml (and the published tag with it), or pin a build that does not need it"
     )
+
+
+def _advised_floor(kind: str, floor: str) -> str:
+    """The floor to raise the tag to: macOS 11+ tags carry no minor, so ``11_1`` rounds up to ``12_0``."""
+    major, minor = (int(part) for part in floor.split("_"))
+    if kind == MACOS and major >= 11 and minor != 0:
+        return f"{major + 1}_0"
+    return floor
 
 
 def _tag_floor(wheel_name: str) -> str | None:

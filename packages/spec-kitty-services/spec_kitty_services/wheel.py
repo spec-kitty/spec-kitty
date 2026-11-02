@@ -62,6 +62,8 @@ _PROVIDERS: Mapping[str, str] = {"charter-service": "charter_service", "write-se
 COMPANION_SERVICES: tuple[str, ...] = tuple(sorted(_PROVIDERS))
 DEFAULT_GLIBC_FLOOR = "2_39"
 DEFAULT_MACOS_FLOOR = "11_0"
+#: From this macOS major on, pip/packaging generate only ``macosx_<major>_0_*`` platform tags.
+_MACOS_FLAT_FROM = 11
 FALLBACK_TAG = "py3-none-any"
 _MANIFEST_SCHEMA = 1
 _REQUIRES_PYTHON = ">=3.11"
@@ -125,6 +127,10 @@ def platform_tag(target: str, glibc_floor: str = DEFAULT_GLIBC_FLOOR, macos_floo
     for label, floor in (("glibc", glibc_floor), ("macOS", macos_floor)):
         if not _FLOOR.match(floor):
             raise ValueError(f"{label} floor {floor!r} is not <major>_<minor>")
+    major, minor = (int(part) for part in macos_floor.split("_"))
+    if major >= _MACOS_FLAT_FROM and minor != 0:
+        # pip generates only ``macosx_<major>_0_*`` from macOS 11, so a tag with a minor matches no host.
+        raise ValueError(f"macOS floor {macos_floor!r} must be {major}_0 or {major + 1}_0: macOS {_MACOS_FLAT_FROM}+ tags carry no minor")
     try:
         return "py3-none-" + _PLATFORMS[target].format(glibc=glibc_floor, macos=macos_floor)
     except KeyError:
