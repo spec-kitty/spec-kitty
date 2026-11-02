@@ -239,3 +239,76 @@ def test_invalid_verdict_row_is_unresolved_not_missing_at_blocker_and_doctor(
     assert blocker_msg is not None
     assert "Missing rows" not in blocker_msg
     assert "#2004" in blocker_msg
+
+
+# ---------------------------------------------------------------------------
+# (d) #7011 -- THE MISSION'S OWN SOURCE ISSUE is never auto-classified
+#     non-gating, and every site inherits that through the one classifier.
+#     Regression for the reported defect: a positional citation label for a
+#     DIFFERENT number demoted the source issue on the same line, the scaffold
+#     pre-resolved its row to ``not-applicable``, and the approval gate then
+#     accepted that row as terminal.
+# ---------------------------------------------------------------------------
+
+
+def _write_source_issue_mission(feature_dir: Path) -> None:
+    """The reported shape: a header citing the target beside an epic label."""
+    (feature_dir / "meta.json").write_text(
+        '{"source_description": "Issue #6926: anchor the sdist README include to the repository root."}\n',
+        encoding="utf-8",
+    )
+    (feature_dir / "spec.md").write_text(
+        "\n".join(
+            [
+                "Parent epic: #6926 tracks the umbrella.",
+                "Also: epic #6100 covers the wider packaging work.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_source_issue_gates_at_all_four_sites_7011(tmp_path: Path) -> None:
+    """#7011: the Mission's own issue is gating at the blocker, merge_gates,
+    doctor and mission-review Gate 4 -- and the context label on the same line
+    still keeps ``#6100`` non-gating at every site (paired control).
+    """
+    feature_dir = _feature_dir(tmp_path)
+    _write_source_issue_mission(feature_dir)
+
+    assert gating_issue_numbers(feature_dir) == {"#6926"}
+
+    blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
+    gate = _evaluate_issue_matrix_completeness_gate(tmp_path, "demo", is_blocking=True)
+    doctor_findings = check_issue_matrix(feature_dir)
+    gate4_result, gate4_findings = _run_gate4(feature_dir)
+
+    assert blocker_msg is not None
+    assert "#6926" in blocker_msg
+    assert "#6100" not in blocker_msg
+    assert gate.verdict == GateVerdict.FAIL
+    assert gate.blocking is True
+    assert "#6926" in gate.details
+    assert any("#6926" in finding.message for finding in doctor_findings)
+    assert not any("#6100" in finding.message for finding in doctor_findings)
+    assert gate4_result is False
+    assert len(gate4_findings) == 1
+    assert gate4_findings[0]["type"] == "issue_matrix_violation"
+
+
+def test_omitted_source_issue_row_is_reported_missing_7011(tmp_path: Path) -> None:
+    """A matrix carrying only the context row is incomplete: the source issue is
+    reported MISSING (not silently satisfied by ``#6100``'s absence of a row).
+    """
+    feature_dir = _feature_dir(tmp_path)
+    _write_source_issue_mission(feature_dir)
+    _write_matrix(feature_dir, "#6100", "not-applicable", "epic umbrella, tracked separately")
+
+    _result, referenced_issues, missing_issues, _unresolved = _issue_matrix_evaluation(feature_dir)
+    assert referenced_issues == {"#6926"}
+    assert missing_issues == ["#6926"]
+
+    blocker_msg = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED)
+    assert blocker_msg is not None
+    assert "Missing rows: #6926" in blocker_msg
