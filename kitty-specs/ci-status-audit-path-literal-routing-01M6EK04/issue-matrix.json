@@ -1,7 +1,67 @@
 {
   "rows": {
+    "#2171": {
+      "evidence_ref": "Cited as history/context in the spec's grounding section only; no work owed by this mission (its own mission or PR owns it).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2476": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2816": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4367": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4454": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#4842": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +69,35 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5862": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5864": {
+      "evidence_ref": "Cited only as the precedent for a non-src extra lane (mission-state audit job); no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6367": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as history/context in the spec's grounding section only; no work owed by this mission (its own mission or PR owns it).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6516": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Cited as history/context in the spec's grounding section only; no work owed by this mission (its own mission or PR owns it).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -37,7 +121,7 @@
       "wp": null
     },
     "#6582": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as history/context in the spec's grounding section only; no work owed by this mission (its own mission or PR owns it).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +129,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6605": {
+      "evidence_ref": "Cited only as the precedent for a narrow router lane plus duplicate-suite ledger row (tests-events-consumers); no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6879": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR #7088: non-src path_literal_audit group + tests (path-literal audit) lane running tests/audit/test_no_legacy_path_literals.py on a status/** diff; pinned by tests/ci/test_path_literal_audit_routing.py.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +153,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6883": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "Cited as history/context in the spec's grounding section only; no work owed by this mission (its own mission or PR owns it).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,6 +165,30 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6915": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6994": {
+      "evidence_ref": "Cited as a referenced mechanism/decision in the spec or the workflow comments only; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
       "verdict": "not-applicable",
       "wp": null
     }
