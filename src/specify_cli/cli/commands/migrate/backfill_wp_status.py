@@ -40,7 +40,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import console
-from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.context.mission_resolver import residue_notice
 from specify_cli.migration.backfill_runtime_state import (
     MissionSelectorRejectedError,
@@ -182,27 +181,34 @@ def known_mission_slugs(repo_root: Path) -> list[str]:
     return [folder.name for folder in walked_mission_dirs(repo_root)]
 
 
+def resolve_mission_scope(mission: str | None, repo_root: Path, *, json_output: bool) -> str | None:
+    """Resolve ``--mission`` (mission_id / mid8 / slug) to a canonical Mission slug, or ``None`` when absent.
+
+    Returns ``None`` for ``None`` input. Returns the handle unchanged when it is an
+    exact ``kitty-specs/`` directory name (legacy Mission without a ``mission_id``
+    that the canonical resolver cannot see). Otherwise delegates to
+    :func:`~specify_cli.cli.selector_resolution.resolve_mission_handle` and returns
+    ``str(resolved.mission_slug)``. An unknown or ambiguous handle fails closed:
+    exit 2 in human mode, exit 1 under ``--json`` (raised by the canonical resolver).
+    """
+    if mission is None:
+        return None
+    if mission in known_mission_slugs(repo_root):
+        return mission
+    from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: PLC0415
+    return str(resolve_mission_handle(mission, repo_root, json_mode=json_output).mission_slug)
+
+
 def resolve_scope(handle: str, repo_root: Path, *, json_mode: bool) -> str:
     """Resolve ``--mission`` (mission_id / mid8 / slug) to a Mission directory name.
 
-    Delegates to the canonical :func:`~specify_cli.cli.selector_resolution.resolve_mission_handle`,
-    so an unknown or ambiguous handle fails exactly like the sibling ``migrate``
-    commands: exit 2 with a message in human mode, exit 1 with the
-    ``{success, error_code, error, handle[, candidates]}`` envelope under ``--json``,
-    before anything is written.
-
-    One short-circuit stays local, because the canonical resolver cannot serve it: a
-    legacy Mission without a ``mission_id`` is invisible to the identity index, yet
-    this command's walk still repairs it (:func:`known_mission_slugs`). An exact ``kitty-specs/`` directory
-    name is unambiguous by construction (directory names are unique), so it resolves
-    to itself; every other handle form goes through the canonical resolver.
-
-    Raises:
-        SystemExit: unknown or ambiguous handle (raised by the canonical resolver).
+    Thin wrapper over :func:`resolve_mission_scope` that preserves the ``SystemExit``
+    behaviour for the caller.
     """
-    if handle in known_mission_slugs(repo_root):
-        return handle
-    return str(resolve_mission_handle(handle, repo_root, json_mode=json_mode).mission_slug)
+    scope = resolve_mission_scope(handle, repo_root, json_output=json_mode)
+    # resolve_mission_scope returns None only for None input; handle is str here
+    assert scope is not None
+    return scope
 
 
 # ---------------------------------------------------------------------------
