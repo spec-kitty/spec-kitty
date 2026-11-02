@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-ceiling-aware-ancestor-walk-01M6EJNY",
+  "created_at": "2026-11-02T16:50:02.106744+00:00",
+  "flattened": false,
+  "friendly_name": "ceiling aware ancestor walk",
+  "mid8": "01M6EJNY",
+  "mission_id": "01M6EJNYDMYNPDQA15KG7HM7WX",
+  "mission_number": null,
+  "mission_slug": "ceiling-aware-ancestor-walk-01M6EJNY",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances ceiling aware ancestor walk on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "ceiling aware ancestor walk",
+  "slug": "ceiling-aware-ancestor-walk-01M6EJNY",
+  "target_branch": "main",
+  "topology": "coord"
+}
