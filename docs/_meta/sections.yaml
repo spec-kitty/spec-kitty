@@ -1,0 +1,76 @@
+# Section registry for the doc-kitty docsite (ADR docs/adr/4.x/2026-10-31-1, D-1 and D-8).
+#
+# doc-kitty's shape (its docs/architecture/section-registry.md): one entry per published top-level
+# folder of docs/, with `id` (the folder name), `label` and `order`; `feeds` limits which generated
+# feeds (sitemap, rss, llms, agent) carry the section, and an absent `feeds` means all four.
+# Authored content, not generated. Folders the site leaves out (scripts/docs/_dockitty_contract.py
+# EXCLUDED_FOLDERS: archive, reports, convergence) are not registered. Pinned by
+# tests/docs/test_site_scaffold.py. Publication rules beyond what the build needs are #6932's.
+version: 1
+sections:
+  - id: guides
+    label: Guides
+    order: 10
+    purpose: Tutorials and how-to guides for using Spec Kitty.
+  - id: context
+    label: Context
+    order: 20
+    purpose: Canonical terminology, personas and the concepts Spec Kitty is built on.
+  - id: configuration
+    label: Configuration
+    order: 30
+    purpose: How a project configures Spec Kitty.
+  - id: api
+    label: Reference
+    order: 40
+    purpose: Command-line and API reference.
+  - id: integrations
+    label: Integrations
+    order: 50
+    purpose: How Spec Kitty works with agent harnesses and other tools.
+  - id: migrations
+    label: Migrations
+    order: 60
+    purpose: Upgrade and migration runbooks.
+  - id: operations
+    label: Operations
+    order: 70
+    purpose: Operating Spec Kitty in a repository and in CI.
+  - id: security
+    label: Security
+    order: 80
+    purpose: Security model and reporting.
+  - id: architecture
+    label: Architecture
+    order: 90
+    purpose: Architecture descriptions and technical specifications.
+  - id: adr
+    label: Decisions
+    order: 100
+    purpose: Architecture decision records.
+  - id: development
+    label: Development
+    order: 110
+    purpose: How the Spec Kitty core team develops, tests and releases Spec Kitty.
+  - id: changelog
+    label: Changelog
+    order: 120
+    purpose: Release notes.
+  - id: contracts
+    label: Contracts
+    order: 130
+    purpose: Published contracts and their registry.
+  - id: plans
+    label: Plans
+    order: 140
+    purpose: Roadmaps and plans.
+    # Restricted feeds (ADR D-8): no llms, no agent, no rss.
+    feeds: [sitemap]
+  - id: templates
+    label: Templates
+    order: 150
+    purpose: Templates used by the documentation site.
+  - id: assets
+    label: Assets
+    order: 160
+    purpose: Static assets for the documentation site.

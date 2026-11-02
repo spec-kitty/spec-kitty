@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup sync-packs sync-services lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
+.PHONY: help dev-setup sync-packs sync-services lint format-check format-check-files docs-lint docs-site docs-site-bump typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -39,6 +39,16 @@ format-check-files: ## Run ruff formatter check on explicit paths, honoring the 
 docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the changelog [Unreleased] style
 	uv run --frozen python -m scripts.docs.check_spelling
 	uv run --frozen python -m scripts.docs.check_changelog_style
+
+# doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm.
+# Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1).
+docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, build
+	uv run --frozen python -m scripts.docs.site_contract --check
+	cd site && pnpm install --frozen-lockfile && pnpm run build
+
+docs-site-bump: ## Bump the doc-kitty pin and peer ranges (REF=<tag|sha>; ADR D-2 steps 1-2)
+	@test -n "$(REF)" || { echo "Usage: make docs-site-bump REF=<doc-kitty tag or commit>"; exit 2; }
+	uv run --frozen python -m scripts.docs.site_bump "$(REF)"
 
 convergence-census: ## Fetch upstream and report convergence dispositions
 	git fetch old
