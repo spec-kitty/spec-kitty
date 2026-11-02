@@ -13,14 +13,21 @@ final class ScenarioLifecycle {
     private final Path homeDir;
     private final Path tempRoot;
     private final long startEpochMillis = System.currentTimeMillis();
-    private final Path realSpecKittyHome = Path.of(System.getProperty("user.home"), ".spec-kitty");
-    private final String realHomeBefore = fingerprint(realSpecKittyHome);
+    private final RealHomeFingerprint realHome;
+    private final Path realSpecKittyHome;
+    private final String realHomeBefore;
 
     private boolean commandObserved;
 
     ScenarioLifecycle(Path homeDir, Path tempRoot) {
         this.homeDir = homeDir;
         this.tempRoot = tempRoot;
+        this.realSpecKittyHome = Path.of(System.getProperty("user.home"), ".spec-kitty");
+        this.realHome = RealHomeFingerprint.of(realSpecKittyHome, System.getenv());
+        // The guard proves it can still fail before it is trusted with the scenario's before-state, so a
+        // comparison that has become vacuous fails loudly instead of quietly passing every run.
+        RealHomeFingerprint.proveStillDetectsLeaks(tempRoot);
+        this.realHomeBefore = realHome.value();
     }
 
     void markCommandObserved() {
@@ -38,10 +45,14 @@ final class ScenarioLifecycle {
      * environment redirection is not in effect. The start time is floored to whole seconds so
      * coarse-mtime filesystems cannot hide a fresh write.
      *
-     * <p><b>The real home stayed clean.</b> The real {@code ~/.spec-kitty} must look exactly as it
-     * did when the scenario started (existence, file count, newest mtime). Lock files are left out:
-     * another {@code spec-kitty} process on a developer machine touches them (for example
-     * {@code auth/session.lock}) and would trip the check without the scenario being at fault.
+     * <p><b>The real home stayed clean.</b> The real {@code ~/.spec-kitty} must look as it did when the
+     * scenario started (existence, file count, newest mtime, total size; see
+     * {@link RealHomeFingerprint}). Lock files are left out: another {@code spec-kitty} process on a
+     * developer machine touches them (for example {@code auth/session.lock}) and would trip the check
+     * without the scenario being at fault. On a shared host the comparison is narrowed to the surfaces a
+     * scenario could plausibly corrupt — the {@code SPEC_KITTY_ACCEPTANCE_SHARED_HOST} switch is described
+     * by {@link RealHomeFingerprint} and cannot be set on a CI runner — and the failure message names the
+     * scope it compared, so a reader can tell a leak from a mis-scoped run.
      */
     void assertObservedWriteInsideTempDir() {
         if (!commandObserved) {
@@ -57,10 +68,11 @@ final class ScenarioLifecycle {
         } catch (IOException e) {
             throw new UncheckedIOException("Could not walk the redirected home for the positive control", e);
         }
-        String after = fingerprint(realSpecKittyHome);
+        String after = realHome.value();
         if (!realHomeBefore.equals(after)) {
             throw new AssertionError("The scenario changed the real " + realSpecKittyHome
-                    + " (before: " + realHomeBefore + ", after: " + after + ")");
+                    + " (scope=" + realHome.scope() + ", before: " + realHomeBefore
+                    + ", after: " + after + ")");
         }
     }
 
@@ -69,33 +81,6 @@ final class ScenarioLifecycle {
             return Files.getLastModifiedTime(file).toMillis() >= floorMillis;
         } catch (IOException e) {
             return false;
-        }
-    }
-
-    /**
-     * Existence, regular-file count, newest mtime and total size of a tree, ignoring {@code *.lock} files; cheap
-     * proof it was left alone.
-     */
-    private static String fingerprint(Path root) {
-        if (!Files.exists(root)) {
-            return "absent";
-        }
-        try (Stream<Path> tree = Files.walk(root)) {
-            long[] stats = {0, 0, 0};
-            tree.filter(Files::isRegularFile)
-                    .filter(file -> !file.getFileName().toString().endsWith(".lock"))
-                    .forEach(file -> {
-                stats[0]++;
-                try {
-                    stats[1] = Math.max(stats[1], Files.getLastModifiedTime(file).toMillis());
-                    stats[2] += Files.size(file);
-                } catch (IOException ignored) {
-                    // A file vanishing mid-walk is itself a change the count will show.
-                }
-            });
-            return "files=" + stats[0] + ",newestMtime=" + stats[1] + ",bytes=" + stats[2];
-        } catch (IOException e) {
-            throw new UncheckedIOException("Could not fingerprint " + root, e);
         }
     }
 
