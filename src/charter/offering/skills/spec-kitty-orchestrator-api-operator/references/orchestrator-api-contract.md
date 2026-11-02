@@ -898,11 +898,15 @@ transition — it never invokes the WP-loop or `next` engines.
 
 ## Error Code Summary
 
+<!-- orchestrator-error-codes:begin -->
+
 | Error Code | Commands | Description |
 |------------|----------|-------------|
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
+| `INVALID_MISSION` | all mission-scoped commands | `--mission` is not a safe path segment (`..`, a separator, a leading dot, non-ASCII); refused before any path join |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
 | `MISSION_NOT_READY` | accept-mission | Not all WPs are approved/done, or (contract >= 1.7.0) the host readiness verdict is not passing, or (contract >= 1.21.0) the implementation-evidence check refuses (`data.evidence_error_codes`) |
+| `WORKFLOW_EVIDENCE_REQUIRED` | transition | A terminal transition lacks its required structured workflow evidence; the current host derives those facts instead of returning this code, but the contract registers it |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
 | `POLICY_VALIDATION_FAILED` | start-implementation, start-review, transition | Policy JSON invalid or contains secret-like values |
 | `USAGE_ERROR` | all commands | CLI usage error or missing required arguments |
@@ -945,6 +949,23 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DECISION_NOT_PENDING` | answer-decision | `--decision-id` does not match any entry in the current run's pending decisions |
 | `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status, open-decision, resolve-decision, defer-decision, cancel-decision | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal (design-status), or on an idempotent decision retry (open-decision; resolve/defer/cancel-decision since contract 1.17.0); all four decision write verbs also return it for an unreadable `decisions/index.json` |
+| `DESIGN_ARTIFACT_UNSUPPORTED` | artifact-read, artifact-submit | Artifact name invalid, undeclared by the Mission type, or not an authoring capability |
+| `DESIGN_BOUNDS_EXCEEDED` | artifact-read, artifact-submit, design-context | A request, artifact or response exceeds the documented byte bounds |
+| `DESIGN_COMMIT_FAILED` | artifact-submit | Content materialized but the host commit did not complete; inspect the reported effect state and commit outcome before retrying |
+| `DESIGN_CONTEXT_FAILED` | design-context | Undeclared design stage, host content over the inline limit, or an activated Mission with no template mapping |
+| `DESIGN_CONTEXT_STALE` | artifact-submit, design-validate | The template or governance context changed since the content was authored; re-read `design-context` and resubmit |
+| `DESIGN_FINALIZED` | artifact-submit, design-validate | The native task board is finalized, so API design writes and plan scaffolding refuse; native reconciliation applies instead |
+| `DESIGN_INTERVIEW_FAILED` | interview-record | A native interview batch failed after earlier answers were applied; reconcile the reported decisions before retrying |
+| `DESIGN_INTERVIEW_INCOMPLETE` | interview-record, design-validate | Required interview answers are still pending, deferred or canceled |
+| `DESIGN_INTERVIEW_INVALID` | interview-record | The answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing |
+| `DESIGN_IO_FAILED` | artifact-read, artifact-submit, design-validate | The host could not read or persist design content |
+| `DESIGN_LOCK_TIMEOUT` | artifact-submit | The Mission authoring lock stayed busy past its bound; nothing was written, retry |
+| `DESIGN_PARENT_STALE` | artifact-submit, design-validate | An accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt |
+| `DESIGN_PATH_REFUSED` | artifact-read, artifact-submit | An artifact identifier or location is not a single safe basename or a declared destination |
+| `DESIGN_PREREQUISITES_FAILED` | artifact-submit, design-validate | Open decisions, missing accepted provenance, or an invalid bounded package graph |
+| `DESIGN_RECEIPT_UNREADABLE` | artifact-read, artifact-submit | API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects |
+| `DESIGN_REQUEST_INVALID` | artifact-submit | The request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, or names an unknown stage |
+| `DESIGN_REVISION_CONFLICT` | artifact-submit | The artifact revision changed since its `expected_sha256` was read; re-read and resubmit |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
 | `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step); an approval-bound or (contract >= 1.21.0) implementation-evidence refusal carries its codes in `data.preflight_error_code` / `data.preflight_error_codes` |
 | `UNSUPPORTED_STRATEGY` | consolidate-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
@@ -956,8 +977,21 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_PATH_LOOP` | append-history | Safe commit refused a requested path that is, or sits under, a symlink loop, before mutating the index (contract 1.14.0) |
 | `SAFE_COMMIT_INDEX_DELETION_CONFLICT` | append-history | Safe commit refused a path that was both requested for commit and listed as an index deletion, before committing (contract 1.14.0) |
 | `SAFE_COMMIT_INDEX_RESIDUE` | append-history | An index-deletion commit DID land (`commit_sha`), but the real index still stages a committed path; a `SAFE_COMMIT_RECOVERY_FAILED` refinement (contract 1.14.0) |
+| `SAFE_COMMIT_STAGED_TREE_UNCHANGED` | append-history | The staged tree scoped to the requested paths matches HEAD, so the safe commit has nothing to record |
 | `SAFE_COMMIT_UNREQUESTED_PATHS` | append-history | A pre-commit hook that re-stages every modified tracked file swept the operator's other modified tracked files into the commit, which DID land (`commit_sha`), so it carries paths the operation never requested; the real index is re-synced for those paths before the refusal; a `SAFE_COMMIT_RECOVERY_FAILED` refinement (contract 1.15.0) |
 | `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
+| `RUNTIME_BLOCKED` | next | The native runtime reported a blocked outcome; the typed payload explains why and the exit code is nonzero |
+| `RUNTIME_NEXT_FAILED` | next | The native step, prompt or request was refused; the exit code is nonzero |
+| `UNSUPPORTED_CAPABILITY` | any verb that requires it | The Python delivery profile does not support the requested capability; `data.capability` names it |
+
+<!-- orchestrator-error-codes:end -->
+
+The table between the markers is the complete enumeration of
+`allowed_error_codes`; `tests/contract/test_orchestrator_api.py::TestProseErrorCodeEnumerations`
+compares it with the contract, so a newly registered code is added here in the same
+change that registers it. `design-context`, `interview-record`, `artifact-read`,
+`artifact-submit`, `design-validate` and `next` are the Python delivery profile's
+governed planning verbs; `docs/api/orchestrator-api.md` documents each of them.
 
 ---
 
