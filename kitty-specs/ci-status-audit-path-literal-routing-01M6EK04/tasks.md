@@ -14,8 +14,11 @@ live-routing guard test, one additive ledger row. There is no `src/` change, so 
 to be serialized behind another.
 
 Order inside WP01 is red-first: T001 (the guard test, failing) precedes T002-T004 (the
-wiring it asserts), T005 is the verification sweep. T006 (the changelog fragment) is
-deferred to mission wrap-up because it needs the PR number.
+wiring it asserts), T005 is the verification sweep.
+
+The changelog fragment (`docs/changelog/unreleased/<pr>.internal.md`) is **not** a WP
+subtask: it needs the PR number, so it is written in the mission wrap-up after the PR
+exists.
 
 ## Requirement → Work-Package coverage
 
@@ -56,4 +59,3 @@ profile `python-pedro`. Details: [tasks/WP01-path-literal-audit-routing.md](./ta
 | T003 | Add the `tests-path-literal-audit` job (one pytest file, no marker filter) and its `router-gate` needs row | WP01 | |
 | T004 | Add the additive `AUTHORIZED_PER_CHANGE_SUITE_JOBS` ledger row with rationale | WP01 | |
 | T005 | Verification sweep: `tests/ci`, the six router/architectural guards, the guard file itself, a planted-literal red, ruff | WP01 | |
-| T006 | Changelog fragment `docs/changelog/unreleased/<pr>.internal.md` (wrap-up, needs the PR number) | WP01 | |
