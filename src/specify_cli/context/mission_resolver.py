@@ -837,7 +837,6 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     # ------------------------------------------------------------------
     # Priority 4: Human slug, i.e. the slug without its ``NNN-`` prefix and
     # without this Mission's own trailing ``-<mid8>`` (e.g. "foo-bar" for
-    # "083-foo-bar
     # "083-foo-bar", and "smoke-test" for "smoke-test-01M6BTQX"). #6278:
     # two Missions sharing a human slug still raise AmbiguousHandleError.
     # ------------------------------------------------------------------
