@@ -5812,6 +5812,7 @@ pages:
     anchors:
     - {slug: "the-governed-invocation-primitive", text: "The Governed Invocation Primitive", level: 2}
     - {slug: "standalone-dispatch", text: "Standalone Dispatch", level: 2}
+    - {slug: "re-dispatching-without-re-embedding-the-payload-6990", text: "Re-dispatching without re-embedding the payload (#6990)", level: 3}
     - {slug: "invocation-lifecycle", text: "Invocation Lifecycle", level: 2}
     - {slug: "the-invocation-trail", text: "The Invocation Trail", level: 2}
     - {slug: "evidence-and-artifact-correlation", text: "Evidence and Artifact Correlation", level: 2}
