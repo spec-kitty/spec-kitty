@@ -116,6 +116,11 @@ jobs:
       # match and belong in the unmatched union and the heavy battery's `if:`.
       unit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.unit }}
       specify_cli_runtime: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.specify_cli_runtime }}
+      # issue #6879: path_literal_audit is NON-src (its globs are `**/`-spelled, like
+      # mission_state) -- same fold shape as the rows above, but deliberately excluded from the
+      # unmatched union and the heavy battery's `if:` below: it is an extra narrow lane over paths
+      # other src-backed groups already own, never a code-shard group.
+      path_literal_audit: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.path_literal_audit }}
       # Non-src groups (data, not code): docs/corpus/e2e mirror the src rows'
       # fold shape but are DELIBERATELY excluded from the unmatched loop below.
       docs: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
@@ -234,6 +239,26 @@ jobs:
             status:
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/coordination/**'
+            # issue #6879: the runtime-home path-literal guard
+            # (tests/audit/test_no_legacy_path_literals.py) had NO per-PR lane -- tests/audit is
+            # out_of_matrix_test_dirs and the only nightly lane naming it runs `-m "fast or unit"`,
+            # which deselects the whole integration-marked module -- so a status-only diff ran no
+            # audit test and #6367's hand-rolled `.spec-kitty` literal reached main unseen (#6582).
+            # The globs are the paths whose change can make the guard meaningful or invert it: the
+            # reported gap, the keystone resolver file whose literal its non-vacuity limb asserts,
+            # and the guard file itself.
+            # NON-src on purpose, like `mission_state` below: a src-backed group must also be a
+            # module-registry row (see tests/architectural/test_gate_selection_authority.py), and
+            # claiming tests/audit as a module is a separate CI-budget decision (issue candidate 2).
+            # Staying non-src also keeps the FR-004 sensor honest: every path named here is already
+            # mapped by a src-backed group, and src/specify_cli/paths/** (the keystone directory) stays
+            # unmapped, so a diff there still forces run-all -- which runs this lane too. The `**/`
+            # spelling deliberately over-matches tests/specify_cli/status/** (cost only: ~2 s of
+            # pytest), mirroring `mission_state`.
+            path_literal_audit:
+              - '**/specify_cli/status/**'
+              - '**/kernel/paths.py'
+              - 'tests/audit/test_no_legacy_path_literals.py'
             review:
               - 'src/specify_cli/review/**'
             next:
@@ -1598,6 +1623,42 @@ jobs:
             tests/contract/spec_kitty_events_consumer \
             tests/contract/test_events_envelope_matches_resolved_version.py
 
+  # The runtime-home path-literal guard (#6879). tests/audit/test_no_legacy_path_literals.py fails
+  # the build when a global-state module hand-rolls `Path.home() / ".spec-kitty"` instead of deriving
+  # from specify_cli.paths.get_runtime_root (#2171). No per-PR lane ran it: tests/audit is an
+  # out_of_matrix_test_dirs entry, and the only nightly lane that names the tree
+  # (ci-nightly.yml interpreter-matrix-shard-5) runs it under `-m "fast or unit"`, which deselects
+  # every test in this module (it is `pytestmark = [pytest.mark.integration]`, 8 tests). So the lane
+  # below -- gated on the `path_literal_audit` group, which a src/specify_cli/status/** or
+  # src/kernel/paths.py diff matches -- is the guard's only home that actually executes it, and it
+  # deliberately carries NO marker
+  # expression: any `-m` filter here would collect zero tests. A zero-collected exit 5 fails the step,
+  # so a rename or a re-added filter reds instead of silently passing. Narrow by design: one file, no
+  # directory, so a status diff pays ~2 s of pytest plus the install. Pinned by
+  # tests/ci/test_path_literal_audit_routing.py (routing, job shape, negative controls) and declared in
+  # tests/architectural/test_no_duplicate_suite_execution.AUTHORIZED_PER_CHANGE_SUITE_JOBS.
+  tests-path-literal-audit:
+    name: tests (path-literal audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [changes, prose-scan]
+    if: ${{ needs.changes.outputs.path_literal_audit == 'true' && needs.prose-scan.outputs.prose_only != 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      - name: Run the runtime-home path-literal guard
+        run: |
+          uv run --frozen pytest tests/audit/test_no_legacy_path_literals.py -q --junitxml=out/reports/xunit-path-literal-audit.xml
+
   # The Mission-state audit (#5864). The upgrade witness used to audit the checkout's whole kitty-specs/
   # with this command and gate, but it runs only when upgrade code changes, so a Mission that landed with a
   # drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next unrelated upgrade PR instead of its own.
@@ -1743,6 +1804,7 @@ jobs:
       - tests-corpus-blocking
       - tests-contract-tools
       - tests-events-consumers
+      - tests-path-literal-audit
       - mission-state-audit
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
