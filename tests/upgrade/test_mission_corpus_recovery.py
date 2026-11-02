@@ -151,6 +151,11 @@ def inventory(repo: Path) -> dict[str, tuple[int, int, str]]:
     return result
 
 
+# Eleven real CLI audits plus integrity controls: hosted run 41501746918
+# measured 257.019s including fixtures with temp files retained (#5716).
+# ceil(((257.019 + 30s cleanup reserve) * 1.5) / 30) * 30 = 450s;
+# preserve the shared 240s backstop and each CLI's existing 180s timeout.
+@pytest.mark.timeout(450)
 def test_original_full_corpus_residue_then_recovered_and_landed_corpus_passes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
