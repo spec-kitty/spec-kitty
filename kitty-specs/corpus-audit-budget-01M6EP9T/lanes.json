@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "corpus-audit-budget-01M6EP9T",
+  "mission_id": "01M6EP9TCD959FAJT6XKS658AY",
+  "mission_branch": "issue-5716-corpus-audit-budget",
+  "target_branch": "issue-5716-corpus-audit-budget",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/corpus-budget-diagnostic.yml",
+        "tests/upgrade/test_mission_corpus_recovery.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T18:19:52.348216+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f19b7cf8ed38a19a98ee9336c0b177996ba35edc"
+}
