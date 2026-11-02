@@ -143,16 +143,8 @@ flowchart LR
     apiConsumer["External application /<br/>API consumer<br/>(reads mission status; planned)"]
     events["spec-kitty-events<br/><i>contract package (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>contract package (wheel) · exists</i>"]
-<<<<<<< HEAD
-    core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
-    seam(["<b>Mission-Status Read API</b><br/>contract: spec-kitty-events contracts/mission-status<br/><i>producer → consumer boundary</i>"])
-||||||| parent of 8f6e030c81 (docs: state the wall-clock status ordering on the living surfaces (#6604))
-    core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
-    seam(["<b>Mission-Status Read API</b><br/>contract: contracts/mission-status/openapi.yaml<br/><i>producer → consumer boundary</i>"])
-=======
     core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + wall-clock status reducer<br/><i>open-core · producer · exists</i>"]
-    seam(["<b>Mission-Status Read API</b><br/>contract: contracts/mission-status/openapi.yaml<br/><i>producer → consumer boundary</i>"])
->>>>>>> 8f6e030c81 (docs: state the wall-clock status ordering on the living surfaces (#6604))
+    seam(["<b>Mission-Status Read API</b><br/>contract: spec-kitty-events contracts/mission-status<br/><i>producer → consumer boundary</i>"])
     teamkitty["<b>Team Kitty</b> — consumer / 'Multiplayer Mode'<br/>mission-ui · pack composer<br/><i>opaque external · consumer</i>"]
     operator -->|runs commands, approves| core
     harness -->|invoke CLI, skills, Ops| core

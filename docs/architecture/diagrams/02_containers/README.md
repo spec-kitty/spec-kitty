@@ -287,16 +287,8 @@ flowchart TB
       direction TB
       cli["<b>CLI</b> (Python)<br/>command surface + governance<br/><i>open-core · exists</i>"]
       ledger[("<b>Event ledger</b><br/>status.events.jsonl<br/>append-only · sole lane authority<br/><i>open-core · exists</i>")]
-<<<<<<< HEAD
-      reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
-      statusapi["<b>Mission-Status Read API</b><br/>Java service · spec-kitty-events service/<br/>pinned: pins/read-service.source.yaml<br/>overview + mission detail<br/><i>open-core · released in spec-kitty-events · pinned by core (CI conformance only)</i>"]
-||||||| parent of 8f6e030c81 (docs: state the wall-clock status ordering on the living surfaces (#6604))
-      reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
-      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
-=======
       reducer["<b>Status reducer</b><br/>status.reducer.materialize_snapshot<br/>wall clock (at, event_id)<br/><i>open-core · exists</i>"]
-      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
->>>>>>> 8f6e030c81 (docs: state the wall-clock status ordering on the living surfaces (#6604))
+      statusapi["<b>Mission-Status Read API</b><br/>Java service · spec-kitty-events service/<br/>pinned: pins/read-service.source.yaml<br/>overview + mission detail<br/><i>open-core · released in spec-kitty-events · pinned by core (CI conformance only)</i>"]
       charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
       packsrc["<b>Fetched packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (pinned, fetched from open-packs)</i>"]
     end
