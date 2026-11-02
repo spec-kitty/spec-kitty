@@ -34,7 +34,6 @@ Feature: Recorded work-package decisions are honoured in the order they happen
     Given a Mission whose work package "WP01" has been approved
     When a reviewer records a rejection of "WP01" after that approval
     Then the work package "WP01" is sent back for rework
-    And "WP01" is not reported as approved
 
   Scenario: A Mission whose work package was rejected after approval is refused at consolidation
     Given a Mission whose work package "WP01" has been approved

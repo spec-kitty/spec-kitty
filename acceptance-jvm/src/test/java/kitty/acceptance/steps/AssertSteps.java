@@ -166,16 +166,6 @@ public final class AssertSteps {
                 .isEqualTo("in_progress");
     }
 
-    @Then("{string} is not reported as approved")
-    public void theWorkPackageIsNotReportedAsApproved(String wp) {
-        // Positive, not an absence: the same status read must show the rework lane for the work
-        // package, so an empty or unrelated output can never satisfy this assertion.
-        assertThat(reportedLane(wp))
-                .as("The lane the CLI reports for %s after the rejection:%n%s", wp, context.lastResult())
-                .isNotEqualTo("approved")
-                .isEqualTo("in_progress");
-    }
-
     @Then("consolidation is refused because {string} is not approved")
     public void consolidationIsRefusedBecauseTheWorkPackageIsNotApproved(String wp) {
         CliResult result = context.lastResult();

@@ -154,7 +154,6 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then the shared governance is not reported healthy` |
 | Assert | `Then the project's own choice is the governance in force` |
 | Assert | `Then the work package "<wp>" is sent back for rework` |
-| Assert | `Then "<wp>" is not reported as approved` |
 | Assert | `Then consolidation is refused because "<wp>" is not approved` |
 
 Paths are relative to the scenario's working directory. "Unchanged" compares against
