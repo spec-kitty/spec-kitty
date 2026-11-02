@@ -5,7 +5,7 @@
   "friendly_name": "upgrade empty home command migrations",
   "mid8": "01M6EJQR",
   "mission_id": "01M6EJQR37WFRDJ7JV2NHM84SZ",
-  "mission_number": null,
+  "mission_number": 248,
   "mission_slug": "upgrade-empty-home-command-migrations-01M6EJQR",
   "mission_type": "software-dev",
   "purpose_context": "Three upgrade migrations (2.1.3 restore_prompt_commands, 2.1.4 enforce_command_file_state, 3.1.2 globalize_commands) read the operator's home directly rather than through uses_centralized_runtime(), so the same commit can take a different migration path on two machines. This mission measures them at the real upgrade entry point and makes the classification a function of the project's own stamp (issue #6954).",
