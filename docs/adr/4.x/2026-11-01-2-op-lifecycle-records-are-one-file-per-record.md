@@ -72,6 +72,7 @@ on lifecycle records and no merge driver is needed.
   `.gitattributes` while open branches still append to the legacy log: `main` no longer writes it,
   but two such branches would otherwise conflict with each other at the end of the file on a rebase
   or local merge. It is removed in a later change once no open branch appends to the legacy log.
+  Until then the `docs-lint` guard `scripts/ci/check_legacy_lifecycle_log_untouched.py` refuses a pull request whose net diff modifies the legacy log, so `main`'s copy never changes; the guard and the union attribute are removed together once no open branch appends to it.
 
 ### Why not the others
 
