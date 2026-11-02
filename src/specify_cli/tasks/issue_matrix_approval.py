@@ -434,10 +434,10 @@ def _issue_matrix_blocker_outcome(
     if rows_need_verdicts:
         lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {hint}."]
     else:
-        lines = [
-            f"{_issue_matrix_error_prefix(feature_dir)} has validation errors; every recorded row carries a verdict, "
-            "so no verdict is missing. Fix the row(s) named below."
-        ]
+        # "Every row carries a verdict" is only true when rows were parsed; a structural
+        # failure (schema drift, several tables) parses none, so the header stays neutral.
+        verdict_note = "; every recorded row carries a verdict, so no verdict is missing" if result.rows else ""
+        lines = [f"{_issue_matrix_error_prefix(feature_dir)} has validation errors{verdict_note}. Fix the row(s) named below."]
     for message in diagnostic_lines:
         lines.append(f"- {message}")
     # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
