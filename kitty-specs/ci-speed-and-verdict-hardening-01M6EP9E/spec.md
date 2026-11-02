@@ -1,8 +1,11 @@
 # Mission Specification: CI speed and verdict hardening
 
-**Mission Branch**: `ci/speed-and-verdict-hardening`  
-**Created**: 2026-11-02  
-**Status**: Approved intent; implementation in progress  
+**Mission Branch**: `ci/speed-and-verdict-hardening`
+
+**Created**: 2026-11-02
+
+**Status**: Implementation submitted for PR review; not accepted or merged
+
 **Input**: The operator approved the preceding in-depth CI review and requested a high-quality complete implementation, using DeepSeek V4.1 Flash 1017 for any subagents, delivered as a PR without merging.
 
 ## Intent Summary

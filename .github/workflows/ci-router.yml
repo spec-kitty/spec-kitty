@@ -988,9 +988,9 @@ jobs:
       - name: Check documentation contracts
         run: |
           uv run --frozen --no-sync python -m scripts.docs.check_spelling
-          uv run --frozen python -m scripts.docs.check_changelog_style
-          uv run --frozen python -m scripts.ci.check_generated_docs_untouched
-          uv run --frozen python -m scripts.ci.check_legacy_lifecycle_log_untouched
+          uv run --frozen --no-sync python -m scripts.docs.check_changelog_style
+          uv run --frozen --no-sync python -m scripts.ci.check_generated_docs_untouched
+          uv run --frozen --no-sync python -m scripts.ci.check_legacy_lifecycle_log_untouched
 
   # Agent Skills conformance (#6475, FR-015 / SC-001): every skill a fresh
   # `spec-kitty init` writes and every shipped skill (projected for the shared

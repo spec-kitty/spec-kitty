@@ -74,7 +74,7 @@ def select_from_environment(root: Path) -> bool:
         return True
     try:
         diff = subprocess.run(
-            ["git", "diff", "--name-only", "-z", base, head, "--"],
+            ["git", "diff", "--no-renames", "--name-only", "-z", base, head, "--"],
             cwd=root,
             capture_output=True,
             check=True,

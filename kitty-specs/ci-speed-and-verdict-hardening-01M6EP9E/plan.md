@@ -8,14 +8,14 @@ Implement the operator-approved review through four disjoint implementation conc
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+, GitHub Actions YAML and Bash.  
-**Primary Dependencies**: pytest, uv/uv.lock, pinned Actions cache/checkout/setup actions.  
-**Storage**: Actions caches and existing committed timing JSON.  
-**Testing**: Actual shipped shard-shell execution with failing fake pytest, real temporary git diffs, content-key invalidation tests, source-mutation guard controls, selector/capture fidelity and focused workflow graph tests.  
-**Target Platform**: Linux PR checks, Windows installation checks and three-platform nightly acceptance tooling.  
-**Performance Goals**: Remove identified duplicated scans/jobs/checkout by construction; expose policy scan hit/miss and phase durations. No unmeasured percentage or runner-quota claim.  
-**Constraints**: No mutable repository sharing, unchecked policy skips, narrowed coverage, full heavy local sweep or mainline merge.  
-**Scale/Scope**: Existing 20-module/40-shard registry, code/test infrastructure and workflow integration only.
+- **Language/Version**: Python 3.11+, GitHub Actions YAML and Bash.
+- **Primary Dependencies**: pytest, uv/uv.lock, pinned Actions cache/checkout/setup actions.
+- **Storage**: Actions caches and existing committed timing JSON.
+- **Testing**: Actual shipped shard-shell execution with failing fake pytest, real temporary git diffs, content-key invalidation tests, source-mutation guard controls, selector/capture fidelity and focused workflow graph tests.
+- **Target Platform**: Linux PR checks, Windows installation checks and three-platform nightly acceptance tooling.
+- **Performance Goals**: Remove identified duplicated scans/jobs/checkout by construction; expose policy scan hit/miss and phase durations. No unmeasured percentage or runner-quota claim.
+- **Constraints**: No mutable repository sharing, unchecked policy skips, narrowed coverage, full heavy local sweep or mainline merge.
+- **Scale/Scope**: Existing 20-module/40-shard registry, code/test infrastructure and workflow integration only.
 
 ## Charter Check
 
