@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6988": {
+      "evidence_ref": "Context reference only (#6988 is the predecessor scan-scope routing work this mission completes); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6994": {
+      "evidence_ref": "Context reference only (#6994 is the predecessor scan-scope routing work this mission completes); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6996": {
+      "evidence_ref": "Context reference only (#6996 is the predecessor scan-scope routing work this mission completes); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7000": {
+      "evidence_ref": "spec.md FR-001..FR-007; the gate and its declarations are WP01/WP02",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
