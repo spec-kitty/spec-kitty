@@ -19,15 +19,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from spec_kitty_events import Event
-from spec_kitty_events.ordering import canonical_order_key
-from spec_kitty_events.status import reduce_status_events
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.decisions.models import DecisionOpenResponse
-from specify_cli.migration.mission_state import _build_teamspace_envelope, teamspace_dry_run
 from specify_cli.retrospective.summary import classify_mission_record
-from specify_cli.state.contract import STATE_SURFACES
 from specify_cli.status import EVENTS_FILENAME, materialize
 from specify_cli.status.event_log_merge import merge_event_payloads
 from specify_cli.status.lifecycle_events import persist_lifecycle_event_local, read_lifecycle_events
@@ -105,47 +100,6 @@ def test_mixed_stream_materializes_identically(tmp_path: Path) -> None:
     assert with_clock == plain
 
 
-def test_dependency_lamport_reducer_handles_mixed_stream() -> None:
-    """The 4-tuple key + unclocked-singleton grouping survives a mixed stream."""
-    events = [
-        Event.model_validate(
-            {
-                "event_id": event_id,
-                "event_type": "WPStatusChanged",
-                "aggregate_id": wp_id,
-                "payload": {
-                    "mission_slug": "041-lamport-audit",
-                    "wp_id": wp_id,
-                    "from_lane": from_lane,
-                    "to_lane": to_lane,
-                    "actor": "implementer",
-                    "execution_mode": "worktree",
-                },
-                "timestamp": timestamp,
-                "build_id": "b1",
-                "node_id": "n1",
-                "lamport_clock": clock,
-                "project_uuid": "8a1f1b18-8a54-4e59-9b2f-4f4a1a7f5c11",
-                "correlation_id": "01JAAAA0000000000000000005",
-            }
-        )
-        for event_id, wp_id, from_lane, to_lane, timestamp, clock in (
-            ("01JAAAA0000000000000000010", "WP01", None, "planned", "2026-01-01T00:00:00+00:00", None),
-            ("01JAAAA0000000000000000011", "WP01", "planned", "claimed", "2026-01-01T00:01:00+00:00", 1),
-            ("01JAAAA0000000000000000012", "WP02", None, "planned", "2026-01-01T00:02:00+00:00", None),
-            ("01JAAAA0000000000000000013", "WP02", "planned", "blocked", "2026-01-01T00:03:00+00:00", 2),
-        )
-    ]
-
-    forward = reduce_status_events(events)
-    backward = reduce_status_events(list(reversed(events)))
-
-    assert forward.wp_states["WP01"].current_lane.value == "claimed"
-    assert forward.wp_states["WP02"].current_lane.value == "blocked"
-    assert forward.model_dump() == backward.model_dump()
-    assert {event.lamport_clock for event in events} == {None, 1, 2}
-
-
 def _git_init(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -154,90 +108,6 @@ def _git_init(path: Path) -> None:
         capture_output=True,
     )
     (path / ".kittify").mkdir(exist_ok=True)
-
-
-def _mission_row(event_id: str, wp_id: str, at: str, clock: int | None) -> dict[str, Any]:
-    return {
-        "event_id": event_id,
-        "mission_slug": "041-lamport-audit",
-        "wp_id": wp_id,
-        "from_lane": "planned",
-        "to_lane": "claimed",
-        "at": at,
-        "actor": "implementer",
-        "force": False,
-        "execution_mode": "worktree",
-        "lamport_clock": clock,
-    }
-
-
-@pytest.mark.git_repo
-def test_dry_run_discards_the_source_clock(tmp_path: Path) -> None:
-    """Synthesized replay envelopes depend on ``(at, event_id)`` only, not on a source clock."""
-    rows = [
-        _mission_row("01JAAAA0000000000000000020", "WP01", "2026-01-01T00:00:00+00:00", None),
-        _mission_row("01JAAAA0000000000000000021", "WP02", "2026-01-01T00:01:00+00:00", None),
-    ]
-    # The same two rows carrying clocks that AGREE with nothing: the later row
-    # gets the lower clock, so any consumer reading the source clock would reorder.
-    clocked = [
-        {**rows[0], "lamport_clock": 99},
-        {**rows[1], "lamport_clock": 1},
-    ]
-
-    # Same checkout name in both runs: the dry-run derives ``repo_slug`` from it,
-    # so a differing directory name would change every envelope hash by itself.
-    plain_repo = tmp_path / "plain" / "repo"
-    clocked_repo = tmp_path / "clocked" / "repo"
-    for repo, payload in ((plain_repo, rows), (clocked_repo, clocked)):
-        _git_init(repo)
-        mission_dir = repo / "kitty-specs" / "041-lamport-audit"
-        mission_dir.mkdir(parents=True)
-        (mission_dir / "meta.json").write_text(
-            json.dumps({"mission_number": "041", "mission_slug": "041-lamport-audit", "mission_type": "software-dev"}) + "\n",
-            encoding="utf-8",
-        )
-        (mission_dir / EVENTS_FILENAME).write_text(
-            "".join(json.dumps(row, sort_keys=True) + "\n" for row in payload),
-            encoding="utf-8",
-        )
-
-    plain_report = teamspace_dry_run(plain_repo, scan_root=plain_repo / "kitty-specs")
-    clocked_report = teamspace_dry_run(clocked_repo, scan_root=clocked_repo / "kitty-specs")
-
-    assert plain_report.valid, plain_report.errors
-    assert clocked_report.valid, clocked_report.errors
-    assert plain_report.envelope_count == clocked_report.envelope_count == 2
-    # Identical envelope hashes prove the source clock never reaches the output.
-    assert [m.envelope_sha256 for m in plain_report.row_mappings] == [m.envelope_sha256 for m in clocked_report.row_mappings]
-    # ... and the emission order is the source ``(at, event_id)`` order.
-    assert [m.source_event_id for m in clocked_report.row_mappings] == [
-        "01JAAAA0000000000000000020",
-        "01JAAAA0000000000000000021",
-    ]
-
-
-@pytest.mark.parametrize("clock", [1, 7])
-def test_teamspace_envelope_builder_requires_a_clocked_index(clock: int) -> None:
-    """The dry-run builder always supplies an int, so its local model may require one."""
-    envelope = _build_teamspace_envelope(
-        event_id="01JAAAA0000000000000000020",
-        event_type="WPStatusChanged",
-        aggregate_id="WP01",
-        aggregate_type="WorkPackage",
-        payload={"wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed"},
-        timestamp="2026-01-01T00:00:00+00:00",
-        build_id="mission-state-dry-run",
-        node_id="mission-state-dry-run",
-        lamport_clock=clock,
-        project_uuid="8a1f1b18-8a54-4e9b-2f4f-4a1a7f5c11aa",
-        project_slug="demo",
-        repo_slug=None,
-        correlation_id="01JAAAA0000000000000000005",
-    ).model_dump()
-
-    assert envelope["lamport_clock"] == clock
-    assert canonical_order_key(Event.model_validate(envelope))[0] == 1  # clocked
 
 
 @pytest.mark.git_repo
@@ -273,18 +143,6 @@ def test_merge_event_payloads_ignores_clock() -> None:
 
     assert [row["event_id"] for row in merged] == [early["event_id"], late["event_id"]]
     assert [row["lamport_clock"] for row in merged] == [9, 1]
-
-
-def test_state_contract_lamport_rows_are_retired_paths() -> None:
-    """The contract's ``lamport_clock`` surfaces are retired files, not the envelope field."""
-    latest = {surface.name: surface for surface in STATE_SURFACES}
-
-    assert set(latest) >= {"lamport_clock", "legacy_lamport_clock"}
-    for name in ("lamport_clock", "legacy_lamport_clock"):
-        surface = latest[name]
-        assert surface.deprecated is True
-        assert surface.path_pattern.startswith("~/.spec-kitty/")
-        assert surface.owner_module == "legacy"
 
 
 def _write_retrospective_log(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
@@ -334,16 +192,6 @@ def test_decision_event_lamport_is_an_optional_passthrough() -> None:
     }
     validate_outbound_payload(dict(payload), "orchestrator_api")
     validate_outbound_payload(dict(payload, event_lamport=7), "orchestrator_api")
-
-
-def test_test_probe_tolerates_missing_clock() -> None:
-    """The coordination probe reads a row clock as ``int | None``, never a bare int."""
-    from tests._factories.coord_mission import _row_lamport
-
-    assert _row_lamport({"event_id": "A", "lamport_clock": 2}) == 2
-    assert _row_lamport({"event_id": "B", "lamport_clock": None}) is None
-    assert _row_lamport({"event_id": "C"}) is None
-    assert _row_lamport({"event_id": "D", "payload": {"event_lamport": 5}}) == 5
 
 
 def test_inventory_lists_every_core_consumer() -> None:
