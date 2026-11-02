@@ -1,0 +1,59 @@
+{
+  "mission_slug": "charter-reported-paths-posix-7044-01M6EJRR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_generate_json_reports_a_posix_charter_path (charter_path == .kittify/charter/charter.md under the Windows rendering simulation)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:23:45.567831+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_interview_json_reports_a_posix_interview_path (interview_path == .kittify/charter/interview/answers.yaml under the simulation)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:23:50.264024+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "One seam: kernel/charter_pack_paths.py::repo_relative_posix delegates to kernel.paths.to_posix; zero remaining str(relative_to(repo_root)) in generate.py, interview.py, _common.py; docs/changelog fragment records it",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:23:54.270018+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_generate_text_reports_a_posix_charter_line, test_interview_text_reports_a_posix_interview_line, test_generate_missing_interview_names_the_posix_path, test_generate_malformed_interview_names_the_posix_path",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:23:58.411791+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_display_path_is_posix_in_repo_and_keeps_the_out_of_repo_fallback (one fixture, both directions) + tests/kernel/test_charter_pack_paths.py::TestRepoRelativePosix (in-repo POSIX value, out-of-repo ValueError)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-02T19:24:03.843709+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

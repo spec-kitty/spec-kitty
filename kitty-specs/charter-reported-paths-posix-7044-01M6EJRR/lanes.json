@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "charter-reported-paths-posix-7044-01M6EJRR",
+  "mission_id": "01M6EJRRMXKMXWW59617FST7YV",
+  "mission_branch": "kitty/mission-charter-reported-paths-posix-7044-01M6EJRR",
+  "target_branch": "issue-7044-charter-reported-paths-posix",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7044-*.fixed.md",
+        "src/kernel/charter_pack_paths.py",
+        "src/specify_cli/cli/commands/charter/_common.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:56:09.278748+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2c8ef9a88eb19aa934492a6ed90610308075e7fe"
+}

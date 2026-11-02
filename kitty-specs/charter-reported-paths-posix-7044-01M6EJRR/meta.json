@@ -1,0 +1,35 @@
+{
+  "accept_commit": "c8cd90b284dfc75bad02fce5a4999857e336c3af",
+  "acceptance_history": [
+    {
+      "accept_commit": "c8cd90b284dfc75bad02fce5a4999857e336c3af",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T19:24:12.461284+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "d2577ebb7e3ba1481d62accc61a0f5b5a5a1bd80"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T19:24:12.461284+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "d2577ebb7e3ba1481d62accc61a0f5b5a5a1bd80",
+  "baseline_merge_commit": "494bffdee4fbdcac73a516008dfaeae2928e7d52",
+  "created_at": "2026-11-02T16:51:34.311190+00:00",
+  "flattened": false,
+  "friendly_name": "charter reported paths posix 7044",
+  "merged_at": "2026-11-02T19:25:06.845475+00:00",
+  "merged_commit": "4326f3a9871e736a483d99a6060c851a18cb244a",
+  "mid8": "01M6EJRR",
+  "mission_id": "01M6EJRRMXKMXWW59617FST7YV",
+  "mission_number": 248,
+  "mission_slug": "charter-reported-paths-posix-7044-01M6EJRR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter reported paths posix 7044 on issue-7044-charter-reported-paths-posix so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter reported paths posix 7044",
+  "slug": "charter-reported-paths-posix-7044-01M6EJRR",
+  "status_phase": "1",
+  "target_branch": "issue-7044-charter-reported-paths-posix",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-02T16:58:29.317755+00:00"
+}
