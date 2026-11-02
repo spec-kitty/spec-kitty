@@ -130,10 +130,35 @@ def test_charter_context_matches_main(repo: Path) -> None:
     assert not activation_ledger_path(repo).exists()
 
 
-def test_charter_yaml_with_all_ten_activation_fields_still_loads(repo: Path) -> None:
-    """Hole 5: the ``CharterYaml`` activation fields stay (``extra="forbid"``)."""
-    fields = [name for name in CharterYaml.model_fields if name.startswith("activated_") or name == "mission_type_activations"]
-    assert len(fields) == 10
+def _activation_field_names() -> tuple[str, ...]:
+    """The flat activation-key vocabulary, from its single authority.
+
+    Function-scoped import so the acceptance module does not take a module-level
+    dependency on ``pack_manager`` (which imports the schemas package itself);
+    the authority is read when the test runs, matching #6556's unit test.
+    """
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS
+
+    return tuple(ACTIVATION_YAML_KEYS)
+
+
+def test_charter_yaml_loads_every_activation_field_the_writer_may_write(repo: Path) -> None:
+    """Hole 5: a charter carrying every writable activation key still loads (``extra="forbid"``).
+
+    The key list comes from ``pack_manager.ACTIVATION_YAML_KEYS``, the single
+    vocabulary authority, not from a hand-written count. This test used to
+    assert a hard-coded ten over ``CharterYaml.model_fields``: the ten was
+    correct when #6496 wrote it, but #6556 deliberately grew the model to the
+    authority's thirteen keys (a legitimate charter failed ``extra_forbidden``
+    without them). A fixed count also cannot establish vocabulary parity: it
+    fails on any change to the set, legitimate or not, so it went stale instead
+    of pointing at the disagreement. Model/authority set-equality is owned by
+    ``tests/charter/test_activation_vocabulary_setequal.py``; this test owns the
+    behavioural load, so a missing field surfaces here as ``extra_forbidden``
+    when the document is validated.
+    """
+    fields = _activation_field_names()
+    assert fields, "the activation vocabulary authority returned no keys"
     document = _load(repo / _POINTER) | {name: [] for name in fields if name not in ("activated_directives", "mission_type_activations")}
     document["catalog"] = {"mission": "software-dev", "template_set": "software-dev-default"}
     (repo / _POINTER).write_text(json.dumps(document), encoding="utf-8")
