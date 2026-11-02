@@ -39,10 +39,7 @@ def test_incomplete_bundle_repair_keeps_its_cause_through_the_service(
     # A malformed required skill member makes the whole prepared batch incomplete.
     skill = tmp_path / ".agents/skills/spec-kitty-plan/SKILL.md"
     skill.write_bytes(b"---\ninvalid: [\n---\n")
-    statuses = tuple(
-        provider.probe(instance)
-        for instance in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
-    )
+    statuses = tuple(provider.probe(instance) for instance in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path))
     assert statuses and all(not status.findings for status in statuses)
 
     result = SurfaceRepairService([provider]).repair(tmp_path, statuses)
@@ -54,10 +51,7 @@ def test_incomplete_bundle_repair_keeps_its_cause_through_the_service(
 
 def test_successful_bundle_repair_reports_no_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     provider = _bundle_provider(tmp_path, monkeypatch)
-    statuses = tuple(
-        provider.probe(instance)
-        for instance in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path)
-    )
+    statuses = tuple(provider.probe(instance) for instance in provider.expand(plugin_manifest_definition(), PLUGIN_BUNDLE_TOOL_KEY, tmp_path))
     result = SurfaceRepairService([provider]).repair(tmp_path, statuses)
 
     assert result.repaired and not result.failed and not result.findings_after
