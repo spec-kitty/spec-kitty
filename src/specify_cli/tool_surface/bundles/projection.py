@@ -310,12 +310,9 @@ def bundle_entries_for_plans(
             # A physical source already selected for this member only adds its
             # ownership claim; it is not a competing rendering (an alias).
             alias = prior is not None and source in prior.sources
-            rank: int | None = None
-            if not alias and tool_precedence is not None and kind in tool_precedence and kind in _RENDERED_KINDS:
-                accepted = tool_precedence[kind]
-                if instance.owner not in accepted:
-                    continue
-                rank = accepted.index(instance.owner)
+            accepted, rank = _owner_rank(instance.owner, kind, tool_precedence, alias=alias)
+            if not accepted:
+                continue
             if prior is not None and rank is not None:
                 prior_rank = chosen_rank.get(rel, rank)
                 if rank > prior_rank:
@@ -332,20 +329,37 @@ def bundle_entries_for_plans(
                 source_root=project_root.resolve(),
                 claims=((source, instance.owner, _surface_id(instance)),),
             )
-            seen[rel] = (
-                candidate
-                if prior is None
-                else replace(
-                    prior,
-                    logical_owners=tuple(sorted(set(prior.logical_owners + candidate.logical_owners))),
-                    surface_ids=tuple(sorted(set(prior.surface_ids + candidate.surface_ids))),
-                    sources=tuple(sorted(set(prior.sources + candidate.sources))),
-                    claims=tuple(sorted(set(prior.claims + candidate.claims))),
-                )
-            )
+            seen[rel] = candidate if prior is None else _merge_entries(prior, candidate)
             if rank is not None:
                 chosen_rank[rel] = rank
     return tuple(seen[key] for key in sorted(seen))
+
+
+def _owner_rank(
+    owner: str,
+    kind: ToolSurfaceKind,
+    tool_precedence: Mapping[ToolSurfaceKind, Sequence[str]] | None,
+    *,
+    alias: bool,
+) -> tuple[bool, int | None]:
+    """Return ``(accepted, rank)`` for ``owner``; ``rank`` is ``None`` when unranked."""
+    if alias or tool_precedence is None or kind not in tool_precedence or kind not in _RENDERED_KINDS:
+        return True, None
+    accepted = tool_precedence[kind]
+    if owner not in accepted:
+        return False, None
+    return True, accepted.index(owner)
+
+
+def _merge_entries(prior: BundleEntry, candidate: BundleEntry) -> BundleEntry:
+    """Fold ``candidate``'s ownership and source claims into ``prior``."""
+    return replace(
+        prior,
+        logical_owners=tuple(sorted(set(prior.logical_owners + candidate.logical_owners))),
+        surface_ids=tuple(sorted(set(prior.surface_ids + candidate.surface_ids))),
+        sources=tuple(sorted(set(prior.sources + candidate.sources))),
+        claims=tuple(sorted(set(prior.claims + candidate.claims))),
+    )
 
 
 def _within_project(path: Path, project_root: Path) -> bool:
