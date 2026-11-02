@@ -74,12 +74,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/1.x/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/adr/1.x/index.md
   tag: current
   divio_type: explanation
@@ -303,12 +297,6 @@
   current_target: true
   notes: null
 - path: docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/adr/2.x/README.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1148,12 +1136,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/README.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/adr/3.x/index.md
   tag: current
   divio_type: explanation
@@ -1394,6 +1376,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-31-1-charter-write-budget-for-repository-scale-projects.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
   tag: current
   divio_type: none
@@ -1401,6 +1389,12 @@
   current_target: true
   notes: null
 - path: docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-11-01-2-op-lifecycle-records-are-one-file-per-record.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1743,12 +1737,6 @@
   current_target: true
   notes: null
 - path: docs/architecture/06_unified_charter_bundle.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/README.md
   tag: current
   divio_type: none
   owning_workstream: none
