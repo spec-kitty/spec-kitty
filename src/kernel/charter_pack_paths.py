@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kernel.paths import to_posix
+from kernel.paths import to_posix as _to_posix
 
 __all__ = [
     "DRG_DIRNAME",
@@ -93,7 +93,7 @@ def repo_relative_posix(path: Path, repo_root: Path) -> str:
     :func:`kernel.paths.to_posix`'s job — the single normalisation seam — so
     this helper only decides *what* is reported, never *how* it is spelled.
     """
-    return to_posix(path.relative_to(repo_root))
+    return _to_posix(path.relative_to(repo_root))
 
 
 def pack_drg_fragment(pack_root: Path) -> Path:
