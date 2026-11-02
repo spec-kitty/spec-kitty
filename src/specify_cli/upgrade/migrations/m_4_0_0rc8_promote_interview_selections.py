@@ -114,7 +114,7 @@ _SEEDED_LIST_HINT = (
     "`spec-kitty charter activate {token} <id> --only`; `charter synthesize` then asks for companion tactics only for what you keep."
 )
 _SEEDED_PRESET_HINT = (
-    "{key} lists the {listed} {token} a released `default` activation preset wrote, as an upgrade before 4.0.0rc8 left it, "
+    "{key} lists the {listed} {token}s a released `default` activation preset wrote, as an upgrade before 4.0.0rc8 left it, "
     "while more {token}s are in force today; the interview selected {selected}. "
     "To keep only those, run `spec-kitty charter interview --narrow-activation` or "
     "`spec-kitty charter activate {token} <id> --only`; `charter synthesize` then asks for companion tactics only for what you keep."
