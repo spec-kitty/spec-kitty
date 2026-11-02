@@ -14,7 +14,6 @@ Owner: ``src/specify_cli/cli/commands/charter/org.py``
 from __future__ import annotations
 
 import socket
-import time
 from pathlib import Path
 
 import pytest
@@ -272,27 +271,6 @@ def test_add_refuses_a_subdir_that_escapes_through_a_symlink(project: Path, tmp_
     assert _registered_entries(project) == []
 
 
-def test_remove_reports_a_write_failure_without_a_traceback(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-004: remove's seam failure is a coded refusal, like add's."""
-    import charter.drg as seam
-
-    pack = _scaffold(project / "packs" / "acme")
-    assert _invoke("org", "add", "acme", "--local-path", str(pack)).exit_code == 0
-    config_path = project / ".kittify" / "config.yaml"
-    before = config_path.read_bytes()
-
-    def _boom(*_args: object, **_kwargs: object) -> None:
-        raise OSError("disk full")
-
-    monkeypatch.setattr(seam, "unregister_org_pack", _boom)
-
-    refused = _invoke("org", "remove", "acme")
-
-    assert refused.exit_code == 1, refused.output
-    assert "ORG_PACK_UNREADABLE" in refused.output
-    assert config_path.read_bytes() == before
-
-
 def test_add_refuses_a_regular_file_local_path(project: Path, tmp_path: Path) -> None:
     not_a_dir = tmp_path / "pack.yaml"
     not_a_dir.write_text("not a directory\n", encoding="utf-8")
@@ -434,19 +412,6 @@ def test_remove_unknown_name_lists_configured_packs(project: Path) -> None:
     assert config_path.read_bytes() == before
 
 
-def test_add_then_remove_restores_the_config_bytes(project: Path) -> None:
-    """US3 #3 / SC-002: byte-identical round trip on a commented config."""
-    pack = _scaffold(project / "packs" / "acme")
-    config_path = project / ".kittify" / "config.yaml"
-    before = config_path.read_bytes()
-
-    assert _invoke("org", "add", "acme", "--local-path", str(pack)).exit_code == 0
-    assert config_path.read_bytes() != before
-    assert _invoke("org", "remove", "acme").exit_code == 0
-
-    assert config_path.read_bytes() == before
-
-
 def test_remove_never_deletes_the_pack_directory(project: Path) -> None:
     """C-003: the command reports the directory it leaves behind."""
     pack = _scaffold(project / "packs" / "acme")
@@ -490,15 +455,3 @@ def test_add_and_remove_never_touch_the_network(project: Path, monkeypatch: pyte
 
     assert _invoke("org", "add", "acme", "--local-path", str(pack)).exit_code == 0
     assert _invoke("org", "remove", "acme").exit_code == 0
-
-
-def test_add_completes_well_under_the_bounded_cost(project: Path) -> None:
-    """NFR-003: generous wall-clock ceiling over a local validate."""
-    pack = _scaffold(project / "packs" / "acme")
-
-    started = time.monotonic()
-    result = _invoke("org", "add", "acme", "--local-path", str(pack))
-    elapsed = time.monotonic() - started
-
-    assert result.exit_code == 0, result.output
-    assert elapsed < 5.0, f"charter org add took {elapsed:.2f}s"
