@@ -619,8 +619,7 @@ def test_local_edge_set_equals_the_contract_members_it_claims() -> None:
 
     for from_lane, to_lane in sorted(expected):
         assert validate_transition(_wire_payload(from_lane, to_lane, force=True, review_ref=None)).valid is False, (
-            f"{from_lane} -> {to_lane}: the pinned contract no longer requires a review_ref, "
-            "so the local set is now wider than the contract"
+            f"{from_lane} -> {to_lane}: the pinned contract no longer requires a review_ref, so the local set is now wider than the contract"
         )
         assert validate_transition(_wire_payload(from_lane, to_lane, force=True, review_ref="force-override")).valid is True
 
