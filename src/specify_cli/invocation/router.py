@@ -436,8 +436,6 @@ def _ambiguous_suggestion(request_text: str, tied: list[dict[str, str]]) -> str:
     quoted = _quote_request(request_text)
     listed = ", ".join(f"{candidate['profile_id']} ({candidate['action']})" for candidate in tied)
     commands = " or ".join(f"'spec-kitty dispatch {quoted} --profile {candidate['profile_id']}'" for candidate in tied[:3])
-    if not commands:
-        return "Multiple profiles matched. Run 'spec-kitty profiles list' to choose one and retry with --profile <id>."
     remainder = f" (and {len(tied) - 3} more in the list above)" if len(tied) > 3 else ""
     return f"Multiple profiles matched: {listed}. Retry with {commands}{remainder}, or run 'spec-kitty profiles list' for the full catalog."
 
