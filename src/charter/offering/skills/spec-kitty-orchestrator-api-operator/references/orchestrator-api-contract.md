@@ -959,11 +959,11 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DESIGN_INTERVIEW_INCOMPLETE` | interview-record, design-validate | Required interview answers are still pending, deferred or canceled |
 | `DESIGN_INTERVIEW_INVALID` | interview-record | The answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing |
 | `DESIGN_IO_FAILED` | artifact-read, artifact-submit, design-validate | The host could not read or persist design content |
-| `DESIGN_LOCK_TIMEOUT` | artifact-submit | The Mission authoring lock stayed busy past its bound; nothing was written, retry |
+| `DESIGN_LOCK_TIMEOUT` | artifact-read, artifact-submit | The Mission authoring lock stayed busy past its bound; nothing was written, retry |
 | `DESIGN_PARENT_STALE` | artifact-submit, design-validate | An accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt |
 | `DESIGN_PATH_REFUSED` | artifact-read, artifact-submit | An artifact identifier or location is not a single safe basename or a declared destination |
 | `DESIGN_PREREQUISITES_FAILED` | artifact-submit, design-validate | Open decisions, missing accepted provenance, or an invalid bounded package graph |
-| `DESIGN_RECEIPT_UNREADABLE` | artifact-read, artifact-submit | API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects |
+| `DESIGN_RECEIPT_UNREADABLE` | artifact-read, artifact-submit, design-validate | API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects |
 | `DESIGN_REQUEST_INVALID` | artifact-submit | The request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, or names an unknown stage |
 | `DESIGN_REVISION_CONFLICT` | artifact-submit | The artifact revision changed since its `expected_sha256` was read; re-read and resubmit |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
