@@ -1,0 +1,59 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6EVHXFJ7DHT3M86S2KG2PDS",
+  "materialized_at": "2026-11-02T19:25:06.930053+00:00",
+  "mission_number": "248",
+  "mission_slug": "charter-reported-paths-posix-7044-01M6EJRR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6EVHXFJ7DHT3M86S2KG2PDS",
+      "last_transition_at": "2026-11-02T19:25:06.930053+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first module 6 failed/1 passed before the fix, 7 passed after; half-by-half reverts each produce a distinct red set; scoped suites green apart from two pre-existing org-cascade failures reproduced on origin/main.",
+        "Review passed after one round: changelog scope corrected (synthesize is #6277's), status family pinned at the CLI, malformed-interview message tested, kernel helper unit-tested, wrap-insensitive assertions, plan/DoD bookkeeping fixed. Code verdict: correct, minimal, single-seam, non-vacuous guard."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 616826,
+      "shell_pid_created_at": "1793638704.71",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "#7044"
+      ]
+    }
+  }
+}

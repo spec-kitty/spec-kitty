@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2836": {
+      "evidence_ref": "Context citation: to_posix() is the single separator-normalisation seam this change delegates to, not work this mission owes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2940": {
+      "evidence_ref": "Context citation: the #2940 missing-vs-malformed interview distinction is preserved and now pinned by test_generate_malformed_interview_names_the_posix_path; no #2940 work is owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6277": {
+      "evidence_ref": "Context citation only: the synthesize --json fix for #6277 is PR #7045 (open, not merged). This mission applies the same seam to generate/interview and owes #6277 no work of its own.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7044": {
+      "evidence_ref": "fix commit 5bc9800813 + regression module tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py (9 tests, 6 red before the fix); PR to follow.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7045": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
