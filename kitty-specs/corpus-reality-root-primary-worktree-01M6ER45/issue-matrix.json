@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6915": {
+      "evidence_ref": "Context only: #6915 moved the contract bundle and tools to the pinned extras (2bb498de00); the corpus reality check is green on a primary checkout before and after it, so no work is owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6947": {
       "evidence_ref": "Context only: PR #6947 reported the red; this mission fixes the subject in its own PR #7095",
       "fr": null,
