@@ -25,6 +25,7 @@
   "purpose_context": "This mission advances pre review gate scope recovery on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "pre review gate scope recovery",
   "slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "coord",
   "vcs": "git",
