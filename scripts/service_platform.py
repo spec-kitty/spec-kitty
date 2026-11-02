@@ -10,7 +10,9 @@ What is read, per platform:
 
 - **Linux** (``linux-x64``, ``linux-arm64``): the highest ``GLIBC_<major>.<minor>`` version need
   in the ELF's ``.gnu.version_r`` table, reached through ``PT_DYNAMIC`` → ``DT_VERNEED`` so a
-  stripped GraalVM image with no section headers still works. Version *indexes* are not used:
+  stripped GraalVM image with no section headers still works. Only ``GLIBC_x.y`` needs are read
+  (not ``GLIBCXX``, ``CXXABI`` or ``GLIBC_PRIVATE``), which is enough for the GraalVM native
+  images this vets. Version *indexes* are not used:
   they are not a stable encoding of the glibc release.
 - **macOS** (``macos-arm64``): ``LC_BUILD_VERSION`` ``minos``, falling back to the deprecated
   ``LC_VERSION_MIN_MACOSX`` command. Thin 64-bit images only.
