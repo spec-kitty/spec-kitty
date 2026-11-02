@@ -173,6 +173,28 @@ class TestAddCommand:
         assert config.explicit_agent_list is True
         assert config.available == ["claude"]
 
+    def test_add_of_an_already_observed_agent_records_the_legacy_list(self, tmp_path):
+        """The documented #6501 remedy is `agent config add <observed agent>`:
+        the seeded list must be persisted even when the add itself adds nothing
+        new, or the project stays in legacy mode and keeps warning."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
+        (tmp_path / ".claude").mkdir()
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["add", "claude"])
+
+        assert result.exit_code == 0
+        assert "Already configured: claude" in result.stdout
+        assert "Updated config.yaml" not in result.stdout
+
+        from specify_cli.core.agent_config import load_agent_config
+
+        config = load_agent_config(tmp_path)
+        assert config.explicit_agent_list is True
+        assert config.available == ["claude"]
+
     def test_add_multiple_agents(self, mock_project):
         """Test adding multiple agents at once."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
