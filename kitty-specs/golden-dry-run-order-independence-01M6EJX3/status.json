@@ -1,0 +1,56 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6EM9MV32M2N8BB2RADA8F2E",
+  "materialized_at": "2026-11-02T17:18:15.907133+00:00",
+  "mission_number": "248",
+  "mission_slug": "golden-dry-run-order-independence-01M6EJX3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6EM9MV32M2N8BB2RADA8F2E",
+      "last_transition_at": "2026-11-02T17:18:15.907133+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: preview stubbed from _GOLDEN_DRY_RUN_PREVIEW with a call-count assertion; node-selected and whole-module runs green; src/ untouched.",
+        "Approved by reviewer-renata (gpt-6.1-sol, independent of implementer python-pedro): no findings. Independently re-ran node-selected (1 passed, 48 deselected), whole module (49 passed), ruff; confirmed _GOLDEN_APPLIED and _GOLDEN_APPLIED_DRY_RUN byte-identical to origin/main, no src/ diff, non-vacuity and portability sound."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 715860,
+      "shell_pid_created_at": "1793639307.48",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#7030"
+      ]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "mission_slug": "golden-dry-run-order-independence-01M6EJX3",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest node selection",
+      "evidence": "uv run --frozen pytest tests/upgrade/test_upgrade_outcome_rendering.py -k golden_applied_dry_run -q -> 1 passed, 48 deselected (was 1 failed pre-fix with '125' vs '1' paths)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T17:17:35.977404+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "pytest whole module",
+      "evidence": "uv run --frozen pytest tests/upgrade/test_upgrade_outcome_rendering.py -q -> 49 passed; _GOLDEN_APPLIED_DRY_RUN byte-identical to origin/main",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T17:17:39.052191+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "mutation probe + call-count assertion",
+      "evidence": "Temporarily bypassing the _supporting_repair_preview call in _dry_run_surface_report made the golden fail (1 failed, 48 deselected), then src/ was restored (git status clean for src/); the golden also asserts the stub was consulted exactly once",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T17:17:43.787554+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "git diff emptiness check",
+      "evidence": "git diff --stat origin/main -- src/ -> empty",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T17:17:47.164990+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

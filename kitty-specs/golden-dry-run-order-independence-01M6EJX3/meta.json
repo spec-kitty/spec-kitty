@@ -1,0 +1,33 @@
+{
+  "accept_commit": "871b686f90762e49fc4337644389521e0e8df268",
+  "acceptance_history": [
+    {
+      "accept_commit": "871b686f90762e49fc4337644389521e0e8df268",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T17:17:54.223707+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "d1ff0160fe01377aa0145e4b250a7faaf3185925"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T17:17:54.223707+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "d1ff0160fe01377aa0145e4b250a7faaf3185925",
+  "baseline_merge_commit": "9aed3a8012cb5eb22c0128b14d525039f95fea7a",
+  "created_at": "2026-11-02T16:53:56.661944+00:00",
+  "flattened": false,
+  "friendly_name": "golden dry run order independence",
+  "merged_at": "2026-11-02T17:18:26.381030+00:00",
+  "merged_commit": "23360e13ef3b72fe9f9ab19d6e2d196a6d0d2d15",
+  "mid8": "01M6EJX3",
+  "mission_id": "01M6EJX3MB9TV50KBSDBQVX07E",
+  "mission_number": 248,
+  "mission_slug": "golden-dry-run-order-independence-01M6EJX3",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances golden dry run order independence on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "golden dry run order independence",
+  "slug": "golden-dry-run-order-independence-01M6EJX3",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
