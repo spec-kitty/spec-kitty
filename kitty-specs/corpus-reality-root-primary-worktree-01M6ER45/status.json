@@ -1,36 +1,44 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M6ETNSE673VSMZCD5BDP8N2E",
-  "materialized_at": "2026-11-02T19:09:45.286063+00:00",
+  "event_count": 6,
+  "last_event_id": "01M6ETTVF6D10K19G3SRHJK2HS",
+  "materialized_at": "2026-11-02T19:12:31.206340+00:00",
   "mission_number": "",
   "mission_slug": "corpus-reality-root-primary-worktree-01M6ER45",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude",
+      "actor": "reviewer-renata",
       "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M6ETNSE673VSMZCD5BDP8N2E",
-      "last_transition_at": "2026-11-02T19:09:45.286063+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6ETTVF6D10K19G3SRHJK2HS",
+      "last_transition_at": "2026-11-02T19:12:31.206340+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Root resolved from git worktree list -z, bounded; red-first pin, linked-worktree proof, review folds, docs + fragment"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "shell_pid": 1661610,
       "shell_pid_created_at": "1793644250.36",
       "subtasks": {
