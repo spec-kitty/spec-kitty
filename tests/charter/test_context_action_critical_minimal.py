@@ -74,9 +74,7 @@ _FULL_CHARTER = textwrap.dedent(
 def _write_charter(repo_root: Path, content: str) -> Path:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
-    (repo_root / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (repo_root / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     charter_path = charter_dir / "charter.md"
     charter_path.write_text(content, encoding="utf-8")
     return charter_path
@@ -87,9 +85,7 @@ def _bootstrap_text(repo_root: Path, action: str) -> str:
 
 
 @pytest.mark.parametrize("action", ["implement", "review"])
-def test_consumer_charter_advertises_no_section_it_does_not_have(
-    tmp_path: Path, action: str
-) -> None:
+def test_consumer_charter_advertises_no_section_it_does_not_have(tmp_path: Path, action: str) -> None:
     """A minimal consumer charter gets no action-critical advertising (#6968)."""
 
     _write_charter(tmp_path, _CONSUMER_CHARTER)
@@ -98,16 +94,13 @@ def test_consumer_charter_advertises_no_section_it_does_not_have(
 
     for selector in _SECTION_SELECTORS:
         assert f"--include {selector}" not in text, (
-            f"{action} context advertised {selector} although the charter does "
-            "not author that section; its fetch resolves to a placeholder."
+            f"{action} context advertised {selector} although the charter does not author that section; its fetch resolves to a placeholder."
         )
     assert f"Action-Critical Charter Sections ({action}):" not in text
 
 
 @pytest.mark.parametrize("action", ["implement", "review"])
-def test_charter_with_all_sections_still_advertises_them(
-    tmp_path: Path, action: str
-) -> None:
+def test_charter_with_all_sections_still_advertises_them(tmp_path: Path, action: str) -> None:
     """Positive control: the same probe sees every section when it IS authored."""
 
     _write_charter(tmp_path, _FULL_CHARTER)
@@ -148,9 +141,7 @@ def test_direct_selector_fetch_keeps_its_honest_degrade(tmp_path: Path) -> None:
 
     _write_charter(tmp_path, _CONSUMER_CHARTER)
 
-    rendered = build_charter_context_include(
-        tmp_path, "section:code-review-checklist", action="implement"
-    )
+    rendered = build_charter_context_include(tmp_path, "section:code-review-checklist", action="implement")
 
     assert "Code Review Checklist" in rendered
     assert "has not yet authored" in rendered
