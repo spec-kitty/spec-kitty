@@ -666,7 +666,7 @@ of the `capture` phase, so the count-only passes are inside it. No count pass an
 capture starts once the budget is spent; the modules left over are reported as
 `deferred`, never as clean, and the next run recomputes drift (no state is kept).
 A count pass is capped at 300 s per module, a capture at 2,100 s, and the job at
-120 minutes.
+130 minutes (70 minutes to start work, up to 35 for the last capture and 25 for setup, battery refresh and publication).
 
 **The valid-capture rule.** A capture is kept when its provenance record carries
 the run id the script passed in, the pytest exit status was 0 or 1, at least one
@@ -676,8 +676,8 @@ projection, count, summed seconds, `unique_tests_measured`) agreeing with the
 keyed table. Anything else (a crash, a collection error, a timeout, an unreadable
 file, an entry whose ids and durations do not line up) puts the committed file back
 byte for byte and reports the module as `failed`; the other modules still run. A
-capture whose pytest exit status was 1 keeps its complete durations but is reported
-as *captured with failing tests*, never as a clean capture. A count pass that fails
+capture whose pytest exit status was 1 must include a failed runtest report; it keeps its complete durations but is reported
+as *captured with failing tests*, never as a clean capture. An exit of 1 without a failed test report is rejected as possibly incomplete. A count pass that fails
 or times out also reports its module as `failed`. The script exits 1 when any
 module failed.
 

@@ -267,6 +267,8 @@ def validate_capture(capture: ModuleCapture) -> str | None:
         return f"tests_failed={capture.tests_failed} is impossible for {len(capture.node_ids)} measured tests"
     if capture.exit_code == 0 and capture.tests_failed:
         return "tests_failed is nonzero despite a successful pytest exit"
+    if capture.exit_code == 1 and not capture.tests_failed:
+        return "pytest exited 1 without a failed runtest report; capture may be incomplete"
     return None
 
 

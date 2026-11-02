@@ -93,3 +93,10 @@ def test_real_diff_positive_and_negative_controls(tmp_path: Path, monkeypatch: p
         git("commit", "-qm", "update")
         monkeypatch.setenv("HEAD_SHA", git("rev-parse", "HEAD"))
         assert select_from_environment(tmp_path) is expected
+    # Rename detection otherwise reports only docs/moved.md, hiding deletion
+    # of the declared root readme from the selector.
+    monkeypatch.setenv("BASE_SHA", git("rev-parse", "HEAD"))
+    git("mv", "README.md", "docs/moved.md")
+    git("commit", "-qm", "move a package input into documentation")
+    monkeypatch.setenv("HEAD_SHA", git("rev-parse", "HEAD"))
+    assert select_from_environment(tmp_path)

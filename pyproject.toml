@@ -2335,8 +2335,8 @@ ignore = [
 "src/specify_cli/cli/commands/agent/status.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/workflow.py" = ["B904"]
 # TID251 (banned-api) is ENFORCED across the ENTIRE tests/ tree — see ADR
-# docs/adr/3.x/2026-05-28-1-... (Gap 3 / Gap 5) and the dedicated
-# "[ENFORCED] banned-API (TID251)" gate in .github/workflows/ci-quality.yml.
+# docs/adr/3.x/2026-05-28-1-... (Gap 3 / Gap 5) and the always-on
+# Ruff job in .github/workflows/ci-router.yml (its required gate awaits it).
 #
 # There are intentionally NO whole-directory TID251 exemptions for tests/. A directory
 # glob per-file-ignore silently disarms the rule for every PRESENT and FUTURE file in

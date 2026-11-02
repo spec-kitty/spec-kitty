@@ -113,7 +113,10 @@ def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
     test now gets a repository only when it explicitly requests ``tmp_path``
     through its own fixture graph, or carries the ``git_repo`` marker. Tests
     that merely inherit the isolation ``tmp_path`` keep a plain temporary
-    directory.
+    directory. Dynamic ``request.getfixturevalue('tmp_path')`` or
+    ``tmp_path_factory`` consumers needing a repository must opt in with
+    ``@pytest.mark.git_repo``; the fixture does not infer dependencies from
+    a test body.
 
     The resolver also caches its results, so we reset its LRU after each
     test to keep tests independent on shared fixtures — whether or not this

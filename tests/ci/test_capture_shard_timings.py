@@ -253,6 +253,7 @@ def test_merge_records_node_ids_and_failures_in_provenance(capture_shard_timings
         ({"tests_failed": 1, "exit_code": 0}, "successful pytest exit"),
         ({"exit_code": True}, "exited"),
         ({"exit_code": 0.0}, "exited"),
+        ({"exit_code": 1, "tests_failed": 0}, "without a failed runtest report"),
     ],
 )
 def test_merge_rejects_a_structurally_incomplete_capture(capture_shard_timings: ModuleType, kwargs: dict[str, Any], needle: str) -> None:
