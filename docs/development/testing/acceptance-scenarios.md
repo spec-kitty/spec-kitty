@@ -200,10 +200,10 @@ redirected home directory, which shows the environment redirection took effect. 
 because another `spec-kitty` process on your machine may touch them.
 
 On a host that runs several Missions at once, export `SPEC_KITTY_ACCEPTANCE_SHARED_HOST=1`
-(`1`, `true`, `yes` or `on`) before the run. The comparison then also skips the two per-mission
+(`1`, `true`, `yes` or `on`) before the run. The comparison then also skips the two
 runtime-state subtrees that any concurrent `spec-kitty` process writes: `spec-kitty-prompts/`
-(prompt temp files, one directory per repository) and `gate-locks/` (cross-process gate locks).
-Every other part of the real root stays compared, including `credentials` and any new top-level
+(prompt temp files, one directory per repository) and `gate-locks/` (machine-wide
+cross-process gate locks). Every other part of the real root stays compared, including `credentials` and any new top-level
 file a redirection bug would leave behind. The switch is **ignored on a GitHub Actions runner**,
 so the nightly always keeps the whole-tree comparison, and each scenario runs a built-in control
 that proves a write outside the two skipped subtrees still fails it — the narrowing can never
