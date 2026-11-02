@@ -339,27 +339,27 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BEGIN_ANCHOR = "<!-- orchestrator-error-codes:begin -->"
 _END_ANCHOR = "<!-- orchestrator-error-codes:end -->"
 
-#: (surface name, region kind, file). Adding a surface means adding its anchor
-#: pair and one row here; nothing else about the guard changes.
-_ENUMERATION_SURFACES: tuple[tuple[str, str, Path], ...] = (
+#: (surface path as reported in a failure, region kind, file). Adding a surface
+#: means adding its anchor pair and one row here; nothing else about the guard
+#: changes. The first element is the repo-relative path, because it is what the
+#: failure message hands to whoever has to fix the drift.
+_ENUMERATION_SURFACES: tuple[tuple[str, str, Path], ...] = tuple(
     (
-        "docs/api/orchestrator-api.md",
-        "bullets",
-        _REPO_ROOT / "docs" / "api" / "orchestrator-api.md",
-    ),
-    (
-        "operator-skill reference/orchestrator-api-contract.md",
-        "table",
-        _REPO_ROOT
-        / "src"
-        / "charter"
-        / "offering"
-        / "skills"
-        / "spec-kitty-orchestrator-api-operator"
-        / "references"
-        / "orchestrator-api-contract.md",
-    ),
+        relative,
+        kind,
+        _REPO_ROOT / relative,
+    )
+    for relative, kind in (
+        ("docs/api/orchestrator-api.md", "bullets"),
+        (
+            "src/charter/offering/skills/spec-kitty-orchestrator-api-operator"
+            "/references/orchestrator-api-contract.md",
+            "table",
+        ),
+    )
 )
+
+_ENUMERATION_SURFACE_IDS = ("api-reference", "operator-skill-reference")
 
 _BULLET_ENTRY = re.compile(r"^- `(?P<code>[A-Z][A-Z0-9_]*)`")
 _TABLE_ENTRY = re.compile(r"^\| `(?P<code>[A-Z][A-Z0-9_]*)` \|")
@@ -443,7 +443,7 @@ def _assert_enumeration_matches_contract(
 class TestProseErrorCodeEnumerations:
     """Keep the two documented enumerations exactly equal to ``allowed_error_codes``."""
 
-    @pytest.mark.parametrize(("surface", "kind", "path"), _ENUMERATION_SURFACES, ids=[s[0] for s in _ENUMERATION_SURFACES])
+    @pytest.mark.parametrize(("surface", "kind", "path"), _ENUMERATION_SURFACES, ids=_ENUMERATION_SURFACE_IDS)
     def test_surface_enumerates_the_contract_exactly(self, orchestrator_api_contract, surface, kind, path):
         entries = _parse_enumeration_entries(path.read_text(encoding="utf-8"), kind)
         # Same-region positive control: a probe that read nothing cannot pass as
@@ -451,7 +451,7 @@ class TestProseErrorCodeEnumerations:
         assert "USAGE_ERROR" in entries, f"{surface}: parsed region does not even hold USAGE_ERROR"
         _assert_enumeration_matches_contract(entries, set(orchestrator_api_contract["allowed_error_codes"]), surface)
 
-    @pytest.mark.parametrize(("surface", "kind", "path"), _ENUMERATION_SURFACES, ids=[s[0] for s in _ENUMERATION_SURFACES])
+    @pytest.mark.parametrize(("surface", "kind", "path"), _ENUMERATION_SURFACES, ids=_ENUMERATION_SURFACE_IDS)
     def test_surface_lists_no_code_twice(self, surface, kind, path):
         entries = _parse_enumeration_entries(path.read_text(encoding="utf-8"), kind)
         duplicated = sorted(code for code in set(entries) if entries.count(code) > 1)
