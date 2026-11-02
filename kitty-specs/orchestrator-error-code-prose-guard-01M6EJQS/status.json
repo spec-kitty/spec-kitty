@@ -1,0 +1,36 @@
+{
+  "event_count": 2,
+  "last_event_id": "01M6EK226HKGFWWNG5CJYD9JBB",
+  "materialized_at": "2026-11-02T16:56:38.865985+00:00",
+  "mission_number": "",
+  "mission_slug": "orchestrator-error-code-prose-guard-01M6EJQS",
+  "mission_type": "",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 2
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6EK21SN9815R7Z2KKSJQ1J4",
+      "last_transition_at": "2026-11-02T16:56:38.453211+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6EK226HKGFWWNG5CJYD9JBB",
+      "last_transition_at": "2026-11-02T16:56:38.865985+00:00"
+    }
+  }
+}
