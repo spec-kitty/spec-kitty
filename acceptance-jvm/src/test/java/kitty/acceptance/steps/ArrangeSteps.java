@@ -225,7 +225,9 @@ public final class ArrangeSteps {
 
     @Given("a reviewer has recorded a rejection of {string} after that approval")
     public void aReviewerHasRecordedARejectionAfterTheApproval(String wp) {
-        context.rejectAfterApproval(wp);
+        CliResult result = context.rejectAfterApproval(wp);
+        assertThat(result.exitCode())
+                .as("Recording the rejection of %s after its approval failed:%n%s", wp, result).isZero();
     }
 
     @Given("the mission {string} has been accepted")
