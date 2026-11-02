@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6865": {
-      "evidence_ref": "lane commits 10cddce610..HEAD: WPMetadata accepts pre_review_test_scope (roster read proven), whole-command budget shape, shape-aware timeout/oversize refusals; 833 passed/10 skipped in tests/review + gate suites",
+      "evidence_ref": "PR #7089",
       "fr": null,
       "nfr": null,
       "repo": null,
