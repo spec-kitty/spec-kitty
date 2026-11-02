@@ -102,9 +102,12 @@ from charter.offering.drg.migration.extractor import (
 )
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.org_pack_config import (
+    RESERVED_PACK_NAMES,
     OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
+    PackRegistry,
+    SourceType,
     load_pack_registry as load_pack_registry,
     register_org_pack,
     resolve_existing_org_roots,
@@ -133,6 +136,9 @@ __all__ = [
     "ArtifactKind",
     "LAYERED_REPOSITORY_KIND_PLURALS",
     "OrgPackConfig",
+    "PackRegistry",
+    "RESERVED_PACK_NAMES",
+    "SourceType",
     "DRGEdge",
     "DRGGraph",
     "DRGLoadError",
