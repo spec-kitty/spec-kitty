@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-scaffold-01M6DGT1",
+  "mission_id": "01M6DGT1J6CRK7YSBA2ERGJ96C",
+  "mission_branch": "issue-6930-docsite-scaffold",
+  "target_branch": "issue-6930-docsite-scaffold",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        ".gitignore",
+        "Makefile",
+        "docs/_meta/**",
+        "docs/changelog/unreleased/6930.*.md",
+        "scripts/docs/site_bump.py",
+        "scripts/docs/site_contract.py",
+        "site/**",
+        "tests/ci/test_docs_site_job.py",
+        "tests/docs/test_site_bump.py",
+        "tests/docs/test_site_scaffold.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T07:01:48.602866+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "33c59a0ae7f70cb29f0bdc13eb6c657dae5f2b5b"
+}
