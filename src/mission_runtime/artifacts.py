@@ -109,7 +109,7 @@ class MissionArtifactKind(enum.Enum):
     # Decision Moment LEDGER directory (``decisions/index.json`` +
     # ``decisions/DM-<ulid>.md``, ``decisions/store.py``) is a PRIMARY-partition
     # kind. #3928 classified it COORD on the theory that
-    # ``decisions/service.py``'s ``_mission_dir`` routed it through
+    # ``decisions/service.py``'s (since removed, #6766) ``_mission_dir`` routed it through
     # ``placement_seam(...).read_dir(STATUS_STATE)`` ("coord-authority-owned
     # STATUS-partition state") -- but #4966 AC-D2 already moved the ledger's
     # OWN reads/writes onto the PRIMARY-partition ``_ledger_dir`` (resolving

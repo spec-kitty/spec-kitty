@@ -114,8 +114,9 @@ def test_context_read_meta_json_raises_typed(tmp_path: Path, meta_text: str) -> 
 def test_decisions_resolve_mission_id_wraps_typed_into_domain(tmp_path: Path, meta_text: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """The service's own read wraps the typed failure into MISSION_NOT_FOUND.
 
-    ``_mission_dir`` is pinned to the seeded dir to isolate the service's own
-    read arm deterministically; driven end-to-end below, the placement seam's
+    ``_primary_metadata_dir`` (the dir ``_resolve_mission_id`` reads ``meta.json``
+    from) is pinned to the seeded dir to isolate the service's own read arm
+    deterministically; driven end-to-end below, the placement seam's
     readers degrade on corrupt meta by design and the same service read fires
     through the real path.
     """
@@ -124,7 +125,7 @@ def test_decisions_resolve_mission_id_wraps_typed_into_domain(tmp_path: Path, me
     from specify_cli.decisions.service import DecisionError
 
     mission_dir = _seed(tmp_path, meta_text)
-    monkeypatch.setattr(decisions_service, "_mission_dir", lambda repo_root, slug: mission_dir)
+    monkeypatch.setattr(decisions_service, "_primary_metadata_dir", lambda repo_root, slug, *, owned=None: mission_dir)
     with pytest.raises(DecisionError) as excinfo:
         decisions_service._resolve_mission_id(tmp_path, _SLUG)
     assert excinfo.value.code == DecisionErrorCode.MISSION_NOT_FOUND
