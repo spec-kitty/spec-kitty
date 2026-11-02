@@ -1487,8 +1487,8 @@ def mission_declares_analyze_step(run_dir: Path) -> bool:
     return ANALYZE_STEP_ID in {step.id for step in template.steps}
 
 
-def _wp_iteration_declared_by_run(run_dir: Path) -> bool:
-    """True/False from the run's frozen DAG; a read failure is logged, never silent.
+def mission_declares_wp_iteration(run_dir: Path) -> bool:
+    """True when the run's frozen runtime DAG declares the ``implement`` step (WP-driven).
 
     The rule itself is ``kernel.mission_runtime_shape.step_ids_declare_wp_iteration``.
     Like :func:`mission_declares_analyze_step` it reads the frozen template from
@@ -1509,32 +1509,16 @@ def _wp_iteration_declared_by_run(run_dir: Path) -> bool:
     return step_ids_declare_wp_iteration(step.id for step in template.steps)
 
 
-def mission_declares_wp_iteration(run_dir: Path) -> bool:
-    """True when the run's frozen runtime DAG declares the ``implement`` step (WP-driven).
-
-    A missing or unreadable template means "not WP-driven" (fail-closed) and logs
-    a WARNING saying so — see :func:`_wp_iteration_declared_by_run`.
-    """
-    return _wp_iteration_declared_by_run(run_dir)
-
-
-def _wp_driven_fact(step_id: str, run_dir: Path | None, repo_root: Path | None, mission_slug: str | None) -> bool:
+def _wp_driven_fact(step_id: str, run_dir: Path | None) -> bool:
     """The plain ``wp_driven`` fact for an ``implement``/``review`` snapshot.
 
-    ``run_dir`` — the run the caller already resolved — is authoritative (#6330).
-    An explicitly supplied ``mission_slug`` is the only fallback: the run recorded
-    for it is read read-only and a run is never started. ``feature_dir.name`` is
-    deliberately not consulted (AGENTS.md: a directory name is not a mission
-    handle); with neither input the fact is simply ``False``. Any other step, or
-    an unresolvable run, is not WP-driven.
+    ``run_dir`` -- the run the caller already resolved -- is the only input
+    (#6330). ``feature_dir.name`` is deliberately not consulted (AGENTS.md: a
+    directory name is not a mission handle), so a caller holding no run gets
+    ``False``, not a guess. Any other step is not WP-driven.
     """
     if step_id not in ("implement", "review"):
         return False
-    if run_dir is None and repo_root is not None and mission_slug is not None:
-        try:
-            run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
-        except (OSError, ValueError, RunDirOutsideRepoError, MissionSelectorAmbiguous, StatusReadPathNotFound):
-            return False
     return run_dir is not None and mission_declares_wp_iteration(run_dir)
 
 
