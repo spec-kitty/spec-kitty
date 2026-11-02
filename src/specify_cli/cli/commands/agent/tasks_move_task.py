@@ -968,7 +968,7 @@ def _mt_is_single_branch(st: _MoveTaskState) -> bool:
     from specify_cli.lanes import single_branch_landing
 
     manifest = _mt_lanes_manifest(st)
-    return manifest is not None and single_branch_landing.is_single_branch_mission(st.main_repo_root, manifest)
+    return manifest is not None and single_branch_landing.is_single_branch_mission(st.main_repo_root, manifest, owned=st.owned)
 
 
 def _mt_require_implementation_evidence(st: _MoveTaskState) -> None:
