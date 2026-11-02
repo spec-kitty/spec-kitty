@@ -61,8 +61,10 @@ The next steps `accept` prints follow the Mission's topology, because the way a
 Mission lands is not the same everywhere:
 
 - **Lane and single-branch Missions** end with `spec-kitty consolidate --mission
-  <handle>`, and a pull request is suggested only where the Mission actually
-  needs one.
+  <handle>`. The one exception is a pull-request-mode `accept` run on the
+  integration branch itself, where there is no separate Mission branch to
+  consolidate: it says to push and open a pull request if needed. A
+  `--mode local` `accept` on the integration branch says no merge is needed.
 - **Coordination-topology Missions** are landed by `spec-kitty consolidate`. Their
   coordination branch is internal, so `accept` names that command and does not
   suggest pushing the branch and opening a pull request.
