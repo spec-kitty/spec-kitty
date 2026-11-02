@@ -37,21 +37,6 @@ def _clear_cache():
     _reset_cache()
 
 
-@pytest.fixture()
-def no_git_ancestry_inside_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep an ambient ancestor checkout out of the non-repo test."""
-    boundary = tmp_path.resolve()
-    real_resolve_canonical_root = resolve_canonical_root
-
-    def bounded_resolve_canonical_root(cwd: Path | None = None) -> Path:
-        resolved = real_resolve_canonical_root(cwd)
-        if resolved == boundary or boundary in resolved.parents:
-            return resolved
-        raise WorkspaceRootNotFound((cwd or Path.cwd()).resolve())
-
-    monkeypatch.setitem(globals(), "resolve_canonical_root", bounded_resolve_canonical_root)
-
-
 def _git(cwd: Path, *args: str) -> str:
     """Run a git command, returning stdout. Fails the test on nonzero exit."""
     result = subprocess.run(
@@ -134,8 +119,15 @@ def test_coord_worktree_feature_dir_is_not_rewritten_to_primary(tmp_path: Path) 
 def test_non_git_directory_raises(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    no_git_ancestry_inside_tmp_path: None,
 ) -> None:
+    """A plain directory is not a repo, even when some checkout encloses the temp root.
+
+    This used to wrap ``resolve_canonical_root`` in a monkeypatched copy that refused
+    any answer outside ``tmp_path`` — a second, test-only hermeticity mechanism. The
+    harness's ``GIT_CEILING_DIRECTORIES`` entry for the run's basetemp (and #7022's
+    support for it in the resolver) is the one mechanism now; the local override here is
+    the only per-test narrowing left (#7056).
+    """
     plain = tmp_path / "no-git"
     plain.mkdir()
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
