@@ -49,6 +49,12 @@ exactly `tests/audit/test_no_legacy_path_literals.py`. Deliberately **not** chos
   commands are pinned to the registry's `tests/architectural` base, and the duplicate-suite
   gate permits exactly one suite invocation per job (`AUTHORIZED_SUITE_INVOCATIONS_PER_JOB = 1`).
 
+The new group is spelled non-src (`**/specify_cli/status/**`, `**/kernel/paths.py`), the
+same shape the `mission_state` group uses for its extra audit lane: that is what keeps it an
+extra narrow job rather than a src-backed code-shard group (which the module-registry model
+requires to own a module row) and what keeps the FR-004 fail-closed sensor honest over
+`src/specify_cli/paths/**`.
+
 The broader blast radius the guard's scan roots (`src/specify_cli/**` + `src/kernel/**`)
 imply is a CI-budget decision for the maintainers; this mission closes the reported
 `status/**` gap and records the wider option in `## Deferred`.
@@ -73,17 +79,23 @@ job's command fail.
 
 ### User story 2 — a change to the guard or its keystone still runs the guard (P2)
 
-1. A PR edits `tests/audit/test_no_legacy_path_literals.py` itself, or the keystone
-   resolver file whose literal the guard's non-vacuity test asserts
-   (`src/specify_cli/paths/windows_paths.py`).
-2. The same lane runs, so an edit that weakens the guard (or removes the keystone literal
-   its non-vacuity limb detects) reds on its own PR.
+1. A PR edits `tests/audit/test_no_legacy_path_literals.py` itself, or
+   `src/kernel/paths.py` (an allowlisted keystone file whose literal the guard's
+   non-vacuity limb asserts).
+2. The same lane runs, so an edit that weakens the guard (or deletes a keystone literal its
+   non-vacuity limb detects) reds on its own PR.
+3. `src/specify_cli/paths/**` — the other keystone directory — is **not** added to the
+   group on purpose: no src-backed group owns it, so a diff there trips the FR-004
+   fail-closed catch-all and runs *every* gated job, this lane included. Naming it would
+   turn that sensor off for the keystone resolver and narrow it to this one lane.
 
-**Independent test**: `select_gates` on each of those paths matches the new group.
+**Independent test**: `select_gates` on each group path matches the new group; on
+`src/specify_cli/paths/windows_paths.py` it reports `unmatched_src` (run-all) and does not
+match the group.
 
 ### User story 3 — nothing else pays for it (P3)
 
-1. A docs-only PR, a corpus-only PR, and a `src/specify_cli/review/**` PR select no
+1. A docs-only PR, a corpus-only PR, and a `src/specify_cli/dashboard/**` PR select no
    part of the new lane.
 2. A prose-only `status/**` diff still down-routes it (the #4842 rule) like every other
    code shard.
@@ -102,6 +114,12 @@ job's command fail.
   code shards (no new exemption is invented for it).
 - **`src/kernel/paths.py` changes**: included in the group, because deleting its
   allowlisted literal inverts the guard's non-vacuity limb.
+- **The group is spelled non-src (`**/specify_cli/status/**`, `**/kernel/paths.py`)**: a
+  `src/`-spelled glob would make it src-backed, and every src-backed group must also be a
+  module-registry row (`tests/architectural/test_gate_selection_authority.py`). Claiming
+  `tests/audit` as a module is a separate CI-budget decision (C-001). The non-src spelling
+  also keeps the fail-closed sensor untouched, and its deliberate over-match on
+  `tests/specify_cli/status/**` costs ~2 s of pytest (the `mission_state` precedent).
 
 ## Requirements
 
@@ -111,8 +129,8 @@ job's command fail.
 |----|-------|------------|----------|--------|----------|-----------------|
 | FR-001 | A `status/**` diff routes to the guard | As a contributor, I want a `src/specify_cli/status/**` diff to run `tests/audit/test_no_legacy_path_literals.py` per PR so that a re-scattered runtime-home literal is caught on its own PR. | High | Open | [build] | no |
 | FR-002 | The lane is one file, not the tree | As a maintainer, I want the new lane to execute exactly the one guard file (not `tests/audit/`), so its per-PR cost is a ~2 s pytest run and not a directory of integration tests. | High | Open | [build] | no |
-| FR-003 | The guard's own inputs route it | As a maintainer, I want a change to the guard file, `src/specify_cli/paths/**` or `src/kernel/paths.py` to run the guard too, so an edit that weakens the guard or deletes the keystone literal its non-vacuity limb detects cannot land green. | Medium | Open | [build] | no |
-| FR-004 | Wired into both routing authorities | As a maintainer, I want the group declared verbatim in the retirement scrub and the router filter block, with the `changes.outputs` row, the fail-closed `unmatched` union entry, the `router-gate` `needs` row, the heavy-battery OR term and the duplicate-suite ledger row, so the two-authority model's transcription guards stay green and the new check is required. | High | Open | [build] | no |
+| FR-003 | The guard's own inputs route it | As a maintainer, I want a change to the guard file or `src/kernel/paths.py` to run the guard too, so an edit that weakens the guard or deletes the keystone literal its non-vacuity limb detects cannot land green; `src/specify_cli/paths/**` stays out of the group because the fail-closed catch-all already runs everything there and naming it would narrow that sensor (C-005). | Medium | Open | [build] | no |
+| FR-004 | Wired into both routing authorities | As a maintainer, I want the group declared verbatim in the retirement scrub's `non_src_router_groups` and the router filter block, with the `changes.outputs` row, the `router-gate` `needs` row and the duplicate-suite ledger row, and deliberately absent from the fail-closed `unmatched` union and the heavy-battery `if:`, so the two-authority model's transcription guards stay green and the new check is required. | High | Open | [build] | no |
 | FR-005 | The lane can actually run the guard | As a maintainer, I want the job's pytest invocation to carry no marker expression (the module is `integration`-marked and `-m "fast or unit"` deselects all 8 tests), so the lane executes 8 tests, not 0, and exit 5 fails the job. | High | Open | [build] | no |
 | FR-006 | A live-routing regression guard | As a future maintainer, I want a test that reads the LIVE router and workflow YAML and asserts the `status/**` → guard-file routing plus its negative controls, so removing the group or the job reds in CI instead of silently reopening #6879. | High | Open | [ratchet] | no — paired with negative controls on the same router fixture (a paths-only and a docs-only diff must not match) |
 
@@ -132,6 +150,7 @@ job's command fail.
 | C-002 | The guard's assertions are untouched | No change to `_HOME_LITERAL_ALLOWLIST`, the guard's scan roots or its limbs. Draining `src/specify_cli/status/locking.py` from the allowlist belongs to #6516 (PR #6883, open). | Technical | High | Active |
 | C-003 | Two authorities, still two | The group's globs are declared in the scrub and transcribed in the router filter block only; no second hand-maintained path→group map is introduced. | Technical | High | Active |
 | C-004 | Nothing is merged by this mission | The mission ends at a green draft PR flipped to ready for review. | Business | High | Active |
+| C-005 | The group stays non-src | Its globs are `**/`-spelled, so the lane is an extra narrow job — never a code shard, never a module-registry row — and `src/specify_cli/paths/**` stays unmapped for the FR-004 sensor. | Technical | High | Active |
 
 ### Key entities
 
@@ -146,7 +165,7 @@ job's command fail.
 - **SC-001**: For a `src/specify_cli/status/**` diff, `scripts.ci.gate_selection.select_gates`
   reports the `path_literal_audit` group and the job gated on it runs
   `tests/audit/test_no_legacy_path_literals.py`; for a `docs/**` or
-  `src/specify_cli/review/**` diff it reports neither. — [build] · no-op passable: no
+  `src/specify_cli/dashboard/**` diff it reports neither. — [build] · no-op passable: no
 - **SC-002**: The lane's pytest command names exactly one test file and no marker
   expression, and that file collects 8 tests. — [build] · no-op passable: no
 - **SC-003**: `tests/ci` and the router/architectural guard suites pass with the change,

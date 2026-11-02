@@ -15,9 +15,17 @@ requirement_refs:
 - SC-001
 - SC-002
 - SC-003
-planning_base_branch: issue-6879-ci-status-audit-path-literal-routing
-merge_target_branch: issue-6879-ci-status-audit-path-literal-routing
-branch_strategy: Planning artifacts for this mission were generated on issue-6879-ci-status-audit-path-literal-routing. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6879-ci-status-audit-path-literal-routing unless the human explicitly redirects the landing branch.
+- C-001
+- C-002
+- C-003
+- C-005
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: >-
+  Planning artifacts for this mission were generated on main. During
+  /spec-kitty.implement this WP may branch from a dependency-specific base, but completed
+  changes must merge back into main unless the human explicitly redirects the landing
+  branch.
 base_branch: main
 base_commit: 33b5a3e97f
 created_at: '2026-11-02T17:00:00.000000+00:00'
@@ -108,9 +116,11 @@ job shape, `tests.ci._gh_if.eval_gh_if` for the `if:` goldens — and assert:
 1. `select_gates(["src/specify_cli/status/locking.py"]).matched_groups` contains
    `path_literal_audit`, and the job gated on that group exists and its pytest step names
    `tests/audit/test_no_legacy_path_literals.py` (positive control);
-2. the same for `src/specify_cli/paths/windows_paths.py`, `src/kernel/paths.py` and
-   `tests/audit/test_no_legacy_path_literals.py` (FR-003);
-3. negative controls on the same fixture: `docs/**`, `src/specify_cli/review/gate.py` and a
+2. the same for `src/kernel/paths.py` and `tests/audit/test_no_legacy_path_literals.py`
+   (FR-003), plus the opposite assertion for `src/specify_cli/paths/windows_paths.py`:
+   `unmatched_src` is True (run-all) and the group does NOT match, because naming that
+   unmapped keystone directory would narrow the FR-004 sensor (C-005);
+3. negative controls on the same fixture: `docs/**`, `src/specify_cli/dashboard/**` and a
    `packs/**` path do NOT match the group (non-vacuity: proves the probe can distinguish);
 4. the lane's pytest invocation tokenises to exactly one path argument — that guard file —
    with no `-m`/`--ignore`/`-k` narrowing (FR-002/FR-005), and the job is in
@@ -123,16 +133,19 @@ output in the WP activity log.
 
 ### T002 — The routing authorities
 
-- `tests/release/ci_retirement_scrub.json`: add a `groups[]` row `path_literal_audit` with
-  roots, in this order:
-  `src/specify_cli/status/**`, `src/specify_cli/paths/**`, `src/kernel/paths.py`,
-  `tests/audit/test_no_legacy_path_literals.py`, plus a `note` citing #6879 and the guard
-  limb. It must sit in `groups` (not `non_src_router_groups`) because it carries `src/`
-  roots.
+- `tests/release/ci_retirement_scrub.json`: add a row for `path_literal_audit` to
+  **`non_src_router_groups`** with roots, in this order:
+  `**/specify_cli/status/**`, `**/kernel/paths.py`,
+  `tests/audit/test_no_legacy_path_literals.py`, plus a `note` citing #6879, the guard limb
+  and why the row is NON-src (`**/` spelling; a src-backed group must also be a
+  module-registry row, which is out of scope, C-001/C-005). The `**/` spelling is what keeps
+  `src/specify_cli/paths/**` unmapped so the FR-004 catch-all still forces run-all there.
 - `.github/workflows/ci-router.yml`: transcribe those globs VERBATIM into the dorny filter
-  block as group `path_literal_audit`; add the `changes.outputs` row in the same
-  fold shape as its siblings; add `path_literal_audit` to the FR-004 fail-closed
-  `unmatched` step's union (it is src-backed).
+  block as group `path_literal_audit`; add the `changes.outputs` row in the same fold shape
+  as its siblings. Do **NOT** add it to the FR-004 `unmatched` step's union and do **NOT**
+  add it to `architectural-heavy`'s `if:` — the transcription guards require the union and
+  the battery OR-list to equal the src-backed group set exactly, and this group is not in
+  it.
 
 ### T003 — The job, its gating and its requiredness
 
@@ -145,9 +158,9 @@ output in the WP activity log.
   expression (add `--junitxml=out/reports/xunit-path-literal-audit.xml` if the repo's lane
   convention wants it). Add a comment block stating the #6879 grounding, the 8-test count
   and why the marker filter is absent.
-- Add `path_literal_audit` to `architectural-heavy`'s `if:` OR list (the derived set
-  equality: every src-backed group appears there).
-- Add `tests-path-literal-audit` to `router-gate`'s `needs:`.
+- Add `tests-path-literal-audit` to `router-gate`'s `needs:` (that is what makes the lane
+  blocking; it is not an `ADVISORY_JOB_NAMES` entry).
+- Do not touch `architectural-heavy`'s `if:` (see T002).
 
 ### T004 — The duplicate-suite ledger row
 
