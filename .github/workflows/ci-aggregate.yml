@@ -360,6 +360,13 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          # auto disables this on workflow_run. Only trusted default-branch
+          # code runs here; PR coverage remains data, never executable input.
+          enable-cache: true
+
+      - name: Restore packs before the editable build hook
+        uses: ./.github/actions/restore-open-packs
 
       - name: Build the census environment
         shell: bash

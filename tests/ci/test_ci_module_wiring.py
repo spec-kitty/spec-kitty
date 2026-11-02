@@ -248,10 +248,7 @@ def router_workflow() -> dict[str, Any]:
 
 _ALWAYS_ON_JOB_NAMES = (
     "ruff",
-    "commit-msg",
-    "markdownlint",
     "uv-lock",
-    "import-linter",
     "regen-check",
     "terminology",
     "layer-rules",

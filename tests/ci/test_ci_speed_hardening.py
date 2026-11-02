@@ -10,6 +10,8 @@ import sys
 import pytest
 import yaml
 
+from tests.ci._gh_expr import evaluate
+
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
 
@@ -46,8 +48,15 @@ def test_actual_shard_shell_propagates_pytest_status(tmp_path: Path, mode: str, 
     result = subprocess.run(
         ["bash", "-c", script],
         cwd=tmp_path,
-        env={**os.environ, "TIER": "unit", "MODULE": "probe", "MODE": mode,
-             "COV_TARGET": '["probe"]', "RUNNER_TEMP": str(tmp_path), "FAKE_PYTEST_STATUS": str(exit_code)},
+        env={
+            **os.environ,
+            "TIER": "unit",
+            "MODULE": "probe",
+            "MODE": mode,
+            "COV_TARGET": '["probe"]',
+            "RUNNER_TEMP": str(tmp_path),
+            "FAKE_PYTEST_STATUS": str(exit_code),
+        },
         text=True,
         capture_output=True,
         check=False,
@@ -65,6 +74,32 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
     assert "import-linter" not in router
     assert {"ruff", "uv-lock"} <= set(router["router-gate"]["needs"])
     assert "Clean install verification" in quality["clean-install-verification"]["name"]
+
+
+def test_ruff_uses_hash_locked_dependencies_without_installing_the_project() -> None:
+    steps = _workflow("ci-router.yml")["jobs"]["ruff"]["steps"]
+    run = "\n".join(step.get("run", "") for step in steps)
+    assert "uv sync --frozen" in run
+    assert "--no-install-project" in run and "--no-install-workspace" in run
+    assert ".venv/bin/ruff check ." in run and ".venv/bin/ruff format --check ." in run
+    assert "uv tool run" not in run
+
+
+@pytest.mark.parametrize("required", ["true", "false", "", None])
+def test_wheel_and_clean_install_wiring_only_omits_proven_non_inputs(required: str | None) -> None:
+    jobs = _workflow("ci-quality.yml")["jobs"]
+    build = jobs["build-wheel"]
+    assert build["outputs"]["build-required"] == "${{ steps.package-scope.outputs.build-required }}"
+    for step in build["steps"]:
+        if step.get("id") == "package-scope" or step.get("uses", "").startswith("actions/checkout@"):
+            continue
+        assert evaluate(step["if"], {"steps.package-scope.outputs.build-required": required}) is (required != "false")
+    clean = jobs["clean-install-verification"]
+    for step in clean["steps"]:
+        if step.get("name") == "Refuse while CI is paused by label":
+            continue
+        expected = required == "false" if step.get("name") == "Report proven package-irrelevant prose change" else required != "false"
+        assert evaluate(step["if"], {"needs.build-wheel.outputs.build-required": required}) is expected
 
 
 def test_windows_cancels_only_superseded_pr_evidence() -> None:

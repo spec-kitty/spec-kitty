@@ -149,6 +149,11 @@ jobs:
           python-exe: ${{ steps.warmup.outputs.venv-path }}/bin/python
           extras-only: 'true'
 
+      - name: Restore validated collection-policy scan candidates
+        uses: ./.github/actions/policy-scan-cache
+        with:
+          python-exe: ${{ steps.warmup.outputs.venv-path }}/bin/python
+
       - name: Compute shard identifiers
         id: shard-info
         shell: bash
@@ -351,16 +356,12 @@ jobs:
           status=$?
           set -e
 
-          if [ "$mode" = "full" ]; then
-            # full mode: run-all, never short-circuit the aggregation run --
-            # this shard's failure is surfaced but does not abort the step.
-            if [ "$status" -ne 0 ]; then
-              echo "::warning::module-tests: shard ${mod} ${slug} failed in full mode (if: always() aggregation continues)"
-            fi
-          else
-            # pr mode: fail-fast -- propagate this shard's exit status.
-            exit "$status"
+          if [ "$mode" = "full" ] && [ "$status" -ne 0 ]; then
+            echo "::error::module-tests: shard ${mod} ${slug} failed; full-mode siblings and report uploads continue"
           fi
+          # Run-all is the caller's fail-fast:false policy, not permission to
+          # turn a failed pytest invocation green. Uploads remain if:always().
+          exit "$status"
 
       - name: Check the test-universe reuse
         if: always() && steps.select.outputs.universe == 'true'

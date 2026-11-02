@@ -182,6 +182,44 @@ def test_sonar_wires_coverage_report_paths_comma_joined() -> None:
     assert "sonar.python.coverage.reportPaths" in text, "sonar.yml must wire sonar.python.coverage.reportPaths"
 
 
+def _scan_job_steps() -> list[dict[str, Any]]:
+    workflow = _workflow_yaml()
+    return [step for step in workflow["jobs"]["scan"]["steps"] if isinstance(step, dict)]
+
+
+def test_sonar_binds_coverage_runs_to_the_checked_out_source_revision() -> None:
+    """Coverage provenance is the checked-out commit, never "newest successful on the branch"."""
+    steps = _scan_job_steps()
+    source = next(step for step in steps if step.get("id") == "source")
+    assert "git rev-parse HEAD" in str(source["run"])
+    assert "sha=%s" in str(source["run"])
+
+    listing = next(step for step in steps if "actions/github-script@" in str(step.get("uses", "")))
+    assert listing["env"]["SOURCE_SHA"] == "${{ steps.source.outputs.sha }}"
+    script = str(listing["with"]["script"])
+    assert "head_sha: process.env.SOURCE_SHA" in script, "the API query must be revision-bound, not branch-newest"
+    assert "status: 'success'" in script
+
+    selector = next(step for step in steps if "sonar_coverage_provenance.py select" in str(step.get("run") or ""))
+    run = str(selector["run"])
+    assert '--source-sha "$SOURCE_SHA"' in run
+    assert '--branch "$SOURCE_BRANCH"' in run
+    text = _workflow_text()
+    assert "runs[0]" not in text and "runs[1]" not in text, "raw newest-first array indexing is the stale-provenance bug this binding replaces"
+
+
+def test_sonar_fallback_and_reconciliation_are_same_revision_helper_outputs() -> None:
+    steps = _scan_job_steps()
+    coverage = next(step for step in steps if step.get("id") == "coverage")
+    run = str(coverage["run"])
+    assert "sonar_coverage_provenance.py reconcile" in run
+    assert "--current out/reports/artifacts/current" in run
+    assert "--fallback out/reports/artifacts/previous" in run
+    text = _workflow_text()
+    assert "steps.current-run.outputs.fallback_run_id" in text
+    assert "stale-artefact fallback" not in text
+
+
 # ---------------------------------------------------------------------------
 # Fork-safe degradation: skip-green without SONAR_TOKEN (T064).
 # ---------------------------------------------------------------------------

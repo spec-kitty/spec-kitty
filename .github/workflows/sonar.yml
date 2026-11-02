@@ -19,13 +19,19 @@
 #
 # Artefact aggregation (contracts/artefact-naming.md): this workflow is triggered
 # by `schedule`/`workflow_dispatch` only -- NOT `workflow_run` on "CI Modules" (unlike
-# ci-aggregate.yml, WP10) -- so it resolves its OWN "current" run by finding the
-# most-recent successful "CI Modules" run for the analyzed ref, then a second
-# most-recent successful run as the stale-artefact fallback (the same current/
-# fallback pattern ci-aggregate.yml uses, generalized here to a cross-workflow,
-# not same-run-triggered, lookup). Coverage basenames are deduped by basename
-# (current-run wins; fallback fills gaps) and comma-joined into
-# `sonar.python.coverage.reportPaths` -- Sonar merges server-side, so NO single
+# ci-aggregate.yml, WP10) -- so it resolves its OWN run by the checked-out source
+# revision (`git rev-parse HEAD`), not by "the newest successful run on the branch".
+# Only successful "CI Modules" runs whose `head_sha` is EXACTLY that revision (and,
+# when the ref is a branch, whose `head_branch` is that branch) may supply coverage;
+# a second such run at the SAME revision may fill missing basenames. Coverage from
+# a newer/different revision, another branch, or a superseded run attempt is never
+# merged into the scan. When no matching run (or no matching coverage report) is
+# available, the scan still runs informational with a clear `::warning::` and zero
+# coverage paths -- it never silently substitutes another revision's report. The
+# selection and reconciliation decisions live in the tested helper
+# scripts/ci/sonar_coverage_provenance.py. Coverage basenames are deduped by
+# basename (current-run wins; same-revision fallback fills gaps) and comma-joined
+# into `sonar.python.coverage.reportPaths` -- Sonar merges server-side, so NO single
 # merged coverage.xml is produced here (matches ci-aggregate.yml's own consumer
 # note). `sonar.python.xunit.reportPath` is deliberately NOT wired (decision
 # recorded in sonar-identity-verification.md's "xunit gap" section) -- this WP
@@ -110,38 +116,74 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find the most-recent successful "CI Modules" run for this ref
-        id: current-run
+      - name: Resolve the checked-out source revision for coverage provenance
+        id: source
         if: steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+          branch=""
+          case "$GITHUB_REF" in
+            refs/heads/*) branch="${GITHUB_REF#refs/heads/}" ;;
+          esac
+          printf 'branch=%s\n' "$branch" >> "$GITHUB_OUTPUT"
+          echo "sonar: coverage provenance bound to source revision $sha${branch:+ on branch $branch}"
+
+      - name: List successful "CI Modules" runs at this exact source revision
+        id: module-runs
+        if: steps.sonar_token.outputs.enabled == 'true'
+        continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_BRANCH: ${{ steps.source.outputs.branch }}
+          RUNS_JSON: ${{ runner.temp }}/ci-modules-runs.json
         with:
           script: |
-            // This workflow is schedule/dispatch-only (never workflow_run), so
-            // it has no "triggering run" to key off like ci-aggregate.yml does
-            // -- it resolves its own current + fallback runs by branch, newest
-            // first (the cross-workflow generalization of ci-aggregate.yml's
-            // same-run-triggered current/fallback pattern).
-            const branch = context.ref.replace('refs/heads/', '');
-            const { data } = await github.rest.actions.listWorkflowRuns({
+            // Query by head_sha, not by branch newest-first: the revision is the
+            // provenance key. The tested selector validates every returned run
+            // again (head_sha, head_branch, status/conclusion, run attempt), so a
+            // mocked or unexpectedly broad API response cannot widen the binding.
+            const fs = require('fs');
+            const params = {
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'ci-modules.yml',
-              branch,
+              head_sha: process.env.SOURCE_SHA,
               status: 'success',
-              per_page: 5,
-            });
-            const runs = data.workflow_runs;
-            const runId = runs[0] ? String(runs[0].id) : '';
-            const fallbackRunId = runs[1] ? String(runs[1].id) : '';
-            core.setOutput('run_id', runId);
-            core.setOutput('fallback_run_id', fallbackRunId);
-            if (runId) {
-              console.log(`sonar: current CI Modules run=${runId}${fallbackRunId ? `, fallback run=${fallbackRunId}` : ' (no fallback run found)'}`);
-            } else {
-              console.log('sonar: no successful "CI Modules" run found for this branch -- scan will run with zero coverage report paths.');
-            }
+              per_page: 100,
+            };
+            if (process.env.SOURCE_BRANCH) params.branch = process.env.SOURCE_BRANCH;
+            const { data } = await github.rest.actions.listWorkflowRuns(params);
+            fs.writeFileSync(process.env.RUNS_JSON, JSON.stringify(data));
+            core.info(`sonar: fetched ${data.workflow_runs.length} successful CI Modules run(s) for head_sha=${process.env.SOURCE_SHA}${process.env.SOURCE_BRANCH ? ` on ${process.env.SOURCE_BRANCH}` : ''}`);
 
-      - name: Download current-run shard artefacts
+      - name: Select runs at exactly this source revision (deterministic, same-branch only)
+        id: current-run
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_BRANCH: ${{ steps.source.outputs.branch }}
+          RUNS_JSON: ${{ runner.temp }}/ci-modules-runs.json
+        run: |
+          set -euo pipefail
+          args=(--runs "$RUNS_JSON" --source-sha "$SOURCE_SHA" --output "$GITHUB_OUTPUT")
+          if [ -n "$SOURCE_BRANCH" ]; then
+            args+=(--branch "$SOURCE_BRANCH")
+          fi
+          if ! python3 scripts/ci/sonar_coverage_provenance.py select "${args[@]}"; then
+            echo "::warning::sonar: could not bind coverage to source revision $SOURCE_SHA; scanning WITHOUT coverage rather than reusing another revision's report."
+            {
+              echo "run_id="
+              echo "fallback_run_id="
+              echo "coverage_available=false"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download current-run shard artefacts (exact source revision)
         id: download-current
         if: steps.sonar_token.outputs.enabled == 'true' && steps.current-run.outputs.run_id != ''
         continue-on-error: true
@@ -153,7 +195,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.current-run.outputs.run_id }}
 
-      - name: Download fallback-run shard artefacts (stale-artefact fallback)
+      - name: Download fallback-run shard artefacts (same source revision only)
         id: download-previous
         if: steps.sonar_token.outputs.enabled == 'true' && steps.current-run.outputs.fallback_run_id != ''
         continue-on-error: true
@@ -165,47 +207,22 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.current-run.outputs.fallback_run_id }}
 
-      - name: Reconcile coverage basenames (dedup, stale-fallback) -> comma-joined reportPaths
+      - name: Reconcile coverage basenames (same-revision dedup) -> comma-joined reportPaths
         id: coverage
         if: always() && steps.sonar_token.outputs.enabled == 'true'
         shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-
-          root = Path("out/reports/artifacts")
-          current_dir = root / "current"
-          previous_dir = root / "previous"
-
-          # Current-run wins; the previous (fallback) run only fills basenames
-          # missing from current -- the stale-artefact fallback edge case
-          # (contracts/artefact-naming.md "Stale-artefact fallback"). Dedup is
-          # by basename (Invariant 1): a same-run collision would otherwise
-          # silently drop a shard's data, so pick the FIRST match deterministically
-          # rather than let a later glob entry silently overwrite it.
-          resolved: dict[str, Path] = {}
-          stale: list[str] = []
-
-          if current_dir.exists():
-              for path in sorted(current_dir.rglob("coverage-*.xml")):
-                  resolved.setdefault(path.name, path)
-
-          if previous_dir.exists():
-              for path in sorted(previous_dir.rglob("coverage-*.xml")):
-                  if path.name not in resolved:
-                      resolved[path.name] = path
-                      stale.append(path.name)
-
-          report_paths = ",".join(str(p) for p in resolved.values())
-          print(f"sonar: resolved {len(resolved)} coverage report(s); {len(stale)} served from the stale-artefact fallback: {sorted(stale)}")
-
-          summary_path = os.environ.get("GITHUB_OUTPUT")
-          if summary_path:
-              with open(summary_path, "a", encoding="utf-8") as fh:
-                  fh.write(f"report-paths={report_paths}\n")
-          PY
+          if ! python3 scripts/ci/sonar_coverage_provenance.py reconcile \
+            --current out/reports/artifacts/current \
+            --fallback out/reports/artifacts/previous \
+            --source-sha "$SOURCE_SHA" \
+            --output "$GITHUB_OUTPUT"; then
+            echo "::warning::sonar: coverage reconciliation failed; scanning WITHOUT coverage rather than reusing an unverified report."
+            echo "report-paths=" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Derive sonar.projectVersion from pyproject.toml
         id: version
@@ -275,7 +292,32 @@ jobs:
         with:
           extras-only: 'true'
 
-      - name: Install the pinned Gradle (checksum verified before it runs)
+      # The Gradle distribution is restored from a cache keyed on the pinned
+      # archive, but a cache entry is never trusted blindly: gradle_tool_cache.py
+      # re-hashes the restored tree against the manifest written after the
+      # canonical checksum-verified install, and reinstalls on any mismatch.
+      # Only build tools and dependency artefacts are cached -- never test results
+      # or acceptance-jvm/build output. Gradle verifies cached dependency bytes
+      # against acceptance-jvm/gradle/verification-metadata.xml on use.
+      - name: Restore the pinned Gradle tool cache (checksum-verified on restore)
+        id: gradle_tool_cache
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.service_extras.outcome == 'success'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tools
+          key: gradle-tool-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json') }}
+
+      - name: Restore the Gradle dependency cache (never test results)
+        id: gradle_deps_cache
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.service_extras.outcome == 'success'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json', 'acceptance-jvm/build.gradle', 'acceptance-jvm/settings.gradle', 'acceptance-jvm/gradle/verification-metadata.xml') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+
+      - name: Install the pinned Gradle (checksum verified; cache re-verified before use)
         id: gradle
         if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.service_extras.outcome == 'success'
         continue-on-error: true
@@ -283,7 +325,7 @@ jobs:
         run: |
           set -euo pipefail
           tools="$(PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
-          uv run --frozen --no-sync python "$tools/install_tools.py" --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+          uv run --frozen --no-sync python scripts/ci/gradle_tool_cache.py ensure --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --installer "$tools/install_tools.py"
 
       - name: Compile the acceptance-jvm Java for analysis
         id: java

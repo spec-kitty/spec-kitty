@@ -207,10 +207,12 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen spec-kitty regen --check
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - name: Check generated artifacts
+        run: uv run --frozen --no-sync spec-kitty regen --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
@@ -227,10 +229,12 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen spec-kitty charter pack regenerate-graph --check
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - name: Check the governance graph
+        run: uv run --frozen --no-sync spec-kitty charter pack regenerate-graph --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
@@ -247,6 +251,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
+      - uses: ./.github/actions/restore-open-packs
       - name: Install the locked Python environment
         run: uv sync --frozen --all-extras
       # Fails closed (exit 1, stable PACK_* code) when a pin is unresolvable, a placeholder, or its tree digest
@@ -273,10 +278,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen pytest tests/architectural/test_pack_manifest_no_author_edit.py -q
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Check the pack manifest
+        run: uv run --frozen --no-sync pytest tests/architectural/test_pack_manifest_no_author_edit.py -q
 
   built-in-corpus-suite:
     name: built-in / -m corpus suite (advisory)
@@ -302,9 +310,13 @@ jobs:
         id: pycache-sweep
         run: |
           find . -depth -type d -name '__pycache__' -exec rm -rf {} +
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Run the advisory corpus suite
+        run: |
           # corpus exit-5 floor (#3008): "no tests collected" is a failure,
           # never a silent pass — do not swallow the exit code. Run parallel
           # (--dist loadfile, per-worker HOME isolation via conftest): ~1400
@@ -334,10 +346,12 @@ jobs:
           python-version: '3.12'
       - name: Install claude CLI
         run: npm install -g @anthropic-ai/claude-code@2.1.270
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
       - name: Build plugin bundle + claude plugin validate --strict
         run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
           if ! uv run --frozen spec-kitty plugin build --target claude-code 2>build.log; then
             echo "::error::spec-kitty plugin build (claude plugin validate --strict) failed."
             cat build.log >&2
@@ -363,10 +377,12 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen spec-kitty charter org validate packs/internal
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - name: Validate the internal charter pack
+        run: uv run --frozen --no-sync spec-kitty charter org validate packs/internal
 
   internal-packaging-safety:
     name: internal / packaging-safety NEGATIVE guard (never ships)
@@ -379,10 +395,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen pytest tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages -q
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Verify internal pack packaging exclusion
+        run: uv run --frozen --no-sync pytest tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages -q
 
   # ---------------------------------------------------------------------------
   # packs-gate: terminal aggregator. `if: always() && !cancelled()` realizes

@@ -885,61 +885,39 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      # ruff lives in the `lint` extra, not the default groups — sync it in
-      # first, or `uv run ruff` fails to spawn on a cold runner (the env has no
-      # ruff). Mirrors the proven ci-quality.yml Lint job.
-      - run: |
-          uv sync --frozen --extra lint
-          uv run --frozen ruff check .
-          uv run --frozen ruff format --check .
-
-  commit-msg:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: commit message lint
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          fetch-depth: 0
-      - run: git log --format=%s origin/${{ github.base_ref || 'main' }}..HEAD || true
-
-  markdownlint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: markdownlint
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - run: npx --yes markdownlint-cli2 "**/*.md" || true
+      - name: Install hash-locked lint tools without an editable project
+        run: uv sync --frozen --extra lint --no-install-project --no-install-workspace
+      - name: Run locked Ruff (includes TID251)
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
 
   uv-lock:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: uv lock --check
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    # Preserve the original five-minute authority budget, plus separately
+    # bounded one-minute informational probes; advisory work cannot consume it.
+    timeout-minutes: 7
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
       - run: uv lock --check
-
-  import-linter:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
-    name: import boundaries (TID251)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          python-version: '3.12'
-      # ruff lives in the `lint` extra — sync it in first or `uv run ruff` fails
-      # to spawn on a cold runner (env has no ruff). Mirrors the ruff job above.
-      - run: |
-          uv sync --frozen --extra lint
-          uv run --frozen ruff check --select TID251 .
+      # Reporting only: keep these out of the strictly blocking docs-lint job.
+      - name: Commit subjects (informational, not a lint verdict)
+        timeout-minutes: 1
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: git log --format=%s "origin/$BASE_REF"..HEAD
+      - name: Markdown style (informational, consolidated from its own job)
+        timeout-minutes: 1
+        continue-on-error: true
+        run: npx --yes markdownlint-cli2@0.18.1 "**/*.md"
 
   regen-check:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
@@ -951,10 +929,12 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen spec-kitty regen --check
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - name: Check generated artifacts
+        run: uv run --frozen --no-sync spec-kitty regen --check
 
   # ---------------------------------------------------------------------------
   # FAST always-on architectural gates (FR-008 / NFR-002): terminology + the
@@ -972,10 +952,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen pytest tests/architectural/test_no_legacy_terminology.py -q
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Run terminology guards
+        run: uv run --frozen --no-sync pytest tests/architectural/test_no_legacy_terminology.py -q
 
   # Docs prose lint (#5426): codespell (typos + scoped US spelling) and the
   # changelog [Unreleased] style guard. Always-on because its inputs span
@@ -998,9 +981,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen
-          uv run --frozen python -m scripts.docs.check_spelling
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install documentation-check dependencies
+        run: uv sync --frozen
+      - uses: ./.github/actions/sync-packs
+      - name: Check documentation contracts
+        run: |
+          uv run --frozen --no-sync python -m scripts.docs.check_spelling
           uv run --frozen python -m scripts.docs.check_changelog_style
           uv run --frozen python -m scripts.ci.check_generated_docs_untouched
           uv run --frozen python -m scripts.ci.check_legacy_lifecycle_log_untouched
@@ -1023,10 +1010,12 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen python scripts/ci/validate_agent_skills.py
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - uses: ./.github/actions/sync-packs
+      - name: Validate shipped skills
+        run: uv run --frozen --no-sync python scripts/ci/validate_agent_skills.py
 
   layer-rules:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
@@ -1038,10 +1027,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen pytest tests/architectural/test_layer_rules.py tests/architectural/test_pyproject_shape.py -q
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Run layer and package guards
+        run: uv run --frozen --no-sync pytest tests/architectural/test_layer_rules.py tests/architectural/test_pyproject_shape.py -q
 
   # FAST always-on archive freeze (NFR-002 / #4365): the heavy battery below is
   # CODE-SCOPED, so a docs-only PR that rewrites archived kitty-specs/**
@@ -1064,10 +1056,13 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen pytest tests/architectural/test_archive_root_byte_identical.py -q
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Run archive freeze guard
+        run: uv run --frozen --no-sync pytest tests/architectural/test_archive_root_byte_identical.py -q
 
   # FAST always-on architectural gates (FR-003, #5510): the registry-held roster
   # (special_tiers.architectural.fast_gate) of deterministic ratchet / census
@@ -1094,18 +1089,19 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
-      # #6915: tests/architectural/test_scenario_contract.py runs the pinned contract-tools' codeowners_check.py
-      # (tests/pinned_service_assets.py fails closed without it); ~230 KB, cached on the pin hash.
-      # `uv run` without --no-sync: the project environment does not exist yet at this step.
+      - uses: ./.github/actions/restore-open-packs
+      - name: Install the locked environment
+        run: uv sync --frozen --all-extras
+      - uses: ./.github/actions/sync-packs
+      # The pinned contract tools remain verified; no implicit install in this step.
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
-          python: uv run --frozen python
           extras-only: 'true'
-      - run: |
-          uv sync --frozen --all-extras
-          PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
-          uv run --frozen python -m pytest tests/architectural \
+      - uses: ./.github/actions/policy-scan-cache
+      - name: Run architectural fast gates
+        run: |
+          uv run --frozen --no-sync python -m pytest tests/architectural \
             -m "not performance and not stress and not timing" \
             -n 4 --dist loadfile \
             --deselect tests/architectural/test_no_legacy_terminology.py \
@@ -1218,8 +1214,11 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
+      - uses: ./.github/actions/restore-open-packs
       - name: Sync dev environment
         run: uv sync --frozen --all-extras
+      - name: Restore validated collection-policy scan candidates
+        uses: ./.github/actions/policy-scan-cache
       # Scan-scope selection (#6994, #6999): a diff that matches only the arch_scan_scope group runs, in this
       # leg, only the gates whose declared scan scope it touches; a code diff runs the whole leg. A proven
       # prose-only diff (#4842) is narrowed the same way, to the gates that read the comment text it edits
@@ -1402,13 +1401,15 @@ jobs:
           enable-cache: true
       # #6191: install in its own step. A multi-line run block is named after its first
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - uses: ./.github/actions/restore-open-packs
       - name: Install dependencies
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
       - name: Run tests
         run: |
-          uv run --frozen pytest tests/docs -q
+          uv run --frozen --no-sync pytest tests/docs -q
 
   tests-e2e:
     name: tests (e2e)
@@ -1429,13 +1430,15 @@ jobs:
           enable-cache: true
       # #6191: install in its own step. A multi-line run block is named after its first
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - uses: ./.github/actions/restore-open-packs
       - name: Install dependencies
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
       - name: Run tests
         run: |
-          uv run --frozen pytest tests/e2e -q
+          uv run --frozen --no-sync pytest tests/e2e -q
 
   # The corpus-marked node-ids that no other required job runs (D-13/D-22). Forty of them: the
   # whole of tests/contract/test_example_round_trip.py (34) and
@@ -1481,10 +1484,12 @@ jobs:
           enable-cache: true
       # #6191: install in its own step. A multi-line run block is named after its first
       # line, so a test failure in a combined step was reported as a "uv sync" failure.
+      - uses: ./.github/actions/restore-open-packs
       - name: Install dependencies
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
       # #6915: the reality check and its payload helper read the pinned contract bundle and tools of
       # spec-kitty-events (tests/pinned_service_assets.py fails closed without them); ~230 KB, cached on the pin hash.
       - name: Sync the pinned service extras
@@ -1535,15 +1540,8 @@ jobs:
           python-version: '3.12'
       - name: Install the locked Python environment
         run: uv sync --frozen --no-install-project
-      # tests/contract imports charter, which reads packs/built-in (#6451). Inline, with the same
-      # cache key as .github/actions/sync-packs.
-      - name: Restore the open-packs clone cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/spec-kitty/open-packs
-          key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
       - name: Sync packs from the pinned open-packs commits
-        run: PYTHONPATH="${GITHUB_WORKSPACE}/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+        uses: ./.github/actions/sync-packs
       # #6915: the contract tests read the pinned extras of spec-kitty-events (contract bundles, contract tools,
       # conformance fixtures; ~230 KB, cached on the pin hash).
       - name: Sync the pinned service extras
@@ -1583,13 +1581,15 @@ jobs:
         with:
           python-version: '3.12'
           enable-cache: true
+      - uses: ./.github/actions/restore-open-packs
       - name: Install dependencies
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      - uses: ./.github/actions/policy-scan-cache
       - name: Run tests
         run: |
-          uv run --frozen pytest -rs -m "not stress and not timing" -n 4 --dist loadfile \
+          uv run --frozen --no-sync pytest -rs -m "not stress and not timing" -n 4 --dist loadfile \
             tests/migration \
             tests/contract/spec_kitty_events_consumer \
             tests/contract/test_events_envelope_matches_resolved_version.py
@@ -1622,6 +1622,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
+      - uses: ./.github/actions/restore-open-packs
       - name: Install the locked Python environment
         run: uv sync --frozen
       - name: Sync packs
@@ -1690,6 +1691,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
       - name: Install the site with the frozen lockfile (no token)
         working-directory: site
         run: pnpm install --frozen-lockfile
@@ -1722,10 +1725,7 @@ jobs:
       - changes
       - prose-scan
       - ruff
-      - commit-msg
-      - markdownlint
       - uv-lock
-      - import-linter
       - regen-check
       - terminology
       - docs-lint
