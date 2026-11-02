@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5356": {
+      "evidence_ref": "Cited for context only (the /tmp-inside-a-repo host shape the harness ceiling was added for). No work owed to it here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6957": {
+      "evidence_ref": "Branch kitty/mission-migrate-group-flags-test-own-git-ceiling-01M6EKQH: autouse fixture appends its own test root to GIT_CEILING_DIRECTORIES; Guard A (invariant) + Guard B (production-path probe) both red without it; module 81 passed. PR link added here once the PR exists.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6988": {
+      "evidence_ref": "Cited for context only in the changelog fragment convention (per-PR fragments). The fragment was added in that shape; no work is owed to #6988 here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7022": {
+      "evidence_ref": "Cited for context only: #7022 added the harness-wide GIT_CEILING_DIRECTORIES (de5ea7a87d) whose absence exposed this module's own gap. No work is owed to it here; the harness fix is untouched.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "mission_id": "01M6EKQH2BR6XEQ0TGBQB1AZEJ",
+  "mission_branch": "kitty/mission-migrate-group-flags-test-own-git-ceiling-01M6EKQH",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/",
+        "tests/cli/test_migrate_group_flags_4964.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T17:11:53.410390+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9aed3a8012cb5eb22c0128b14d525039f95fea7a"
+}
