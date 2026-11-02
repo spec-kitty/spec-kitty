@@ -104,13 +104,13 @@ guard's exact reconciliation purpose.
 
 | disposition | count | meaning |
 | --- | --- | --- |
-| routed-through-seam | 23 | already safe (seam cited); +4 (#2037 closure) — `cli/commands/agent/tasks_move_task.py:302`, `cli/commands/decision.py:552`, `consolidation/mission_number/bake.py:216`, `consolidation/mission_number/bake.py:224` (relocated from `ordering.py:307`/`:315` by #2600) each route through `assert_safe_path_segment`. `decision.py:552` was re-pointed by #5019 (mission coord-read-fail-closed): its ledger read moved off `resolve_handle_to_read_path` onto `_resolve_ledger_dir` → `placement_seam(...).read_dir(PRIMARY_METADATA)`, so the in-file guard is now the `_SAFE_SLUG_RE` raw-token boundary reject plus the seam's own `assert_safe_path_segment` — see the row above. |
+| routed-through-seam | 24 | already safe (seam cited); +4 (#2037 closure) — `cli/commands/agent/tasks_move_task.py:302`, `cli/commands/decision.py:552`, `consolidation/mission_number/bake.py:216`, `consolidation/mission_number/bake.py:224` (relocated from `ordering.py:307`/`:315` by #2600) each route through `assert_safe_path_segment`. `decision.py:552` was re-pointed by #5019 (mission coord-read-fail-closed): its ledger read moved off `resolve_handle_to_read_path` onto `_resolve_ledger_dir` → `placement_seam(...).read_dir(PRIMARY_METADATA)`, so the in-file guard is now the `_SAFE_SLUG_RE` raw-token boundary reject plus the seam's own `assert_safe_path_segment` — see the row above. |
 | routed-through-seam (TODO) | 3 | 2 RESOLVED-at-source by WP02 (FR-009; matcher-per-site artifact); +1 (`cli/commands/agent/mission_finalize.py:800`) added by the #5445 landing-pass reconciliation below (`ctx.mission_slug` validated upstream in `_resolve_finalize_context`, a different function than the join site, so the seam is matcher-invisible at this site). |
 | trusted-source | 10 | derived directory-name / on-disk index / SHA-256 hex provenance |
 | unreachable | 11 | no FS open/write reachable with an untrusted segment (+2, #6347 `migrate --mission` scope joins: `backfill_provenance.py:264`, `charter_encoding.py:150`) (+3, WP08 FR-008 reconciliation-detector shape replicas); -2 (`review/arbiter.py:388`/`:523`) removed as ghosts by mission review-cycle-verdict-seam-rebuild-01KZ2W7W WP12 (FR-009); -1 (`post_merge/review_artifact_consistency.py:59`) removed as a ghost by the SAME mission's WP13 (T059 rewrite of `_artifact_dirs_for_wp`); +1 (`migration/verdict_provenance_backfill.py:170`) added by the 2026-08-07 landing-pass reconciliation above (`wp_id` is Named-untrusted, SC-003, so this `.is_dir()`-only sink cannot be `trusted-source`) |
-| **total** | **47** | dispositioned rows in the sink table |
+| **total** | **48** | dispositioned rows in the sink table |
 
-Of the 47 rows, 41 are AST-discovered (the live matcher prints
+Of the 48 rows, 42 are AST-discovered (the live matcher prints
 the exact discovered count each run) and 6 are `[inventory-only]`
 known-false-negative rows (the FR-009 `mission_metadata.py` write-path + five
 cross-function diagnostics the matcher cannot trace across a boundary seam).
