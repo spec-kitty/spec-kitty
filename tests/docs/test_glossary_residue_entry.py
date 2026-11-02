@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Callable
 from pathlib import Path
 import pytest
 
@@ -98,28 +99,22 @@ def test_residue_entry_present_in_orchestration_glossary() -> None:
     assert "Do NOT use when" in section, "Residue entry needs a 'Do NOT use when' guard"
 
 
-def test_write_seam_docstring_links_entry() -> None:
-    """``is_kitty_specs_residue``'s docstring links the glossary entry (write-seam sense)."""
-    assert ENTRY_ANCHOR in _docstring_of(RESOLVER_PATH, "is_kitty_specs_residue")
+def _canon_section() -> str:
+    return _section_body(AGENTS_PATH.read_text(encoding="utf-8"), "Terminology Canon", heading_level="##")
 
 
-def test_read_side_docstring_links_entry() -> None:
-    """``is_selectable_mission_dir``'s docstring links the glossary entry (read-side sense)."""
-    assert ENTRY_ANCHOR in _docstring_of(RESOLVER_PATH, "is_selectable_mission_dir")
-
-
-def test_audit_engine_docstring_links_entry() -> None:
-    """``RESIDUE_DIRECTORY``'s doc-comment links the glossary entry (audit-engine sense)."""
-    assert ENTRY_ANCHOR in _assignment_preceding_comment(AUDIT_MODELS_PATH, "RESIDUE_DIRECTORY")
-
-
-def test_terminology_canon_links_entry() -> None:
-    """AGENTS.md's Terminology Canon flags the residue footgun and links the entry."""
-    text = AGENTS_PATH.read_text(encoding="utf-8")
-    canon = _section_body(text, "Terminology Canon", heading_level="##")
-    assert ENTRY_ANCHOR in canon, (
-        "AGENTS.md Terminology Canon must link docs/context/orchestration.md#residue alongside the primary/merge/routing footgun bullets (#6759)"
-    )
+@pytest.mark.parametrize(
+    "owner",
+    [
+        pytest.param(lambda: _docstring_of(RESOLVER_PATH, "is_kitty_specs_residue"), id="write-seam"),
+        pytest.param(lambda: _docstring_of(RESOLVER_PATH, "is_selectable_mission_dir"), id="read-side"),
+        pytest.param(lambda: _assignment_preceding_comment(AUDIT_MODELS_PATH, "RESIDUE_DIRECTORY"), id="audit-engine"),
+        pytest.param(_canon_section, id="terminology-canon"),
+    ],
+)
+def test_owning_surface_links_residue_entry(owner: Callable[[], str]) -> None:
+    """Each owning docstring (one per sense) and the AGENTS.md Terminology Canon link the entry."""
+    assert ENTRY_ANCHOR in owner()
 
 
 def test_link_probe_positive_control() -> None:
