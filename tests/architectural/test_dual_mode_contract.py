@@ -57,7 +57,7 @@ from typing import Any
 import pytest
 import yaml
 
-from scripts.ci.router_gate import ROUTER_GATE_JOB_NAME, classify
+from scripts.ci.router_gate import ADVISORY_JOB_NAMES, ROUTER_GATE_JOB_NAME, classify
 from tests.ci._gh_expr import LABEL_NO_OP_GROUP_SUFFIX, github_context, interpolate
 
 pytestmark = pytest.mark.architectural
@@ -321,7 +321,10 @@ def test_router_gate_step_wiring_and_needs_invariant_are_pinned() -> None:
     # (c) needs: == the full set of non-gate top-level jobs (classify-all invariant).
     needs = gate_job.get("needs") or []
     needs_set = set(needs) if isinstance(needs, list) else {needs}
-    non_gate_jobs = {name for name in workflow["jobs"] if name != "router-gate"}
+    # Advisory jobs (router_gate.ADVISORY_JOB_NAMES, by display name) run but do not gate yet; the
+    # classifier skips their rows, so they stay out of the classify-all == classify-needs invariant.
+    advisory = {name for name, job in workflow["jobs"].items() if isinstance(job, dict) and job.get("name") in ADVISORY_JOB_NAMES}
+    non_gate_jobs = {name for name in workflow["jobs"] if name != "router-gate"} - advisory
     assert needs_set == non_gate_jobs, (
         "ci-router.yml: router-gate `needs:` must be exactly the non-gate top-level jobs "
         f"(classify-all == classify-needs invariant). Outside needs: {sorted(non_gate_jobs - needs_set)}; "

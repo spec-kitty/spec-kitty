@@ -331,6 +331,17 @@
         "**/mission_runtime/identity.py"
       ],
       "note": "Every Mission file plus every input that can change the mission-state audit verdict (#5864, #6058): the reducer dependency manifests, the audit-path CLI modules, the workflow and renderer; non-src, no --cov subject."
+    },
+    {
+      "group": "docs_site",
+      "roots": [
+        "docs/**",
+        "site/**",
+        "scripts/docs/_dockitty_contract.py",
+        "scripts/docs/site_contract.py",
+        ".github/workflows/ci-router.yml"
+      ],
+      "note": "The doc-kitty docsite build inputs (#6930, ADR 2026-10-31-1 D-11): the pages, the site/ project, its folder contract and the router workflow; gates only docs-site; non-src, no --cov subject."
     }
   ],
   "excluded_surfaces": [

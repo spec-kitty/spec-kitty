@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 __all__ = [
+    "ADVISORY_JOB_NAMES",
     "NON_BLOCKING_CONCLUSIONS",
     "ROUTER_GATE_JOB_NAME",
     "GateDecision",
@@ -48,6 +49,23 @@ NON_BLOCKING_CONCLUSIONS: frozenset[str] = frozenset({"success", "skipped"})
 # The terminal job's own display name (``name:`` in ci-router.yml). It is
 # excluded from its own verdict: while it runs its jobs-API conclusion is null.
 ROUTER_GATE_JOB_NAME = "router gate"
+
+# Jobs of ci-router.yml that run but do not gate yet, by display name (``name:``). The gate reads
+# every jobs-API row of the run, not only its ``needs:``, so a job kept out of ``needs:`` would
+# still block on failure and could read as incomplete while it runs; these rows are skipped like
+# the gate's own. tests/architectural/test_dual_mode_contract.py subtracts the same set from its
+# ``needs:`` invariant, and tests/ci/test_docs_site_job.py requires every name to be a router job
+# outside ``needs:`` that also carries job-level ``continue-on-error`` (the run-conclusion half of
+# "non-blocking": the fleet verdict, the main P0 intake and skip-if-green read the run conclusion).
+# Priced debt (charter Standing Order #5, ADR 2026-09-30-1): one entry, issue #6937, owner the
+# operator, exit when #6937 adds the job to ``needs:`` and removes both the entry and the job's
+# ``continue-on-error``.
+ADVISORY_JOB_NAMES: frozenset[str] = frozenset(
+    {
+        # The doc-kitty docsite build of the parallel run (#6930; ADR 2026-10-31-1 D-11, D-13).
+        "docs site (doc-kitty build)",
+    }
+)
 
 # The conclusion recorded for a job the jobs API reports without one (still in
 # progress or missing). It is not in NON_BLOCKING_CONCLUSIONS, so it blocks.
@@ -96,7 +114,8 @@ def _parse_conclusions(raw: str) -> dict[str, str]:
     """Parse ``name<TAB>conclusion`` rows (the jobs-API output) into a mapping.
 
     The terminal gate's own job is dropped (its conclusion is null while it
-    runs); a row without a conclusion is recorded as incomplete, which blocks.
+    runs), and so is every :data:`ADVISORY_JOB_NAMES` row (it does not gate yet);
+    a row without a conclusion is recorded as incomplete, which blocks.
     """
     conclusions: dict[str, str] = {}
     for line in raw.splitlines():
@@ -104,7 +123,7 @@ def _parse_conclusions(raw: str) -> dict[str, str]:
             continue
         name, _, conclusion = line.partition("\t")
         name = name.strip()
-        if not name or name == ROUTER_GATE_JOB_NAME:
+        if not name or name == ROUTER_GATE_JOB_NAME or name in ADVISORY_JOB_NAMES:
             continue
         conclusions[name] = conclusion.strip() or _INCOMPLETE_CONCLUSION
     return conclusions
