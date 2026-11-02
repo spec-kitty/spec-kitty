@@ -19,6 +19,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Any
 
+from kernel import paths as _paths
 from kernel.service_artifacts import ASSET_DIR_ENV, SERVICE_BINARY_DIGEST_MISMATCH, SERVICE_BINARY_MISSING
 from kernel.service_pin import SERVICE_PIN_INVALID
 from specify_cli.core.errors import StructuredError
@@ -49,13 +50,11 @@ _REMEDIES: Mapping[tuple[ServiceRefusalCode, str | None], str] = MappingProxyTyp
     {
         (ServiceRefusalCode.BINARY_MISSING, None): f"run {_FETCH_COMMAND} while online, or set {ASSET_DIR_ENV} to a directory holding {{asset}}",
         (ServiceRefusalCode.BINARY_MISSING, "explicit"): "point {env_var} at an existing file, or unset it to use the pinned build",
-        (ServiceRefusalCode.BINARY_MISSING, "cache"): (
-            "make the service cache {cache} writable (free space, fix its permissions), or set XDG_CACHE_HOME to a writable directory"
-        ),
+        (ServiceRefusalCode.BINARY_MISSING, "cache"): ("make the service cache {cache} writable (free space, fix its permissions), or {writable_cache_hint}"),
         (ServiceRefusalCode.BINARY_MISSING, "install"): "reinstall the package that provides the {service} binary, or uninstall it to use the pinned download",
         (ServiceRefusalCode.BINARY_MISSING, "spawn"): (
             "check that {program} can be executed: it needs its exec permission, and its file system must not be mounted noexec"
-            f" (set XDG_CACHE_HOME to a directory on an exec-capable file system, then run {_FETCH_COMMAND})"
+            f" ({{exec_cache_hint}}, then run {_FETCH_COMMAND})"
         ),
         (ServiceRefusalCode.DIGEST_MISMATCH, None): (
             f"delete {{path}} and run {_FETCH_COMMAND}; if it persists, the release or your mirror does not match the pin"
@@ -80,13 +79,30 @@ _REMEDIES: Mapping[tuple[ServiceRefusalCode, str | None], str] = MappingProxyTyp
 )
 
 
+def _cache_relocation_hint(*, exec_capable: bool) -> str:
+    """How to relocate the per-user service cache on this platform (#6488).
+
+    ``XDG_CACHE_HOME`` moves it only where the per-user authority honours XDG
+    variables (Linux and macOS); on Windows the cache follows the
+    ``%LOCALAPPDATA%`` folder, which no environment variable relocates.
+    """
+    if _paths.is_windows():
+        target = "an exec-capable file system" if exec_capable else "writable storage"
+        return f"on Windows the cache follows %LOCALAPPDATA%, so relocate that folder to {target}"
+    target = "a directory on an exec-capable file system" if exec_capable else "a writable directory"
+    return f"set XDG_CACHE_HOME to {target}"
+
+
 def remedy_for(code: ServiceRefusalCode, *, variant: str | None = None, **fields: object) -> str:
     """The remedy text of *code* (and *variant*), with *fields* filled in.
 
     Unknown variants fall back to the code's default remedy, so a refusal always
-    carries one.
+    carries one. The cache-relocation hints are filled in here -- platform-correct
+    since #6488 -- whenever a template references them.
     """
     template = _REMEDIES.get((code, variant), _REMEDIES[(code, None)])
+    fields.setdefault("writable_cache_hint", _cache_relocation_hint(exec_capable=False))
+    fields.setdefault("exec_cache_hint", _cache_relocation_hint(exec_capable=True))
     return template.format(**fields)
 
 
