@@ -22,6 +22,9 @@ requirement_refs:
 planning_base_branch: issue-7035-orchestrator-error-code-prose-guard
 merge_target_branch: issue-7035-orchestrator-error-code-prose-guard
 branch_strategy: Planning artifacts for this mission were generated on issue-7035-orchestrator-error-code-prose-guard. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7035-orchestrator-error-code-prose-guard unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-orchestrator-error-code-prose-guard-01M6EJQS
+base_commit: d0b7743e389cce31c30d15736750ea75ecc9b5c2
+created_at: '2026-11-02T16:59:10.783139+00:00'
 subtasks:
 - T001
 - T002
