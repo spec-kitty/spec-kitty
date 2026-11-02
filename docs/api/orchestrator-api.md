@@ -999,19 +999,28 @@ provider-owned mutation calls.
 
 ## Error Codes
 
-Current machine-readable error codes (the authoritative list is
-`allowed_error_codes` in `src/specify_cli/core/upstream_contract.json`):
+Current machine-readable error codes, in `allowed_error_codes` order (the
+authoritative list is `allowed_error_codes` in
+`src/specify_cli/core/upstream_contract.json`). The list between the markers is
+the human enumeration, and
+`tests/contract/test_orchestrator_api.py::TestProseErrorCodeEnumerations` compares
+it with that file: a registered code missing here, a code listed here that is not
+registered, and a code listed twice each fail the contract suite, so a new code is
+documented in the same change that registers it.
+
+<!-- orchestrator-error-codes:begin -->
 
 - `USAGE_ERROR`
 - `POLICY_METADATA_REQUIRED`
 - `POLICY_VALIDATION_FAILED`
+- `INVALID_MISSION` — `--mission` is not a safe path segment (`..`, a path separator, a leading dot, non-ASCII), refused before any path join, with `data.reason` carrying the guard's message
 - `MISSION_NOT_FOUND`
 - `STATUS_READ_PATH_NOT_FOUND`
 - `WP_NOT_FOUND`
 - `TRANSITION_REJECTED`
 - `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY` (on `accept-mission`, `data.preflight_error_code` can refine it with an origin freshness code; see below)
-- `WORKFLOW_EVIDENCE_REQUIRED`
+- `WORKFLOW_EVIDENCE_REQUIRED` — a terminal transition's required structured workflow evidence is missing; the current host derives those facts instead of returning this code, but the contract registers it
 - `PREFLIGHT_FAILED` (on `consolidate-mission`, `data.preflight_error_code` or `data.teardown_error_code` can refine it; see below)
 - `CONTRACT_VERSION_MISMATCH`
 - `UNSUPPORTED_STRATEGY`
@@ -1033,11 +1042,9 @@ Current machine-readable error codes (the authoritative list is
 - `SAFE_COMMIT_PATH_LOOP`
 - `SAFE_COMMIT_INDEX_DELETION_CONFLICT`
 - `SAFE_COMMIT_INDEX_RESIDUE` (the commit DID land; `commit_sha` names it; a `SAFE_COMMIT_RECOVERY_FAILED` refinement)
-- `SAFE_COMMIT_UNREQUESTED_PATHS` (a pre-commit hook swept unrequested tracked paths into the commit, which DID land; `commit_sha` names it; the real index is re-synced for those paths; a `SAFE_COMMIT_RECOVERY_FAILED` refinement, contract `1.15.0`)
 - `SAFE_COMMIT_RECOVERY_FAILED`
-
-Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
-
+- `SAFE_COMMIT_STAGED_TREE_UNCHANGED` — `append-history`: the staged tree scoped to the requested paths matches HEAD, so the safe commit has nothing to record
+- `SAFE_COMMIT_UNREQUESTED_PATHS` (a pre-commit hook swept unrequested tracked paths into the commit, which DID land; `commit_sha` names it; the real index is re-synced for those paths; a `SAFE_COMMIT_RECOVERY_FAILED` refinement, contract `1.15.0`)
 - `MISSION_ALREADY_EXISTS` — `specify`
 - `MISSION_CREATE_FAILED` — `specify`
 - `PLAN_SETUP_FAILED` — `plan`
@@ -1057,13 +1064,42 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `DECISION_TERMINAL_CONFLICT` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_EVENT_REPAIR_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_LOCK_TIMEOUT` — `resolve-decision`, `defer-decision`, `cancel-decision`
+- `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
 - `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`, `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
 - `RESULT_REQUIRED` — `answer-decision`
 - `INVALID_RESULT` — `answer-decision`
 - `NO_PENDING_DECISION` — `answer-decision`
 - `AMBIGUOUS_PENDING_DECISION` — `answer-decision`
 - `DECISION_NOT_PENDING` — `answer-decision`
-- `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
+- `DESIGN_ARTIFACT_UNSUPPORTED` — `artifact-read`, `artifact-submit`: the configured artifact name is invalid, the Mission type does not declare it, or the kind is not an authoring capability
+- `DESIGN_BOUNDS_EXCEEDED` — `artifact-read`, `artifact-submit`, `design-context`: a request, artifact or response exceeds the documented byte bounds
+- `DESIGN_COMMIT_FAILED` — `artifact-submit`: the content materialized but the host commit did not complete; inspect the reported effect state and commit outcome before retrying
+- `DESIGN_CONTEXT_FAILED` — `design-context`: an undeclared design stage, host content over the inline byte limit, or an activated Mission with no template mapping
+- `DESIGN_CONTEXT_STALE` — `artifact-submit`, `design-validate`: the resolved template or governance context changed since the content was authored; re-read `design-context` and resubmit
+- `DESIGN_FINALIZED` — `artifact-submit`, `design-validate`: the native task board is already finalized, so API design writes and plan scaffolding refuse and native reconciliation applies instead
+- `DESIGN_INTERVIEW_FAILED` — `interview-record`: a native interview batch failed after earlier answers were applied; reconcile the reported decisions before retrying
+- `DESIGN_INTERVIEW_INCOMPLETE` — `interview-record`, `design-validate`: required interview answers are still pending, deferred or canceled
+- `DESIGN_INTERVIEW_INVALID` — `interview-record`: the answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing
+- `DESIGN_IO_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`: the host could not read or persist design content
+- `DESIGN_LOCK_TIMEOUT` — `artifact-submit`: the Mission authoring lock stayed busy past its bound; nothing was written, retry
+- `DESIGN_PARENT_STALE` — `artifact-submit`, `design-validate`: an accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt
+- `DESIGN_PATH_REFUSED` — `artifact-read`, `artifact-submit`: an artifact identifier or location is not a single safe basename or a declared destination
+- `DESIGN_PREREQUISITES_FAILED` — `artifact-submit`, `design-validate`: canonical prerequisites are unmet — open decisions, missing accepted provenance, or an invalid bounded package graph
+- `DESIGN_RECEIPT_UNREADABLE` — `artifact-read`, `artifact-submit`: API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects
+- `DESIGN_REQUEST_INVALID` — `artifact-submit`: the request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, or names an unknown stage
+- `DESIGN_REVISION_CONFLICT` — `artifact-submit`: the artifact revision changed since its `expected_sha256` was read; re-read and resubmit
+- `RUNTIME_BLOCKED` — `next`: the native runtime reported a blocked outcome; the typed payload explains why and the exit code is nonzero
+- `RUNTIME_NEXT_FAILED` — `next`: the native step, prompt or request was refused; the exit code is nonzero
+- `UNSUPPORTED_CAPABILITY` — a verb that requires a capability the Python delivery profile does not provide; `data.capability` names it
+<!-- orchestrator-error-codes:end -->
+
+Contract `1.4.0` (#3837) added the design-phase, analysis and decision verbs and
+their codes; `1.12.0` added governed authoring and native `next` and their
+`DESIGN_*`, `RUNTIME_*` and `UNSUPPORTED_CAPABILITY` codes; the version-history
+bullets above name the later additions. The `data.preflight_error_code`,
+`data.teardown_error_code` and origin-freshness codes in the subsections below are
+a different namespace: they ride inside `data`, they are not
+`allowed_error_codes` entries, and this enumeration does not cover them.
 
 ### `consolidate-mission`: `data.preflight_error_code`
 
