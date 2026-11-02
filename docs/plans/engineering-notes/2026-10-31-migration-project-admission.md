@@ -3,10 +3,11 @@ title: Migration project write admission
 description: Preserve project discovery while preventing global runtime storage from authorizing unrelated migrations.
 doc_status: point_in_time
 updated: '2026-10-31'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Review the migration project discovery and write admission repair.
 related:
-- docs/plans/engineering-notes/2026-10-30-owned-charter-context.md
-- docs/plans/engineering-notes/index.md
+- plans/engineering-notes/2026-10-30-owned-charter-context
 ---
 # Migration project write admission
 

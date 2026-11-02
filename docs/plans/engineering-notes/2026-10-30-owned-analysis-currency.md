@@ -3,7 +3,9 @@ title: Owned analysis currency repair
 description: Root-custody decisions and qualification scope for owned analysis recording and freshness checks.
 doc_status: point_in_time
 updated: '2026-10-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Review the owned analysis recording and freshness repair.
 ---
 # Owned analysis currency repair
 
