@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M6EQTEB0DXPBEJN00KA391ZA",
-  "materialized_at": "2026-11-02T18:19:52.032270+00:00",
+  "event_count": 3,
+  "last_event_id": "01M6ERJ5EZ10AE6F3990SB1Q5W",
+  "materialized_at": "2026-11-02T18:32:49.375565+00:00",
   "mission_number": "",
   "mission_slug": "corpus-audit-budget-01M6EP9T",
   "mission_type": "software-dev",
@@ -13,17 +13,32 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "pi",
+      "agent": "pi:glm-5.3-flash:python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6EQTEB0DXPBEJN00KA391ZA",
-      "last_transition_at": "2026-11-02T18:19:52.032270+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01M6ERJ5EZ10AE6F3990SB1Q5W",
+      "last_transition_at": "2026-11-02T18:32:49.375565+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Runtime selected this package; recording the canonical owned claim before hosted measurement.",
+        "T001 instrumentation committed and locally checked; hosted measurement pending; no final limit selected."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     }
   }
 }
