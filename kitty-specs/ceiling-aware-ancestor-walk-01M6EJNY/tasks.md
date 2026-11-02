@@ -75,12 +75,12 @@ the ambient repo did not exist, and still finds a repo below the ceiling.
 
 ### Included Subtasks
 
-T001 Red-first: one parametrized ceiling test covering the `.git` walks (`locate_project_root`, `resolve_canonical_root`, `get_status_read_root`, `is_worktree_context`, `find_repo_root`, `checkout_identity`, `mission_metadata._has_no_git_anchor`, `legacy_charter_gate`, `coordination.legacy_resolution`, `gitignore_manager`, `bootstrap.env_file`) — all fail before the change.
-T002 Red-first: the `.kittify`-only and semantic walks (`ledger_posture`, `context.middleware`, `org_layer`, `planner._infer_project_root`, `catalog_diagnosis`, `neutrality.lint`, `regen`) in a second test module.
-T003 Migrate `specify_cli/core/paths.py`'s four walks and `task_utils/support.py` onto `find_ancestor`/`iter_ancestors`.
-T004 Migrate the `.git`/`.kittify` walks of `checkout_identity`, `mission_metadata`, `legacy_charter_gate`, `coordination.legacy_resolution`, `gitignore_manager`, `bootstrap/env_file`, `ledger_posture`, `context/middleware`, `org_layer`.
-T005 [P] Migrate the `charter` and `runtime` walks (`catalog_diagnosis`, `neutrality/lint`, `runtime.next._internal_runtime.planner`) and `cli/commands/regen.py`.
-T006 Run each migrated walker's existing unit module and the new ceiling modules; confirm zero behaviour change with the variable unset.
+T006 Red-first: one parametrized ceiling test covering the `.git` walks (`locate_project_root`, `resolve_canonical_root`, `get_status_read_root`, `is_worktree_context`, `find_repo_root`, `checkout_identity`, `mission_metadata._has_no_git_anchor`, `legacy_charter_gate`, `coordination.legacy_resolution`, `gitignore_manager`, `bootstrap.env_file`) — all fail before the change.
+T007 Red-first: the `.kittify`-only and semantic walks (`ledger_posture`, `context.middleware`, `org_layer`, `planner._infer_project_root`, `catalog_diagnosis`, `neutrality.lint`, `regen`) in a second test module.
+T008 Migrate `specify_cli/core/paths.py`'s four walks and `task_utils/support.py` onto `find_ancestor`/`iter_ancestors`.
+T009 Migrate the `.git`/`.kittify` walks of `checkout_identity`, `mission_metadata`, `legacy_charter_gate`, `coordination.legacy_resolution`, `gitignore_manager`, `bootstrap/env_file`, `ledger_posture`, `context/middleware`, `org_layer`.
+T010 [P] Migrate the `charter` and `runtime` walks (`catalog_diagnosis`, `neutrality/lint`, `runtime.next._internal_runtime.planner`) and `cli/commands/regen.py`.
+T011 Run each migrated walker's existing unit module and the new ceiling modules; confirm zero behaviour change with the variable unset.
 
 ### Implementation Notes
 
@@ -95,7 +95,7 @@ T006 Run each migrated walker's existing unit module and the new ceiling modules
 
 ### Parallel Opportunities
 
-- T005 is a disjoint file set from T003/T004 and can proceed concurrently.
+- T010 is a disjoint file set from T008/T009 and can proceed concurrently.
 
 ### Dependencies
 
@@ -105,7 +105,7 @@ T006 Run each migrated walker's existing unit module and the new ceiling modules
 
 - Silent behaviour change with no ceiling → NFR-004 test pass per walker, run with the
   variable unset.
-- Import-cycle / layer violation in `charter`/`runtime` → T005 runs
+- Import-cycle / layer violation in `charter`/`runtime` → T010 runs
   `tests/architectural/test_layer_rules.py` and `test_charter_no_specify_cli_import.py`.
 
 ---
@@ -123,10 +123,10 @@ root-resolver tests pass without the removed fixture.
 
 ### Included Subtasks
 
-T001 Add `tests/architectural/_hand_rolled_root_walk_scan.py`: fail-closed AST scan for `*<expr>.parents` in list/tuple and `[x] + list(x.parents)`, plus the file+function exemption census with reasons.
-T002 Add `tests/architectural/test_no_hand_rolled_root_walks.py`: zero unlisted hits, positive control, stale-exemption failure, non-empty corpus guard.
-T003 Evaluate `no_git_ancestry_inside_tmp_path` in `tests/unit/workspace/test_root_resolver.py`; remove it only if the tests still pass and a control shows the harness ceiling provides the protection, and record the finding either way.
-T004 File the follow-up issue for the deferred harness items (the `stop=` parameter and `TMPDIR`-under-basetemp) so the PR's `## Deferred` section can cite it.
+T012 Add `tests/architectural/_hand_rolled_root_walk_scan.py`: fail-closed AST scan for `*<expr>.parents` in list/tuple and `[x] + list(x.parents)`, plus the file+function exemption census with reasons.
+T013 Add `tests/architectural/test_no_hand_rolled_root_walks.py`: zero unlisted hits, positive control, stale-exemption failure, non-empty corpus guard.
+T014 Evaluate `no_git_ancestry_inside_tmp_path` in `tests/unit/workspace/test_root_resolver.py`; remove it only if the tests still pass and a control shows the harness ceiling provides the protection, and record the finding either way.
+T015 File the follow-up issue for the deferred harness items (the `stop=` parameter and `TMPDIR`-under-basetemp) so the PR's `## Deferred` section can cite it.
 
 ### Implementation Notes
 
@@ -137,7 +137,7 @@ T004 File the follow-up issue for the deferred harness items (the `stop=` parame
 
 ### Parallel Opportunities
 
-- T004 is independent of the scan work.
+- T015 is independent of the scan work.
 
 ### Dependencies
 

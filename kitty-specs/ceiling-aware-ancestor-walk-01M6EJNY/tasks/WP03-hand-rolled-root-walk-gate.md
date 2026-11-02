@@ -15,10 +15,10 @@ planning_base_branch: issue-7056-ceiling-aware-ancestor-walk
 merge_target_branch: issue-7056-ceiling-aware-ancestor-walk
 branch_strategy: Planning artifacts for this mission were generated on issue-7056-ceiling-aware-ancestor-walk. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7056-ceiling-aware-ancestor-walk unless the human explicitly redirects the landing branch.
 subtasks:
-- T001
-- T002
-- T003
-- T004
+- T012
+- T013
+- T014
+- T015
 phase: Phase 3 - Ratchet
 history:
 - at: '2026-11-02T00:00:00Z'
@@ -85,7 +85,7 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T001 – The scanner and the census
+### Subtask T012 – The scanner and the census
 
 - **Purpose**: one place that knows what a hand-rolled root walk looks like and which
   sites are legitimately not root walks.
@@ -100,7 +100,7 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 - **Parallel?**: no.
 - **Notes**: skip `src/kernel/ancestor_walk.py` by path, not by function name.
 
-### Subtask T002 – The gate test
+### Subtask T013 – The gate test
 
 - **Purpose**: enforce it.
 - **Steps**: assertions: (1) the corpus is non-empty and `src/kernel/ancestor_walk.py`
@@ -113,7 +113,7 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 - **Notes**: keep failure messages actionable: "add it to the primitive, not the
   exemption list".
 
-### Subtask T003 – Evaluate the hermeticity fixture
+### Subtask T014 – Evaluate the hermeticity fixture
 
 - **Purpose**: item 3 of the issue, honestly.
 - **Steps**: read `tests/unit/workspace/test_root_resolver.py`'s
@@ -122,11 +122,11 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
   protection still exists (an ambient repo above basetemp is not adopted), else restore
   the fixture. Record the finding in the WP history note and the PR body.
 - **Files**: `tests/unit/workspace/test_root_resolver.py`
-- **Parallel?**: yes — disjoint from T001/T002.
+- **Parallel?**: yes — disjoint from T012/T013.
 - **Notes**: the fixture's `.git` inside `tmp_path` is *below* the ceiling, so it is not
   redundant for that case; only its ancestry protection is. State this explicitly.
 
-### Subtask T004 – File the follow-up issue
+### Subtask T015 – File the follow-up issue
 
 - **Steps**: `gh issue create --repo spec-kitty/spec-kitty` for the deferred harness
   items (the test-only `stop=` parameter of `locate_project_root`/`find_repo_root`, and

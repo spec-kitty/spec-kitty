@@ -14,12 +14,12 @@ planning_base_branch: issue-7056-ceiling-aware-ancestor-walk
 merge_target_branch: issue-7056-ceiling-aware-ancestor-walk
 branch_strategy: Planning artifacts for this mission were generated on issue-7056-ceiling-aware-ancestor-walk. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7056-ceiling-aware-ancestor-walk unless the human explicitly redirects the landing branch.
 subtasks:
-- T001
-- T002
-- T003
-- T004
-- T005
 - T006
+- T007
+- T008
+- T009
+- T010
+- T011
 phase: Phase 2 - Migration
 history:
 - at: '2026-11-02T00:00:00Z'
@@ -98,7 +98,7 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T001 – Red-first: the `.git` walks
+### Subtask T006 – Red-first: the `.git` walks
 
 - **Purpose**: prove each leak before fixing it.
 - **Steps**: create `tests/specify_cli/core/test_ceiling_root_walks.py`. One fixture
@@ -120,7 +120,7 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
 - **Notes**: `legacy_resolution` shells out to git; patch its `subprocess.check_output`
   seam rather than running git, and keep the test unit-fast.
 
-### Subtask T002 – Red-first: the `.kittify`-only and semantic walks
+### Subtask T007 – Red-first: the `.kittify`-only and semantic walks
 
 - **Purpose**: same proof for the marker-only walks and the `charter`/`runtime` ones.
 - **Steps**: create `tests/charter/test_ceiling_root_walks.py` covering
@@ -137,7 +137,7 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
   command), test the module-private helper directly — that is the entry point the
   product uses.
 
-### Subtask T003 – `paths.py` and `support.py`
+### Subtask T008 – `paths.py` and `support.py`
 
 - **Steps**: `locate_project_root`, `resolve_canonical_root`, `get_status_read_root`
   and `is_worktree_context` iterate `iter_ancestors(...)`; remove their local
@@ -148,7 +148,7 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
 - **Parallel?**: no.
 - **Notes**: `stop=` stays (C-005 defers its removal) — keep the boundary check.
 
-### Subtask T004 – the `.git`/`.kittify` walks
+### Subtask T009 – the `.git`/`.kittify` walks
 
 - **Steps**: replace each inline loop with `find_ancestor(start, predicate)` (or
   `iter_ancestors` where the loop body has a `break` that is not "stop at the first
@@ -163,7 +163,7 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
   `specify_cli.core.paths`); its docstring's "not importable here" note needs a small
   update to say the kernel walk is. `mission_metadata` keeps `_GitRefuses` untouched.
 
-### Subtask T005 – `charter`, `runtime`, `regen`
+### Subtask T010 – `charter`, `runtime`, `regen`
 
 - **Steps**: migrate `catalog_diagnosis`'s `next(...)` expression to
   `find_ancestor(project_dir, lambda p: (p / ".kittify").is_dir())`,
@@ -174,12 +174,12 @@ If no profile is specified, run `specify_cli`'s `spec-kitty agent profile list` 
 - **Files**: `src/charter/activation/context_renderers/catalog_diagnosis.py`,
   `src/charter/activation/neutrality/lint.py`,
   `src/runtime/next/_internal_runtime/planner.py`, `src/specify_cli/cli/commands/regen.py`
-- **Parallel?**: yes — disjoint files from T004.
+- **Parallel?**: yes — disjoint files from T009.
 - **Notes**: `charter`/`runtime` may import `kernel` (layer rule); confirm with
   `tests/architectural/test_layer_rules.py` and
   `tests/architectural/test_charter_no_specify_cli_import.py`.
 
-### Subtask T006 – Regression pass
+### Subtask T011 – Regression pass
 
 - **Steps**: with `GIT_CEILING_DIRECTORIES` unset, run each migrated walker's existing
   unit module plus the two new ceiling modules; record the exact commands and results
@@ -210,7 +210,7 @@ names the classes, not every file.)
 
 ## Risks & Mitigations
 
-- Behaviour drift on a host with no ceiling → T006 regression pass.
+- Behaviour drift on a host with no ceiling → T011 regression pass.
 - A walk whose loop body is not "first match wins" → use `iter_ancestors` and keep the
   body; the primitive does not force a predicate shape.
 - `catalog_diagnosis` silently returning `None` earlier than before → keep the
