@@ -244,3 +244,23 @@ def test_raw_repository_returns_none_for_a_non_gated_kind() -> None:
     inner = _mock_inner()
     service = ActiveCharterService(inner, pack_context=None)
     assert service.raw_repository("assets") is None
+
+
+def test_agent_profile_sentinels_accessor_is_ungated_ids_in_mapping_out(tmp_path: Path) -> None:
+    """``agent_profile_sentinels`` is part of the pinned sole-door surface (#6917).
+
+    Shape: ids in -> ``{id: bool}`` out, delegated to the inner service and
+    unaffected by ``pack_context`` (the flag is structural, never
+    activation-gated), so the charter-service cut-over cannot drop it silently.
+    """
+    inner = _mock_inner()
+    inner.agent_profile_sentinels.return_value = {"human-in-charge": True, "python-pedro": False}
+    deactivated_ctx = _some_packs_deactivated_context(tmp_path)
+    ids = ["human-in-charge", "python-pedro"]
+
+    unfiltered = ActiveCharterService(inner, pack_context=None).agent_profile_sentinels(ids)
+    filtered_ctx = ActiveCharterService(inner, pack_context=deactivated_ctx).agent_profile_sentinels(ids)
+
+    assert unfiltered == filtered_ctx == {"human-in-charge": True, "python-pedro": False}
+    assert all(isinstance(flag, bool) for flag in unfiltered.values())
+    inner.agent_profile_sentinels.assert_called_with(ids)
