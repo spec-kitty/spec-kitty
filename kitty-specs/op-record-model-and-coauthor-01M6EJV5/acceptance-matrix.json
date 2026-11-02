@@ -1,0 +1,89 @@
+{
+  "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A written kitty-ops/<ulid>.jsonl started event contains no model identifier, even when the router recommends a catalog model.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_executor.py::test_invoke_writes_no_model_identifier_to_the_started_event; tests/specify_cli/invocation/test_record.py::test_schema_declares_no_model_identifier",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:02.045194+00:00",
+      "notes": "test_executor.py::test_invoke_writes_no_model_identifier_to_the_started_event (positive control: the recommendation really names the model) + test_record.py::test_schema_declares_no_model_identifier"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A record written before the change (it carries model_id) still parses and is never re-serialised with the key; no historical file changes bytes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_record.py::test_legacy_line_with_model_id_parses_and_is_not_re_emitted; tests/contract/test_mission_status_ops.py::test_the_started_record_is_served_or_left_out_field_by_field; git diff origin/main shows no modified kitty-ops/<ULID>.jsonl",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:08.037566+00:00",
+      "notes": "test_record.py::test_legacy_line_with_model_id_parses_and_is_not_re_emitted; contract pin test_the_started_record_is_served_or_left_out_field_by_field; no kitty-ops/<ULID>.jsonl modified in the diff"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A --model supplied with --invocation-id is refused with an actionable message, and the claim records the model slot as explicitly absent.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/status/test_resolved_binding_linkage.py::test_resolve_dispatch_binding_refuses_a_model_the_op_cannot_evince and ::test_claim_after_a_correlated_op_records_the_model_as_explicit_absent",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:11.196192+00:00",
+      "notes": "test_resolve_dispatch_binding_refuses_a_model_the_op_cannot_evince; test_claim_after_a_correlated_op_records_the_model_as_explicit_absent"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The per-record Op auto-commit ends with the configured Co-Authored-By trailer.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_configured_co_author_rides_the_per_record_commit and ::test_cli_co_author_overrides_the_configured_value",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:14.578224+00:00",
+      "notes": "test_configured_co_author_rides_the_per_record_commit; test_cli_co_author_overrides_the_configured_value"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The doctor-sweep closure-spine auto-commit carries the same trailer.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_configured_co_author_rides_the_doctor_sweep_spine_commit",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:17.735036+00:00",
+      "notes": "test_configured_co_author_rides_the_doctor_sweep_spine_commit"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "An explicitly passed trailer overrides the configured one for a single close.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_explicit_co_author_overrides_the_configured_value and ::test_explicit_co_author_works_without_any_configuration",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:21.046256+00:00",
+      "notes": "test_explicit_co_author_overrides_the_configured_value; test_explicit_co_author_works_without_any_configuration"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "A repository with no commit.co_author produces exactly the pre-change commit message.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_no_configured_co_author_keeps_the_pre_change_message",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:24.252240+00:00",
+      "notes": "test_no_configured_co_author_keeps_the_pre_change_message (paired with the configured-value positive control on the same fixture)"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "A malformed commit.co_author refuses the auto-commit, names the key, and leaves the completed event durable on disk.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_malformed_configured_co_author_refuses_the_commit_and_names_the_key",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-02T19:57:27.375888+00:00",
+      "notes": "test_malformed_configured_co_author_refuses_the_commit_and_names_the_key"
+    }
+  ],
+  "negative_invariants": []
+}

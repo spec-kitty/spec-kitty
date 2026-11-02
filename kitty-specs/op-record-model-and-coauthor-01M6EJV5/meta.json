@@ -1,0 +1,33 @@
+{
+  "accept_commit": "d81d89fffb5ed3f343d87b338f58df05e98c51d6",
+  "acceptance_history": [
+    {
+      "accept_commit": "d81d89fffb5ed3f343d87b338f58df05e98c51d6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T19:57:39.844896+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "873c8817e45249968acb3285879c44266ab4c232"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T19:57:39.844896+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "873c8817e45249968acb3285879c44266ab4c232",
+  "baseline_merge_commit": "9aed3a8012cb5eb22c0128b14d525039f95fea7a",
+  "created_at": "2026-11-02T16:52:52.684753+00:00",
+  "flattened": false,
+  "friendly_name": "op record model and coauthor",
+  "merged_at": "2026-11-02T19:58:38.068229+00:00",
+  "merged_commit": "e9c30d54b460a0d27be0f2ab67fc48f700672c60",
+  "mid8": "01M6EJV5",
+  "mission_id": "01M6EJV5624QS97J7FANWT7MCB",
+  "mission_number": 248,
+  "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances op record model and coauthor on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "op record model and coauthor",
+  "slug": "op-record-model-and-coauthor-01M6EJV5",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

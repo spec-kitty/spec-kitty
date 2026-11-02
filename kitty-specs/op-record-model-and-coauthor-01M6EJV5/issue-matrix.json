@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4397": {
+      "evidence_ref": "context citation only: 4397 names the existing behaviour this mission reuses unchanged (skip/refusal rules, changelog fragments)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6410": {
+      "evidence_ref": "context citation only: #7013 reuses the existing #6410 skip rules unchanged (plan.md IC-03, contracts/op-record-attribution.md R-4)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6564": {
+      "evidence_ref": "context citation only: 6564 names the existing behaviour this mission reuses unchanged (skip/refusal rules, changelog fragments)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6988": {
+      "evidence_ref": "context citation only: 6988 names the existing behaviour this mission reuses unchanged (skip/refusal rules, changelog fragments)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7013": {
+      "evidence_ref": "commit 630530fa14 + f887224e02: model_id removed from OpStartedEvent, claim seam narrowed, Op auto-commit carries commit.co_author / --co-author",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

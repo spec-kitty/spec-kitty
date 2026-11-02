@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-02T17:04:26.872806Z",
+      "decision_id": "01M6EKGB7RZVKSKWBEZN5EWAXM",
+      "final_answer": "Drop the field entirely. actor already carries the harness key, the issue pre-authorises the drop, and any replacement token derived from a model id is the same identifier wearing a hat. Consequence handled explicitly: the claim cannot assert --model from the Op, so the resolved-binding model slot becomes explicit-absent (RESOLVED_MODEL_ABSENT) rather than fabricated.",
+      "input_key": "model_field_disposition",
+      "mission_id": "01M6EJV5624QS97J7FANWT7MCB",
+      "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+      "opened_by": "cli",
+      "options": [
+        "Drop the field entirely",
+        "Replace with an opaque non-identifying token"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Drop model_id from the Op started event, or replace it with a non-identifying field?",
+      "rationale": null,
+      "resolved_at": "2026-11-02T17:04:33.945486Z",
+      "resolved_by": null,
+      "slot_key": "plan.record.model-field-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-02T17:04:36.928263Z",
+      "decision_id": "01M6EKGN202EGAG77K4W65K1FE",
+      "final_answer": "Configured commit.co_author in .kittify/config.yaml plus a per-close override (executor argument, exposed as profile-invocation complete --co-author). The standing configuration is what the issue asks for (no per-session hand work); the override covers harnesses whose operator identity is not in the project config, and gives the tests a second path that proves precedence.",
+      "input_key": "trailer_source",
+      "mission_id": "01M6EJV5624QS97J7FANWT7MCB",
+      "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+      "opened_by": "cli",
+      "options": [
+        "Only a per-close CLI flag",
+        "Only .kittify/config.yaml commit.co_author",
+        "Configured commit.co_author plus a per-close override"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where does the operator's Co-Authored-By trailer come from?",
+      "rationale": null,
+      "resolved_at": "2026-11-02T17:04:42.334124Z",
+      "resolved_by": null,
+      "slot_key": "plan.attribution.trailer-source",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6EJV5624QS97J7FANWT7MCB",
+  "version": 1
+}
