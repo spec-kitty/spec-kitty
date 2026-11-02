@@ -38,7 +38,6 @@ def test_no_ceiling_walks_to_the_filesystem_root(tmp_path: Path, monkeypatch: py
     start = (tmp_path / "a" / "b").resolve()
 
     assert list(iter_ancestors(start)) == [start, *start.parents]
-    assert list(iter_ancestors(start))[-1].parent == list(iter_ancestors(start))[-1]
 
 
 def test_a_ceiling_ancestor_is_examined_and_the_walk_stops_after_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -147,6 +146,7 @@ def test_find_ancestor_returns_none_when_nothing_is_accepted(tmp_path: Path, mon
 
 def test_find_ancestor_respects_the_ceiling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     outer = (tmp_path / "outer").resolve()
+    outer.mkdir()
     (outer / ".marker").write_text("x", encoding="utf-8")
     work = (outer / "work").resolve()
     work.mkdir()
