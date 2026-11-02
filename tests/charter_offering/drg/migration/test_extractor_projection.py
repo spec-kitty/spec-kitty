@@ -588,7 +588,7 @@ OFFERING_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     RECONCILE), so they also leave ``_ORPHANS_RESOLVED_BY_OVERLAY`` (8 -> 5)
 #:     by the SAME three -- ``_SHIPPED_ORPHANS`` (= ``_INTENTIONAL_ORPHANS`` -
 #:     ``_ORPHANS_RESOLVED_BY_OVERLAY``) is measured UNCHANGED at 21 (already
-#:     tight against ``DOCUMENTED_ORPHAN_RESIDUAL`` before this wiring, and
+#:     tight against the since-retired ``DOCUMENTED_ORPHAN_RESIDUAL`` ceiling before this wiring, and
 #:     still tight after -- no ratchet needed, verified empirically rather than
 #:     assumed). The per-channel reachability move (the whole-graph companion
 #:     metric 88 -> 75, and the activated-only ``_ACTION_UNREACHABLE_D1``/``D2``,
