@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6990": {
+      "evidence_ref": "PR #7042: dispatch --brief (1,036-byte envelope vs 24,983 baseline) + charter context --profile; cross-surface test proves the fetch command reproduces the embedded text byte-for-byte",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

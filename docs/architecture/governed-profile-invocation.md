@@ -53,6 +53,66 @@ The command returns `governance_context_text`, `invocation_id`, and a
 `close_contract`. The host agent must read `governance_context_text`, treat it
 as binding context, do the work, then close the Op.
 
+### Re-dispatching without re-embedding the payload (#6990)
+
+Every dispatch assembles and returns the whole governance context — ~24 KB on
+this repository, mostly the profile-cited directives. A harness that dispatches
+repeatedly pays that as prompt context on every call, although after the first
+read the marginal information is near zero. `--brief` makes that re-read
+cheap without changing what is loaded:
+
+```bash
+uv run spec-kitty dispatch "Implement token validation" --profile python-pedro --brief --json
+```
+
+With `--brief` the envelope keeps every routing and orientation field (profile,
+action, router confidence, alternatives, model-routing advice,
+`governance_context_hash`, `invocation_id`, `close_contract`) and replaces
+`governance_context_text` with `null` plus
+`governance_context_reference`:
+
+```json
+"governance_context_reference": {
+  "digest": "367d55bc23c18daf",
+  "bytes": 23739,
+  "lines": 308,
+  "fetch_command": "spec-kitty charter context --action generate --profile python-pedro --json --no-mark-loaded"
+}
+```
+
+`action` here is the payload's own derived action — `generate`, the
+implementer role's default verb for that request, not the word "Implement" the
+caller typed. The reference therefore always names the grain that was actually
+omitted, and the printed command re-renders that grain. `digest` is the first
+16 hex characters of the SHA-256 of the text, the same value the envelope's
+`governance_context_hash` carries, so a consumer can verify a fetched `text`
+against it.
+
+Three rules make this safe:
+
+- **Opt-in, never automatic.** There is no session detection and no state file;
+  dispatch still assembles governance on every call. Use `--brief` only when
+  this session has already read the full text for the resolved profile and
+  action — the first contact must be the full payload (or the fetch command).
+- **The reference must resolve.** `--brief` leaves the payload untouched when
+  there is no text or no way to reproduce it — governance unavailable, an
+  empty render, or the empty-charter fallback (whose render suppresses the
+  project resolver and `charter context` cannot reproduce it) — so it never
+  hides governance it cannot hand back.
+- **The fetch command is exact.** `--json` gives the byte-identical `text`
+  field (the plain render wraps long lines to the terminal width), and
+  `--no-mark-loaded` mirrors dispatch's own `mark_loaded=False`, so fetching
+  does not record a first-load and shrink the next mission prompt.
+
+The reference is a command that rebuilds the text on fetch, not a snapshot, so
+a charter, DRG or profile change made between dispatch and fetch can make the
+fetched text differ from the one `digest` describes. The consumer must compare
+the first 16 hex characters of the SHA-256 of the fetched `text` with `digest`
+and, on a mismatch, discard it and re-dispatch without `--brief`.
+
+The Op record, the glossary scan and the routing decision are unchanged in
+brief mode: only the rendered text is replaced.
+
 ---
 
 ## Invocation Lifecycle

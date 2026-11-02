@@ -48,6 +48,7 @@ __all__ = [
     "_default_agent_profile_repository",
     "_existing_org_roots",
     "_load_agent_profile",
+    "load_agent_profile",
 ]
 
 
@@ -230,3 +231,8 @@ def _load_agent_profile(profile_id: str, repo_root: Path | None = None) -> Agent
             profile_id,
         )
     return record
+
+
+#: Public name of :func:`_load_agent_profile` for external consumers, reached through the
+#: ``charter.activation.api`` seam (the private name stays for in-layer callers and tests).
+load_agent_profile = _load_agent_profile

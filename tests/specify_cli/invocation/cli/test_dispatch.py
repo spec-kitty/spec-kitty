@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -282,6 +283,174 @@ def test_only_dispatch_is_registered_as_standalone_opener() -> None:
     assert runner.invoke(cli_app, ["dispatch", "--help"]).exit_code == 0
     for removed_command in ("do", "ask", "advise"):
         assert runner.invoke(cli_app, [removed_command, "--help"]).exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# #6990 — ``dispatch --brief``: reference the governance payload instead of
+# re-embedding it. The full text stays one printed fetch command away.
+# ---------------------------------------------------------------------------
+
+_BRIEF_FULL_TEXT = "compact governance context"
+
+
+def _brief_fetch_command(envelope: dict[str, Any]) -> str:
+    """The exact command the brief reference prints, built from the envelope."""
+    return f"spec-kitty charter context --action {envelope['action']} --profile {envelope['profile_id']} --json --no-mark-loaded"
+
+
+def test_dispatch_brief_json_replaces_text_with_reference(tmp_path: Path) -> None:
+    """FR-001/FR-002: --brief nulls the text and names an exact fetch command."""
+    project = _setup_project(tmp_path)
+    full = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json"],
+    )
+    brief = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json", "--brief"],
+    )
+
+    assert brief["governance_context_text"] is None
+    assert brief["governance_context_reference"] == {
+        "digest": full["governance_context_hash"],
+        "bytes": len(_BRIEF_FULL_TEXT.encode("utf-8")),
+        "lines": 1,
+        "fetch_command": _brief_fetch_command(full),
+    }
+    # Everything except the text/reference pair is unchanged (C-003).
+    for key in (
+        "profile_id",
+        "profile_friendly_name",
+        "action",
+        "router_confidence",
+        "governance_context_hash",
+        "governance_context_available",
+        "recommendation",
+        "status",
+    ):
+        assert brief[key] == full[key], key
+    # ``close_contract.command`` names this run's Op id, so compare its shape.
+    assert set(brief["close_contract"]) == set(full["close_contract"])
+    assert brief["close_contract"]["outcomes"] == full["close_contract"]["outcomes"]
+
+
+def test_dispatch_brief_console_prints_digest_and_fetch_command(tmp_path: Path) -> None:
+    """Console brief mode prints the reference, not the ~24 KB panel."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json", "--brief"],
+    )
+    expected_command = _brief_fetch_command(envelope)
+
+    result = _run(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--brief"],
+    )
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert _BRIEF_FULL_TEXT not in result.output
+    assert "not re-embedded" in flat
+    assert "Governance context: digest" in flat
+    assert expected_command in flat
+    # The open-Op close hint is not part of the payload and still prints.
+    assert "This Op is OPEN" in flat
+
+
+def test_dispatch_brief_composes_with_dry_run(tmp_path: Path) -> None:
+    """--dry-run --brief: same substitution, still nothing written."""
+    project = _setup_project(tmp_path)
+    result = _run(
+        project,
+        [
+            "dispatch",
+            "implement the feature",
+            "--profile",
+            "implementer-fixture",
+            "--dry-run",
+            "--json",
+            "--brief",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+    assert envelope["governance_context_text"] is None
+    assert envelope["governance_context_reference"]["bytes"] == len(_BRIEF_FULL_TEXT.encode("utf-8"))
+    assert "close_contract" not in envelope
+    assert not (project / EVENTS_DIR).exists() or not list((project / EVENTS_DIR).glob("*.jsonl"))
+
+
+def test_dispatch_without_brief_still_embeds_full_text(tmp_path: Path) -> None:
+    """FR-004/SC-003 ratchet: the same-fixture control -- no --brief, no change."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json"],
+    )
+
+    assert envelope["governance_context_text"] == _BRIEF_FULL_TEXT
+    assert "governance_context_reference" not in envelope
+
+
+def test_dispatch_brief_leaves_ambiguous_dry_run_payload_untouched(tmp_path: Path) -> None:
+    """No resolved profile/action -> no governance text -> nothing to reference."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the feature", "--dry-run", "--json", "--brief"],
+        _tied_implementers_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["router_confidence"] == "ambiguous"
+    assert "governance_context_reference" not in envelope
+
+
+def test_dispatch_brief_leaves_unavailable_governance_alone(tmp_path: Path) -> None:
+    """C-002: never hide text that the printed fetch command cannot reproduce."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--json", "--brief"],
+        ctx=_MISSING_CTX,
+    )
+
+    assert envelope["governance_context_available"] is False
+    assert "governance_context_reference" not in envelope
+
+
+def test_dispatch_brief_keeps_the_text_under_the_empty_charter_fallback(tmp_path: Path) -> None:
+    """C-002 edge: the fallback render is NOT reproducible by ``charter context``.
+
+    ``dispatch`` renders with ``suppress_project_resolver=True`` under the
+    empty-charter fallback (executor), and ``charter context`` has no equivalent
+    flag, so its text would be a superset. Brief mode must keep the real text
+    embedded instead of printing a reference that resolves to something else.
+    """
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(project, ["dispatch", "implement the payment module", "--json", "--brief"])
+
+    assert envelope["empty_charter_fallback"] is True
+    assert envelope["governance_context_text"] == _BRIEF_FULL_TEXT
+    assert "governance_context_reference" not in envelope
+
+
+def test_brief_fetch_command_uses_payload_action_not_request_verb(tmp_path: Path) -> None:
+    """The action is derived (role default verb), so the command must read the
+    payload's own ``action`` -- a request-verb guess would name a different grain."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "please review the feature", "--profile", "implementer-fixture", "--json", "--brief"],
+    )
+
+    assert envelope["governance_context_reference"]["fetch_command"] == _brief_fetch_command(envelope)
+    assert "please review" not in envelope["governance_context_reference"]["fetch_command"]
 
 
 def test_entry_command_mode_mapping_only_has_dispatch_for_standalone_openers() -> None:
@@ -818,3 +987,98 @@ def test_dispatch_dry_run_non_git_project_exits_1_with_git_init_advice(tmp_path:
     assert result.exit_code == 1
     assert "not inside a git repository" in result.output
     assert "git init" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #6990 SC-002 — the printed fetch command must reproduce the omitted text
+#
+# Unlike every other test in this file, this one does NOT mock
+# ``build_charter_context``: it renders real governance text for one fixture
+# through BOTH real CLI surfaces (``spec-kitty dispatch --brief`` and the
+# ``spec-kitty charter context`` command the reference prints) and compares
+# them. That is the only way to catch the two call shapes drifting apart —
+# the executor passes ``profile=``/``mark_loaded=False``/
+# ``suppress_project_resolver=``, the charter CLI passes
+# ``profile=``/``mark_loaded=False``/``org_root=None``/``mission_type=None``.
+# Dropping ``--profile`` from the printed command (or from the CLI wiring)
+# makes the fetched text lose the profile-cited block and this test fails.
+# ---------------------------------------------------------------------------
+
+_REAL_RENDER_GRAPH = """\
+schema_version: "1.0"
+generated_at: "2026-04-13T10:00:00+00:00"
+generated_by: "test"
+nodes:
+  - urn: "action:software-dev/implement"
+    kind: action
+    label: implement
+  - urn: "directive:DIRECTIVE_001"
+    kind: directive
+    label: Architectural Integrity Standard
+edges:
+  - source: "action:software-dev/implement"
+    target: "directive:DIRECTIVE_001"
+    relation: scope
+"""
+
+
+def _write_real_render_project(tmp_path: Path) -> Path:
+    """A minimal project whose real charter render includes profile-cited doctrine."""
+    project = tmp_path / "repo"
+    charter_dir = project / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.md").write_text("# Project Charter\n\n## Policy Summary\n\n- Intent: deterministic delivery\n", encoding="utf-8")
+    (charter_dir / "governance.yaml").write_text(
+        "doctrine:\n  template_set: software-dev-default\n  selected_paradigms: []\n  selected_directives: []\n  available_tools: []\n",
+        encoding="utf-8",
+    )
+    (charter_dir / "references.yaml").write_text('schema_version: "1.0.0"\nreferences: []\n', encoding="utf-8")
+    (project / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
+    # Real charter-context resolution shells out to git (bundle freshness), so
+    # the fixture must be a repository; ``find_repo_root`` is still patched.
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    return project
+
+
+@pytest.mark.git_repo
+def test_brief_fetch_command_reproduces_the_embedded_text_byte_for_byte(tmp_path: Path) -> None:
+    """SC-002/A2: the reference resolves to exactly the text it replaced."""
+    import shlex
+    from io import StringIO
+
+    from charter.activation.profile_resolution import _reset_agent_profile_cache
+    from charter.offering.drg.models import DRGGraph
+    from specify_cli.cli.commands.charter import charter_app
+    from typer.testing import CliRunner as _CliRunner
+    from ruamel.yaml import YAML
+
+    import specify_cli.cli.commands.charter as charter_pkg
+
+    project = _write_real_render_project(tmp_path)
+    graph = DRGGraph.model_validate(YAML(typ="safe").load(StringIO(_REAL_RENDER_GRAPH)))
+    _reset_agent_profile_cache()
+
+    request = "implement the login handler"
+    profile = "python-pedro"
+    with (
+        patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project),
+        patch.object(charter_pkg, "find_repo_root", return_value=project),
+        patch("charter.offering.drg.loader.load_graph", return_value=graph),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
+        patch("charter.offering.drg.validator.assert_valid"),
+    ):
+        full = json.loads(runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json"]).output)
+        brief = json.loads(runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json", "--brief"]).output)
+        fetch_command = str(brief["governance_context_reference"]["fetch_command"])
+        # The profile is what makes the fetched text the omitted text.
+        assert "--profile" in fetch_command
+        fetched = json.loads(_CliRunner().invoke(charter_app, shlex.split(fetch_command)[2:]).output)
+
+    embedded = full["governance_context_text"]
+    # Non-vacuity: a real render with the profile-cited block, not an empty string.
+    assert "Profile-Cited Directives" in embedded
+    assert embedded == fetched["text"]
+    assert brief["governance_context_reference"]["digest"] == full["governance_context_hash"]
+    assert brief["governance_context_reference"]["bytes"] == len(embedded.encode("utf-8"))
+    # Fetching must not record a first-load for the action it renders.
+    assert not (project / ".kittify" / "charter" / "context-state.json").exists()

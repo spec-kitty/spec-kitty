@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "dispatch-brief-governance-payload-01M6BV2S",
+  "mission_id": "01M6BV2SYWQE557DQQTXSMXWXE",
+  "mission_branch": "issue-6990-dispatch-brief-governance-payload",
+  "target_branch": "issue-6990-dispatch-brief-governance-payload",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/architecture/governed-profile-invocation.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/skills/spec-kitty/SKILL.md",
+        "src/specify_cli/cli/commands/charter/context.py",
+        "src/specify_cli/cli/commands/dispatch.py",
+        "tests/charter/test_context_profile_option.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:22:15.694574+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "69ca7659691a70b1dbc13113983c34dec239d6ff"
+}
