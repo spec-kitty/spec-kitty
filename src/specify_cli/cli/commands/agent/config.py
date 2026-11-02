@@ -714,6 +714,18 @@ def agent_status():
     # Load config
     config = _load_config_or_exit(repo_root)
 
+    # A legacy project states no agent list (#6501): it is read as the agents whose
+    # project surface already exists, so those agents are the configured set here.
+    # Reporting them as orphans would end in the `sync --remove-orphaned` advice
+    # that sync_agents itself refuses for this shape.
+    configured_keys = set(config.available)
+    if not config.explicit_agent_list:
+        from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, observed_agent_dirs
+
+        configured_keys = {
+            AGENT_DIR_TO_KEY[agent_root] for agent_root, _subdir in observed_agent_dirs(repo_root)
+        }
+
     # Check filesystem for each agent
     table = Table(title="Agent Status")
     table.add_column("Agent Key", style="cyan")
@@ -732,15 +744,15 @@ def agent_status():
 
     for agent_key in all_agent_keys:
         _, location, exists_bool = _agent_location(repo_root, agent_key, presence)
-        configured = "✓" if agent_key in config.available else "✗"
+        configured = "✓" if agent_key in configured_keys else "✗"
         exists = "✓" if exists_bool else "✗"
 
-        if agent_key in config.available and exists_bool:
+        if agent_key in configured_keys and exists_bool:
             status = "[green]OK[/green]"
-        elif agent_key in config.available and not exists_bool:
+        elif agent_key in configured_keys and not exists_bool:
             status = "[yellow]Missing[/yellow]"
         elif (
-            agent_key not in config.available
+            agent_key not in configured_keys
             and (surface := _project_agent_surface(repo_root, agent_key)) is not None
             and surface[1].exists()
         ):
@@ -752,11 +764,18 @@ def agent_status():
 
     console.print(table)
 
+    if not config.explicit_agent_list:
+        console.print(
+            "\n[dim]No agents.available list is stated in .kittify/config.yaml: the configured set above "
+            "is the agents whose project surface already exists. Record it with "
+            "'spec-kitty agent config add' or 'remove' to stop the legacy read.[/dim]"
+        )
+
     # Summary
     orphaned = [
         key
         for key in all_agent_keys
-        if key not in config.available
+        if key not in configured_keys
         and (surface := _project_agent_surface(repo_root, key)) is not None
         and surface[1].exists()
     ]
