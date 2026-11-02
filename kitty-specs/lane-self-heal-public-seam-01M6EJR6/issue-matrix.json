@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1832": {
+      "evidence_ref": "The #1832/#1833 no-op-resume behaviour is preserved: an already-current workspace gains no commit (test_second_adoption_is_a_no_op) and reentry still returns the worktree path without a redundant merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#1833": {
+      "evidence_ref": "Preserved and asserted: a second adoption is a silent no-op (test_second_adoption_is_a_no_op); the seam keeps the merge helpers' own is-ancestor short-circuits.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#2993": {
+      "evidence_ref": "The recorded-planning-commit merge (#2993) is unchanged; it now runs inside adopt_lane_ancestry() with the target tip captured by the seam (test_allow_dirty_policy_merges_the_recorded_planning_commit).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6745": {
+      "evidence_ref": "This mission closes row S5 of the #6745 workaround audit by giving the allocator a public adoption seam; the parent audit stays open for its other rows.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6898": {
+      "evidence_ref": "tests/architectural/test_lane_adoption_single_seam.py + tests/lanes/test_lane_adoption_seam.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

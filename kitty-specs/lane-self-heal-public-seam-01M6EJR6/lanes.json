@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "lane-self-heal-public-seam-01M6EJR6",
+  "mission_id": "01M6EJR6F6TTMAT4X1WYXE4PX8",
+  "mission_branch": "kitty/mission-lane-self-heal-public-seam-01M6EJR6",
+  "target_branch": "issue-6898-lane-self-heal-public-seam",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/architectural/test_lane_adoption_single_seam.py",
+        "tests/lanes/test_lane_adoption_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:58:12.788052+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9686eca6a4ffa8ca2faaa756de98b13a2cec7e1b"
+}
