@@ -41,6 +41,13 @@ hold everywhere in this module:
   over EVERY occurrence of a number, not just the first; any
   implementation-target occurrence forces gating, even when an earlier
   occurrence looked non-gating.
+* **Labels bind to ONE reference (#7011)** -- a *positional* citation label
+  (``parent #``, ``epic #``, a leading ``see #``) demotes only the reference it
+  leads into, decided from the occurrence's own ``ref_offset``; the
+  line-scoped markers (``follow-up:``, ``baseline-red``) still speak about the
+  whole statement. Before #7011 a label anywhere on the line demoted every
+  number on it, which silently marked the Mission's own target issue
+  ``not-applicable``.
 
 :func:`gating_issue_numbers` and :func:`is_gating` are the ONE shared
 gating predicate (FR-012, contract C2.1) -- the approval blocker,
@@ -50,6 +57,7 @@ missing" from this same authority rather than re-deriving it.
 
 from __future__ import annotations
 
+import json
 import re
 from enum import StrEnum
 from pathlib import Path
@@ -80,38 +88,78 @@ class Occurrence(NamedTuple):
         source_file: Basename of the file the occurrence was found in.
         line_text: The stripped line text the number appeared on -- the
             classification signal surface (context markers / PR tokens /
-            pull URLs are matched against this line as a whole -- the
-            existing per-number capture granularity already only retains
-            ``line.strip()``, not a finer match span).
+            pull URLs are matched against this line).
+        ref_offset: Index in ``line_text`` at which THIS citation begins --
+            the ``#`` of a bare reference, the ``h`` of an issue URL -- or
+            ``None`` when the caller cannot supply one (#7011). It is what
+            lets a *positional* citation label demote only the number it
+            actually leads into: on
+            ``"**Input**: Issue #6926 (part of epic #6100)"`` the ``epic``
+            label describes ``#6100``, never ``#6926``. ``None`` keeps the
+            pre-#7011 whole-line semantics for backward-compatible
+            positional construction (C-001).
     """
 
     source_file: str
     line_text: str
+    ref_offset: int | None = None
 
 
-# Explicit, positive non-gating signals (case-insensitive), matched against a
-# whole occurrence line.
+# Explicit, positive non-gating signals (case-insensitive).
 #
 # PR/commit signal: a leading ``PR``/``PR#``/``pull`` token, OR a
 # ``/pull/<n>`` URL anywhere on the line.
 _PR_OR_COMMIT_PATTERN = re.compile(r"\bpr\s*#|\bpull\b|/pull/\d+", re.IGNORECASE)
 
-# Context-only signal: an explicit context marker. ``follow-up:`` /
-# ``baseline-red`` are distinctive enough to match anywhere on the line.
-# ``parent`` / ``epic`` / ``see`` are ordinary English words -- fail-open hole
-# closed here (#3469): they only demote when used as a citation label, never
-# when they merely occur somewhere on a genuine implementation-target line
-# ("The parent widget must resolve #4521", "We see #4521 failures in prod").
-# A citation label is either (a) ``parent``/``epic`` sitting immediately
-# (within 12 non-#/non-newline characters) before the ``#`` ref, e.g.
-# "Tracked by the epic #200." / "Parent context: #200 ...", or (b) ``see``
-# leading the line (optionally after whitespace), e.g. "see #200 for ...".
-# Extend this list judiciously -- it is the single definition consumed by
+# Context-only signals come in two kinds, because they mean different things.
+#
+# (1) LINE-scoped markers -- ``follow-up:`` / ``baseline-red`` are distinctive
+# enough that their presence anywhere on the line marks the whole statement as
+# context. Matched against the whole line, unchanged.
+_LINE_CONTEXT_MARKER_PATTERN = re.compile(r"follow-up:|baseline-red", re.IGNORECASE)
+
+# (2) POSITIONAL citation labels -- ``parent`` / ``epic`` / ``see`` are ordinary
+# English words -- fail-open hole closed here (#3469): they only demote when
+# used as a citation label, never when they merely occur somewhere on a
+# genuine implementation-target line ("The parent widget must resolve #4521",
+# "We see #4521 failures in prod"). A citation label is either (a)
+# ``parent``/``epic`` sitting immediately (within 12 non-#/non-newline
+# characters) before the ``#`` ref, e.g. "Tracked by the epic #200." /
+# "Parent context: #200 ...", or (b) ``see`` leading the line (optionally after
+# whitespace), e.g. "see #200 for ...".
+#
+# #7011: each of these arms ENDS at the ``#`` it describes, so the label binds
+# to ONE number. Matching the pattern against the whole line (the pre-#7011
+# behaviour) let a label for ``#6100`` demote an unrelated ``#6926`` earlier on
+# the same line, which silently marked the Mission's own target issue
+# ``not-applicable``. The pattern itself is unchanged -- only the window it is
+# matched against, and the requirement that the match end at the citation
+# (:func:`_positional_label_precedes_citation`).
+#
+# Extend these lists judiciously -- they are the single definition consumed by
 # :func:`classify_occurrence`.
-_CONTEXT_MARKER_PATTERN = re.compile(
-    r"follow-up:|baseline-red|^\s*see\s*#|(?:parent|epic)\b[^#\n]{0,12}#",
+_POSITIONAL_CONTEXT_MARKER_PATTERN = re.compile(
+    r"^\s*see\s*#|(?:parent|epic)\b[^#\n]{0,12}#",
     re.IGNORECASE,
 )
+
+
+def _positional_label_precedes_citation(occurrence: Occurrence) -> bool:
+    """True iff a positional citation label leads into THIS occurrence's ``#``.
+
+    ``ref_offset`` decides the window: for a known offset the label must END
+    exactly where the citation begins (``line_text[:ref_offset + 1]``, the
+    ``#`` included so the ``^``-anchored ``see`` arm still fits), which is the
+    rule the pattern's own comment always stated. When the caller supplies no
+    offset, the whole line is the window -- the pre-#7011 behaviour, kept so
+    direct ``Occurrence(source_file=..., line_text=...)`` construction does not
+    change outcome (C-001).
+    """
+    offset = occurrence.ref_offset
+    if offset is None:
+        return bool(_POSITIONAL_CONTEXT_MARKER_PATTERN.search(occurrence.line_text))
+    window = occurrence.line_text[: offset + 1]
+    return any(match.end() == len(window) for match in _POSITIONAL_CONTEXT_MARKER_PATTERN.finditer(window))
 
 
 def classify_occurrence(occurrence: Occurrence) -> GatingClass:
@@ -124,7 +172,9 @@ def classify_occurrence(occurrence: Occurrence) -> GatingClass:
     """
     if _PR_OR_COMMIT_PATTERN.search(occurrence.line_text):
         return GatingClass.PR_OR_COMMIT_REF
-    if _CONTEXT_MARKER_PATTERN.search(occurrence.line_text):
+    if _LINE_CONTEXT_MARKER_PATTERN.search(occurrence.line_text):
+        return GatingClass.CONTEXT_ONLY
+    if _positional_label_precedes_citation(occurrence):
         return GatingClass.CONTEXT_ONLY
     return GatingClass.IMPLEMENTATION_TARGET
 
@@ -266,7 +316,7 @@ def discover_issue_references(feature_dir: Path) -> list[IssueReference]:
             if ref.number not in first_seen:
                 first_seen[ref.number] = (ref.first_line_context, ref.source_file)
             occurrences_by_number.setdefault(ref.number, []).extend(ref.occurrences)
-    return [
+    references = [
         IssueReference(
             num,
             ctx,
@@ -276,6 +326,127 @@ def discover_issue_references(feature_dir: Path) -> list[IssueReference]:
         )
         for num, (ctx, source_file) in first_seen.items()
     ]
+    # #7011: the issue this Mission exists to fix never reaches a gate as
+    # non-gating, however its prose reads. Applied through the ONE promotion
+    # helper so the scaffold (which detects on ``spec.md`` alone) cannot drift.
+    return promote_source_issue_references(references, mission_source_issue_numbers(feature_dir))
+
+
+# ---------------------------------------------------------------------------
+# #7011 -- the Mission's own source issue is never auto-classified non-gating
+# ---------------------------------------------------------------------------
+
+# A ``source_description`` only names the source issue when it OPENS with one of
+# these forms: ``Issue #N …``, ``GitHub issue N …``, ``Ticket #N …`` or a bare
+# ``#N …``. Most values in this repository are free-form prose that happens to
+# mention issue numbers ("Refactor mission system to address #6100 …"); promoting
+# those would force verdicts the Mission does not owe. The explicit leading issue
+# marker is what makes it a statement, so whatever follows the number (a colon, an
+# em dash, a parenthetical such as the reported "(part of epic #6100)") does not
+# matter.
+_SOURCE_DESCRIPTION_LEAD_PATTERN = re.compile(
+    r"^\s*(?:(?:github\s+)?(?:issue|ticket)\s*#?\s*|#\s*)(\d{2,6})\b",
+    re.IGNORECASE,
+)
+
+# A closing keyword IS an implementation-target statement, so every number it
+# names is a source issue: ``Closes #12`` / ``Fixes: #12`` / ``resolved by #12``.
+_CLOSING_KEYWORD_PATTERN = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#(\d{2,6})\b", re.IGNORECASE)
+
+# The spec header convention (``**Input**: Issue #NNNN — …``).
+_SPEC_INPUT_PREFIX = "**Input**"
+
+
+def _read_json_object(path: Path) -> dict[str, object]:
+    """Parse ``path`` as a JSON object, or ``{}`` on any read/parse/shape failure.
+
+    NFR-002: discovery already runs inside the approval blocker, which must fail
+    closed only on its own rule -- a missing, unreadable or malformed
+    ``meta.json`` degrades to "no contribution", never an exception.
+    """
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError):
+        # ValueError covers json.JSONDecodeError and UnicodeDecodeError.
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _read_text_or_empty(path: Path) -> str:
+    """``path``'s text, or ``""`` when it is absent or unreadable."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError, ValueError):
+        return ""
+
+
+def _source_issues_from_description(description: object) -> set[int]:
+    """The leading ``Issue #N: …`` form of a free-form ``source_description``."""
+    if not isinstance(description, str):
+        return set()
+    match = _SOURCE_DESCRIPTION_LEAD_PATTERN.match(description)
+    return {int(match.group(1))} if match else set()
+
+
+def _source_issues_from_spec(spec_text: str) -> set[int]:
+    """The source issue(s) the spec itself declares.
+
+    Two sources, both explicit statements rather than incidental prose: the
+    ``**Input**:`` header line's FIRST same-repo reference (the mission-from-issue
+    convention), and every ``Closes``/``Fixes``/``Resolves #N``. The ``#NNNN``
+    recognition itself is delegated to
+    :func:`~specify_cli.tasks.issue_matrix.issue_numbers_in_text` so this module
+    keeps its single-pattern invariant.
+    """
+    from specify_cli.tasks.issue_matrix import issue_numbers_in_text
+
+    found: set[int] = set()
+    for line in spec_text.splitlines():
+        if line.strip().startswith(_SPEC_INPUT_PREFIX):
+            numbers = issue_numbers_in_text(line)
+            if numbers:
+                found.add(numbers[0])
+            break
+    found.update(int(match.group(1)) for match in _CLOSING_KEYWORD_PATTERN.finditer(spec_text))
+    return found
+
+
+def mission_source_issue_numbers(feature_dir: Path) -> frozenset[int]:
+    """Issue numbers this Mission exists to fix (#7011, FR-002).
+
+    Read from the Mission's own record -- ``meta.json`` ``source_description``
+    and ``spec.md`` (its ``**Input**:`` line and any closing keyword line) -- so
+    the guarantee does not depend on one authoring convention. Deliberately
+    narrow: a passing mention of another number is never promoted (see
+    ``_SOURCE_DESCRIPTION_LEAD_PATTERN``).
+
+    Never raises: absent/unreadable/unparseable inputs contribute nothing
+    (NFR-002), and at most one ``meta.json`` plus one ``spec.md`` are read
+    (NFR-003).
+    """
+    meta = _read_json_object(feature_dir / "meta.json")
+    spec_text = _read_text_or_empty(feature_dir / "spec.md")
+    return frozenset(_source_issues_from_description(meta.get("source_description")) | _source_issues_from_spec(spec_text))
+
+
+def promote_source_issue_references(
+    references: Sequence[IssueReference],
+    source_issues: frozenset[int] | set[int],
+) -> list[IssueReference]:
+    """Force the Mission's source issue(s) to ``implementation_target`` (FR-003).
+
+    Promotion only rewrites the aggregate ``classification`` of a reference that
+    was actually discovered: it never invents a row for an uncited number, and it
+    never demotes. The reference is otherwise untouched (context, provenance and
+    ``occurrences`` all survive for the audit trail).
+
+    ``ref_offset=None`` handling and every other classification rule stay as they
+    are -- this is the guarantee layered on top of the heuristic, not a
+    replacement for it.
+    """
+    if not source_issues:
+        return list(references)
+    return [ref._replace(classification=GatingClass.IMPLEMENTATION_TARGET) if ref.number in source_issues else ref for ref in references]
 
 
 __all__ = [
@@ -285,4 +456,6 @@ __all__ = [
     "discover_issue_references",
     "gating_issue_numbers",
     "is_gating",
+    "mission_source_issue_numbers",
+    "promote_source_issue_references",
 ]

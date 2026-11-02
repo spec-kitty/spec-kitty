@@ -260,6 +260,38 @@ class IssueReference(NamedTuple):
     classification: GatingClass = GatingClass.IMPLEMENTATION_TARGET
 
 
+def issue_numbers_in_text(text: str) -> list[int]:
+    """Every same-repo GH issue number in free text, in order of appearance (#7011).
+
+    The ONE text-level entry point to the canonical ``#NNNN`` / issue-URL pattern
+    (:data:`_GH_ISSUE_PATTERN`): cross-repo URLs are filtered exactly as in
+    :func:`detect_issue_references`, so a caller that needs to read a number out
+    of a line (the Mission's ``**Input**:`` header, say) reuses this definition
+    instead of adding a second pattern.
+    """
+    numbers: list[int] = []
+    for match in _GH_ISSUE_PATTERN.finditer(text):
+        number = _matched_issue_number(match)
+        if number is not None:
+            numbers.append(number)
+    return numbers
+
+
+def _citation_offset(match: re.Match[str], leading: int) -> int | None:
+    """Column of this citation inside the *stripped* line, or ``None`` (#7011).
+
+    The hash arm's regex consumes the character before ``#`` (a space, ``(``,
+    a backtick …), so ``match.start()`` is not the citation's start: the digits
+    capture group's start minus one is. The URL arm starts at the match. Both
+    are relative to the raw line, so the line's leading whitespace (``leading``)
+    is subtracted to land in ``line.strip()`` coordinates -- the text
+    :class:`~specify_cli.tasks.issue_reference_discovery.Occurrence` retains.
+    """
+    ref_start = match.start(1) - 1 if match.group(1) is not None else match.start()
+    offset = ref_start - leading
+    return offset if offset >= 0 else None
+
+
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     """Return the unique list of GH issue refs in a file, ordered by first appearance.
 
@@ -288,19 +320,25 @@ def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     source_file = spec_md_path.name
     first_seen: dict[int, str] = {}
     occurrences_by_number: dict[int, list[Occurrence]] = {}
-    occurrence_keys_seen: set[tuple[int, str]] = set()
+    occurrence_keys_seen: set[tuple[int, str, int | None]] = set()
     for line in text.splitlines():
         stripped = line.strip()
+        # #7011: the citation's own column, relative to the stripped line the
+        # occurrence retains. A positional citation label only demotes the
+        # number it leads into, so ``Occurrence`` has to carry where the
+        # citation sits -- the stripped line alone cannot say.
+        leading = len(line) - len(line.lstrip())
         for match in _GH_ISSUE_PATTERN.finditer(line):
             num = _matched_issue_number(match)
             if num is None:
                 continue  # cross-repo URL -- filtered, never a reference (FR-012)
             if num not in first_seen:
                 first_seen[num] = stripped
-            key = (num, stripped)
+            ref_offset = _citation_offset(match, leading)
+            key = (num, stripped, ref_offset)
             if key not in occurrence_keys_seen:
                 occurrence_keys_seen.add(key)
-                occurrences_by_number.setdefault(num, []).append(Occurrence(source_file=source_file, line_text=stripped))
+                occurrences_by_number.setdefault(num, []).append(Occurrence(source_file=source_file, line_text=stripped, ref_offset=ref_offset))
     return [
         IssueReference(
             num,
@@ -613,7 +651,17 @@ def _scaffold_issue_matrix_locked(
     if not refs:
         return None
 
-    rows = {f"#{ref.number}": _scaffold_entry_for(ref) for ref in refs}
+    # #7011: this path detects on ``spec.md`` ALONE (no ``discover_issue_references``),
+    # so it must apply the same source-issue promotion the discovery path applies --
+    # one shared helper, two call sites, no second gating predicate. The mission
+    # directory is the spec's own parent (``meta.json`` lives beside it).
+    from specify_cli.tasks.issue_reference_discovery import (
+        mission_source_issue_numbers,
+        promote_source_issue_references,
+    )
+
+    promoted = promote_source_issue_references(refs, mission_source_issue_numbers(spec_md_path.parent))
+    rows = {f"#{ref.number}": _scaffold_entry_for(ref) for ref in promoted}
     # WP10 (T056 step 2): the fold-into-caller-commit shortcut must trigger
     # ONLY for a genuinely non-coordination declared home -- the materialization-
     # BLIND ``declared_read_surface`` predicate (never the READ-side
