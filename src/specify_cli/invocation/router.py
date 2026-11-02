@@ -9,6 +9,7 @@ See: kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/adr-3-determini
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -319,38 +320,23 @@ def _default_action_for_role(role: object) -> str:
 
 def _collect_keyword_matches(
     profiles: list[object],
-    tokens: list[str],
-    token_set: frozenset[str],
-    *,
-    single_token: bool = False,
-    phrase: bool = False,
-    alias: bool = False,
+    matches_keyword: Callable[[tuple[str, ...]], bool],
 ) -> list[tuple[str, str, str]]:
     """One keyword pass: ``(profile_id, action, keyword)`` for every matching profile.
 
-    Exactly one selector flag is set per pass, which is what makes the tier ladder
-    in :func:`_keyword_tier_matches` explicit: the caller decides which tier runs,
-    never this helper.
+    *matches_keyword* is the tier predicate over a keyword's tokens, which is what
+    makes the tier ladder in :func:`_keyword_tier_matches` explicit: the caller
+    decides which tier runs, never this helper.
 
     The first matching keyword per profile wins, preserving the pre-#6970
     "first declared keyword" semantics inside a tier.
     """
-
-    def _matches(keyword_tokens: tuple[str, ...]) -> bool:
-        if single_token:
-            return _is_single_token_match(keyword_tokens, token_set)
-        if phrase:
-            return _is_phrase_match(keyword_tokens, tokens)
-        if alias:
-            return _is_alias_match(keyword_tokens, token_set)
-        return False
-
     matches: list[tuple[str, str, str]] = []
     for profile in profiles:
         action = _default_action_for_role(getattr(profile, "role", None))
         for keyword in _profile_keywords(profile):
             keyword_tokens = _keyword_tokens(keyword)
-            if not keyword_tokens or not _matches(keyword_tokens):
+            if not keyword_tokens or not matches_keyword(keyword_tokens):
                 continue
             matches.append((str(getattr(profile, "profile_id", "")), action, keyword))
             break
@@ -400,8 +386,13 @@ def _keyword_tier_matches(profiles: list[object], tokens: list[str]) -> list[tup
     that already exists.
     """
     token_set = frozenset(tokens)
-    for selector in ("single_token", "phrase", "alias"):
-        matches = _collect_keyword_matches(profiles, tokens, token_set, **{selector: True})
+    tiers: tuple[Callable[[tuple[str, ...]], bool], ...] = (
+        lambda keyword_tokens: _is_single_token_match(keyword_tokens, token_set),
+        lambda keyword_tokens: _is_phrase_match(keyword_tokens, tokens),
+        lambda keyword_tokens: _is_alias_match(keyword_tokens, token_set),
+    )
+    for tier in tiers:
+        matches = _collect_keyword_matches(profiles, tier)
         if matches:
             return matches
     return []
