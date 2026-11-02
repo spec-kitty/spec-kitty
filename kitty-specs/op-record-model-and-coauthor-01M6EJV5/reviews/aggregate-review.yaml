@@ -1,0 +1,64 @@
+mission: op-record-model-and-coauthor-01M6EJV5
+scope: aggregate diff origin/main..HEAD (both work packages together)
+reviewer: reviewer-renata (pi)
+verdict: LAND
+round: aggregate
+checks:
+  - id: A01
+    question: Does any committed artifact still receive a model identifier from the dispatch/close path?
+    result: PASS
+    note: >
+      OpStartedEvent declares no model field and invoke() fills none; the router's
+      catalog pick survives only on the in-memory payload and on stdout. The
+      propagator envelope is built from model_dump, so it lost the key with the
+      field. The claim's model slot records the explicit-absent sentinel.
+  - id: A02
+    question: Can a reviewer still see why the resolved-model actual disappeared?
+    result: PASS
+    note: >
+      spec FR-003 + Edge Cases, research D1/D2, contracts §3, trail-model.md,
+      profile-invocation.md and the changelog .changed fragment all state it, and
+      the refusal message names #7013 and tells the caller to omit --model.
+  - id: A03
+    question: Does the trailer path share one implementation across both commit paths and both sources?
+    result: PASS
+    note: >
+      One resolver (git/commit_attribution.py) feeding one message builder in
+      _commit_op_record; per-record and spine commits and configured/explicit
+      values all go through it. No second trailer implementation exists.
+  - id: A04
+    question: Does the change keep the #6410 skip rules and the #6564 refusal outcomes?
+    result: PASS
+    note: >
+      The trailer is resolved after both decisions; a skipped or refused commit
+      never gains a trailer, and an attribution refusal is reported through the
+      existing OpCommitOutcome.refusal channel the close output and doctor sweep
+      already print.
+  - id: A05
+    question: Is any historical Op record modified anywhere in the diff?
+    result: PASS
+    note: >
+      git diff origin/main -- kitty-ops/ shows only new kitty-ops/lifecycle/*.json
+      bookkeeping files; no pre-existing <ULID>.jsonl record is added, removed or
+      modified.
+  - id: A06
+    question: Do the docs and the code agree, including the doc surfaces this mission did not write?
+    result: PASS
+    note: >
+      trail-model.md, configuration.md and profile-invocation.md were re-read
+      against the tests: absent key, blank key, malformed key, override, exit
+      codes and the doctor-sweep path all match. cli-commands.md and
+      agent-subcommands.md were re-spliced from the live surface, not hand-typed.
+  - id: A07
+    question: Is anything left that a no-op change could have passed?
+    result: PASS
+    note: >
+      The absence probe for model_id is paired with a positive control that names
+      the model in the recommendation; the no-trailer ratchet is paired with the
+      configured case on the same fixture; both halves were reverted one at a time
+      and went red (see tests run).
+open_items:
+  - Pre-existing, not caused by this mission: docs regenerators are environment-sensitive
+    (a full cli-commands rebuild re-wraps every panel at the invoking process's
+    terminal width), and a pre-existing `migrate activation-ledger` HELP-DRIFT and
+    docs inventory/link-health warnings persist on main. Both recorded in Deferred.
