@@ -3,11 +3,13 @@ title: Consumers of the optional Lamport clock
 description: Every core site that reads or writes Event.lamport_clock or the spec-kitty-events ordering keys, with a verdict and the test that pins it, following spec-kitty-events 11.0.
 doc_status: active
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-10-31'
 related:
-- docs/development/reference/events-in-core.md
-- docs/changelog/CHANGELOG.md
+- development/reference/events-in-core
+- changelog/CHANGELOG
 ---
 
 # Consumers of the optional Lamport clock
