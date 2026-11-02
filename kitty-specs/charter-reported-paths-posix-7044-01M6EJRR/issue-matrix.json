@@ -37,7 +37,7 @@
       "wp": null
     },
     "#7044": {
-      "evidence_ref": "fix commit 5bc9800813 + regression module tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py (9 tests, 6 red before the fix); PR to follow.",
+      "evidence_ref": "PR #7097 (https://github.com/spec-kitty/spec-kitty/pull/7097), branch issue-7044-charter-reported-paths-posix: regression module 9 tests (6 red before the fix), 6 call sites routed through kernel.charter_pack_paths.repo_relative_posix()",
       "fr": null,
       "nfr": null,
       "repo": null,
