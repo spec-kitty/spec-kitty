@@ -15,13 +15,14 @@ from __future__ import annotations
 from .copilot import CopilotBundleProjector
 from ..enums import ToolSurfaceKind
 from .model import TARGET_VSCODE
+from .projection import SHARED_SKILL_ROOT_OWNERS
 
 # VS Code leads its own bundle; Copilot's identical Markdown rendering is the
-# fallback, and Codex supplies the shared ``.agents/skills`` skill rendering.
+# fallback, and the shared-root agents supply the shared ``.agents/skills`` skill rendering.
 _VSCODE_TOOL_PRECEDENCE: dict[ToolSurfaceKind, tuple[str, ...]] = {
     ToolSurfaceKind.AGENT_PROFILE: ("vscode", "copilot", "claude"),
-    ToolSurfaceKind.COMMAND_SKILL: ("vscode", "copilot", "claude", "codex"),
-    ToolSurfaceKind.CHARTER_SKILL: ("vscode", "copilot", "claude", "codex"),
+    ToolSurfaceKind.COMMAND_SKILL: ("vscode", "copilot", "claude", *SHARED_SKILL_ROOT_OWNERS),
+    ToolSurfaceKind.CHARTER_SKILL: ("vscode", "copilot", "claude", *SHARED_SKILL_ROOT_OWNERS),
 }
 
 
