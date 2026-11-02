@@ -2,7 +2,7 @@
 title: CLI Acceptance Scenarios (Cucumber-JVM nightly)
 description: How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows.
 doc_status: active
-updated: '2026-10-15'
+updated: '2026-11-02'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -198,6 +198,17 @@ Each scenario also checks its own isolation. The CLI must write something under 
 redirected home directory, which shows the environment redirection took effect. The real
 `~/.spec-kitty` must be left untouched. Lock files are ignored in that comparison,
 because another `spec-kitty` process on your machine may touch them.
+
+On a host that runs several Missions at once, export `SPEC_KITTY_ACCEPTANCE_SHARED_HOST=1`
+(`1`, `true`, `yes` or `on`) before the run. The comparison then also skips the two per-mission
+runtime-state subtrees that any concurrent `spec-kitty` process writes: `spec-kitty-prompts/`
+(prompt temp files, one directory per repository) and `gate-locks/` (cross-process gate locks).
+Every other part of the real root stays compared, including `credentials` and any new top-level
+file a redirection bug would leave behind. The switch is **ignored on a GitHub Actions runner**,
+so the nightly always keeps the whole-tree comparison, and each scenario runs a built-in control
+that proves a write outside the two skipped subtrees still fails it — the narrowing can never
+quietly become a check that cannot fail. `kitty/acceptance/environment/RealHomeFingerprint.java`
+is the single owner of that list; this page only points at it.
 
 ## View the Allure report
 
