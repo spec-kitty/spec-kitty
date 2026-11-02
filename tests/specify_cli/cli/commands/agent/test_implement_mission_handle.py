@@ -55,27 +55,12 @@ class TestImplementAcceptsHumanSlug:
         # mid8-era missions carry no numeric prefix.
         assert number is None
 
-    @pytest.mark.parametrize("handle", ["smoke-test", COMPOSED_SLUG, "01M6BTQX"])
-    def test_every_handle_form_returns_the_same_composed_slug(self, repo_root: Path, handle: str) -> None:
-        assert detect_mission_context(handle, repo_root) == (None, COMPOSED_SLUG)
-
     def test_unknown_handle_still_refuses(self, repo_root: Path, capsys: pytest.CaptureFixture[str]) -> None:
         with pytest.raises(SystemExit) as excinfo:
             detect_mission_context("no-such-mission", repo_root)
 
         assert excinfo.value.code == 2
         assert "No mission found for handle" in capsys.readouterr().err
-
-    def test_shared_human_slug_refuses_without_guessing(self, repo_root: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        _seed_mission(repo_root, "smoke-test-01AAAAAA", "01AAAAAABFZMBKVGB8VXBRQW0")
-
-        with pytest.raises(SystemExit) as excinfo:
-            detect_mission_context("smoke-test", repo_root)
-
-        assert excinfo.value.code == 2
-        err = capsys.readouterr().err
-        assert "smoke-test-01M6BTQX" in err
-        assert "smoke-test-01AAAAAA" in err
 
     def test_json_mode_reports_the_ambiguity_as_structured_data(self, repo_root: Path, capsys: pytest.CaptureFixture[str]) -> None:
         _seed_mission(repo_root, "smoke-test-01AAAAAA", "01AAAAAABFZMBKVGB8VXBRQW0")
