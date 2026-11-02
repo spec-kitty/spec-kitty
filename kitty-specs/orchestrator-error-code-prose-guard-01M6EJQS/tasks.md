@@ -73,13 +73,13 @@ anchor pair, with the sub-code tables left outside.
 passes; removing one surface's fix turns it red again naming that surface's codes.
 **Prompt**: `/tasks/WP02-bound-enumerations.md`
 **Requirement Refs**: FR-006, FR-007, FR-009, NFR-003, NFR-004, C-004, C-005, SC-001, SC-004, SC-005
-
 ### Included Subtasks
 
 T001 Wrap the API reference's canonical list in the anchor pair and restore the 22 missing codes with one-line meanings
 T002 Wrap the skill reference's `## Error Code Summary` table in the anchor pair and add the 23 missing rows
 T003 Verify the guard green, per surface, and re-verify red by reverting each surface on its own (half-by-half)
 T004 Run the docs gates: markdownlint on both files, `check_docs_freshness --ci` errors=0, and the contract module green
+T005 Add the per-PR changelog fragment (`docs/changelog/unreleased/<pr>.fixed.md`) in the README shape and pass `check_changelog_style` + `check_spelling --pass unreleased`
 
 ### Implementation Notes
 
@@ -90,6 +90,7 @@ T004 Run the docs gates: markdownlint on both files, `check_docs_freshness --ci`
 - Both surfaces stay human-readable prose; no generated block, no link to the JSON
   (C-004).
 - Annotations after a code are fine, but the leading backticked token must be the code.
+- The changelog is assembled from fragments since #6988: add `docs/changelog/unreleased/<pr>.fixed.md`, never an `[Unreleased]` entry in `docs/changelog/CHANGELOG.md` (the style gate rejects that shape).
 
 ### Parallel Opportunities
 

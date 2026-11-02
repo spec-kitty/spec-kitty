@@ -22,6 +22,7 @@ subtasks:
 - T002
 - T003
 - T004
+- T005
 phase: Phase 2 - the enumerations
 history:
 - at: '2026-11-02T17:05:00Z'
@@ -35,6 +36,7 @@ model: claude-sonnet
 owned_files:
 - docs/api/orchestrator-api.md
 - src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md
+- docs/changelog/unreleased/
 role: implementer
 tags: []
 task_type: implement
@@ -115,6 +117,17 @@ T004 Docs gates.
 - `uv run pytest tests/contract/test_orchestrator_api.py -q` → the whole module green,
   including the untouched `TestAllowedErrorCodes`.
 
+T005 The per-PR changelog fragment (closeout, after the PR number exists).
+
+- Add `docs/changelog/unreleased/<pr>.fixed.md` with one entry in the
+  `docs/changelog/unreleased/README.md` shape: bold impact-first lead carrying the
+  issue reference, then before/after, under 1,200 characters. Before the PR exists the
+  file may be named `<issue>-<branch-slug>.fixed.md`; rename it to the PR number once
+  `gh pr create` returns it.
+- `uv run --frozen python -m scripts.docs.check_changelog_style` and
+  `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased` → clean.
+- Do not edit `docs/changelog/CHANGELOG.md`: it is assembled from fragments (#6988).
+
 ## Constraints
 
 - Do not touch the contract JSON (C-001), the guard's own assertions (C-002), or
@@ -129,4 +142,5 @@ T004 Docs gates.
 - Both surfaces enumerate exactly the 80 contract codes, no duplicates, one anchor pair
   each, sub-code tables outside.
 - WP01's guard green on the whole module; the half-by-half reds captured.
-- Docs gates clean; no other file in the diff.
+- Docs gates clean, the changelog fragment present and style-clean, no other file in the
+  diff.
