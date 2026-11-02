@@ -687,11 +687,10 @@ class TestNoCascadeAlreadyInForce:
         output = " ".join(result.output.split())
         assert _IN_FORCE_NOTE.format(label="tactic/if-tactic", reason="no explicit list") in output
         assert "referenced tactic/if-tactic was not activated" not in output
-        # The referenced directive of the same kind is in force too, but for a
-        # different reason: activating a directive on a project with no
-        # ``activated_directives`` key initializes that list from the effective set, so
-        # by the time the report is built the artifact is *listed* rather than absent.
-        assert _IN_FORCE_NOTE.format(label="directive/if-other", reason="listed in activated_directives") in output
+        # The referenced directive of the same kind is in force too, for the same reason:
+        # activating a directive while ``activated_directives`` is absent writes nothing
+        # (#6685, "absent key stays absent"), so the list is still not explicit.
+        assert _IN_FORCE_NOTE.format(label="directive/if-other", reason="no explicit list") in output
         # Nothing is left to recover, so the --cascade hint must not be printed.
         assert "Hint:" not in output
 
