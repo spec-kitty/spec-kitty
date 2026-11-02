@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "ci-status-audit-path-literal-routing-01M6EK04",
+  "mission_id": "01M6EK04QX173M8CHW8EYKVZNT",
+  "mission_branch": "kitty/mission-ci-status-audit-path-literal-routing-01M6EK04",
+  "target_branch": "issue-6879-ci-status-audit-path-literal-routing",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "tests/architectural/test_no_duplicate_suite_execution.py",
+        "tests/ci/test_path_literal_audit_routing.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T16:58:11.528853+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "61635f15af6b8fd31e117e6b8c4c67926230126f"
+}
