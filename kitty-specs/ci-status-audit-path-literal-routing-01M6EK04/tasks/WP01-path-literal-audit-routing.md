@@ -55,6 +55,13 @@ tags: []
 task_type: implement
 tracker_refs:
 - '6879'
+evidence: >-
+  Approved in the review cycle with the lane diff pinned by
+  tests/ci/test_path_literal_audit_routing.py (14 routing/job/blocking assertions, red before
+  the wiring); tests/ci 2758 passed, the router/architectural guard suites 206 passed, the guard
+  file itself 8 passed, and a planted literal in src/specify_cli/status/reducer.py makes the
+  lane's exact command exit 1. Delivered by PR #7088 (self-review fallback recorded: this host
+  has no second authenticated agent harness).
 ---
 
 # Work Package Prompt: WP01 – Route the path-literal audit on a `status/**` diff

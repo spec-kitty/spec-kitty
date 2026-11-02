@@ -4,7 +4,7 @@
   "materialized_at": "2026-11-02T18:18:49.533402+00:00",
   "mission_number": "",
   "mission_slug": "ci-status-audit-path-literal-routing-01M6EK04",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
     "approved": 1,
