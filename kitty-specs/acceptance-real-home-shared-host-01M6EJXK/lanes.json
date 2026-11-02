@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "acceptance-real-home-shared-host-01M6EJXK",
+  "mission_id": "01M6EJXKHAQK4DEA10ES662PT5",
+  "mission_branch": "kitty/mission-acceptance-real-home-shared-host-01M6EJXK",
+  "target_branch": "issue-7026-acceptance-real-home-shared-host",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/RealHomeFingerprint.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/ScenarioLifecycle.java"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7026.internal.md",
+        "docs/development/testing/acceptance-scenarios.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-02T16:59:38.436441+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "245f3ed44598fb7a2d373e472d8e077bc313ebfb"
+}
