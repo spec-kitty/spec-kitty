@@ -35,7 +35,6 @@ subtasks:
 - T003
 - T004
 - T005
-- T006
 history:
 - at: '2026-11-02T17:00:00Z'
   actor: system
@@ -185,11 +184,11 @@ Run and record, from the repo root with the mission's venv:
 No gate may be skipped, xfailed or weakened. If a red is pre-existing, reproduce it on
 pristine `origin/main` in a clean worktree before attributing it.
 
-### T006 — Changelog fragment (deferred to wrap-up)
+## Wrap-up (mission step, not a subtask of this WP)
 
 The changelog fragment is `docs/changelog/unreleased/<pr>.internal.md` (non-user-facing:
 CI routing) and needs the PR number, so it is written after the PR exists, in the
-wrap-up step, not inside this WP's commit series.
+mission wrap-up, not inside this WP's commit series.
 
 ## Definition of Done
 
