@@ -84,7 +84,17 @@ def test_collect_force_count_warnings_no_status_file(tmp_path: Path) -> None:
     assert warnings == {}
 
 
-def _write_transition(tmp_path: Path, *, wp_id: str, to_lane: str, actor: object, event_id: str, at: str) -> None:
+def _write_transition(
+    tmp_path: Path,
+    *,
+    wp_id: str,
+    to_lane: str,
+    actor: object,
+    event_id: str,
+    at: str,
+    from_lane: str = "planned",
+    review_ref: str | None = None,
+) -> None:
     with (tmp_path / "status.events.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(
             json.dumps(
@@ -92,11 +102,12 @@ def _write_transition(tmp_path: Path, *, wp_id: str, to_lane: str, actor: object
                     "event_id": event_id,
                     "wp_id": wp_id,
                     "to_lane": to_lane,
-                    "from_lane": "planned",
+                    "from_lane": from_lane,
                     "at": at,
                     "actor": actor,
                     "force": False,
                     "execution_mode": "worktree",
+                    "review_ref": review_ref,
                 }
             )
             + "\n"
@@ -163,6 +174,55 @@ def test_independent_reviewer_confirmed_when_actors_differ(tmp_path: Path) -> No
         at="2026-07-21T01:00:00Z",
     )
     assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is True
+
+
+def test_independent_review_not_confirmed_after_a_forced_operator_reopen(tmp_path: Path) -> None:
+    """#6955: a forced reopen then self-approval is not an independent review.
+
+    The operator-rewind sentinel must not make the reopen look like a reviewer
+    verdict; if it did, the re-opener would drop out of the implementer
+    projection and their own approval would read as independent (found by the
+    independent review of this mission).
+    """
+    _write_transition(
+        tmp_path,
+        wp_id="WP01",
+        to_lane="in_progress",
+        actor="implementer-ivan",
+        event_id="01A",
+        at="2026-07-21T00:00:00Z",
+    )
+    _write_transition(
+        tmp_path,
+        wp_id="WP01",
+        to_lane="approved",
+        from_lane="in_review",
+        actor="reviewer-renata",
+        event_id="01B",
+        at="2026-07-21T01:00:00Z",
+    )
+    _write_transition(
+        tmp_path,
+        wp_id="WP01",
+        to_lane="in_progress",
+        from_lane="approved",
+        actor="codex-operator",
+        event_id="01C",
+        at="2026-07-21T02:00:00Z",
+        review_ref="force-override",
+    )
+    _write_transition(
+        tmp_path,
+        wp_id="WP01",
+        to_lane="approved",
+        from_lane="in_review",
+        actor="codex-operator",
+        event_id="01D",
+        at="2026-07-21T03:00:00Z",
+    )
+    # A different identity re-opened and then approved: not independent, even
+    # though the earlier implementer differs from the approver.
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
 
 
 def test_independent_reviewer_not_confirmed_when_actors_match(tmp_path: Path) -> None:

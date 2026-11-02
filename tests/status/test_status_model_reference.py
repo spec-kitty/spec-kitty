@@ -1,0 +1,52 @@
+"""The status reference states the gated rewind family (#6955, #6514).
+
+Docs rot silently. These are grep-level pins on the published reference page: if a
+future edit drops the force-insurmountable requirement, the writer table, or the
+append-only position for rows written before the fix, this fails instead of the
+operator learning about it from a dropped sync.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.fast
+
+_PAGE = Path(__file__).resolve().parents[2] / "docs" / "architecture" / "status-model.md"
+
+
+@pytest.fixture(scope="module")
+def page() -> str:
+    return _PAGE.read_text(encoding="utf-8")
+
+
+def test_the_page_names_the_gated_family(page: str) -> None:
+    assert "Forced rewinds out of review" in page
+    assert "`for_review -> in_progress`" in page
+    assert "`approved -> in_progress`" in page
+    assert "force-insurmountable" in page
+
+
+def test_the_page_states_which_each_writer_supplies(page: str) -> None:
+    """Every write door is named with the pointer it records, sentinel included."""
+    assert "force-override" in page
+    for writer in (
+        "spec-kitty agent status emit --to in_progress",
+        "spec-kitty orchestrator-api transition --to in_progress",
+        "spec-kitty agent tasks move-task --to in_progress",
+        "spec-kitty agent action implement",
+    ):
+        assert writer in page, writer
+
+
+def test_the_page_keeps_the_append_only_recovery_position(page: str) -> None:
+    assert "never rewrites historical event bytes" in page
+    assert "append-only" in page
+    assert "#6955" in page
+
+
+def test_the_page_does_not_claim_the_edge_set_is_only_for_review(page: str) -> None:
+    """The stale #6514 sentence must not survive: it said `approved` was uncovered."""
+    assert "deliberately narrow: only `for_review -> in_progress`" not in page

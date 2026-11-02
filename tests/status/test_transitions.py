@@ -554,6 +554,15 @@ _PARITY_BASELINE_PATH = Path(__file__).with_name("fsm_parity_baseline.jsonl")
 #   ``review_ref``; the writer now refuses it at admission (force-insurmountable)
 #   instead of appending a row the auditor rejects. A pointer-carrying force is still
 #   admitted -- pinned in tests/status/test_forced_rewind_requires_review_ref.py.
+#   2026-11-02 (#6955): approved->in_progress[force_full] and its alias
+#   approved->doing[force_full] flipped True -> False for the same reason. The
+#   pinned contract gates the approved reopen on a ``review_ref`` whether or not it
+#   is forced, so a bare forced reopen appended a wire-invalid row. ``move-task``
+#   still emits the forced reopen -- it now cites the established ``force-override``
+#   sentinel, which is admitted here -- and a supplied ``--review-feedback-file``
+#   stays force-free; both are pinned in
+#   tests/status/test_forced_rewind_requires_review_ref.py and
+#   tests/integration/test_owned_reopen_feedback.py.
 
 
 def _parity_context_library() -> dict[str, GuardContext]:

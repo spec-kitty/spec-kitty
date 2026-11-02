@@ -57,6 +57,37 @@ def test_legacy_review_claim_for_review_to_in_progress_is_skipped() -> None:
     assert latest_implementer_actor(events, "WP01") == IMPL
 
 
+def test_forced_approved_reopen_with_the_operator_sentinel_is_counted() -> None:
+    """#6955: the operator-rewind sentinel is not a reviewer verdict.
+
+    ``approved -> in_progress`` without feedback now records ``force-override``
+    (the payload the pinned wire contract admits). Reading that marker as a
+    reviewer verdict hid the re-opener from this projection, so their own later
+    approval looked like an independent review.
+    """
+    reworker = "codex:gpt-5:implementer-ivan:implementer"
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, IMPL),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, IMPL),
+        _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, IMPL),
+        _ev(Lane.FOR_REVIEW, Lane.IN_REVIEW, REVW),
+        _ev(Lane.IN_REVIEW, Lane.APPROVED, REVW),
+        _ev(Lane.APPROVED, Lane.IN_PROGRESS, reworker, review_ref="force-override"),
+    ]
+    assert latest_implementer_actor(events, "WP01") == reworker
+
+
+def test_a_real_review_pointer_on_the_approved_reopen_is_still_a_reviewer_verdict() -> None:
+    """Positive control: a resolvable pointer on the same edge stays a reviewer act."""
+    events = [
+        _ev(Lane.PLANNED, Lane.CLAIMED, IMPL),
+        _ev(Lane.CLAIMED, Lane.IN_PROGRESS, IMPL),
+        _ev(Lane.IN_REVIEW, Lane.APPROVED, REVW),
+        _ev(Lane.APPROVED, Lane.IN_PROGRESS, REVW, review_ref="review-cycle://WP01/2"),
+    ]
+    assert latest_implementer_actor(events, "WP01") == IMPL
+
+
 def test_action_implement_takeover_without_review_ref_is_counted() -> None:
     events = [
         _ev(Lane.PLANNED, Lane.CLAIMED, IMPL),

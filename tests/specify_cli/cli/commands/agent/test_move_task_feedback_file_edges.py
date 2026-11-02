@@ -203,6 +203,9 @@ def test_guard_refusal_message_names_the_recordable_families_and_the_note_escape
     assert "review-rejection edges" in refusal.error
     assert "--to planned" in refusal.error
     assert "in_review -> in_progress" in refusal.error
+    # #6955: the approved reopen records the supplied pointer, so the refusal must
+    # not deny that arm to an operator who hits a genuinely non-recordable edge.
+    assert "approved -> in_progress" in refusal.error
     assert "approval edges" in refusal.error
     assert "approved / --to done" in refusal.error
     assert "--note" in refusal.error
@@ -215,6 +218,7 @@ def test_guard_refusal_message_names_the_recordable_families_and_the_note_escape
         ("for_review", "planned"),  # review-rejection edge (any * -> planned)
         ("in_review", "planned"),  # review-rejection edge
         ("in_review", "in_progress"),  # re-implement edge (#4899)
+        ("approved", "in_progress"),  # approved-implementation reopen (#6955: records the pointer)
         ("in_review", "approved"),  # approval edge
         ("planned", "done"),  # approval edge
     ],
