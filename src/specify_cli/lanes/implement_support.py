@@ -11,6 +11,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Literal
 
 from kernel.clock import now_utc_iso
 from kernel.git.remote import resolve_remote, tracking_ref
@@ -611,30 +612,33 @@ def reenter_lane_self_heal(
 ) -> Path | None:
     """Idempotent self-heal re-entry for a stale lane workspace (FR-005/#3281/C-006).
 
-    Calls :func:`~specify_cli.lanes.worktree_allocator._merge_recorded_planning_commit`
-    and :func:`~specify_cli.lanes.worktree_allocator._merge_dependency_lane_tips`
-    DIRECTLY -- the exact two calls the allocator's own reuse-path self-heal
-    makes -- rather than delegating to the full
-    :func:`~specify_cli.lanes.worktree_allocator.allocate_lane_worktree`. That
-    full function also runs ``_validate_worktree_clean`` (a real ``git
-    status``), which is a DIFFERENT concern (guarding a NEW WP picking up a
-    dirty worktree from a prior WP in the same lane) this retry-self-heal
-    seam must not couple to: re-entering self-heal for the SAME in-flight WP
-    must not hard-fail just because the agent has legitimate uncommitted
-    work-in-progress, and git's own merge machinery already refuses a merge
-    that would conflict with dirty local changes -- no separate upfront gate
-    is needed for allocator-owned lane worktrees. Planning lanes instead reuse
-    the canonical root workspace: pending reconciliation there requires a clean,
-    unprotected checkout, and only fully approved dependency tips are merged.
+    Delegates the adoption step to
+    :func:`~specify_cli.lanes.worktree_allocator.adopt_lane_ancestry` -- the
+    allocator's ONE public seam for "merge the recorded planning commit, then
+    the approved dependency lane tips" -- instead of re-running the
+    allocator's private merge helpers from outside (#6898). That seam also
+    owns the clean-worktree policy, which is why this helper does not need to
+    import ``_validate_worktree_clean`` either: it asks for the policy it
+    needs and the allocator decides what that means.
 
-    A workspace whose ancestry is already correct is a true no-op: both merge
-    helpers short-circuit on their own ``git merge-base --is-ancestor`` check
-    (and a manifest with no ``planning_commit_sha`` / no ``depends_on_lanes``
-    short-circuits before any git call at all), so calling this on a retry
-    never creates a redundant merge commit and never shells out to git for a
-    lane with nothing recorded to merge -- preserving the #1832/#1833 no-op-
-    resume behaviour observably, even though it is no longer a bare early
-    return.
+    The two policies differ for a real reason. A CODE lane re-entry is for the
+    SAME in-flight WP, so it passes ``"allow-dirty"``: the agent's
+    uncommitted work-in-progress is legitimate, and git's own merge machinery
+    already refuses a merge that would conflict with dirty local changes -- no
+    separate upfront gate is needed. A PLANNING lane instead reconciles the
+    shared repository-root checkout, so it passes ``"refuse-dirty"`` and keeps
+    its protected-branch guard: pending reconciliation there requires a clean,
+    unprotected checkout. Only fully approved dependency tips are merged into
+    either.
+
+    A workspace whose ancestry is already correct is a true no-op: the seam's
+    merge helpers short-circuit on their own ``git merge-base --is-ancestor``
+    check (and a manifest with no ``planning_commit_sha`` / no
+    ``depends_on_lanes`` short-circuits before any git call at all), so calling
+    this on a retry never creates a redundant merge commit and never shells
+    out to git for a lane with nothing recorded to merge -- preserving the
+    #1832/#1833 no-op-resume behaviour observably, even though it is no longer
+    a bare early return.
 
     Returns the worktree path on success, or ``None`` for a legacy/non-lane
     mission (no ``lanes.json``), a WP not assigned to any lane, or a
@@ -642,11 +646,7 @@ def reenter_lane_self_heal(
     cases. A genuine merge conflict propagates as the allocator's own
     structured exception; this helper does not swallow it.
     """
-    from specify_cli.lanes.worktree_allocator import (
-        _merge_dependency_lane_tips,
-        _merge_recorded_planning_commit,
-        _validate_worktree_clean,
-    )
+    from specify_cli.lanes.worktree_allocator import adopt_lane_ancestry
     from specify_cli.lanes.compute import is_planning_lane
     from specify_cli.ownership.workspace_strategy import create_planning_workspace
     from specify_cli.git import assert_not_protected_branch
@@ -664,25 +664,32 @@ def reenter_lane_self_heal(
         if check_claim_ancestry(main_repo_root, mission_slug, status_dir, wp_id, workspace_path).ok:
             return workspace_path
         # Root is shared, not an allocator-owned disposable lane checkout.
-        # Refuse protected/dirty roots before the merge helpers can mutate it.
+        # Refuse a protected root before the seam can mutate it; the dirty
+        # root is refused by the seam's own policy below.
         assert_not_protected_branch(workspace_path, operation="reconcile planning workspace ancestry")
-        _validate_worktree_clean(workspace_path, lane.lane_id)
         # A planning lane aggregates multiple WPs' dependencies. Reconcile only
         # the fully approved tips required by the existing claim predicate.
         approved = _approved_dependency_lane_refs(main_repo_root, mission_slug, status_dir, lane, manifest)
         lane = replace(lane, depends_on_lanes=tuple(dep_id for dep_id, _ref in approved))
         branch: str | None = None
+        clean_worktree_policy: Literal["refuse-dirty", "allow-dirty"] = "refuse-dirty"
     else:
         workspace_path, branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
+        clean_worktree_policy = "allow-dirty"
     if not workspace_path.exists():
         return None
-    # #4827/WP03/T014: thread the target-branch tip through the shared merge
-    # helper here too, mirroring the allocator's own C-006 capture -- this is
-    # the SECOND call site D5 centralizes detection through (the allocator's
-    # reuse/crash-recovery/fresh-path calls are the other three).
-    target_tip = capture_branch_tip(main_repo_root, manifest.target_branch)
-    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
-    _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
+    # #4827/WP03 (D5/D6, C-006): the seam captures the target-branch tip from
+    # ``manifest.target_branch`` when no tip is passed -- never a lane HEAD --
+    # so this re-entry keeps the same capture the allocator's own routes make
+    # without threading it by hand (#6898).
+    adopt_lane_ancestry(
+        main_repo_root,
+        workspace_path,
+        mission_slug,
+        lane,
+        manifest,
+        clean_worktree_policy=clean_worktree_policy,
+    )
     if branch is not None:
         # #5115/WP07 (FR-018): a CODE lane self-heal re-entry (never the
         # planning lane, which has no ``-lane-``-matching branch of its own
