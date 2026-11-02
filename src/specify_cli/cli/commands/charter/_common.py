@@ -16,6 +16,7 @@ from rich.markup import escape
 
 from charter.bundle import CHARTER_YAML
 from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
+from kernel.charter_pack_paths import repo_relative_posix
 
 from specify_cli.task_utils import TaskCliError
 
@@ -104,8 +105,15 @@ def _interview_path(repo_root: Path) -> Path:
 
 
 def _display_path(path: Path, repo_root: Path) -> str:
+    """Render *path* for a charter verb's output.
+
+    A repository-relative path is reported POSIX on every OS (#7044), so Linux and
+    Windows users read the same spelling. A path outside the repository is not a
+    repository-relative path: it keeps its native spelling, which is what a user on
+    that OS can paste back into a shell.
+    """
     try:
-        return str(path.relative_to(repo_root))
+        return repo_relative_posix(path, repo_root)
     except ValueError:
         return str(path)
 

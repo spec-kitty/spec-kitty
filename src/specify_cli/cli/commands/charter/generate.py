@@ -11,6 +11,7 @@ import typer
 
 from charter.packs import RetiredPackFieldError
 
+from kernel.charter_pack_paths import repo_relative_posix
 from specify_cli.task_utils import TaskCliError
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
 
@@ -19,7 +20,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
 )
-from specify_cli.cli.commands.charter._common import _emit_error, _interview_path
+from specify_cli.cli.commands.charter._common import _display_path, _emit_error, _interview_path
 
 # Test-patch shim: see ``synthesize.py`` for the rationale. ``find_repo_root``
 # and ``default_interview`` are looked up on the package module at call time so
@@ -340,7 +341,7 @@ def _load_interview_for_generate(
 
     interview_data = read_interview_answers(answers_path) if from_interview else None
     if from_interview and interview_data is None:
-        rel_path = answers_path.relative_to(repo_root)
+        rel_path = _display_path(answers_path, repo_root)
         # #2940 honesty: ``read_interview_answers`` degrades BOTH a missing file
         # AND a present-but-unreadable one (unparseable YAML, or a top level
         # that is not a mapping) to ``None``. Reporting them identically sends
@@ -668,7 +669,7 @@ def generate(
                     {
                         "result": "success",
                         "success": True,
-                        "charter_path": str(charter_path.relative_to(repo_root)),
+                        "charter_path": repo_relative_posix(charter_path, repo_root),
                         "interview_source": interview_source,
                         "mission": compiled.mission,
                         "template_set": compiled.template_set,
@@ -687,7 +688,7 @@ def generate(
             return
 
         console.print("[green]Charter generated and synced[/green]")
-        console.print(f"Charter: {charter_path.relative_to(repo_root)}")
+        console.print(f"Charter: {_display_path(charter_path, repo_root)}")
         console.print(f"Mission: {compiled.mission}")
         console.print(f"Template set: {compiled.template_set}")
         if diagnostics:
