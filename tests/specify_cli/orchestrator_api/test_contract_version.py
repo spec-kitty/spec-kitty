@@ -146,6 +146,14 @@ def _contract_version_literals_in(text_lines: list[str]) -> list[int]:
     return [lineno for lineno, line in enumerate(text_lines, 1) if _CONTRACT_VERSION_TOKEN.search(line) and _QUOTED_SEMVER.search(line)]
 
 
+def _is_orchestrator_api_test(path: Path, text: str) -> bool:
+    """Scope: a test under an ``orchestrator_api`` directory, or one that imports the package.
+
+    Keeps an unrelated ``contract_version`` (e.g. a future Mission Status Read API) out of the sweep.
+    """
+    return "orchestrator_api" in path.parent.parts or "specify_cli.orchestrator_api" in text
+
+
 def _contract_version_pins(tests_dir: Path) -> tuple[list[tuple[Path, int]], int]:
     """Every ``(path, line)`` literal pin under *tests_dir*, and how many ``.py`` files were read.
 
@@ -158,7 +166,10 @@ def _contract_version_pins(tests_dir: Path) -> tuple[list[tuple[Path, int]], int
         scanned += 1
         if path == _CANONICAL_PIN:
             continue
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if not _is_orchestrator_api_test(path, text):
+            continue
+        lines = text.splitlines()
         pins.extend((path, lineno) for lineno in _contract_version_literals_in(lines))
     return pins, scanned
 
@@ -188,24 +199,6 @@ def test_only_this_module_spells_a_contract_version() -> None:
     )
 
 
-def test_the_contract_version_scan_reports_a_pin_and_ignores_a_reference() -> None:
-    """The scan above must be able to fail (DIRECTIVE_043), and must not flag legitimate references."""
-    pin = '    assert envelope["contract_version"] == "9.9.9"'
-
-    assert _contract_version_literals_in([pin]) == [1]
-    # A module-constant read and an error code are references, not pins.
-    assert (
-        _contract_version_literals_in(
-            [
-                '    assert envelope["contract_version"] == CONTRACT_VERSION',
-                "    changelog_end = source.index(f'CONTRACT_VERSION = \"{envelope_module.CONTRACT_VERSION}\"')",
-                '    assert envelope["error_code"] == "CONTRACT_VERSION_MISMATCH"',
-            ]
-        )
-        == []
-    )
-
-
 def test_the_contract_version_scan_reads_a_planted_file(tmp_path: Path) -> None:
     """The gate's real data path (walk -> read -> (path, line)) is exercised, not just the line helper.
 
@@ -214,9 +207,17 @@ def test_the_contract_version_scan_reads_a_planted_file(tmp_path: Path) -> None:
     control for exactly that reason.
     """
     planted = tmp_path / "test_planted.py"
-    planted.write_text('assert envelope["contract_version"] == "9.9.9"\n', encoding="utf-8")
+    planted.write_text(
+        "from specify_cli.orchestrator_api import envelope\n"
+        'assert envelope["contract_version"] == "9.9.9"\n'
+        "assert x == envelope.CONTRACT_VERSION\n"
+        'assert envelope["error_code"] == "CONTRACT_VERSION_MISMATCH"\n',
+        encoding="utf-8",
+    )
+    # Out of scope: an unrelated contract_version pin in a test that never touches the orchestrator API.
+    (tmp_path / "test_unrelated.py").write_text('assert status["contract_version"] == "9.9.9"\n', encoding="utf-8")
 
     pins, scanned = _contract_version_pins(tmp_path)
 
-    assert [(path.name, lineno) for path, lineno in pins] == [("test_planted.py", 1)]
-    assert scanned == 1
+    assert [(path.name, lineno) for path, lineno in pins] == [("test_planted.py", 2)]
+    assert scanned == 2
