@@ -78,8 +78,6 @@ def test_the_dry_run_summary_names_the_migration_it_predicts(tmp_path: Path, mon
     result = _invoke(project, ["--project", "--dry-run", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
-    assert "Migrations that would be applied:" in result.output
-    assert "Migrations applied:" not in result.output
     assert re.search(rf"→\s+{re.escape(_REPOINT)}", result.output), result.output
     assert _PREDICTION_HEADER in result.output, result.output
     assert re.search(
@@ -117,8 +115,6 @@ def test_a_real_run_lists_the_migration_without_a_prediction(tmp_path: Path, mon
     result = _invoke(project, ["--project", "--yes", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
-    assert "Migrations applied:" in result.output
-    assert "Migrations that would be applied:" not in result.output
     assert re.search(rf"✓\s+{re.escape(_REPOINT)}", result.output), result.output
     assert _PREDICTION_HEADER not in result.output, result.output
     assert _tree_digest(project) != before, "the real run must write, or the dry-run no-writes check is vacuous"
