@@ -61,10 +61,12 @@ def capture_shard_timings() -> Iterator[ModuleType]:
 
 @dataclass(frozen=True)
 class _FakeReport:
-    """The two attributes ``DurationRecorder`` reads off a pytest ``TestReport``."""
+    """The attributes ``DurationRecorder`` reads off a pytest ``TestReport``."""
 
     nodeid: str
     duration: float
+    when: str = "call"
+    failed: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +101,21 @@ def test_recorder_is_empty_before_any_report(capture_shard_timings: ModuleType) 
     recorder = capture_shard_timings.DurationRecorder()
     assert recorder.node_ids == ()
     assert recorder.durations == ()
+    assert recorder.failures == 0
+
+
+def test_recorder_counts_failed_call_phases_so_exit_one_is_not_greenwashed(capture_shard_timings: ModuleType) -> None:
+    """A measured suite with failures is a valid capture, but must be recorded as failing."""
+    recorder = capture_shard_timings.DurationRecorder()
+    recorder.pytest_runtest_logreport(_FakeReport("t::passes", 0.1))
+    recorder.pytest_runtest_logreport(_FakeReport("t::fails", 0.2, failed=True))
+    recorder.pytest_runtest_logreport(_FakeReport("t::fails", 0.05, when="teardown", failed=True))
+
+    assert recorder.node_ids == ("t::passes", "t::fails")
+    assert recorder.failures == 1, "multiple failed phases of one test must count once"
+    recorder.pytest_runtest_logreport(_FakeReport("t::setup_error", 0.05, when="setup", failed=True))
+    recorder.pytest_runtest_logreport(_FakeReport("t::teardown_error", 0.05, when="teardown", failed=True))
+    assert recorder.failures == 3, "setup and teardown errors must not disappear from capture provenance"
 
 
 # ---------------------------------------------------------------------------
@@ -169,15 +186,29 @@ def test_every_registry_row_resolves_exactly_as_the_shard_does(capture_shard_tim
 # ---------------------------------------------------------------------------
 # merge_capture — the three parallel tables stay in lockstep
 # ---------------------------------------------------------------------------
-def _capture(capture_shard_timings: ModuleType, module: str, durations: tuple[float, ...]) -> Any:
+def _node_ids(module: str, count: int) -> tuple[str, ...]:
+    return tuple(f"tests/{module}/test_x.py::test_{index}" for index in range(count))
+
+
+def _capture(
+    capture_shard_timings: ModuleType,
+    module: str,
+    durations: tuple[float, ...],
+    *,
+    node_ids: tuple[str, ...] | None = None,
+    exit_code: int = 0,
+    tests_failed: int = 0,
+) -> Any:
     return capture_shard_timings.ModuleCapture(
         module=module,
         test_dirs=("tests/unit",),
+        node_ids=_node_ids(module, len(durations)) if node_ids is None else node_ids,
         durations=durations,
         run_id="wp02-durations-20260101T000000Z",
         command="python scripts/ci/capture_shard_timings.py --module unit --write",
         captured_at="2026-01-01T00:00:00+00:00",
-        exit_code=0,
+        exit_code=exit_code,
+        tests_failed=tests_failed,
     )
 
 
@@ -187,6 +218,113 @@ def test_merge_writes_count_seconds_and_durations_together(capture_shard_timings
     assert merged["module_test_durations"]["unit"] == [0.5, 0.25, 0.25]
     assert merged["module_test_count"]["unit"] == len(merged["module_test_durations"]["unit"])
     assert merged["module_duration_seconds"]["unit"] == 1.0
+
+
+def test_merge_writes_the_identity_keyed_table_in_capture_order(capture_shard_timings: ModuleType) -> None:
+    """The identity table is the authority: exact node ids, in collection order, with their own seconds."""
+    node_ids = ("tests/unit/test_b.py::test_z", "tests/unit/test_a.py::test_y", "tests/unit/test_a.py::test_x")
+    merged = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25, 0.25), node_ids=node_ids))
+
+    keyed = merged[capture_shard_timings.MODULE_NODE_DURATIONS_KEY]["unit"]
+    assert list(keyed) == list(node_ids)
+    assert keyed == {"tests/unit/test_b.py::test_z": 0.5, "tests/unit/test_a.py::test_y": 0.25, "tests/unit/test_a.py::test_x": 0.25}
+    assert merged["module_test_durations"]["unit"] == list(keyed.values()), "the positional list is the ordered projection"
+
+
+def test_merge_records_node_ids_and_failures_in_provenance(capture_shard_timings: ModuleType) -> None:
+    merged = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.5), exit_code=1, tests_failed=1))
+
+    provenance = merged["module_capture_provenance"]["unit"]
+    assert provenance["node_ids_measured"] == 2
+    assert provenance["tests_failed"] == 1
+    assert provenance["exit_code"] == 1
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "needle"),
+    [
+        ({"node_ids": ()}, "no node ids"),
+        ({"node_ids": ("t::a", "t::a")}, "more than once"),
+        ({"node_ids": ("t::a",)}, "node ids vs"),
+        ({"node_ids": ("not-a-node-id", "t::b")}, "not pytest node ids"),
+        ({"exit_code": 2}, "exited 2"),
+        ({"tests_failed": -1}, "tests_failed"),
+        ({"tests_failed": True}, "tests_failed"),
+        ({"tests_failed": 1, "exit_code": 0}, "successful pytest exit"),
+        ({"exit_code": True}, "exited"),
+        ({"exit_code": 0.0}, "exited"),
+    ],
+)
+def test_merge_rejects_a_structurally_incomplete_capture(capture_shard_timings: ModuleType, kwargs: dict[str, Any], needle: str) -> None:
+    """Never write a timing row whose identity/duration structure cannot be trusted."""
+    with pytest.raises(ValueError, match=needle):
+        capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.5), **kwargs))
+
+
+def test_validate_module_tables_accepts_the_producers_own_output(capture_shard_timings: ModuleType) -> None:
+    merged = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25)))
+    assert capture_shard_timings.validate_module_tables(merged, "unit") is None
+
+
+@pytest.mark.parametrize(
+    ("mutate", "needle"),
+    [
+        (lambda p: p.pop("module_test_node_durations"), "no identity-keyed durations"),
+        (lambda p: p["module_test_node_durations"].update({"unit": {"t::a": 0.5}}), "identity-keyed"),
+        (lambda p: p["module_test_count"].update({"unit": 5}), "module_test_count"),
+        (lambda p: p["module_duration_seconds"].update({"unit": 99.0}), "module_duration_seconds"),
+        (lambda p: p["module_test_durations"].update({"unit": [0.5, 0.9]}), "projection"),
+        (lambda p: p["module_capture_provenance"].update({"unit": {"exit_code": 0, "unique_tests_measured": 9}}), "unique_tests_measured"),
+    ],
+)
+def test_validate_module_tables_rejects_every_inconsistent_slice(capture_shard_timings: ModuleType, mutate: Any, needle: str) -> None:
+    payload = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25)))
+    payload = json.loads(json.dumps(payload))
+    mutate(payload)
+
+    problem = capture_shard_timings.validate_module_tables(payload, "unit")
+    assert problem is not None
+    assert needle in problem
+
+
+@pytest.mark.parametrize("value", ["not a number", True, None, float("nan"), float("inf")])
+def test_projection_refuses_malformed_values_without_crashing(capture_shard_timings: ModuleType, value: Any) -> None:
+    payload = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25)))
+    payload["module_test_durations"]["unit"][0] = value
+    assert "projection" in capture_shard_timings.validate_module_tables(payload, "unit")
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), True, "1.0"])
+def test_total_seconds_refuses_non_finite_or_non_numeric_values(capture_shard_timings: ModuleType, value: Any) -> None:
+    payload = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25)))
+    payload["module_duration_seconds"]["unit"] = value
+    assert "module_duration_seconds" in capture_shard_timings.validate_module_tables(payload, "unit")
+
+
+def test_validate_module_tables_rejects_a_negative_duration(capture_shard_timings: ModuleType) -> None:
+    payload = capture_shard_timings.merge_capture({}, _capture(capture_shard_timings, "unit", (0.5, 0.25)))
+    payload = json.loads(json.dumps(payload))
+    payload[capture_shard_timings.MODULE_NODE_DURATIONS_KEY]["unit"]["tests/unit/test_x.py::test_0"] = -1.0
+    payload["module_test_durations"]["unit"][0] = -1.0
+
+    problem = capture_shard_timings.validate_module_tables(payload, "unit")
+    assert problem is not None
+    assert "non-finite/negative" in problem
+
+
+def test_main_refuses_to_write_a_structurally_invalid_capture(capture_shard_timings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A run that exits 2 measured nothing: the committed file must not move."""
+    committed = {"module_test_durations": {"unit": [1.0]}, "module_test_count": {"unit": 1}}
+    timings = tmp_path / "timings.json"
+    timings.write_text(json.dumps(committed), encoding="utf-8")
+    monkeypatch.setattr(capture_shard_timings, "TIMINGS_PATH", timings)
+    bad = _capture(capture_shard_timings, "unit", (0.5,), exit_code=2)
+    monkeypatch.setattr(capture_shard_timings, "_capture_all", lambda modules, *, run_id: [bad])
+
+    code = capture_shard_timings.main(["--module", "unit", "--write"])
+
+    assert code == 1
+    assert json.loads(timings.read_text(encoding="utf-8")) == committed
 
 
 def test_merge_records_provenance_for_the_module(capture_shard_timings: ModuleType) -> None:
@@ -245,6 +383,7 @@ def test_capture_timestamps_use_the_canonical_clock(capture_shard_timings: Modul
     result = capture_shard_timings.capture_module("unit", ("tests/unit",), run_id=run_id)
     assert run_id == "qualification-durations-20260914T153454Z"
     assert result.captured_at == "2026-09-14T15:34:54.123456+00:00"
+    assert result.node_ids == (), "a run that reported nothing records no node ids"
 
 
 def test_script_help_works_without_installed_package(tmp_path: Path) -> None:

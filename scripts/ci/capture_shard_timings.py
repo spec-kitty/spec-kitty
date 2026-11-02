@@ -10,20 +10,29 @@ pytest plugin that was never committed, so regenerating it — or extending it
 with a new registry row — was archaeology. This module is that producer, made
 reproducible.
 
-Why the captured shape must match the consumer exactly
-------------------------------------------------------
-``module-tests.yml`` (through ``scripts/ci/shard_select.py``) cannot join durations
-to node ids (the committed file drops node ids for compactness), so it pairs them
-**positionally** against its own
-``pytest <test_dirs> -m "not performance and not stress" --collect-only -q`` order,
-and falls back to **uniform weights for the whole module** when
-``len(durations) != len(node_ids)``. That fallback is silent and no gate
-notices it: the skew guard re-reads the same committed list, so a list of the
-right length always passes whether or not it was ever measured. Therefore this
-capture runs pytest with the consumer's *own* selection
+Captured shape: identity first, projections beside it
+-----------------------------------------------------
+``module-tests.yml`` (through ``scripts/ci/shard_select.py``) weights a shard by
+joining durations to its own
+``pytest <test_dirs> -m "not performance and not stress" --collect-only -q``
+node ids. That join is by **node id**, never by position, so the capture records
+``module_test_node_durations[<module>] = {node_id: seconds}`` as the authority:
+an unchanged test keeps its own weight when tests are added, removed or
+reordered, and a same-size reorder cannot silently shift every weight one place
+(the defect the positional list had). ``module_test_durations`` is still written,
+but only as the ordered **projection** of the keyed table, for the count/length
+gates that read it; :func:`validate_module_tables` is the single check that they
+agree.
+
+Therefore this capture runs pytest with the consumer's *own* selection
 (:data:`SELECTION_MARKER_EXPR`) over the consumer's *own* test directories,
-**serially** — so the recorded order is the collection order the consumer pairs
-against — and records one duration per collected test.
+**serially** — the insertion order of the keyed table is that collection order —
+and records one duration per collected test. A capture is rejected, and nothing
+is written for it, unless every node id is exact and unique, every duration is a
+finite non-negative number, the ids and durations line up, pytest exited 0
+(clean) or 1 (some measured tests failed — the durations are still complete), and
+the derived projections agree. ``exit_code`` and ``tests_failed`` are recorded so
+a partially failing run is never reported as a clean capture.
 
 Usage
 -----
@@ -58,6 +67,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import math
 import statistics
 import sys
 import xml.etree.ElementTree as ET
@@ -72,6 +82,7 @@ __all__ = [
     "SELECTION_MARKER_EXPR",
     "TIMINGS_PATH",
     "BATTERY_PRODUCER",
+    "MODULE_NODE_DURATIONS_KEY",
     "DurationRecorder",
     "JunitCapture",
     "ModuleCapture",
@@ -84,6 +95,8 @@ __all__ = [
     "merge_capture",
     "resolve_junit_classname",
     "resolve_test_dirs",
+    "validate_capture",
+    "validate_module_tables",
 ]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -96,15 +109,21 @@ from kernel.clock import datetime, now_utc_compact_stamp, now_utc_iso  # noqa: E
 # path; this script also runs bare (``python -I -S``), where cwd is not on it.
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from scripts.ci.shard_select import MODULE_SELECTION_MARKER_EXPR, resolve_module_test_dirs  # noqa: E402
+from scripts.ci.shard_select import (  # noqa: E402
+    MODULE_NODE_DURATIONS_KEY,
+    MODULE_SELECTION_MARKER_EXPR,
+    resolve_module_test_dirs,
+    validate_node_durations,
+)
 
 REGISTRY_PATH = REPO_ROOT / ".github" / "ci-module-registry.yml"
 TIMINGS_PATH = REPO_ROOT / ".github" / "ci-shard-timings.json"
 
 #: The marker expression ``module-tests.yml`` collects its shard under. Capturing
-#: under any other selection produces a length mismatch and silently degrades the
-#: consumer to uniform weights. ``scripts/ci/shard_select.py`` is the authority;
-#: this name is kept for the recapture script, the tests and the provenance field.
+#: under any other selection records node ids the consumer never collects, so its
+#: identity join misses (loudly, with the missing/stale ids named). ``scripts/ci/
+#: shard_select.py`` is the authority; this name is kept for the recapture script,
+#: the tests and the provenance field.
 SELECTION_MARKER_EXPR = MODULE_SELECTION_MARKER_EXPR
 
 _MODULE_DURATIONS_KEY = "module_test_durations"
@@ -113,6 +132,12 @@ _MODULE_SECONDS_KEY = "module_duration_seconds"
 _PROVENANCE_KEY = "module_capture_provenance"
 
 _ROUNDING_PLACES = 4
+
+#: Pytest exit statuses that mean "the suite ran" (0 clean, 1 some measured tests failed).
+_VALID_PYTEST_EXIT_CODES = (0, 1)
+
+#: Slack when re-summing already-rounded durations against the rounded total.
+_SECONDS_TOLERANCE = 1e-3
 
 _BATTERY_DURATIONS_KEY = "battery_file_durations"
 _BATTERY_PROVENANCE_KEY = "battery_capture_provenance"
@@ -132,6 +157,12 @@ class _Report(Protocol):
     @property
     def duration(self) -> float: ...
 
+    @property
+    def when(self) -> str: ...
+
+    @property
+    def failed(self) -> bool: ...
+
 
 class DurationRecorder:
     """Accumulate each test's total wall time, in first-seen (collection) order.
@@ -144,11 +175,16 @@ class DurationRecorder:
     phase alone.
 
     Insertion order is the execution order, which for a **serial** run is the
-    collection order ``module-tests.yml`` pairs positionally against.
+    collection order the keyed table records.
+
+    ``failures`` counts distinct tests with a failed setup, call or teardown, so a pytest exit status
+    of 1 (the suite ran, some tests failed) is reported honestly beside the
+    complete durations instead of reading as a clean capture.
     """
 
     def __init__(self) -> None:
         self._durations: dict[str, float] = {}
+        self._failed_node_ids: set[str] = set()
 
     def record(self, nodeid: str, duration: float) -> None:
         """Add *duration* to the running total for *nodeid*."""
@@ -157,11 +193,18 @@ class DurationRecorder:
     # pytest plugin hook — one call per phase report.
     def pytest_runtest_logreport(self, report: _Report) -> None:
         self.record(report.nodeid, report.duration)
+        if report.failed:
+            self._failed_node_ids.add(report.nodeid)
 
     @property
     def node_ids(self) -> tuple[str, ...]:
         """The recorded node ids, in first-seen order."""
         return tuple(self._durations)
+
+    @property
+    def failures(self) -> int:
+        """Distinct tests with a failure or error in any execution phase."""
+        return len(self._failed_node_ids)
 
     @property
     def durations(self) -> tuple[float, ...]:
@@ -171,19 +214,102 @@ class DurationRecorder:
 
 @dataclass(frozen=True)
 class ModuleCapture:
-    """One module's measured durations plus the provenance that produced them."""
+    """One module's measured durations plus the provenance that produced them.
+
+    ``node_ids`` and ``durations`` are parallel and in collection order: together
+    they are the identity-keyed table this capture contributes. ``tests_failed``
+    keeps a pytest exit status of 1 honest -- the durations are complete, but the
+    run was not clean.
+    """
 
     module: str
     test_dirs: tuple[str, ...]
+    node_ids: tuple[str, ...]
     durations: tuple[float, ...]
     run_id: str
     command: str
     captured_at: str
     exit_code: int
+    tests_failed: int = 0
 
     @property
     def total_seconds(self) -> float:
         return round(sum(self.durations), 3)
+
+    @property
+    def node_durations(self) -> dict[str, float]:
+        """The identity-keyed table: exact node id -> that test's measured seconds, in collection order."""
+        return dict(zip(self.node_ids, self.durations, strict=True))
+
+
+def validate_capture(capture: ModuleCapture) -> str | None:
+    """``None`` when *capture* is a structurally complete measurement, otherwise why not.
+
+    THE gate between "pytest ran" and "this becomes the committed timing ledger".
+    An empty capture, a duplicated node id, ids and durations of different lengths,
+    a node id that is not pytest-shaped, a non-finite/negative duration, or a pytest
+    exit status that means the run did not complete (2 interrupted/collection error,
+    3 internal error, 4 usage error, 5 nothing collected) each make the data
+    unusable: writing it would replace a real table with a broken one.
+    """
+    if not capture.node_ids:
+        return "capture recorded no node ids (nothing ran)"
+    if len(set(capture.node_ids)) != len(capture.node_ids):
+        return "capture recorded a node id more than once"
+    if len(capture.node_ids) != len(capture.durations):
+        return f"{len(capture.node_ids)} node ids vs {len(capture.durations)} durations"
+    problem = validate_node_durations(capture.node_durations)
+    if problem is not None:
+        return f"invalid node durations: {problem}"
+    if isinstance(capture.exit_code, bool) or not isinstance(capture.exit_code, int) or capture.exit_code not in _VALID_PYTEST_EXIT_CODES:
+        return f"pytest exited {capture.exit_code}, so the durations are not a complete measurement"
+    if isinstance(capture.tests_failed, bool) or not isinstance(capture.tests_failed, int) or not 0 <= capture.tests_failed <= len(capture.node_ids):
+        return f"tests_failed={capture.tests_failed} is impossible for {len(capture.node_ids)} measured tests"
+    if capture.exit_code == 0 and capture.tests_failed:
+        return "tests_failed is nonzero despite a successful pytest exit"
+    return None
+
+
+def _module_table(payload: Mapping[str, Any], key: str, module: str) -> Any:
+    table = payload.get(key)
+    return table.get(module) if isinstance(table, Mapping) else None
+
+
+def validate_module_tables(timings: Mapping[str, Any], module: str) -> str | None:
+    """``None`` when *module*'s committed slice is a complete, self-consistent capture.
+
+    The single authority for "the ledger and its projections agree", shared by the
+    recapture script (which refuses to keep a capture it cannot vouch for) and the
+    architectural provenance gate. Checked, in order: the identity-keyed table is
+    structurally usable (:func:`validate_node_durations`); ``module_test_durations``
+    is its ordered projection; ``module_test_count``,
+    ``module_duration_seconds`` and the provenance's ``unique_tests_measured`` all
+    agree with it. A legacy module (no keyed table) is reported as such, never
+    silently accepted.
+    """
+    node_durations = _module_table(timings, MODULE_NODE_DURATIONS_KEY, module)
+    if node_durations is None:
+        return f"no identity-keyed durations under {MODULE_NODE_DURATIONS_KEY}[{module!r}]"
+    problem = validate_node_durations(node_durations)
+    if problem is not None:
+        return f"identity-keyed durations are unusable: {problem}"
+    listed = _module_table(timings, _MODULE_DURATIONS_KEY, module)
+    if not isinstance(listed, list):
+        return f"module_test_durations[{module!r}] is not a list"
+    if any(isinstance(value, bool) or not isinstance(value, int | float) for value in listed) or listed != list(node_durations.values()):
+        return f"module_test_durations[{module!r}] is not the ordered projection of the identity-keyed table"
+    count = _module_table(timings, _MODULE_COUNT_KEY, module)
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(node_durations):
+        return f"module_test_count[{module!r}]={count!r} but the identity-keyed table holds {len(node_durations)} entries"
+    seconds = _module_table(timings, _MODULE_SECONDS_KEY, module)
+    expected = round(sum(float(value) for value in node_durations.values()), 3)
+    if isinstance(seconds, bool) or not isinstance(seconds, int | float) or not math.isfinite(seconds) or abs(float(seconds) - expected) > _SECONDS_TOLERANCE:
+        return f"module_duration_seconds[{module!r}]={seconds!r} disagrees with the identity-keyed table ({expected})"
+    provenance = _module_table(timings, _PROVENANCE_KEY, module)
+    measured = provenance.get("unique_tests_measured") if isinstance(provenance, Mapping) else None
+    if isinstance(measured, bool) or not isinstance(measured, int) or measured != len(node_durations):
+        return f"module_capture_provenance[{module!r}].unique_tests_measured={measured!r} but the identity-keyed table holds {len(node_durations)} entries"
+    return None
 
 
 def generate_run_id(label: str = "wp02", *, now: datetime | None = None) -> str:
@@ -243,27 +369,35 @@ def capture_module(module: str, test_dirs: Sequence[str], *, run_id: str) -> Mod
     return ModuleCapture(
         module=module,
         test_dirs=tuple(test_dirs),
+        node_ids=recorder.node_ids,
         durations=recorder.durations,
         run_id=run_id,
         command=f"python scripts/ci/capture_shard_timings.py --module {module} --run-id {run_id} --write  # pytest {' '.join(argv)}",
         captured_at=now_utc_iso(),
         exit_code=exit_code,
+        tests_failed=recorder.failures,
     )
 
 
 def merge_capture(payload: dict[str, Any], capture: ModuleCapture) -> dict[str, Any]:
     """Return *payload* with *capture* folded into the per-module timing tables.
 
-    Additive and idempotent: an existing module's three parallel tables are
-    replaced together (they must never disagree — a count that does not match the
-    duration list is exactly the stale-data defect this producer exists to close)
-    and a provenance record is written under
-    ``module_capture_provenance[<module>]``.
+    Additive and idempotent: an existing module's tables are replaced together --
+    the identity-keyed authority, the positional list (its ordered projection), the
+    count, the summed seconds and the provenance record -- so they can never
+    disagree. Raises :class:`ValueError` for a structurally incomplete capture
+    (:func:`validate_capture`): a broken capture must never be written as if it
+    were a measurement.
     """
+    problem = validate_capture(capture)
+    if problem is not None:
+        msg = f"refusing to record an incomplete capture for {capture.module!r}: {problem}"
+        raise ValueError(msg)
     merged = dict(payload)
-    for key in (_MODULE_DURATIONS_KEY, _MODULE_COUNT_KEY, _MODULE_SECONDS_KEY, _PROVENANCE_KEY):
+    for key in (MODULE_NODE_DURATIONS_KEY, _MODULE_DURATIONS_KEY, _MODULE_COUNT_KEY, _MODULE_SECONDS_KEY, _PROVENANCE_KEY):
         merged[key] = dict(merged.get(key) or {})
 
+    merged[MODULE_NODE_DURATIONS_KEY][capture.module] = capture.node_durations
     merged[_MODULE_DURATIONS_KEY][capture.module] = list(capture.durations)
     merged[_MODULE_COUNT_KEY][capture.module] = len(capture.durations)
     merged[_MODULE_SECONDS_KEY][capture.module] = capture.total_seconds
@@ -274,7 +408,9 @@ def merge_capture(payload: dict[str, Any], capture: ModuleCapture) -> dict[str, 
         "test_dirs": list(capture.test_dirs),
         "selection": SELECTION_MARKER_EXPR,
         "unique_tests_measured": len(capture.durations),
+        "node_ids_measured": len(capture.node_ids),
         "exit_code": capture.exit_code,
+        "tests_failed": capture.tests_failed,
         "producer": "scripts/ci/capture_shard_timings.py",
     }
     return merged
@@ -458,14 +594,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     run_id = args.run_id or generate_run_id()
     captures = _capture_all(args.modules, run_id=run_id)
+    problems = {capture.module: problem for capture in captures if (problem := validate_capture(capture)) is not None}
+    if problems:
+        # Never write a broken measurement: the committed ledger stays as it was.
+        for module, problem in problems.items():
+            print(f"::error::capture_shard_timings: refusing to record {module!r}: {problem}", file=sys.stderr)
+        return 1
     for capture in captures:
         payload = merge_capture(payload, capture)
     destination.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
     for capture in captures:
+        failed = f", {capture.tests_failed} test(s) FAILED (durations still complete)" if capture.tests_failed else ""
         print(
             f"capture_shard_timings: {capture.module} -> {len(capture.durations)} tests, {capture.total_seconds}s "
-            f"(run_id={capture.run_id}, exit={capture.exit_code}) -> {destination}",
+            f"(run_id={capture.run_id}, exit={capture.exit_code}{failed}) -> {destination}",
             file=sys.stderr,
         )
     return 0 if all(capture.exit_code == 0 for capture in captures) else 1

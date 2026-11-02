@@ -351,8 +351,13 @@ NEWER = "2026-09-20T00:00:00+00:00"
 NEWEST = "2026-09-30T00:00:00+00:00"
 
 
+def _node_ids(module: str, count: int) -> list[str]:
+    """The node ids the fake collector prints for *module* (and a fresh capture records)."""
+    return [f"tests/{module}/test_x.py::test_{index}" for index in range(count)]
+
+
 def _entry_tables(count: int, *, captured_at: str | None, exit_code: int = 0, measured: int | None = None, run_id: str = "committed") -> dict[str, Any]:
-    """One module's four tables as the producer writes them (``captured_at=None``: no provenance)."""
+    """One module's tables as the producer writes them (``captured_at=None``: no provenance)."""
     provenance = None
     if captured_at is not None:
         provenance = {
@@ -365,27 +370,40 @@ def _entry_tables(count: int, *, captured_at: str | None, exit_code: int = 0, me
     return {"count": count, "provenance": provenance}
 
 
-def _payload(modules: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _payload(modules: dict[str, dict[str, Any]], *, identity_keyed: bool = True) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": "1.0",
         "module_test_durations": {},
         "module_test_count": {},
         "module_duration_seconds": {},
         "module_capture_provenance": {},
+        "module_test_node_durations": {},
     }
     for module, tables in modules.items():
         count = tables["count"]
         payload["module_test_durations"][module] = [0.25] * count
         payload["module_test_count"][module] = count
         payload["module_duration_seconds"][module] = round(0.25 * count, 3)
+        if identity_keyed:
+            payload["module_test_node_durations"][module] = dict.fromkeys(_node_ids(module, count), 0.25)
         if tables["provenance"] is not None:
             payload["module_capture_provenance"][module] = tables["provenance"]
     return payload
 
 
+def _legacy_payload(modules: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """The pre-identity shape: positional durations with no node ids at all."""
+    payload = _payload(modules, identity_keyed=False)
+    payload.pop("module_test_node_durations")
+    return payload
+
+
 def _module_slice(payload: dict[str, Any], module: str) -> dict[str, Any]:
-    """The four per-module entries, for a byte-for-byte comparison of one module's data."""
-    return {key: payload[key].get(module) for key in ("module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance")}
+    """The five per-module entries, for a byte-for-byte comparison of one module's data."""
+    return {
+        key: payload[key].get(module)
+        for key in ("module_test_node_durations", "module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance")
+    }
 
 
 def _dump(payload: dict[str, Any]) -> str:
@@ -410,10 +428,15 @@ class World:
     open_prs: list[dict[str, object]] = field(default_factory=list)
     push_stderr: str | None = None
     collect_timeouts: set[str] = field(default_factory=set)
+    node_ids: dict[str, list[str]] = field(default_factory=dict)
     calls: list[list[str]] = field(default_factory=list)
     envs: list[dict[str, str] | None] = field(default_factory=list)
     kwargs_seen: list[dict[str, Any]] = field(default_factory=list)
     added_snapshots: list[str] = field(default_factory=list)
+
+    def collected_ids(self, module: str) -> list[str]:
+        """The node ids live collection reports for *module*."""
+        return list(self.node_ids.get(module, _node_ids(module, self.counts[module])))
 
     @property
     def timings_path(self) -> Path:
@@ -453,7 +476,7 @@ class World:
         module = next(part.split("/")[1] for part in cmd if part.startswith("tests/"))
         if module in self.collect_timeouts:
             raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout") or 0)
-        lines = [f"tests/{module}/test_x.py::test_{index}" for index in range(self.counts[module])]
+        lines = self.collected_ids(module)
         return subprocess.CompletedProcess(cmd, 0, stdout="\n".join([*lines, "", f"{len(lines)} tests collected"]) + "\n", stderr="")
 
     def _produce(self, cmd: list[str], kwargs: dict[str, Any]) -> subprocess.CompletedProcess[str]:
@@ -471,11 +494,25 @@ class World:
         if outcome in _UNREADABLE_FILE_OUTCOMES:  # the producer exits 0 yet leaves a file nobody can read
             self.timings_path.write_text(_UNREADABLE_FILE_OUTCOMES[outcome], encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0)
-        exit_code, measured = {"valid": (0, self.counts[module]), "failing-tests": (1, self.counts[module]), "invalid": (2, 0)}[outcome]
+        exit_code, measured = {
+            "valid": (0, self.counts[module]),
+            "failing-tests": (1, self.counts[module]),
+            "invalid": (2, 0),
+            "identity-less": (0, self.counts[module]),  # exit 0, plausible count, node-id table dropped
+            "inconsistent": (0, self.counts[module]),  # exit 0, but the projection disagrees with the table
+        }[outcome]
         payload = self.read_timings()
         tables = _payload({module: _entry_tables(measured, captured_at="2026-10-04T00:00:00+00:00", exit_code=exit_code, run_id=run_id)})
-        for key in ("module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance"):
+        if measured:  # a real producer records exactly what collection listed
+            ids = self.collected_ids(module)
+            tables["module_test_node_durations"][module] = dict.fromkeys(ids, 0.25)
+            tables["module_test_durations"][module] = [0.25] * len(ids)
+        for key in ("module_test_node_durations", "module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance"):
             payload.setdefault(key, {})[module] = tables[key][module]
+        if outcome == "identity-less":
+            payload.pop("module_test_node_durations", None)
+        if outcome == "inconsistent":
+            payload["module_test_durations"][module] = [0.5] * (self.counts[module] + 1)
         self.write_timings(payload)
         return subprocess.CompletedProcess(cmd, 0 if exit_code == 0 else 1)
 
@@ -577,13 +614,56 @@ def test_drifted_modules_flags_count_difference_and_bad_provenance() -> None:
             "bad-provenance": _entry_tables(3, captured_at=OLD, exit_code=2),
         }
     )
-    counts = {"same": 3, "grew": 4, "no-provenance": 3, "bad-provenance": 3}
-    assert recapture.drifted_modules(list(counts), timings, counts) == ["grew", "no-provenance", "bad-provenance"]
+    collected = {
+        "same": _node_ids("same", 3),
+        "grew": _node_ids("grew", 4),
+        "no-provenance": _node_ids("no-provenance", 3),
+        "bad-provenance": _node_ids("bad-provenance", 3),
+    }
+    assert recapture.drifted_modules(list(collected), timings, collected) == ["grew", "no-provenance", "bad-provenance"]
 
 
-def test_drifted_modules_leaves_out_a_module_whose_count_is_unknown() -> None:
+def test_drifted_modules_leaves_out_a_module_whose_collection_is_unknown() -> None:
     timings = _payload({"known": _entry_tables(3, captured_at=OLD), "unknown": _entry_tables(3, captured_at=OLD)})
-    assert recapture.drifted_modules(["known", "unknown"], timings, {"known": 4}) == ["known"]
+    assert recapture.drifted_modules(["known", "unknown"], timings, {"known": _node_ids("known", 4)}) == ["known"]
+
+
+def test_identity_drift_at_an_unchanged_count_is_detected() -> None:
+    """A renamed/replaced test keeps the count identical; the refresh must still notice."""
+    timings = _payload({"unit": _entry_tables(3, captured_at=OLD)})
+    committed = _node_ids("unit", 3)
+    collected = [committed[0], committed[1], "tests/unit/test_x.py::test_renamed"]
+
+    assert recapture.drifted_modules(["unit"], timings, {"unit": collected}) == ["unit"]
+    reason = recapture.drift_reasons(["unit"], timings, {"unit": collected})["unit"]
+    assert "1 collected node id(s) not in the committed timings" in reason
+    assert "1 committed node id(s) no longer collected" in reason
+
+
+def test_paired_control_identical_node_ids_are_not_drift() -> None:
+    timings = _payload({"unit": _entry_tables(3, captured_at=OLD)})
+    assert recapture.drifted_modules(["unit"], timings, {"unit": _node_ids("unit", 3)}) == []
+
+
+def test_a_reordered_but_identical_node_id_set_is_not_drift() -> None:
+    """Identity-keyed weights make collection order irrelevant; only the id set matters."""
+    timings = _payload({"unit": _entry_tables(3, captured_at=OLD)})
+    assert recapture.drifted_modules(["unit"], timings, {"unit": list(reversed(_node_ids("unit", 3)))}) == []
+
+
+def test_a_legacy_positional_entry_is_drifted_so_a_recapture_migrates_it() -> None:
+    timings = _legacy_payload({"unit": _entry_tables(3, captured_at=OLD)})
+
+    assert recapture.drifted_modules(["unit"], timings, {"unit": _node_ids("unit", 3)}) == ["unit"]
+    assert "no identity-keyed durations" in recapture.drift_reasons(["unit"], timings, {"unit": _node_ids("unit", 3)})["unit"]
+
+
+def test_a_structurally_inconsistent_entry_is_drifted() -> None:
+    timings = _payload({"unit": _entry_tables(3, captured_at=OLD)})
+    timings["module_test_durations"]["unit"] = [0.25, 0.25]
+
+    reasons = recapture.drift_reasons(["unit"], timings, {"unit": _node_ids("unit", 3)})
+    assert "projection" in reasons["unit"]
 
 
 def test_order_oldest_first_puts_missing_provenance_first_then_oldest() -> None:
@@ -730,6 +810,74 @@ def test_only_the_drifted_non_charter_module_is_captured(world: World) -> None:
     assert _module_slice(after, "agent") == _module_slice(before, "agent")
 
 
+def test_identity_drift_without_a_count_change_triggers_a_recapture(world: World) -> None:
+    """The old refresh only compared counts, so a renamed test refreshed nothing."""
+    _seed(world, {"unit": _entry_tables(3, captured_at=OLD)}, collected={"unit": 3})
+    world.node_ids["unit"] = ["tests/unit/test_x.py::test_0", "tests/unit/test_x.py::test_1", "tests/unit/test_x.py::test_renamed"]
+
+    exit_code, _, result = _capture(world)
+
+    assert exit_code == 0
+    assert world.producer_calls() == ["unit"]
+    assert result["drifted"] == ["unit"]
+    assert "1 collected node id(s) not in the committed timings" in result["drift_reasons"]["unit"]
+    assert "tests/unit/test_x.py::test_renamed" in world.read_timings()["module_test_node_durations"]["unit"]
+
+
+def test_the_job_summary_reports_why_a_module_drifted(world: World) -> None:
+    _seed(world, {"unit": _entry_tables(3, captured_at=OLD)}, collected={"unit": 4})
+
+    _capture(world)
+
+    summary = Path(os.environ["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8")
+    assert "`unit` | captured" in summary
+    assert "count 3 -> 4" in summary
+
+
+def test_a_capture_with_failing_tests_is_reported_as_such_not_greenwashed(world: World) -> None:
+    """Exit 1 still yields complete durations, but the report must say the tests failed."""
+    _seed(world, {"unit": _entry_tables(3, captured_at=OLD)}, collected={"unit": 4})
+    world.outcomes["unit"] = "failing-tests"
+
+    exit_code, _, result = _capture(world)
+
+    assert exit_code == 0, "a measured run with failures is still a valid capture"
+    assert result["captured"] == ["unit"]
+    assert result["captured_with_failures"] == ["unit"]
+    summary = Path(os.environ["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8")
+    assert "measured tests failed" in summary
+    assert "Captured with failing tests" in recapture.RecaptureResult.from_json(json.dumps(result)).commit_message()
+
+
+@pytest.mark.parametrize("outcome", ["identity-less", "inconsistent"], ids=["no-node-id-table", "list-disagrees-with-table"])
+def test_a_structurally_incomplete_capture_is_rejected_and_the_rest_is_kept(world: World, outcome: str) -> None:
+    """Exit 0 is not enough: a payload whose identity/duration structure is broken is a failure."""
+    _seed(world, {"broken": _entry_tables(3, captured_at=OLD), "fine": _entry_tables(3, captured_at=OLD)}, collected={"broken": 4, "fine": 4})
+    world.outcomes["broken"] = outcome
+    before = world.read_timings()
+
+    exit_code, _, result = _capture(world)
+
+    assert exit_code == 1
+    assert result["failed"] == ["broken"]
+    assert "structurally incomplete" in result["reasons"]["broken"]
+    assert result["captured"] == ["fine"]
+    assert _module_slice(world.read_timings(), "broken") == _module_slice(before, "broken")
+
+
+def test_a_legacy_module_is_recaptured_so_the_identity_table_migrates(world: World) -> None:
+    (world.root / ".github" / "ci-module-registry.yml").write_text("modules:\n- module: unit\n", encoding="utf-8")
+    (world.root / "tests" / "unit").mkdir(parents=True)
+    world.counts = {"unit": 3}
+    world.write_timings(_legacy_payload({"unit": _entry_tables(3, captured_at=OLD)}))
+
+    exit_code, _, result = _capture(world)
+
+    assert exit_code == 0
+    assert result["captured"] == ["unit"]
+    assert set(world.read_timings()["module_test_node_durations"]["unit"]) == set(_node_ids("unit", 3))
+
+
 def test_every_producer_subprocess_runs_without_any_token(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GH_TOKEN", "ambient")
     monkeypatch.setenv("GITHUB_TOKEN", FAKE_GITHUB_TOKEN)
@@ -774,7 +922,17 @@ def test_nothing_drifted_captures_nothing_and_reports_drift_false(world: World) 
 
     assert exit_code == 0
     assert outputs["drift"] == "false"
-    assert result == {"drifted": [], "captured": [], "failed": [], "deferred": [], "reasons": {}, "battery_captured": [], "battery_failed": []}
+    assert result == {
+        "drifted": [],
+        "captured": [],
+        "failed": [],
+        "deferred": [],
+        "reasons": {},
+        "battery_captured": [],
+        "battery_failed": [],
+        "captured_with_failures": [],
+        "drift_reasons": {},
+    }
     assert world.producer_calls() == []
     assert world.timings_path.read_bytes() == before
 
@@ -841,6 +999,7 @@ def test_a_capture_with_some_failing_tests_is_still_a_valid_capture(world: World
 
     assert exit_code == 0
     assert result["captured"] == ["unit"]
+    assert result["captured_with_failures"] == ["unit"], "a failing run must never be reported as a clean capture"
     assert world.read_timings()["module_capture_provenance"]["unit"]["exit_code"] == 1
 
 
@@ -1056,7 +1215,7 @@ def _proposal_with_refreshed(module: str, count: int) -> str:
     """The timings file on the proposal branch: *module* already recaptured validly."""
     tables = _payload({module: _entry_tables(count, captured_at=NEWEST, run_id="from-the-open-proposal")})
     payload = _payload({"a": _entry_tables(3, captured_at=OLD), "b": _entry_tables(3, captured_at=OLD)})
-    for key in ("module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance"):
+    for key in ("module_test_node_durations", "module_test_durations", "module_test_count", "module_duration_seconds", "module_capture_provenance"):
         payload[key][module] = tables[key][module]
     return _dump(payload)
 
