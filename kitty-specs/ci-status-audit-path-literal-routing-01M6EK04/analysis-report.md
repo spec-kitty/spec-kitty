@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: ci-status-audit-path-literal-routing-01M6EK04
 mission_id: 01M6EK04QX173M8CHW8EYKVZNT
-generated_at: '2026-11-02T17:55:23.462522+00:00'
+generated_at: '2026-11-02T18:39:02.649839+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
@@ -15,7 +15,7 @@ input_artifacts:
     sha256: 95e4195f6738751895fa52474f967beb48a051bad0fbf06c781d16fde417fc94
   tasks.md:
     path: kitty-specs/ci-status-audit-path-literal-routing-01M6EK04/tasks.md
-    sha256: f8e87d64478630266608748fca640fd8c711fd5c759d794af726c5c77cf6f93b
+    sha256: 8eb04ed04336c1759146b3def02383314684ecb5007e0d4f52f55f8f7322af36
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
@@ -23,8 +23,8 @@ verdict: ready
 issue_counts:
   medium: 0
   critical: 0
-  low: 1
   high: 0
+  low: 1
   info: 1
 findings:
 - id: A1
