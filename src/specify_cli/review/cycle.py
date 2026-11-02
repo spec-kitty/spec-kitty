@@ -65,6 +65,7 @@ def is_operator_rewind_sentinel(value: object) -> bool:
     """True when *value* is the operator-rewind ``review_ref`` marker (#6955)."""
     return isinstance(value, str) and value.strip() == OPERATOR_REWIND_SENTINEL
 
+
 #: #4327: synthetic approval/rejection tokens ``move-task`` mints when no real
 #: pointer exists (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
 #: Like the exact-value sentinels above they are markers, not review-feedback

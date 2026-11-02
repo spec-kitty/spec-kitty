@@ -677,11 +677,7 @@ def _feedback_edge_recordable(old_lane: str, target_lane: str) -> bool:
     is ``integration``-marked, so the loss went unnoticed. This repair restores
     the #6845 behaviour.
     """
-    return (
-        is_review_rejection_edge(old_lane, target_lane)
-        or _is_approved_reopen(old_lane, target_lane)
-        or resolve_lane_alias(target_lane) in _APPROVAL_LANES
-    )
+    return is_review_rejection_edge(old_lane, target_lane) or _is_approved_reopen(old_lane, target_lane) or resolve_lane_alias(target_lane) in _APPROVAL_LANES
 
 
 def _feedback_file_no_effect_message(task_id: str, old_lane: str, target_lane: str) -> str:
