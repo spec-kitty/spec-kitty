@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances orchestrator error code prose guard on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "orchestrator error code prose guard",
   "slug": "orchestrator-error-code-prose-guard-01M6EJQS",
-  "target_branch": "main",
+  "target_branch": "issue-7035-orchestrator-error-code-prose-guard",
   "topology": "coord"
 }
