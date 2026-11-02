@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "mission_slug": "ceiling-aware-ancestor-walk-01M6EJNY",
+  "mission_id": "01M6EJNYDMYNPDQA15KG7HM7WX",
+  "mission_branch": "kitty/mission-ceiling-aware-ancestor-walk-01M6EJNY",
+  "target_branch": "issue-7056-ceiling-aware-ancestor-walk",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/ancestor_walk.py",
+        "src/specify_cli/core/paths.py",
+        "tests/kernel/test_ancestor_walk.py",
+        "tests/specify_cli/core/test_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/context_renderers/catalog_diagnosis.py",
+        "src/charter/activation/neutrality/lint.py",
+        "src/runtime/next/_internal_runtime/planner.py",
+        "src/specify_cli/bootstrap/env_file.py",
+        "src/specify_cli/charter_runtime/lint/checks/org_layer.py",
+        "src/specify_cli/cli/commands/regen.py",
+        "src/specify_cli/context/middleware.py",
+        "src/specify_cli/coordination/legacy_resolution.py",
+        "src/specify_cli/core/checkout_identity.py",
+        "src/specify_cli/core/ledger_posture.py",
+        "src/specify_cli/gitignore_manager.py",
+        "src/specify_cli/migration/legacy_charter_gate.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/task_utils/support.py",
+        "tests/charter/test_ceiling_root_walks.py",
+        "tests/specify_cli/core/test_ceiling_root_walks.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/_hand_rolled_root_walk_scan.py",
+        "tests/architectural/test_no_hand_rolled_root_walks.py",
+        "tests/unit/workspace/test_root_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-02T16:56:51.172033+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5a1421f42453a3c85e0186c42fcd209d35b8a5aa"
+}
