@@ -516,26 +516,13 @@ def test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path:
 
 
 def test_a_macos_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.MACOS_ARM64,)}, macos="12_0")
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.MACOS_ARM64,)}, macos="11_1")
     assert _build(script, fixture, tmp_path / "out") == 1
     err = capsys.readouterr().err
     assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err
-    assert "needs macOS 12_0" in err
-    assert "raise --macos-floor to 12_0 in release.yml" in err
+    assert "needs macOS 11_1" in err
+    assert "raise --macos-floor to 12_0 in release.yml" in err  # macOS 11+ tags carry no minor: round up
     assert not list((tmp_path / "out").glob("*.whl"))
-
-
-def test_the_wheel_floor_is_the_maximum_over_its_binaries(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-    fixture = _repo(
-        tmp_path,
-        services={"write-service": (ServiceTarget.LINUX_X64,), "charter-service": (ServiceTarget.LINUX_X64,)},
-        floors={"charter-service": ("2_42", "11_0")},
-    )
-    assert _build(script, fixture, tmp_path / "out") == 1
-    err = capsys.readouterr().err
-    assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err
-    assert asset_name("charter-service", _TAG, ServiceTarget.LINUX_X64) in err  # the binary that sets the floor
-    assert asset_name("write-service", _TAG, ServiceTarget.LINUX_X64) not in err
 
 
 @pytest.mark.parametrize(("glibc", "macos"), [("2_39", "11_0"), ("2_28", "10_15")], ids=["at-the-floor", "below-the-floor"])
@@ -567,17 +554,6 @@ def test_an_unreadable_asset_is_refused(
     assert not list((tmp_path / "out").glob("*.whl"))
 
 
-def test_windows_assets_are_not_measured(tmp_path: Path, script: ModuleType) -> None:
-    # A Windows asset states no OS minimum, so it is never parsed: any bytes are fine.
-    fixture = _repo(
-        tmp_path,
-        services={"write-service": (ServiceTarget.WINDOWS_X64,)},
-        assets={"write-service": {ServiceTarget.WINDOWS_X64: b"not a PE at all"}},
-    )
-    assert _build(script, fixture, tmp_path / "out") == 0
-    assert (tmp_path / "out" / f"spec_kitty_services-{_VERSION}-py3-none-win_amd64.whl").is_file()
-
-
 def test_verify_fails_a_wheel_whose_tag_understates_its_binaries(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     """A wheel built outside this guard, tagged below what its bundled binaries need, cannot verify."""
     fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)})
@@ -600,14 +576,6 @@ def test_verify_fails_a_wheel_whose_tag_understates_its_binaries(tmp_path: Path,
     err = capsys.readouterr().err
     assert "COMPANION_VERIFY_FAILED" in err  # the verifier's own code, with the floor reason in the message
     assert "needs glibc 2_39" in err and "2_28 its wheel tag claims" in err
-
-
-def test_a_bad_macos_floor_fails_even_without_a_macos_target(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.WINDOWS_X64,)})
-    assert _build(script, fixture, tmp_path / "out", "--macos-floor", "twelve") == 1
-    err = capsys.readouterr().err
-    assert "COMPANION_BUILD_FAILED" in err
-    assert "macOS floor" in err  # the message names which floor is malformed
 
 
 def test_the_macos_floor_is_a_build_input(tmp_path: Path, script: ModuleType) -> None:

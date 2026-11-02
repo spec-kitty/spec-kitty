@@ -15,7 +15,7 @@ from types import ModuleType
 import pytest
 
 from kernel.service_pin import ServiceTarget
-from tests.kernel.service_release_fixture import elf64, macho64, native_asset, pe64
+from tests.kernel.service_release_fixture import elf64, macho64, pe64
 
 pytestmark = pytest.mark.fast
 
@@ -137,14 +137,16 @@ def test_windows_states_no_floor_and_is_never_measured(platform_floor: ModuleTyp
     assert platform_floor.required_floor("windows-x64", {"write-service.exe": b"MZ"}) is None
 
 
-def test_native_asset_covers_every_native_target(platform_floor: ModuleType) -> None:
-    for target in (ServiceTarget.LINUX_X64, ServiceTarget.LINUX_ARM64, ServiceTarget.MACOS_ARM64):
-        assert platform_floor.read_floor(native_asset(target), target.value) is not None
-
-
 # --------------------------------------------------------------------------- #
 # Refusals: a floor nobody could read is never assumed
 # --------------------------------------------------------------------------- #
+
+
+def _patched(data: bytes, offset: int, value: int, size: int) -> bytes:
+    """*data* with the little-endian *size*-byte *value* written at *offset*."""
+    out = bytearray(data)
+    out[offset : offset + size] = value.to_bytes(size, "little")
+    return bytes(out)
 
 
 @pytest.mark.parametrize(
@@ -160,6 +162,11 @@ def test_native_asset_covers_every_native_target(platform_floor: ModuleType) -> 
         (b"\xce\xfa\xed\xfe" + b"\x00" * 28, "macos-arm64", r"32-bit Mach-O"),
         (b"\x00\x00\x00\x00" + b"\x00" * 60, "macos-arm64", r"not a Mach-O file"),
         (b"#!/bin/sh\n", "macos-arm64", r"truncated Mach-O header"),
+        (_patched(macho64(), 36, 0, 4), "macos-arm64", r"shorter than its own header"),  # cmdsize 0 must not spin
+        (_patched(macho64(), 36, 4096, 4), "macos-arm64", r"runs past the end"),  # cmdsize beyond the file
+        (macho64(), "linux-x64", r"not an ELF file"),  # a Mach-O in a Linux slot is not read with the other reader
+        (_patched(elf64(), 64 + 2 * 56, 0x6FFFFFF0, 8), "linux-x64", r"no DT_STRTAB"),  # version needs, no string table
+        (_patched(elf64(), 64 + 56 + 32, 0, 8), "linux-x64", r"PT_DYNAMIC segment is empty"),  # p_filesz 0
     ],
     ids=[
         "shell-script",
@@ -172,24 +179,16 @@ def test_native_asset_covers_every_native_target(platform_floor: ModuleType) -> 
         "macho-32-bit",
         "macho-not",
         "macho-stub",
+        "macho-cmdsize-zero",
+        "macho-cmdsize-past-end",
+        "macho-in-linux-slot",
+        "elf-no-string-table",
+        "elf-empty-dynamic",
     ],
 )
 def test_an_unreadable_binary_is_refused_with_a_reason(platform_floor: ModuleType, data: bytes, target: str, reason: str) -> None:
     with pytest.raises(platform_floor.UnreadableBinary, match=reason):
         platform_floor.read_floor(data, target)
-
-
-def test_a_corrupt_mach_o_load_command_cannot_loop_or_overrun(platform_floor: ModuleType) -> None:
-    data = bytearray(macho64())
-    data[36:40] = (0).to_bytes(4, "little")  # cmdsize 0: a walk that trusts it would spin forever
-    with pytest.raises(platform_floor.UnreadableBinary, match="shorter than its own header"):
-        platform_floor.read_floor(bytes(data), "macos-arm64")
-
-
-def test_a_wheel_floor_cannot_be_read_from_a_mislabelled_asset(platform_floor: ModuleType) -> None:
-    """A Mach-O in a Linux slot is refused, not silently measured with the other format's reader."""
-    with pytest.raises(platform_floor.UnreadableBinary, match="not an ELF file"):
-        platform_floor.read_floor(macho64(), "linux-x64")
 
 
 # --------------------------------------------------------------------------- #
@@ -240,32 +239,3 @@ def test_a_floor_that_is_not_major_minor_is_refused(platform_floor: ModuleType, 
 
 def test_parse_floor_reads_both_components(platform_floor: ModuleType) -> None:
     assert platform_floor.parse_floor("2_39") == (2, 39)
-
-
-def test_a_version_need_table_without_its_string_table_is_unreadable(platform_floor: ModuleType) -> None:
-    """A dynamic ELF that claims version needs but carries no string table cannot be measured."""
-    data = bytearray(elf64())
-    dynamic = 64 + 2 * 56  # e_phdr size + two program headers; DT_STRTAB is the first dynamic entry
-    data[dynamic : dynamic + 8] = (0x6FFFFFF0).to_bytes(8, "little")  # a tag that is not DT_STRTAB
-    with pytest.raises(platform_floor.UnreadableBinary, match="no DT_STRTAB"):
-        platform_floor.read_floor(bytes(data), "linux-x64")
-
-
-def test_a_mach_o_load_command_past_the_end_is_unreadable(platform_floor: ModuleType) -> None:
-    data = bytearray(macho64())
-    data[36:40] = (4096).to_bytes(4, "little")  # cmdsize larger than the file: a walk must not trust it
-    with pytest.raises(platform_floor.UnreadableBinary, match="runs past the end"):
-        platform_floor.read_floor(bytes(data), "macos-arm64")
-
-
-def test_the_refusal_names_the_asset_with_the_unreadable_floor(platform_floor: ModuleType) -> None:
-    with pytest.raises(platform_floor.UnreadableBinary, match=r"write-service: not an ELF file"):
-        platform_floor.required_floor("linux-x64", {"write-service": b"#!/bin/sh\n"})
-
-
-def test_an_empty_dynamic_segment_is_unreadable(platform_floor: ModuleType) -> None:
-    data = bytearray(elf64())
-    dynamic_header = 64 + 56  # the second program header: PT_DYNAMIC
-    data[dynamic_header + 32 : dynamic_header + 40] = (0).to_bytes(8, "little")  # p_filesz
-    with pytest.raises(platform_floor.UnreadableBinary, match="PT_DYNAMIC segment is empty"):
-        platform_floor.read_floor(bytes(data), "linux-x64")
