@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-11-02T17:53:06.828910+00:00",
+  "flattened": false,
+  "friendly_name": "CI speed and verdict hardening",
+  "mid8": "01M6EP9E",
+  "mission_id": "01M6EP9EM5YWSE3JRHN65A9F2S",
+  "mission_number": null,
+  "mission_slug": "ci-speed-and-verdict-hardening-01M6EP9E",
+  "mission_type": "software-dev",
+  "purpose_context": "Implement the operator-approved CI speed review with regression-tested caching, test selection and truthful failure/coverage reporting, delivered as a draft PR for operator review.",
+  "purpose_tldr": "Reduce repeated CI work without weakening verification.",
+  "slug": "ci-speed-and-verdict-hardening-01M6EP9E",
+  "target_branch": "ci/speed-and-verdict-hardening",
+  "topology": "single_branch"
+}
