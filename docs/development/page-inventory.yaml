@@ -3842,6 +3842,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/auditing-special-case-workarounds.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/cloud-session-setup.md
   tag: current
   divio_type: how-to
@@ -3987,6 +3993,12 @@
   current_target: true
   notes: null
 - path: docs/development/reference/lock-interop-spike.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/reference/optional-lamport-clock-consumers.md
   tag: current
   divio_type: reference
   owning_workstream: none
@@ -5097,6 +5109,36 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/2026-10-28-review-test-budget.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-30-owned-analysis-currency.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-30-owned-charter-context.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-31-approved-reopen-feedback.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-31-migration-project-admission.md
   tag: current
   divio_type: none
   owning_workstream: none
