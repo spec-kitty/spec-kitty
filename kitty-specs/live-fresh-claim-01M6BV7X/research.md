@@ -8,7 +8,7 @@ Grounding baseline: `origin/main` @ `287a226cfe`, `spec-kitty-cli 4.0.0rc8`.
 ### D1 — This is a verified-already-fixed report, not a new defect
 
 The reported refusal was retested live, twice, on throwaway lanes-topology
-missions created by the real CLI (`/tmp/repro-6311`, since deleted):
+missions created by the real CLI (`<scratch-dir>/repro-6311`, since deleted):
 
 ```
 spec-kitty specify "repro-lanes-claim" --mission-type software-dev --topology lanes
