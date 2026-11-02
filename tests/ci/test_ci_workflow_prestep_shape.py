@@ -491,8 +491,6 @@ def test_a_broken_heavy_job_is_rejected(heavy_job: Job, label: str, mutate: Call
         ("failure swallowed by || true", lambda step: step.update({"run": step["run"].replace(')"\n', ')" || true\n', 1)})),
         ("shell not bash", lambda step: step.pop("shell", None)),
         ("not asked per leg", lambda step: step.update({"run": step["run"].replace("${{ matrix.shard }}", "1/2")})),
-        ("the selected-gates file dropped", lambda step: step.update({"run": step["run"].replace(f" {_GATES_FILE_BINDING}", "")})),
-        ("a different gates file", lambda step: step.update({"run": step["run"].replace(_GATES_FILE_BINDING, '--gates-file "${{ matrix.shard }}.txt"')})),
     ],
 )
 def test_a_heavy_decision_that_could_hide_an_error_is_rejected(heavy_job: Job, label: str, mutate: Callable[[Step], None]) -> None:

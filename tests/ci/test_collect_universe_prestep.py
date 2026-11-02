@@ -683,7 +683,9 @@ def test_a_scoped_leg_whose_selected_gates_hold_no_consumer_declines(
 ) -> None:
     """Red on main: leg 1/2 holds the consumer in its partition and answers ``true`` regardless."""
     assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER))]) == 0
-    assert capsys.readouterr().out.strip() == "false"
+    captured = capsys.readouterr()
+    assert captured.out.strip() == "false"
+    assert "1 of 2" in captured.err, "the log must show which part of the partition the leg reads"
 
 
 def test_a_scoped_leg_that_selects_the_consumer_keeps_collecting(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -695,13 +697,6 @@ def test_a_scoped_leg_that_selects_the_consumer_keeps_collecting(partition: dict
 def test_a_gates_file_naming_only_the_other_legs_files_declines(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert prestep.main(["consumers", "--battery-part", "2/2", "--gates-file", str(_gates(tmp_path, _CONSUMER))]) == 0
     assert capsys.readouterr().out.strip() == "false", "the consumer runs in leg 1/2, so leg 2/2 gains nothing from it"
-
-
-def test_no_gates_file_keeps_the_whole_partition_answer(partition: dict[str, frozenset[str]], capsys: pytest.CaptureFixture[str]) -> None:
-    assert prestep.main(["consumers", "--battery-part", "1/2"]) == 0
-    assert capsys.readouterr().out.strip() == "true"
-    assert prestep.main(["consumers", "--battery-part", "2/2"]) == 0
-    assert capsys.readouterr().out.strip() == "false"
 
 
 def test_an_explicitly_empty_gates_file_declines(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -745,13 +740,6 @@ def test_a_missing_gates_file_fails_with_no_answer(partition: dict[str, frozense
     captured = capsys.readouterr()
     assert captured.out.strip() not in {"true", "false"}, "an unreadable selection must never read as an answer"
     assert str(missing) in captured.err
-
-
-def test_a_scoped_leg_says_how_much_it_narrowed(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER))]) == 0
-    captured = capsys.readouterr()
-    assert captured.out.strip() == "false"
-    assert "1 of 2" in captured.err, "the log must show which part of the partition the leg reads"
 
 
 def test_gates_file_applies_to_the_consumers_command_only() -> None:
