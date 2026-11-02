@@ -2,6 +2,8 @@
 title: 'ADR: Op lifecycle records are one file per record'
 description: 'spec-kitty next writes each lifecycle record to its own kitty-ops/lifecycle/<ulid>.json; the shared lifecycle.jsonl stays readable, never written.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-11-01'
 ---
 
