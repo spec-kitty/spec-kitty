@@ -7,7 +7,7 @@ Base: `origin/main` @ `dfe9efb0e8` (fast-forwarded from `6f73b2a98e`, 18 commits
 
 ## 1. The defect still reproduces on current main
 
-Reproduction script (`/tmp/repro6551.py`, kept out of the tree) against the
+Reproduction script (`<scratch-dir>/repro6551.py`, kept out of the tree) against the
 current checkout, with `SPEC_KITTY_HOME` pointed at an empty directory and a
 project whose `.kittify/metadata.yaml` says `version: 4.0.0rc8`:
 
