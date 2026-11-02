@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5927": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "The 500 drift_scan_unreadable / KeyError: 'findings' half is fixed by PR #7095; #5927's 240 s corpus-scan timeouts are a separate budget question and stay open",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     },
     "#6767": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: PR #6947 (#6767) is where the red was found; no work is owed to it here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6947": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: PR #6947 reported the red; this mission fixes the subject in its own PR #7095",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6966": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR #7095: REPO_ROOT resolves from git worktree list --porcelain; the reporter's linked-worktree repro goes from 5 failed to 8 passed on the eight named cases",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
