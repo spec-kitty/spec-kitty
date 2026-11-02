@@ -73,7 +73,7 @@
       "wp": null
     },
     "#7011": {
-      "evidence_ref": "'WP01-WP03",
+      "evidence_ref": "PR #7083 \u2014 src/specify_cli/tasks/issue_reference_discovery.py + issue_matrix.py; tests/tasks/test_issue_matrix_citation_label_scope_7011.py and tests/tasks/test_issue_matrix_source_issue_7011.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP03"
     }
   },
   "schema_version": 1
