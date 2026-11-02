@@ -1,0 +1,48 @@
+{
+  "accept_commit": "dee497f105db13752d966329ba5fc836591a867d",
+  "acceptance_history": [
+    {
+      "accept_commit": "3e363941ae93a60cc5815e936314d06dbab86e18",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-02T20:47:10.975039+00:00",
+      "accepted_by": "pi/deepseek-v4.1-flash",
+      "accepted_from_commit": "3f54615721ecc3a90edc8c816f40dd70efd7174d"
+    },
+    {
+      "accept_commit": "e0ca65e02b68e2c1031a4caffaa387d434245e42",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-02T20:47:20.154594+00:00",
+      "accepted_by": "pi/deepseek-v4.1-flash",
+      "accepted_from_commit": "5bb1a750fed1722512a61e0181a5b7b37c5d6418"
+    },
+    {
+      "accept_commit": "dee497f105db13752d966329ba5fc836591a867d",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-02T20:47:27.030473+00:00",
+      "accepted_by": "pi/deepseek-v4.1-flash",
+      "accepted_from_commit": "7c6d81be95015c66811cbeb3676c5d2c1904ede3"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-02T20:47:27.030473+00:00",
+  "accepted_by": "pi/deepseek-v4.1-flash",
+  "accepted_from_commit": "7c6d81be95015c66811cbeb3676c5d2c1904ede3",
+  "baseline_merge_commit": "613f3b9e93ab76f68994a3ba65daf4815305e939",
+  "created_at": "2026-11-02T16:53:22.251792+00:00",
+  "flattened": true,
+  "friendly_name": "wire valid approved reopen",
+  "merged_at": "2026-11-02T20:58:41.475910+00:00",
+  "merged_commit": "e0088371fa5f98f69af62d413f76c2799bdebb1c",
+  "mid8": "01M6EJW0",
+  "mission_id": "01M6EJW0W1F43F2ZS06QXWPXXH",
+  "mission_number": 248,
+  "mission_slug": "wire-valid-approved-reopen-01M6EJW0",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances wire valid approved reopen on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "wire valid approved reopen",
+  "slug": "wire-valid-approved-reopen-01M6EJW0",
+  "status_phase": "1",
+  "target_branch": "issue-6955-wire-valid-approved-reopen",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-02T16:58:30.226784+00:00"
+}

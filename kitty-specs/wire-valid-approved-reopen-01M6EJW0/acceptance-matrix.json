@@ -1,0 +1,99 @@
+{
+  "mission_slug": "wire-valid-approved-reopen-01M6EJW0",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_reopen_feedback.py::test_owned_approved_reopen_feedback_contract[absent] + tasks_transition_core planner pins",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:38.146421+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_forced_rewind_requires_review_ref.py::test_local_edge_set_equals_the_contract_members_it_claims + auditor pins",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:41.675456+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_forced_rewind_requires_review_ref.py::test_pointerless_gated_rewind_is_refused_before_append + blank-ref refusal on the door fixture",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:45.130742+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_reopen_feedback.py::test_owned_approved_reopen_feedback_contract[provided|empty|missing|directory]",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:48.507425+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_work_package_lifecycle.py + full tests/status suite green (start_implementation_status keeps force-override)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:51.729207+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_forced_rewind_requires_review_ref.py::test_force_elsewhere_is_unchanged + tests/status/fsm_parity_baseline.jsonl (2 intended rows)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:55.101820+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "documented_pin",
+      "evidence": "docs/architecture/status-model.md#forced-rewinds-out-of-review + tests/status/test_status_model_reference.py",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:46:58.863244+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_migration_actor_is_exempt_on_the_added_edges + auditor reports the migration row",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:47:02.300572+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_the_contract_is_the_released_pin_not_a_local_patch; pyproject/pin files untouched in the diff",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash",
+      "verified_at": "2026-11-02T20:47:05.498400+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

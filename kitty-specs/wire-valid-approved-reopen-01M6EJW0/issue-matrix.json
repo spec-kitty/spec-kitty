@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#3307": {
+      "evidence_ref": "cited for the silent-sync-rejection class this mission closes on the approved reopen",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5446": {
+      "evidence_ref": "cited for the migration/note precedent, not modified",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6514": {
+      "evidence_ref": "prior mission that gated the for_review edge; this mission extends the same set",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6699": {
+      "evidence_ref": "merged guard whose merge order broke the approved-reopen evidence arm; restored here, no work owed on the issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6845": {
+      "evidence_ref": "cited for the FR-015 evidence policy this mission preserves",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6955": {
+      "evidence_ref": "commit 12f4c88731/743bacc187 on issue-6955-wire-valid-approved-reopen: the forced approved reopen cites force-override and validates against the pinned contract; pointerless approved/for_review rewinds are refused pre-append; evidence arm restored",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6988": {
+      "evidence_ref": "cited for the per-PR changelog fragment shape used in WP02",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7080": {
+      "evidence_ref": "Follow-up #7080: in_review -> in_progress still records a pointerless row on the status emit path; needs prepare_transition to thread review_result.reference before the edge joins REVIEW_REF_REQUIRED_EDGES",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
