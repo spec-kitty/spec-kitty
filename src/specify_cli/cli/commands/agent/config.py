@@ -538,6 +538,25 @@ def list_agents():
             console.print(f"  - {agent_key}")
 
 
+def _save_added_or_seeded_agents(repo_root: Path, config: AgentConfig, added: list[str], *, legacy_config: bool) -> None:
+    """Persist the config after ``agent config add`` (#6501).
+
+    An add that registered something saves with its usual output. An add that
+    added nothing to a legacy project still saves, because the seeded observed
+    list is that run's change: the documented remedy is
+    ``agent config add <observed agent>``, and skipping the save would leave the
+    project in legacy mode.
+    """
+    if not added and not legacy_config:
+        return
+    save_agent_config(repo_root, config)
+    if not added:
+        return
+    console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
+    _write_global_commands([key for key in added if key in GLOBAL_COMMAND_AGENTS])
+    _refresh_agent_ignore_block(repo_root, config)
+
+
 @app.command(name="add")
 def add_agents(
     agents: list[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
@@ -570,6 +589,7 @@ def add_agents(
     already_configured = []
     errors = []
 
+    legacy_config = not config.explicit_agent_list
     _seed_legacy_agent_list(repo_root, config)
 
     for agent_key in agents:
@@ -598,11 +618,7 @@ def add_agents(
             errors.append(error)
 
     # Save updated config
-    if added:
-        save_agent_config(repo_root, config)
-        console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
-        _write_global_commands([key for key in added if key in GLOBAL_COMMAND_AGENTS])
-        _refresh_agent_ignore_block(repo_root, config)
+    _save_added_or_seeded_agents(repo_root, config, added, legacy_config=legacy_config)
 
     if already_configured:
         console.print(f"\n[dim]Already configured:[/dim] {', '.join(already_configured)}")
@@ -651,6 +667,7 @@ def remove_agents(
     removed_from_config = []
     errors = []
 
+    legacy_config = not config.explicit_agent_list
     _seed_legacy_agent_list(repo_root, config)
 
     for agent_key in agents:
@@ -689,6 +706,10 @@ def remove_agents(
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] removed {', '.join(removed_from_config)}")
         _refresh_agent_ignore_block(repo_root, config)
         _warn_newly_visible_files(repo_root, config, removed_from_config)
+    elif not keep_config and legacy_config:
+        # The seeded observed list is this run's change (#6501): a removal of an
+        # agent the project does not observe must still record the list.
+        save_agent_config(repo_root, config)
 
     if errors:
         console.print("\n[yellow]Warnings:[/yellow]")
