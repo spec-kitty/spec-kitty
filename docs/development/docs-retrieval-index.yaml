@@ -262,11 +262,6 @@ pages:
     - {slug: "option-c-four-layer-hybrid", text: "Option C — Four-layer hybrid", level: 3}
     - {slug: "option-d-reintroduce-sparse-checkout-as-a-supported-feature", text: "Option D — Reintroduce sparse-checkout as a supported feature", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
-  - path: "docs/adr/1.x/README.md"
-    title: "1.x ADRs"
-    divio_type: "none"
-    abstract: "Redirect stub: this ADR era landing page moved to docs/adr/1.x/index.md; retained so existing links to the old README path keep resolving cleanly."
-    anchors: []
   - path: "docs/adr/1.x/index.md"
     title: "1.x ADRs"
     divio_type: "explanation"
@@ -900,11 +895,6 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "decision-1-pytestarch", text: "Decision 1 (PyTestArch)", level: 3}
     - {slug: "decision-2-networkx", text: "Decision 2 (networkx)", level: 3}
-  - path: "docs/adr/2.x/README.md"
-    title: "2.x ADRs"
-    divio_type: "none"
-    abstract: "Redirect stub: this ADR era landing page moved to docs/adr/2.x/index.md; retained so existing links to the old README path keep resolving cleanly."
-    anchors: []
   - path: "docs/adr/2.x/index.md"
     title: "2.x ADRs"
     divio_type: "explanation"
@@ -3363,11 +3353,6 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "links", text: "Links", level: 2}
     - {slug: "erratum-2026-10-04-5627", text: "Erratum (2026-10-04, #5627)", level: 2}
-  - path: "docs/adr/3.x/README.md"
-    title: "3.x ADRs"
-    divio_type: "none"
-    abstract: "Redirect stub: this ADR era landing page moved to docs/adr/3.x/index.md; retained so existing links to the old README path keep resolving cleanly."
-    anchors: []
   - path: "docs/adr/3.x/index.md"
     title: "3.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4050,6 +4035,18 @@ pages:
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-30-accepted-refusal-codes-and-pin-location", text: "Amendment 2026-10-30 (Accepted): refusal codes and pin location", level: 2}
     - {slug: "amendment-2026-10-31-accepted-the-optional-companion-services-wheel", text: "Amendment 2026-10-31 (Accepted): the optional companion services wheel", level: 2}
+  - path: "docs/adr/4.x/2026-10-31-1-charter-write-budget-for-repository-scale-projects.md"
+    title: "ADR: a charter-write budget for repository-scale projects, and why 2 s is not it"
+    divio_type: "none"
+    abstract: "A charter write command is budgeted by a structural round-trip count and a ratio to the cost of reading the same project; the 2 s CLI budget stays for typical projects."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "where-the-time-went-and-what-this-mission-removed", text: "Where the time went, and what this mission removed", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "calibration", text: "Calibration", level: 3}
+    - {slug: "questions-this-record-leaves-to-the-operator", text: "Questions this record leaves to the operator", level: 2}
   - path: "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md"
     title: "ADR: the docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected"
     divio_type: "none"
@@ -4091,6 +4088,16 @@ pages:
     - {slug: "1-changelog-entries-are-per-pr-fragments", text: "1. Changelog entries are per-PR fragments", level: 3}
     - {slug: "2-the-docs-retrieval-index-and-its-siblings-regenerate-on-main-through-a-bot-pr", text: "2. The docs retrieval index and its siblings regenerate on `main`, through a bot PR", level: 3}
     - {slug: "3-main-merges-through-github-s-merge-queue", text: "3. `main` merges through GitHub's merge queue", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-11-01-2-op-lifecycle-records-are-one-file-per-record.md"
+    title: "ADR: Op lifecycle records are one file per record"
+    divio_type: "none"
+    abstract: "spec-kitty next writes each lifecycle record to its own kitty-ops/lifecycle/<ulid>.json; the shared lifecycle.jsonl stays readable, never written."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "why-not-the-others", text: "Why not the others", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
@@ -4969,6 +4976,7 @@ pages:
     anchors:
     - {slug: "retrospective-yaml-schema", text: "retrospective.yaml schema", level: 2}
     - {slug: "finding-shape", text: "Finding shape", level: 3}
+    - {slug: "generator-shape-records-retrospect-create", text: "Generator-shape records (`retrospect create`)", level: 3}
     - {slug: "proposal-kinds", text: "Proposal kinds", level: 2}
     - {slug: "add-glossary-term", text: "add_glossary_term", level: 3}
     - {slug: "update-glossary-term", text: "update_glossary_term", level: 3}
@@ -5266,20 +5274,6 @@ pages:
     - {slug: "charter-yaml-precedence-over-charter-md", text: "charter.yaml precedence over charter.md", level: 2}
     - {slug: "the-charter-path-literal-authority-gate", text: "The charter path-literal authority gate", level: 2}
     - {slug: "related-contracts", text: "Related contracts", level: 2}
-  - path: "docs/architecture/README.md"
-    title: "Architecture"
-    divio_type: "none"
-    abstract: "Landing page for the architecture corpus: what lives in docs/architecture/ versus docs/adr/, which pages are living, and which are frozen history."
-    anchors:
-    - {slug: "boundary-rule-single-source-of-truth", text: "Boundary rule (single source of truth)", level: 2}
-    - {slug: "living-pages-and-frozen-history", text: "Living pages and frozen history", level: 2}
-    - {slug: "decay-rule-so-the-layout-can-t-re-drift", text: "Decay rule (so the layout can't re-drift)", level: 3}
-    - {slug: "structure", text: "Structure", level: 2}
-    - {slug: "adr-locations", text: "ADR locations", level: 2}
-    - {slug: "c4-model", text: "C4 model", level: 2}
-    - {slug: "creating-a-new-adr", text: "Creating a new ADR", level: 2}
-    - {slug: "find-adrs", text: "Find ADRs", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/acceptance-scenario-contract.md"
     title: "The acceptance scenario contract"
     divio_type: "explanation"
@@ -5828,19 +5822,28 @@ pages:
     abstract: "Spec Kitty's authoritative matrix of how each supported host surface teaches the governance-injection contract for spec-kitty dispatch, with per-surface parity status."
     anchors: []
   - path: "docs/architecture/index.md"
-    title: "Architecture notes"
+    title: "Architecture"
     divio_type: "none"
-    abstract: "Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history."
+    abstract: "Landing page and page index for docs/architecture/: the boundary rule between decisions and consumption, living and frozen pages, the decay rule, and ADR locations."
     anchors:
-    - {slug: "living-architecture-current-forward", text: "Living architecture (current + forward)", level: 2}
-    - {slug: "explanations", text: "Explanations", level: 2}
-    - {slug: "status-trail-workflow-models", text: "Status, trail & workflow models", level: 2}
-    - {slug: "connector-installation-decisions", text: "Connector & installation decisions", level: 2}
-    - {slug: "assessments", text: "Assessments", level: 2}
-    - {slug: "calibration-reports", text: "Calibration reports", level: 2}
-    - {slug: "ownership-charter-models", text: "Ownership & charter models", level: 2}
-    - {slug: "templates-reference", text: "Templates & reference", level: 2}
-    - {slug: "historical-prior-cycle", text: "Historical / prior cycle", level: 2}
+    - {slug: "boundary-rule-single-source-of-truth", text: "Boundary rule (single source of truth)", level: 2}
+    - {slug: "living-pages-and-frozen-history", text: "Living pages and frozen history", level: 2}
+    - {slug: "decay-rule-so-the-layout-can-t-re-drift", text: "Decay rule (so the layout can't re-drift)", level: 3}
+    - {slug: "structure", text: "Structure", level: 2}
+    - {slug: "adr-locations", text: "ADR locations", level: 2}
+    - {slug: "c4-model", text: "C4 model", level: 2}
+    - {slug: "creating-a-new-adr", text: "Creating a new ADR", level: 2}
+    - {slug: "find-adrs", text: "Find ADRs", level: 2}
+    - {slug: "page-index", text: "Page index", level: 2}
+    - {slug: "living-architecture-current-forward", text: "Living architecture (current + forward)", level: 3}
+    - {slug: "explanations", text: "Explanations", level: 3}
+    - {slug: "status-trail-workflow-models", text: "Status, trail & workflow models", level: 3}
+    - {slug: "connector-installation-decisions", text: "Connector & installation decisions", level: 3}
+    - {slug: "assessments", text: "Assessments", level: 3}
+    - {slug: "calibration-reports", text: "Calibration reports", level: 3}
+    - {slug: "ownership-charter-models", text: "Ownership & charter models", level: 3}
+    - {slug: "templates-reference", text: "Templates & reference", level: 3}
+    - {slug: "historical-prior-cycle", text: "Historical / prior cycle", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/kanban-workflow.md"
     title: "Kanban Workflow Explained"
@@ -11764,7 +11767,7 @@ pages:
   - path: "docs/development/how-to/service-pins.md"
     title: "How to fetch, verify and bump the pinned service binaries"
     divio_type: "how-to"
-    abstract: "Fetch and verify the pinned spec-kitty-events service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor."
+    abstract: "Fetch and verify the pinned service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor."
     anchors:
     - {slug: "fetch-and-verify-in-a-checkout", text: "Fetch and verify in a checkout", level: 2}
     - {slug: "fetch-and-verify-in-ci", text: "Fetch and verify in CI", level: 2}
@@ -12513,6 +12516,7 @@ pages:
     - {slug: "authoring-a-retrospective-on-demand", text: "Authoring a retrospective on demand", level: 2}
     - {slug: "backfilling-historical-records", text: "Backfilling historical records", level: 2}
     - {slug: "reviewing-and-applying-proposals", text: "Reviewing and applying proposals", level: 2}
+    - {slug: "what-create-synthesize-can-do-today", text: "What `create` → `synthesize` can do today", level: 3}
     - {slug: "migration-from-env-vars-deprecated", text: "Migration from env vars (deprecated)", level: 2}
     - {slug: "what-the-commands-don-t-do", text: "What the commands DON'T do", level: 2}
     - {slug: "common-errors-and-remediations", text: "Common errors and remediations", level: 2}
