@@ -26,6 +26,13 @@ anchors in
 The when-doing copy for each section MUST match the contract in
 ``kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-context-resolver.md``
 verbatim — drift here is a contract violation (R-3 from the WP04 task).
+
+Supersession (#6968): that archived contract's row 4 still says the block
+appears when the charter "has at least one action-critical section" and carries
+"either the verbatim body OR the fetch stanza" per configured section. Since
+#6968 only headings the active ``charter.md`` resolves are advertised (each with
+its body and its fetch stanza), and the block is omitted when none resolves. The
+archive is frozen byte-identical, so the supersession is recorded here.
 """
 
 from __future__ import annotations
