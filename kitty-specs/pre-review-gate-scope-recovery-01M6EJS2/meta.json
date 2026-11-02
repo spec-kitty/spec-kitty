@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-pre-review-gate-scope-recovery-01M6EJS2",
+  "created_at": "2026-11-02T16:51:44.379198+00:00",
+  "flattened": false,
+  "friendly_name": "pre review gate scope recovery",
+  "mid8": "01M6EJS2",
+  "mission_id": "01M6EJS28KN871H2E15PSJTTYS",
+  "mission_number": null,
+  "mission_slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances pre review gate scope recovery on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "pre review gate scope recovery",
+  "slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "target_branch": "main",
+  "topology": "coord"
+}
