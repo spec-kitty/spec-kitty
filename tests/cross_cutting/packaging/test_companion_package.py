@@ -250,11 +250,20 @@ def test_platform_tags(writer: ModuleType, target: str, floor: str, tag: str) ->
     assert writer.platform_tag(target, floor) == tag
 
 
-def test_the_macos_floor_is_a_parameter_not_a_constant(writer: ModuleType) -> None:
+@pytest.mark.parametrize(
+    ("macos_floor", "tag"),
+    [("11_0", "py3-none-macosx_11_0_arm64"), ("12_0", "py3-none-macosx_12_0_arm64"), ("10_15", "py3-none-macosx_10_15_arm64")],
+)
+def test_the_macos_floor_is_a_parameter_not_a_constant(writer: ModuleType, macos_floor: str, tag: str) -> None:
     """The macOS minimum is a build input like the glibc one, so a newer runner can raise it (#6948)."""
-    assert writer.platform_tag("macos-arm64", macos_floor="12_0") == "py3-none-macosx_12_0_arm64"
-    assert writer.platform_tag("macos-arm64", glibc_floor="2_28", macos_floor="13_1") == "py3-none-macosx_13_1_arm64"
-    assert writer.DEFAULT_MACOS_FLOOR == "11_0"
+    assert writer.platform_tag("macos-arm64", macos_floor=macos_floor) == tag
+
+
+@pytest.mark.parametrize("macos_floor", ["11_1", "13_1", "14_5"])
+def test_a_macos_floor_with_a_minor_from_macos_11_is_refused(writer: ModuleType, macos_floor: str) -> None:
+    """pip generates only ``macosx_<major>_0_*`` from macOS 11, so such a tag would match no host (#6948)."""
+    with pytest.raises(ValueError, match="macOS floor"):
+        writer.platform_tag("macos-arm64", macos_floor=macos_floor)
 
 
 @pytest.mark.parametrize(("target", "kwargs", "match"), [("linux-x64", {"macos_floor": "11"}, "macOS floor"), ("macos-arm64", {"glibc_floor": ""}, "glibc floor")])
