@@ -30,6 +30,8 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from kernel.ancestor_walk import find_ancestor
+
 __all__ = [
     "BannedTermHit",
     "NeutralityLintResult",
@@ -406,10 +408,8 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
 
 def _find_repo_root(start: Path) -> Path:
     """Find the repository root by walking upward for pyproject.toml."""
-    for parent in [start, *start.parents]:
-        if (parent / "pyproject.toml").exists():
-            return parent
-    return Path.cwd()
+    root = find_ancestor(start, lambda parent: (parent / "pyproject.toml").exists())
+    return root if root is not None else Path.cwd()
 
 
 def _resolve_scan_settings(

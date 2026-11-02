@@ -37,6 +37,7 @@ import warnings
 from collections.abc import Mapping, MutableMapping
 from pathlib import Path
 
+from kernel.ancestor_walk import find_ancestor
 from kernel.env_expand import expand_env_template
 from kernel.paths import get_runtime_state_root
 
@@ -138,12 +139,15 @@ def _find_repo_root(start: Path) -> Path | None:
     Stdlib-only, deliberately narrow mirror of the richer project-root
     resolver in ``specify_cli.core.paths`` (not importable here -- see the
     module docstring): this only needs to know where the per-repo
-    ``.kitty.env`` tier and the ``config.yaml`` pointer would live.
+    ``.kitty.env`` tier and the ``config.yaml`` pointer would live. The ancestor
+    walk itself is shared with every other root walk (``kernel.ancestor_walk``,
+    stdlib-only by design), so this also stops at ``GIT_CEILING_DIRECTORIES``
+    (#7056).
     """
-    for ancestor in (start, *start.parents):
-        if (ancestor / _KITTIFY_DIR_NAME).is_dir() or (ancestor / _GIT_DIR_NAME).exists():
-            return ancestor
-    return None
+    return find_ancestor(
+        start,
+        lambda ancestor: (ancestor / _KITTIFY_DIR_NAME).is_dir() or (ancestor / _GIT_DIR_NAME).exists(),
+    )
 
 
 def _read_tier(path: Path) -> dict[str, str]:

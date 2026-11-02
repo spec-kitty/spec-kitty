@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from kernel.ancestor_walk import iter_ancestors
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
 from kernel.git import GitCommandError, StatusEntry, status_entries
@@ -79,7 +80,7 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
     # Fallback: support plain git repositories that do not contain .kittify yet.
     # It stops at the same ``GIT_CEILING_DIRECTORIES`` as locate_project_root (#7022).
     ceilings = git_ceiling_dirs()
-    for candidate in [current, *current.parents]:
+    for candidate in iter_ancestors(current, ceilings=ceilings):
         git_path = candidate / ".git"
 
         if git_path.is_dir() and (git_path / "HEAD").is_file():
@@ -91,8 +92,6 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
                 return resolved
 
         if boundary is not None and candidate == boundary:
-            break
-        if candidate in ceilings:
             break
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")

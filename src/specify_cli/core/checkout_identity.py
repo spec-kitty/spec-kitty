@@ -46,6 +46,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from kernel.ancestor_walk import iter_ancestors
+
 __all__ = [
     "CheckoutIdentity",
     "FailClosedRefusal",
@@ -159,7 +161,7 @@ def _resolve_invocation(cwd: Path) -> tuple[Path, Path]:
     When no ``.git`` is found the resolved ``cwd`` is its own (degenerate) root.
     """
     resolved = cwd.resolve()
-    for candidate in (resolved, *resolved.parents):
+    for candidate in iter_ancestors(resolved):
         git_path = candidate / ".git"
         if git_path.is_dir():
             return candidate, candidate
