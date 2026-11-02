@@ -1,6 +1,6 @@
 # Research: caller-supplied `migration:` actors are not seeds (#6754)
 
-Grounded 2026-10-30 on `main` @ `567ee` (`512567eee7`) in `/home/exedev/work/sk-6754`.
+Grounded 2026-10-30 on `main` @ `567ee` (`512567eee7`) in a local checkout.
 Scope guidance from the operator's dispatch: close the seed-spoofing hole without
 breaking legitimate reconstruction; pin the refusal/allowed matrix with tests; state
 the compatibility consequence in the changelog.
