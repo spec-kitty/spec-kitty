@@ -912,7 +912,6 @@ def test_check_cli_guards_propagates_unregistered_mission_family_error(monkeypat
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),

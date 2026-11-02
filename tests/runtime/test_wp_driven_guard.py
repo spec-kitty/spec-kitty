@@ -77,12 +77,12 @@ def test_non_wp_driven_family_is_unaffected(tmp_path: Path) -> None:
 
 
 def test_presence_fact_takes_wp_driven_from_the_threaded_run(tmp_path: Path) -> None:
-    """The fact port: ``run_dir`` wins, an explicit slug is the only fallback.
+    """The fact port: ``run_dir`` is the only input.
 
     #6330 item 1 removes the implicit ``feature_dir.name`` derivation. The same
-    fixture is asked three ways: with the run directory (authoritative), with an
-    explicit mission slug (read-only fallback), and with neither (no fact — never
-    a guess from the directory name, even when that name happens to be the slug).
+    fixture is asked twice: with the run directory (authoritative), and without
+    (no fact -- never a guess from the directory name, even when that name
+    happens to be the slug).
     """
     from runtime.next.runtime_bridge import get_or_start_run
     from runtime.next.runtime_bridge_io import gather_artifact_presence
@@ -101,7 +101,6 @@ def test_presence_fact_takes_wp_driven_from_the_threaded_run(tmp_path: Path) -> 
         ).wp_driven
 
     assert _fact(run_dir=Path(run_ref.run_dir)) is True
-    assert _fact(mission_slug=slug) is True
     assert _fact() is False
 
 

@@ -799,7 +799,6 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(monkeypatch: pyte
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -833,7 +832,6 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -881,7 +879,6 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -914,7 +911,6 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -1077,7 +1073,6 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
         repo_root: Path | None = None,
         owned: object | None = None,
         run_dir: Path | None = None,
-        mission_slug: str | None = None,
     ) -> list[str]:
         calls.append(action)
         repo_roots_seen.append(repo_root)

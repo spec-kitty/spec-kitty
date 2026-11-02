@@ -1548,7 +1548,6 @@ def gather_artifact_presence(
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
-    mission_slug: str | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1582,11 +1581,9 @@ def gather_artifact_presence(
     resolving a home degrades to the supplied directory rather than raising
     (:class:`_ArtifactPresenceHomes`).
 
-    ``run_dir`` and ``mission_slug`` feed the ``wp_driven`` fact (#6330). The
-    caller that resolves a run threads ``run_dir`` and it is authoritative; a
-    direct caller holding no run may pass the mission handle explicitly and the
-    run recorded for it is read read-only. ``feature_dir.name`` is never used as
-    a mission handle — a caller that supplies neither input gets
+    ``run_dir`` feeds the ``wp_driven`` fact (#6330). The caller that resolves a
+    run threads it and it is authoritative. ``feature_dir.name`` is never used as
+    a mission handle -- a caller that supplies no ``run_dir`` gets
     ``wp_driven=False``, not a guess. A ``run_dir`` that belongs to a different
     mission than ``feature_dir`` is the caller's contract to keep; it is not
     cross-checked here.
@@ -1680,5 +1677,5 @@ def gather_artifact_presence(
         step_id=step_id,
         legacy_step_id=legacy_step_id,
         blocking_artifact_names=blocking_artifact_names,
-        wp_driven=_wp_driven_fact(step_id, run_dir, repo_root, mission_slug),
+        wp_driven=_wp_driven_fact(step_id, run_dir),
     )

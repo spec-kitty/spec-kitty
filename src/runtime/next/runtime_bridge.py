@@ -240,7 +240,6 @@ def _check_cli_guards(
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
-    mission_slug: str | None = None,
 ) -> list[str]:
     """Evaluate the CLI guards for ``step_id`` and return the failures.
 
@@ -263,10 +262,10 @@ def _check_cli_guards(
     ``analysis_currency`` (WP07) is the injected analysis-report check; it is
     read only for the software-dev ``analyze`` step.
 
-    ``run_dir`` / ``mission_slug`` (#6330) feed the ``wp_driven`` fact and are
-    forwarded verbatim to :func:`runtime_bridge_io.gather_artifact_presence`:
-    runtime callers thread the run they already resolved, and no path here
-    re-derives a mission handle from ``feature_dir.name``.
+    ``run_dir`` (#6330) feeds the ``wp_driven`` fact and is forwarded verbatim to
+    :func:`runtime_bridge_io.gather_artifact_presence`: runtime callers thread the
+    run they already resolved, and no path here re-derives a mission handle from
+    ``feature_dir.name``.
 
     Returns list of failure descriptions; empty list means all guards pass.
     """
@@ -280,7 +279,6 @@ def _check_cli_guards(
         repo_root=repo_root,
         owned=owned,
         run_dir=run_dir,
-        mission_slug=mission_slug,
         **injected,
     )
     if step_id in ("implement", "review"):
