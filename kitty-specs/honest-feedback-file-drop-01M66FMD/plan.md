@@ -54,7 +54,7 @@ src/specify_cli/cli/commands/agent/
 
 tests/specify_cli/cli/commands/agent/
 ├── _rework_loop_harness.py       # existing shared e2e harness (reused, not modified)
-├── test_issue_6699_feedback_file_edges.py   # new: red-first e2e tests per edge
+├── test_move_task_feedback_file_edges.py   # new: red-first e2e tests per edge
 └── fixtures/tasks_cli/help/move-task.help   # golden --help fixture updated
 
 docs/changelog/CHANGELOG.md       # [Unreleased] entry
@@ -83,7 +83,7 @@ None — no charter violations.
 
 - **Purpose**: Pin, through the real CLI, that an arbiter override with `--review-feedback-file` succeeds, warns on stderr, records the note, and fabricates no approval cycle.
 - **Relevant requirements**: FR-003, C-001
-- **Affected surfaces**: `tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py` (rework-loop harness)
+- **Affected surfaces**: `tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py` (rework-loop harness)
 - **Sequencing/depends-on**: none (independent of IC-01's code change; both land in one WP)
 - **Risks**: none — pure test addition; pairs the warning assertion with the no-flag negative control on the same fixture (non-vacuity).
 

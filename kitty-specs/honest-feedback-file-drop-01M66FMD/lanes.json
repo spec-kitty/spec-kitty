@@ -12,7 +12,7 @@
       ],
       "write_scope": [
         "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
-        "tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py"
+        "tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py"
       ],
       "predicted_surfaces": [
         "api",

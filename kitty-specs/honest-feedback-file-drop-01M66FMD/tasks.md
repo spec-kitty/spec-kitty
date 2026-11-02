@@ -27,7 +27,7 @@ description: "Work package task list for honest-feedback-file-drop-01M66FMD"
 ## Work Package WP01: Refuse `--review-feedback-file` on non-recordable edges (Priority: P1) 🎯 MVP
 
 **Goal**: `move-task` exits 1 with an edge-naming refusal when `--review-feedback-file` is supplied on an edge that writes no review cycle (neither review-rejection nor approval); rejection/approval edge behaviour is unchanged; the arbiter-override warning is pinned end-to-end.
-**Independent Test**: the red-first e2e tests in `tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py` fail on `main` and pass after the guard arm lands; the #6652 tests pass unmodified.
+**Independent Test**: the red-first e2e tests in `tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py` fail on `main` and pass after the guard arm lands; the #6652 tests pass unmodified.
 **Prompt**: `kitty-specs/honest-feedback-file-drop-01M66FMD/tasks/WP01-refuse-feedback-file-non-recordable-edges.md`
 **Requirement Refs**: FR-001, FR-002, FR-003, NFR-001, NFR-002, C-002
 

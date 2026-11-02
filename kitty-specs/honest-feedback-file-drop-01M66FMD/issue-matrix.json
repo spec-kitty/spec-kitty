@@ -25,7 +25,7 @@
       "wp": "WP01"
     },
     "#6652": {
-      "evidence_ref": "approval-writer record-or-warn behaviour from #6652 kept unmodified (test_tasks_move_task_seam.py green unmodified) and now pinned end-to-end by test_arbiter_override_with_feedback_file_warns_and_records_only_the_note in tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py",
+      "evidence_ref": "approval-writer record-or-warn behaviour from #6652 kept unmodified (test_tasks_move_task_seam.py green unmodified) and now pinned end-to-end by test_arbiter_override_with_feedback_file_warns_and_records_only_the_note in tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -37,7 +37,7 @@
       "wp": "WP01"
     },
     "#6699": {
-      "evidence_ref": "commit 1220a1732b (guard arm + red-first tests) and d13d9ffc71 (review-nit pins); refusal contract pinned in tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py",
+      "evidence_ref": "commit 1220a1732b (guard arm + red-first tests) and d13d9ffc71 (review-nit pins); refusal contract pinned in tests/specify_cli/cli/commands/agent/test_move_task_feedback_file_edges.py",
       "fr": null,
       "nfr": null,
       "repo": null,
