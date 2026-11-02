@@ -587,16 +587,27 @@ def test_timeout_budget_guard_bites_on_a_markerless_consumer() -> None:
     assert _budget_offenders(dependencies, tests) == ["test_below_ceiling", "test_markerless"]
 
 
+_COLLECT_FUNCTION_HINT = "collect"
+
+
 def _bare_collection_timeouts(source: str) -> list[str]:
-    """``"line:column timeout=<n>"`` for every call in *source* passing an integer-literal ``timeout=``."""
+    """``"line:column timeout=<n>"`` for a collection function in *source* passing an int ``timeout=``.
+
+    Only calls inside a function whose name names the collection are inspected, so an unrelated
+    bounded call in the same module is not reported; the ceiling is the one authority those calls
+    must use.
+    """
     problems = []
-    for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.Call):
+    for function in ast.walk(ast.parse(source)):
+        if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)) or _COLLECT_FUNCTION_HINT not in function.name:
             continue
-        for keyword in node.keywords:
-            value = keyword.value
-            if keyword.arg == "timeout" and isinstance(value, ast.Constant) and isinstance(value.value, int):
-                problems.append(f"{node.lineno}:{node.col_offset} timeout={value.value}")
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Call):
+                continue
+            for keyword in node.keywords:
+                value = keyword.value
+                if keyword.arg == "timeout" and isinstance(value, ast.Constant) and isinstance(value.value, int):
+                    problems.append(f"{node.lineno}:{node.col_offset} timeout={value.value}")
     return problems
 
 
@@ -608,5 +619,6 @@ def test_collection_subprocesses_use_the_named_ceiling() -> None:
         f"{Path(gc.__file__).name} bounds a collection with a bare numeric timeout at {offenders}; "
         "pass gc.COLLECT_TIMEOUT_S so consumer budgets can derive from the same authority (#7052)"
     )
-    # Positive control: the scanner sees the shape it forbids.
-    assert _bare_collection_timeouts("subprocess.run(args, timeout=900)") == ["1:0 timeout=900"]
+    # Positive control: the scanner sees the shape it forbids, and only inside the collection.
+    assert _bare_collection_timeouts("def _collect(\n    args,\n):\n    return run(args, timeout=900)\n") == ["4:11 timeout=900"]
+    assert _bare_collection_timeouts("def render(\n    args,\n):\n    return run(args, timeout=900)\n") == []
