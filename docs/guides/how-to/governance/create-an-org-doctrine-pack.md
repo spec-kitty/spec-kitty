@@ -587,7 +587,7 @@ Expansion happens only when the path is resolved (e.g. `charter fetch`,
 string is what stays written in `.kittify/config.yaml`, so the config remains
 portable across machines/CI. `charter org add` never expands the token and never rewrites the entry
 into a machine-local path; only redundant `./` prefixes and trailing separators are
-normalised (`./packs/acme` is written as `packs/acme`). If the referenced variable is unset or empty,
+normalized (`./packs/acme` is written as `packs/acme`). If the referenced variable is unset or empty,
 resolution fails closed with a named error identifying the variable and the
 pack, rather than silently falling back to a literal-token path or disabling
 the org layer.
