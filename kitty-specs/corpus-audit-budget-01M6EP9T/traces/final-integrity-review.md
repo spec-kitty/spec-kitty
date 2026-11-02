@@ -37,6 +37,14 @@ The orchestrator captures the external independent verdict; it does not substitu
 
 All blocking checks passed on the reviewed hosted tip. The separately advisory `built-in / -m corpus suite` job in run `41506010492` was canceled at its existing **20-minute job maximum**, as explicitly confirmed by its check annotation; it showed 97% progress and no assertion-failure output before cancellation. The workflow deliberately excludes this advisory job from the blocking packs/router gates, which passed. This is not a passed advisory suite, and no retry, scheduling/timeout-policy change or claim of its completion is made here. The final-tip check outcomes will be disclosed at handoff.
 
+## Recorded pre-merge acceptance
+
+On 2026-11-02 at 22:11:38Z, the canonical `accept --owned-checkout ... --mode pr --actor pi --json` command **recorded acceptance**, using the explicit candidate CLI from separate PR #7103 at `8eeb0d43f6c93dee9b00c3f85ccb057520cbdefd`. That repair had independent approval and fully completed hosted CI (54 passed, nine skipped, zero failures; all three required checks passed). Its production changes are not folded into this Mission branch.
+
+The accept report names commit `2da76dac39427e6281cb59c068cdf318c0cd46a0`, from parent `5d32d388b78fdcdd624b466916a0b2bbc563b0c5`, with summary `ok=true`, zero metadata/activity/path/missing-artifact/failed/blocked issues, and no origin advisories. The rebased branch was published with an exact-head lease before acceptance, so normal origin enforcement succeeded; no warn/off override, lenient mode or attestation was used. Protected-primary Git status was unchanged. Both the planning anchor and these acceptance commits remain reachable in the final linear history rather than being orphaned by cosmetic compaction.
+
+WP01 is **approved**, with `merge_pending_wps=[WP01]`; `done_wps` remains empty until the operator's real merge. Acceptance is not a mainline merge. A final normal hosted run on the published closeout tip is still required before ready-for-review handoff. Merge order is #7103 → #7096 → refreshed #7071; no new PR's auto-merge is armed.
+
 ## Aggregate synthesis and history hygiene
 
 There is one WP and one five-line executable-surface delta; the independent final review covers the aggregate diff as well as test integrity. Synthesis: **LAND for operator review**, subject to final-tip required CI and ordinary merge controls, not authorization to merge or auto-merge this dependency PR. #7071 is separate and unchanged.
