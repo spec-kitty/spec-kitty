@@ -15,6 +15,7 @@ from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.consolidation._constants import (
     logger,
 )
+from specify_cli.consolidation.bookkeeping_projection import _resolve_ref_sha
 from specify_cli.consolidation.git_probes import (
     _emit_remediation_hint,
     _is_linear_history_rejection,
@@ -43,23 +44,51 @@ def _phase_dossier_and_stale(run: _MergeRunState) -> None:
         run.stale_report = None
 
 
-def _phase_push(run: _MergeRunState) -> None:
-    """Push the target branch to origin when requested (and a remote exists)."""
-    lanes_manifest = run.lanes_manifest
-    if not (run.push and has_remote(run.main_repo)):
-        return
-    _ret_push, _out_push, stderr_push = run_command(
-        ["git", "push", "origin", lanes_manifest.target_branch],
+def _push_target_branch(run: _MergeRunState) -> tuple[bool, str]:
+    """Push the target branch to origin; ``(ok, failure_text)`` (the text is empty on success)."""
+    ret, out, err = run_command(
+        ["git", "push", "origin", run.lanes_manifest.target_branch],
         capture=True,
         check_return=False,
         cwd=run.main_repo,
     )
-    if _ret_push != 0:
-        if _is_linear_history_rejection(stderr_push):
-            _emit_remediation_hint(console)
-        console.print(f"[red]Error:[/red] Push failed: {stderr_push.strip() or _out_push.strip()}")
+    if ret == 0:
+        return True, ""
+    if _is_linear_history_rejection(err):
+        _emit_remediation_hint(console)
+    return False, err.strip() or out.strip()
+
+
+def _phase_push(run: _MergeRunState) -> None:
+    """Push the target branch to origin when requested (and a remote exists)."""
+    if not (run.push and has_remote(run.main_repo)):
+        return
+    ok, failure = _push_target_branch(run)
+    if not ok:
+        console.print(f"[red]Error:[/red] Push failed: {failure}")
         raise typer.Exit(1)
-    console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
+    console.print(f"[green]✓[/green] Pushed {run.lanes_manifest.target_branch} to origin")
+
+
+def _phase_push_cleanup_commits(run: _MergeRunState, tip_before_cleanup: str) -> None:
+    """Publish the bookkeeping commits the cleanup phase made, when it made any (#6450).
+
+    ``_phase_push`` runs BEFORE cleanup, so the tombstone and coordination-flatten
+    commits made during cleanup would otherwise stay local-only on a ``--push`` run.
+    The landing is already verified and pushed once, so a failure here only warns:
+    teardown and ``clear_state`` must still complete.
+    """
+    if not (run.push and has_remote(run.main_repo)):
+        return
+    target = run.lanes_manifest.target_branch
+    if _resolve_ref_sha(run.main_repo, target) == tip_before_cleanup:
+        return
+    ok, failure = _push_target_branch(run)
+    if ok:
+        console.print(f"[green]✓[/green] Pushed the cleanup commits on {target} to origin")
+        return
+    logger.warning("Could not push cleanup commits on %s: %s", target, failure)
+    console.print(f"  [yellow]Warning:[/yellow] cleanup commits on {escape(target)} were not pushed: {escape(failure)}")
 
 
 def _phase_finalize_and_summary(run: _MergeRunState) -> None:

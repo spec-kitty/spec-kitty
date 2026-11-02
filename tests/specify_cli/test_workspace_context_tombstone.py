@@ -427,3 +427,17 @@ def test_tombstone_commit_is_skipped_when_no_tracked_context_was_removed(tmp_pat
     assert not (repo / ".kittify" / "workspaces" / "m-lane-a.json").exists()
     assert _git(repo, "rev-parse", "HEAD").stdout.strip() == before, "an untracked context must not produce a commit"
     assert _git(repo, "status", "--porcelain").stdout.strip() == ""
+
+
+def test_tombstone_commit_failure_warns_and_does_not_fail_teardown(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A bookkeeping-commit failure after the landing is reported, never raised."""
+    from specify_cli.git.commit_helpers import SafeCommitError
+
+    repo = _init_merge_repo(tmp_path, tracked=("lane-a",), untracked=())
+    run = _make_merge_run(repo, lane_ids=["lane-a"])
+
+    with patch.object(phase_teardown, "commit_merge_bookkeeping", side_effect=SafeCommitError("boom")):
+        _run_tombstones(run)  # must not raise
+
+    assert not (repo / ".kittify" / "workspaces" / "m-lane-a.json").exists()
+    assert "were not committed" in capsys.readouterr().out

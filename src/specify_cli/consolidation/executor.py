@@ -136,6 +136,7 @@ from specify_cli.consolidation.phase_finalize import (
     _phase_dossier_and_stale,
     _phase_finalize_and_summary,
     _phase_push,
+    _phase_push_cleanup_commits,
 )
 from specify_cli.consolidation.phase_gate import (
     _phase_reconcile_before_teardown,
@@ -644,7 +645,9 @@ def _run_lane_based_consolidation_locked(
     rollback.settle_branch(run.main_repo, run.state, run.lanes_manifest.target_branch)
     _phase_dossier_and_stale(run)
     _phase_push(run)
+    tip_before_cleanup = _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)
     _phase_cleanup_worktrees_and_branches(run)
+    _phase_push_cleanup_commits(run, tip_before_cleanup)
     _phase_finalize_and_summary(run)
 
 
