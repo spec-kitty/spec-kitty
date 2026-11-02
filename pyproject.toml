@@ -1986,7 +1986,6 @@ exclude = [
     "tests/specify_cli/invocation/test_projection_policy.py",
     "tests/specify_cli/invocation/test_propagator_policy.py",
     "tests/specify_cli/invocation/test_registry_builtin_activation_parity.py",
-    "tests/specify_cli/invocation/test_router.py",
     "tests/specify_cli/invocation/test_writer.py",
     "tests/specify_cli/invocation/test_writing_comms_routing.py",
     "tests/specify_cli/lanes/test_lane_base_honoring.py",
