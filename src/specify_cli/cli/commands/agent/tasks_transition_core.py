@@ -273,6 +273,7 @@ def _wire_contract_allows_force_free(
     try:
         candidate = StatusTransitionPayload(
             mission_slug="_wire_probe",
+            mission_id=None,
             wp_id="_wire_probe",
             from_lane=Lane(old_lane),
             to_lane=Lane(new_lane),
@@ -282,6 +283,7 @@ def _wire_contract_allows_force_free(
             execution_mode=ExecutionMode("direct_repo"),
             review_ref=review_ref,
             evidence=None,
+            summary=None,
         )
     except (ValueError, TypeError):
         return False
