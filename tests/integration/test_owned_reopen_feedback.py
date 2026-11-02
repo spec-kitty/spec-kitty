@@ -16,8 +16,31 @@ from specify_cli.lanes.persistence import require_lanes_json, write_lanes_json
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.store import read_events
 from specify_cli.consolidation.preflight import _independent_reviewer_confirmed
+from spec_kitty_events.status import ExecutionMode, Lane, StatusTransitionPayload, validate_transition
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def _assert_wire_valid(event: StatusEvent) -> None:
+    """Rebuild the recorded row as the shared wire payload and validate it (#6955).
+
+    This is the issue's own complaint, not a proxy: hosted sync enforces this
+    contract, so a row it rejects is a row that never propagates.
+    """
+    payload = StatusTransitionPayload(
+        mission_slug=event.mission_slug,
+        wp_id=event.wp_id,
+        from_lane=Lane(event.from_lane),
+        to_lane=Lane(event.to_lane),
+        actor=event.actor or "unknown",
+        force=event.force,
+        reason=event.reason,
+        execution_mode=ExecutionMode(event.execution_mode),
+        review_ref=event.review_ref,
+        evidence=None,
+    )
+    result = validate_transition(payload)
+    assert result.valid is True, (event.to_dict(), getattr(result, "violations", None))
 
 
 def _snapshot(root: Path) -> tuple[str, dict[str, bytes]]:
@@ -155,7 +178,12 @@ def test_owned_approved_reopen_feedback_contract(
         # Existing FR-015 explicitly promotes the missing-ref backward move.
         # Preserve that policy honestly; this case is never called force-free.
         assert event.force is True, event.to_dict()
-        assert event.review_ref is None
+        # #6955: the forced row must still be a payload hosted sync accepts. The
+        # pinned contract's gated rewind family requires a non-empty review_ref
+        # whether or not the event is forced, and ``force-override`` is this
+        # command's established (non-resolvable) sentinel for an operator rewind.
+        assert event.review_ref == "force-override", event.to_dict()
+    _assert_wire_valid(event)
     assert event.actor == {"tool": "codex", "profile": "implementer-ivan", "model": None, "role": "implementer"}
 
 
