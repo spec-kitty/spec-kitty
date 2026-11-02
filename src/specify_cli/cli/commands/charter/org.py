@@ -54,9 +54,6 @@ ORG_PACK_EXISTS = "ORG_PACK_EXISTS"
 ORG_PACK_NOT_FOUND = "ORG_PACK_NOT_FOUND"
 ORG_PACK_UNREADABLE = "ORG_PACK_UNREADABLE"
 
-#: Names the offering resolves by tier; an org pack may not shadow them.
-_RESERVED_PACK_NAMES = ("built-in", "project")
-
 
 def _refuse(
     code: str,
@@ -451,7 +448,7 @@ def _add_entry(
 
     from pydantic import ValidationError
 
-    from charter.offering.drg.org_pack_config import OrgPackConfig, SourceType
+    from charter.offering.drg.org_pack_config import RESERVED_PACK_NAMES, OrgPackConfig, SourceType
 
     # C-001: the model's own literal union, read off the type so the two cannot drift.
     source_types: tuple[str, ...] = get_args(SourceType)
@@ -460,10 +457,10 @@ def _add_entry(
         _refuse(ORG_PACK_INVALID, "a pack name is required (it cannot be blank or whitespace only)", json_output=json_output)
     if name != name.strip():
         _refuse(ORG_PACK_INVALID, f"pack name {name!r} has leading or trailing whitespace", json_output=json_output)
-    if name in _RESERVED_PACK_NAMES:
+    if name in RESERVED_PACK_NAMES:
         _refuse(
             ORG_PACK_INVALID,
-            f"pack name {name!r} is reserved (the {', '.join(_RESERVED_PACK_NAMES)} tiers are not org packs)",
+            f"pack name {name!r} is reserved (the {', '.join(RESERVED_PACK_NAMES)} tiers are not org packs)",
             json_output=json_output,
         )
     if not local_path.strip():
