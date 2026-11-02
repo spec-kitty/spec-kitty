@@ -36,7 +36,7 @@ import ast
 import collections
 import inspect
 import sys
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -514,7 +514,7 @@ def _timeout_budget(func: Callable[..., Any]) -> float | None:
     """The effective ``pytest.mark.timeout`` value of *func*, or ``None`` when it inherits the ini default."""
     for marker in (*pytestmark, *getattr(func, "pytestmark", ())):
         if marker.name == "timeout" and marker.args:
-            return marker.args[0]
+            return float(marker.args[0])
     return None
 
 
@@ -531,18 +531,12 @@ def _budget_offenders(dependencies: Mapping[str, frozenset[str]], tests: Mapping
     budget that equals it is honest. Only a budget *below* it under-cuts the collector.
     """
     reaching = _universe_reaching_fixtures(dependencies)
-    return sorted(
-        name
-        for name, (requested, budget) in tests.items()
-        if requested & reaching and (budget is None or budget < gc.COLLECT_TIMEOUT_S)
-    )
+    return sorted(name for name, (requested, budget) in tests.items() if requested & reaching and (budget is None or budget < gc.COLLECT_TIMEOUT_S))
 
 
 def _module_tests(module: ModuleType) -> dict[str, tuple[frozenset[str], float | None]]:
     return {
-        name: (_requested_fixtures(func), _timeout_budget(func))
-        for name, func in vars(module).items()
-        if name.startswith("test_") and inspect.isfunction(func)
+        name: (_requested_fixtures(func), _timeout_budget(func)) for name, func in vars(module).items() if name.startswith("test_") and inspect.isfunction(func)
     }
 
 
