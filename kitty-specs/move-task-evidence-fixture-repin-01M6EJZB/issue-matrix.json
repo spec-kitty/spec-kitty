@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2335": {
+      "evidence_ref": "Provenance only: #2335 added the for_review auto-commit recovery path the fixture exercises; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6715": {
+      "evidence_ref": "Owns the owned-file evidence gate this Mission's fixtures now satisfy; gate untouched, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6780": {
+      "evidence_ref": "Follow-up hardening of the same gate; cited as provenance only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7022": {
+      "evidence_ref": "The PR-validation run that filed this issue; not in scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7057": {
+      "evidence_ref": "tests/tasks/test_move_task_git_validation_unit.py: 8 failed/7 passed on the planning base (9aed3a8012) -> 15 passed on the branch; fixture re-pinned, #6715 gate untouched; independent reviewer APPROVE",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7058": {
+      "evidence_ref": "Sibling out-of-matrix red #7022, landed as PR #7058; cited as the run that filed #7057, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

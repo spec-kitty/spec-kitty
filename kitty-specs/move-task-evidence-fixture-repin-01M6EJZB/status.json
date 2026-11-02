@@ -1,0 +1,55 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6EXJJ3M4XM34GK9EF58JMJB",
+  "materialized_at": "2026-11-02T20:00:25.204252+00:00",
+  "mission_number": "248",
+  "mission_slug": "move-task-evidence-fixture-repin-01M6EJZB",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6EXJJ3M4XM34GK9EF58JMJB",
+      "last_transition_at": "2026-11-02T20:00:25.204252+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: fixture re-pinned, 15/15 green, gate untouched",
+        "Review passed: gate untouched, fixture honest, 15/15 green, no skip/xfail/force; one non-blocking comment finding folded"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2271453,
+      "shell_pid_created_at": "1793648626.8",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}

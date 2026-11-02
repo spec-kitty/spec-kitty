@@ -1,0 +1,4 @@
+# Tooling friction — move-task-evidence-fixture-repin-01M6EJZB
+
+- **[2026-11-02][specify] `specify` on `main` mints a `coord` Mission.** The default topology is context-derived: on the primary branch it is `coord`, which created a coordination branch and coord worktree for a one-file test fix. Recreated on the topic branch with an explicit `--topology single_branch` after deleting the scaffold (nothing authored yet). Suggest the specify help point out that a PR-bound mission should be created from its topic branch.
+- **[2026-11-02][ground] `tests/tasks` is out of matrix.** `.github/ci-module-registry.yml` lists `tests/tasks` as an out-of-matrix directory, so no per-PR job runs it; the red survived until a validation run of another PR. The only in-repo proof available to this Mission is an explicit module run plus the nightly shard that owns the directory.

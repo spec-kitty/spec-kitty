@@ -1,0 +1,6 @@
+# Design decisions — move-task-evidence-fixture-repin-01M6EJZB
+
+- **[2026-11-02][plan] The fixture owns what its lane commits, not the other way round.** `owned_files` is declared on the WP (the same source `move-task` and `consolidate` read), and the deliverable moves under `src/` to match the lane's existing `write_scope`. No second ownership list is introduced in the test and the gate's matcher is not touched.
+- **[2026-11-02][plan] The done-override node names an approver instead of forcing.** A `done` move is an approval; #6715 refuses the placeholder `user`. Passing `--agent reviewer-renata` exercises the independence gate honestly, while `--force` would skip both gates and hollow out the node (ruling 3 permits force, the node's subject does not need it).
+- **[2026-11-02][plan] `single_branch` topology.** The Mission was specified on its topic branch with an explicit `--topology single_branch`: a one-module test re-pin does not need lane worktrees, and a branch-flat Mission keeps the history linear for a PR that a maintainer lands by hand.
+- **[2026-11-02][plan] Internal changelog fragment.** The change is test-only, so `docs/changelog/unreleased/<pr>.internal.md`, never a `CHANGELOG.md` edit.

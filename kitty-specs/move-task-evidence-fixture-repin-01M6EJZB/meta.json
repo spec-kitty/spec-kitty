@@ -1,0 +1,33 @@
+{
+  "accept_commit": "ddc25d356378f85f0b396e33e398a0eb90708c26",
+  "acceptance_history": [
+    {
+      "accept_commit": "ddc25d356378f85f0b396e33e398a0eb90708c26",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-02T19:59:31.618449+00:00",
+      "accepted_by": "pi:python-pedro",
+      "accepted_from_commit": "637a728a3f34fe71c63b174c19669daffeac7cf0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-02T19:59:31.618449+00:00",
+  "accepted_by": "pi:python-pedro",
+  "accepted_from_commit": "637a728a3f34fe71c63b174c19669daffeac7cf0",
+  "baseline_merge_commit": "2a6d32e51c4149504be86f52d6dc01de41be4c43",
+  "created_at": "2026-11-02T16:55:10.219934+00:00",
+  "flattened": false,
+  "friendly_name": "move task evidence fixture repin",
+  "merged_at": "2026-11-02T20:00:25.099617+00:00",
+  "merged_commit": "2a6d32e51c4149504be86f52d6dc01de41be4c43",
+  "mid8": "01M6EJZB",
+  "mission_id": "01M6EJZBFF60KD34M7SM8ZD007",
+  "mission_number": 248,
+  "mission_slug": "move-task-evidence-fixture-repin-01M6EJZB",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances move task evidence fixture repin on issue-7057-move-task-evidence-fixture-repin so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "move task evidence fixture repin",
+  "slug": "move-task-evidence-fixture-repin-01M6EJZB",
+  "status_phase": "1",
+  "target_branch": "issue-7057-move-task-evidence-fixture-repin",
+  "topology": "single_branch"
+}
