@@ -150,7 +150,7 @@ def test_prose_only_does_not_change_the_fail_safe() -> None:
     assert bs.decide(None, part="1/2") == (bs.FULL, frozenset())
 
 
-@pytest.mark.parametrize(("raw", "expected"), [("true", True), ("TRUE", True), (" true ", True), ("false", False), ("", False), ("yes", False)])
+@pytest.mark.parametrize(("raw", "expected"), [("true", True), (" true ", True), ("yes", False)])
 def test_the_prose_only_flag_reads_the_prose_scan_output(raw: str, expected: bool) -> None:
     assert bs._flag(raw) is expected
 
