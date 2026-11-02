@@ -106,6 +106,7 @@ def test_main_writes_a_scoped_answer(tmp_path: Path, monkeypatch: pytest.MonkeyP
 #: value, not just "some set".
 _PROSE_SCRIPT_SCANNERS = frozenset(
     {
+        "tests/architectural/test_battery_scan_scope_routing.py",
         "tests/architectural/test_clock_call_ban.py",
         "tests/architectural/test_clock_import_ban.py",
         "tests/architectural/test_first_party_hosts_are_owned.py",
