@@ -91,6 +91,8 @@ from specify_cli.review.gate_bindings import (
 from specify_cli.review.gate_budget import BudgetClassification
 from specify_cli.review.gate_registry import TransitionGateContext
 from specify_cli.review.scope_source import DeclaredCommandScopeSource
+from specify_cli.review.test_timeout import WHOLE_COMMAND_TEST_TIMEOUT_SECONDS
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
@@ -339,6 +341,15 @@ def _seed_baseline(
     failed: int,
     failures: tuple[BaselineFailure, ...] = (),
 ) -> None:
+    """Seed the WP's baseline receipt under the budget the transition resolves.
+
+    #6865: the receipt's ``test_timeout_seconds`` is the cache identity, so a
+    receipt recorded under a different budget is (correctly) discarded and would
+    silently degrade the gate to ``UNVERIFIED_BASELINE``. These fixtures stub
+    baseline CAPTURE out, so they must seed the same number the transition
+    resolves for their shape: the declared-command source narrows nothing, so it
+    is the whole-command default.
+    """
     baseline = BaselineTestResult(
         wp_id="WP01",
         captured_at="2026-01-01T00:00:00Z",
@@ -350,6 +361,7 @@ def _seed_baseline(
         failed=failed,
         skipped=0,
         failures=failures,
+        test_timeout_seconds=WHOLE_COMMAND_TEST_TIMEOUT_SECONDS,
     )
     baseline.save(feature_dir / "tasks" / wp_slug / "baseline-tests.json")
 
@@ -917,7 +929,7 @@ def test_frontmatter_override_end_to_end_bypasses_auto_derivation(
     _write_file(repo, "src/specify_cli/git/foo.py", "VALUE = 2\n")
     _git_commit_all(repo, "wip: touch git/foo.py")
 
-    feature_dir, _wp = _build_wp_file(
+    feature_dir, wp_file = _build_wp_file(
         tmp_path,
         _MISSION,
         "WP01",
@@ -926,6 +938,11 @@ def test_frontmatter_override_end_to_end_bypasses_auto_derivation(
     _seed_wp_event(feature_dir, "WP01", "in_progress")
     _seed_baseline(feature_dir, "WP01-test", failed=0)
     ports, router = _fake_ports(feature_dir)
+
+    # #6865: the SAME WP that pins the scope must stay readable to the strict WP
+    # model — the field the gate honours may never make the file unparseable.
+    wp_metadata, _body = read_wp_frontmatter(wp_file)
+    assert wp_metadata.pre_review_test_scope == "tests/override-target"
 
     _run_move(tmp_path, ports=ports, workspace_resolution=_fixture_workspace(repo))
 

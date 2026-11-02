@@ -1,0 +1,57 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6ER2AP2NZ8BYHW6Q24MRCKQ",
+  "materialized_at": "2026-11-02T18:24:10.435081+00:00",
+  "mission_number": "",
+  "mission_slug": "pre-review-gate-scope-recovery-01M6EJS2",
+  "mission_type": "",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi-b1",
+      "lane": "done",
+      "last_event_id": "01M6ER2AP2NZ8BYHW6Q24MRCKQ",
+      "last_transition_at": "2026-11-02T18:24:10.435081+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review by reviewer-renata profile over the integrated diff (same agent run as the implementer; flagged as not a fully independent squad, operator's landing pass is the independent review). Checklist PASS: dead code (every new helper has a production caller), synthetic fixtures (tests fail if the implementation is removed), silent returns (none new; documented None paths), FR-001..FR-009 coverage incl. the receipt-budget match proven by the integration fixtures, no frozen surface, no locked-decision contradiction (no census, no new config key), single-WP ownership, no new raise. Evidence: 833 passed/10 skipped across tests/review + gate suites; 49 passed on the focused modules; docs freshness errors=0."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 643317,
+      "shell_pid_created_at": "1793638897.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

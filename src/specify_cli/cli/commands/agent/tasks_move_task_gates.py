@@ -77,7 +77,7 @@ from specify_cli.review.gate_registry import (
     TransitionGateContext,
     get_gate_handler,
 )
-from specify_cli.review.scope_source import ScopeSource, resolve_scope_source
+from specify_cli.review.scope_source import ScopeSource, exposes_scope_breakdown, resolve_scope_source
 from specify_cli.review.verdict_aggregation import (
     AggregateDecision,
     aggregate_verdicts,
@@ -660,6 +660,21 @@ def _mt_config_authority_root(st: _MoveTaskState) -> Path:
     return root
 
 
+def _mt_declared_command_runs_in_full(scope_source_root: Path) -> bool:
+    """Does the activation-selected scope source run its command in full (#6865)?
+
+    Asks the SAME ``ScopeSource`` selection the dispatch uses
+    (:func:`_mt_resolve_scope_source`). A source that exposes the
+    ``ScopeBreakdownSource`` refinement can derive a bounded target list per
+    changed file; anything else — production today:
+    ``DeclaredCommandScopeSource`` — contributes no per-file scope at all and
+    runs its declared command whole. That is the shape the review budget has to
+    bound, and it is derived from the source's own capability predicate rather
+    than from file names, timings or a second configuration surface.
+    """
+    return not exposes_scope_breakdown(_mt_resolve_scope_source(scope_source_root))
+
+
 def _mt_review_test_timeout(st: _MoveTaskState) -> int:
     """The review test budget, resolved once per transition and memoised on ``st``.
 
@@ -667,11 +682,22 @@ def _mt_review_test_timeout(st: _MoveTaskState) -> int:
     value, so a config edit mid-transition cannot give them different budgets.
     The first call (pre-validation, before the fail-open seams) raises
     ``InvalidReviewTestTimeout`` for an invalid declaration.
+
+    #6865: the number is resolved for the shape the gate actually runs. A source
+    that contributes no per-file narrowing runs its declared command in full, so
+    the whole-command default applies; a narrowing source keeps the scoped
+    default. One number per transition is load-bearing: capture, the receipt
+    match and every head leg compare it, so a shape-divergent value would
+    silently discard a valid baseline receipt.
     """
     # ``getattr``: gate tests drive these helpers with a bare ``SimpleNamespace`` state.
     cached: int | None = getattr(st, "review_test_timeout", None)
     if cached is None:
-        cached = resolve_review_test_timeout(_mt_config_authority_root(st))
+        authority_root = _mt_config_authority_root(st)
+        cached = resolve_review_test_timeout(
+            authority_root,
+            whole_command=_mt_declared_command_runs_in_full(authority_root),
+        )
         st.review_test_timeout = cached
     return cached
 

@@ -18,12 +18,27 @@ review:
   test_timeout_seconds: 1200
 ```
 
-`test_timeout_seconds` accepts an integer from 1 through 86400 seconds. The default
-is 300. Booleans, fractions, strings, null, zero, negative values and larger values
-are errors; an invalid declaration refuses the transition before a test runs.
-The ceiling is one day per run, bounding oversized declarations and platform waits.
-The setting changes execution time, leaving the command, selected scope, failure
-comparison, oversized-scope policy and timeout refusal policy intact.
+`test_timeout_seconds` accepts an integer from 1 through 86400 seconds. The
+defaults depend on the **scope shape** the pre-review gate chose:
+
+| Scope shape | Default budget |
+|---|---|
+| whole declared command | 1,200 s (`WHOLE_COMMAND_TEST_TIMEOUT_SECONDS`) |
+| bounded target list | 300 s (`DEFAULT_TEST_TIMEOUT_SECONDS`) |
+
+A repository whose declared command runs in full is not running a scoped check,
+so the scoped default under-bounds it; the whole-command default is sized for a
+whole-suite run (this repository's `make test-fast` was measured at 215 s of
+pytest, and its CI bounds a whole per-PR lane at 20 minutes). A pinned per-WP
+`pre_review_test_scope` narrows *what* runs, not the bound. A declared
+`test_timeout_seconds` always wins, whatever the shape.
+
+Booleans, fractions, strings, null, zero, negative values and larger values
+are errors; an invalid declaration refuses the transition before a test runs,
+and the shape default never masks it. The ceiling is one day per run, bounding
+oversized declarations and platform waits. The setting changes execution time,
+leaving the command, selected scope, failure comparison, oversized-scope policy
+and timeout refusal policy intact.
 
 The baseline and candidate use the same configuration authority as the declared
 command. A lane's execution checkout and its detached baseline do not substitute

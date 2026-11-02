@@ -971,3 +971,75 @@ class TestWPMetadataBuilder:
         assert r1.agent == "claude"
         assert r2.lane == "in_progress"
         assert r2.agent == "claude"
+
+
+# ─────────────────────────────────────────────────────────────
+# #6865: the gate's own bounded-scope recovery must be readable
+# ─────────────────────────────────────────────────────────────
+
+
+class TestPinnedPreReviewScope:
+    """`pre_review_test_scope` is a documented, gate-consumed field (#6865).
+
+    The pre-review regression gate advertises a bounded per-WP scope as its
+    recovery from a whole-suite timeout and reads it from the WP frontmatter
+    (``tasks_move_task_gates._mt_pre_review_scope_override``). Because the
+    subtask-roster guard validates the same file through this strict model, a
+    missing field made the advertised recovery render the WP unreadable. These
+    cases pin the field on the model AND on the production roster read.
+    """
+
+    _PINNED = "tests/review tests/status"
+
+    def _write_wp(self, feature_dir: Path, *, extra_frontmatter: str = "") -> Path:
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        wp_file = tasks_dir / "WP01-pinned-scope.md"
+        wp_file.write_text(
+            f"---\nwork_package_id: WP01\ntitle: Pinned scope\nsubtasks:\n  - T001\n  - T002\n{extra_frontmatter}---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        return wp_file
+
+    def test_model_accepts_the_pinned_scope(self) -> None:
+        meta = WPMetadata.model_validate(
+            {
+                "work_package_id": "WP01",
+                "title": "T",
+                "subtasks": ["T001"],
+                "pre_review_test_scope": self._PINNED,
+            },
+            strict=False,
+        )
+        assert meta.pre_review_test_scope == self._PINNED
+
+    def test_pinned_scope_defaults_to_none(self) -> None:
+        assert WPMetadata(work_package_id="WP01").pre_review_test_scope is None
+
+    def test_roster_reads_a_wp_that_carries_the_pinned_scope(self, tmp_path: Path) -> None:
+        """The production roster guard is the surface the field broke."""
+        from specify_cli.core.subtask_rows import authored_subtask_roster
+
+        feature_dir = tmp_path / "kitty-specs" / "pinned-scope"
+        self._write_wp(feature_dir, extra_frontmatter=f"pre_review_test_scope: {self._PINNED}\n")
+
+        assert authored_subtask_roster(feature_dir, "WP01") == ["T001", "T002"]
+
+    def test_roster_still_reads_a_wp_without_the_key(self, tmp_path: Path) -> None:
+        """Positive control on the same fixture family: the probe can observe both."""
+        from specify_cli.core.subtask_rows import authored_subtask_roster
+
+        feature_dir = tmp_path / "kitty-specs" / "no-pinned-scope"
+        self._write_wp(feature_dir)
+
+        assert authored_subtask_roster(feature_dir, "WP01") == ["T001", "T002"]
+
+    def test_a_typo_key_is_still_refused(self, tmp_path: Path) -> None:
+        """`extra="forbid"` still guards genuine typos (the field is not a loophole)."""
+        from specify_cli.core.subtask_rows import SubtaskRosterResolutionError, authored_subtask_roster
+
+        feature_dir = tmp_path / "kitty-specs" / "typo"
+        self._write_wp(feature_dir, extra_frontmatter="pre_review_test_scopes: tests/review\n")
+
+        with pytest.raises(SubtaskRosterResolutionError, match="is unreadable"):
+            authored_subtask_roster(feature_dir, "WP01")

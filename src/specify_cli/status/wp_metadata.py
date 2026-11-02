@@ -295,6 +295,14 @@ class WPMetadata(BaseModel):
     reviewer_shell_pid: str | None = None
     review_feedback: str | None = None
     review_feedback_file: str | None = None
+    # A bounded pre-review test scope for THIS work package: a whitespace-separated
+    # list of pytest targets the `for_review` gate runs instead of the whole
+    # declared review command (recovery documented in
+    # docs/development/how-to/review-gates.md, consumed by
+    # tasks_move_task_gates._mt_pre_review_scope_override). Declared here because
+    # the strict authoring reader validates every WP file and `extra="forbid"`
+    # would otherwise make a WP carrying the documented recovery unreadable (#6865).
+    pre_review_test_scope: str | None = None
 
     # ── Optional: descriptive metadata ─────────────────────────
     subtitle: str | None = None

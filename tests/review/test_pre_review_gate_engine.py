@@ -232,7 +232,10 @@ def test_unknown_timeout_is_classification_candidate_with_separate_elapsed(
     assert verdict.budget_assessment.effective_budget_seconds == 10.0
     assert verdict.budget_assessment.scope_identity.value in (verdict.reason or "")
     assert "lane remains unchanged" in (verdict.reason or "")
-    assert "reviewed metadata update" in (verdict.reason or "")
+    assert "reviewed update of it" in (verdict.reason or "")
+    # #6865: the refusal names the shape it chose and the metadata owner.
+    assert "bounded target list" in (verdict.reason or "")
+    assert "gate_budget.py" in (verdict.reason or "")
 
 
 @pytest.mark.fast

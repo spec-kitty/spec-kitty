@@ -635,22 +635,131 @@ def _progress_observer(
     return _observe
 
 
+_POLICY_METADATA_OWNER = "src/specify_cli/review/gate_budget.py (_RULES)"
+_WHOLE_COMMAND_SHAPE = "whole declared command"
+_BOUNDED_SHAPE = "bounded target list"
+#: How much of the executed command / runner stderr tail a refusal carries.
+_COMMAND_REASON_CHARS = 140
+_STDERR_TAIL_REASON_CHARS = 180
+#: NFR-002: a refusal reason is one bounded line, JSON-safe by construction.
+_REASON_MAX_CHARS = 800
+
+
+def describe_scope_shape(scope: ScopeResult, scope_source: ScopeSource | None) -> str:
+    """Name the scope the gate actually chose (#6865, FR-006/FR-007).
+
+    No resolved target narrows the run, so the declared command executes whole.
+    With targets, a ``None`` source is the FR-004 override tier (an explicit
+    target list, bounded by definition) and a ``ScopeBreakdownSource`` derives
+    one per changed file. A source with no such refinement runs its declared
+    command in full whatever targets it reports: appending a target list after a
+    ``["sh", "-c", ...]`` argv could not narrow it anyway.
+    """
+    if not scope.test_targets:
+        return _WHOLE_COMMAND_SHAPE
+    if scope_source is None or exposes_scope_breakdown(scope_source):
+        return _BOUNDED_SHAPE
+    return _WHOLE_COMMAND_SHAPE
+
+
+def _bounded_text(text: str, limit: int) -> str:
+    """Collapse to one line and cap the length (JSON-safe diagnostic text)."""
+    collapsed = " ".join(text.split())
+    if len(collapsed) <= limit:
+        return collapsed
+    return f"{collapsed[: limit - 3]}..."
+
+
+def _declared_command_text(scope_source: ScopeSource | None) -> str | None:
+    """The command the gate would execute, as one line (or ``None``).
+
+    A ``None`` source is the FR-004 override tier: the pinned target list
+    replaced the declared command entirely, so there is no command to name.
+    """
+    if scope_source is None:
+        return None
+    command = scope_source.test_command()
+    if not command:
+        return None
+    return " ".join(command)
+
+
+def _scope_shape_recovery(scope_shape: str) -> str:
+    """The action an operator can take for THIS shape (never a generic hint)."""
+    if scope_shape == _WHOLE_COMMAND_SHAPE:
+        return "declare review.test_timeout_seconds for a longer whole-command run, or pin a bounded pre_review_test_scope in the WP frontmatter"
+    return "raise review.test_timeout_seconds, narrow the pinned pre_review_test_scope, or use --skip-pre-review-gate explicitly"
+
+
+def _timeout_shape_head(
+    assessment: ScopeBudgetAssessment,
+    *,
+    scope_shape: str | None,
+    declared_command: str | None,
+) -> str:
+    """The actionable head of every timeout refusal (#6865, FR-006).
+
+    Names the shape the gate chose, the recovery for THAT shape and the command
+    it executed — the three things an operator needs and the pre-#6865 message
+    never said.
+    """
+    shape = scope_shape or "unknown"
+    if declared_command:
+        command_text = _bounded_text(declared_command, _COMMAND_REASON_CHARS)
+    else:
+        command_text = "(none — the pinned override scope replaced the declared command)"
+    return f"timed out after {assessment.effective_budget_seconds:g}s on the {shape}. Recovery: {_scope_shape_recovery(shape)}. declared command: {command_text};"
+
+
+def _timeout_shape_reason(
+    reason: str | None,
+    assessment: ScopeBudgetAssessment,
+    *,
+    scope_shape: str | None = None,
+    declared_command: str | None = None,
+) -> str:
+    """A timeout refusal for an ALREADY-classified scope: shape, recovery, command."""
+    tail = _bounded_text(reason, _STDERR_TAIL_REASON_CHARS) if reason else None
+    head = _timeout_shape_head(assessment, scope_shape=scope_shape, declared_command=declared_command)
+    return _bounded_text(f"{head} runner detail: {tail}" if tail else head, _REASON_MAX_CHARS)
+
+
 def _unknown_timeout_reason(
     reason: str | None,
     assessment: ScopeBudgetAssessment,
     observed_elapsed_seconds: float | None,
+    *,
+    scope_shape: str | None = None,
+    declared_command: str | None = None,
 ) -> str:
-    """Build immutable-policy diagnostic evidence for an unknown timeout."""
+    """Build immutable-policy diagnostic evidence for an unknown timeout.
+
+    #6865: keeps the classification-candidate evidence AND leads with the scope
+    shape, the recovery and the executed command, so an operator can act without
+    reading the source. Actionable text leads; the runner's own stderr tail
+    trails it, so the final length cap can only trim the tail.
+    """
     elapsed = observed_elapsed_seconds
     elapsed_text = "unavailable" if elapsed is None else f"{elapsed:.3f}s"
     targets = ", ".join(assessment.scope_identity.normalized_targets) or "(empty)"
-    prefix = f"{reason}; " if reason else ""
-    return (
-        f"{prefix}budget classification unknown; scope identity "
-        f"{assessment.scope_identity.value}; normalized targets: {targets}; configured "
-        f"budget: {assessment.effective_budget_seconds:g}s; monotonic observed elapsed: "
-        f"{elapsed_text}; lane remains unchanged. This is a classification candidate "
-        "for a reviewed metadata update; runtime policy was not modified."
+    tail = _bounded_text(reason, _STDERR_TAIL_REASON_CHARS) if reason else None
+    head = _timeout_shape_head(assessment, scope_shape=scope_shape, declared_command=declared_command)
+    return _bounded_text(
+        " ".join(
+            part
+            for part in (
+                head,
+                f"normalized targets: {targets};",
+                f"policy metadata: {_POLICY_METADATA_OWNER} (a timeout with no matching rule is a",
+                "classification candidate for a reviewed update of it; runtime policy was not modified);",
+                f"scope identity: {assessment.scope_identity.value};",
+                f"observed elapsed: {elapsed_text};",
+                "lane remains unchanged.",
+                f"runner detail: {tail}" if tail else "",
+            )
+            if part
+        ),
+        _REASON_MAX_CHARS,
     )
 
 
@@ -658,12 +767,30 @@ def _finalize_budget_evidence(
     verdict: GateVerdict,
     assessment: ScopeBudgetAssessment,
     observed_elapsed_seconds: float | None = None,
+    *,
+    scope_shape: str | None = None,
+    declared_command: str | None = None,
 ) -> GateVerdict:
     """Attach one assessment and, only for unknown timeout, candidate evidence."""
-    is_candidate = verdict.outcome is GateOutcome.TIMED_OUT and assessment.classification is BudgetClassification.UNKNOWN
+    is_timeout = verdict.outcome is GateOutcome.TIMED_OUT
+    is_candidate = is_timeout and assessment.classification is BudgetClassification.UNKNOWN
     reason = verdict.reason
     if is_candidate:
-        reason = _unknown_timeout_reason(reason, assessment, observed_elapsed_seconds)
+        reason = _unknown_timeout_reason(
+            reason,
+            assessment,
+            observed_elapsed_seconds,
+            scope_shape=scope_shape,
+            declared_command=declared_command,
+        )
+    elif is_timeout:
+        # #6865: an ALREADY-classified timeout still has to name the scope it ran.
+        reason = _timeout_shape_reason(
+            reason,
+            assessment,
+            scope_shape=scope_shape,
+            declared_command=declared_command,
+        )
     return replace(
         verdict,
         reason=reason,
@@ -919,12 +1046,18 @@ def evaluate_with_scope(
     if status_observer is not None:
         status_observer(ScopeAssessed(assessment=assessment))
 
+    # #6865: a refusal must name the scope the gate chose. Resolve the shape and
+    # the executed command once, from the same source/scope pair the run uses.
+    scope_shape = describe_scope_shape(scope, scope_source)
+    declared_command = _declared_command_text(scope_source)
+
     if assessment.classification is BudgetClassification.OVERSIZED:
         return GateVerdict(
             outcome=GateOutcome.SCOPE_OVERSIZED,
             scope=scope,
             reason=(
-                "validation did not start because the selected scope is explicitly "
+                f"validation did not start because the selected scope ({scope_shape}: "
+                f"{', '.join(scope.test_targets) or '(empty)'}) is explicitly "
                 f"oversized for the {assessment.effective_budget_seconds:g}s budget; "
                 f"{assessment.guidance}"
             ),
@@ -958,6 +1091,7 @@ def evaluate_with_scope(
                 ),
                 assessment,
                 run_result.observed_elapsed_seconds,
+                scope_shape=scope_shape,
             )
         if run_result.state is HeadRunState.CANCELLED:
             return _finalize_budget_evidence(
@@ -1003,6 +1137,8 @@ def evaluate_with_scope(
         verdict,
         assessment,
         observed_elapsed[-1] if observed_elapsed else None,
+        scope_shape=scope_shape,
+        declared_command=declared_command,
     )
 
 
