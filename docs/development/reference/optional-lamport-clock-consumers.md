@@ -9,7 +9,6 @@ audience:
 updated: '2026-10-31'
 related:
 - development/reference/events-in-core
-- changelog/CHANGELOG
 ---
 
 # Consumers of the optional Lamport clock
@@ -59,17 +58,17 @@ named.
 
 | Site | Kind | Verdict | Proof |
 | --- | --- | --- | --- |
-| `src/specify_cli/migration/mission_state.py` | Producer (`teamspace_dry_run`, `_build_teamspace_envelope`, `_TeamspaceEnvelope`) | Unaffected. Source rows are read into `StatusEvent` (which carries no clock), sorted by `(at, event_id)`, and re-emitted with a synthesized `lamport_clock` equal to their 1-based position, so every emitted envelope is clocked and the source clock is discarded rather than mixed. | `test_dry_run_emitted_envelopes_are_clocked_by_position` |
+| `src/specify_cli/migration/mission_state.py` | Producer (`teamspace_dry_run`, `_build_teamspace_envelope`, `_TeamspaceEnvelope`) | Unaffected. Source rows are read into `StatusEvent` (which carries no clock), sorted by `(at, event_id)`, and re-emitted with a synthesized `lamport_clock` equal to their 1-based position, so every emitted envelope is clocked and the source clock is discarded rather than mixed. | None: not pinned here (dormant hosted TeamSpace surface; read the builder) |
 | `src/specify_cli/status/lifecycle_events.py` | Producer (`_build_envelope`) | Already unclocked. The live lifecycle appender writes no `lamport_clock` key at all, which under 11.x reads as unclocked — the contract's "no causal order recorded". | `test_live_lifecycle_envelope_carries_no_clock` |
-| `src/specify_cli/status/migrate_lifecycle_envelope.py` | Producer (upgrade migration) | **Was the defect.** It stamped `lamport_clock: 0`, a clocked position the legacy row never recorded, so the row sorted after every never-migrated row of the same log. It now writes `None`. See [the changelog](../../changelog/CHANGELOG.md). | `tests/status/test_optional_lamport_clock_migration.py` |
+| `src/specify_cli/status/migrate_lifecycle_envelope.py` | Producer (upgrade migration) | **Was the defect.** It stamped `lamport_clock: 0`, a clocked position the legacy row never recorded, so the row sorted after every never-migrated row of the same log. It now writes an explicit `None`. The live appender omits the key while the migration writes `"lamport_clock": null`; both mean unclocked under `spec-kitty-events` >= 11. The migration writes the key explicitly because `lamport_clock` is one of the strict-envelope keys it synthesizes (`_SYNTHESIZED_KEYS`), and its re-run check treats a row as already migrated only when every synthesized key is present. See [the changelog](../../changelog/CHANGELOG.md). | `tests/status/test_optional_lamport_clock_migration.py` |
 | `src/specify_cli/status/reducer.py` | Reader (`materialize_snapshot`, `reduce`) | Unaffected. `materialize_snapshot` reduces through the diary reducer, which orders by `(at, event_id)` and never reads a clock; `StatusEvent` has no `lamport_clock` field, so a foreign clock on a row is ignored rather than promoted. | `test_mixed_stream_materializes_identically` |
 | `src/specify_cli/status/event_log_merge.py` | Reader/rewriter (`merge_event_payloads`) | Unaffected. It orders by `(at or timestamp, event_id)` and keeps whole row dicts, so it neither reinterprets nor drops a clock. | `test_merge_event_payloads_ignores_clock` |
 | `src/specify_cli/status/store.py` | Reader (`read_events`, `read_events_raw`) | Unaffected. Rows become `StatusEvent`, which has no clock field; raw rows are handed to the dependency unchanged. | `test_mixed_stream_materializes_identically` |
-| `src/specify_cli/state/contract.py` | On-disk path inventory | Unaffected. The `lamport_clock` / `legacy_lamport_clock` surfaces it declares are the retired hosted-sync files `~/.spec-kitty/clock.json` and `~/.spec-kitty/events/lamport_clock.json` (#114), not the envelope field. | `test_state_contract_lamport_rows_are_retired_paths` |
+| `src/specify_cli/state/contract.py` | On-disk path inventory | Unaffected. The `lamport_clock` / `legacy_lamport_clock` surfaces it declares are the retired hosted-sync files `~/.spec-kitty/clock.json` and `~/.spec-kitty/events/lamport_clock.json` (#114), not the envelope field. | None: a path inventory, not behaviour; read `STATE_SURFACES` |
 | `src/specify_cli/retrospective/lifecycle_events.py` | Producer (separate local clock) | Unaffected. The retrospective log's own `lamport` field (default `0`) is not `Event.lamport_clock`; `_next_lamport` already guards with `isinstance(lp, int)`. | `test_retrospective_clock_reads_tolerate_null` |
 | `src/specify_cli/retrospective/summary.py` | Reader (separate local clock) | Handles `None`. Every read is `obj.get("lamport", 0)` followed by an `isinstance(..., int)` guard, so an explicit `null` behaves as absent. | `test_retrospective_clock_reads_tolerate_null` |
 | `src/specify_cli/decisions/models.py`, `decisions/service.py`, `orchestrator_api/decision_verbs.py` | Response field `event_lamport` | Unaffected. Typed `int | None`, only serialized, never compared or unpacked. | `test_decision_event_lamport_is_an_optional_passthrough` |
-| `tests/_factories/coord_mission.py` | Test probe (`_row_lamport`) | Already tolerant. Returns `None` for an absent or non-integer clock. | `test_test_probe_tolerates_missing_clock` |
+| `tests/_factories/coord_mission.py` | Test probe (`_row_lamport`) | Already tolerant. Returns `None` for an absent or non-integer clock. | None: a test helper, not core behaviour |
 
 ## Residual
 
