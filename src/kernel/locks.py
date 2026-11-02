@@ -76,6 +76,7 @@ from types import TracebackType
 from typing import Any
 
 from kernel.clock import datetime, now_utc
+from kernel.content_digest import sha256_digest
 from kernel.no_follow import open_no_follow
 from kernel.paths import is_windows
 
@@ -144,6 +145,7 @@ _MAX_ANCHOR_DIGEST_HEX_LENGTH = 64
 
 #: Default truncation: 32 hex characters, as the event-log and synthesis families use.
 _DEFAULT_ANCHOR_DIGEST_HEX_LENGTH = 32
+_SHA256_PREFIX = "sha256:"
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +222,7 @@ def _anchor_digest(anchor: Path, *, algorithm: str, hex_length: int) -> str:
         # File-name discriminator, not a security primitive (the Mission checkout-claim
         # lock has used this name since #5819; renaming it would move every live lock).
         return hashlib.sha1(identity, usedforsecurity=False).hexdigest()[:hex_length]
-    return hashlib.sha256(identity).hexdigest()[:hex_length]  # noqa: TID251 — anchor lock-name digest, not the charter hash
+    return sha256_digest(identity).removeprefix(_SHA256_PREFIX)[:hex_length]
 
 
 class LockAcquireTimeout(Exception):
