@@ -12,7 +12,7 @@
 A pull request that changes `src/specify_cli/status/**` runs no audit test. The `status`
 filter group in `.github/workflows/ci-router.yml` selects the module matrix's `status`
 row; `.github/ci-module-registry.yml` records `tests/audit` as an out-of-matrix directory
-("no per-PR lane"), so the FR-010 runtime-home guard
+("no per-PR lane"), so the runtime-home guard limb
 (`tests/audit/test_no_legacy_path_literals.py::test_no_handrolled_spec_kitty_home_in_global_state_modules`)
 is never evaluated for that diff. That guard is the only thing standing between a
 re-scattered `Path.home() / ".spec-kitty"` literal and `main`: #6367 added one to
