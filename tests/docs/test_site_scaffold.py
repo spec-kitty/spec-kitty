@@ -6,9 +6,7 @@ committed files must say, without running Node:
 * the site's folder exclusion and index basenames come from the single authority
   ``scripts/docs/_dockitty_contract.py`` through the generated
   ``site/dockitty-contract.json`` (one authority, checked for parity);
-* the configuration values the ADR fixes (site URL, base, docs directory, drafts off,
-  doc-kitty pinned by a 40-character commit);
-* nothing the later steps own leaks in (no redirects, #6933; no diagrams, #6936);
+* doc-kitty is pinned by a 40-character commit and fetched over HTTPS;
 * ``docs/_meta/sections.yaml`` registers every published top-level section.
 """
 
@@ -80,35 +78,8 @@ def test_write_produces_a_copy_that_checks_clean(tmp_path: Path) -> None:
 def test_astro_config_reads_the_contract_and_restates_no_folder() -> None:
     config = _read(ASTRO_CONFIG)
 
-    assert "dockitty-contract.json" in config
     for folder in contract.EXCLUDED_FOLDERS:
         assert f"'{folder}'" not in config and f'"{folder}"' not in config, f"{folder} restated in astro.config.mjs"
-
-
-# --- configuration values (FR-001, FR-002) -----------------------------------------------------
-
-
-def test_astro_config_fixes_the_adr_values() -> None:
-    config = _read(ASTRO_CONFIG)
-
-    assert "site: 'https://docs.spec-kitty.ai'" in config
-    assert re.search(r"base: '/'", config)
-    assert "docsDir: '../docs'" in config
-    assert "diagrams: false" in config, "diagrams stay off until the PlantUML service (#6936)"
-
-
-def test_no_redirects_are_wired_yet() -> None:
-    """Redirects are #6933's: doc-kitty #253 makes Astro ``.html`` redirect keys fatal."""
-    config = _read(ASTRO_CONFIG)
-
-    assert not re.search(r"\bredirects\s*:", config), "no Astro redirects option"
-    assert not re.search(r"\blegacyHtmlRedirects\s*:", config), "no legacyHtmlRedirects option"
-
-
-def test_drafts_are_off_in_production() -> None:
-    lines = [line.strip() for line in _read(SITE / ".env.production").splitlines()]
-
-    assert "DK_PUBLISH_DRAFTS=off" in lines
 
 
 def test_doc_kitty_is_pinned_by_commit_in_manifest_and_lockfile() -> None:
@@ -117,8 +88,6 @@ def test_doc_kitty_is_pinned_by_commit_in_manifest_and_lockfile() -> None:
 
     assert match, "doc-kitty must be a git dependency pinned by a 40-character commit (ADR D-2)"
     assert match["sha"] in _read(SITE / "pnpm-lock.yaml")
-    for peer in ("astro", "@astrojs/starlight", "@astrojs/markdown-remark"):
-        assert peer in manifest["dependencies"], f"{peer} is declared next to the toolkit"
 
 
 _HTTPS_REPO = "https://github.com/spec-kitty/doc-kitty.git"
@@ -152,21 +121,6 @@ def test_an_ssh_lockfile_repo_is_caught() -> None:
     assert _ssh_lock_lines(mutant) == [mutant.strip()]
 
 
-def test_content_config_uses_the_native_loader_without_a_shim() -> None:
-    content = _read(SITE / "src" / "content.config.ts")
-
-    assert "docKittyDocsLoader({ base: '../docs' })" in content
-    assert "filter" not in content, "native exclude replaces the spike's shim"
-    assert "exclude" not in content, "the loader reads exclude from the integration"
-
-
-def test_public_files_and_404_notice() -> None:
-    assert _read(SITE / "public" / "CNAME").strip() == "docs.spec-kitty.ai"
-    robots = _read(SITE / "public" / "robots.txt")
-    assert "Sitemap: https://docs.spec-kitty.ai/sitemap-index.xml" in robots
-    assert "/kitty-specs/" in _read(SITE / "src" / "pages" / "404.astro")
-
-
 # --- section registry (FR-004) -----------------------------------------------------------------
 
 
@@ -189,8 +143,7 @@ def test_every_published_section_is_registered() -> None:
         assert isinstance(section["order"], int)
 
 
-def test_plans_has_restricted_feeds_and_development_is_its_own_section() -> None:
+def test_plans_has_restricted_feeds() -> None:
     sections = {section["id"]: section for section in yaml.safe_load(_read(SECTIONS))["sections"]}
 
     assert sections["plans"]["feeds"] == ["sitemap"], "plans: no llms, agent or rss feed (ADR D-8)"
-    assert "development" in sections

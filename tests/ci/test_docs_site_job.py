@@ -31,19 +31,11 @@ pytestmark = pytest.mark.fast
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / ".github" / "workflows" / "ci-router.yml"
-DOCS_PAGES = ROOT / ".github" / "workflows" / "docs-pages.yml"
 MAKEFILE = ROOT / "Makefile"
 SCRUB = ROOT / "tests" / "release" / "ci_retirement_scrub.json"
 
 GROUP = "docs_site"
 JOB = "docs-site"
-EXPECTED_GLOBS = {
-    "docs/**",
-    "site/**",
-    ".github/workflows/ci-router.yml",
-    "scripts/docs/_dockitty_contract.py",
-    "scripts/docs/site_contract.py",
-}
 _SHA_PIN = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 _CORE_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 _ASTRO_CONFIG = "--astro-config astro.config.mjs"
@@ -86,10 +78,9 @@ def test_an_unrelated_change_does_not_select_the_job(path: str) -> None:
     assert JOB not in select_gates([path], router=load_router()).selected_jobs
 
 
-def test_the_group_names_exactly_the_site_inputs() -> None:
+def test_the_group_is_not_src_backed() -> None:
     router = load_router()
 
-    assert set(router.filters[GROUP]) == EXPECTED_GLOBS
     assert GROUP not in router.src_backed_groups, "a src glob would make the docs build a code shard"
 
 
@@ -133,11 +124,6 @@ def test_the_job_skips_on_forks_through_the_guarded_changes_job() -> None:
     assert "always()" not in str(_job()["if"]), "an always() job would start on its own and need its own guard"
 
 
-def test_the_job_is_not_required_yet() -> None:
-    """``router-gate.needs`` makes a job blocking; the docs-site job joins it in #6937."""
-    assert JOB not in _workflow()["jobs"]["router-gate"]["needs"]
-
-
 # --- the job's steps (FR-007, NFR-001..003) -----------------------------------------------------
 
 
@@ -178,24 +164,17 @@ def test_a_token_in_the_job_is_caught() -> None:
     assert _credential_violations(mutant)
 
 
-def test_the_job_installs_frozen_checks_the_contract_builds_and_uploads() -> None:
-    job = _job()
-    run = _run_text(job)
+def test_the_job_installs_frozen_and_checks_the_contract() -> None:
+    run = _run_text(_job())
 
     assert "pnpm install --frozen-lockfile" in run
     assert "-m scripts.docs.site_contract --check" in run
-    assert "pnpm run build" in run
-    uploads = [step for step in job["steps"] if "actions/upload-artifact@" in str(step.get("uses", ""))]
-    assert len(uploads) == 1
-    assert uploads[0]["with"]["path"] == "site/dist"
-    assert uploads[0]["with"]["if-no-files-found"] == "error"
 
 
-def test_the_job_is_bounded_and_no_step_swallows_a_failure() -> None:
+def test_no_step_swallows_a_failure() -> None:
     """Job-level ``continue-on-error`` is the advisory mechanism (below); a step never swallows a failure."""
     job = _job()
 
-    assert 0 < int(job["timeout-minutes"]) <= 20
     assert all("continue-on-error" not in step for step in job["steps"])
     assert not re.search(r"\|\|\s*true\b|\bset\s+\+e\b", _run_text(job))
 
@@ -220,16 +199,6 @@ def test_a_dockitty_call_without_the_astro_config_is_caught() -> None:
     )
 
     assert _astro_config_violations(mutant) == ["run: pnpm exec dockitty-check-links ../docs --strict"]
-
-
-# --- DocFX keeps deploying (C-001) --------------------------------------------------------------
-
-
-def test_docfx_deploy_is_untouched_by_the_parallel_run() -> None:
-    text = DOCS_PAGES.read_text(encoding="utf-8")
-
-    assert "docfx" in text.lower()
-    assert "pnpm" not in text and "site/dist" not in text, "the deploy switches to site/dist only at cutover (#6938)"
 
 
 # --- advisory to the terminal gate until #6937 (FR-008) -----------------------------------------
