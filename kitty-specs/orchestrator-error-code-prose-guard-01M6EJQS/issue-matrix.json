@@ -1,7 +1,19 @@
 {
   "rows": {
+    "#6988": {
+      "evidence_ref": "Context only: #6988 is the changelog-fragment convention this mission follows; no work owed to it here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6997": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited as context only (the inverse failure: a code core emitted that the contract lacked); #6997 was fixed by its own mission and owes no work here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7035": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md FR-001..FR-010; WP01 guard + WP02 enumerations",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +33,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
