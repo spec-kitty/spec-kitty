@@ -37,7 +37,7 @@ from specify_cli.cli.console import console
 if TYPE_CHECKING:  # pragma: no cover - typing only; keeps --help free of the registry stack
     from pydantic import ValidationError
 
-    from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry
+    from charter.drg import OrgPackConfig, PackRegistry
 
 __all__ = ["org_app"]
 
@@ -448,7 +448,7 @@ def _add_entry(
 
     from pydantic import ValidationError
 
-    from charter.offering.drg.org_pack_config import RESERVED_PACK_NAMES, OrgPackConfig, SourceType
+    from charter.drg import RESERVED_PACK_NAMES, OrgPackConfig, SourceType
 
     # C-001: the model's own literal union, read off the type so the two cannot drift.
     source_types: tuple[str, ...] = get_args(SourceType)

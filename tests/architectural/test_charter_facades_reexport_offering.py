@@ -79,6 +79,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("DRGNode", "charter.offering.drg.models"),
         ("NodeKind", "charter.offering.drg.models"),
         ("register_org_pack", "charter.offering.drg.org_pack_config"),
+        ("PackRegistry", "charter.offering.drg.org_pack_config"),
+        ("RESERVED_PACK_NAMES", "charter.offering.drg.org_pack_config"),
+        ("SourceType", "charter.offering.drg.org_pack_config"),
         ("unregister_org_pack", "charter.offering.drg.org_pack_config"),
         # Tabled by #3732 WP25 when the inverse gate started keying on charter.offering.
         ("scan_project_artifacts", "charter.offering.drg.project_scan"),
