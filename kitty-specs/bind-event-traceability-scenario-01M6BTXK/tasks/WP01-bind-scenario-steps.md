@@ -150,7 +150,7 @@ In `MissionLifecycle`, add `plantFutureStampedApproval(String name, String wp)`:
 ### T005 — Compile and run
 
 - Toolchain: a JDK 25 and the pinned Gradle. On this host they are at
-  `/home/exedev/.local/jvm/temurin-25` and `/tmp/sk6260-tools/tools/gradle-8.14.5/bin`.
+  `<jdk-25-home>` and `<gradle-8.14.5-home>/bin`.
   Never commit `.tools/`, a JDK path or a Gradle path.
 - Compile: `gradle compileTestJava --no-daemon` in `acceptance-jvm/`.
 - Run only this feature (adhoc pass, no full suite):
