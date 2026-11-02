@@ -56,7 +56,7 @@ still wins over any fold of a composed sibling (spec, Edge Cases).
 
 ### Reproduction on current `main` (`287a226cfe`, CLI 4.0.0rc8)
 
-Scratch project (`/tmp/repro6278/p`), issue recipe:
+Scratch project (`<scratch-dir>/repro6278/p`), issue recipe:
 
 ```
 spec-kitty agent mission create smoke-test --json
