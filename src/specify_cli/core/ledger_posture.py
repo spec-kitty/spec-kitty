@@ -31,6 +31,7 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+from kernel.ancestor_walk import find_ancestor
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.paths import WorkspaceRootNotFound, locate_project_root, resolve_canonical_root
 
@@ -64,11 +65,7 @@ def _walk_up_to_kittify_marker(start: Path) -> Path | None:
     caller; this is only the ``.kittify``-only fallback tier for a project
     that predates or omits a ``.git`` directory.
     """
-    current = start.resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / KITTIFY_DIR).is_dir():
-            return candidate
-    return None
+    return find_ancestor(start, lambda candidate: (candidate / KITTIFY_DIR).is_dir())
 
 
 def _resolve_repo_root(project_root: Path | None) -> Path | None:
