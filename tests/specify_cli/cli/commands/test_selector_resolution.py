@@ -766,9 +766,7 @@ def _read_path_dir(handle: str, repo_root: Path) -> Path:
         ("plain", "plain"),
     ],
 )
-def test_both_resolution_paths_return_the_same_mission(
-    tmp_path: Path, handle: str, expected_slug: str
-) -> None:
+def test_both_resolution_paths_return_the_same_mission(tmp_path: Path, handle: str, expected_slug: str) -> None:
     _seed_parity_missions(tmp_path)
     expected = tmp_path / "kitty-specs" / expected_slug
 
@@ -776,9 +774,7 @@ def test_both_resolution_paths_return_the_same_mission(
     assert _read_path_dir(handle, tmp_path) == expected
 
 
-def test_both_resolution_paths_refuse_a_shared_human_slug(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_both_resolution_paths_refuse_a_shared_human_slug(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Two Missions sharing a human slug: neither path may guess."""
     _seed_parity_missions(tmp_path)
     payment_ids = ("01M2TM6J", "01M2TM6M")
