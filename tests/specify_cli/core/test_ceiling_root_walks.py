@@ -142,6 +142,21 @@ def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tupl
     assert _has_no_git_anchor(work) is False
 
 
+def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail-closed: a ``.git`` probe that raises still refuses instead of minting."""
+    _outer, work = ambient_repo
+    real_exists = Path.exists
+
+    def _raising_exists(self: Path) -> bool:
+        if self.name == ".git":
+            raise OSError("unreadable ancestor")
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", _raising_exists)
+
+    assert _has_no_git_anchor(work) is False
+
+
 def test_legacy_charter_gate_does_not_adopt_a_checkout_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
     _outer, work = ambient_repo
 

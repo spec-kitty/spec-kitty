@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from charter.activation.api import read_mission_type
-from kernel.ancestor_walk import iter_ancestors
+from kernel.ancestor_walk import find_ancestor
 from kernel.clock import now_utc_iso
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
@@ -605,15 +605,26 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
 
 
+def _has_git_anchor(candidate: Path) -> bool:
+    """Whether *candidate* carries a ``.git`` directory, file or worktree marker.
+
+    Fail-closed: an ancestor that cannot be read counts as an anchor, so the caller
+    refuses (``_GitRefuses``) rather than falling back to minting an identity over a copy
+    git does hold (NFR-002). The walk itself stops at ``GIT_CEILING_DIRECTORIES``, so an
+    ambient repository above the ceiling is not an anchor (#7056).
+    """
+    try:
+        return (candidate / ".git").exists()
+    except OSError:
+        return True
+
+
 def _has_no_git_anchor(feature_dir: Path) -> bool:
-    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
-    for candidate in iter_ancestors(feature_dir):
-        try:
-            if (candidate / ".git").exists():
-                return False
-        except OSError:
-            return False
-    return True
+    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*.
+
+    "At or above" is the ceiling-bounded walk in :mod:`kernel.ancestor_walk`.
+    """
+    return find_ancestor(feature_dir, _has_git_anchor) is None
 
 
 def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:
