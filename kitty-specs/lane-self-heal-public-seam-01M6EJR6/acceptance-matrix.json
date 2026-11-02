@@ -1,0 +1,69 @@
+{
+  "mission_slug": "lane-self-heal-public-seam-01M6EJR6",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_lane_adoption_single_seam.py::test_allocator_defines_the_seam_with_a_required_named_policy + tests/lanes/test_lane_adoption_seam.py (7 passed)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:12.283088+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "gate rejects a defaulted/bool policy (test_policy_checker_is_non_vacuous); tests/lanes/test_lane_adoption_seam.py::test_unknown_clean_worktree_policy_is_refused + test_refuse_dirty_policy_refuses_before_any_merge",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:18.625928+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_adoption_seam.py::test_allow_dirty_policy_merges_the_recorded_planning_commit (a lane-HEAD tip would classify ORPHANED and refuse)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:24.702322+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_lane_adoption_single_seam.py::test_every_adoption_site_reaches_the_seam (>=3 allocator call sites)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:29.292338+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_lane_adoption_single_seam.py (6 passed; red on the base commit, self-mutation fixtures green)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:34.242467+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_lane_adoption_seam.py::test_code_lane_reentry_tolerates_work_in_progress + tests/lanes/test_planning_claim_self_heal.py + tests/lanes/test_lane_tip_record_points.py (30 passed)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-02T18:22:39.434205+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
