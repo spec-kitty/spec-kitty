@@ -40,19 +40,13 @@ def test_registered_top_level_groups_default_to_help(monkeypatch) -> None:
 
 
 def test_empty_doctor_invocation_runs_the_default_checks(monkeypatch) -> None:
-    """#6969: bare ``doctor`` runs the default checks instead of refusing with exit 2.
+    """#6969: bare ``doctor`` is not refused by the group's empty-invocation policy.
 
-    #4678 made the bare group print its help and exit 2 so an empty run could
-    not be mistaken for a passing check. #6969 keeps that intent -- a bare run
-    reports a real verdict -- but runs the default check set instead of a usage
-    error, so exit 2 (which reads as a failure or a misuse to a wrapper) is gone.
+    The default-check verdict itself is pinned in ``test_doctor_default_run.py``.
     """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     result = CliRunner().invoke(_registered_root(), ["doctor"])
 
-    assert result.exit_code in {0, 1}, result.output
-    assert "Default checks" in result.output
-    assert "no diagnostic ran" not in result.output
     assert "Missing command" not in result.output
 
 
