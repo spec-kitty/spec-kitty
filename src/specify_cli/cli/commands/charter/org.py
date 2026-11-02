@@ -22,7 +22,7 @@ charter-pack-cutover-01M491G6, FR-006).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, NoReturn, get_args
 
 import typer
 from kernel.charter_pack_paths import (
@@ -54,8 +54,6 @@ ORG_PACK_EXISTS = "ORG_PACK_EXISTS"
 ORG_PACK_NOT_FOUND = "ORG_PACK_NOT_FOUND"
 ORG_PACK_UNREADABLE = "ORG_PACK_UNREADABLE"
 
-#: ``OrgPackConfig.source_type``'s accepted values (C-001: the model's own set).
-_SOURCE_TYPES = ("git", "https", "artifactory", "api")
 #: Names the offering resolves by tier; an org pack may not shadow them.
 _RESERVED_PACK_NAMES = ("built-in", "project")
 
@@ -455,6 +453,9 @@ def _add_entry(
 
     from charter.offering.drg.org_pack_config import OrgPackConfig, SourceType
 
+    # C-001: the model's own literal union, read off the type so the two cannot drift.
+    source_types: tuple[str, ...] = get_args(SourceType)
+
     if not name or not name.strip():
         _refuse(ORG_PACK_INVALID, "a pack name is required (it cannot be blank or whitespace only)", json_output=json_output)
     if name != name.strip():
@@ -470,14 +471,14 @@ def _add_entry(
     if url is None and (ref is not None or source_type is not None):
         missing = "--ref" if ref is not None else "--source-type"
         _refuse(ORG_PACK_INVALID, f"{missing} requires --url (a local pack has no remote ref or source type)", json_output=json_output)
-    if source_type is not None and source_type not in _SOURCE_TYPES:
+    if source_type is not None and source_type not in source_types:
         _refuse(
             ORG_PACK_INVALID,
-            f"--source-type {source_type!r} is not one of: {', '.join(_SOURCE_TYPES)}",
+            f"--source-type {source_type!r} is not one of: {', '.join(source_types)}",
             json_output=json_output,
         )
 
-    # `_SOURCE_TYPES` above proves membership, so the cast adds no new claim;
+    # `source_types` above proves membership, so the cast adds no new claim;
     # it just says the checked value is the model's own literal union.
     resolved_source_type = source_type if source_type is not None else ("git" if url is not None else None)
 
