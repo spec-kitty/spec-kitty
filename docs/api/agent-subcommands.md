@@ -279,6 +279,14 @@ _Mission action commands that display prompts and instructions for agents_
 │                                              'spec-kitty agent tasks         │
 │                                              move-task --owned-checkout'     │
 │                                              instead.                        │
+│ --base                               <str>   Explicit base ref for the lane  │
+│                                              workspace (default:             │
+│                                              auto-detect). Use this when     │
+│                                              upstream dependency branches    │
+│                                              have been merged-and-deleted    │
+│                                              and you want to start from the  │
+│                                              current target branch tip, e.g. │
+│                                              --base main.                    │
 │ --help                       -h              Show this message and exit.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2177,11 +2185,8 @@ _Task workflow commands for AI agents_
 │                                                         incl. with --force;  │
 │                                                         and                  │
 │                                                         in_review->in_progr… │
-│                                                         Recorded as the      │
-│                                                         transition's on-wire │
-│                                                         review_ref           │
-│                                                         rationale; omitting  │
-│                                                         it makes the status  │
+│                                                         omitting it there    │
+│                                                         makes the status     │
 │                                                         event                │
 │                                                         contract-invalid. On │
 │                                                         --to approved/done   │
@@ -2194,7 +2199,14 @@ _Task workflow commands for AI agents_
 │                                                         on stderr says it    │
 │                                                         was not recorded     │
 │                                                         (JSON stdout is      │
-│                                                         unchanged).          │
+│                                                         unchanged). Refused  │
+│                                                         (exit 1) on every    │
+│                                                         other edge: those    │
+│                                                         edges write no       │
+│                                                         review cycle, so the │
+│                                                         file would be        │
+│                                                         validated and then   │
+│                                                         dropped.             │
 │    --approval-ref                               <str>   Approval reference   │
 │                                                         for approval/done    │
 │                                                         transitions (e.g.,   │
