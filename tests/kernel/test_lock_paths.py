@@ -119,6 +119,47 @@ def test_two_families_share_one_digest_for_one_anchor(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Byte identity per caller: the PRE-PR algorithm, written out literally
+# ---------------------------------------------------------------------------
+#
+# A process on an older spec-kitty and one on this version must name the same lock
+# file. These tests call the real caller entry points and compare against the
+# pre-consolidation rule spelled out inline, independent of the helper.
+
+
+@pytest.mark.skipif(os.name != "posix", reason="literal POSIX path rule; normcase is the identity there")
+def test_event_log_caller_keeps_the_pre_pr_lock_path(tmp_path: Path) -> None:
+    from kernel.event_log_append import event_log_lock_path
+
+    repo = _init_repo(tmp_path / "repo")
+    log = repo / "kitty-specs" / "m" / "decisions.events.jsonl"
+    log.parent.mkdir(parents=True)
+    digest = hashlib.sha256(str(log.resolve()).encode("utf-8")).hexdigest()[:32]  # noqa: TID251 — the pre-PR algorithm, literally
+
+    assert event_log_lock_path(log) == (repo / ".git").resolve() / "spec-kitty-locks" / "event-logs" / f"{digest}.lock"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="literal POSIX path rule; normcase is the identity there")
+def test_synthesis_caller_keeps_the_pre_pr_lock_path(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock_path
+
+    repo = _init_repo(tmp_path / "repo")
+    digest = hashlib.sha256(str(repo.resolve()).encode("utf-8")).hexdigest()[:32]  # noqa: TID251 — the pre-PR algorithm, literally
+
+    assert synthesis_lock_path(repo) == (repo / ".git").resolve() / "spec-kitty-locks" / "charter-synthesis" / f"{digest}.lock"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="literal POSIX path rule; normcase is the identity there")
+def test_checkout_claim_caller_keeps_the_pre_pr_lock_path(tmp_path: Path) -> None:
+    from specify_cli.status.locking import _checkout_claim_lock_path
+
+    repo = _init_repo(tmp_path / "repo")
+    digest = hashlib.sha1(str(repo.resolve()).encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
+
+    assert _checkout_claim_lock_path(repo) == (repo / ".git").resolve() / "spec-kitty-locks" / f"__checkout-{digest}__.status.lock"
+
+
+# ---------------------------------------------------------------------------
 # The caller owns the probe
 # ---------------------------------------------------------------------------
 
