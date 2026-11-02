@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: ci-status-audit-path-literal-routing-01M6EK04
 mission_id: 01M6EK04QX173M8CHW8EYKVZNT
-generated_at: '2026-11-02T17:55:03.055900+00:00'
+generated_at: '2026-11-02T17:55:23.462522+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
@@ -19,14 +19,21 @@ input_artifacts:
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
-verdict: unknown
+verdict: ready
 issue_counts:
-  low:
-  critical:
-  high:
-  info:
-  medium:
-findings: []
+  medium: 0
+  critical: 0
+  low: 1
+  high: 0
+  info: 1
+findings:
+- id: A1
+  severity: low
+  category: ambiguity
+  summary: >-
+    A negative routing control is only honest when the same fixture proves the
+    probe can match something; T001 items (1)-(2) assert the positive case on
+    the same select_gates fixture, so the control is not blind.
 ---
 
 # Specification Analysis Report — ci-status-audit-path-literal-routing-01M6EK04
