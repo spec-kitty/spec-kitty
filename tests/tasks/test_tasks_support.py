@@ -145,6 +145,29 @@ def test_find_repo_root_walks_upward(tmp_path):
     assert result == tmp_path
 
 
+def test_find_repo_root_plain_git_fallback_stops_at_a_git_ceiling(tmp_path, monkeypatch):
+    """#7022: the plain-``.git`` fallback agrees with git about the ceiling.
+
+    ``locate_project_root`` stops at ``GIT_CEILING_DIRECTORIES``; its fallback
+    must not then climb past the same ceiling into the checkout above it.
+    """
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    ambient = tmp_path / "ambient"
+    (ambient / ".git").mkdir(parents=True)
+    (ambient / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+    ceiling = ambient / "tmp"
+    sandbox = ceiling / "sandbox"
+    sandbox.mkdir(parents=True)
+
+    # Non-vacuity: without the ceiling the fallback finds the ambient checkout.
+    monkeypatch.delenv("GIT_CEILING_DIRECTORIES", raising=False)
+    assert find_repo_root(sandbox) == ambient
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    with pytest.raises(TaskCliError, match="Unable to locate repository root"):
+        find_repo_root(sandbox)
+
+
 class TestActivityEntries:
     """Tests for activity_entries() parser."""
 
