@@ -40,6 +40,17 @@ class _MissionArguments(TypedDict, total=False):
 _OPERATOR_ACTIONABLE_SCOPE_FAILURES = (CharterScopeConflict, CharterScopeNotFound)
 
 
+def _scope_and_mission_arguments(scope: CharterScope | None, feature_dir: Path | None) -> tuple[_ScopeArguments, _MissionArguments]:
+    """Split one explicit scope into the two kwargs dicts the builders accept."""
+    scope_arguments: _ScopeArguments = {}
+    mission_arguments: _MissionArguments = {}
+    if scope is not None:
+        scope_arguments["scope"] = scope
+        assert feature_dir is not None
+        mission_arguments["feature_dir"] = feature_dir
+    return scope_arguments, mission_arguments
+
+
 def _context_failure_exit(exc: Exception, *, console, json_output: bool) -> typer.Exit:
     """Report a context failure once, and keep operator-actionable scope refusals out of "Unexpected".
 
@@ -148,12 +159,7 @@ def context(
     try:
         repo_root = _charter_pkg.find_repo_root()
         repo_root, scope, feature_dir = _resolve_context_scope(repo_root, owned_checkout, mission)
-        scope_arguments: _ScopeArguments = {}
-        mission_arguments: _MissionArguments = {}
-        if scope is not None:
-            scope_arguments["scope"] = scope
-            assert feature_dir is not None
-            mission_arguments["feature_dir"] = feature_dir
+        scope_arguments, mission_arguments = _scope_and_mission_arguments(scope, feature_dir)
         # WP07 T034: resolve the configured org doctrine snapshot in the
         # specify_cli layer and pass it as data into the charter layer.
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
