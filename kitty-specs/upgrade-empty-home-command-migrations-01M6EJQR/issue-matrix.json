@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6551": {
+      "evidence_ref": "The predicate in compat.py is owned by unmerged PR #6946; this mission neither changes it nor claims its fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6946": {
+      "evidence_ref": "Reference to the open PR whose file and fix this mission deliberately does not touch (C-001)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6954": {
+      "evidence_ref": "commit dd0f6c8f90 (lane-b): _SafeGlobalizeCommandsBase classifies from metadata.yaml via target_version; tests/upgrade/test_empty_home_command_migrations.py red-then-green (2 tests), tests/upgrade/test_globalize_commands_stamp_classification.py 13 tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#6988": {
+      "evidence_ref": "Reference to the changelog-fragment change; recorded as the reason C-003 exists",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
