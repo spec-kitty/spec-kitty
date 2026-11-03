@@ -22,7 +22,7 @@ Direct calls on the same tree:
 
 ```
 list_orphan_ops(primary)                      -> []
-locate_op_record_root(primary, <id>)          -> /tmp/ground6661/lane     # already finds it
+locate_op_record_root(primary, <id>)          -> <scratch>/lane          # already finds it
 list(_repository_checkouts(primary))          -> [primary, lane]           # already enumerates
 ```
 
