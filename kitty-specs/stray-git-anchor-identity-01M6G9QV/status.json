@@ -67,7 +67,8 @@
         "Docs ready; T009 (fragment PR-number rename) is the post-PR hand-off chore described in WP02 history",
         "- 2026-11-03T09:36:52Z – python-pedro – shell_pid=3257656 – Review round 1 (reviewer-renata lens): PASS. Changelog fragment is content-only, US spelling, 0 errors from check_changelog_style and 0 findings from check_spelling --pass unreleased, and it names exactly the delivered rule (a folder git does not track is minted; the refusal keeps the .git marker file and a .git directory git cannot read). The upgrade guide gains one sentence in the section that already explains the refusal, and the existing refusal text and example are untouched. check_docs_freshness --ci: errors=0. T009 remains open by design: the fragment's PR-number rename lands on this same branch immediately after 'gh pr create' and closes T009 before accept.",
         "- 2026-11-03T09:37:10Z – python-pedro – shell_pid=3257656 – T009 remainder deferred to the hand-off, again explicitly: the fragment is named <issue>-<branch-slug>.fixed.md (the pre-PR form the unreleased/ README allows); its rename to <pr>.fixed.md is committed on the target branch right after 'gh pr create' and T009 is marked done then, before accept. WP02 is approved without T009 so that consolidate (which refuses unreviewed WPs) can land WP01's code on the target branch and the PR can exist at all; this is the ordering deadlock, not skipped work.",
-        "Review passed (fragment + guide sentence match the delivered predicate; style, spelling and docs-freshness gates green). T009's PR-number rename is the post-PR hand-off completed on this branch before accept."
+        "Review passed (fragment + guide sentence match the delivered predicate; style, spelling and docs-freshness gates green). T009's PR-number rename is the post-PR hand-off completed on this branch before accept.",
+        "- 2026-11-03T09:41:21Z – reviewer-renata – shell_pid=3257656 – T009 complete: fragment renamed to docs/changelog/unreleased/7117.fixed.md (PR #7117), WP02's owned_files/create_intent follow the rename, check_changelog_style 0 errors and check_spelling 0 findings re-run on the final name."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
@@ -75,7 +76,8 @@
       "shell_pid_created_at": "1793697838.25",
       "subtasks": {
         "T007": "done",
-        "T008": "done"
+        "T008": "done",
+        "T009": "done"
       }
     }
   }
