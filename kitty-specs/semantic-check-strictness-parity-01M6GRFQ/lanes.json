@@ -12,9 +12,8 @@
         "WP02"
       ],
       "write_scope": [
-        "docs/changelog/CHANGELOG.md",
-        "docs/changelog/unreleased/<pr/**",
-        "docs/changelog/unreleased/README.md",
+        "docs/changelog/unreleased/**",
+        "docs/guides/how-to/governance/manage-glossary.md",
         "src/glossary/**",
         "tests/agent/glossary/**"
       ],
@@ -23,8 +22,8 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-11-03T13:11:03.908079+00:00",
+  "computed_at": "2026-11-03T13:11:21.075607+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "c54c7f915ee3e23dd940b41a2fb97626b4487fd2"
+  "planning_commit_sha": "9022405639b2e16fa36142a67c7c709672fd3adb"
 }
