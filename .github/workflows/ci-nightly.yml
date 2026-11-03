@@ -531,6 +531,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 1 (full-mode, run-all-regardless)
@@ -616,6 +618,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 2 (full-mode, run-all-regardless)
@@ -692,6 +696,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 3 (full-mode, run-all-regardless)
@@ -764,6 +770,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 4 (full-mode, run-all-regardless)
@@ -836,6 +844,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 5 (full-mode, run-all-regardless)
@@ -908,6 +918,8 @@ jobs:
       - name: Sync the pinned service extras
         uses: ./.github/actions/sync-services
         with:
+          # The shards sync a 3.13 venv; name the interpreter so uv does not warn against .python-version.
+          python: uv run --frozen --no-sync --python 3.13 python
           extras-only: 'true'
 
       - name: Run fast/unit suite, shard 6 (full-mode, run-all-regardless)
