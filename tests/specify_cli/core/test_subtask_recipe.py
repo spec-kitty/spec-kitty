@@ -24,6 +24,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _SLUG = "port-completion-01M6FZ0K"
 
+#: Import roots that would put I/O or domain knowledge back on the pure refusal path.
+_IO_BEARING_ROOTS = frozenset({"pathlib", "kernel", "specify_cli", "subprocess", "json"})
+
 
 def test_single_id_without_mission_omits_the_mission_flag() -> None:
     assert mark_status_recipe(["T001"], wp_id="WP02") == "spec-kitty agent tasks mark-status T001 --wp WP02 --status done"
@@ -89,5 +92,5 @@ def test_the_module_stays_pure_and_free_of_io_imports() -> None:
         elif isinstance(node, ast.ImportFrom) and node.module is not None:
             imported.add(node.module)
 
-    forbidden = {name for name in imported if name.split(".")[0] in {"pathlib", "kernel", "specify_cli", "subprocess", "json"} and name != "collections.abc"}
+    forbidden = {name for name in imported if name.split(".")[0] in _IO_BEARING_ROOTS}
     assert not forbidden, f"subtask_recipe must stay pure; forbidden imports: {sorted(forbidden)}"
