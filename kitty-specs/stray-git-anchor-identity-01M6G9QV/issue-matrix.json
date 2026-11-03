@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6673": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context-only citation: #6673 (closed) is the tracked-identity contract this mission preserves, tested by tests/specify_cli/upgrade/test_read_tracked_meta_6673.py and tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py, which stay green. It owes this mission no work.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7082": {
