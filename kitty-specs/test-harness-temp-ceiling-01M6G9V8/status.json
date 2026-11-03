@@ -1,20 +1,20 @@
 {
-  "event_count": 15,
-  "last_event_id": "01M6GFHR9FDGW250G7BTYNQ9WP",
-  "materialized_at": "2026-11-03T10:33:47.568040+00:00",
+  "event_count": 16,
+  "last_event_id": "01M6GFHSMT7QV2F4JYHYPG8ZHS",
+  "materialized_at": "2026-11-03T10:33:48.954872+00:00",
   "mission_number": "",
   "mission_slug": "test-harness-temp-ceiling-01M6G9V8",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -56,14 +56,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M6GFHR9FDGW250G7BTYNQ9WP",
-      "last_transition_at": "2026-11-03T10:33:47.568040+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6GFHSMT7QV2F4JYHYPG8ZHS",
+      "last_transition_at": "2026-11-03T10:33:48.954872+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: six child environments carry the ceiling; five red-first tests plus the in-module bake assertion"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3480654,
       "shell_pid_created_at": "1793698688.37",
