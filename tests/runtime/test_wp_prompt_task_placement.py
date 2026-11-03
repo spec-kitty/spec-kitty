@@ -90,7 +90,7 @@ def _assert_task_prompt(decision: Decision, *, action: str, repo_root: Path, mis
     assert str(repo_root / ".worktrees") in decision.workspace_path
 
     if action == "implement":
-        assert "mark-status WP01.1 WP01.2 --status done" in prompt
+        assert f"mark-status WP01.1 WP01.2 --wp WP01 --status done --mission {mission_slug}" in prompt
     else:
         assert "REVIEW COMMANDS:" in prompt
         assert "APPROVE:" in prompt
