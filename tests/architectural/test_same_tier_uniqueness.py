@@ -636,6 +636,15 @@ def test_timeout_budget_guard_bites_on_a_markerless_consumer() -> None:
 _COLLECT_FUNCTION_HINT = "collect"
 
 
+def _mentions_timeout(node: ast.expr) -> bool:
+    """The compared left side names a timeout: ``seen["timeout_s"]``, ``lock.timeout``, ``timeout_s``."""
+    if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+        return "timeout" in node.slice.value.lower()
+    if isinstance(node, ast.Attribute):
+        return "timeout" in node.attr.lower()
+    return isinstance(node, ast.Name) and "timeout" in node.id.lower()
+
+
 def _bare_collection_timeouts(source: str) -> list[str]:
     """``"line:column timeout=<n>"`` for a collection function in *source* passing an int ``timeout=``.
 
@@ -657,6 +666,25 @@ def _bare_collection_timeouts(source: str) -> list[str]:
     return problems
 
 
+def _bare_ceiling_comparisons(source: str) -> list[str]:
+    """``"line:column <comparison>"`` for a timeout-naming left side compared above an int literal.
+
+    The collection ceiling is ``gc.COLLECT_TIMEOUT_S``; a test that re-states the number as a bare
+    ``> <int>`` literal (``seen["timeout_s"] > 900``) duplicates it, so the two can drift apart.
+    Only ``>`` / ``>=`` comparisons with an int constant on a timeout-naming left side
+    (subscript, attribute or plain name) are reported, which the scan over ``tests/architectural``
+    keeps free of unrelated integer comparisons.
+    """
+    problems = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Compare) or not _mentions_timeout(node.left):
+            continue
+        for operator, comparator in zip(node.ops, node.comparators):
+            if isinstance(operator, (ast.Gt, ast.GtE)) and isinstance(comparator, ast.Constant) and isinstance(comparator.value, int):
+                problems.append(f"{node.lineno}:{node.col_offset} {ast.unparse(node)}")
+    return problems
+
+
 def test_collection_subprocesses_use_the_named_ceiling() -> None:
     """The collection ceiling is one named constant, never a literal repeated at a call site."""
     source = Path(gc.__file__).read_text(encoding="utf-8")
@@ -668,3 +696,20 @@ def test_collection_subprocesses_use_the_named_ceiling() -> None:
     # Positive control: the scanner sees the shape it forbids, and only inside the collection.
     assert _bare_collection_timeouts("def _collect(\n    args,\n):\n    return run(args, timeout=900)\n") == ["4:11 timeout=900"]
     assert _bare_collection_timeouts("def render(\n    args,\n):\n    return run(args, timeout=900)\n") == []
+
+    # The comparison form, scanned over every module under tests/architectural: the ceiling
+    # re-stated as a bare ``> <int>`` anywhere in the battery duplicates the one authority.
+    architectural_dir = Path(gc.__file__).parent
+    comparison_offenders = [
+        f"{path.relative_to(architectural_dir)}:{problem}"
+        for path in sorted(architectural_dir.rglob("*.py"))
+        for problem in _bare_ceiling_comparisons(path.read_text(encoding="utf-8"))
+    ]
+    assert not comparison_offenders, (
+        "a timeout is compared above a bare int literal at "
+        f"{comparison_offenders}; compare against gc.COLLECT_TIMEOUT_S so the ceiling stays one "
+        "authority (#7052)"
+    )
+    # Positive control: the comparison scanner sees the shape it forbids and passes the named form.
+    assert _bare_ceiling_comparisons('def test_x():\n    assert seen["timeout_s"] > 900\n') == ["2:11 seen['timeout_s'] > 900"]
+    assert _bare_ceiling_comparisons("def test_x():\n    assert seen[\"timeout_s\"] > gc.COLLECT_TIMEOUT_S\n") == []

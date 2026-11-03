@@ -415,7 +415,7 @@ def test_lock_is_requested_blocking_with_a_wait_above_the_collection_timeout(rep
 
     assert seen["blocking"] is True
     assert seen["timeout_s"] is not None
-    assert seen["timeout_s"] > 900, "above the 900 s collection timeout, or waiting workers would give up first"
+    assert seen["timeout_s"] > gc.COLLECT_TIMEOUT_S, "above the collection timeout, or waiting workers would give up first"
     assert seen["path"].parent == us.store_dir(repo)
     assert seen["path"].suffix != ".json", "the lock file must never be mistaken for a record"
 
