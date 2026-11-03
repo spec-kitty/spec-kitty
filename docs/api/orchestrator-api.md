@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.22.0`
+- `CONTRACT_VERSION`: `1.23.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -215,6 +215,16 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   but the contract never registered it. This is a completeness fix to the declared set,
   not a new failure mode: no behaviour changes. The contract-visible error-code set
   grows, so a minor bump; no field or `error_code` is removed or renamed.
+- `1.23.0` — the implementation-evidence refusal of `consolidate-mission` and `accept-mission`
+  gains the code `OWNERSHIP_UNRESOLVED` (#7149; `single_branch` emits the alias
+  `SINGLE_BRANCH_OWNERSHIP_UNRESOLVED`). An approved work package whose `owned_files` cannot be
+  read (its task file or the whole `tasks/` directory is missing or unreadable) is absent from the
+  resolved ownership map; it used to refuse as `IMPLEMENTATION_MISSING`, whose recovery cannot
+  help. The verdict is decided before `IMPLEMENTATION_MISSING`, and no attestation lifts it. An
+  authored `owned_files` list, an empty one included, stays resolved and keeps
+  `IMPLEMENTATION_MISSING`. The code appears in `data.preflight_error_code(s)` and
+  `data.evidence_error_codes`, so the contract-visible error-code set grows, a minor bump; no field
+  or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -222,7 +232,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.22.0",
+  "contract_version": "1.23.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -413,7 +423,7 @@ so on), `accept-mission` refuses with `MISSION_NOT_READY` and this error data:
 | `activity_issues` | `list[str]` — human-readable readiness issues |
 | `skipped_checks` | `list[{check, detail}]` — gates the readiness pass never reached |
 | `blocked_checks` | `list[{check, detail}]` — gates that stopped readiness outright (e.g. a missing `lanes.json` reports `check: "lanes_manifest"`) |
-| `evidence_error_codes` | optional, contract >= 1.21.0: `list[str]` — present only on an evidence refusal, every distinct code it names in order (`IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`, `IMPLEMENTATION_UNREADABLE`, `EVIDENCE_WINDOW_UNCOMPUTABLE`, or a `SINGLE_BRANCH_*` alias on a `single_branch` Mission; meanings in the `consolidate-mission` table below). The readiness fields above are absent then. |
+| `evidence_error_codes` | optional, contract >= 1.21.0: `list[str]` — present only on an evidence refusal, every distinct code it names in order (`IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`, `IMPLEMENTATION_UNREADABLE`, `EVIDENCE_WINDOW_UNCOMPUTABLE`, `OWNERSHIP_UNRESOLVED` (1.23.0), or a `SINGLE_BRANCH_*` alias on a `single_branch` Mission; meanings in the `consolidate-mission` table below). The readiness fields above are absent then. |
 
 No acceptance is recorded on this refusal: `meta.json` gains no `accepted_at` /
 `acceptance_mode` / `acceptance_history`, and HEAD is unchanged. The readiness
@@ -1067,6 +1077,8 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `REVIEW_NOT_INDEPENDENT` | (1.21.0) The approver is not provably another identity than the implementer of record: the same tool with no model or profile recorded on both sides that differs, or an identity that is not recorded (a placeholder such as `user` included). | Have a reviewer with another identity review and approve it (`--agent <tool>:<model>:<profile>`). No attestation lifts it. |
 | `IMPLEMENTATION_UNREADABLE` | (1.21.0) The evidence window cannot be diffed, for example the lane branch or the recorded planning commit is gone. | Restore or fetch the lane branch and the planning commit, re-run. |
 | `EVIDENCE_WINDOW_UNCOMPUTABLE` | (1.21.0) `lanes.json` records no planning commit, or the work package is in no lane. | Re-run `spec-kitty agent mission finalize-tasks`, re-run. |
+| `OWNERSHIP_UNRESOLVED` | (1.23.0) The work package's `owned_files` cannot be read: its task file, or the whole `tasks/` directory, is missing or unreadable, so there is no declaration to judge the evidence against. An authored empty list is not this case. | Restore or commit the task file with its `owned_files`, or run from the checkout that owns the Mission, re-run. No attestation lifts it. |
+| `SINGLE_BRANCH_OWNERSHIP_UNRESOLVED` | (1.23.0, #7149) The `single_branch` alias of `OWNERSHIP_UNRESOLVED`. | As for `OWNERSHIP_UNRESOLVED`. |
 | `SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` | (#5939) The same three meanings on a `single_branch` Mission, which keeps emitting these aliases. | As for the neutral code. |
 | `SINGLE_BRANCH_EVIDENCE_UNREADABLE` | (#5939) The `single_branch` alias of `IMPLEMENTATION_UNREADABLE`, as `consolidate-mission`, `accept-mission`, `accept` and `consolidate` emit it. (`move-task` emits the other alias, `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`, for the same meaning.) | As for `IMPLEMENTATION_UNREADABLE`. |
 

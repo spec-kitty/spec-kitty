@@ -362,10 +362,11 @@ topology. The message is in `data.errors`; the readiness fields above are absent
 | `REVIEW_NOT_INDEPENDENT` | The approver is not provably another identity than the implementer: same tool and no model or profile recorded on both sides that differs, or an identity not recorded (a `user` placeholder included) | A reviewer with another identity approves it (`--agent <tool>:<model>:<profile>`); no attestation lifts it |
 | `IMPLEMENTATION_UNREADABLE` | The evidence window cannot be diffed (a lane branch or the planning commit is gone) | Restore or fetch them, re-run |
 | `EVIDENCE_WINDOW_UNCOMPUTABLE` | `lanes.json` records no planning commit, or the WP is in no lane | Re-run `spec-kitty agent mission finalize-tasks` |
+| `OWNERSHIP_UNRESOLVED` | (contract >= 1.23.0) The WP's `owned_files` cannot be read: its task file or the `tasks/` directory is missing or unreadable (an authored empty list is not this case) | Restore the task file or run from the owning checkout, re-run; no attestation lifts it |
 
 A `single_branch` Mission keeps emitting the `SINGLE_BRANCH_*` aliases of the same meaning
 (`SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`,
-`SINGLE_BRANCH_EVIDENCE_UNREADABLE`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE`).
+`SINGLE_BRANCH_EVIDENCE_UNREADABLE`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE`, `SINGLE_BRANCH_OWNERSHIP_UNRESOLVED`).
 `consolidate-mission` refuses the same codes with `PREFLIGHT_FAILED`, in
 `data.preflight_error_code` / `data.preflight_error_codes`, before it merges its first lane.
 

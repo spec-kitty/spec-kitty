@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-10-29'
+updated: '2026-11-03'
 ---
 
 **Status:** Accepted
@@ -248,3 +248,16 @@ This follow-up supersedes, for forced moves into `approved`, the residual above 
 - **Rebased stacks.** A Mission whose corpus was rebased first sees only changes up to the corpus commit on the PR side, so its work packages refuse `IMPLEMENTATION_MISSING` (fail closed).
 - **Squash landings** cannot use the stand-in; the lane branch must be restored.
 - **Overlap is approximate.** The glob comparison errs toward refusing, so disjoint-in-practice globs that look nested also refuse.
+
+### Amendment 2026-11-03 — unresolved ownership is its own verdict, not a missing implementation (#7149)
+
+**Reader:** a maintainer who needs to know why an approved work package with an unreadable task file no longer refuses `IMPLEMENTATION_MISSING`.
+
+**Problem.** The evidence axis read an absent ownership declaration as an empty one, so a work package whose task file, or whole `tasks/` directory, could not be read refused `IMPLEMENTATION_MISSING`. Its recovery (commit more work, or `--attest-no-implementation`) could not help, and the attestation could lift the refusal on evidence that was never judged.
+
+**Decision.**
+
+- **A fifth verdict.** A work package absent from the resolved ownership map (missing `tasks/`, an absent or unreadable task file) refuses `OWNERSHIP_UNRESOLVED` (`SINGLE_BRANCH_OWNERSHIP_UNRESOLVED` on `single_branch`). It is decided before `IMPLEMENTATION_MISSING`, so that verdict now means only "ownership resolved, no owned change".
+- **Not liftable.** `--attest-no-implementation` refuses it; no attestation lifts it. The recovery is to restore the task file or run from the owning checkout.
+- **Authored stays resolved.** An authored `owned_files`, an empty list or an omitted key (which reads as an empty list) included, is a resolved declaration and keeps `IMPLEMENTATION_MISSING`.
+- **Contract.** The orchestrator-api `CONTRACT_VERSION` is `1.23.0` (additive code).
