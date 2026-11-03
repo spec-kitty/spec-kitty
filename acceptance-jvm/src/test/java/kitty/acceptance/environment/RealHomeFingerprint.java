@@ -37,8 +37,7 @@ import java.util.stream.Stream;
  * <p>Both are named by the shared-machine rule as safe to race. A shared host therefore compares the
  * whole tree <em>minus</em> those two subtrees — and nothing else. Everything else in the root (the
  * tracker {@code credentials} file, an activation ledger, a state entry, any new top-level file a
- * redirection bug would leave behind) stays compared, and the {@code *.lock} filename exclusion keeps
- * its current meaning in every scope.
+ * redirection bug would leave behind) stays compared, and the {@code *.lock} filename exclusion is reserved for future non-lock files; today the only matching file is pre-review-gate-run.lock, which is already excluded, so the exemption is forward-looking rather than a live fix in every scope.
  *
  * <p><b>Scope.</b> {@code strict} is the default and is what a single-writer machine and every CI runner
  * gets. {@code shared-host} is selected by the {@value #SHARED_HOST_VARIABLE} environment variable, and
