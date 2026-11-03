@@ -1,0 +1,33 @@
+{
+  "accept_commit": "4b3e60541db4330025ecdd75b7a088d85647fdff",
+  "acceptance_history": [
+    {
+      "accept_commit": "4b3e60541db4330025ecdd75b7a088d85647fdff",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T09:56:03.515674+00:00",
+      "accepted_by": "pi/deepseek-v4.1-flash",
+      "accepted_from_commit": "235fde5eec12b95eba97e1a400069b168e264590"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T09:56:03.515674+00:00",
+  "accepted_by": "pi/deepseek-v4.1-flash",
+  "accepted_from_commit": "235fde5eec12b95eba97e1a400069b168e264590",
+  "baseline_merge_commit": "7226a9761981f11b3660c9749f8bdf6655acac10",
+  "created_at": "2026-11-03T08:49:10.100468+00:00",
+  "flattened": false,
+  "friendly_name": "gated in review rewind",
+  "merged_at": "2026-11-03T09:56:19.434384+00:00",
+  "merged_commit": "7226a9761981f11b3660c9749f8bdf6655acac10",
+  "mid8": "01M6G9J5",
+  "mission_id": "01M6G9J5TF9H8H741CB332B711",
+  "mission_number": 249,
+  "mission_slug": "gated-in-review-rewind-01M6G9J5",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances gated in review rewind on issue-7080-gated-in-review-rewind so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "gated in review rewind",
+  "slug": "gated-in-review-rewind-01M6G9J5",
+  "status_phase": "1",
+  "target_branch": "issue-7080-gated-in-review-rewind",
+  "topology": "single_branch"
+}
