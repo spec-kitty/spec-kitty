@@ -122,9 +122,10 @@ runs:
       shell: bash
       env:
         WARMUP_MODE: ${{ inputs.mode }}
+        RESOLVED_REV: ${{ steps.resolve-rev.outputs.resolved-events-rev }}
       run: |
         set -euo pipefail
-        rev="${{ steps.resolve-rev.outputs.resolved-events-rev }}"
+        rev="$RESOLVED_REV"
         # A cache hit only makes the download cheap; it is never proof that the
         # environment is the expected one. The mode arrives through the
         # environment (never interpolated into this shell body), and the install
@@ -143,9 +144,10 @@ runs:
       shell: bash
       env:
         WARMUP_MODE: ${{ inputs.mode }}
+        RESOLVED_REV: ${{ steps.resolve-rev.outputs.resolved-events-rev }}
       run: |
         set -euo pipefail
-        rev="${{ steps.resolve-rev.outputs.resolved-events-rev }}"
+        rev="$RESOLVED_REV"
         installed="$(
           .venv/bin/python -c 'import importlib.metadata as metadata; print(metadata.version("spec-kitty-events"))'
         )"
