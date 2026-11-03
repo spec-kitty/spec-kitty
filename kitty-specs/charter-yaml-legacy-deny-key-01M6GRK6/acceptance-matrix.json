@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_activation_vocabulary_setequal.py::test_charter_yaml_declares_no_deny_field (no deactivated_* model field; model_fields unchanged by 3d5a612)",
+      "pass_fail": "pass",
+      "verified_by": "claude-opus-4-5",
+      "verified_at": "2026-11-03T13:45:29.685292+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
