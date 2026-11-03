@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_unchecked_recipe_scoped.py::test_refusal_recipe_names_the_wp_being_moved asserts both emitted lines contain 'mark-status T001 --wp WP02 --status done --mission <slug>' from the real _guard_subtasks refusal; test_refusal_still_reports_every_unchecked_id_and_the_force_hint pins that the verdict and surrounding text are unchanged. 13/13 tests in the file pass at HEAD; reverting the emitter to 790bd82a89^ reds the assertion.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:54:00.237605+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
