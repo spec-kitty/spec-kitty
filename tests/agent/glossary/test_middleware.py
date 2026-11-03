@@ -17,6 +17,7 @@ from glossary.store import GlossaryStore
 
 pytestmark = pytest.mark.fast
 
+
 class TestMiddlewareBasics:
     """Basic middleware functionality tests."""
 
@@ -883,7 +884,6 @@ class TestSemanticCheckMiddleware:
         """Event emission method signature matches WP08 contract."""
         from inspect import signature
 
-
         middleware = SemanticCheckMiddleware(semantic_check_store)
 
         # Check method exists
@@ -974,9 +974,7 @@ class TestSemanticCheckIntegration:
         middleware = SemanticCheckMiddleware(semantic_check_store)
 
         # LLM output that contradicts the glossary definition
-        llm_output_with_contradiction = (
-            "The feature is not a unit of work. The feature refers to a plugin or extension module."
-        )
+        llm_output_with_contradiction = "The feature is not a unit of work. The feature refers to a plugin or extension module."
 
         context = MockContext(
             metadata={},
@@ -1046,3 +1044,40 @@ class TestSemanticCheckIntegration:
                 assert conflict.severity == Severity.HIGH
             elif conflict.conflict_type == ConflictType.UNKNOWN and conflict.term.surface_text == "unknown_term":
                 assert conflict.severity == Severity.LOW
+
+
+class TestSemanticCheckStrictnessResolution:
+    """#7065: the check resolves the gate's strictness before it emits."""
+
+    def test_process_stores_the_configured_strictness_on_the_context(self, semantic_check_store: GlossaryStore, tmp_path: Path) -> None:
+        from glossary.strictness import Strictness
+
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify" / "config.yaml").write_text("glossary:\n  strictness: max\n")
+        middleware = SemanticCheckMiddleware(semantic_check_store, repo_root=tmp_path)
+
+        result = middleware.process(MockContext(metadata={}, extracted_terms=[]))
+
+        assert result.effective_strictness is Strictness.MAX
+
+    def test_runtime_override_reaches_the_persisted_event(self, semantic_check_store: GlossaryStore, tmp_path: Path) -> None:
+        import json
+
+        from glossary.strictness import Strictness
+
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify" / "config.yaml").write_text("glossary:\n  strictness: max\n")
+        middleware = SemanticCheckMiddleware(
+            semantic_check_store,
+            repo_root=tmp_path,
+            runtime_override=Strictness.OFF,
+        )
+
+        context = middleware.process(MockContext(metadata={}, extracted_terms=[]))
+
+        assert context.effective_strictness is Strictness.OFF
+        log_path = next((tmp_path / ".kittify" / "events" / "glossary").glob("*.events.jsonl"))
+        events = [json.loads(line) for line in log_path.read_text().splitlines() if line.strip()]
+        check_events = [e for e in events if e.get("event_type") == "SemanticCheckEvaluated"]
+        assert check_events, "the semantic check must persist its event"
+        assert check_events[-1]["effective_strictness"] == "off"
