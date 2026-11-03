@@ -43,7 +43,7 @@ Subtasks are reference rows; record completion with `spec-kitty agent tasks mark
 ### Included Subtasks
 
 - T007 Re-check the evidence against the committed JSON; add the post-change state and the E → C (not A) statement with the Java reason
-- T008 Author `docs/changelog/unreleased/7113.internal.md` in the fragment shape
+- T008 Author `docs/changelog/unreleased/7139.internal.md` in the fragment shape
 - T009 Run `check_changelog_style` and `check_spelling --pass unreleased`
 - T010 Draft the PR body's `## Change` and `## Deferred` from the evidence, naming the Java scope decision and the nineteen pre-existing findings
 
