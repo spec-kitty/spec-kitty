@@ -445,11 +445,10 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         return
     if not base:
         # A first run with no recorded post-projection tip cannot prove what the coordination branch
-        # held when the merge verified it, so there is no window to build -- and no projection teardown
-        # gate either (one is built only from a checkpoint, so ``base is None`` also means no gate).
-        # Refusing would strand a Mission whose coordination placement did not resolve, because no
-        # `--resume` could clear it either (`_refuse_unbuildable_late_window` refuses for the same
-        # reason). The loss is REAL and still reachable in that corner: filed as #7121.
+        # held when the merge verified it, so there is no window to build. Refusing would strand a
+        # Mission whose coordination placement did not resolve, because no `--resume` could clear it
+        # either (`_refuse_unbuildable_late_window` refuses for the same reason). The loss is REAL and
+        # still reachable in that corner: filed as #7121.
         return
     if checkpoint is None:
         # Unproducible in a current release (``coord_tip_after_projection`` is only ever captured from
@@ -459,12 +458,25 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     coord_ref = checkpoint.ref
     if coord_ref not in (branch, f"refs/heads/{branch}"):
         return
-    projected_tip = _resolve_ref_sha(run.main_repo, coord_ref)
-    if not projected_tip:
-        # The ref is already gone: nothing to project and nothing left to delete. Returning here, rather
-        # than letting the window read fail, keeps a first run whose coordination branch vanished a no-op
-        # -- the postcondition ``_delete_mission_branch`` already reports for an absent branch (#6871).
+    # Resolve the tip with the exit code kept: ``_resolve_ref_sha`` collapses "absent" and "unreadable"
+    # into ``""``, which would let a git failure skip the window silently (and then flatten the marker
+    # over a live branch). Only a DEFINITE absence -- exit 1, nothing to project and nothing to delete --
+    # is a no-op (#6871 review).
+    probe, probe_out, _probe_err = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"{coord_ref}^{{commit}}"],
+        capture=True,
+        check_return=False,
+        cwd=run.main_repo,
+    )
+    if probe == 1:
         return
+    projected_tip = probe_out.strip() if probe == 0 else ""
+    if not projected_tip:
+        raise CoordinationTeardownError(
+            f"the coordination tip of {branch!r} could not be read (git rev-parse exited {probe}); "
+            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        )
     target = run.lanes_manifest.target_branch
     try:
         if not _post_checkpoint_commit_shas(run.main_repo, base, coord_ref):
