@@ -504,6 +504,23 @@ class TestKernelIsolation:
             .are_named("specify_cli")
         ).assert_applies(evaluable)
 
+    @pytest.mark.parametrize("layer", ["glossary", "runtime", "mission_runtime"])
+    def test_kernel_does_not_import_sibling_layers(self, evaluable, landscape, layer):
+        """kernel is the root: it may not reach any other landscape layer (#7155).
+
+        The two rules above covered only the layers that existed when the chain
+        was first gated; the middle of the chain was unguarded.
+        """
+        (
+            LayerRule()
+            .based_on(landscape)
+            .layers_that()
+            .are_named("kernel")
+            .should_not()
+            .access_layers_that()
+            .are_named(layer)
+        ).assert_applies(evaluable)
+
 
 # --- Invariant 2 (retired): "doctrine depends only on kernel" ---
 #
@@ -535,6 +552,19 @@ class TestCharterBoundary:
             .should_not()
             .access_layers_that()
             .are_named("specify_cli")
+        ).assert_applies(evaluable)
+
+    @pytest.mark.parametrize("layer", ["glossary", "runtime", "mission_runtime"])
+    def test_charter_does_not_import_its_dependents(self, evaluable, landscape, layer):
+        """charter sits below its dependents and may not reach up to them (#7155)."""
+        (
+            LayerRule()
+            .based_on(landscape)
+            .layers_that()
+            .are_named("charter")
+            .should_not()
+            .access_layers_that()
+            .are_named(layer)
         ).assert_applies(evaluable)
 
 
