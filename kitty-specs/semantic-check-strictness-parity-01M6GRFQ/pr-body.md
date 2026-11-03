@@ -58,7 +58,7 @@ Files:
 - `tests/agent/glossary/test_middleware.py`
 - `docs/guides/how-to/governance/manage-glossary.md`
 - `docs/development/docs-retrieval-index.yaml`
-- `docs/changelog/unreleased/<pr>.fixed.md`
+- `docs/changelog/unreleased/7132.fixed.md`
 - `kitty-specs/semantic-check-strictness-parity-01M6GRFQ/**` (mission record)
 
 ## Deferred
