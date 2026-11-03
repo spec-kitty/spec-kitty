@@ -64,6 +64,9 @@ def _break_task_file(fd: Path, how: str) -> None:
             "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\nowned_files:\n  - src/m1/**\nestimated_lines: 3\n---\n# WP01\n",
             encoding="utf-8",
         )
+    elif how == "unattributable":
+        (tasks / _TASK_FILE).unlink()
+        (tasks / "WP-broken.md").write_text("---\nowned_files: [unclosed\n---\n", encoding="utf-8")
     elif how == "duplicate":
         shutil.copy(tasks / _TASK_FILE, tasks / "WP01-copy.md")
     else:
@@ -83,6 +86,8 @@ def _break_task_file(fd: Path, how: str) -> None:
             (_TASK_FILE, "ValidationError: Extra inputs are not permitted: 'estimated_lines'"),
             id="lanes-unknown_key",
         ),
+        # A broken file whose name carries no WP id cannot be attributed; the generic reason must still mention it.
+        pytest.param(_lanes_case, "unattributable", ("declares work_package_id WP01 (1 task file(s) could not be read: WP-broken.md)",), id="lanes-unattributable"),
         # Two task files declaring one id cannot both be authoritative: fail closed and name them.
         pytest.param(_lanes_case, "duplicate", ("declared by 2 task files", _TASK_FILE, "WP01-copy.md"), id="lanes-duplicate"),
         # The breakage kind is topology-independent, so one single_branch row proves the alias.
