@@ -134,6 +134,10 @@ runs:
         # exactly the lock (--frozen); full resolves the latest release on top.
         if [ "$WARMUP_MODE" = "full" ]; then
           uv sync --all-extras --upgrade-package "spec-kitty-events==$rev"
+          # A non-frozen sync rewrites the tracked uv.lock (at least its revision header), and a dirty
+          # checkout fails every test that pins source identity ("Baseline source is dirty"). The upgraded
+          # release stays installed in the venv the shards run from; only the tracked file is restored.
+          git checkout -- uv.lock
         else
           uv sync --frozen --all-extras
         fi
