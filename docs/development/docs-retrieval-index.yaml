@@ -3416,6 +3416,7 @@ pages:
     - {slug: "open-questions-operator", text: "Open questions (operator)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
+    - {slug: "amendment-2026-10-30-accepted-the-ordering-is-wall-clock-not-lamport", text: "Amendment 2026-10-30 (Accepted): the ordering is wall clock, not Lamport", level: 2}
   - path: "docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md"
     title: "ADR: the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)"
     divio_type: "none"
@@ -11857,6 +11858,7 @@ pages:
     - {slug: "the-ruff-format-exclude-ratchet-has-a-twin", text: "The `ruff format` exclude ratchet has a twin", level: 3}
     - {slug: "a-scanner-that-swallows-a-parse-failure-reds-the-parse-fail-closed-gate", text: "A scanner that swallows a parse failure reds the parse fail-closed gate", level: 3}
     - {slug: "router-path-filters-are-the-tail-of-a-guarded-ssot-chain", text: "Router path filters are the tail of a guarded SSOT chain", level: 3}
+    - {slug: "an-extra-narrow-lane-for-an-out-of-matrix-test", text: "An extra narrow lane for an out-of-matrix test", level: 3}
     - {slug: "stored-test-universe-collection", text: "Stored test-universe collection", level: 2}
     - {slug: "where-it-lives-and-what-it-is-keyed-on", text: "Where it lives and what it is keyed on", level: 3}
     - {slug: "when-the-store-is-bypassed", text: "When the store is bypassed", level: 3}
@@ -12084,6 +12086,16 @@ pages:
     - {slug: "view-the-allure-report", text: "View the Allure report", level: 2}
     - {slug: "change-a-dependency", text: "Change a dependency", level: 2}
     - {slug: "read-a-nightly-failure", text: "Read a nightly failure", level: 2}
+  - path: "docs/development/testing/ci-performance.md"
+    title: "CI performance and evidence boundaries"
+    divio_type: "explanation"
+    abstract: "Explain how CI reuses immutable inputs without weakening test and coverage evidence."
+    anchors:
+    - {slug: "one-owner-for-each-check", text: "One owner for each check", level: 2}
+    - {slug: "cache-candidates-are-not-verdicts", text: "Cache candidates are not verdicts", level: 2}
+    - {slug: "timings-describe-test-identities", text: "Timings describe test identities", level: 2}
+    - {slug: "failure-and-coverage-truthfulness", text: "Failure and coverage truthfulness", level: 2}
+    - {slug: "validate-a-performance-change", text: "Validate a performance change", level: 2}
   - path: "docs/development/testing/index.md"
     title: "Testing the Spec Kitty codebase"
     divio_type: "none"
