@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "All three workflow_executor runbook sites (build_implement_prompt_lines x2 at 1622/1700 and implement_finalize_and_print at 1757) render through _subtask_completion_recipe -> mark_status_recipe; test_runbook_recipe_names_the_wp and test_runbook_recipe_keeps_the_placeholder_when_no_roster_is_authored pin the rendered text, and the AST census test_only_the_renderer_builds_the_recipe_text fails on any new hand-formatted 'mark-status ... --status' f-string outside the renderer.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:54:12.315577+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
