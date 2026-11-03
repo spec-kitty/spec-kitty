@@ -23,6 +23,18 @@
       "title": "<auto-classified: pr_or_commit_ref>",
       "verdict": "not-applicable",
       "wp": null
+    },
+    "#7084": {
+      "evidence_ref": "Claimed 2026-11-03; root cause reproduced and narrowed to the anchor predicate (kitty-specs/stray-git-anchor-identity-01M6G9QV/research.md).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
