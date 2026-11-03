@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01M6GSZ4XEZN8C3CB6SRCRRC22",
-  "materialized_at": "2026-11-03T13:35:52.238262+00:00",
+  "event_count": 7,
+  "last_event_id": "01M6GT082FC2ABFY1FGZKY5CEY",
+  "materialized_at": "2026-11-03T13:36:28.239688+00:00",
   "mission_number": "",
   "mission_slug": "ascii-mission-scaffold-01M6GRG6",
   "mission_type": "software-dev",
@@ -14,8 +14,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -23,17 +23,23 @@
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M6GSZ4XEZN8C3CB6SRCRRC22",
-      "last_transition_at": "2026-11-03T13:35:52.238262+00:00",
+      "lane": "planned",
+      "last_event_id": "01M6GT082FC2ABFY1FGZKY5CEY",
+      "last_transition_at": "2026-11-03T13:36:28.239688+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-03T13:30:36Z – claude – shell_pid=93754 – T001-T005 done. Red first: 5 failed / 3 passed on the shipped constant (U+2013 on the WP01 title line, box drawing in the tree). After the fix: 8 passed in 0.59s. End-to-end: sanitize_directory (what validate-encoding runs) reports (False, None) for a mission dir holding the rendered README. mypy clean, ruff check + format clean. tests/core -k 'scaffold or mission_creation': 431 passed.",
         "Ready for review: scaffold is ASCII, pin is green and non-vacuous"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/exedev/work/sk-6877/kitty-specs/ascii-mission-scaffold-01M6GRG6/tasks/WP01-ascii-scaffold-text-and-pin/review-cycle-1.md",
+        "reference": "review-cycle://ascii-mission-scaffold-01M6GRG6/WP01-ascii-scaffold-text-and-pin/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "changes_requested"
+      },
       "role": "reviewer",
       "shell_pid": 387731,
       "shell_pid_created_at": "1793712949.16",
