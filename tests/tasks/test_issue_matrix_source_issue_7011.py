@@ -27,6 +27,7 @@ import pytest
 
 from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
 from specify_cli.tasks.issue_reference_discovery import (
+    _source_issues_from_spec,
     discover_issue_references,
     gating_issue_numbers,
 )
@@ -243,3 +244,13 @@ def test_source_description_parenthetical_after_the_number_promotes(tmp_path: Pa
     )
 
     assert gating_issue_numbers(feature_dir) == {"#6100"}
+
+
+def test_negated_closing_keyword_promotes_nothing() -> None:
+    """#7011 landing fold: "does not fix #N" states what the Mission does NOT fix."""
+    assert _source_issues_from_spec("This Mission does not fix #6100; the umbrella tracks it.\n") == set()
+
+
+def test_input_line_epic_lead_promotes_the_target_not_the_umbrella() -> None:
+    """#7011 landing fold: a positional ``Epic #N`` lead names context; the target follows it."""
+    assert _source_issues_from_spec("**Input**: Epic #6100 umbrella; the concrete bug is #6926.\n") == {6926}
