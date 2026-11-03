@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "ascii-mission-scaffold-01M6GRG6",
+  "mission_id": "01M6GRG6F2XR1ZNC3K79MN1W21",
+  "mission_branch": "issue-6877-ascii-mission-scaffold",
+  "target_branch": "issue-6877-ascii-mission-scaffold",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/mission_creation_scaffold.py",
+        "src/specify_cli/core/worktree.py",
+        "tests/core/test_tasks_readme_scaffold_ascii.py",
+        "tests/git_ops/test_worktree.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:15:19.901172+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "97efdc0ecaf8b03e3a6ec4db0d59fb328c057b44"
+}
