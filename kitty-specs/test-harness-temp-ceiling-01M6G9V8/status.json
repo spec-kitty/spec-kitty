@@ -81,7 +81,7 @@
     },
     "WP03": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -91,7 +91,8 @@
       "last_transition_at": "2026-11-03T10:34:28.307079+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review"
+        "Ready for review",
+        "Review passed: stop= retired from both walks, three callers bound by the per-test ceiling, session_start deliberately untouched"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
