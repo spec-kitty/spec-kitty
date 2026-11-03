@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6859-accept-pin-fixture-01M6GS08",
+  "mission_id": "01M6GS08PS25AKE5GAV9RCTANE",
+  "mission_branch": "kitty/mission-issue-6859-accept-pin-fixture-01M6GS08",
+  "target_branch": "issue-6859-accept-pin-fixture",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/*.internal.md",
+        "tests/specify_cli/cli/commands/test_issue_4891_accept_missing_lanes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:20:43.868834+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "d4a5622f8c0b4536b5b8a86676e9144a8d1021f3"
+}

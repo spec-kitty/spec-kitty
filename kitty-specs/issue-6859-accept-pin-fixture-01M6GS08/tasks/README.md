@@ -23,9 +23,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
+planning_base_branch: "issue-6910-write-service-api-v1-prefix"
+merge_target_branch: "issue-6910-write-service-api-v1-prefix"
+branch_strategy: "Planning artifacts were generated on issue-6910-write-service-api-v1-prefix; completed changes must merge back into issue-6910-write-service-api-v1-prefix."
 subtasks:
   - "T001"
   - "T002"
