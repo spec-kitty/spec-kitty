@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/unit/test_root_walk_has_one_boundary.py::test_the_walk_takes_no_stop_parameter and ::test_passing_stop_is_a_type_error",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T10:35:49.831242+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
