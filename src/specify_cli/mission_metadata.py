@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -605,13 +606,37 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
 
 
 def _has_no_git_anchor(feature_dir: Path) -> bool:
-    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
+    """Whether no *repository* ``.git`` exists at or above *feature_dir* (#7093).
+
+    An anchor is a ``.git`` git can name a repository with: a pointer *file* (a worktree,
+    submodule or separate-git-dir marker) or a *directory* that holds ``HEAD``. A directory
+    named ``.git`` with no ``HEAD`` is not a repository -- git answers "not a git
+    repository" for every path below it, so nothing is tracked there and no identity can be
+    orphaned. Counting it as an anchor turned that answer into the
+    :attr:`~TrackedMeta.unavailable` refusal, which forbids the mints that are safe here and
+    made a project outside any checkout unrepairable under a stray ``.git`` (the debris of
+    the literal-``.git/hooks`` writer of #5756 leaves exactly that shape).
+
+    The walk continues past a non-repository ``.git``, so it never shields a real repository
+    above it, and the first anchor wins. An anchor that cannot be inspected is read as present
+    (fail closed): a refusal is the safe answer, a mint over tracked history is not.
+    """
     for candidate in (feature_dir, *feature_dir.parents):
+        git_path = candidate / ".git"
         try:
-            if (candidate / ".git").exists():
-                return False
+            entry = git_path.lstat()
+        except FileNotFoundError:
+            continue
         except OSError:
             return False
+        if stat.S_ISDIR(entry.st_mode):
+            try:
+                (git_path / _HEAD).stat()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                return False
+        return False
     return True
 
 
