@@ -1,0 +1,94 @@
+{
+  "event_count": 16,
+  "last_event_id": "01M6GTGST6AQZE3SX63HYE0JZV",
+  "materialized_at": "2026-11-03T13:45:30.694207+00:00",
+  "mission_number": "",
+  "mission_slug": "sonar-new-code-reliability-01M6GRHZ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6GT185AVRC0445M9ZCHKMXK",
+      "last_transition_at": "2026-11-03T13:37:01.098308+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Three constructs removed at source; guard red on the pre-change tree, green after; three single-hunk reverts red only their own assertion.",
+        "Review F1 fixed: the comment now names the real --log flag. Guard module still 4 passed; no other change.",
+        "Review F1 fixed; guard 4 passed; reverts isolate; #7109 not-applicable; #7113 deferred-with-followup (E->C, Java scope + pre-existing remain tracked)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#7113"
+      ]
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6GTGST6AQZE3SX63HYE0JZV",
+      "last_transition_at": "2026-11-03T13:45:30.694207+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Evidence updated with the post-change E->C state; fragment passes style and spelling; PR body drafted and validated.",
+        "Review passed. Evidence matches the committed JSON (new_bugs=4, sinceLeakPeriod=4, window anchor rc7/2026-10-15); C-002 and C-003 respected (Java scope not reversed, 19 findings unmodified); fragment passes style and spelling at 649 chars. One process follow-up, not a finding: the fragment id must become the PR number once the PR exists."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 421549,
+      "shell_pid_created_at": "1793713040.16",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#7113"
+      ]
+    }
+  }
+}

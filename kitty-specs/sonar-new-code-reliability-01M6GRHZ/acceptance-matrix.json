@@ -1,0 +1,59 @@
+{
+  "mission_slug": "sonar-new-code-reliability-01M6GRHZ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_new_code_reliability_shapes.py::test_events_default_log_kind_is_looked_up_by_name; 4 passed; revert reds it",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:45:56.440993+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_compiler_binds_the_service_class_before_the_annotation_that_names_it + test_compiler_service_builder_branch_returns_the_wrapper; revert reds the AST probe",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:45:59.625737+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_backfill_identity_states_the_refusal_invariant; both tracked-meta outcomes on one fake; revert reds it",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:46:02.768516+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "kitty-specs/sonar-new-code-reliability-01M6GRHZ/evidence/README.md + raw API JSON beside it; new_bugs=4, sinceLeakPeriod=4",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:46:06.244974+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "80 passed (events tail + guard), 758 passed/14 skipped (charter), 78 passed (migration); existing tests unmodified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:46:10.253077+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

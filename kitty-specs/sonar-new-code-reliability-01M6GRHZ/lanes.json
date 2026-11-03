@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "sonar-new-code-reliability-01M6GRHZ",
+  "mission_id": "01M6GRHZVD25RR53F6Y6GE97S4",
+  "mission_branch": "kitty/mission-sonar-new-code-reliability-01M6GRHZ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7113.internal.md",
+        "src/charter/activation/compiler.py",
+        "src/specify_cli/cli/commands/events.py",
+        "src/specify_cli/migration/backfill_identity.py",
+        "tests/architectural/test_new_code_reliability_shapes.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:15:34.793044+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f1e860a17f2293ea00794672bcad0267ac660ea1"
+}
