@@ -898,6 +898,10 @@ jobs:
     runs-on: ubuntu-24.04
     # Preserve the original five-minute authority budget, plus separately
     # bounded one-minute informational probes; advisory work cannot consume it.
+    # The probes stay in this job rather than moving to their own: every
+    # non-gate job in this workflow must appear in `router-gate.needs`
+    # (tests/architectural/test_dual_mode_contract.py), so a separate home
+    # would put them straight back on the required check's critical path.
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
