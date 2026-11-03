@@ -328,3 +328,80 @@ def test_the_refusal_notice_names_the_unusable_copy_and_its_repair(tmp_path: Pat
     assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
     assert phrase in classified.notice
     assert remedy.format(slug=_SLUG) in classified.notice
+
+
+def test_a_git_directory_that_is_not_a_repository_is_not_an_anchor(tmp_path: Path) -> None:
+    """#7093: only a repository is an anchor; a directory named ``.git`` without ``HEAD`` is not one.
+
+    git defines a repository by its ``HEAD``, so for every path below a ``.git`` directory that
+    holds none git answers "not a git repository" — nothing is tracked there. Read as a refusal,
+    that shape stopped the shared repair from writing a baseline ``meta.json`` for a project
+    outside any checkout (this host's ``/tmp/.git``, the debris of the literal-``.git/hooks``
+    writer of #5756), and the frozen 2.0.6 sweep reported a write it never made.
+
+    The second half is the same-fixture positive control: a ``.git`` *pointer file* names a
+    repository the caller cannot read, and that must keep refusing.
+    """
+    project = tmp_path / "ancestor" / "project"
+    mission_dir = project / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "tasks.md").write_text("# tasks\n", encoding="utf-8")
+    stray = project.parent / ".git"
+    (stray / "hooks").mkdir(parents=True)
+    assert not (stray / "HEAD").exists()
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert tracked == TrackedMeta(None, unavailable=False), "a non-repository .git was read as a refusal"
+    assert build_baseline_feature_meta(mission_dir, project) is not None, "the shared repair refused a folder it can rebuild"
+
+    # Positive control on the same fixture: a pointer file is a repository we cannot read.
+    for child in sorted(stray.rglob("*"), reverse=True):
+        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
+    stray.rmdir()
+    stray.write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+
+    refusing = read_tracked_meta(mission_dir)
+
+    assert refusing.meta is None
+    assert refusing.unavailable is True, "a repository git cannot read must still refuse"
+
+
+def _unreadable_anchor_project(tmp_path: Path) -> tuple[Path, Path]:
+    """A Mission folder under a real-repository-shaped ``.git`` (a directory holding ``HEAD``)."""
+    project = tmp_path / "project"
+    mission_dir = project / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "tasks.md").write_text("# tasks\n", encoding="utf-8")
+    git_dir = project / ".git"
+    (git_dir / "hooks").mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    return mission_dir, git_dir
+
+
+def test_an_unreadable_git_entry_is_read_as_an_anchor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7093: the narrowed anchor test fails closed when the entry itself cannot be inspected.
+
+    The denial is injected at the filesystem seam (``Path.lstat`` raises ``PermissionError``
+    for one named path), not with ``chmod``, so the verdict is the same for every uid
+    (#5622, #5691).
+    """
+    from tests._support.eacces import deny_path_method
+
+    mission_dir, git_dir = _unreadable_anchor_project(tmp_path)
+    deny_path_method(monkeypatch, "lstat", git_dir)
+
+    assert read_tracked_meta(mission_dir).unavailable is True, "an unreadable .git entry was read as absent"
+
+
+def test_an_unreadable_head_is_read_as_an_anchor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7093: the entry is there but its ``HEAD`` cannot be inspected — still an anchor, never a mint.
+
+    Same fixture and seam as the lstat case, so the two halves cannot drift apart.
+    """
+    from tests._support.eacces import deny_path_method
+
+    mission_dir, git_dir = _unreadable_anchor_project(tmp_path)
+    deny_path_method(monkeypatch, "stat", git_dir / "HEAD")
+
+    assert read_tracked_meta(mission_dir).unavailable is True, "an unreadable HEAD was read as absent"
