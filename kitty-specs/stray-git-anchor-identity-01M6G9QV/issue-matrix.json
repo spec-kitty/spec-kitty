@@ -25,7 +25,7 @@
       "wp": null
     },
     "#7084": {
-      "evidence_ref": "Claimed 2026-11-03; root cause reproduced and narrowed to the anchor predicate (kitty-specs/stray-git-anchor-identity-01M6G9QV/research.md).",
+      "evidence_ref": "fix(7084) 11d7abfd70 + b6167d5dde: read_tracked_meta mints again where git holds nothing; tests/lanes/test_refinalize_mission_branch.py green unedited; 3 new probe/entry-point tests plus 3 anchor-shape controls",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
