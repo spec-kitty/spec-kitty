@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mission_slug": "fix-6871-first-run-late-coord-01M6G9JR",
+  "mission_id": "01M6G9JRZRYNK7ZH67BG2XF312",
+  "mission_branch": "kitty/mission-fix-6871-first-run-late-coord-01M6G9JR",
+  "target_branch": "issue-6871-first-run-late-coord",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "tests/coordination/test_projection_teardown.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-03T08:51:39.412163+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "68581d31ed91eca8213be731823385aad7091550"
+}

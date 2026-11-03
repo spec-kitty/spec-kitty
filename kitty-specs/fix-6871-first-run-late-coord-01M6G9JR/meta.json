@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances fix 6871 first run late coord on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "fix 6871 first run late coord",
   "slug": "fix-6871-first-run-late-coord-01M6G9JR",
-  "target_branch": "main",
+  "target_branch": "issue-6871-first-run-late-coord",
   "topology": "coord"
 }
