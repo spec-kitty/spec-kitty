@@ -78,7 +78,15 @@ def _supersede_through_wp01_rework(mission: CoordMission) -> None:
     """WP01 (recorded ``done`` by the first, failed run's bookkeeping) is reopened and
     reworked through the production shell: its rework deletes WP02's leaked file."""
     lane_branch = mission.lane_branches["WP01"]
-    transition(mission, "WP01", "in_progress", actor=_ACTOR, force=True, reason="rework: remove canceled WP02's leftover file")
+    transition(
+        mission,
+        "WP01",
+        "in_progress",
+        actor=_ACTOR,
+        force=True,
+        reason="rework: remove canceled WP02's leftover file",
+        review_ref="force-override",
+    )
     git(mission.repo, "checkout", "-q", lane_branch)
     git(mission.repo, "rm", "-q", _LEAKED_PATH)
     git(mission.repo, "commit", "-qm", "wp01 rework removes canceled wp02's file")
