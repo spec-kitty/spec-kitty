@@ -1,0 +1,90 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6GWVC7AM9RAV9MP1KEKD32K",
+  "materialized_at": "2026-11-03T14:26:14.378089+00:00",
+  "mission_number": "249",
+  "mission_slug": "report-only-pinned-pack-inputs-01M6GRG8",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:opus-4.5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude:opus-4.5:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M6GWVBWMPGY32E63AZXD9282",
+      "last_transition_at": "2026-11-03T14:26:14.036606+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first proof recorded; predicate + prefix-scoped preflight filter in place; 35 e2e + 9 unit cases green; ruff/mypy clean.",
+        "Review passed after R1/R2 fixes: single-pass pack pin resolution, fixture assertion strengthened, all 44 cases green, ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 573391,
+      "shell_pid_created_at": "1793713524.4",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#7128"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:opus-4.5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude:opus-4.5:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M6GWVC7AM9RAV9MP1KEKD32K",
+      "last_transition_at": "2026-11-03T14:26:14.378089+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs paragraph + per-PR fragment; changelog style, spelling and docs freshness (errors=0) green.",
+        "Review passed: paragraph states the pin rule and all four remaining refusals without over-promising; fragment is a per-PR fragment under 1,200 characters; the generated agent-subcommand reference needs no edit (its --help text 'require clean material inputs' is still true, and a pin-verified tree is clean input)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 810501,
+      "shell_pid_created_at": "1793714295.02",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "#7128"
+      ]
+    }
+  }
+}

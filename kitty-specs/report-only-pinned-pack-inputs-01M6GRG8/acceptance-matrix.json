@@ -1,0 +1,69 @@
+{
+  "mission_slug": "report-only-pinned-pack-inputs-01M6GRG8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py::test_report_only_records_over_a_pin_verified_pack_tree (fails with DIRTY_ANALYSIS_INPUT before the fix, commit_status=committed after); reproduced in a real synced clone",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:25.009364+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_report_only_refuses_a_pack_tree_that_breaks_its_pin: one byte changed inside the tree still yields DIRTY_ANALYSIS_INPUT naming that file",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:28.123721+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_report_only_refuses_an_uncommitted_pin (names the pin) + tests/specify_cli/test_analysis_inputs_pinned_packs.py::test_{dirty,untracked,absent,symlinked}_pin_* ",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:31.508148+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_pin_verified_pack_tree_does_not_exempt_other_ignored_input (same fixture, .kittify/templates input still refused) + the pre-existing test_unsafe_state_refuses_without_report_write[ignored_input] passes unedited",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:36.607273+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_sibling_tree_does_not_inherit_a_verified_root: packs/internal-extra (a name that starts with the verified root) is not covered; red when _under_any is weakened to a naive startswith",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:40.026830+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "the three refusal cases assert dirty_paths names the edited pack file, the pin, and the unrelated ignored file respectively",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-4.5:reviewer-renata",
+      "verified_at": "2026-11-03T14:25:43.256145+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

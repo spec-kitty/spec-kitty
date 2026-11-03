@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4228": {
+      "evidence_ref": "Prior art only (research D5): 45ee988d0f (#4228) introduced the report-only transaction and the untracked-material rule this mission refines; no work is owed to #4228.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5125": {
+      "evidence_ref": "Orthogonal open tech-debt (relocate report_transaction.py out of git/); this mission changes no module location, so no work is owed to #5125.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5380": {
+      "evidence_ref": "Orthogonal open defect (a different report-only refusal, phase-event deadlock); this mission touches only the dirty-material-input preflight, so no work is owed to #5380.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7106": {
+      "evidence_ref": "Context only (research D5): #7106 observed this defect and recorded without --report-only as a workaround; its analysis-freshness scope is untouched here, so no work is owed to #7106.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7128": {
+      "evidence_ref": "WP01 commits f11af25c63, eb0d36e6a1, 2e619934ee; proofs: tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py (4 e2e cases) and tests/specify_cli/test_analysis_inputs_pinned_packs.py (13 cases); recorded end-to-end in this synced clone where --report-only previously refused.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
