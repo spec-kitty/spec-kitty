@@ -286,6 +286,8 @@ def test_pr_mode_uses_the_frozen_lock_and_full_mode_upgrades_the_resolved_releas
     assert '"$WARMUP_MODE" = "full"' in run, "the sync must branch on the mode"
     assert "--frozen" in run, "pr mode installs exactly what uv.lock pins"
     assert "--upgrade-package" in run and "spec-kitty-events" in run, "full mode resolves the latest release as an upstream-drift signal"
+    full_branch = run.split('"$WARMUP_MODE" = "full"', 1)[1].split("else", 1)[0]
+    assert "git checkout -- uv.lock" in full_branch, "full mode must leave the tracked uv.lock as committed (a rewritten lock dirties the source)"
     assert str(sync.get("env", {}).get("RESOLVED_REV")) == "${{ steps.resolve-rev.outputs.resolved-events-rev }}", (
         "the resolved rev reaches the sync through the environment, never interpolated into its shell body"
     )
