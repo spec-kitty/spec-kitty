@@ -11,5 +11,7 @@
   "purpose_tldr": "test harness temp ceiling",
   "slug": "test-harness-temp-ceiling-01M6G9V8",
   "target_branch": "issue-7076-test-harness-temp-ceiling",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T08:58:13.929492+00:00"
 }
