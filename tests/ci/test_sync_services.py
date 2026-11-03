@@ -28,6 +28,7 @@ import yaml
 
 from kernel.service_artifacts import cached_path
 from kernel.service_pin import PINS_DIR, ServicePin, ServiceTarget, write_service_pin
+from tests.ci.test_workflows_sync_packs import _commands as workflow_commands
 from tests.kernel.service_release_fixture import build_release, pin_path
 
 pytestmark = pytest.mark.fast
@@ -427,9 +428,12 @@ _RUNS_PYTEST = re.compile(r"(?:^|[\s;&|(\"])pytest(?=\s|$)")
 def nightly_jobs_running_pytest_unsynced(workflow: Path) -> tuple[list[str], list[str]]:
     """``(pytest jobs, those that run pytest before syncing the service extras)`` of *workflow*.
 
-    The nightly runs whole directories, so any of its pytest jobs can collect a test that reads the pinned extras
+    The nightly runs whole test trees, so any of its pytest jobs can collect a test that reads the pinned extras
     (``tests/pinned_service_assets.py`` fails closed with ``SERVICE_BINARY_MISSING`` without them). The repo-wide
-    ratchet above only needs one wired job, which let 14 nightly jobs go red after the #6915 cut-over.
+    ratchet above only needs one wired job anywhere, which left 14 nightly jobs exposed after the #6915 cut-over.
+    Per-PR workflows are out of scope: their jobs run named directories that do not collect the extras readers.
+    Command lines are read the way the pack-sync walker reads them (comments, ``echo`` lines and heredoc bodies
+    dropped), so a step that only mentions pytest does not count.
     """
     jobs = (yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}).get("jobs") or {}
     running: list[str] = []
@@ -438,7 +442,7 @@ def nightly_jobs_running_pytest_unsynced(workflow: Path) -> tuple[list[str], lis
         synced = False
         for step in (job or {}).get("steps") or []:
             synced = synced or str(step.get("uses", "")).startswith(_ACTION_REF)
-            if not _RUNS_PYTEST.search(str(step.get("run", ""))):
+            if not any(_RUNS_PYTEST.search(line) for line in workflow_commands(str(step.get("run", "")))):
                 continue
             if job_id not in running:
                 running.append(job_id)
@@ -449,8 +453,24 @@ def nightly_jobs_running_pytest_unsynced(workflow: Path) -> tuple[list[str], lis
 
 def test_every_nightly_pytest_job_syncs_the_service_extras_first() -> None:
     running, unsynced = nightly_jobs_running_pytest_unsynced(_WORKFLOWS / "ci-nightly.yml")
-    assert len(running) >= 10, f"the scan must see the nightly's pytest jobs, saw {running}"
+    assert {"performance", "stress", "integration-next"} <= set(running), f"the scan must see the nightly's pytest jobs, saw {running}"
     assert unsynced == [], f"ci-nightly.yml jobs run pytest before {_ACTION_REF} (extras-only): {unsynced}"
+
+
+@pytest.mark.parametrize(
+    ("steps", "unsynced"),
+    [
+        ([{"run": "uv run pytest tests"}], ["t"]),
+        ([{"run": "uv run pytest tests"}, {"uses": _ACTION_REF}], ["t"]),
+        ([{"uses": _ACTION_REF}, {"run": "python -m pytest tests"}], []),
+        ([{"run": "# pytest runs later\necho pytest"}], []),
+    ],
+    ids=["unwired", "synced-after-pytest", "wired", "mention-only"],
+)
+def test_nightly_extras_guard_planted_cases(tmp_path: Path, steps: list[dict[str, str]], unsynced: list[str]) -> None:
+    workflow = tmp_path / "ci-nightly.yml"
+    workflow.write_text(yaml.safe_dump({"on": "schedule", "jobs": {"t": {"steps": steps}}}), encoding="utf-8")
+    assert nightly_jobs_running_pytest_unsynced(workflow)[1] == unsynced
 
 
 # --------------------------------------------------------------------------- #
