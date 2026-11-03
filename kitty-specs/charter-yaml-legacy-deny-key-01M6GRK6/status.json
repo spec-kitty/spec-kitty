@@ -52,7 +52,7 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -62,7 +62,8 @@
       "last_transition_at": "2026-11-03T13:43:58.953818+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: deny-vocabulary pin + changelog fragment"
+        "Ready for review: deny-vocabulary pin + changelog fragment",
+        "Review passed (reviewer-renata): the pin is derived from activation_ledger.DENY_KEYS (no hand-listed keys), guards its own non-vacuity, asserts disjointness + no declared deny field, and parametrizes the refusal over all 11 deny keys with a same-fixture positive control. Changelog fragment is a new file (no CHANGELOG.md edit), style and spelling checks exit 0. 61 targeted tests pass; mypy --strict clean on src."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
