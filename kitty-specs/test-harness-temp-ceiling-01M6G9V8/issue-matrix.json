@@ -13,7 +13,7 @@
       "wp": null
     },
     "#7056": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "#7056 parent work is PR #7082 (open, out of this mission's scope); #7076 is its deferred harness half",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7082": {
