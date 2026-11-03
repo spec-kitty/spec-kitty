@@ -184,7 +184,19 @@ this prompt.
 
 ## Progress & Status
 
-- Implementation: pending.
+- 2026-11-03 · implementer (claude) · Implemented T006–T009.
+- `tests/charter/test_activation_vocabulary_setequal.py` gained the `#6855` block: the deny
+  vocabulary is derived from `activation_ledger.DENY_KEYS` (nonzero + deny-shaped sanity,
+  disjointness with `ACTIVATION_YAML_KEYS`, no `deactivated_` model field, and a parametrized
+  refusal with a same-fixture positive control). 11 deny keys covered.
+- `uv run --frozen pytest tests/charter/test_activation_vocabulary_setequal.py -q` → `25 passed`.
+- Changelog fragment `docs/changelog/unreleased/6855-charter-yaml-legacy-deny-key.internal.md`
+  added; `python -m scripts.docs.check_changelog_style` → `0 error(s)` (86 pre-existing
+  warnings, none from this fragment); `python -m scripts.docs.check_spelling --pass unreleased`
+  → `0 finding(s)`.
+- `uv run --frozen ruff check` on the touched test file → clean; `ruff format --diff` shows no
+  hunk inside the new block (the file is on the formatter-debt ratchet, so it was not
+  wholesale-reformatted).
 
 ## Definition of Done
 
