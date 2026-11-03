@@ -64,8 +64,6 @@ NEGATIVE_PATHS = (
 )
 
 
-
-
 def _jobs() -> dict[str, Any]:
     return dict(yaml.safe_load(ROUTER.read_text(encoding="utf-8"))["jobs"])
 
