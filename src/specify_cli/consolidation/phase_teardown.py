@@ -445,17 +445,26 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         return
     if not base:
         # A first run with no recorded post-projection tip cannot prove what the coordination branch
-        # held when the merge verified it, so there is no window to build. Refusing here would strand
-        # a Mission whose coordination placement does not resolve, and no `--resume` could clear it;
-        # the projection teardown gate (when one was built) is this run's guard. Reported as a
-        # residual in the PR's `## Deferred` (#6871).
+        # held when the merge verified it, so there is no window to build -- and no projection teardown
+        # gate either (one is built only from a checkpoint, so ``base is None`` also means no gate).
+        # Refusing would strand a Mission whose coordination placement did not resolve, because no
+        # `--resume` could clear it either (`_refuse_unbuildable_late_window` refuses for the same
+        # reason). The loss is REAL and still reachable in that corner: filed as #7121.
         return
-    # The window is read from the coordination ref; a run that recorded no checkpoint names the
-    # branch itself (the same ref the delete below operates on).
-    coord_ref = checkpoint.ref if checkpoint is not None else branch
+    if checkpoint is None:
+        # Unproducible in a current release (``coord_tip_after_projection`` is only ever captured from
+        # the checkpoint ref), and unsound if it ever happened: the window would be read from a ref the
+        # tip was not captured on. Leave such a run to the delete's own compare-and-swap.
+        return
+    coord_ref = checkpoint.ref
     if coord_ref not in (branch, f"refs/heads/{branch}"):
         return
     projected_tip = _resolve_ref_sha(run.main_repo, coord_ref)
+    if not projected_tip:
+        # The ref is already gone: nothing to project and nothing left to delete. Returning here, rather
+        # than letting the window read fail, keeps a first run whose coordination branch vanished a no-op
+        # -- the postcondition ``_delete_mission_branch`` already reports for an absent branch (#6871).
+        return
     target = run.lanes_manifest.target_branch
     try:
         if not _post_checkpoint_commit_shas(run.main_repo, base, coord_ref):
@@ -492,7 +501,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         )
     except GitCommandError as exc:
         raise CoordinationTeardownError(
-            f"the coordination commits that landed during teardown could not be read ({escape(str(exc))}); "
+            f"the coordination commits this teardown has to land could not be read ({escape(str(exc))}); "
             f"branch {branch!r} was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
         ) from exc
     except LateProjectionRefused as exc:
@@ -500,7 +509,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths, *gate_matrix_paths]) if path.exists()]
     if paths and _paths_have_status_changes(run.main_repo, paths):
         _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
-        window = "during teardown" if run.is_resume else "between the gate and teardown"
+        window = "during teardown" if run.is_resume else "after the merge verified the coordination tip"
         console.print(f"  Projected the coordination commit(s) that landed {window} onto {target}")
     # #6791: whatever the seams above could not carry is REFUSED here, before the branch
     # delete, instead of dying with the branch at exit 0.

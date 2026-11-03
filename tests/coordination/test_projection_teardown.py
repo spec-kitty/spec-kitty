@@ -755,6 +755,45 @@ def test_first_run_projects_the_late_window_as_one_commit(tmp_path: Path) -> Non
     assert log.count("project coordination commits that landed during teardown") == 1, log
 
 
+def test_first_run_whose_coordination_branch_is_already_gone_reads_no_window(tmp_path: Path) -> None:
+    """#6871 positive control: an absent coordination branch is a no-op, never an unreadable-window refusal.
+
+    A first run now reads the late window before the teardown. When the branch was already deleted by
+    something else, that read must not turn the run into a "commits could not be read" refusal: there is
+    nothing left to project and nothing left to destroy, so the step returns and the teardown's own
+    compare-and-swap logic owns the outcome.
+    """
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+    _git(repo, "branch", "-D", coord)
+
+    phase_teardown._land_late_coordination_commits(run)  # no ref: no window, no commit, no refusal
+
+    assert run.coord_tip_after_projection == projected_tip, "a run with nothing to project approves nothing new"
+
+
+def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_path: Path) -> None:
+    """#6871 fail-closed leg: a commit landing DURING the projection is never stamped approved.
+
+    The anchor may only advance to the tip the assertion was made over. A concurrent commit that lands
+    while the projection runs leaves the ref elsewhere, so the anchor stays put and the projection
+    teardown gate refuses -- keeping a foreign commit out of "what teardown approved".
+    """
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
+    real_commit = phase_teardown._commit_projection_and_carry
+
+    def commit_then_land_a_foreign_one(target_run: object, paths: list[Path], message: str) -> None:
+        real_commit(target_run, paths, message)  # type: ignore[arg-type]
+        _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/foreign.md", "foreign\n", "concurrent emit")
+
+    with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(run_state.CoordinationTeardownError):
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert run.coord_tip_after_projection == tip, "a tip that moved during the projection must never be approved"
+    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unlanded commit"
+
+
 def test_first_run_refuses_a_late_deletion_it_cannot_express_and_keeps_the_triple(tmp_path: Path) -> None:
     """#6871: a late coordination commit the projection cannot carry REFUSES, loudly.
 
