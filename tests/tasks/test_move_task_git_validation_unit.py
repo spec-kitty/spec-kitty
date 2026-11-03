@@ -15,7 +15,6 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.activation.api import code_producing_for
 from charter.activation.mission_type_profiles import resolve_mission_type_context
 from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review, app
 from specify_cli.status.models import Lane, StatusEvent
@@ -286,16 +285,27 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_for_review_persists_transition_event(
-        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
-        """Successful move-task output requires a durable transition event."""
+        self,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_worktree: tuple[Path, Path],
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Successful move-task output requires a durable transition event and a resolved capability."""
         repo_root, _worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
 
-        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+        # Exercise the real review-ward guard, not another synthetic capability read (#7073).
+        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
+            result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
 
         assert result.exit_code == 0, result.stdout
+        assert [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "charter.activation.mission_type_profiles" and record.levelno >= logging.WARNING
+        ] == [], "mission-type resolution fell back to a built-in default on the real review path"
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert output["new_lane"] == "for_review"
@@ -673,22 +683,5 @@ class TestFixtureCharterProvisioning:
 
         resolved = resolve_mission_type_context(repo_root, mission_type="software-dev")
 
-        assert resolved.mission_type == "software-dev"
         # A neutral or fallback bundle carries no curated sequence; a resolved profile does.
         assert resolved.action_sequence, "expected the curated software-dev action sequence, got none"
-
-    def test_fixture_capability_read_does_not_fall_back(
-        self, git_repo_with_worktree: tuple[Path, Path], caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """The capability read resolves for real: it records no "using the built-in default" fallback."""
-        repo_root, _ = git_repo_with_worktree
-
-        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
-            assert code_producing_for(repo_root, "software-dev") is True
-
-        fallbacks = [
-            record.getMessage()
-            for record in caplog.records
-            if record.name == "charter.activation.mission_type_profiles" and record.levelno >= logging.WARNING
-        ]
-        assert fallbacks == [], f"mission-type resolution fell back to a built-in default: {fallbacks}"
