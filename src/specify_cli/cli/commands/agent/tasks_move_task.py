@@ -1008,7 +1008,9 @@ def _mt_require_implementation_evidence(st: _MoveTaskState) -> None:
     behaviour. single_branch keeps its ``SINGLE_BRANCH_*`` codes and wording; every other
     topology refuses with ``IMPLEMENTATION_MISSING`` / ``IMPLEMENTATION_UNREADABLE`` /
     ``EVIDENCE_WINDOW_UNCOMPUTABLE``, the code leading the message (the non-owned ``--json``
-    envelope carries the message only). An unreadable window refuses (fail closed).
+    envelope carries the message only). An unreadable window refuses (fail closed). When the
+    window's tip is a lane branch that is truly absent, the refusal says which shape that is and
+    which next step exists (#7120), instead of asking for a branch that may never have existed.
     """
     if st.force or st.owned is not None or st.target_lane not in _REVIEW_WARD_LANES or st.old_lane in _REVIEW_WARD_LANES:
         return
@@ -1094,6 +1096,17 @@ def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> No
         paths = _mt_lane_window_paths(st, manifest, lane, window)
     except GitProbeError as exc:
         code = wp_evidence.IMPLEMENTATION_UNREADABLE
+        # #7120: a failed diff is not a missing branch. Only a ref that `git show-ref --verify`
+        # reports as exit 1 is absent, and the absent shape has its own two remedies — restore a
+        # pruned lane, or, for a Mission implemented on its target branch with no lane branch ever
+        # created, escalate instead of retrying. "Make the lane branch readable, then retry" is
+        # unimplementable for that shape and is what made agents loop.
+        if wp_evidence.branch_ref_absent(st.main_repo_root, tip):
+            raise ActionContextError(
+                code,
+                f"{code}: {st.task_id}'s evidence window {base}..{tip} ({lane.lane_id}) cannot be read: "
+                f"{wp_evidence.absent_lane_window_cause(st.main_repo_root, manifest, tip)}.",
+            ) from exc
         raise ActionContextError(
             code,
             f"{code}: {st.task_id}'s evidence window {base}..{tip} ({lane.lane_id}) could not be diffed ({exc}), so its "
