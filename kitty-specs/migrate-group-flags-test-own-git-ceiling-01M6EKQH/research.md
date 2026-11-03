@@ -2,8 +2,8 @@
 
 **Mission**: `migrate-group-flags-test-own-git-ceiling-01M6EKQH`
 **Issue**: spec-kitty/spec-kitty#6957
-**Grounded on**: `origin/main` @ `9aed3a8012` (2026-11-02), clone `/home/exedev/work/sk-6957`
-**Host shape**: this VM has a stray `/tmp/.git` (a repository enclosing the platform temp root) —
+**Grounded on**: `origin/main` @ `9aed3a8012` (2026-11-02), clone `<worktree>`
+**Host shape**: this VM has a stray `<tmp>/.git` (a repository enclosing the platform temp root) —
 exactly the host shape the issue and #7022 describe.
 
 ## Decisions
@@ -79,7 +79,7 @@ Two guards, because one of them is host-shape dependent:
 | Module green on main | `uv run --frozen pytest tests/cli/test_migrate_group_flags_4964.py -q` → 76 passed |
 | Red reproduces in-module without the harness ceiling | throwaway probe test clearing `GIT_CEILING_DIRECTORIES` → the issue's error string, byte for byte |
 | Red reproduces at the reporter's commit `c5747c2c21` | worktree at that commit + `make sync-packs`, `pytest tests/cli/test_migrate_group_flags_4964.py` → 1 failed, 75 passed (the reported test) |
-| `/tmp/.git` is the enclosing repository | `ls -la /tmp/.git` → directory; `resolve_canonical_root(<fixture>)` → `/tmp` |
+| `<tmp>/.git` is the enclosing repository | `ls -la <tmp>/.git` → directory; `resolve_canonical_root(<fixture>)` → `/tmp` |
 | The resolver honours ceilings | `resolve_canonical_root` + `git_ceiling_dirs()` in `src/specify_cli/core/paths.py`; `#7022` commits `090d3b2000`, `59f82c860e` |
 | The sibling module already pins its own ceiling | `tests/specify_cli/migration/test_runtime_state_cutover_placement.py:41` |
 

@@ -31,7 +31,7 @@ Grounding on current `origin/main` (`9aed3a8012`) established two facts that def
    With the ambient ceiling removed — a nested runner, a child process given a scratch environment, or
    any invocation shape where that process-wide variable is not installed — the module reproduces the
    reported failure verbatim on a host whose platform temp root sits inside a repository (this host has
-   a stray `/tmp/.git`). The module poisons `locate_project_root` but never pins the *root walk* the
+   a stray `<tmp>/.git`). The module poisons `locate_project_root` but never pins the *root walk* the
    cutover uses.
 
 The repository already states the correct ownership for this case. `tests/_support/git_ceiling.py`

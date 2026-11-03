@@ -8,7 +8,7 @@
 
 `tests/cli/test_migrate_group_flags_4964.py` poisons `locate_project_root` but leaves the *root walk*
 `specify_cli.core.paths.resolve_canonical_root` unisolated. On a host whose platform temp root sits
-inside a git repository (this host: a stray `/tmp/.git`), the cutover's PRIMARY-home resolution ascends
+inside a git repository (this host: a stray `<tmp>/.git`), the cutover's PRIMARY-home resolution ascends
 into that repository, reports `<repo>/kitty-specs/<slug>`, and `_flip_phase` fails closed against the
 fixture's real write target — the exact red in #6957. Today that is masked only by the process-wide
 `GIT_CEILING_DIRECTORIES` that `tests/conftest.py` installs from the run basetemp (#7022/#5356); clear
@@ -91,7 +91,7 @@ are read to confirm the contract the guard asserts.
 ```python
 # The root walk the cutover uses (core.paths.resolve_canonical_root) is not
 # patched above; pin it to this test's own root so an ambient repository
-# enclosing the platform temp root (`/tmp/.git` — #6957, #7022) can never
+# enclosing the platform temp root (`<tmp>/.git` — #6957, #7022) can never
 # capture the PRIMARY-home resolution.
 monkeypatch.setenv(
     "GIT_CEILING_DIRECTORIES",
