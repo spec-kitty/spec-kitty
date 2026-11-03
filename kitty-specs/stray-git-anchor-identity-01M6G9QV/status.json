@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M6GA11PYRDFR4Z023HG8989G",
-  "materialized_at": "2026-11-03T08:57:17.278120+00:00",
+  "event_count": 4,
+  "last_event_id": "01M6GA3F0SCC3SN33RDQDJVY2S",
+  "materialized_at": "2026-11-03T08:58:36.434815+00:00",
   "mission_number": "",
   "mission_slug": "stray-git-anchor-identity-01M6G9QV",
   "mission_type": "",
@@ -13,17 +13,21 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6GA11BK7AVEX8B0M6EVGA2W",
-      "last_transition_at": "2026-11-03T08:57:16.915858+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M6GA3F0SCC3SN33RDQDJVY2S",
+      "last_transition_at": "2026-11-03T08:58:36.434815+00:00",
+      "shell_pid": 2928490,
+      "shell_pid_created_at": "1793696304.52"
     },
     "WP02": {
       "actor": "finalize-tasks",
