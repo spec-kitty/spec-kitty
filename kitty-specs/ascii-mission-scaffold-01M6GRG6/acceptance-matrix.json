@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/core/test_tasks_readme_scaffold_ascii.py (14 tests) asserts every rendered byte < 0x80; scaffold text single-sourced from TASKS_README_TEMPLATE",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T14:07:51.285315+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
