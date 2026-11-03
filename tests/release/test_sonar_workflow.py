@@ -247,6 +247,15 @@ def test_sonar_skips_green_without_token_never_hard_fails() -> None:
     assert "::error::" not in text.split("SONAR_TOKEN")[0] or "enabled=false" in text, "sonar.yml must not hard-fail before the token-availability check"
     assert "enabled=false" in text, "sonar.yml must emit an explicit disabled/skip signal when SONAR_TOKEN is absent"
 
+    # The quality-gate verdict is informational: it never fails the run, and it is still surfaced.
+    steps = [step for job in workflow.get("jobs", {}).values() for step in job.get("steps", []) if isinstance(step, dict)]
+    (gate,) = [step for step in steps if "sonarqube-quality-gate-action" in str(step.get("uses", ""))]
+    assert gate.get("continue-on-error") is True, "sonar.yml: the quality-gate step must be continue-on-error (informational)"
+    gate_output = f"steps.{gate.get('id')}.outputs.quality-gate-status"
+    assert any(gate_output in str(step.get("env", "")) and "GITHUB_STEP_SUMMARY" in str(step.get("run", "")) for step in steps), (
+        "sonar.yml: a step must report the quality-gate verdict to the run summary"
+    )
+
 
 # ---------------------------------------------------------------------------
 # Stock runners + no private-credential leakage (FR-017/C-010, DIR-050).
