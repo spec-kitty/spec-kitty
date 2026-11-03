@@ -48,7 +48,7 @@ from pathlib import Path
 
 import logging
 
-from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 
 from specify_cli.coordination.commit_outcome import render_commit_outcome
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
@@ -161,7 +161,7 @@ def _append_entry(content: str, entry_line: str) -> str:
 
 
 def _read_current_coord_content(
-    repo_root: Path, mission_slug: str, filename: str
+    repo_root: Path, mission_slug: str, filename: str, *, owned: OwnedCheckout | None = None
 ) -> str:
     """Read the CURRENT coord-resolved category file, or "" when absent.
 
@@ -186,9 +186,12 @@ def _read_current_coord_content(
       read-before-write at all").
     * ``UnicodeDecodeError`` on an EXISTING category file -- corruption is
       not "no content"; refusing (propagating) is the only safe response.
+
+    ``owned`` is the validated owned-checkout fact (#7081): the read resolves
+    the Mission's read dir from it instead of re-deriving one from a root.
     """
     try:
-        traces_dir = placement_seam(repo_root, mission_slug).read_dir(
+        traces_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(
             MissionArtifactKind.TRACER_FILE
         )
     except CoordinationWorktreeUnmaterialized:
@@ -204,7 +207,9 @@ def _read_current_coord_content(
         return ""
 
 
-def _local_staging_path(repo_root: Path, mission_slug: str, filename: str) -> Path:
+def _local_staging_path(
+    repo_root: Path, mission_slug: str, filename: str, *, owned: OwnedCheckout | None = None
+) -> Path:
     """Resolve the WRITE-side Mission dir for a tracer finding (T055, single-home rule).
 
     Routes through :meth:`~mission_runtime.PlacementSeam.write_dir`
@@ -224,10 +229,12 @@ def _local_staging_path(repo_root: Path, mission_slug: str, filename: str) -> Pa
     write that ``write_artifact``'s own probe is about to refuse (#3073
     zero-residue property).
 
-    ``append_tracer_finding`` has no ``owned`` parameter (binding correction,
-    brownfield scout round 3), so this never threads one through.
+    ``append_tracer_finding`` threads the validated owned-checkout fact (``owned``,
+    #7081) through here so the placement seam resolves the surface from the fact the
+    CLI already validated -- never from a second ownership interpretation. ``None``
+    keeps the historical root-derived resolution unchanged.
     """
-    location = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.TRACER_FILE)
+    location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.TRACER_FILE)
     return location.path / _TRACES_DIRNAME / filename
 
 
@@ -251,6 +258,7 @@ def append_tracer_finding(
     policy: ProtectionPolicyLike,
     target_branch: str | None = None,
     entry_date: date | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> WriteSeamResult:
     """Append a dated, attributed finding to ``traces/<category>.md`` (FR-006).
 
@@ -278,6 +286,10 @@ def append_tracer_finding(
             post-commit ff-advance.
         entry_date: Overrides the entry's date (UTC today when ``None`` --
             exposed for deterministic tests, not a CLI-facing knob).
+        owned: The validated owned-checkout fact when this write belongs to an
+            owned Mission (#7081). Threaded into the placement reads/writes and
+            ``write_artifact``; ``None`` (the default) keeps the historical
+            root-derived resolution byte-identical.
 
     Returns:
         A :class:`~specify_cli.coordination.write_seam.WriteSeamResult`.
@@ -304,8 +316,8 @@ def append_tracer_finding(
         # ``_read_current_coord_content`` must run AFTER ``write_dir`` has
         # already materialized/seeded, or it would see a stale/absent surface
         # and clobber real content with a from-scratch header).
-        local_path = _local_staging_path(repo_root, mission_slug, filename)
-        current_content = _read_current_coord_content(repo_root, mission_slug, filename)
+        local_path = _local_staging_path(repo_root, mission_slug, filename, owned=owned)
+        current_content = _read_current_coord_content(repo_root, mission_slug, filename, owned=owned)
         base_content = current_content or _default_header(category)
         merged_content = (
             base_content
@@ -329,6 +341,7 @@ def append_tracer_finding(
             policy=policy,
             entry_id=_entry_id(category, entry_line),
             target_branch=target_branch,
+            owned=owned,
             # T055 step 2: the write now lands IN PLACE at write_dir(TRACER_FILE)
             # -- nothing is created in the repository root checkout as staging
             # residue, so there is nothing for R6 cleanup to reclaim.

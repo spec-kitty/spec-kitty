@@ -1,0 +1,31 @@
+{
+  "accept_commit": "6891a8248bc690c4d4176ed2d37281dc3bbe1b80",
+  "acceptance_history": [
+    {
+      "accept_commit": "6891a8248bc690c4d4176ed2d37281dc3bbe1b80",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T11:25:08.214065+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a9e41a2212a23a38691de64f3c3b372b7f4b4e6c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T11:25:08.214065+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "a9e41a2212a23a38691de64f3c3b372b7f4b4e6c",
+  "created_at": "2026-11-03T08:47:55.103140+00:00",
+  "flattened": false,
+  "friendly_name": "tracer append owned checkout",
+  "mid8": "01M6G9FW",
+  "mission_branch": "kitty/mission-tracer-append-owned-checkout-01M6G9FW",
+  "mission_id": "01M6G9FWJDPXEKG88H3968Y7GG",
+  "mission_number": 249,
+  "mission_slug": "tracer-append-owned-checkout-01M6G9FW",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances tracer append owned checkout on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "tracer append owned checkout",
+  "slug": "tracer-append-owned-checkout-01M6G9FW",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

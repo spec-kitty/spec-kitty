@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4959": {
+      "evidence_ref": "context only: #4959 pinned the writer's fail-closed arms this mission must preserve, not change",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6988": {
+      "evidence_ref": "context only: #6988 introduced the per-PR changelog fragment shape WP02 must follow",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7081": {
+      "evidence_ref": "tests/specify_cli/cli/commands/agent/test_tracer_append_owned_checkout_7081.py (6 cases) + commit 89e20163fa",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

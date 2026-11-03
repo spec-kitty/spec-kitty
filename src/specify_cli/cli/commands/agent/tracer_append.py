@@ -2,16 +2,29 @@
 
 A lane-origin-safe CLI wrapper over
 :func:`specify_cli.retrospective.tracer_writer.append_tracer_finding`: appends
-a dated, attributed finding to ``traces/<category>.md``, routed to the COORD
-surface via the WP03 seam. Resolves ``repo_root`` to the MAIN repo root
-(``get_main_repo_root``) exactly like ``record-analysis`` does, so invoking
-this command from inside a lane worktree never touches the lane's own
+a dated, attributed finding to ``traces/<category>.md``, routed to the owned
+Mission's write surface via the WP03 seam.
+
+The write surface is the OWNED Mission fact when one applies (#7081). An
+invocation made from an owned checkout is adopted flaglessly, and
+``--owned-checkout <P>`` names it explicitly: both are validated once through
+:func:`specify_cli.cli.commands._owned_checkout.resolve_owned_or_refuse`
+before any write input is computed, so an invalid target is refused typed
+with zero residue. The owned fact then supplies the write root
+(``owned_root``), the write branch (``write_branch``), the mission-scoped
+protection policy (``ProtectionPolicy.resolve_for_owned``) and the ``owned``
+keyword the writer threads into the seam.
+
+Without a fact the command behaves exactly as it always has: it resolves the
+MAIN repo root (``get_main_repo_root``) exactly like ``record-analysis`` does,
+so invoking it from inside a lane worktree never touches the lane's own
 ``kitty-specs/`` checkout -- the write always targets the primary checkout,
 which the seam then stages onto the coordination branch (#2980 / #2549).
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -19,6 +32,10 @@ import typer
 from rich.markup import escape
 
 from specify_cli.agent_tasks_ports import RealRender
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    resolve_owned_or_refuse,
+)
 from specify_cli.cli.console import console
 from specify_cli.core.paths import (
     get_feature_target_branch,
@@ -100,6 +117,7 @@ def tracer_append(
     entry: Annotated[str, typer.Option("--entry", help="Finding text")],
     actor: Annotated[str, typer.Option("--actor", help="Attribution (required, non-empty)")],
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Append a dated, attributed finding to the mission's tracer surface."""
     cwd_repo_root = locate_project_root()
@@ -108,12 +126,43 @@ def tracer_append(
         raise typer.Exit(1)
     repo_root = get_main_repo_root(cwd_repo_root)
 
+    # #7081: the owned Mission fact decides the write surface, and it is
+    # validated exactly once here -- BEFORE any write input is computed -- so
+    # an invalid target refuses typed (C2 owned refusal through
+    # ``emit_owned_refusal``) without staging, materialising a coordination
+    # worktree, or touching a file. Flagless adoption is what fixes the
+    # reported invocation: an agent working inside an owned checkout names no
+    # flag, and ``adopt_owned_checkout`` supplies the fact.
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    owned = resolve_owned_or_refuse(
+        repo_root,
+        owned_checkout,
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=json_output,
+    )
+
     try:
-        policy = ProtectionPolicy.resolve(repo_root)
-        try:
-            target_branch = get_feature_target_branch(repo_root, mission)
-        except Exception:  # noqa: BLE001 - best-effort ff-advance target only
-            target_branch = None
+        if owned is not None:
+            # Every root-derived input moves to the fact: the checkout that
+            # owns the Mission, the branch it is on, and its own mission-scoped
+            # protection policy (``commit_to_target`` belongs to this Mission,
+            # never to whatever copy the repository root happens to hold).
+            # ``resolve_for_owned`` takes no slug here on purpose: the mission
+            # whose files are being written IS the fact's own mission, and the
+            # CLI handle may be a mid8 or a mission id, which the scope check
+            # would not match against ``mission_dir.name`` (review finding F1).
+            repo_root = owned.owned_root
+            target_branch: str | None = owned.write_branch
+            policy = ProtectionPolicy.resolve_for_owned(owned)
+        else:
+            policy = ProtectionPolicy.resolve(repo_root)
+            try:
+                target_branch = get_feature_target_branch(repo_root, mission)
+            except Exception:  # noqa: BLE001 - best-effort ff-advance target only
+                target_branch = None
 
         result = append_tracer_finding(
             repo_root=repo_root,
@@ -123,6 +172,7 @@ def tracer_append(
             actor=actor,
             policy=policy,
             target_branch=target_branch,
+            owned=owned,
         )
     except CoordinationWorktreeUnmaterialized as exc:
         # coord-read-fail-closed-01M38VVH WP04 out-of-map wrap (mid-mission
