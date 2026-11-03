@@ -10,6 +10,7 @@ aggregation rules are owned elsewhere and are unchanged.
 ---
 work_package_id: "WP01"
 pre_review_test_scope: "tests/review tests/status"   # optional, whitespace-separated pytest targets
+# round-trip: skip: an illustrative fragment of the strict WPMetadata surface, not a complete document
 ---
 ```
 
