@@ -1004,11 +1004,17 @@ def adopt_lane_ancestry(
       the policy for allocator-owned lane checkouts (a NEW work package must
       not inherit a previous WP's dirt) and for the shared repository-root
       planning checkout (reconciling it must not run over uncommitted work).
-    * ``"allow-dirty"`` -- the clean check is skipped. Only a re-entry for the
-      SAME in-flight work package may ask for this: its uncommitted
-      work-in-progress is legitimate, and git's own merge machinery already
-      refuses a merge that would clobber a dirty path, so no separate upfront
-      gate is needed. Nothing here creates or moves a worktree.
+    * ``"allow-dirty"`` -- the clean check is skipped. Two legitimate uses:
+        * A re-entry for the SAME in-flight work package may ask for this: its
+          uncommitted work-in-progress is legitimate, and git's own merge
+          machinery already refuses a merge that would clobber a dirty path, so
+          no separate upfront gate is needed.
+        * The FRESH route (new worktree creation) passes this: the worktree did
+          not exist before this call, so it holds no user state to protect, and a
+          clean check would only add spurious refusals from smudge filters or
+          line-ending normalisation during worktree creation -- git's own merge
+          machinery is the meaningful gate for these cases.
+      Nothing here creates or moves a worktree.
 
     ``target_tip`` MUST be the planning TARGET-branch tip, never a lane
     worktree's HEAD (#4827/WP03 D5/D6, C-006) -- passing a lane HEAD would
