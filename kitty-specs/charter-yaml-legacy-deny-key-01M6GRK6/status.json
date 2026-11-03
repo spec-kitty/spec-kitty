@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-03T13:34:12.998514+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: named deny-key refusal, docstrings corrected, red-first proof recorded"
+        "Ready for review: named deny-key refusal, docstrings corrected, red-first proof recorded",
+        "Review passed (reviewer-renata): the model still refuses the deny key (no acceptance, no declared field); the refusal names the ledger, 'never applied' and the remedy. One finding fixed in review: ruff format on the two ratchet-listed files reformatted unrelated lines; reverted to minimal hunks and the formatter-ratchet gate is green. Verified extra='forbid' and frozen intact, model_fields unchanged, pack_manager.py docstring-only, no test depended on the old extra_forbidden text. Tests 47 passed; mypy --strict clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
