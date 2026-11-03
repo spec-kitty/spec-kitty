@@ -186,7 +186,10 @@ this work package's `task_type` and `authoritative_surface`.
   3. `uv run --frozen ruff format --check` on the same files.
   4. `uv run --frozen mypy src/charter/activation/schemas.py src/charter/activation/pack_manager.py`
      (or the repository's configured mypy invocation for these paths).
-  5. Record the exact commands and counts in the mission's `## Progress & Status`.
+  5. Confirm the #6556 all-keys case still validates and dumps the same fields: re-run
+     `tests/charter/test_charter_yaml_model.py::TestActivationIsFlatAtRoot::test_document_carrying_every_authority_key_validates`
+     and assert no `deactivated_` key appears in `CharterYaml.model_dump()` for it (SC-004).
+  6. Record the exact commands and counts in the mission's `## Progress & Status`.
 - **Files**: none (validation only).
 - **Parallel?**: no.
 
