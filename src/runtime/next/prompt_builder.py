@@ -13,6 +13,7 @@ default per NEW-2 resolution).
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -39,7 +40,7 @@ from charter.activation.resolver import GovernanceResolutionError, resolve_proje
 from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.paths import get_feature_target_branch
-from specify_cli.core.subtask_recipe import mark_status_recipe, owned_checkout_suffix
+from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
@@ -404,13 +405,15 @@ def _completion_lines(action: str, wp_id: str, mission_slug: str, subtask_ids: l
     is the supported owned lifecycle path, and a bare command would resolve the
     repository root checkout instead.
     """
-    suffix = owned_checkout_suffix(owned.owned_root if owned is not None else None)
+    # Project the validated fact only where it becomes command text; no bare
+    # owned root crosses into the shared renderer (owned-authority gate G5).
+    suffix = f" --owned-checkout {shlex.quote(str(owned.owned_root))}" if owned is not None else ""
     lines = ["WHEN DONE:"]
     if action == "implement":
         if subtask_ids:
             # Subtask ids are mission-scoped, so the recipe must name the work
             # package or `mark-status` refuses it when WPs reuse `T001..` (#7108).
-            lines.append("  " + mark_status_recipe(subtask_ids, wp_id=wp_id, mission_slug=mission_slug, owned_root=owned.owned_root if owned is not None else None))
+            lines.append("  " + mark_status_recipe(subtask_ids, wp_id=wp_id, mission_slug=mission_slug) + suffix)
         else:
             lines.append("  No subtask completion command is needed; this work package declares no subtasks.")
         lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}{suffix} --note "Ready for review"')
