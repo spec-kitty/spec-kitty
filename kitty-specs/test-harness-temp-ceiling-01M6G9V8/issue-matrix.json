@@ -1,7 +1,7 @@
 {
   "rows": {
     "#7022": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR #7058 merged; tests/_support/git_ceiling.py installs the ceiling this mission extends",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#7056": {
