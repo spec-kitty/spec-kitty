@@ -380,72 +380,20 @@ def setup_feature_directory(feature_dir: Path, worktree_path: Path, repo_root: P
     # Create tasks/.gitkeep and README.md
     (tasks_dir / ".gitkeep").touch()
 
-    # Create tasks/README.md with frontmatter format reference
-    tasks_readme_content = """# Tasks Directory
+    # Create tasks/README.md from the ONE canonical scaffold text (#6877).
+    # ``mission_creation_scaffold`` is imported lazily, mirroring this package's
+    # convention of avoiding a module-scope ``mission_creation`` cycle: the
+    # scaffold leaf imports ``mission_creation`` inside its own functions, and
+    # ``mission_creation`` re-exports the leaf. For this entry point the mission
+    # directory name *is* the branch name -- ``create_feature_worktree`` composes
+    # both from ``mission_dir_name(...)`` -- so it is the planning branch the
+    # scaffold's frontmatter example should name.
+    from specify_cli.core.mission_creation_scaffold import render_tasks_readme_content
 
-This directory contains work package (WP) prompt files.
-
-## Directory Structure (v0.9.0+)
-
-```
-tasks/
-├── WP01-setup-infrastructure.md
-├── WP02-user-authentication.md
-├── WP03-api-endpoints.md
-└── README.md
-```
-
-All WP files are stored flat in `tasks/`.
-
-## Status Tracking
-
-Status is tracked in `status.events.jsonl`, not in WP frontmatter.
-Use `spec-kitty agent tasks move-task` to change WP status.
-
-## Work Package File Format
-
-Each WP file **MUST** use YAML frontmatter:
-
-```yaml
----
-work_package_id: "WP01"
-title: "Work Package Title"
-subtasks:
-  - "T001"
-  - "T002"
-phase: "Phase 1 - Setup"
-assignee: ""
-agent: ""
-shell_pid: ""
-history:
-  - at: "2025-01-01T00:00:00Z"
-    actor: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
----
-
-# Work Package Prompt: WP01 -- Work Package Title
-
-[Content follows...]
-```
-
-## Moving Between Lanes
-
-Use the CLI to emit a status transition event:
-```bash
-spec-kitty agent tasks move-task <WPID> --to <lane>
-```
-
-Example:
-```bash
-spec-kitty agent tasks move-task WP01 --to doing
-```
-
-## File Naming
-
-- Format: `WP01-kebab-case-slug.md`
-- Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-"""
-    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
+    (tasks_dir / "README.md").write_text(
+        render_tasks_readme_content(feature_dir.name),
+        encoding="utf-8",
+    )
 
     # Create worktree .kittify directory if it doesn't exist
     worktree_kittify = worktree_path / KITTIFY_DIR
