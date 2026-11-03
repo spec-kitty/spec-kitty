@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#228": {
+      "evidence_ref": "context-only: cited in tests/git_ops/test_worktree.py as the pre-existing no-stray-spec.md rule; unchanged by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
     "#6579": {
       "evidence_ref": "context-only: #6579 is the already-landed writer-side sibling (9cf7088465); this mission reuses its pin shape and owes it no work",
       "fr": null,
