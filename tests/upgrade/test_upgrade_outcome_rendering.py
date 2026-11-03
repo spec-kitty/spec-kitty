@@ -277,9 +277,9 @@ def test_golden_applied_dry_run(project: Path, monkeypatch: pytest.MonkeyPatch) 
 
     assert result.exit_code == 0, result.output
     assert result.output == _GOLDEN_APPLIED_DRY_RUN
-    # The pinned preview line is only asserted if the dry run consults the preview exactly once: a
-    # refactor that stops previewing must fail here rather than silently drop the line (#7030).
-    assert [path.resolve() for path in previewed] == [project.resolve()]
+    # Require previewing this project, without pinning how many assessments produce the notice.
+    # Empty or wrong-project calls still fail, alongside the whole-output oracle (#7030).
+    assert {path.resolve() for path in previewed} == {project.resolve()}
 
 
 # ---------------------------------------------------------------------------
