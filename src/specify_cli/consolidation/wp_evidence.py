@@ -295,10 +295,16 @@ def _read_ownership(
 
     wanted = set(wp_ids)
     tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
+    try:
+        wp_files = wp_task_files(tasks_dir)
+    except OSError as exc:
+        logger.debug("evidence: could not list %s", tasks_dir, exc_info=True)
+        return {}, dict.fromkeys(wanted, f"the tasks directory could not be read ({tasks_dir}: {_failure_summary(exc)})")
     resolved: dict[str, tuple[str, ...]] = {}
+    unattributed: list[str] = []
     declared_in: dict[str, list[str]] = {}
     failures: dict[str, str] = {}
-    for wp_file in wp_task_files(tasks_dir):
+    for wp_file in wp_files:
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
         except Exception as exc:  # noqa: BLE001 — an unreadable WP file leaves it unresolved; the caller fails closed
@@ -306,6 +312,8 @@ def _read_ownership(
             prefix = _WP_PREFIX.match(wp_file.name)
             if prefix:
                 failures.setdefault(prefix.group(1), f"its task file {wp_file.name} exists but could not be read ({_failure_summary(exc)})")
+            else:
+                unattributed.append(wp_file.name)
             continue
         if meta.work_package_id in wanted:
             declared_in.setdefault(meta.work_package_id, []).append(wp_file.name)
@@ -318,10 +326,12 @@ def _read_ownership(
             conflicts[wp] = f"{failures[wp]}, while {names[0]} also declares {wp}"
     for wp in conflicts:
         del resolved[wp]
+    suffix = f" ({len(unattributed)} task file(s) could not be read: {', '.join(unattributed)})" if unattributed else ""
+
     def _default(wp: str) -> str:
         if not tasks_dir.is_dir():
             return f"the tasks directory does not exist ({tasks_dir})"
-        return f"no task file under {tasks_dir} declares work_package_id {wp}"
+        return f"no task file under {tasks_dir} declares work_package_id {wp}{suffix}"
 
     reasons = {wp: conflicts.get(wp) or failures.get(wp) or _default(wp) for wp in wanted if wp not in resolved}
     return resolved, reasons
