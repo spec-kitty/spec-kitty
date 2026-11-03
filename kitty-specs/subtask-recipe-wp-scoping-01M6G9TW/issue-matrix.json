@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#6463": {
+      "evidence_ref": "Context only: its owner-resolution refusals already shipped on main (642359bbae); this mission only makes the printed recipes pass --wp and changes no refusal.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7108": {
       "evidence_ref": "In progress: attribution half already fixed on main by 642359bbae (#6463); this mission fixes the remaining dead-end recipe. Emitters wired in WP02, fragment in WP03.",
       "fr": null,
