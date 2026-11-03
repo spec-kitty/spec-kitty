@@ -583,7 +583,14 @@ def _stored_deny(repo_root: Path, kind: ArtifactKind) -> tuple[str, ...]:
 
     Never the write-target mapping: on an unmigrated project that is
     ``config.yaml`` / ``charter.yaml``, whose hand-written ``deactivated_<kind>``
-    key is reported, never applied.
+    key is reported, never applied. That key is **not a supported shape there**:
+    a deactivation is recorded only in the activation ledger (ADR 2026-10-19-1
+    Decision 1, constraint C-003), which is why every command warns about it once,
+    ``spec-kitty doctor charter-packs`` reports it as the ``LEGACY_DENY_KEY``
+    error, the ledger migration refuses to move it, and
+    :class:`charter.activation.schemas.CharterYaml` refuses to validate a
+    ``charter.yaml`` document carrying it. The read tolerates it so the project
+    stays usable until it is repaired; nothing treats it as legitimate.
     """
     stored: tuple[str, ...] = load_activation_ledger(repo_root, report_stray=False).deny_for(kind)
     return stored

@@ -224,7 +224,18 @@ this work package's `task_type` and `authoritative_surface`.
 
 ## Progress & Status
 
-- Implementation: pending.
+- 2026-11-03 · implementer (claude) · Implemented T001–T005.
+- **Red** (before the change), `uv run --frozen pytest tests/charter/test_charter_yaml_model.py -q -k DenyKeys`:
+  `1 failed, 3 passed` — `test_deny_key_is_refused_with_the_ledger_contract` failed because the
+  message was pydantic's `Extra inputs are not permitted` (no ledger path, no "never applied").
+- **After**, same selection: `4 passed`.
+- `uv run --frozen pytest tests/charter/test_charter_yaml_model.py tests/charter/test_activation_vocabulary_setequal.py -q`
+  → `47 passed in 2.49s` (rerun after formatting: `47 passed in 104.63s`, first-run venv setup).
+- `uv run --frozen ruff check` / `ruff format --check` on the three files → clean.
+- `uv run --frozen mypy --strict src/charter/activation/schemas.py src/charter/activation/pack_manager.py`
+  → `Success: no issues found in 2 source files`.
+- `pack_manager.py` diff is docstring-only; `schemas.py` adds one constant, one before-validator and
+  one docstring paragraph; `CharterYaml.model_fields` gained no field.
 
 ## Definition of Done
 
