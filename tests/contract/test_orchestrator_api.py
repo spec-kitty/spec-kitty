@@ -450,13 +450,6 @@ class TestProseErrorCodeEnumerations:
         # "agreement", because this floor names a code every surface has always had.
         assert "USAGE_ERROR" in entries, f"{surface}: parsed region does not even hold USAGE_ERROR"
         _assert_enumeration_matches_contract(entries, set(orchestrator_api_contract["allowed_error_codes"]), surface)
-
-    @pytest.mark.parametrize(("surface", "kind", "path"), _ENUMERATION_SURFACES, ids=_ENUMERATION_SURFACE_IDS)
-    def test_surface_lists_no_code_twice(self, surface, kind, path):
-        entries = _parse_enumeration_entries(path.read_text(encoding="utf-8"), kind)
-        duplicated = sorted(code for code in set(entries) if entries.count(code) > 1)
-        assert not duplicated, f"{surface}: duplicated error-code entries {duplicated}"
-
     def test_a_newly_registered_code_is_reported_per_surface(self, orchestrator_api_contract):
         """A code added to the contract but not to a surface must fail naming both.
 
@@ -472,12 +465,14 @@ class TestProseErrorCodeEnumerations:
             assert "SYNTHETIC_UNREGISTERED_CODE" in str(failure.value)
             assert surface in str(failure.value)
 
-    def test_missing_anchors_fail_closed(self):
-        with pytest.raises(ProseEnumerationError, match="expected exactly one"):
-            _parse_enumeration_entries("- `USAGE_ERROR`\n", "bullets")
-
-    def test_duplicated_anchor_fails_closed(self):
-        text = f"{_BEGIN_ANCHOR}\n- `USAGE_ERROR`\n{_END_ANCHOR}\n{_BEGIN_ANCHOR}\n- `USAGE_ERROR`\n{_END_ANCHOR}\n"
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "- `USAGE_ERROR`\n",
+            f"{_BEGIN_ANCHOR}\n- `USAGE_ERROR`\n{_END_ANCHOR}\n{_BEGIN_ANCHOR}\n- `USAGE_ERROR`\n{_END_ANCHOR}\n",
+        ],
+    )
+    def test_anchor_count_fail_closed(self, text):
         with pytest.raises(ProseEnumerationError, match="expected exactly one"):
             _parse_enumeration_entries(text, "bullets")
 

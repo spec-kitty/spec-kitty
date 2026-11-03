@@ -4,6 +4,9 @@ All commands emit a single JSON object to stdout via the canonical envelope.
 Non-zero exit on any failure. Output is always JSON (no prose mode).
 
 Error codes used:
+   # Note: The prose enumerations in the descriptions below are selections; 
+   # the complete list is in allowed_error_codes in upstream_contract.json 
+   # and enumerated in docs/api/orchestrator-api.md.
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
