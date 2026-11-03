@@ -278,17 +278,25 @@ def _read_ownership(
     *,
     owned: OwnedCheckout | None = None,
 ) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
-    """The resolved ownership globs of the wanted work packages, and why each other one is unresolved.
+    """The wanted work packages' authored ownership globs, and why each other one is unresolved.
 
-    See :func:`_owned_patterns_by_wp`; the second mapping holds a one-line reason per wanted work
-    package that is absent from the first (a missing ``tasks/`` directory, a task file that
-    exists but could not be read or validated, or no task file declaring the id).
+    Ownership comes from static frontmatter, never runtime state. A work package that is absent from
+    the first mapping is unresolved (fail closed, #7149) and :func:`_judge` refuses it as
+    ``OWNERSHIP_UNRESOLVED``; the second mapping holds a one-line reason for it. Unresolved means a
+    missing or unreadable ``tasks/`` directory, a task file that exists but could not be read or
+    validated, no task file declaring the id, or an id declared by more than one task file (or by one
+    file while another could not be read), so no single declaration can be trusted. A key that is
+    present, even with an empty tuple, is an authored declaration judged on the evidence: a task file
+    that omits ``owned_files`` reads as an authored empty list (``WPMetadata.owned_files`` defaults to
+    ``[]``), which keeps the pre-#7149 ``IMPLEMENTATION_MISSING`` verdict. *owned* threads the
+    validated owned-checkout fact to the one ``tasks/`` read (:func:`_wp_task_dir`, #7099).
     """
     from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
 
     wanted = set(wp_ids)
     tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
     resolved: dict[str, tuple[str, ...]] = {}
+    declared_in: dict[str, list[str]] = {}
     failures: dict[str, str] = {}
     for wp_file in wp_task_files(tasks_dir):
         try:
@@ -300,9 +308,22 @@ def _read_ownership(
                 failures.setdefault(prefix.group(1), f"its task file {wp_file.name} exists but could not be read ({_failure_summary(exc)})")
             continue
         if meta.work_package_id in wanted:
+            declared_in.setdefault(meta.work_package_id, []).append(wp_file.name)
             resolved[meta.work_package_id] = owned_patterns(meta.owned_files)
-    default = f"no task file under {tasks_dir} declares work_package_id" if tasks_dir.is_dir() else f"the tasks directory does not exist ({tasks_dir})"
-    reasons = {wp: failures.get(wp, f"{default} {wp}" if tasks_dir.is_dir() else default) for wp in wanted if wp not in resolved}
+    conflicts: dict[str, str] = {}
+    for wp, names in declared_in.items():
+        if len(names) > 1:
+            conflicts[wp] = f"{wp} is declared by {len(names)} task files: {', '.join(names)}"
+        elif wp in failures:
+            conflicts[wp] = f"{failures[wp]}, while {names[0]} also declares {wp}"
+    for wp in conflicts:
+        del resolved[wp]
+    def _default(wp: str) -> str:
+        if not tasks_dir.is_dir():
+            return f"the tasks directory does not exist ({tasks_dir})"
+        return f"no task file under {tasks_dir} declares work_package_id {wp}"
+
+    reasons = {wp: conflicts.get(wp) or failures.get(wp) or _default(wp) for wp in wanted if wp not in resolved}
     return resolved, reasons
 
 
