@@ -27,11 +27,11 @@
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "manual_review",
+      "evidence": "src/charter/activation/schemas.py CharterYaml docstring + src/charter/activation/pack_manager.py _stored_deny docstring (commit 3d5a612) state the deny key is an error state, never applied, refused by design; pack_manager.py diff is docstring-only",
+      "pass_fail": "pass",
+      "verified_by": "claude-opus-4-5",
+      "verified_at": "2026-11-03T13:45:34.901445+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
