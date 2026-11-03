@@ -104,6 +104,7 @@ def test_an_unreadable_ownership_declaration_is_unresolved_not_missing(
         assert reason in str(report.refusal), f"the line names why ownership is unresolved: {reason!r}"
     assert "IMPLEMENTATION_MISSING" not in str(report.refusal)
     assert ev.ATTEST_NO_IMPLEMENTATION_FLAG not in str(report.refusal), "no attestation is offered for an unresolved declaration"
+    assert "unknown or retired key" in str(report.refusal), "the recovery covers a task file rejected for a key"
     if single_branch:
         assert "Recovery: implement" not in str(report.refusal), "only the unresolved-specific recovery is offered"
         assert str(report.refusal).count(f"Recovery for {code}:") == 1
