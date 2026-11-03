@@ -31,6 +31,7 @@ from specify_cli.status_lanes import has_operator_provenance, is_acceptable_endi
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 
 if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
     from specify_cli.status import DoneEvidence, EventStream, Lane
 
 # Lanes treated as "pre-approved" for the approved-replay emission.
@@ -39,8 +40,17 @@ _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for
 _CANCELED_LANE_VALUE = "canceled"
 
 
-def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
-    """WP IDs at an acceptable *canceled* ending on the COORD status surface.
+def _canceled_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
+    """The Mission dir that bears the status events: the owned placement when *owned*, else the coord surface."""
+    if owned is not None:
+        status_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
+        return status_dir
+    surface_dir: Path = resolve_status_surface(repo_root, mission_slug).parent
+    return surface_dir
+
+
+def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> set[str]:
+    """WP IDs at an acceptable *canceled* ending on the resolved status surface (COORD, or the owned checkout's own surface when *owned* is given).
 
     The single merge-side authority (FR-004 / FR-009) for excluding canceled WPs
     from BOTH per-WP done/review derivations — ``executor.py``'s ``all_wp_ids``
@@ -59,13 +69,16 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
     reader never redefines acceptability). Returns an empty set when the coord
     event log is absent or unreadable — there is then no canceled WP to exclude,
     and the downstream done-state assertions stay authoritative.
+
+    With ``owned`` (``accept --owned-checkout``) the events are read from the owned checkout's
+    placement (``placement_seam(..., owned=owned)``) instead of the repository root, where an
+    owned-only Mission does not exist. ``None`` keeps the coordination-surface route unchanged.
     """
     from specify_cli.status import read_events, reduce
     from specify_cli.status import StoreError
 
     try:
-        surface_path = resolve_status_surface(repo_root, mission_slug)
-        snapshot = reduce(read_events(surface_path.parent))
+        snapshot = reduce(read_events(_canceled_status_dir(repo_root, mission_slug, owned)))
     except (FileNotFoundError, StoreError):
         # Fail-open: an unresolvable/absent/corrupt coord surface yields no
         # canceled WP to exclude. The downstream ``_assert_merged_wps_reached_done``

@@ -94,7 +94,7 @@ def evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Evidence:
     ev = Evidence(harness=h)
     monkeypatch.setattr(accept_module, "read_lanes_json", ev.read_lanes)
     monkeypatch.setattr(accept_module, "mission_evidence_report", ev.mission_report)
-    monkeypatch.setattr(accept_module, "acceptably_canceled_wp_ids", lambda _repo, _slug: set())
+    monkeypatch.setattr(accept_module, "acceptably_canceled_wp_ids", lambda _repo, _slug, **_kw: set())
     monkeypatch.setattr(accept_module, "_evidence_status_dir", lambda _run: mission_dir)
     monkeypatch.setattr(accept_module, "plan_no_implementation_attestations", ev.plan)
     monkeypatch.setattr(accept_module, "record_no_implementation_attestation", ev.record)
