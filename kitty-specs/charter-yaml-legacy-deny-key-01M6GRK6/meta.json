@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances charter yaml legacy deny key on issue-6855-charter-yaml-legacy-deny-key so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "charter yaml legacy deny key",
   "slug": "charter-yaml-legacy-deny-key-01M6GRK6",
+  "status_phase": "1",
   "target_branch": "issue-6855-charter-yaml-legacy-deny-key",
   "topology": "single_branch"
 }
