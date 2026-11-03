@@ -1,7 +1,7 @@
 # Discovery findings — #6876 (batch 10, agent C7)
 
-Grounded against `origin/main` at `7c50fd38be` (2026-11-03), in
-`/home/exedev/work/sk-6876`.
+Grounded against `origin/main` at `7c50fd38be` (2026-11-03), in this Mission's clone at the
+repository root.
 
 ## D-1 (#6876's premise is stale in core): the two frozen tools no longer exist
 
