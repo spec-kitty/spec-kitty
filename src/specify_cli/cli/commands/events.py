@@ -99,7 +99,15 @@ _LOG_KIND_MEMBERS: dict[str, str] = {kind.upper(): kind for kind in SUPPORTED_LO
 # Built FROM SUPPORTED_LOG_KINDS so the helper stays the single authority
 # (mypy cannot statically determine functional-API members).
 _LogKind = Enum("_LogKind", _LOG_KIND_MEMBERS, type=str)  # type: ignore[misc]
-_LOG_KIND_DEFAULT = _LogKind("status")
+#: The kind tailed when ``--log`` is omitted, and the registry key it resolves through.
+_DEFAULT_LOG_KIND = "status"
+# Resolved BY NAME from the registry above rather than by value (``_LogKind("status")``):
+# SonarCloud's S5756 cannot model an ``Enum`` built by the functional API and reads the value
+# lookup as a call on a non-callable, scoring the module BLOCKER (#7113). The two spellings
+# reach the same member -- ``_LOG_KIND_MEMBERS`` maps ``kind.upper() -> kind``, so ``"STATUS"``
+# is the member whose value is ``"status"`` -- and
+# ``tests/architectural/test_new_code_reliability_shapes.py`` pins the equivalence.
+_LOG_KIND_DEFAULT = _LogKind[_DEFAULT_LOG_KIND.upper()]
 
 
 def _refuse(error: str, detail: str, exit_code: int) -> typer.Exit:
