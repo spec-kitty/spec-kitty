@@ -36,6 +36,12 @@ from glossary.semantic_events import (
     EVT_GLOSSARY_SENSE_UPDATED,
     EVT_SEMANTIC_CHECK_EVALUATED,
 )
+from glossary.strictness import (
+    Strictness,
+    coerce_strictness,
+    resolve_context_strictness,
+    should_block,
+)
 from kernel.clock import now_utc_iso
 from kernel.event_log_append import event_log_lock
 from kernel.locks import machine_file_lock
@@ -655,8 +661,9 @@ def emit_term_candidate_observed(
 def emit_semantic_check_evaluated(
     context: Any,
     conflicts: list[Any],
-    effective_strictness: str | None = None,
+    effective_strictness: str | Strictness | None = None,
     repo_root: Path | None = None,
+    runtime_override: Strictness | None = None,
 ) -> dict[str, Any] | None:
     """Emit SemanticCheckEvaluated event.
 
@@ -664,11 +671,20 @@ def emit_semantic_check_evaluated(
     a refused record is logged and ``None`` is returned. Otherwise logs the
     event payload via logger.info, with no file I/O.
 
+    The recorded strictness is the one the generation gate enforces: an explicit
+    ``effective_strictness`` argument, else the value already resolved onto the
+    context, else :func:`resolve_context_strictness` over the same precedence
+    chain the gate uses (#7065). The emitter never substitutes a policy value of
+    its own, and ``blocked`` mirrors the gate's ``should_block`` decision for the
+    conflicts present at check time.
+
     Args:
         context: PrimitiveExecutionContext
         conflicts: List of SemanticConflict instances
-        effective_strictness: Resolved strictness string
-        repo_root: Repository root (for event log path). If None, log only.
+        effective_strictness: Resolved strictness (overrides the context value)
+        repo_root: Repository root (for event log path and the global default)
+        runtime_override: CLI ``--strictness`` value, used only when neither the
+            argument nor the context already carries a strictness
 
     Returns:
         Event dict if emitted, None if emission failed
@@ -702,13 +718,17 @@ def emit_semantic_check_evaluated(
     else:
         recommended = "warn"
 
-    # The semantic-check middleware emits before the generation gate resolves
-    # strictness, so the context can still carry None: write the default rather
-    # than the string "None" (#6399).
-    eff_str_raw: Any = effective_strictness or getattr(context, "effective_strictness", None) or "medium"
-    eff_str: str = eff_str_raw.value if hasattr(eff_str_raw, "value") else str(eff_str_raw)
+    # Record the strictness the generation gate will enforce, not a placeholder:
+    # the middleware resolves it before emitting, and any caller that skipped that
+    # step is resolved through the same helper the gate uses (#7065).
+    resolved_strictness = (
+        coerce_strictness(effective_strictness)
+        or coerce_strictness(getattr(context, "effective_strictness", None))
+        or resolve_context_strictness(context, repo_root=repo_root, runtime_override=runtime_override)
+    )
+    eff_str: str = resolved_strictness.value
 
-    blocked = len(conflicts) > 0 and eff_str != "off"
+    blocked = should_block(resolved_strictness, conflicts)
 
     event = build_semantic_check_evaluated(
         step_id=step_id,

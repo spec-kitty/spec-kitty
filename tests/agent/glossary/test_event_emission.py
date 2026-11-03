@@ -758,21 +758,25 @@ class TestSemanticCheckEvaluatedEmission:
         )
         assert event["effective_strictness"] == "max"
 
-    def test_unresolved_strictness_is_written_as_medium(self, tmp_path, mock_context):
-        """An unresolved strictness (None on the context) is written as "medium", never "None".
+    def test_unresolved_strictness_resolves_from_config(self, tmp_path, mock_context):
+        """An unresolved strictness resolves from the policy, never from a constant.
 
-        The semantic-check middleware emits before the generation gate resolves
-        strictness, so the context still carries None here (#6399).
+        The context carries no value here (as it does when the semantic-check
+        middleware has not resolved it yet); the emitter must record what the
+        generation gate would resolve -- the configured value, not a placeholder
+        -- and never the string "None" (#6399, #7065).
         """
         from spec_kitty_events.persistence import build_record
 
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".kittify" / "config.yaml").write_text("glossary:\n  strictness: off\n")
         mock_context.effective_strictness = None
         event = emit_semantic_check_evaluated(
             context=mock_context,
             conflicts=[],
             repo_root=tmp_path,
         )
-        assert event["effective_strictness"] == "medium"
+        assert event["effective_strictness"] == "off"
         build_record(event)  # conforms to the spec-kitty-events contract
 
 

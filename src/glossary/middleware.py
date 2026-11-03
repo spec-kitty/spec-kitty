@@ -197,6 +197,7 @@ class SemanticCheckMiddleware:
         glossary_store: store.GlossaryStore,
         scope_order: list[scope.GlossaryScope] | None = None,
         repo_root: Path | None = None,
+        runtime_override: Strictness | None = None,
     ) -> None:
         """Initialize middleware.
 
@@ -206,12 +207,16 @@ class SemanticCheckMiddleware:
                 If None, uses default SCOPE_RESOLUTION_ORDER.
             repo_root: Repository root for event log persistence. If None,
                 events are logged but not persisted to disk.
+            runtime_override: CLI ``--strictness`` flag value. Resolved with the
+                same precedence chain the generation gate uses so the emitted
+                event records the policy the gate enforces (#7065).
         """
         from . import scope
 
         self.glossary_store = glossary_store
         self.scope_order = scope_order or scope.SCOPE_RESOLUTION_ORDER
         self.repo_root = repo_root
+        self.runtime_override = runtime_override
 
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
         """Process context and detect semantic conflicts.
@@ -228,6 +233,16 @@ class SemanticCheckMiddleware:
         from typing import cast, Any
         from .conflict import classify_conflict, create_conflict, score_severity
         from .resolution import resolve_term
+        from .strictness import resolve_context_strictness
+
+        # Resolve strictness once, before the event is emitted: the generation
+        # gate resolves the same chain later, and the persisted event must record
+        # that value rather than a placeholder (#7065).
+        cast(Any, context).effective_strictness = resolve_context_strictness(
+            context,
+            repo_root=self.repo_root,
+            runtime_override=self.runtime_override,
+        )
 
         conflicts: list[models.SemanticConflict] = []
 
@@ -312,7 +327,9 @@ class SemanticCheckMiddleware:
             emit_semantic_check_evaluated(
                 context=context,
                 conflicts=conflicts,
+                effective_strictness=getattr(context, "effective_strictness", None),
                 repo_root=self.repo_root,
+                runtime_override=self.runtime_override,
             )
         except Exception as exc:
             import logging
@@ -373,10 +390,8 @@ class GenerationGateMiddleware:
             - Emits GenerationBlockedBySemanticConflict event (if blocking)
         """
         from .strictness import (
-            resolve_strictness,
+            resolve_context_strictness,
             should_block,
-            Strictness,
-            load_global_strictness,
         )
         from .exceptions import BlockedByConflict
         from .events import emit_generation_blocked_event
@@ -384,19 +399,12 @@ class GenerationGateMiddleware:
         # Get conflicts from context (populated by SemanticCheckMiddleware)
         conflicts = getattr(context, "conflicts", [])
 
-        # Resolve effective strictness
-        global_default = Strictness.MEDIUM
-        if self.repo_root:
-            global_default = load_global_strictness(self.repo_root)
-
-        # Get mission and step overrides from context
-        mission_strictness = getattr(context, "mission_strictness", None)
-        step_strictness = getattr(context, "step_strictness", None)
-
-        effective_strictness = resolve_strictness(
-            global_default=global_default,
-            mission_override=mission_strictness,
-            step_override=step_strictness,
+        # Resolve effective strictness. This is the same call the semantic-check
+        # emitter makes, so the persisted SemanticCheckEvaluated event and the
+        # decision enforced here cannot disagree (#7065).
+        effective_strictness = resolve_context_strictness(
+            context,
+            repo_root=self.repo_root,
             runtime_override=self.runtime_override,
         )
 
