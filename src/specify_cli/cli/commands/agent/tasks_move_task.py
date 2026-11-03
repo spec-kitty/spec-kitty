@@ -900,8 +900,19 @@ def _mt_owned_file_patterns(st: _MoveTaskState) -> tuple[str, ...]:
     """Return normalized authored ownership patterns for the selected WP (``wp_evidence``'s normalisation)."""
     from specify_cli.consolidation import wp_evidence
 
+    from specify_cli.frontmatter import FrontmatterError
+
     assert st.wp is not None
-    metadata, _body = read_authored_wp_frontmatter(st.wp.path)
+    try:
+        metadata, _body = read_authored_wp_frontmatter(st.wp.path)
+    except (FrontmatterError, ValueError, OSError) as exc:  # ValueError covers pydantic's ValidationError
+        reason = (str(exc).strip().splitlines() or [""])[0]
+        raise ActionContextError(
+            "OWNED_IMPLEMENTATION_MISSING",
+            f"The work package task file {st.wp.path} could not be read ({type(exc).__name__}: {reason}), so its `owned_files` "
+            "are unknown and no committed change can be matched to it. Fix the file, then retry: restore the file, or remove "
+            "the frontmatter key the validation error names.",
+        ) from exc
     patterns: tuple[str, ...] = wp_evidence.owned_patterns(metadata.owned_files)
     return patterns
 
