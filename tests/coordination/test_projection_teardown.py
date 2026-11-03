@@ -773,25 +773,53 @@ def test_first_run_whose_coordination_branch_is_already_gone_reads_no_window(tmp
 
 
 def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_path: Path) -> None:
-    """#6871 fail-closed leg: a commit landing DURING the projection is never stamped approved.
+    """#6871 fail-closed leg: the approved tip never advances to a tip the assertion did not cover.
 
-    The anchor may only advance to the tip the assertion was made over. A concurrent commit that lands
-    while the projection runs leaves the ref elsewhere, so the anchor stays put and the projection
-    teardown gate refuses -- keeping a foreign commit out of "what teardown approved".
+    A concurrent commit landing WHILE the projection runs must leave the anchor at the pre-window tip.
+    The teardown then refuses at the projection teardown gate's compare-and-swap (the anchor no longer
+    matches the live ref) and keeps the branch, so a tip nobody proved can never become "what teardown
+    approved". The injected commit touches ``meta.json``, which the late-window assertion exempts (a
+    PRIMARY artifact the target owns) and the projection never carries -- so the refusal under test is
+    the gate's, not the assertion's.
     """
+    from specify_cli.coordination.teardown import ProjectionTeardownAbort
+
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
     _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
     real_commit = phase_teardown._commit_projection_and_carry
 
     def commit_then_land_a_foreign_one(target_run: object, paths: list[Path], message: str) -> None:
         real_commit(target_run, paths, message)  # type: ignore[arg-type]
-        _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/foreign.md", "foreign\n", "concurrent emit")
+        meta = worktree / "kitty-specs" / SLUG / "meta.json"
+        meta.write_text(json.dumps({**json.loads(meta.read_text(encoding="utf-8")), "concurrent": "emit"}) + "\n", encoding="utf-8")
+        _git(worktree, "add", "kitty-specs")
+        _git(worktree, "commit", "-q", "-m", "concurrent emit")
 
-    with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(run_state.CoordinationTeardownError):
+    with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(ProjectionTeardownAbort) as caught:
         phase_teardown._teardown_coordination_triple(run)
 
-    assert run.coord_tip_after_projection == tip, "a tip that moved during the projection must never be approved"
-    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unlanded commit"
+    assert "compare-and-swap failed" in str(caught.value), "the gate refuses, because the anchor no longer matches the live ref"
+    assert run.coord_tip_after_projection == tip, "the anchor stays at the pre-window tip: a tip the assertion did not cover is never stamped approved"
+    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unproven commit"
+
+
+def test_first_run_refuses_rather_than_skips_a_window_it_cannot_read(tmp_path: Path) -> None:
+    """#6871 review: an UNREADABLE coordination ref is not an absent one.
+
+    ``_resolve_ref_sha`` collapses "absent" and "git failed" into ``""``. Treating a failure as absence
+    would skip the window silently, and the delete would then flatten the marker over a live branch. Only
+    a definite absence (exit 1) is a no-op; anything else refuses with the branch kept.
+    """
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    run = _coord_run_state(repo, coord, projected_tip)
+
+    unreadable = patch.object(phase_teardown, "run_command", return_value=(128, "", "fatal: not a git repository"))
+    with unreadable, pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._land_late_coordination_commits(run)
+
+    message = " ".join(str(caught.value).split())
+    assert "could not be read" in message
+    assert "spec-kitty consolidate --resume" in message
 
 
 def test_first_run_refuses_a_late_deletion_it_cannot_express_and_keeps_the_triple(tmp_path: Path) -> None:
