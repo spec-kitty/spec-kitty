@@ -30,17 +30,29 @@ from specify_cli.core.mission_creation_errors import _BOOTSTRAP_META_COMMIT_SKIP
 from specify_cli.core.mission_creation_protected_mint import _ProtectionProbe
 
 
+#: The ``tasks/README.md`` scaffold, rendered by :func:`render_tasks_readme_content`.
+#:
+#: ASCII BY CONSTRUCTION (#6877). The rendered file lands in
+#: ``kitty-specs/<mission>/tasks/``, which ``spec-kitty validate-encoding`` scans, so any
+#: typographic glyph here makes a brand-new mission fail its own encoding gate before
+#: anyone authors a word. Write ASCII only; ``tests/core/test_tasks_readme_scaffold_ascii.py``
+#: asserts every rendered byte is below 0x80. Fix the *source text* -- never add a
+#: sanitizer on the write path, which could not tell this scaffold from authored prose.
+#:
+#: The WP-frontmatter example below mirrors
+#: ``packs/built-in/missions/software-dev/templates/task-prompt-template.md``, the
+#: canonical source for WP structure (it is why the ``history:`` entry uses ``at:`` /
+#: ``actor:``). That pack tree is fetched, not authored here -- correct a field-name
+#: drift there and re-vendor, never in this constant.
 TASKS_README_TEMPLATE = """\
 # Tasks Directory
 
 This directory contains work package (WP) prompt files.
 
 <!--
-  ASCII ONLY. This file is written into ``kitty-specs/``, which
-  ``spec-kitty validate-encoding`` scans, so a typographic glyph here makes a new
-  mission fail its own encoding gate. The WP-frontmatter example below mirrors
-  ``packs/built-in/missions/software-dev/templates/task-prompt-template.md`` -- the
-  canonical source for WP structure.
+  This file lives under kitty-specs/, which `spec-kitty validate-encoding` scans.
+  Keep it ASCII: a typographic dash, quote or bullet here fails that gate for every
+  mission that ships this scaffold.
 -->
 
 ## Directory Structure (v0.9.0+)
