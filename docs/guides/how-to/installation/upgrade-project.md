@@ -122,6 +122,8 @@ Or use `spec-kitty safe-commit <those files> -m "chore: upgrade Spec Kitty proje
 
 Each Mission's `kitty-specs/<slug>/meta.json` carries its immutable `mission_id`. If git tracks that file but it is missing from your working tree — an accidental delete, or a partial/sparse checkout that excludes it — the upgrade rebuilds it from the copy git holds, so the Mission keeps the identity its history uses. A working-tree copy that has lost its `mission_id` takes the tracked one back. Nothing is re-identified.
 
+A folder git does not track is given its identity normally, because there is nothing to restore. That includes a folder that merely sits under a directory named `.git` which is not a repository — a bare `.git` left behind in a temp root, which carries no `HEAD` and tracks nothing.
+
 When the tracked copy cannot be read, the upgrade writes nothing for that Mission and names it, for example:
 
 ```text
