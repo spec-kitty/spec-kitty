@@ -48,16 +48,18 @@ def test_fake_service_api_prefix_matches_write_service_protocol():
     fake_service_content = fake_service_path.read_text(encoding="utf-8")
     # Extract API_PREFIX value using simple parsing (avoid importing fake_service)
     import re
+
     fake_service_match = re.search(r'^API_PREFIX = "(.*?)"$', fake_service_content, re.MULTILINE)
     assert fake_service_match is not None, "Could not find API_PREFIX in fake_service.py"
     fake_service_api_prefix = fake_service_match.group(1)
-    
+
     # Get the API_PREFIX from write_service_protocol
     from specify_cli.status.write_service_protocol import API_PREFIX as write_service_api_prefix
-    
-    assert fake_service_api_prefix == write_service_api_prefix, \
-        f"fake_service.API_PREFIX ({fake_service_api_prefix!r}) must equal " \
-        f"write_service_protocol.API_PREFIX ({write_service_api_prefix!r})"
+
+    assert fake_service_api_prefix == write_service_api_prefix, (
+        f"fake_service.API_PREFIX ({fake_service_api_prefix!r}) must equal write_service_protocol.API_PREFIX ({write_service_api_prefix!r})"
+    )
+
 
 TAG = "service-v0.1.0"
 HTTPS_REPO = "https://github.com/spec-kitty/spec-kitty-events"
