@@ -240,6 +240,48 @@ class TestSetupFeatureDirectory:
         assert "status.events.jsonl" in content
         assert "lane:" not in content
 
+    def test_tasks_readme_comes_from_the_canonical_renderer(self, tmp_path: Path) -> None:
+        """One authority owns the scaffold text (#6877, FR-006).
+
+        ``setup_feature_directory`` used to inline its own ~55-line copy of
+        ``tasks/README.md``. Two literals meant two possible answers to "what does
+        the scaffold say", and it put this emitter outside the ASCII pin that
+        guards the canonical constant.
+        """
+        from specify_cli.core.mission_creation_scaffold import render_tasks_readme_content
+
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+
+        setup_feature_directory(feature_dir, tmp_path, tmp_path, create_symlinks=False)
+
+        written = (feature_dir / "tasks" / "README.md").read_text(encoding="utf-8")
+
+        assert written == render_tasks_readme_content(feature_dir.name)
+        assert written.isascii(), "the scaffold lands under kitty-specs/, so it must stay ASCII (#6877)"
+
+    def test_no_second_copy_of_the_tasks_readme_scaffold(self) -> None:
+        """The scaffold text is defined in exactly one module (#6877, SC-006).
+
+        The convergence above only holds while one literal owns the text. This census
+        makes the claim checkable: the scaffold's WP-title marker appears in exactly
+        one file under ``src/specify_cli/core/``, where every mission scaffold emitter
+        lives. A re-inlined copy fails here instead of quietly drifting outside the
+        ASCII pin.
+        """
+        core_dir = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "core"
+        marker = "# Work Package Prompt:"
+
+        holders = sorted(
+            path.relative_to(core_dir).as_posix()
+            for path in core_dir.rglob("*.py")
+            if marker in path.read_text(encoding="utf-8", errors="replace")
+        )
+
+        assert holders == ["mission_creation_scaffold.py"], (
+            f"the tasks/README.md scaffold text is held by {holders}; one module must own "
+            "it (#6877, DIRECTIVE_044) so the ASCII pin covers every emitter"
+        )
+
     def test_copies_spec_template_when_exists(self, tmp_path: Path) -> None:
         """Should copy spec template to spec.md when template exists."""
         # Setup
