@@ -18,10 +18,20 @@ from typing import Any
 __all__ = [
     "VCS_LOCK_META_FIELDS",
     "is_vcs_lock_only_change",
+    "project_metadata_without_vcs_lock",
 ]
 
-#: The only VCS-lock field-set. No inline-literal duplicates elsewhere (NFR-002).
-VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
+#: The lock's backend selector. An **absent** key means "the supported backend"
+#: (see :func:`project_metadata_without_vcs_lock`); the claim writes it on first use.
+#: Module-internal: the projection helper is the public way to use it.
+VCS_LOCK_BACKEND_FIELD = "vcs"
+
+#: The lock's write timestamp -- bookkeeping with no planning meaning.
+VCS_LOCK_TIMESTAMP_FIELD = "vcs_locked_at"
+
+#: The only VCS-lock field-set, derived from its named members so the set and the
+#: members can never disagree. No inline-literal duplicates elsewhere (NFR-002).
+VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({VCS_LOCK_BACKEND_FIELD, VCS_LOCK_TIMESTAMP_FIELD})
 
 #: Sentinel distinguishing an *absent* key from a *present-but-``None``* value.
 #: Using ``.get()`` (which returns ``None`` for both) would erase that
@@ -66,3 +76,41 @@ def is_vcs_lock_only_change(
         if before_value != after_value and key not in VCS_LOCK_META_FIELDS:
             return False
     return True
+
+
+def project_metadata_without_vcs_lock(
+    metadata: Mapping[str, Any],
+    *,
+    backend: str = "git",
+) -> dict[str, Any]:
+    """Return *metadata* with its VCS lock normalised to the pre-claim state.
+
+    Callers that fingerprint or compare mission metadata without lock churn -- the
+    analysis-freshness material closure is one (#7106) -- use this instead of
+    inspecting :data:`VCS_LOCK_META_FIELDS` themselves: this module owns the lock's
+    names and comparison, and the tree-wide singleton gate keeps it that way
+    (``tests/architectural/test_meta_decoder_comparator_singletons.py``).
+
+    Normalisation:
+
+    * the write timestamp is dropped wherever it appears (its value is never
+      meaningful -- only the fact that a lock exists is, and that is not planning
+      input);
+    * the backend selector is dropped only when it holds the value a claim writes
+      (*backend*), so an absent selector and the supported backend are the same
+      state, while any **other** value -- a different backend, ``None``, ``""`` --
+      is preserved and stays visible to the caller;
+    * every other key is copied unchanged.
+
+    Args:
+        metadata: The mission metadata mapping to project.
+        backend: The backend value a claim writes for the selector.
+
+    Returns:
+        A new mapping; the input is never mutated.
+    """
+    projected = dict(metadata)
+    projected.pop(VCS_LOCK_TIMESTAMP_FIELD, None)
+    if projected.get(VCS_LOCK_BACKEND_FIELD) == backend:
+        del projected[VCS_LOCK_BACKEND_FIELD]
+    return projected
