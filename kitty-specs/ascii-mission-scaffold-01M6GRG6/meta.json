@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances ascii mission scaffold on issue-6877-ascii-mission-scaffold so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "ascii mission scaffold",
   "slug": "ascii-mission-scaffold-01M6GRG6",
+  "status_phase": "1",
   "target_branch": "issue-6877-ascii-mission-scaffold",
   "topology": "single_branch"
 }
