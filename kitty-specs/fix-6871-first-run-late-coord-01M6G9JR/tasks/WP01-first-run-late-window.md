@@ -5,6 +5,9 @@ dependencies: []
 planning_base_branch: "main"
 merge_target_branch: "main"
 branch_strategy: "Planning artifacts were generated on the issue branch; completed changes must merge back into main."
+owned_files:
+  - "src/specify_cli/consolidation/phase_teardown.py"
+  - "tests/coordination/test_projection_teardown.py"
 requirement_refs:
   - FR-001
   - FR-002
@@ -60,7 +63,7 @@ In `tests/coordination/test_projection_teardown.py`, next to
 
 - fixture: `_gated_coord_fixture` + `_coord_run_state` (a FIRST run: `is_resume=False`,
   `coord_tip_after_projection == projected_tip`);
-- inject one late coordination commit (`kitty-specs/<slug>/traces/late.md`) between the projection
+- inject one late coordination commit (a `traces/late.md` record inside the Mission directory) between the projection
   capture and `_teardown_coordination_triple(run)`;
 - assert the record's bytes are at the target ref, the branch is gone, the marker is flattened.
 

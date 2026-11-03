@@ -6,6 +6,8 @@ dependencies:
 planning_base_branch: "main"
 merge_target_branch: "main"
 branch_strategy: "Planning artifacts were generated on the issue branch; completed changes must merge back into main."
+owned_files:
+  - "docs/changelog/unreleased"
 requirement_refs:
   - FR-006
   - FR-007
