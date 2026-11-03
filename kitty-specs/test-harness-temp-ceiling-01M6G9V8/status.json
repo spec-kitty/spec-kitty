@@ -1,20 +1,20 @@
 {
-  "event_count": 10,
-  "last_event_id": "01M6GCB0JRYPP0CBY98W6PHN2F",
-  "materialized_at": "2026-11-03T09:37:40.952927+00:00",
+  "event_count": 11,
+  "last_event_id": "01M6GCB2DJP2WAB1K9D4914YG5",
+  "materialized_at": "2026-11-03T09:37:42.834507+00:00",
   "mission_number": "",
   "mission_slug": "test-harness-temp-ceiling-01M6G9V8",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -25,14 +25,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M6GCB0JRYPP0CBY98W6PHN2F",
-      "last_transition_at": "2026-11-03T09:37:40.952927+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6GCB2DJP2WAB1K9D4914YG5",
+      "last_transition_at": "2026-11-03T09:37:42.834507+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2927205,
       "shell_pid_created_at": "1793696289.98",
