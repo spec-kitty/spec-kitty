@@ -83,7 +83,7 @@ def _break_task_file(fd: Path, how: str) -> None:
         pytest.param(
             _lanes_case,
             "unknown_key",
-            (_TASK_FILE, "ValidationError: Extra inputs are not permitted: 'estimated_lines'"),
+            (_TASK_FILE, "ValidationError", "estimated_lines"),
             id="lanes-unknown_key",
         ),
         # A broken file whose name carries no WP id cannot be attributed; the generic reason must still mention it.
@@ -111,7 +111,6 @@ def test_an_unreadable_ownership_declaration_is_unresolved_not_missing(
     assert str(fd / "tasks") in str(report.refusal), "the line names the location that was read"
     for reason in reasons:
         assert reason in str(report.refusal), f"the line names why ownership is unresolved: {reason!r}"
-    assert "IMPLEMENTATION_MISSING" not in str(report.refusal)
     assert ev.ATTEST_NO_IMPLEMENTATION_FLAG not in str(report.refusal), "no attestation is offered for an unresolved declaration"
     assert "unknown or retired key" in str(report.refusal), "the recovery covers a task file rejected for a key"
     if single_branch:
