@@ -47,6 +47,18 @@
       "title": null,
       "verdict": "not-applicable",
       "wp": "WP01"
+    },
+    "#7108": {
+      "evidence_ref": "context-only: the landed sibling whose AST-census shape this mission reuses; it fixed subtask recipes, not scaffold text",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
