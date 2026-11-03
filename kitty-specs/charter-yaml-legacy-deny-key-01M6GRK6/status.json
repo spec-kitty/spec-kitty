@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M6GRT1PJ3TQS618HMACQ25GA",
-  "materialized_at": "2026-11-03T13:15:36.530890+00:00",
+  "event_count": 2,
+  "last_event_id": "01M6GRT20G7R5W8MGPAPYJDGEP",
+  "materialized_at": "2026-11-03T13:15:36.848439+00:00",
   "mission_number": "",
   "mission_slug": "charter-yaml-legacy-deny-key-01M6GRK6",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -24,6 +24,13 @@
       "lane": "planned",
       "last_event_id": "01M6GRT1PJ3TQS618HMACQ25GA",
       "last_transition_at": "2026-11-03T13:15:36.530890+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6GRT20G7R5W8MGPAPYJDGEP",
+      "last_transition_at": "2026-11-03T13:15:36.848439+00:00"
     }
   }
 }
