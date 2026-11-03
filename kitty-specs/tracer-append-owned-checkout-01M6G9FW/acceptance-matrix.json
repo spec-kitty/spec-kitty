@@ -1,0 +1,69 @@
+{
+  "mission_slug": "tracer-append-owned-checkout-01M6G9FW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tracer_append_owned_checkout_7081.py::test_help_exposes_the_owned_selector",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:24:45.737626+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tracer_append_owned_checkout_7081.py::test_flagless_invocation_from_the_owned_checkout_writes_into_it",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:24:48.960364+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_flagless_invocation... (payload commit_ref == mission branch, traces under P) + test_explicit_selector_from_the_repository_root_writes_into_the_owned_checkout",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:24:52.020432+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_repository_root_claim_refuses_before_writing + test_foreign_checkout_claim_refuses_before_writing (writer never reached, zero traces in either checkout)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:24:57.169182+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_non_owned_invocation_keeps_the_repository_root_surface (repo_root=R, owned=None) + tests/retrospective suite 571 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:25:00.327568+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "append_tracer_finding owned= keyword threaded to write_artifact and placement_seam; covered by the owned routing case and tests/retrospective (571 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:25:03.507712+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

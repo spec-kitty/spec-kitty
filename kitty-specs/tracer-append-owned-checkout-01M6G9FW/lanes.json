@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "tracer-append-owned-checkout-01M6G9FW",
+  "mission_id": "01M6G9FWJDPXEKG88H3968Y7GG",
+  "mission_branch": "kitty/mission-tracer-append-owned-checkout-01M6G9FW",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/agent-subcommands.md",
+        "docs/changelog/unreleased/**",
+        "kitty-specs/tracer-append-owned-checkout-01M6G9FW/**",
+        "src/specify_cli/cli/commands/agent/tracer_append.py",
+        "src/specify_cli/retrospective/tracer_writer.py",
+        "tests/specify_cli/cli/commands/agent/test_tracer_append_owned_checkout_7081.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T08:49:52.266489+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "d18c4f1d58e507fff8042009f5f6e1cb9117d898"
+}

@@ -1,0 +1,91 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6GJGYK4TXG7DSNYBN7CZ90Z",
+  "materialized_at": "2026-11-03T11:25:46.980326+00:00",
+  "mission_number": "249",
+  "mission_slug": "tracer-append-owned-checkout-01M6G9FW",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6GJGY9N4GDTYYRKTZF9RZ2A",
+      "last_transition_at": "2026-11-03T11:25:46.677256+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Owned fact decides the tracer write surface; red-first module passes and the non-owned path is pinned",
+        "Review passed: F1 policy scope fixed, F2 foreign-refusal case added, F3 branch assertion added; gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 377360,
+      "shell_pid_created_at": "1793702210.6",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#7081"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "curator-carla",
+      "lane": "done",
+      "last_event_id": "01M6GJGYK4TXG7DSNYBN7CZ90Z",
+      "last_transition_at": "2026-11-03T11:25:46.980326+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Changelog fragment, API docs and mission record complete",
+        "Docs, fragment and mission record approved"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 983227,
+      "shell_pid_created_at": "1793704545.67",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#7081"
+      ]
+    }
+  }
+}

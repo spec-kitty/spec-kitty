@@ -80,6 +80,30 @@ The `COORD_STATUS_SURFACE_DIVERGED` message contains both recovery commands with
 paths and the Mission slug filled in. Do not retry the write unchanged: it refuses again until the worktree log
 holds every committed event.
 
+## Owned Missions: where `agent tracer-append` writes
+
+An owned Mission lives in a linked checkout (`P`) rather than in the repository root checkout
+(`R`). `agent tracer-append` resolves that ownership fact before it selects its write surface
+(#7081):
+
+- **Flagless adoption.** Running the command from inside `P` adopts `P` for the named Mission, so
+the entry lands in `P`'s `kitty-specs/<mission-slug>/traces/<category>.md` on the branch `P` is
+on. It no longer resolves `R`, writes an untracked `traces/` file there and refuses
+`PROTECTED_BRANCH_REFUSED` on `main`.
+- **`--owned-checkout <P>`.** The explicit spelling selects the same surface when the command runs
+from `R`. It takes the shared owned-checkout help and validation: exactly one validation per
+invocation, the repository root refused, lane and coordination worktrees refused, and the
+lifecycle topology set (today `single_branch`) enforced.
+- **Mission-scoped protection.** The protection policy comes from the Mission's own `meta.json`
+(`commit_to_target`) in `P`, never from a copy the repository root happens to hold.
+- **Refuse before writing.** An invalid target exits `1` with the owned refusal envelope
+(`{"ok": false, "error": {"code", "message"}}`) before the writer is reached: nothing is staged,
+no coordination surface is materialised and neither checkout gains a file.
+- **No owned checkout, no change.** Without a flag and without an adoptable checkout (for example
+from `R`, or from a lane worktree, which adoption deliberately declines) the command keeps its
+historical behaviour: the repository root is the write surface, and a coordination-routed Mission
+is committed on its coordination branch.
+
 <!-- BEGIN GENERATED -->
 # Agent Subcommand Reference
 
@@ -2392,15 +2416,22 @@ _Test-related commands for AI agents_
  Append a dated, attributed finding to the mission's tracer surface.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission           <str>  Mission handle (e.g. 'my-mission-01ABCDEF')    │
-│                               [required]                                     │
-│ *  --category          <str>  Tracer category: approach | design-decisions | │
-│                               tooling-friction                               │
-│                               [required]                                     │
-│ *  --entry             <str>  Finding text [required]                        │
-│ *  --actor             <str>  Attribution (required, non-empty) [required]   │
-│    --json                     Output JSON format                             │
-│    --help      -h             Show this message and exit.                    │
+│ *  --mission                 <str>   Mission handle (e.g.                    │
+│                                      'my-mission-01ABCDEF')                  │
+│                                      [required]                              │
+│ *  --category                <str>   Tracer category: approach |             │
+│                                      design-decisions | tooling-friction     │
+│                                      [required]                              │
+│ *  --entry                   <str>   Finding text [required]                 │
+│ *  --actor                   <str>   Attribution (required, non-empty)       │
+│                                      [required]                              │
+│    --json                            Output JSON format                      │
+│    --owned-checkout          <path>  Run against an owned checkout: a linked │
+│                                      checkout that owns this mission.        │
+│                                      Refuses the repository root checkout,   │
+│                                      lane worktrees and coordination         │
+│                                      worktrees.                              │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->
