@@ -554,10 +554,7 @@ def _pinned_consumer_modules() -> list[tuple[str, ModuleType]]:
     """
     from tests.ci.test_collect_universe_prestep import _PINNED_CONSUMERS
 
-    return [
-        (relpath, importlib.import_module(relpath.removesuffix(".py").replace("/", ".")))
-        for relpath in sorted(_PINNED_CONSUMERS)
-    ]
+    return [(relpath, importlib.import_module(relpath.removesuffix(".py").replace("/", "."))) for relpath in sorted(_PINNED_CONSUMERS)]
 
 
 def test_universe_consumers_carry_a_collection_sized_timeout_budget() -> None:
@@ -596,8 +593,7 @@ def test_universe_consumers_carry_a_collection_sized_timeout_budget() -> None:
 
     consumer_modules = _pinned_consumer_modules()
     assert any(loaded is module for _, loaded in consumer_modules), (
-        "this module is not in the pinned consumer registry (tests/ci/test_collect_universe_prestep.py); "
-        "the registry and this guard have diverged"
+        "this module is not in the pinned consumer registry (tests/ci/test_collect_universe_prestep.py); the registry and this guard have diverged"
     )
     for relpath, consumer_module in consumer_modules:
         if consumer_module is module:
@@ -681,7 +677,7 @@ def _bare_ceiling_comparisons(source: str) -> list[str]:
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Compare) or not _mentions_timeout(node.left):
             continue
-        for operator, comparator in zip(node.ops, node.comparators):
+        for operator, comparator in zip(node.ops, node.comparators, strict=True):
             if isinstance(operator, (ast.Gt, ast.GtE)) and isinstance(comparator, ast.Constant) and isinstance(comparator.value, int):
                 problems.append(f"{node.lineno}:{node.col_offset} {ast.unparse(node)}")
     return problems
@@ -708,10 +704,8 @@ def test_collection_subprocesses_use_the_named_ceiling() -> None:
         for problem in _bare_ceiling_comparisons(path.read_text(encoding="utf-8"))
     ]
     assert not comparison_offenders, (
-        "a timeout is compared above a bare int literal at "
-        f"{comparison_offenders}; compare against gc.COLLECT_TIMEOUT_S so the ceiling stays one "
-        "authority (#7052)"
+        f"a timeout is compared above a bare int literal at {comparison_offenders}; compare against gc.COLLECT_TIMEOUT_S so the ceiling stays one authority (#7052)"
     )
     # Positive control: the comparison scanner sees the shape it forbids and passes the named form.
     assert _bare_ceiling_comparisons('def test_x():\n    assert seen["timeout_s"] > 900\n') == ["2:11 seen['timeout_s'] > 900"]
-    assert _bare_ceiling_comparisons("def test_x():\n    assert seen[\"timeout_s\"] > gc.COLLECT_TIMEOUT_S\n") == []
+    assert _bare_ceiling_comparisons('def test_x():\n    assert seen["timeout_s"] > gc.COLLECT_TIMEOUT_S\n') == []
