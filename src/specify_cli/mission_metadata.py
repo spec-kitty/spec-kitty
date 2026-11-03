@@ -576,7 +576,8 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     """``rev-parse --show-prefix`` of *feature_dir* (``""`` at the checkout root), or ``None``.
 
     ``None`` means "nothing is tracked here": git is not installed, or it positively answered
-    that *feature_dir* is outside a work tree and no ``.git`` anchor exists above it.
+    that *feature_dir* is outside a work tree and no ancestor carries a ``.git`` entry that could be
+    the repository home (:func:`_is_repository_home`).
 
     The trailing newline git prints is removed -- and only that. ``strip()`` would also eat a
     leading space that is part of the first path component, silently missing the blob and
@@ -584,9 +585,10 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
 
     A git that *runs and refuses* (dubious ownership, an unreadable or garbled ``.git``, a
     misconfigured ``GIT_DIR``) exits non-zero too, with the same "not a git repository"
-    message. Message text cannot separate those, so a ``.git`` anchor above *feature_dir*
-    raises :class:`_GitRefuses`: the caller refuses instead of falling back to fabricating an
-    identity over a copy git does hold (NFR-002).
+    message. Message text cannot separate those, so a ``.git`` entry above *feature_dir* that
+    could be a repository home raises :class:`_GitRefuses`: the caller refuses instead of falling
+    back to fabricating an identity over a copy git does hold (NFR-002). A ``.git`` entry that
+    cannot be one -- a directory with no ``HEAD`` -- is not a repository and does not raise (#7084).
     """
     try:
         result = run_git(feature_dir, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
@@ -604,11 +606,50 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
 
 
+#: The marker every repository's git directory carries, with or without a commit (``objects/``
+#: and ``refs/`` accompany it). A directory named ``.git`` without one is not a repository.
+_GIT_HEAD = "HEAD"
+
+
+def _is_repository_home(git_entry: Path) -> bool:
+    """Whether an existing ``.git`` entry can be the repository home git holds a copy in (#7084).
+
+    A ``.git`` *file* is a ``gitdir:``/worktree pointer: the repository lives elsewhere and may hold
+    the identity, so it is a home. A ``.git`` *directory* is a home only when it carries ``HEAD``,
+    which every repository has, even one with no commit yet. A directory without ``HEAD`` -- a bare
+    ``.git`` a tool left behind, or one holding only subdirectories such as a lock home -- is not a
+    repository at all: git skips it and holds nothing there, so there is no identity to preserve and
+    nothing to restore.
+
+    Fail-closed: an entry that cannot be read counts as a home, so the caller refuses rather than
+    minting over a copy git might hold (NFR-002).
+    """
+    try:
+        if not git_entry.is_dir():
+            return True
+        (git_entry / _GIT_HEAD).stat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def _has_no_git_anchor(feature_dir: Path) -> bool:
-    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
+    """Whether no ancestor's ``.git`` entry could be the repository home git holds a copy in.
+
+    The walk visits every ancestor, as git does before it answers "not a git repository": this
+    function explains that answer, so it asks the same question of the same directories.
+
+    An entry counts only when :func:`_is_repository_home` accepts it. A name is not a repository
+    (#7084): reading one as a repository turned a stray ``.git`` directory -- the shape
+    spec-kitty's own lock and hook fallbacks leave behind -- into a tracked-metadata refusal, with
+    a ``git checkout --`` remedy, for every Mission below it.
+    """
     for candidate in (feature_dir, *feature_dir.parents):
         try:
-            if (candidate / ".git").exists():
+            git_entry = candidate / ".git"
+            if git_entry.exists() and _is_repository_home(git_entry):
                 return False
         except OSError:
             return False

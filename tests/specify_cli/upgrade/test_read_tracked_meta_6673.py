@@ -328,3 +328,72 @@ def test_the_refusal_notice_names_the_unusable_copy_and_its_repair(tmp_path: Pat
     assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
     assert phrase in classified.notice
     assert remedy.format(slug=_SLUG) in classified.notice
+
+
+# ---------------------------------------------------------------------------
+# #7084: a `.git` NAME is not a repository; only a repository home may refuse
+# ---------------------------------------------------------------------------
+
+
+def _mission_under_ancestor(tmp_path: Path) -> tuple[Path, Path]:
+    """``(mission_dir, ancestor)`` where *ancestor* is the only candidate ``.git`` home above it."""
+    ancestor = tmp_path / "ambient"
+    mission_dir = ancestor / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    return mission_dir, ancestor
+
+
+def test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal(tmp_path: Path) -> None:
+    """#7084: a stray `.git` directory holds nothing, so the mission is not "tracked but unreadable".
+
+    This is the shape the fleet host reproduces with: spec-kitty's own hook and lock fallbacks leave
+    ``/tmp/.git`` holding only ``hooks/`` and ``spec-kitty-locks/``. git rejects it in the same breath
+    as a bare directory, so it cannot hold a tracked ``meta.json`` — but the name alone used to be read
+    as "git holds a copy I cannot give back", which refused the identity and prescribed a
+    ``git checkout --`` that has nothing to restore.
+    """
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    stray = ancestor / ".git"
+    (stray / "spec-kitty-locks").mkdir(parents=True)
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert tracked == TrackedMeta(None, unavailable=False), "a non-repository `.git` directory was read as a refusal"
+
+
+def test_an_empty_directory_named_git_is_not_a_refusal(tmp_path: Path) -> None:
+    """The minimal shape: an empty directory named `.git`. No HEAD, no repository, nothing to recover."""
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    (ancestor / ".git").mkdir()
+
+    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=False)
+
+
+def test_a_git_directory_carrying_head_is_still_an_anchor(tmp_path: Path) -> None:
+    """The control for #7084: a directory carrying `HEAD` is a repository home and must still refuse.
+
+    ``HEAD`` is what every repository has, even an unborn one. Here the committed ref is garbled, so
+    git rejects the directory and cannot say what it holds: the read stays fail-closed (#6673).
+    """
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    git_dir = ancestor / ".git"
+    (git_dir / "objects").mkdir(parents=True)
+    (git_dir / "refs").mkdir()
+    (git_dir / "HEAD").write_text("not a ref\n", encoding="utf-8")
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert tracked.meta is None
+    assert tracked.unavailable is True, "a repository home git cannot read was read as 'nothing tracked'"
+
+
+def test_a_git_marker_file_is_still_an_anchor(tmp_path: Path) -> None:
+    """The second control: a `.git` FILE points at a repository elsewhere, so the refusal stands.
+
+    (``test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked`` covers a real repository
+    whose directory became a marker file; this one covers a mission folder that never had one.)
+    """
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    (ancestor / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+
+    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)

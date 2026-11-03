@@ -150,3 +150,32 @@ def test_nothing_tracked_keeps_the_original_skip_reason(tmp_path: Path) -> None:
     assert result.action == "skip"
     assert result.reason == "meta.json not found"
     assert not (legacy / "meta.json").exists()
+
+
+def test_a_stray_git_directory_does_not_block_the_mint(tmp_path: Path) -> None:
+    """#7084: an ancestor ``.git`` that is not a repository holds nothing, so the identity is minted.
+
+    Reported as ``tests/lanes/test_refinalize_mission_branch.py`` expecting ``wrote`` and getting
+    ``skip``: the skipping call was this one, refusing with ``TRACKED_META_UNAVAILABLE`` because a
+    directory named ``.git`` somewhere above the mission folder was mistaken for a repository git
+    could not read. The control for the refusal side is
+    ``test_an_untracked_copy_without_identity_is_still_minted`` and the anchor shapes in
+    ``tests/specify_cli/upgrade/test_read_tracked_meta_6673.py``.
+    """
+    ancestor = tmp_path / "ambient"
+    mission_dir = ancestor / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (ancestor / ".git" / "spec-kitty-locks").mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"slug": _SLUG, "mission_slug": _SLUG, "mission_type": "software-dev"}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+
+    result = backfill_mission(mission_dir)
+
+    assert result.reason is None, f"the mint was refused: {result.reason}"
+    assert result.action == "wrote"
+    assert result.mission_id is not None
+    written = json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))
+    assert written["mission_id"] == result.mission_id
