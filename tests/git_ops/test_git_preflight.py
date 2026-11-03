@@ -51,6 +51,28 @@ class _FakeCmdResult:
     stderr: str
 
 
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        ("fatal: detected dubious ownership in repository at '/srv/checkout'", True),
+        ("fatal: detected dubious ownership in repository at '/srv/checkout'\nto add an exception for this directory, call: safe.directory", True),
+        ("fatal: not a git repository (or any of the parent directories): .git", False),
+        ("", False),
+    ],
+)
+def test_the_ownership_refusal_predicate_has_one_owner(stderr: str, expected: bool) -> None:
+    """`kernel.git.refuses_ownership` is the single classifier git_preflight consumes.
+
+    Git prints the same "not a git repository" line for a path outside every repository and
+    for a checkout it refuses on ownership grounds, so this text match is the only signal that
+    tells the two apart. The positive and negative cases share one parametrization so a probe
+    that always answers True (or always False) cannot pass.
+    """
+    from kernel.git import refuses_ownership
+
+    assert refuses_ownership(stderr) is expected
+
+
 def test_run_git_preflight_detects_dubious_ownership(tmp_path: Path) -> None:
     dubious = _FakeCmdResult(
         returncode=128,

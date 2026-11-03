@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.mission_metadata import TrackedMeta, read_tracked_meta
+from specify_cli.mission_metadata import TrackedMeta, UnreadableReason, read_tracked_meta
 
 #: The one repair command every variant ends with.
 _RESTORE = "git checkout -- {path}"
@@ -28,6 +28,29 @@ CODE_STAGED_DIFFERS = "TRACKED_META_STAGED_DIFFERS"
 _LEAD_ABSENT = "is missing from the working tree"
 _LEAD_NO_IDENTITY = "has lost its mission_id"
 
+#: What actually repairs each reason git could not answer (#7131). Each one says the tracked state
+#: is *unknown* (git never established that the path is tracked), names the repair class, and rules
+#: out the restore remedy: `git checkout -- <path>` fails for the same reason the read failed.
+_UNREADABLE_TAIL: dict[UnreadableReason, str] = {
+    "ownership": (
+        "git refuses this checkout's ownership (it belongs to another user), so whether it is tracked here is "
+        "unknown and no identity was minted — trusting the repository is an explicit operator decision, scoped to "
+        "this checkout only (`safe.directory` names that one path, never a wildcard), and no file restore can "
+        "succeed until git answers"
+    ),
+    "repository": (
+        "git cannot identify a repository here (an unreadable or garbled `.git` marker, or a `GIT_DIR`/"
+        "`GIT_WORK_TREE` naming elsewhere), so whether it is tracked is unknown and no identity was minted — "
+        "repair the repository layout or environment first (`git status` in the checkout reports the cause), "
+        "because no file restore can succeed until git answers"
+    ),
+    "objects": (
+        "git cannot read the committed content for it from this repository (a damaged or incomplete object "
+        "store), so whether it is tracked is unknown and no identity was minted — repair the object store first "
+        "(`git fsck` names the damage), because no file restore can succeed until git answers"
+    ),
+}
+
 
 @dataclass(frozen=True)
 class MissingTrackedMeta:
@@ -35,8 +58,10 @@ class MissingTrackedMeta:
 
     ``refuse`` is True when the seam must not repair the folder: git knows the path but
     the content cannot be used, so any ``meta.json`` written for it would be a fabricated
-    identity (#6673). ``notice`` is the single operator-facing line for both cases. ``code`` is
-    the refusal's stable code (``None`` for a usable copy), also printed at the end of the notice.
+    identity (#6673). ``notice`` is the single operator-facing line for both cases: the
+    reason git could not produce a copy, and the repair that actually applies (#7131).
+    ``code`` is the refusal's stable code (``None`` for a usable copy), also printed at the
+    end of the notice.
     """
 
     notice: str
@@ -58,8 +83,10 @@ def classify_missing_tracked_meta(feature_dir: Path, repo_root: Path) -> Missing
 
     Returns:
         ``MissingTrackedMeta(notice, refuse=True)`` when git knows the path but its
-        content cannot be read, or ``refuse=False`` when git holds a usable copy that the
-        seam is about to rebuild the file from.
+        content cannot be read, or when git could not answer for the repository at all
+        (#7131) — the notice then names the repair class instead of a file restore — or
+        ``refuse=False`` when git holds a usable copy that the seam is about to rebuild
+        the file from.
     """
     if (feature_dir / "meta.json").exists():
         return None
@@ -98,6 +125,10 @@ def _restore_notice(path: str) -> str:
 
 def _refusal_notice(path: str, tracked: TrackedMeta, lead: str) -> str:
     """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
+    if tracked.unreadable_reason is not None:
+        # Git never answered, so the subject is not "tracked meta.json": whether the path is
+        # tracked is exactly what could not be established (#7131).
+        return f"{path}: meta.json {lead} and {_UNREADABLE_TAIL[tracked.unreadable_reason]}"
     if tracked.staged_differs:
         return (
             f"{path}: meta.json {lead} and the index copy differs from the committed one (a staged edit); "

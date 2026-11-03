@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6673": {
+      "evidence_ref": "Closed; the refusal and its stable code are already on main and this mission only changes its wording",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#7055": {
+      "evidence_ref": "Owed to the placement-fixture mission behind PR #7075; this mission touches no fixture for it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7075": {
+      "evidence_ref": "A pull request, cited as context only; nothing in this mission's scope belongs to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7131": {
+      "evidence_ref": "WP02 approved: three causes carry a repair class; tests in tests/specify_cli/upgrade/test_read_tracked_meta_6673.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

@@ -26,7 +26,7 @@ from charter.activation.api import read_mission_type
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
-from kernel.git import GitCommandError, blob_at, is_tracked, run_git
+from kernel.git import GitCommandError, blob_at, is_tracked, refuses_ownership, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from mission_runtime import resolve_mid8
 from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
@@ -37,6 +37,10 @@ META_FILENAME: str = "meta.json"
 _UTF8: str = "utf-8"
 _UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
 _HEAD: str = "HEAD"
+
+#: Why git could not answer what it holds for a Mission's ``meta.json`` (#7131). One cause per
+#: refusal shape, so the one shared notice can name the repair class instead of guessing.
+UnreadableReason = Literal["repository", "ownership", "objects"]
 
 
 def baseline_slug_fields(slug: str) -> dict[str, str]:
@@ -479,6 +483,15 @@ class TrackedMeta:
     index blob is different (a staged edit, or a staged deletion): restoring ``HEAD``'s
     bytes would silently discard it, and ``git checkout --`` would restore another copy.
     All three only shape the operator message.
+
+    ``unreadable_reason`` is the fourth sub-case, and the one where git could not answer
+    *at all* (#7131): ``"ownership"`` when git refuses this checkout's ownership trust,
+    ``"repository"`` when it cannot identify a repository here (an unreadable or garbled
+    ``.git``, a ``GIT_DIR``/``GIT_WORK_TREE`` naming elsewhere), and ``"objects"`` when
+    the repository answered but the committed blob could not be read. Unlike the three
+    flags, it means *whether the path is tracked is unknown*, so a notice carrying it must
+    never claim a tracked copy is missing or offer ``git checkout --``; it is set only
+    together with ``unavailable``.
     """
 
     meta: dict[str, Any] | None
@@ -486,6 +499,7 @@ class TrackedMeta:
     index_only: bool = False
     corrupt: bool = False
     staged_differs: bool = False
+    unreadable_reason: UnreadableReason | None = None
 
 
 def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
@@ -509,7 +523,9 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
         ``TrackedMeta(None, unavailable=False)`` when git holds nothing for the path
         (a pre-identity Mission, a folder outside any work tree, or git unavailable);
         ``TrackedMeta(None, unavailable=True)`` when git knows the path but its content
-        cannot be produced or parsed.
+        cannot be produced or parsed, and ``unavailable=True`` with
+        :attr:`TrackedMeta.unreadable_reason` set when git could not answer for the
+        repository or the object at all (#7131).
 
     Raises:
         GitCommandError: only when git timed out; a timeout is a real failure and is
@@ -519,8 +535,8 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
     """
     try:
         prefix = _meta_checkout_prefix(feature_dir)
-    except _GitRefuses:
-        return TrackedMeta(None, unavailable=True)
+    except _GitRefuses as exc:
+        return TrackedMeta(None, unavailable=True, unreadable_reason=_unreadable_reason(exc.stderr, repository_identified=False))
     if prefix is None:
         return TrackedMeta(None, unavailable=False)
     try:
@@ -528,7 +544,7 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
     except GitCommandError as exc:
         if exc.timed_out:
             raise
-        return TrackedMeta(None, unavailable=True)
+        return TrackedMeta(None, unavailable=True, unreadable_reason=_unreadable_reason(exc.stderr, repository_identified=True))
     if tracked_bytes is not None:
         if _index_meta_bytes(feature_dir) != tracked_bytes:
             return TrackedMeta(None, unavailable=True, staged_differs=True)
@@ -569,7 +585,28 @@ def restore_tracked_meta(feature_dir: Path) -> bool:
 
 
 class _GitRefuses(Exception):
-    """git did not answer "this is not a work tree", so the tracked copy is unknown (#6673)."""
+    """git did not answer "this is not a work tree", so the tracked copy is unknown (#6673).
+
+    ``stderr`` is kept only so :func:`_unreadable_reason` can name the cause; no caller
+    prints it, because git's own refusal text carries paths and, in a remote URL, possibly
+    credentials (#7131).
+    """
+
+    def __init__(self, stderr: str) -> None:
+        super().__init__(stderr)
+        self.stderr = stderr
+
+
+def _unreadable_reason(stderr: str, *, repository_identified: bool) -> UnreadableReason:
+    """Name the cause of a refusal git gave but could not explain to the caller (#7131).
+
+    Ownership is checked first because git prints its "not a git repository" line for an
+    untrusted checkout too; after that, a blob git could not produce is an object-store
+    failure only when the repository itself answered.
+    """
+    if refuses_ownership(stderr):
+        return "ownership"
+    return "objects" if repository_identified else "repository"
 
 
 def _meta_checkout_prefix(feature_dir: Path) -> str | None:

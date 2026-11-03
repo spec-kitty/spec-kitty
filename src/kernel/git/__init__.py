@@ -59,7 +59,7 @@ from kernel.git.remote import (
     resolve_remote,
     tracking_ref,
 )
-from kernel.git.runner import GitCommandError, GitResult, decode_path, run_git
+from kernel.git.runner import GitCommandError, GitResult, decode_path, refuses_ownership, run_git
 
 __all__ = [
     "CLONE_TIMEOUT",
@@ -94,6 +94,7 @@ __all__ = [
     "log_paths",
     "no_prompt_env",
     "numstat_entries",
+    "refuses_ownership",
     "remote_heads",
     "resolve_remote",
     "run_git",

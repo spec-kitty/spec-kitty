@@ -294,6 +294,102 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
 
     assert tracked.meta is None
     assert tracked.unavailable is True, "a refusing git was read as 'nothing tracked' (the fabricating branch)"
+    assert tracked.unreadable_reason == "repository", "the cause git gave was dropped on the way to the notice"
+    # #7131: the notice must not assert that the tracked file is missing (git never established that
+    # the path is tracked) and must not prescribe `git checkout --`, which fails for the same reason.
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    classified = classify_missing_tracked_meta(mission_dir, root)
+    assert classified is not None
+    assert classified.refuse is True
+    assert classified.code == "TRACKED_META_UNAVAILABLE"
+    assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
+    assert "tracked meta.json is missing" not in classified.notice, "it still claims the tracked copy is missing"
+    assert "git checkout --" not in classified.notice, "it still offers a restore remedy git cannot perform"
+
+
+def test_an_ownership_refusal_is_not_reported_as_a_missing_tracked_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A checkout git refuses on ownership grounds is a repository-access fault, not a missing file (#7131).
+
+    Git only refuses ownership for a checkout owned by another uid, which an unprivileged test cannot
+    create, so the git invocation seam answers with git's real refusal text — the same technique the
+    preflight tests use. The refusal itself must survive untouched; only the diagnosis changes.
+    """
+    from kernel.git import GitResult
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    root = _repo(tmp_path)
+    mission_dir = _commit_meta(root)
+    (mission_dir / "meta.json").unlink()
+    refusal = (
+        b"fatal: detected dubious ownership in repository at '/srv/secret-checkout'\n"
+        b"to add an exception for this directory, call:\n\n"
+        b"\tgit config --global --add safe.directory /srv/secret-checkout\n"
+        b"remote credential: https://user:hunter2@example.invalid/repo\n"
+    )
+    monkeypatch.setattr("specify_cli.mission_metadata.run_git", lambda *_a, **_k: GitResult(returncode=128, stdout=b"", stderr=refusal))
+
+    tracked = read_tracked_meta(mission_dir)
+    classified = classify_missing_tracked_meta(mission_dir, root)
+
+    assert (tracked.meta, tracked.unavailable, tracked.unreadable_reason) == (None, True, "ownership")
+    assert classified is not None
+    assert (classified.refuse, classified.code) == (True, "TRACKED_META_UNAVAILABLE")
+    assert "ownership" in classified.notice
+    assert "operator decision" in classified.notice, "trusting a repository is not this tool's decision to make"
+    assert "git checkout --" not in classified.notice
+    assert "safe.directory *" not in classified.notice
+    # NFR-001: nothing of git's own stderr reaches the operator — not a path, not a credential.
+    assert "/srv/secret-checkout" not in classified.notice
+    assert "hunter2" not in classified.notice
+
+
+def test_a_present_meta_that_lost_its_identity_keeps_its_own_lead_on_an_unreadable_repository(tmp_path: Path) -> None:
+    """The present-file refusal shares the cause tail but not the "missing" lead (#7131)."""
+    from specify_cli.upgrade.tracked_meta_notice import tracked_meta_refusal
+
+    root = _repo(tmp_path)
+    mission_dir = _commit_meta(root)
+    present = dict(_META)
+    present.pop("mission_id")
+    (mission_dir / "meta.json").write_text(json.dumps(present, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    git_dir = root / ".git"
+    for child in sorted(git_dir.rglob("*"), reverse=True):
+        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
+    git_dir.rmdir()
+    (root / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+
+    tracked = read_tracked_meta(mission_dir)
+    refusal = tracked_meta_refusal(mission_dir, root, tracked)
+
+    assert refusal is not None
+    assert (refusal.refuse, refusal.code) == (True, "TRACKED_META_UNAVAILABLE")
+    assert "has lost its mission_id" in refusal.notice
+    assert "is missing from the working tree" not in refusal.notice
+    assert "git checkout --" not in refusal.notice
+
+
+def test_an_unreadable_committed_blob_is_not_reported_as_a_missing_tracked_file(tmp_path: Path) -> None:
+    """A repository git can open but whose committed object it cannot read needs an object repair (#7131)."""
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    root = _repo(tmp_path)
+    mission_dir = _commit_meta(root)
+    (mission_dir / "meta.json").unlink()
+    oid = _git(root, "rev-parse", f"HEAD:kitty-specs/{_SLUG}/meta.json").strip()
+    loose_object = root / ".git" / "objects" / oid[:2] / oid[2:]
+    loose_object.chmod(0o644)  # git writes objects read-only
+    loose_object.write_bytes(b"not a zlib stream")
+
+    tracked = read_tracked_meta(mission_dir)
+    classified = classify_missing_tracked_meta(mission_dir, root)
+
+    assert (tracked.meta, tracked.unavailable, tracked.unreadable_reason) == (None, True, "objects")
+    assert classified is not None
+    assert (classified.refuse, classified.code) == (True, "TRACKED_META_UNAVAILABLE")
+    assert "git fsck" in classified.notice, "an unreadable committed copy is repaired in the object store"
+    assert "git checkout --" not in classified.notice
+    assert "tracked meta.json is missing" not in classified.notice, "it still claims the tracked copy is missing"
 
 
 @pytest.mark.parametrize(

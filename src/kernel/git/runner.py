@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-__all__ = ["GitCommandError", "GitResult", "decode_path", "run_git"]
+__all__ = ["GitCommandError", "GitResult", "decode_path", "refuses_ownership", "run_git"]
 
 # Returncode reported when git could not be executed at all (missing binary,
 # unreadable working directory, timeout).
@@ -33,6 +33,20 @@ class GitResult:
     returncode: int
     stdout: bytes
     stderr: bytes
+
+
+def refuses_ownership(stderr: str) -> bool:
+    """Whether git's refusal is its ownership-trust refusal, not a missing repository.
+
+    Git prints the same ``fatal: not a git repository`` line whether a path is outside
+    every repository or the repository is owned by another user and therefore
+    untrusted (``safe.directory``), so the message text is the only signal that
+    separates the two. This is a *classifier*, never a policy decision: a ``True``
+    answer says which refusal was given, not that the caller may widen git's trust.
+    Trusting a checkout is the operator's explicit decision, scoped to that checkout.
+    """
+    text = stderr.lower()
+    return "dubious ownership" in text or "safe.directory" in text
 
 
 class GitCommandError(RuntimeError):

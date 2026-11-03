@@ -1,0 +1,79 @@
+{
+  "mission_slug": "tracked-meta-unanswerable-git-01M6GRFF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked (unreadable_reason == 'repository')",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:57:13.035958+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py (16 passed; refusal flag, TRACKED_META_UNAVAILABLE code and no-write assertions on every cause fixture)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:58:18.752758+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:57:23.573079+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_an_unreadable_committed_blob_is_not_reported_as_a_missing_tracked_file (no  on any cause notice)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:57:27.983543+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_an_ownership_refusal_is_not_reported_as_a_missing_tracked_file",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:57:34.781421+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_an_unreadable_committed_blob_is_not_reported_as_a_missing_tracked_file (dangling tree 3620dc1953e02797c7ce4430decd6c523416d708\ndangling tree f2f07de630b6aa9b7c602dd90084e4b0d9c29168\ndangling tree ed50debe295eaafc0c99154f7df786c99276c5e2)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:58:07.709944+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py (healthy-path tests unchanged) + tests/integration/migration/test_upgrade_tracked_meta_identity_6673.py (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-03T13:58:12.719123+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
