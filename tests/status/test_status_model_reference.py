@@ -23,10 +23,19 @@ def page() -> str:
 
 
 def test_the_page_names_the_gated_family(page: str) -> None:
+    """Every gated edge's ``from -> to`` spelling is on the page, read off the authority.
+
+    Driven from ``REVIEW_REF_REQUIRED_EDGES`` so the page and the owning edge set
+    cannot drift: a member added to the set must appear on the page, and a member
+    removed from the set leaves no stale spelling behind.
+    """
+    from specify_cli.status.wp_state import REVIEW_REF_REQUIRED_EDGES
+
     assert "Forced rewinds out of review" in page
-    assert "`for_review -> in_progress`" in page
-    assert "`approved -> in_progress`" in page
     assert "force-insurmountable" in page
+    for from_lane, to_lane in sorted(REVIEW_REF_REQUIRED_EDGES):
+        spelling = f"`{from_lane.value} -> {to_lane.value}`"
+        assert spelling in page, f"{spelling} missing from the reference page"
 
 
 def test_the_page_states_which_each_writer_supplies(page: str) -> None:
