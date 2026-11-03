@@ -54,7 +54,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     decide_transition,
     override_persist_signal,
 )
-from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, latest_implementer_actor
+from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, latest_implementer_actor, wp_state_for
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -342,7 +342,8 @@ def _implementer_of_record_past_a_seed() -> str | None:
         _ev(3, Lane.IN_PROGRESS, Lane.FOR_REVIEW, _IMPL),
         _ev(4, Lane.PLANNED, Lane.CLAIMED, "migration:backfill_runtime_state"),
     ]
-    return latest_implementer_actor(events, "WP01")
+    implementer: str | None = latest_implementer_actor(events, "WP01")
+    return implementer
 
 
 @pytest.mark.regression
@@ -689,7 +690,7 @@ def test_blocked_resume_hint_is_fsm_gated_not_hardcoded(monkeypatch: pytest.Monk
     """
     import specify_cli.cli.commands.agent.tasks_transition_core as core
 
-    real_wp_state_for = core.wp_state_for
+    real_wp_state_for = wp_state_for
 
     class _BlockedWithoutResume:
         def allowed_targets(self) -> set[Lane]:
