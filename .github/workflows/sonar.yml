@@ -358,8 +358,23 @@ jobs:
       # tracked in the issue tracker (#2970, #4304), not a workflow failure.
       - name: SonarCloud Quality Gate (informational; never PR-blocking)
         if: always() && steps.sonar_token.outputs.enabled == 'true'
+        id: quality_gate
         continue-on-error: true
         uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # The gate no longer fails the run, so surface its verdict where a reader of the run sees it.
+      - name: Report the quality-gate verdict
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        shell: bash
+        env:
+          GATE_STATUS: ${{ steps.quality_gate.outputs.quality-gate-status }}
+          GATE_OUTCOME: ${{ steps.quality_gate.outcome }}
+        run: |
+          status="${GATE_STATUS:-unknown (gate step outcome: ${GATE_OUTCOME})}"
+          echo "### SonarCloud quality gate: ${status}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${GATE_STATUS}" != "PASSED" ]; then
+            echo "::warning::SonarCloud quality gate on new code: ${status} (informational; see SonarCloud and #2970, #4304, #7113)"
+          fi
