@@ -422,3 +422,131 @@ def test_material_input_closure_backs_the_report_only_transaction(repo: Path):
     assert any("spec.md" in key for key in manifest), sorted(manifest)
     assert any("plan.md" in key for key in manifest)
     assert any("tasks.md" in key for key in manifest)
+
+
+PIN = "packs/internal.source.yaml"
+PACK_ROOT = "packs/internal"
+
+
+def _add_pinned_pack(repo: Path) -> None:
+    """A gitignored, pin-fetched org pack tree — the shape `make sync-packs` produces (#7128)."""
+    from charter.offering.packs.pack_clean_digest import clean_tree_digest
+    from charter.offering.packs.pack_pin import (
+        TREE_DIGEST_ALGORITHM,
+        PackPin,
+        TreeDigest,
+        full_tree_digest,
+        write_pack_pin,
+    )
+
+    pack = repo / PACK_ROOT
+    (pack / "drg").mkdir(parents=True)
+    (pack / "procedures").mkdir()
+    (pack / "pack.yaml").write_text(
+        "pack_id: 01ARWG13C000000000000000AB\n"
+        "pack_version: 1.0.0\n"
+        "parent_pack: null\n"
+        "name: spec-kitty-internal\n"
+        "pack_level: org\n"
+        "active_charter: org-charter.yaml\n"
+        "pack_drg: drg/fragment.yaml\n"
+    )
+    (pack / "org-charter.yaml").write_text("org_name: spec-kitty-internal\nskill_namespace: kitty\n")
+    (pack / "drg/fragment.yaml").write_text("nodes: []\n")
+    (pack / "procedures/proof.procedure.yaml").write_text("id: proof\nname: Proof\n")
+    (repo / ".gitignore").write_text(f"/{PACK_ROOT}/\n")
+    write_pack_pin(
+        PackPin(
+            repository="https://github.com/spec-kitty/spec-kitty-open-packs.git",
+            commit="e" * 40,
+            subtree=PACK_ROOT,
+            tree_digest=TreeDigest(algorithm=TREE_DIGEST_ALGORITHM, value=clean_tree_digest(pack, level="org"), level="org"),
+            snapshot_sha256=full_tree_digest(pack),
+        ),
+        repo / PIN,
+    )
+    (repo / ".kittify/config.yaml").write_text(
+        "charter: .kittify/charter/charter.yaml\ncharter_packs:\n  org:\n    packs:\n    - name: internal\n      local_path: packs/internal\n"
+    )
+    git(repo, "add", ".gitignore", PIN, ".kittify/config.yaml")
+    git(repo, "commit", "-qm", "register the pinned org pack")
+
+
+def test_report_only_records_over_a_pin_verified_pack_tree(repo: Path):
+    """#7128: the fetched, gitignored pack tree has committed state (its pin), so it is not dirty input."""
+    _add_pinned_pack(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    # The tree really is ignored and really is an input: without that, the case proves nothing.
+    assert subprocess.run(["git", "check-ignore", "-q", f"{PACK_ROOT}/pack.yaml"], cwd=repo).returncode == 0
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["commit_status"] == "committed"
+    assert git(repo, "rev-parse", "HEAD^").strip() == head.strip()
+    assert git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").decode().splitlines() == [REPORT]
+
+
+def test_report_only_refuses_a_pack_tree_that_breaks_its_pin(repo: Path):
+    _add_pinned_pack(repo)
+    edited = repo / PACK_ROOT / "procedures/proof.procedure.yaml"
+    edited.write_text("id: proof\nname: Proof, edited in place\n")
+    head = git(repo, "rev-parse", "HEAD")
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "DIRTY_ANALYSIS_INPUT"
+    assert f"{PACK_ROOT}/procedures/proof.procedure.yaml" in payload["dirty_paths"]
+    assert not (repo / REPORT).exists()
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_report_only_refuses_an_uncommitted_pin(repo: Path):
+    _add_pinned_pack(repo)
+    (repo / PIN).write_text((repo / PIN).read_text() + "# bumped locally\n")
+    head = git(repo, "rev-parse", "HEAD")
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "DIRTY_ANALYSIS_INPUT"
+    assert PIN in payload["dirty_paths"]
+    assert not (repo / REPORT).exists()
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path):
+    """Same fixture, opposite outcome: the exemption is the pin, not the ignore rule."""
+    _add_pinned_pack(repo)
+    (repo / ".git/info/exclude").write_text(".kittify/templates/\n")
+    templates = repo / ".kittify/templates"
+    templates.mkdir()
+    (templates / "hidden.md").write_text("uncommitted authority")
+    head = git(repo, "rev-parse", "HEAD")
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "DIRTY_ANALYSIS_INPUT"
+    assert ".kittify/templates/hidden.md" in payload["dirty_paths"]
+    assert not (repo / REPORT).exists()
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_clean_checkout_never_verifies_a_pack_tree(repo: Path, monkeypatch: pytest.MonkeyPatch):
+    """NFR-001: a clone with no untracked material input must not pay for pin verification."""
+    from specify_cli.git import report_transaction
+
+    def unexpected(repo_root: Path):
+        raise AssertionError("the exemption must not be computed when nothing is untracked")
+
+    monkeypatch.setattr(report_transaction, "pack_pin_state", unexpected)
+
+    result = invoke("--report-only")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["commit_status"] == "committed"
