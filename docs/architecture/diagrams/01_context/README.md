@@ -47,8 +47,6 @@ flowchart LR
     hic["Human In Charge (operator)"]
     agent["Agent Tooling — Claude/Codex/Copilot/etc."]
     orch["External Orchestrator Provider"]
-    saas["Team Kitty SaaS — auth, capability mint, activity feed"]
-    relay["Zeitgeist relay — one volatile container per team"]
     tracker["External Tracker Systems"]
     repo["Project Repository Artifacts — kitty-specs, doctrine, glossary, architecture"]
     sk["Spec Kitty Host (CLI)"]
@@ -56,13 +54,13 @@ flowchart LR
     hic -->|runs commands, approves decisions| sk
     agent -->|executes prompts, skills, and Ops| sk
     orch -->|calls orchestrator-api contract| sk
-    sk -->|browser OAuth, admission check, capability mint| saas
-    sk -->|one moment per lane transition, when drain is on| relay
-    saas -->|Pulse: polls moments back| relay
-    sk -->|tracker commands: local provider or hosted routing| tracker
-    saas -->|hosted tracker connectors| tracker
+    sk -->|tracker commands: local provider| tracker
     sk <-->|reads and writes canonical project state| repo
 ```
+
+Team Kitty SaaS and the Zeitgeist relay are **not** part of the current boundary: their client
+code (auth, `zeitgeist_client/`, `saas_client/`, the drain posture) was removed from this
+repository in #6164. The rows below record them only as history.
 
 ## Planned Charter Read and Write Transition
 
@@ -172,9 +170,9 @@ flowchart LR
 | Human In Charge | Command invocation and approval checkpoints | Final acceptance authority stays human-owned. |
 | Agent Tooling | Prompt-, skill-, and Op-driven workflow execution | Agents execute within host constraints and the resolved profile's governance scope. |
 | External Orchestrator Provider | Orchestrator API calls | Provider is adapter-only; host remains lifecycle authority. |
-| Team Kitty SaaS | Browser-mediated OAuth, repository admission, capability mint; builds its activity feed by polling the relay | Auth is browser-OAuth, not password (`2026-04-09-2`); membership plus admission is the server-side gate. The host remains the canonical state authority. |
-| Zeitgeist relay | The CLI publishes one bounded moment per lane transition, no queue, no retry | Volatile and per team. Publishing is opt-in on the client (drain, `2026-09-26-3`); an unreachable relay never blocks local persistence. See [Team Kitty and Zeitgeist](../../../context/team-kitty.md). |
-| External Tracker Systems | Tracker commands (local provider, or routed through Team Kitty) | Tracker binding is optional and discovered, not user-supplied (`2026-04-04-1`). |
+| Team Kitty SaaS | **Historical — removed in #6164.** Browser-mediated OAuth, repository admission and capability mint no longer ship in this repository. | Recorded for orientation only; nothing in the CLI reaches it. |
+| Zeitgeist relay | **Historical — removed in #6164.** The CLI no longer publishes lane-transition moments. | Not part of the current boundary; an unreachable relay cannot affect local persistence because no publish path exists. |
+| External Tracker Systems | Tracker commands through the local provider | Tracker binding is optional and discovered, not user-supplied (`2026-04-04-1`). |
 | Project Repository Artifacts | Filesystem state read/write | Repository artifacts are canonical persistent state. |
 
 ## Domain Context Map
