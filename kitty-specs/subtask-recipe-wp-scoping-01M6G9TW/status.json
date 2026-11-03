@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-03T09:21:01.948953+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Recipe home + unit tests green"
+        "Recipe home + unit tests green",
+        "Review passed: single pure renderer, WP is a required keyword, option order pinned by tests including the owned suffix; mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
