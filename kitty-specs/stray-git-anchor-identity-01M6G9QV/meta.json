@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "This mission changes a private predicate in specify_cli/mission_metadata.py; it adds no interface, endpoint, event payload or persisted schema, so there is no contract to write.",
   "coordination_branch": "kitty/mission-stray-git-anchor-identity-01M6G9QV",
   "created_at": "2026-11-03T08:52:15.889955+00:00",
   "flattened": false,
