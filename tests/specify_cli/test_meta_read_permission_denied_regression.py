@@ -127,7 +127,9 @@ class TestMetaReadPermissionDeniedRegression:
 
         result = NormalizeMissionLifecycleResult(slug=unreadable_mission_dir.name, status="ok")
 
-        meta = _load_meta_for_normalization(unreadable_mission_dir, result)
+        meta = _load_meta_for_normalization(
+            unreadable_mission_dir, result, unreadable_mission_dir.parent, dry_run=False
+        )
 
         assert meta is None
         assert result.status == "error"
