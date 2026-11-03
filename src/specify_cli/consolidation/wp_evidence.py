@@ -11,7 +11,10 @@ recorded by the implementer itself.
 Per approved (or ``done``), non-canceled work package, first match wins (data-model.md):
 
 1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit.
-2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002).
+2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002). When
+   the window's tip is a branch ref that is truly absent, the refusal says which shape that is
+   (:func:`absent_lane_window_cause`): one pruned lane branch to restore, or a Mission whose lane
+   branches were never created, which has no supported in-product recovery (#7120).
 3. ``OWNERSHIP_UNRESOLVED`` (#7149): the work package is absent from the resolved ownership map
    (its task file, or the whole ``tasks/`` directory, could not be read), so there is no
    ``owned_files`` declaration to judge against. It is decided before the owned-change test, so the
@@ -489,7 +492,9 @@ _RECOVERY: Mapping[str, str] = {
     IMPLEMENTATION_UNREADABLE: (
         f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
         "or, for a Mission that landed through a pull request merge commit (not a squash), re-run `spec-kitty accept --mode pr --merge-commit <sha>` "
-        "with the verified PR landing commit so the evidence is judged against the landed tree, then re-run."
+        "with the verified PR landing commit so the evidence is judged against the landed tree, then re-run. A Mission whose lane branches were never created "
+        "has no lane window to restore: its work-package line names that shape, and where its work is only on the target branch the verified landing commit above "
+        "is the one window that can still stand in, so escalate the evidence-policy question instead of retrying."
     ),
     IMPLEMENTATION_MISSING: (
         f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or on the "
@@ -534,12 +539,15 @@ def _merge_base(repo_root: Path, left: str, right: str) -> str:
     return sha
 
 
-def _branch_ref_absent(repo_root: Path, branch: str) -> bool:
+def branch_ref_absent(repo_root: Path, branch: str) -> bool:
     """True only when the local branch *branch* is truly absent (``git show-ref --verify`` exit 1).
 
     A ref that exists but cannot be read (a missing object, a corrupt ref, a git error) is NOT
     absent: ``show-ref`` exits 128 for it, and so does any other failure, so only the one exit
     code that means "no such ref" lets the landed window stand in (#6780). Never raises.
+
+    Public since #7120, so a surface outside this module (``move-task``'s evidence gate) applies
+    the same rule instead of reading a failed diff as a missing branch.
     """
     try:
         result = subprocess.run(
@@ -570,6 +578,64 @@ class _LandedWindow:
     landed_commit: str | None = None
 
 
+def _code_lane_branches(lanes_manifest: LanesManifest) -> tuple[str, ...]:
+    """The branch each CODE lane of *lanes_manifest* would have, in manifest order (planning lanes excluded)."""
+    return tuple(lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane))
+
+
+def _lane_branches_absent_locally(repo_root: Path, lanes_manifest: LanesManifest, branch: str) -> bool:
+    """True when *branch* is a code lane's branch and no code lane of the Mission has a local branch (#7120).
+
+    A LOCAL fact, never a history: an absent ref cannot distinguish a branch that was never created
+    from one pruned here or never fetched. That is why it is only used to choose the wording of a
+    refusal, and why the wording states the shape as a possibility rather than a finding. False when
+    *branch* is not a code lane's branch (a planning lane's tip is the target branch) and False when
+    any probe cannot be read (:func:`branch_ref_absent` fails closed), so an unknown never reads as
+    the never-created shape.
+    """
+    code_branches = _code_lane_branches(lanes_manifest)
+    if branch not in code_branches:
+        return False
+    return all(branch_ref_absent(repo_root, candidate) for candidate in code_branches)
+
+
+def absent_lane_window_cause(repo_root: Path, lanes_manifest: LanesManifest, branch: str) -> str:
+    """Why a window that ends at an absent *branch* cannot be read, and the honest next step (#7120).
+
+    Three shapes share the failed diff, and only one of them is a lane-window question:
+
+    * *branch* is not a code lane's branch — a planning lane's window ends at the target branch, and
+      a ``single_branch`` Mission's at its Mission branch. Neither is a lane window, so neither the
+      lane-tip ref nor the never-created shape is named; the branch is simply missing here.
+    * *branch* is a code lane's branch and a sibling lane still has one: that lane was pruned or was
+      never fetched here, so restoring it from `refs/spec-kitty/lane-tip/<branch>` or the pull
+      request's head is a real recovery.
+    * *branch* is a code lane's branch and no code lane of the Mission has a branch here: that is
+      indistinguishable from a Mission implemented on its target branch with no lane branch ever
+      created. For that shape this command has no supported recovery — the work is on the target,
+      and pointing a new lane branch at it would manufacture the evidence this gate checks — so the
+      text names the escalation instead of a retry an operator cannot perform.
+
+    A local ref probe cannot tell "never created" from "pruned or not fetched", so the third case is
+    worded as a possibility that carries its own remedy, never as a finding. Callers ask this once
+    per failed lane window, never per work package.
+    """
+    lane_tip = f"refs/spec-kitty/lane-tip/{branch}"
+    if branch not in _code_lane_branches(lanes_manifest):
+        return f"the branch {branch} does not exist in this checkout; fetch it (or restore the commit the window ends at), then re-run"
+    if not _lane_branches_absent_locally(repo_root, lanes_manifest, branch):
+        return f"the lane branch {branch} does not exist in this checkout; restore it from `{lane_tip}` or the pull request's head, then re-run"
+    return (
+        f"the lane branch {branch} does not exist in this checkout, and no lane of this Mission has a branch here. "
+        f"That is indistinguishable from a Mission whose work was committed on the target branch ({lanes_manifest.target_branch}) "
+        "without ever creating a lane branch: for that shape this command has no supported recovery, so stop retrying and ask the "
+        "Mission's maintainer for an evidence-policy decision (limitation tracked at "
+        "https://github.com/spec-kitty/spec-kitty/issues/7120), naming the Mission, this refusal and the implementation commit. "
+        "Do not point a new lane branch at target-branch work to satisfy this gate: that fabricates the evidence it checks. "
+        f"If the lane did exist and was pruned or never fetched here, restore it from `{lane_tip}` or the pull request's head, then re-run"
+    )
+
+
 def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str | None) -> _LandedWindow:
     """Resolve the window to judge, standing a verified landing commit in for a pruned tip (#6780).
 
@@ -584,7 +650,7 @@ def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str 
     work package of the PR), which :func:`_overlapping_owners` compensates for by refusing a work
     package whose ownership overlaps another's.
 
-    The stand-in applies only when the branch ref is truly absent (:func:`_branch_ref_absent`),
+    The stand-in applies only when the branch ref is truly absent (:func:`branch_ref_absent`),
     the planning commit is an ancestor of the landing, the landing is a merge commit and the
     planning commit sits on a non-first-parent side of it. Otherwise it is refused rather than
     diffed: such a window would not describe this Mission's work. A ref that exists but cannot be
@@ -594,7 +660,7 @@ def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str 
     A tip whose ref is present is always used as it is (the lane window stays the first choice).
     """
     base, tip = window
-    if landed_commit is None or not _branch_ref_absent(repo_root, tip):
+    if landed_commit is None or not branch_ref_absent(repo_root, tip):
         return _LandedWindow(window)
     if not sha_reachable_from(repo_root, base, landed_commit):
         raise GitProbeError(
@@ -625,7 +691,7 @@ def _naming_an_absent_tip(repo_root: Path, judged: _LandedWindow) -> _LandedWind
     still reads pays no extra probe, and a refusal can name the pruned branch instead of
     quoting git's own paraphrase of the refspec.
     """
-    if judged.absent_ref is not None or not _branch_ref_absent(repo_root, judged.window[1]):
+    if judged.absent_ref is not None or not branch_ref_absent(repo_root, judged.window[1]):
         return judged
     return replace(judged, absent_ref=judged.window[1])
 
@@ -661,23 +727,26 @@ def _overlap_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, others
     )
 
 
-def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc: GitProbeError) -> str:
-    """The per-work-package ``IMPLEMENTATION_UNREADABLE`` line, naming the cause (#6780).
+def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc: GitProbeError, absence_cause: str | None) -> str:
+    """The per-work-package ``IMPLEMENTATION_UNREADABLE`` line, naming the cause (#6780, #7120).
 
     A window whose tip no longer resolves is reported as such — with the stand-in it fell back
-    to, or with the two remedies when the caller supplied no verified landing commit — instead
-    of a blanket "could not be diffed".
+    to, or with the remedies that exist when the caller supplied no verified landing commit —
+    instead of a blanket "could not be diffed". *absence_cause* is
+    :func:`absent_lane_window_cause`'s answer for this window, resolved ONCE by the caller (it costs
+    a probe per code lane, so it is never recomputed per work package); ``None`` keeps the generic
+    unreadable wording.
     """
     base, tip = judged.window
     if judged.absent_ref is not None and judged.landed_commit is not None:
         cause = (
             f"the lane branch {judged.absent_ref} no longer exists, so the verified landing commit {tip} stands in for it; the window could not be diffed ({exc})"
         )
-    elif judged.absent_ref is not None:
+    elif judged.absent_ref is not None and absence_cause is not None:
         cause = (
-            f"the window tip {judged.absent_ref} no longer exists (a pruned lane branch?), so the window cannot be read; "
-            "for a Mission that landed through a pull request merge commit (not a squash), pass `--merge-commit <sha>` with the verified PR landing commit "
-            "on `spec-kitty accept --mode pr` to judge this work package against the landed tree; otherwise restore or fetch the branch"
+            f"the window tip {judged.absent_ref} no longer exists: {absence_cause}. "
+            "For a Mission that landed through a pull request merge commit (not a squash), pass `--merge-commit <sha>` with the verified PR landing commit "
+            "on `spec-kitty accept --mode pr` to judge this work package against the landed tree"
         )
     else:
         cause = f"the window could not be diffed ({exc})"
@@ -772,8 +841,9 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
         paths = evidence_paths(repo_root, judged.window, lanes_manifest.mission_slug)
     except GitProbeError as exc:
         judged = _naming_an_absent_tip(repo_root, judged)
+        absence_cause = absent_lane_window_cause(repo_root, lanes_manifest, judged.absent_ref) if judged.absent_ref is not None else None
         for wp_id in approved:
-            scan.add(wp_id, _unreadable_line(wp_id, lane, judged, exc))
+            scan.add(wp_id, _unreadable_line(wp_id, lane, judged, exc, absence_cause))
         return
 
     def missing(wp_id: str) -> str:
@@ -914,6 +984,8 @@ __all__ = [
     "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
     "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
     "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT",
+    "absent_lane_window_cause",
+    "branch_ref_absent",
     "evaluate_evidence",
     "evidence_paths",
     "has_owned_change",

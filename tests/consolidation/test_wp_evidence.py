@@ -490,7 +490,7 @@ def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> No
     window into ``planning..<landing>``, which every assertion below catches.
     """
     repo, _fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/m1/**"}, {"lane-a": ["src/m1/real.py"]}, prune=False)
-    assert not ev._branch_ref_absent(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
+    assert not ev.branch_ref_absent(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
 
     judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
 
@@ -502,7 +502,7 @@ def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> No
 def test_the_landed_window_stands_in_for_a_pruned_tip(tmp_path: Path) -> None:
     """A tip that no longer resolves is replaced by the supplied landing commit, and recorded (#6780)."""
     repo, _fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/m1/**"}, {"lane-a": ["src/m1/real.py"]})
-    assert ev._branch_ref_absent(repo, _LANE_BRANCH)
+    assert ev.branch_ref_absent(repo, _LANE_BRANCH)
 
     judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
 
@@ -888,3 +888,80 @@ def test_mission_evidence_report_reads_the_snapshot(tmp_path: Path) -> None:
     (fd / "meta.json").write_text(json.dumps({"mission_slug": _SLUG, "topology": "lanes"}), encoding="utf-8")
     report = ev.mission_evidence_report(repo, fd, _manifest([_lane("lane-a", ["WP01"])], planning))
     assert report.codes == [ev.IMPLEMENTATION_MISSING]
+
+
+# ------------------------------------------- a lane window that was never created (#7120)
+
+
+def _never_created_fixture(tmp_path: Path, lanes: list[ExecutionLane], owned: dict[str, str]) -> tuple[Path, Path, str]:
+    """A repo with a planning commit on main and NO lane branch at all (the #6871/#7120 shape)."""
+    repo = _repo(tmp_path)
+    fd = _feature_dir(repo, owned)
+    planning = _commit(repo, f"kitty-specs/{_SLUG}/plan.md", "# plan\n", "planning")
+    return repo, fd, planning
+
+
+def test_branch_ref_absent_reads_only_a_definite_absence(tmp_path: Path) -> None:
+    """#6780's rule, now public: exit 1 is absence; a present ref that cannot be read is not."""
+    repo = _repo(tmp_path)
+    _git(repo, "branch", "present")
+    assert not ev.branch_ref_absent(repo, "present")
+    assert ev.branch_ref_absent(repo, "never-created")
+
+    (repo / ".git" / "refs" / "heads" / "corrupt").write_text("1" * 40 + "\n", encoding="utf-8")
+    assert not ev.branch_ref_absent(repo, "corrupt"), "a ref that exists but cannot be read is never 'absent'"
+
+
+def test_lane_branches_absent_locally_is_a_local_fact_about_code_lanes_only(tmp_path: Path) -> None:
+    """The #7120 wording hook: 'no lane of this Mission has a branch here' — never a claim about history."""
+    repo = _repo(tmp_path)
+    both = _manifest([_lane("lane-a", ["WP01"]), _lane("lane-b", ["WP02"])], "0" * 40)
+    assert ev._lane_branches_absent_locally(repo, both, "kitty/mission-fx-lane-b"), "no code lane has a branch here"
+
+    _git(repo, "branch", "kitty/mission-fx-lane-a")
+    assert not ev._lane_branches_absent_locally(repo, both, "kitty/mission-fx-lane-b"), "a sibling lane branch exists: this is one missing branch"
+    assert not ev._lane_branches_absent_locally(repo, both, "kitty/mission-fx-lane-a"), "a branch that exists is not the absent one"
+
+    planning_only = _manifest([_lane("lane-planning", ["WP01"])], "0" * 40)
+    assert not ev._lane_branches_absent_locally(repo, planning_only, "main"), "a planning lane's tip is the target branch, never a lane branch"
+    planning_cause = ev.absent_lane_window_cause(repo, planning_only, "main")
+    assert "lane-tip" not in planning_cause, "a planning lane's tip has no lane-tip ref to restore"
+    assert "no lane of this Mission has a branch" not in planning_cause, "a planning lane is not the lane-less shape"
+    assert "the branch main does not exist" in planning_cause
+
+
+def test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling(tmp_path: Path) -> None:
+    """The #7120 refusal: absent lane branch, work on the target branch, no fabrication, the open ruling."""
+    repo, fd, planning = _never_created_fixture(tmp_path, [_lane("lane-a", ["WP01"])], {"WP01": "src/m1/**"})
+
+    report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], planning), {"WP01": "approved"})
+
+    refusal = str(report.refusal)
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}
+    line = next(text for text in refusal.splitlines() if text.startswith(ev.IMPLEMENTATION_UNREADABLE))
+    assert _LANE_BRANCH in line, "the absent branch is named"
+    assert "no lane of this Mission has a branch here" in line, "the local fact is stated as a local fact"
+    assert "without ever creating a lane branch" in line, "the target-branch shape is stated"
+    assert "indistinguishable from" in line, "it is stated as indistinguishable, not as a finding"
+    assert "committed on the target branch (main)" in line, "the target branch is named"
+    assert "no supported recovery" in line and "stop retrying" in line, "the refusal says there is nothing to retry"
+    assert "issues/7120" in line, "the escalation is tracked"
+    assert "fabricates the evidence it checks" in line, "manufacturing a window is named as fabrication"
+    assert "pruned or never fetched" in line, "the genuine restore remedy survives for the other shape"
+    assert "pull request merge commit (not a squash)" in line, "the landed-tree remedy survives"
+    assert "pull request merge commit (not a squash)" in line, "the verified landing commit is still offered as the one window that can stand in"
+    assert "escalate" in refusal and "instead of retrying" in refusal, "the recovery table qualifies itself rather than promising a restore"
+
+
+def test_a_pruned_lane_branch_keeps_the_restore_remedy(tmp_path: Path) -> None:
+    """A sibling lane branch bounds the shape: this one was pruned (or never fetched), so restoring it is real."""
+    repo, fd, planning = _never_created_fixture(tmp_path, [_lane("lane-a", ["WP01"]), _lane("lane-b", ["WP02"])], {"WP01": "src/m1/**", "WP02": "src/m2/**"})
+    _git(repo, "branch", "kitty/mission-fx-lane-a")
+
+    report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"]), _lane("lane-b", ["WP02"])], planning), {"WP02": "approved"})
+
+    refusal = str(report.refusal)
+    line = next(text for text in refusal.splitlines() if text.startswith(ev.IMPLEMENTATION_UNREADABLE))
+    assert "refs/spec-kitty/lane-tip/kitty/mission-fx-lane-b" in line
+    assert "no lane of this Mission has a branch here" not in line, "a sibling lane branch bounds the shape: this is a pruned branch, not a lane-less Mission"
+    assert "no supported recovery" not in line, "restoring a pruned lane branch is a real recovery and is offered"
