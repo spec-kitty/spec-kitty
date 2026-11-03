@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1764": {
+      "evidence_ref": "Context citation only: #1764 (closed) fixed the same class in tasks.md status churn; this mission does not modify that fix, it extends the normalisation to the claim-time writers.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2493": {
+      "evidence_ref": "Context citation only: #2493 (closed) normalised pipe-table status cells in tasks.md; unchanged by this mission, whose fix is in the WP-prompt/meta.json/tasks-subdir fingerprint.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2816": {
+      "evidence_ref": "Context citation only: #2816's unconditional claim-triple cutover is unchanged; this mission touches the workspace-provenance triple the claim still writes, not the policy_metadata triple.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6787": {
+      "evidence_ref": "Pre-existing reds cited, not fixed here: the four test_owned_analysis_recording charter-hash cases reproduce on pristine origin/main and are tracked by Follow-up: #6787.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#7106": {
+      "evidence_ref": "Fixed on this branch: analysis_inputs._wp_prompt_fingerprint/_meta_fingerprint/_include_work_package_tasks plus kernel.vcs_lock.project_metadata_without_vcs_lock; red-first unit + end-to-end claim/rework tests (tests/specify_cli/test_analysis_inputs.py, tests/integration/test_analysis_freshness_claim_7106.py).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
