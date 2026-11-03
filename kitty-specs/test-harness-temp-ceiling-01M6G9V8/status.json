@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01M6GB7ZFDC29ZCXHH6SKT7TV3",
-  "materialized_at": "2026-11-03T09:18:32.941544+00:00",
+  "event_count": 8,
+  "last_event_id": "01M6GB8X5PA8H09XZC9GSCQXNS",
+  "materialized_at": "2026-11-03T09:19:03.344453+00:00",
   "mission_number": "",
   "mission_slug": "test-harness-temp-ceiling-01M6G9V8",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -51,11 +51,15 @@
       "last_transition_at": "2026-11-03T08:57:02.342032+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6GA0KC54QTF6CHWJAB8Z16N",
-      "last_transition_at": "2026-11-03T08:57:02.597353+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M6GB8X5PA8H09XZC9GSCQXNS",
+      "last_transition_at": "2026-11-03T09:19:03.344453+00:00",
+      "shell_pid": 3179923,
+      "shell_pid_created_at": "1793697535.95"
     }
   }
 }
