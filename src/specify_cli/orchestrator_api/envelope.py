@@ -181,7 +181,15 @@ from kernel.clock import now_utc_iso
 # completeness fix to the declared set, not a new failure mode -- no behaviour changes -- but
 # the contract-visible error-code set grows, so a minor bump; no field or ``error_code`` is
 # removed or renamed.
-CONTRACT_VERSION = "1.22.0"
+# 1.23.0: the implementation-evidence refusal of ``consolidate-mission`` and ``accept-mission``
+# (``data.preflight_error_code(s)`` / ``data.evidence_error_codes``) gains the code
+# ``OWNERSHIP_UNRESOLVED`` (``single_branch`` keeps its alias ``SINGLE_BRANCH_OWNERSHIP_UNRESOLVED``,
+# #7149). An approved work package whose ``owned_files`` cannot be read (its task file, or the
+# ``tasks/`` directory, is missing or unreadable) used to be refused as ``IMPLEMENTATION_MISSING``;
+# it is now refused with the new code, and no attestation lifts it. A new ``error_code`` value on
+# existing verbs and a changed code on previously-refused calls, so a minor bump; no field is
+# removed or renamed.
+CONTRACT_VERSION = "1.23.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

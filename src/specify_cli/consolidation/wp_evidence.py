@@ -12,10 +12,15 @@ Per approved (or ``done``), non-canceled work package, first match wins (data-mo
 
 1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit.
 2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002).
-3. ``IMPLEMENTATION_MISSING``: no non-bookkeeping changed path of the window matches the work
+3. ``OWNERSHIP_UNRESOLVED`` (#7149): the work package is absent from the resolved ownership map
+   (its task file, or the whole ``tasks/`` directory, could not be read), so there is no
+   ``owned_files`` declaration to judge against. It is decided before the owned-change test, so the
+   verdict below means only "ownership resolved, no owned change". No attestation lifts it.
+4. ``IMPLEMENTATION_MISSING``: no non-bookkeeping changed path of the window matches the work
    package's ``owned_files`` and no no-implementation attestation is in force for it (one recorded
-   since the work package last left ``{approved, done}``).
-4. ``REVIEW_NOT_INDEPENDENT``: :func:`~specify_cli.consolidation.preflight._independent_reviewer_confirmed`
+   since the work package last left ``{approved, done}``). An authored ``owned_files`` list,
+   an empty one included, is a resolved declaration and lands here.
+5. ``REVIEW_NOT_INDEPENDENT``: :func:`~specify_cli.consolidation.preflight._independent_reviewer_confirmed`
    (the #5939 ``tool:model:profile`` identities, compared segment-wise by
    :func:`~specify_cli.status.actor_identities_independent`, operator ruling R1) is False.
 
@@ -67,13 +72,21 @@ IMPLEMENTATION_MISSING = "IMPLEMENTATION_MISSING"
 REVIEW_NOT_INDEPENDENT = "REVIEW_NOT_INDEPENDENT"
 IMPLEMENTATION_UNREADABLE = "IMPLEMENTATION_UNREADABLE"
 EVIDENCE_WINDOW_UNCOMPUTABLE = "EVIDENCE_WINDOW_UNCOMPUTABLE"
-_NEUTRAL_CODES: tuple[str, ...] = (IMPLEMENTATION_MISSING, REVIEW_NOT_INDEPENDENT, IMPLEMENTATION_UNREADABLE, EVIDENCE_WINDOW_UNCOMPUTABLE)
+OWNERSHIP_UNRESOLVED = "OWNERSHIP_UNRESOLVED"
+_NEUTRAL_CODES: tuple[str, ...] = (
+    IMPLEMENTATION_MISSING,
+    REVIEW_NOT_INDEPENDENT,
+    IMPLEMENTATION_UNREADABLE,
+    EVIDENCE_WINDOW_UNCOMPUTABLE,
+    OWNERSHIP_UNRESOLVED,
+)
 
 SINGLE_BRANCH_IMPLEMENTATION_MISSING = "SINGLE_BRANCH_IMPLEMENTATION_MISSING"
 SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT = "SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT"
 _SINGLE_BRANCH_EVIDENCE_UNREADABLE = "SINGLE_BRANCH_EVIDENCE_UNREADABLE"
 SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE = "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE"
 SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE = "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE"
+_SINGLE_BRANCH_OWNERSHIP_UNRESOLVED = "SINGLE_BRANCH_OWNERSHIP_UNRESOLVED"
 
 #: Documented aliases (same meaning) of the neutral codes; single_branch still emits them.
 _SINGLE_BRANCH_ALIASES: Mapping[str, str] = {
@@ -82,6 +95,7 @@ _SINGLE_BRANCH_ALIASES: Mapping[str, str] = {
     _SINGLE_BRANCH_EVIDENCE_UNREADABLE: IMPLEMENTATION_UNREADABLE,
     SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE: IMPLEMENTATION_UNREADABLE,
     SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE: EVIDENCE_WINDOW_UNCOMPUTABLE,
+    _SINGLE_BRANCH_OWNERSHIP_UNRESOLVED: OWNERSHIP_UNRESOLVED,
 }
 
 #: ``policy_metadata[ATTESTATION_KEY]`` value of a no-implementation attestation (written by
@@ -239,6 +253,59 @@ def _wp_task_dir(repo_root: Path, mission_slug: str, feature_dir: Path, *, owned
     return primary
 
 
+_REASON_MAX = 160
+_WP_PREFIX = re.compile(r"^(WP\d+)")
+
+
+def _failure_summary(exc: Exception) -> str:
+    """One line naming the error class and a short message (pydantic errors read as ``msg: 'field'``)."""
+    from pydantic import ValidationError
+
+    if isinstance(exc, ValidationError):
+        message = "; ".join(f"{err['msg']}: {', '.join(repr(str(part)) for part in err['loc'])}" for err in exc.errors())
+    else:
+        message = " ".join(str(exc).split())
+    if len(message) > _REASON_MAX:
+        message = message[: _REASON_MAX - 3] + "..."
+    return f"{type(exc).__name__}: {message}"
+
+
+def _read_ownership(
+    repo_root: Path,
+    mission_slug: str,
+    feature_dir: Path,
+    wp_ids: Iterable[str],
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
+    """The resolved ownership globs of the wanted work packages, and why each other one is unresolved.
+
+    See :func:`_owned_patterns_by_wp`; the second mapping holds a one-line reason per wanted work
+    package that is absent from the first (a missing ``tasks/`` directory, a task file that
+    exists but could not be read or validated, or no task file declaring the id).
+    """
+    from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
+
+    wanted = set(wp_ids)
+    tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
+    resolved: dict[str, tuple[str, ...]] = {}
+    failures: dict[str, str] = {}
+    for wp_file in wp_task_files(tasks_dir):
+        try:
+            meta, _body = read_authored_wp_frontmatter(wp_file)
+        except Exception as exc:  # noqa: BLE001 — an unreadable WP file leaves it unresolved; the caller fails closed
+            logger.debug("evidence: could not read WP frontmatter at %s", wp_file, exc_info=True)
+            prefix = _WP_PREFIX.match(wp_file.name)
+            if prefix:
+                failures.setdefault(prefix.group(1), f"its task file {wp_file.name} exists but could not be read ({_failure_summary(exc)})")
+            continue
+        if meta.work_package_id in wanted:
+            resolved[meta.work_package_id] = owned_patterns(meta.owned_files)
+    default = f"no task file under {tasks_dir} declares work_package_id" if tasks_dir.is_dir() else f"the tasks directory does not exist ({tasks_dir})"
+    reasons = {wp: failures.get(wp, f"{default} {wp}" if tasks_dir.is_dir() else default) for wp in wanted if wp not in resolved}
+    return resolved, reasons
+
+
 def _owned_patterns_by_wp(
     repo_root: Path,
     mission_slug: str,
@@ -249,23 +316,15 @@ def _owned_patterns_by_wp(
 ) -> dict[str, tuple[str, ...]]:
     """Each wanted work package's authored ownership globs (static frontmatter, never runtime state).
 
-    A work package file that cannot be read stays unresolved; the caller reads an absent or empty
-    pattern set as "implementation cannot be proven" and refuses (fail closed). *owned* threads
+    A work package file that cannot be read stays unresolved: its key is ABSENT from the result
+    (so is every key when ``tasks/`` is missing), and :func:`_judge` refuses it as
+    ``OWNERSHIP_UNRESOLVED`` (fail closed, #7149). A key that is present, even with an empty
+    tuple, is an authored declaration and is judged on the evidence. A task file that omits
+    ``owned_files`` reads as an authored empty list (``WPMetadata.owned_files`` defaults to
+    ``[]``), so it is resolved too, which keeps the pre-#7149 ``IMPLEMENTATION_MISSING`` verdict. *owned* threads
     the validated owned-checkout fact to the one ``tasks/`` read (:func:`_wp_task_dir`, #7099).
     """
-    from specify_cli.status import read_authored_wp_frontmatter, wp_task_files
-
-    wanted = set(wp_ids)
-    resolved: dict[str, tuple[str, ...]] = {}
-    for wp_file in wp_task_files(_wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"):
-        try:
-            meta, _body = read_authored_wp_frontmatter(wp_file)
-        except Exception:  # noqa: BLE001 — an unreadable WP file leaves it unresolved; the caller fails closed
-            logger.debug("evidence: could not read WP frontmatter at %s", wp_file, exc_info=True)
-            continue
-        if meta.work_package_id in wanted:
-            resolved[meta.work_package_id] = owned_patterns(meta.owned_files)
-    return resolved
+    return _read_ownership(repo_root, mission_slug, feature_dir, wp_ids, owned=owned)[0]
 
 
 @dataclass(frozen=True)
@@ -297,7 +356,9 @@ class _Scan:
     owned: dict[str, tuple[str, ...]]
     lines: list[tuple[str, str]]
     lifted: set[str]
+    tasks_dir: Path
     verdicts: dict[str, str] = field(default_factory=dict)
+    unresolved_reasons: dict[str, str] = field(default_factory=dict)
     _attested: frozenset[str] | None = None
 
     def attested(self, wp_id: str) -> bool:
@@ -324,8 +385,25 @@ def _independent(feature_dir: Path, wp_id: str) -> bool:
     return confirmed
 
 
-def _judge(scan: _Scan, wp_id: str, paths: frozenset[str], missing_line: Callable[[str], str], not_independent_code: str) -> None:
-    """Verdicts 3 and 4 for one work package whose window was read."""
+def _unresolved_line(scan: _Scan, wp_id: str, code: str) -> str:
+    return (
+        f"{code}: {wp_id} owned_files could not be read from {scan.tasks_dir}: "
+        f"{scan.unresolved_reasons.get(wp_id, 'its task file is missing or unreadable')}, so implementation evidence cannot be judged."
+    )
+
+
+def _judge(
+    scan: _Scan,
+    wp_id: str,
+    paths: frozenset[str],
+    missing_line: Callable[[str], str],
+    not_independent_code: str,
+    unresolved_code: str,
+) -> None:
+    """Verdicts 3 to 5 for one work package whose window was read (unresolved ownership first)."""
+    if wp_id not in scan.owned:
+        scan.add(wp_id, _unresolved_line(scan, wp_id, unresolved_code))
+        return
     if not has_owned_change(paths, scan.owned.get(wp_id, ())):
         if not scan.attested(wp_id):
             scan.add(wp_id, missing_line(wp_id))
@@ -344,11 +422,20 @@ def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
     The ``mission_slug`` is interpolated as PROSE (a ``": "`` sentence boundary), never joined as a
     name operand, so this builds a human-readable message, not a lane/branch/worktree name.
     """
-    recovery = (
-        "Recovery: implement the work package (commit a real change in its owned_files on the "
-        "mission branch) and have a reviewer who is not the implementer approve it, then re-run consolidate."
-    )
-    body_parts = [*lines, recovery]
+    codes = _refusal_codes("\n".join(lines))
+    unresolved = _SINGLE_BRANCH_OWNERSHIP_UNRESOLVED in codes
+    scope = " for the other work packages" if unresolved else ""
+    body_parts = list(lines)
+    if unresolved:
+        body_parts.append(
+            f"Recovery for {_SINGLE_BRANCH_OWNERSHIP_UNRESOLVED}: restore or commit the work package's task file with its owned_files, "
+            "or re-run from the checkout that owns the Mission (`--owned-checkout <path>`), then re-run. No attestation lifts this."
+        )
+    if not unresolved or len(codes) > 1:
+        body_parts.append(
+            f"Recovery{scope}: implement the work package (commit a real change in its owned_files on the "
+            "mission branch) and have a reviewer who is not the implementer approve it, then re-run consolidate."
+        )
     body = "\n".join(body_parts)
     return f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:\n{body}"
 
@@ -376,7 +463,7 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
         return f"{SINGLE_BRANCH_IMPLEMENTATION_MISSING}: {wp_id} {detail}"
 
     for wp_id in approved:
-        _judge(scan, wp_id, paths, missing, SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT)
+        _judge(scan, wp_id, paths, missing, SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT, _SINGLE_BRANCH_OWNERSHIP_UNRESOLVED)
     if not scan.lines:
         return None
     return _single_branch_refusal_text(lanes_manifest.mission_slug, [line for _wp, line in scan.lines])
@@ -402,6 +489,10 @@ _RECOVERY: Mapping[str, str] = {
     REVIEW_NOT_INDEPENDENT: (
         f"Recovery for {REVIEW_NOT_INDEPENDENT}: have a reviewer who is not the implementer review and approve the work package "
         "(`spec-kitty agent action review <WP> --agent <reviewer>`), then re-run. No attestation lifts this."
+    ),
+    OWNERSHIP_UNRESOLVED: (
+        f"Recovery for {OWNERSHIP_UNRESOLVED}: restore or commit the work package's task file with its owned_files, or re-run from the "
+        "checkout that owns the Mission (`--owned-checkout <path>`), then re-run. No attestation lifts this."
     ),
 }
 
@@ -695,7 +786,7 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
             )
         return
     for wp_id in approved:
-        _judge(scan, wp_id, paths, missing, REVIEW_NOT_INDEPENDENT)
+        _judge(scan, wp_id, paths, missing, REVIEW_NOT_INDEPENDENT, OWNERSHIP_UNRESOLVED)
 
 
 def _lanes_scan(
@@ -754,7 +845,10 @@ def evaluate_evidence(
     approved = _approved_wp_ids(work_packages, excluded)
     if not approved:
         return EvidenceReport()
-    scan = _Scan(feature_dir, events, _owned_patterns_by_wp(repo_root, lanes_manifest.mission_slug, feature_dir, approved, owned=owned), [], set())
+    mission_slug = lanes_manifest.mission_slug
+    tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
+    patterns, reasons = _read_ownership(repo_root, mission_slug, feature_dir, approved, owned=owned)
+    scan = _Scan(feature_dir, events, patterns, [], set(), tasks_dir, unresolved_reasons=reasons)
     single_branch = is_single_branch_mission(repo_root, lanes_manifest, owned=owned) if is_single_branch is None else is_single_branch
     if single_branch:
         window = single_branch_evidence_window(repo_root, lanes_manifest, assume_single_branch=True)
@@ -803,6 +897,7 @@ __all__ = [
     "IMPLEMENTATION_MISSING",
     "IMPLEMENTATION_UNREADABLE",
     "NO_IMPLEMENTATION",
+    "OWNERSHIP_UNRESOLVED",
     "REVIEW_NOT_INDEPENDENT",
     "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE",
     "SINGLE_BRANCH_IMPLEMENTATION_MISSING",

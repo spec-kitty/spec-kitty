@@ -188,6 +188,14 @@ def _drop_owned_ownership(owned: Path) -> None:
     git(owned, "commit", "-qm", "chore: WP01 owns nothing in the owned checkout")
 
 
+def _drop_owned_task_file(owned: Path) -> None:
+    """Delete the owned work package's task file (after finalize-tasks, so the deletion is committed)."""
+    tasks = owned / "kitty-specs" / SLUG / "tasks"
+    (tasks / "WP01-test.md").unlink()
+    git(owned, "add", "-A", "--", f"kitty-specs/{SLUG}/tasks")
+    git(owned, "commit", "-qm", "chore: WP01 task file is absent in the owned checkout")
+
+
 class _Scenario(NamedTuple):
     """One owned-evidence scenario: every field the parametrized test consumes."""
 
@@ -197,6 +205,7 @@ class _Scenario(NamedTuple):
     stale_primary: bool
     drop_owned_ownership: bool
     expected_code: str | None
+    drop_task_file: bool = False
 
 
 #: One table drives collection and the test body alike: each scenario carries
@@ -237,6 +246,16 @@ _SCENARIOS: dict[str, _Scenario] = {
         drop_owned_ownership=True,
         expected_code="IMPLEMENTATION_MISSING",
     ),
+    # The task file is gone, so ownership is unresolved, not authored-empty (#7149).
+    "missing_owned_task_file": _Scenario(
+        param_id="missing-owned-task-file-is-unresolved-even-stale-primary",
+        commit_relpath="app.py",
+        reviewer="bob",
+        stale_primary=True,
+        drop_owned_ownership=False,
+        expected_code="OWNERSHIP_UNRESOLVED",
+        drop_task_file=True,
+    ),
 }
 
 
@@ -264,6 +283,8 @@ def test_accept_evidence_judges_ownership_through_owned_authority(
         _install_stale_primary_copy(primary, owned)
     if row.drop_owned_ownership:
         _drop_owned_ownership(owned)
+    if row.drop_task_file:
+        _drop_owned_task_file(owned)
     _commit_owned_change(owned, row.commit_relpath)
     _commit_review_events(owned, reviewer=row.reviewer)
 
@@ -272,7 +293,8 @@ def test_accept_evidence_judges_ownership_through_owned_authority(
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
     output = res.output
     payload = _json(res)
-    assert payload.get("lanes", {}).get("approved") == ["WP01"], payload
+    if not row.drop_task_file:  # summary collection reads the task files, so the lane list is empty without one
+        assert payload.get("lanes", {}).get("approved") == ["WP01"], payload
     if expected_code is None:
         assert res.exit_code == 0, f"a genuine owned implementation must pass the evidence gate; output:\n{output}"
         assert payload.get("error_code") is None, payload

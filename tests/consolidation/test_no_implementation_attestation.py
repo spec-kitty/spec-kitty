@@ -24,7 +24,7 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status import Lane, StatusEvent, TransitionRequest, read_events
 from specify_cli.status.store import append_events_atomic
-from tests.terminus.conftest import CoordMission
+from tests.terminus.conftest import CoordMission, _git, git_rev
 from tests.terminus.post_approval_support import build_post_approval_lanes_mission
 
 _REASON = "docs-only: the deliverable already exists on main"
@@ -238,6 +238,33 @@ def test_the_planner_maps_an_approved_work_package_to_its_lane_and_refuses_an_in
     assert nia.plan_no_implementation_attestations(mission.feature_dir, manifest, [], None, repo_root=mission.repo, excluded_canceled_wp_ids=()) == {}
     with pytest.raises(AttestationError, match=r"not approved: WP01\. Nothing was recorded\."):
         nia.plan_no_implementation_attestations(mission.feature_dir, manifest, ["WP01"], _REASON, repo_root=mission.repo, excluded_canceled_wp_ids=("WP01",))
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+@pytest.mark.parametrize("ownership_resolved", [False, True], ids=["unresolved-ownership-refused", "missing-implementation-accepted"])
+def test_the_planner_refuses_an_unresolved_ownership_but_attests_a_missing_implementation(tmp_path: Path, ownership_resolved: bool) -> None:
+    """#7149: an attestation lifts IMPLEMENTATION_MISSING only; with no readable owned_files there is nothing to attest about."""
+    mission = build_post_approval_lanes_mission(tmp_path)
+    if ownership_resolved:  # an empty lane: resolved ownership, no owned change
+        branch = mission.lane_branches["WP01"]
+        _git(mission.repo, "update-ref", f"refs/heads/{branch}", git_rev(mission.repo, mission.coord_branch))
+    else:
+        next((mission.feature_dir / "tasks").glob("WP01-*.md")).unlink()
+    log = mission.feature_dir / "status.events.jsonl"
+    log_before = log.read_bytes()
+
+    def plan() -> dict[str, str]:
+        return nia.plan_no_implementation_attestations(
+            mission.feature_dir, _manifest(mission), ["WP01"], _REASON, repo_root=mission.repo, excluded_canceled_wp_ids=()
+        )
+
+    if ownership_resolved:
+        assert plan() == {"WP01": "approved"}
+    else:
+        with pytest.raises(AttestationError, match=r"evidence or ownership declaration of WP01 \(OWNERSHIP_UNRESOLVED\) cannot be read.*Nothing was recorded\."):
+            plan()
+    assert log.read_bytes() == log_before
 
 
 @pytest.mark.integration

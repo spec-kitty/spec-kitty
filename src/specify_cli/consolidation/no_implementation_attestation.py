@@ -8,7 +8,8 @@ exists, or it landed elsewhere. ``--attest-no-implementation <WP> --attest-reaso
 that one code for that one work package.
 
 **What it never does.** It lifts no other refusal: ``REVIEW_NOT_INDEPENDENT``,
-``IMPLEMENTATION_UNREADABLE`` and ``EVIDENCE_WINDOW_UNCOMPUTABLE`` stand (only ``wp_evidence``
+``IMPLEMENTATION_UNREADABLE``, ``EVIDENCE_WINDOW_UNCOMPUTABLE`` and ``OWNERSHIP_UNRESOLVED``
+(#7149: no readable ``owned_files``, so there is nothing to attest about) stand (only ``wp_evidence``
 reads the record, and only for ``IMPLEMENTATION_MISSING``). It is never a review: the #5939
 independence comparison skips it when it looks for the approving actor
 (``preflight._latest_actor_for_transition``), it is not an approval for the approval bound
@@ -60,6 +61,7 @@ from .wp_evidence import (
     IMPLEMENTATION_MISSING,
     IMPLEMENTATION_UNREADABLE,
     NO_IMPLEMENTATION,
+    OWNERSHIP_UNRESOLVED,
     EvidenceReport,
     evaluate_evidence,
     in_force_no_implementation_attestation,
@@ -74,7 +76,7 @@ _REASON_PREFIX = "operator attests no implementation is owed: "
 _REFERENCE_PREFIX = "operator-attestation:"
 _NOTHING_RECORDED = "Nothing was recorded."
 #: Evidence verdicts an attestation cannot lift: the evidence itself cannot be read.
-_UNLIFTABLE_VERDICTS = frozenset({IMPLEMENTATION_UNREADABLE, EVIDENCE_WINDOW_UNCOMPUTABLE})
+_UNLIFTABLE_VERDICTS = frozenset({IMPLEMENTATION_UNREADABLE, EVIDENCE_WINDOW_UNCOMPUTABLE, OWNERSHIP_UNRESOLVED})
 
 
 def is_no_implementation_attestation(policy_metadata: Mapping[str, object] | None) -> bool:
@@ -106,6 +108,7 @@ def _refuse_unliftable(report: EvidenceReport, wp_ids: Sequence[str]) -> None:
 
     The attestation lifts ``IMPLEMENTATION_MISSING`` only, so a work package whose evidence
     cannot be read or windowed (``IMPLEMENTATION_UNREADABLE``, ``EVIDENCE_WINDOW_UNCOMPUTABLE``)
+    or whose ownership is unresolved (``OWNERSHIP_UNRESOLVED``, #7149)
     would be recorded and still refused (#6715 squad fold). A work package that already shows
     evidence, or whose ``IMPLEMENTATION_MISSING`` an earlier attestation lifts, is accepted as
     before (a repeat attestation is a fresh operator act).
@@ -113,7 +116,7 @@ def _refuse_unliftable(report: EvidenceReport, wp_ids: Sequence[str]) -> None:
     blocked = [f"{wp_id} ({report.verdicts[wp_id]})" for wp_id in wp_ids if report.verdicts.get(wp_id) in _UNLIFTABLE_VERDICTS]
     if blocked:
         raise AttestationError(
-            f"{ATTEST_NO_IMPLEMENTATION_FLAG} lifts {IMPLEMENTATION_MISSING} only; the evidence of {', '.join(blocked)} cannot be read, "
+            f"{ATTEST_NO_IMPLEMENTATION_FLAG} lifts {IMPLEMENTATION_MISSING} only; the evidence or ownership declaration of {', '.join(blocked)} cannot be read, "
             f"so an attestation would not lift it. Fix that first (see the refusal's recovery line). {_NOTHING_RECORDED}"
         )
 
