@@ -48,7 +48,6 @@ from kernel.git import GitCommandError, status_entries
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
-from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.cli.commands.implement_claim import claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
@@ -63,6 +62,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
     workspace_contract_description,
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
+from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status import FORCE_NOTE_HINT, ActorRole, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
