@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/git_ops/test_worktree.py::test_tasks_readme_comes_from_the_canonical_renderer + ::test_no_second_copy_of_the_tasks_readme_scaffold (census: marker held by mission_creation_scaffold.py only)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T14:08:04.350353+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
