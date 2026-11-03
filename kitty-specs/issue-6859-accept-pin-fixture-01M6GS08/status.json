@@ -2,10 +2,9 @@
   "event_count": 11,
   "last_event_id": "01M6GW2R3RBZCNATFP2QMAS79R",
   "materialized_at": "2026-11-03T14:12:47.352970+00:00",
-  "mission_number": "249",
+  "mission_number": "",
   "mission_slug": "issue-6859-accept-pin-fixture-01M6GS08",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,40 +19,19 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 1,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M6GW2R3RBZCNATFP2QMAS79R",
       "last_transition_at": "2026-11-03T14:12:47.352970+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Fixture repaired: one accept-ready builder for both controls; the positive control adds lanes.json, the passing matrix and WP01's lane implementation commit. 2 passed; each half-by-half revert reddens it with the matching evidence code.",
-        "Review round 1 findings fixed: fixtures now differ only by lanes.json + matrix (the lane implementation commit is built for both controls), and seeded event ids are ULID-valid. 2 passed; negative control's sole blocked check is lanes_manifest.",
-        "Review passed (round 2, independent reviewer): F1/F2 resolved, no new findings, no assertion or gate weakened. 2 passed."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP01:20261103",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      },
-      "tracker_refs": [
-        "#6859"
-      ]
+      "shell_pid": 128009,
+      "shell_pid_created_at": "1793712081.32"
     }
   }
 }
