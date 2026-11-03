@@ -605,12 +605,13 @@ def test_emitted_forced_family_rewind_cites_the_sentinel(old_lane: str) -> None:
     assert plan.emit_review_ref == "force-override"
 
 
-def test_approved_reopen_with_a_pointer_stays_force_free_and_cites_it() -> None:
+def test_approved_reopen_with_a_pointer_stays_force_free_and_cites_it(tmp_path: Path) -> None:
     """The #6845 arm, unchanged: usable evidence wins over the sentinel."""
-    plan = _plan("approved", pointer="/tmp/review-feedback.md")
+    pointer = str(tmp_path / "review-feedback.md")
+    plan = _plan("approved", pointer=pointer)
 
     assert plan.emit_force is False
-    assert plan.emit_review_ref == "/tmp/review-feedback.md"
+    assert plan.emit_review_ref == pointer
 
 
 def _wire_payload(from_lane: str, to_lane: str, *, force: bool, review_ref: str | None, reason: str = "rewind"):
@@ -687,7 +688,7 @@ def test_the_contract_is_the_released_pin_not_a_local_patch() -> None:
 
 
 @pytest.mark.parametrize("old_lane", ["for_review", "approved"])
-def test_the_planner_reads_no_io_on_the_gated_family(old_lane: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_planner_reads_no_io_on_the_gated_family(old_lane: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """`NFR-002`: the widened predicate is a membership test, not a new read.
 
     The probe patches the production planner's would-be I/O seams to fail, then
@@ -703,12 +704,13 @@ def test_the_planner_reads_no_io_on_the_gated_family(old_lane: str, monkeypatch:
     monkeypatch.setattr(Path, "open", _no_io)
     monkeypatch.setattr(subprocess, "run", _no_io)
 
-    plan = _plan(old_lane, pointer="/tmp/review-feedback.md")
+    pointer = str(tmp_path / "review-feedback.md")
+    plan = _plan(old_lane, pointer=pointer)
 
     # ``approved`` reads the supplied pointer; ``for_review``/``in_review`` take the
     # sentinel (their pointer arms are the rejection writer's). Either way, the plan
     # is produced with a wire-valid pointer and no I/O.
-    assert plan.emit_review_ref in ("/tmp/review-feedback.md", "force-override")
+    assert plan.emit_review_ref in (pointer, "force-override")
 
 
 # ---------------------------------------------------------------------------
