@@ -14,9 +14,8 @@
   "accepted_by": "exedev",
   "accepted_from_commit": "212929f72d9a7ed3ea2c342b2012e268f34c9a62",
   "baseline_merge_commit": "c2e6f4f184fc71f260d5428e62002cfb3cf8ea5c",
-  "coordination_branch": "kitty/mission-issue-6859-accept-pin-fixture-01M6GS08",
   "created_at": "2026-11-03T13:19:00.541406+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "issue 6859 accept pin fixture",
   "merged_at": "2026-11-03T14:13:16.031561+00:00",
   "merged_commit": "80f123e09de6ab0f75f7528aad73cd0b43967d50",
@@ -30,7 +29,6 @@
   "slug": "issue-6859-accept-pin-fixture-01M6GS08",
   "status_phase": "1",
   "target_branch": "main",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-11-03T13:21:25.011218+00:00"
 }
