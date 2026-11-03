@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -187,28 +188,66 @@ def _drop_owned_ownership(owned: Path) -> None:
     git(owned, "commit", "-qm", "chore: WP01 owns nothing in the owned checkout")
 
 
-_SCENARIOS = {
-    # scenario -> (commit target, reviewer actor, stale primary install, drop owned ownership)
-    "genuine": ("app.py", "bob", False, False),
-    "missing_implementation": ("other.py", "bob", False, False),
-    "self_review": ("app.py", "alice", False, False),
-    "missing_owned_ownership": ("app.py", "bob", True, True),
+class _Scenario(NamedTuple):
+    """One owned-evidence scenario: every field the parametrized test consumes."""
+
+    param_id: str
+    commit_relpath: str
+    reviewer: str
+    stale_primary: bool
+    drop_owned_ownership: bool
+    expected_code: str | None
+
+
+#: One table drives collection and the test body alike: each scenario carries
+#: its pytest id, its fixture flags and its expected error code in the same row,
+#: so a name can never reach the test body without its row (the retired
+#: hand-copied parametrize list raised ``KeyError`` inside the body instead of
+#: failing collection when the two tables drifted).
+_SCENARIOS: dict[str, _Scenario] = {
+    "genuine": _Scenario(
+        param_id="genuine-owned-implementation-passes",
+        commit_relpath="app.py",
+        reviewer="bob",
+        stale_primary=False,
+        drop_owned_ownership=False,
+        expected_code=None,
+    ),
+    "missing_implementation": _Scenario(
+        param_id="missing-implementation-fails-closed",
+        commit_relpath="other.py",
+        reviewer="bob",
+        stale_primary=False,
+        drop_owned_ownership=False,
+        expected_code="IMPLEMENTATION_MISSING",
+    ),
+    "self_review": _Scenario(
+        param_id="self-review-fails-closed",
+        commit_relpath="app.py",
+        reviewer="alice",
+        stale_primary=False,
+        drop_owned_ownership=False,
+        expected_code="REVIEW_NOT_INDEPENDENT",
+    ),
+    "missing_owned_ownership": _Scenario(
+        param_id="missing-owned-ownership-fails-closed-even-stale-primary",
+        commit_relpath="app.py",
+        reviewer="bob",
+        stale_primary=True,
+        drop_owned_ownership=True,
+        expected_code="IMPLEMENTATION_MISSING",
+    ),
 }
 
 
 @pytest.mark.parametrize(
-    ("scenario", "expected_code"),
-    [
-        pytest.param("genuine", None, id="genuine-owned-implementation-passes"),
-        pytest.param("missing_implementation", "IMPLEMENTATION_MISSING", id="missing-implementation-fails-closed"),
-        pytest.param("self_review", "REVIEW_NOT_INDEPENDENT", id="self-review-fails-closed"),
-        pytest.param("missing_owned_ownership", "IMPLEMENTATION_MISSING", id="missing-owned-ownership-fails-closed-even-stale-primary"),
-    ],
+    ("scenario", "row"),
+    [pytest.param(name, row, id=row.param_id) for name, row in _SCENARIOS.items()],
 )
 def test_accept_evidence_judges_ownership_through_owned_authority(
     pr_bound_checkouts,
     scenario: str,
-    expected_code: str | None,
+    row: _Scenario,
 ) -> None:
     """Owned evidence must pass for real work and fail closed without borrowing primary ownership.
 
@@ -217,16 +256,16 @@ def test_accept_evidence_judges_ownership_through_owned_authority(
     the approved-WP assertion ensures that the gate is not vacuously bypassed.
     """
     primary, owned, sibling = pr_bound_checkouts
-    commit_relpath, reviewer, stale_primary, drop_owned_ownership = _SCENARIOS[scenario]
+    expected_code = row.expected_code
 
     fin = invoke("finalize-tasks", owned)
     assert fin.exit_code == 0, fin.output
-    if stale_primary:
+    if row.stale_primary:
         _install_stale_primary_copy(primary, owned)
-    if drop_owned_ownership:
+    if row.drop_owned_ownership:
         _drop_owned_ownership(owned)
-    _commit_owned_change(owned, commit_relpath)
-    _commit_review_events(owned, reviewer=reviewer)
+    _commit_owned_change(owned, row.commit_relpath)
+    _commit_review_events(owned, reviewer=row.reviewer)
 
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     res = invoke("accept", owned, "--mode", "pr")
