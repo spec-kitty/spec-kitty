@@ -2,7 +2,7 @@
 title: How to Manage the Glossary
 description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-11-03'
 type: how-to
 audience:
 - profile: external/tech-lead-evaluator
@@ -297,6 +297,10 @@ Strictness can be overridden at multiple levels. From highest to lowest preceden
 4. **Global default** -- `.kittify/config.yaml` (the setting described above)
 
 The most specific override wins. For example, if your global default is `medium` but a particular step sets `glossary_check_strictness: max`, that step uses `max`.
+
+### What the Event Log Records
+
+The resolved value is what the semantic check records. Every `SemanticCheckEvaluated` event carries the `effective_strictness` this chain produced for that step, and its `blocked` flag mirrors the generation gate's decision for the conflicts found by that check -- so `spec-kitty glossary conflicts --strictness off` filters on the policy that actually ran, not on a placeholder. Under `medium`, a medium-severity conflict is recorded as not blocked because the gate lets it through; under `max`, any conflict is recorded as blocked. (Clarification runs after the check, so a conflict you resolve interactively is recorded as found-and-then-resolved, not as never found.)
 
 ## Editing Seed Files
 
