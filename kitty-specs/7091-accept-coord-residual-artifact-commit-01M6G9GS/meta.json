@@ -1,0 +1,34 @@
+{
+  "accept_commit": "f36f044832e4f6cf82d6c83d7c3aa30eb51d828e",
+  "acceptance_history": [
+    {
+      "accept_commit": "f36f044832e4f6cf82d6c83d7c3aa30eb51d828e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T09:43:00.655619+00:00",
+      "accepted_by": "Ivan Melck",
+      "accepted_from_commit": "309994728870fb30843c1fb4b812b79ab82291b3"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T09:43:00.655619+00:00",
+  "accepted_by": "Ivan Melck",
+  "accepted_from_commit": "309994728870fb30843c1fb4b812b79ab82291b3",
+  "baseline_merge_commit": "2a551478e0540cc3c82d5d78b2fc8de5653f2c08",
+  "created_at": "2026-11-03T08:48:24.710607+00:00",
+  "flattened": true,
+  "friendly_name": "7091 accept coord residual artifact commit",
+  "merged_at": "2026-11-03T09:44:56.826976+00:00",
+  "merged_commit": "45b3fea9e99ca2bf63f4afe764deeea6e460e929",
+  "mid8": "01M6G9GS",
+  "mission_id": "01M6G9GSFHNZMM0RDY9R3BPS1A",
+  "mission_number": 249,
+  "mission_slug": "7091-accept-coord-residual-artifact-commit-01M6G9GS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances 7091 accept coord residual artifact commit on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "7091 accept coord residual artifact commit",
+  "slug": "7091-accept-coord-residual-artifact-commit-01M6G9GS",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T09:14:25.209849+00:00"
+}
