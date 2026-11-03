@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "7091-accept-coord-residual-artifact-commit-01M6G9GS",
+  "mission_id": "01M6G9GSFHNZMM0RDY9R3BPS1A",
+  "mission_branch": "kitty/mission-7091-accept-coord-residual-artifact-commit-01M6G9GS",
+  "target_branch": "issue-7091-accept-coord-residual-artifact-commit",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/",
+        "src/mission_runtime/artifacts.py",
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/mission_runtime/test_artifact_partition_mapping.py",
+        "tests/specify_cli/cli/commands/test_accept_residual_partition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T08:51:20.916731+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fde2ec88515123866251f95fe6d0e2bf43b5123b"
+}

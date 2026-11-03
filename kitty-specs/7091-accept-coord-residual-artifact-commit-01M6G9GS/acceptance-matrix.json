@@ -1,0 +1,89 @@
+{
+  "mission_slug": "7091-accept-coord-residual-artifact-commit-01M6G9GS",
+  "mission_number": "7091",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_residual_partition.py::test_residual_commit_defers_coord_worktree_mission_event_log (red-first: ResidualCommitError with the issued safe_commit refusal before the fix, green after)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:41:59.016016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_residual_partition.py::test_deferred_residual_note_reports_the_keep_local_log",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:03.863841+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_residual_partition.py::test_residual_commit_still_refuses_a_primary_artifact_stranded_in_the_coord_worktree",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:08.575718+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/review/test_mission_events_dirty_survivor_5669.py::test_global_churn_owner_still_treats_mission_events_as_real_dirt (green untouched)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:13.285510+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_residual_partition.py::test_residual_commit_still_lands_flat_mission_event_log_on_its_own_branch",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:17.773382+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pre-fix branch run: ResidualCommitError naming 'safe_commit: refusing to stage path under .worktrees/'; post-fix green in test_residual_commit_defers_coord_worktree_mission_event_log",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:23.774535+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_residual_partition.py::test_nonartifact_residual_paths_uses_the_one_classifier",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-11-03T09:42:28.317916+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-NO-KIND-FOR-EVENT-LOG",
+      "description": "No MissionArtifactKind is added for mission-events.jsonl: the #5669 keep-local ruling stays intact (its churn remains real dirt for the destructive gates).",
+      "verification_method": "grep_absence",
+      "verification_command": "mission-events.jsonl",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/mission_runtime/artifacts.py"
+    }
+  ]
+}
