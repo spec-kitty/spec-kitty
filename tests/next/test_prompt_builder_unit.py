@@ -320,6 +320,7 @@ class TestBuildPromptWP:
         assert "for_review" in text  # completion instruction
         assert "<subtask-ids>" not in text
         assert "No subtask completion command is needed" in text
+        assert "agent tasks mark-status" not in text
         assert path.exists()
         path.unlink()
 
