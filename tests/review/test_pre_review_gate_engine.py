@@ -172,6 +172,9 @@ def test_oversized_override_refuses_before_process_launch(monkeypatch: pytest.Mo
     assert verdict.classification_candidate is False
     assert len(events) == 1
     assert isinstance(events[0], pre_review_gate.ScopeAssessed)
+    # Check that the reason is bounded and JSON-safe (no newlines)
+    assert len(verdict.reason or "") <= 800
+    assert "\\n" not in (verdict.reason or "")
 
 
 @pytest.mark.fast

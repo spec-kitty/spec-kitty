@@ -683,9 +683,12 @@ def _mt_review_test_timeout(st: _MoveTaskState) -> int:
     The first call (pre-validation, before the fail-open seams) raises
     ``InvalidReviewTestTimeout`` for an invalid declaration.
 
-    #6865: the number is resolved for the shape the gate actually runs. A source
-    that contributes no per-file narrowing runs its declared command in full, so
-    the whole-command default applies; a narrowing source keeps the scoped
+    #6865: the number is resolved for the shape the gate actually runs, which is
+    determined from the config ScopeSource only (see _mt_declared_command_runs_in_full).
+    A WP's pre_review_test_scope override is decided later but does not affect this
+    budget, as the budget must be WP-independent for receipt identity to work.
+    A source that contributes no per-file narrowing runs its declared command in full,
+    so the whole-command default applies; a narrowing source keeps the scoped
     default. One number per transition is load-bearing: capture, the receipt
     match and every head leg compare it, so a shape-divergent value would
     silently discard a valid baseline receipt.
