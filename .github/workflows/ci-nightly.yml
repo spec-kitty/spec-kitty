@@ -1611,7 +1611,7 @@ jobs:
       - name: Verify the acceptance-jvm Gradle pins equal pins.json
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
-        run: uv run --frozen --no-sync python scripts/ci/acceptance_jvm_gradle_pin_check.py
+        run: PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/ci/acceptance_jvm_gradle_pin_check.py
 
       - name: Set up JDK 25 (Temurin)
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
