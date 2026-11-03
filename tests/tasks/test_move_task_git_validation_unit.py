@@ -7,6 +7,7 @@ when there are uncommitted changes in the worktree.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -14,9 +15,12 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 
+from charter.activation.api import code_producing_for
+from charter.activation.mission_type_profiles import resolve_mission_type_context
 from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review, app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import read_events
+from tests._factories import provision_test_charter
 from tests._support.status_seed import seed_status_event
 from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
@@ -66,6 +70,12 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     # Create .kittify marker with a file inside (git won't track empty directories)
     (repo / ".kittify").mkdir()
     (repo / ".kittify" / "config.yaml").write_text("# Config\n")
+    # Provision the activated mission types the way `spec-kitty init` does (#7073). Unprovisioned, the
+    # review-ward guard's `code_producing_for` catches `UnknownMissionTypeError` and reads its built-in
+    # fallback, so these nodes would exercise a degraded capability instead of the resolved profile this
+    # project would really have. Provisioned before the Initial commit, so the ledger lands inside it and
+    # the commit shape the nodes below assert does not move.
+    provision_test_charter(repo)
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"],
@@ -642,3 +652,43 @@ def test_lane_deliverable_paths_takes_status_entries(tmp_path: Path):
     names = {p.name for p in paths}
     assert names == {"app.py", "new_file.txt", "new.py", "old.py"}
     assert all(p.parent == tmp_path or p.is_relative_to(tmp_path) for p in paths)
+
+
+class TestFixtureCharterProvisioning:
+    """The shared fixture must be a provisioned project, not an unprovisioned one (#7073).
+
+    The review-ward guard these nodes exercise reads the ``code_producing`` capability through
+    ``charter.activation.api.code_producing_for``, which *catches* a resolution failure and returns the
+    built-in default. On a fixture whose ``.kittify/config.yaml`` carries no activation (and no ledger),
+    ``resolve_mission_type_context`` raises ``UnknownMissionTypeError``, so every node above would be
+    exercising that fallback instead of the project's resolved mission-type profile - a degraded value no
+    assertion in this module covered.
+    """
+
+    def test_fixture_mission_type_resolves_to_the_curated_profile(
+        self, git_repo_with_worktree: tuple[Path, Path]
+    ) -> None:
+        """``software-dev`` resolves from the provisioned charter, with its curated action sequence."""
+        repo_root, _ = git_repo_with_worktree
+
+        resolved = resolve_mission_type_context(repo_root, mission_type="software-dev")
+
+        assert resolved.mission_type == "software-dev"
+        # A neutral or fallback bundle carries no curated sequence; a resolved profile does.
+        assert resolved.action_sequence, "expected the curated software-dev action sequence, got none"
+
+    def test_fixture_capability_read_does_not_fall_back(
+        self, git_repo_with_worktree: tuple[Path, Path], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The capability read resolves for real: it records no "using the built-in default" fallback."""
+        repo_root, _ = git_repo_with_worktree
+
+        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
+            assert code_producing_for(repo_root, "software-dev") is True
+
+        fallbacks = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "charter.activation.mission_type_profiles" and record.levelno >= logging.WARNING
+        ]
+        assert fallbacks == [], f"mission-type resolution fell back to a built-in default: {fallbacks}"
