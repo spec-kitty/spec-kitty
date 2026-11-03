@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "subtask-recipe-wp-scoping-01M6G9TW",
+  "mission_id": "01M6G9TWYHMC962KSEBA3AN5H2",
+  "mission_branch": "issue-7108-subtask-recipe-wp-scoping",
+  "target_branch": "issue-7108-subtask-recipe-wp-scoping",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/",
+        "src/runtime/next/prompt_builder.py",
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/core/subtask_recipe.py",
+        "tests/integration/test_prompt_builder_owned_arms.py",
+        "tests/next/test_prompt_builder_review_base.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_unchecked_recipe_scoped.py",
+        "tests/specify_cli/core/test_subtask_recipe.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T08:55:51.738842+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "06cc86299eed7e6d74bc839123bed98650b97ff9"
+}
