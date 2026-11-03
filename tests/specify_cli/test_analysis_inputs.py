@@ -68,6 +68,162 @@ def test_wp_runtime_fields_do_not_change_definition_hash(tmp_path: Path):
     assert collect_material_inputs(mission, tmp_path) != before
 
 
+#: The workspace-provenance triple ``agent action implement`` stamps into the
+#: claimed WP prompt on a fresh lane (``lanes.implement_support.create_lane_workspace``).
+#: All three are runtime bookkeeping, never planning input (#7106).
+_CLAIM_PROVENANCE = (
+    "base_branch: kitty/mission-test-lane-a\nbase_commit: 373921590984c72ea48ff19c7dcd436011c4da56\ncreated_at: '2026-11-02T22:17:28.862607+00:00'\n"
+)
+
+
+def test_claim_provenance_does_not_change_wp_definition_hash(tmp_path: Path):
+    """#7106: the claim's own runtime stamp must not stale a recorded analysis."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    (mission / "tasks").mkdir(parents=True)
+    wp = mission / "tasks/WP01-test.md"
+    wp.write_text("---\nwork_package_id: WP01\nsubtasks:\n- T001\n---\nDefinition.\n")
+    before = collect_material_inputs(mission, tmp_path)
+    assert before["material:kitty-specs/test/tasks/WP01-test.md"]["sha256"] is not None
+
+    wp.write_text(f"---\nwork_package_id: WP01\n{_CLAIM_PROVENANCE}subtasks:\n- T001\n---\nDefinition.\n")
+    assert collect_material_inputs(mission, tmp_path) == before
+
+
+@pytest.mark.parametrize("field", ["subtasks", "dependencies", "requirement_refs", "owned_files"])
+def test_planning_frontmatter_still_changes_the_definition_hash(tmp_path: Path, field: str):
+    """Positive control (#7106): a real planning edit must still stale the report."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    (mission / "tasks").mkdir(parents=True)
+    wp = mission / "tasks/WP01-test.md"
+    wp.write_text(f"---\nwork_package_id: WP01\n{_CLAIM_PROVENANCE}---\nDefinition.\n")
+    before = collect_material_inputs(mission, tmp_path)
+
+    wp.write_text(f"---\nwork_package_id: WP01\n{_CLAIM_PROVENANCE}{field}:\n- edited\n---\nDefinition.\n")
+    assert collect_material_inputs(mission, tmp_path) != before
+
+
+def test_vcs_lock_does_not_change_meta_hash(tmp_path: Path):
+    """#7106: the mission's first claim locks the VCS in ``meta.json``; that is not planning input."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    mission.mkdir(parents=True)
+    meta = mission / "meta.json"
+    meta.write_text('{"mission_slug": "test", "target_branch": "main", "topology": "lanes"}')
+    before = collect_material_inputs(mission, tmp_path)
+    assert before["material:kitty-specs/test/meta.json"]["sha256"] is not None
+
+    meta.write_text('{"mission_slug": "test", "target_branch": "main", "topology": "lanes", "vcs": "git", "vcs_locked_at": "2026-11-02T22:17:28.862607+00:00"}')
+    assert collect_material_inputs(mission, tmp_path) == before
+
+    # A later lock timestamp is equally not planning input.
+    meta.write_text('{"mission_slug": "test", "target_branch": "main", "topology": "lanes", "vcs": "git", "vcs_locked_at": "2027-01-01T00:00:00+00:00"}')
+    assert collect_material_inputs(mission, tmp_path) == before
+
+
+@pytest.mark.parametrize("backend", ['"hg"', "null", '""'])
+def test_unexpected_vcs_backend_still_changes_the_meta_hash(tmp_path: Path, backend: str):
+    """The lock is normalised, not silenced: a value a claim never writes still stales."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    mission.mkdir(parents=True)
+    meta = mission / "meta.json"
+    meta.write_text('{"mission_slug": "test"}')
+    before = collect_material_inputs(mission, tmp_path)
+
+    meta.write_text(f'{{"mission_slug": "test", "vcs": {backend}}}')
+    assert collect_material_inputs(mission, tmp_path) != before
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "mission_slug: test\n",  # an equivalent YAML mapping is not valid metadata
+        "",  # the safe loader used to read this as an empty mapping
+        "null",
+        "[]",
+        '{"mission_slug": "test"',  # truncated JSON
+    ],
+)
+def test_non_json_metadata_is_refused(tmp_path: Path, document: str):
+    """#7106 review F2: strict JSON, so corruption cannot fingerprint as valid metadata."""
+    from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(document)
+    with pytest.raises(MaterialInputError):
+        collect_material_inputs(mission, tmp_path)
+
+
+def test_missing_metadata_keeps_the_absent_sentinel(tmp_path: Path):
+    """A mission with no ``meta.json`` still records an absent sentinel, not an error."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    mission.mkdir(parents=True)
+    inputs = collect_material_inputs(mission, tmp_path)
+    assert inputs["material:kitty-specs/test/meta.json"]["sha256"] is None
+
+
+def test_review_cycle_artifacts_do_not_change_the_definition_hash(tmp_path: Path):
+    """#7106 rework path: a rejection's per-WP artifacts must not stale the analysis.
+
+    ``tasks/<wp>/`` holds generated runtime output (``review-cycle-N.md``,
+    ``review-feedback-N.md``, ``baseline-tests.json``), never planning content -- a
+    re-claimed rejected work package would otherwise be refused forever.
+    """
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    (mission / "tasks").mkdir(parents=True)
+    (mission / "tasks/WP01-test.md").write_text(f"---\nwork_package_id: WP01\n{_CLAIM_PROVENANCE}---\nDefinition.\n")
+    before = collect_material_inputs(mission, tmp_path)
+
+    wp_artifacts = mission / "tasks" / "WP01-test"
+    wp_artifacts.mkdir()
+    (wp_artifacts / "baseline-tests.json").write_text('{"baseline": 1}')
+    (wp_artifacts / "review-cycle-1.md").write_text("feedback: fix it")
+    (wp_artifacts / "review-feedback-1.md").write_text("fix it")
+    assert collect_material_inputs(mission, tmp_path) == before
+
+
+def test_added_work_package_still_changes_the_definition_hash(tmp_path: Path):
+    """Positive control (#7106): a WP prompt appearing or disappearing still stales."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    (mission / "tasks").mkdir(parents=True)
+    (mission / "tasks/WP01-test.md").write_text(f"---\nwork_package_id: WP01\n{_CLAIM_PROVENANCE}---\nDefinition.\n")
+    before = collect_material_inputs(mission, tmp_path)
+
+    (mission / "tasks/WP02-other.md").write_text(f"---\nwork_package_id: WP02\n{_CLAIM_PROVENANCE}---\nOther.\n")
+    with_wp02 = collect_material_inputs(mission, tmp_path)
+    assert with_wp02 != before
+
+    (mission / "tasks/WP02-other.md").unlink()
+    assert collect_material_inputs(mission, tmp_path) == before
+
+
+def test_non_lock_meta_change_still_changes_the_meta_hash(tmp_path: Path):
+    """Positive control (#7106): every other ``meta.json`` key keeps staling the report."""
+    from specify_cli.analysis_inputs import collect_material_inputs
+
+    mission = tmp_path / "kitty-specs/test"
+    mission.mkdir(parents=True)
+    meta = mission / "meta.json"
+    meta.write_text('{"mission_slug": "test", "target_branch": "main"}')
+    before = collect_material_inputs(mission, tmp_path)
+
+    meta.write_text('{"mission_slug": "test", "target_branch": "release"}')
+    assert collect_material_inputs(mission, tmp_path) != before
+
+
 @pytest.mark.parametrize("text", ["[not: valid", "[]"])
 def test_malformed_configuration_refuses_dependency_proof(tmp_path: Path, text: str):
     from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
