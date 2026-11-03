@@ -7,6 +7,8 @@ claim commit is found by event id, never by subject.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import json
 import shutil
 import subprocess
@@ -34,7 +36,8 @@ def _git(root: Path, *args: str) -> str:
 
 
 def _fact(checkouts: OwnedCheckouts) -> OwnedCheckout:
-    return resolve_owned_mission(checkouts.repository_root, checkouts.owned_root, checkouts.mission_slug, allowed_topologies=NEXT_OWNED_TOPOLOGIES)
+    fact: OwnedCheckout = resolve_owned_mission(checkouts.repository_root, checkouts.owned_root, checkouts.mission_slug, allowed_topologies=NEXT_OWNED_TOPOLOGIES)
+    return fact
 
 
 def _set_wp_frontmatter(checkouts: OwnedCheckouts, *, owned_files: str, subtasks: str = "[]") -> None:
@@ -166,7 +169,7 @@ def test_owned_template_prompt_is_written_under_the_owned_checkout_not_the_repos
 
 
 @pytest.fixture
-def owned_checkouts_lanes(make_owned_checkouts: Any) -> OwnedCheckouts:
+def owned_checkouts_lanes(make_owned_checkouts: Callable[..., OwnedCheckouts]) -> OwnedCheckouts:
     """An owned coordination-topology mission: its WPs resolve to a lane workspace (lane id set), not the lane-less owned arm."""
     return make_owned_checkouts(topology="lanes_with_coord")
 

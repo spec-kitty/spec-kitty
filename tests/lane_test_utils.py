@@ -93,7 +93,7 @@ def write_single_lane_manifest(
         text=True,
         check=False,
     )
-    return write_lanes_json(
+    lanes_path: Path = write_lanes_json(
         feature_dir,
         LanesManifest(
             planning_commit_sha=head.stdout.strip() or None,
@@ -116,6 +116,7 @@ def write_single_lane_manifest(
             computed_from="test",
         ),
     )
+    return lanes_path
 
 
 def lane_worktree_path(repo_root: Path, mission_slug: str, lane_id: str = "lane-a") -> Path:

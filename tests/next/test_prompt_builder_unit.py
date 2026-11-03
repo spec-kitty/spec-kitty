@@ -411,7 +411,7 @@ class TestBuildPromptWP:
 class TestBuildPromptTemplate:
     @patch("runtime.next.prompt_builder.resolve_command")
     @patch("runtime.next.prompt_builder.resolve_project_governance")
-    def test_template_prompt_has_header(self, mock_governance, mock_resolve, feature_with_wp: Path) -> None:
+    def test_template_prompt_has_header(self, mock_governance: MagicMock, mock_resolve: MagicMock, feature_with_wp: Path) -> None:
         # Mock the resolver to return a fake template
         mock_path = feature_with_wp / "fake-template.md"
         mock_path.write_text("# Specify Template\nCreate spec.md.\n", encoding="utf-8")
@@ -445,7 +445,7 @@ class TestBuildPromptTemplate:
         path.unlink()
 
     @patch("runtime.next.prompt_builder.resolve_command")
-    def test_template_prompt_bootstrap_context_first_load(self, mock_resolve, feature_with_wp: Path) -> None:
+    def test_template_prompt_bootstrap_context_first_load(self, mock_resolve: MagicMock, feature_with_wp: Path) -> None:
         import subprocess
 
         mock_path = feature_with_wp / "fake-template.md"
@@ -534,7 +534,7 @@ references:
 
 class TestGovernanceContext:
     @patch("runtime.next.prompt_builder.resolve_project_governance")
-    def test_governance_context_renders_resolution(self, mock_resolve, feature_dir: Path) -> None:
+    def test_governance_context_renders_resolution(self, mock_resolve: MagicMock, feature_dir: Path) -> None:
         mock_resolve.return_value = MagicMock(
             template_set="software-dev-default",
             paradigms=["test-first"],
@@ -549,7 +549,7 @@ class TestGovernanceContext:
         assert "Directives: TEST_FIRST" in text
 
     @patch("runtime.next.prompt_builder.resolve_project_governance")
-    def test_governance_context_shows_unknown_selection_diagnostic(self, mock_resolve, feature_dir: Path) -> None:
+    def test_governance_context_shows_unknown_selection_diagnostic(self, mock_resolve: MagicMock, feature_dir: Path) -> None:
         from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
 
         diagnostic = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
@@ -570,7 +570,7 @@ class TestGovernanceContext:
         assert "Directives: QA_003" in text
 
     @patch("runtime.next.prompt_builder.resolve_project_governance")
-    def test_governance_context_handles_failures(self, mock_resolve, feature_dir: Path) -> None:
+    def test_governance_context_handles_failures(self, mock_resolve: MagicMock, feature_dir: Path) -> None:
         mock_resolve.side_effect = RuntimeError("boom")
         text = _governance_context(feature_dir.parent.parent)
         assert "Governance: unavailable" in text
