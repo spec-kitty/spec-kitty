@@ -5,7 +5,8 @@ Split of responsibilities (mission git-paths-are-data, #5392/#5400):
 * **How** lives here: :func:`run_git` (one subprocess seam), NUL-delimited
   (``-z``) output for every path listing, one lossless decode rule, the
   :class:`GitPath` value type with component-wise relations, and typed
-  entries.
+  entries. :func:`refuses_ownership` classifies git's refusal diagnosis here;
+  trusting a checkout remains an explicit operator decision.
 * **What** is asked by intent through the listing queries
   (:func:`status_entries`, :func:`tree_paths`, :func:`changed_paths`, ...).
   Domain decisions (for example "would a reset clobber this local file")

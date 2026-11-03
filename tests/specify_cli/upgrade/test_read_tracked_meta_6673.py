@@ -64,6 +64,15 @@ def _commit_meta(root: Path, slug: str = _SLUG, meta: dict[str, object] | None =
     return mission_dir
 
 
+def _break_git_anchor(root: Path) -> None:
+    """Leave an unusable gitdir pointer whose path word is not an ownership diagnosis."""
+    git_dir = root / ".git"
+    for child in sorted(git_dir.rglob("*"), reverse=True):
+        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
+    git_dir.rmdir()
+    (root / ".git").write_text(f"gitdir: {root / 'safe.directory' / 'missing-gitdir'}\n", encoding="utf-8")
+
+
 def test_committed_meta_is_read_back_after_the_working_tree_copy_is_deleted(tmp_path: Path) -> None:
     mission_dir = _commit_meta(_repo(tmp_path))
     (mission_dir / "meta.json").unlink()
@@ -282,13 +291,9 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
     root = _repo(tmp_path)
     mission_dir = _commit_meta(root)
     (mission_dir / "meta.json").unlink()
-    # Replace the real .git directory with a marker file git cannot follow: git exits 128 with
-    # "not a git repository", the same message a non-repository prints.
-    git_dir = root / ".git"
-    for child in sorted(git_dir.rglob("*"), reverse=True):
-        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
-    git_dir.rmdir()
-    (root / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+    # A path containing safe.directory must not turn a real repository-layout failure into
+    # ownership advice. Git's actual diagnosis, rather than a path word, decides the cause.
+    _break_git_anchor(root)
 
     tracked = read_tracked_meta(mission_dir)
 
@@ -305,6 +310,7 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
     assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
     assert "tracked meta.json is missing" not in classified.notice, "it still claims the tracked copy is missing"
     assert "git checkout --" not in classified.notice, "it still offers a restore remedy git cannot perform"
+    assert "git status" in classified.notice, "repository-layout faults need a repository diagnosis, not trust advice"
     assert tracked.unreadable_reason == "repository", "the cause git gave was dropped on the way to the notice"
     assert not (mission_dir / "meta.json").exists(), "diagnosing unreadable Git must not mint an identity"
 
@@ -337,6 +343,7 @@ def test_an_ownership_refusal_is_not_reported_as_a_missing_tracked_file(tmp_path
     assert classified is not None
     assert (classified.refuse, classified.code) == (True, "TRACKED_META_UNAVAILABLE")
     assert "ownership" in classified.notice
+    assert _SLUG in classified.notice, "the notice must identify the affected Mission without echoing stderr"
     assert "operator decision" in classified.notice, "trusting a repository is not this tool's decision to make"
     assert "git checkout --" not in classified.notice
     assert "safe.directory *" not in classified.notice
@@ -354,11 +361,7 @@ def test_a_present_meta_that_lost_its_identity_keeps_its_own_lead_on_an_unreadab
     present = dict(_META)
     present.pop("mission_id")
     (mission_dir / "meta.json").write_text(json.dumps(present, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    git_dir = root / ".git"
-    for child in sorted(git_dir.rglob("*"), reverse=True):
-        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
-    git_dir.rmdir()
-    (root / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+    _break_git_anchor(root)
 
     tracked = read_tracked_meta(mission_dir)
     refusal = tracked_meta_refusal(mission_dir, root, tracked)

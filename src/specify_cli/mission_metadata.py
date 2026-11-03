@@ -600,9 +600,9 @@ class _GitRefuses(Exception):
 def _unreadable_reason(stderr: str, *, repository_identified: bool) -> UnreadableReason:
     """Name the cause of a refusal git gave but could not explain to the caller (#7131).
 
-    Ownership is checked first because git prints its "not a git repository" line for an
-    untrusted checkout too; after that, a blob git could not produce is an object-store
-    failure only when the repository itself answered.
+    Recognize ownership's explicit diagnosis or exception hint first. Otherwise,
+    distinguish repository discovery from committed-content access: a repository that
+    answered does not by itself establish that a later read failed because of damage.
     """
     if refuses_ownership(stderr):
         return "ownership"

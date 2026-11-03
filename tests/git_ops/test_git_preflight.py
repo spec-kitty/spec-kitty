@@ -62,15 +62,24 @@ class _FakeCmdResult:
         ),
         ("fatal: not a git repository (or any of the parent directories): .git", False),
         ("", False),
+        pytest.param(
+            "fatal: not a git repository: /nonexistent/safe.directory/gitdir",
+            False,
+            id="path-word-not-ownership",
+        ),
+        pytest.param(
+            "\tgit config --global --add safe.directory /srv/checkout",
+            True,
+            id="ownership-exception-hint",
+        ),
     ],
 )
 def test_the_ownership_refusal_predicate_has_one_owner(stderr: str, expected: bool) -> None:
     """`kernel.git.refuses_ownership` is the single classifier git_preflight consumes.
 
-    Git prints the same "not a git repository" line for a path outside every repository and
-    for a checkout it refuses on ownership grounds, so this text match is the only signal that
-    tells the two apart. The positive and negative cases share one parametrization so a probe
-    that always answers True (or always False) cannot pass.
+    Ownership diagnosis lines and the explicit exception hint are signals; words in an
+    echoed non-repository path are not. Positive and negative cases share one parametrization
+    so a probe that always answers True (or always False) cannot pass.
     """
     from kernel.git import refuses_ownership
 
