@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T10:36:19.073830+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "687763c093df237595f9ffaabe677fa05a18bac3"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T10:36:19.073830+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "687763c093df237595f9ffaabe677fa05a18bac3",
   "created_at": "2026-11-03T08:54:08.211708+00:00",
   "flattened": false,
   "friendly_name": "test harness temp ceiling",
