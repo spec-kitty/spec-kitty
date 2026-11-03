@@ -129,7 +129,11 @@ def _tracked_mission_id(feature_dir: Path) -> tuple[str | None, str | None]:
     tracked = read_tracked_meta(feature_dir)
     if tracked.unavailable:
         refusal = tracked_meta_refusal(feature_dir, locate_project_root(feature_dir) or feature_dir, tracked)
-        return None, None if refusal is None else refusal.notice
+        # ``tracked.unavailable`` is exactly the branch in which the helper yields a refusal (it
+        # returns None only for a usable tracked copy), so the guard the analyzer proved dead
+        # (pythonbugs:S2583) is stated as the invariant instead (#7113).
+        assert refusal is not None
+        return None, refusal.notice
     tracked_id = (tracked.meta or {}).get("mission_id")
     if isinstance(tracked_id, str) and tracked_id.strip():
         return tracked_id, None
