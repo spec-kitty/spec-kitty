@@ -97,11 +97,14 @@ value first:
 | `tests/charter_offering/conftest_pack_remote.py` | `_env()` |
 | `tests/kernel/git/test_remote_fetch_commit_subtree.py` | `_env()` |
 | `tests/cross_cutting/packaging/test_sdist_offline_wheel.py` | `_offline_env(shim_dir)` |
-| `tests/consolidation/test_bake_commit_scope_meta_only.py` | `_hermetic_env` (fixture — drive it through `pytest`'s fixture request or exercise the same strip/restore via a direct call; do not duplicate the fixture's body in the test) |
+| `tests/consolidation/test_bake_commit_scope_meta_only.py` | `_hermetic_env` — a module-level autouse fixture, so this one is asserted by a test **in that module** (already in this WP's `owned_files`): after the fixture has run, `GIT_CEILING_DIRECTORIES` is the harness value while the other `GIT_*` variables are still absent |
 
 Also assert the negative: with no ceiling in `os.environ`, the helpers do not invent one.
 
-On `main` all six fail — that is the red.
+On `main` all six fail — that is the red. The five helper assertions live in
+`tests/unit/test_harness_child_env.py`; the sixth is the in-module test described in the table
+(fixtures are module-scoped to their own module's conftest and cannot be requested from
+`tests/unit`).
 
 ### T006 — The five from-scratch helpers
 
