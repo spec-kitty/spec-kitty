@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-11-03T13:11:52.275697+00:00",
+  "flattened": false,
+  "friendly_name": "charter yaml legacy deny key",
+  "mid8": "01M6GRK6",
+  "mission_id": "01M6GRK6J2B3VY7JVFH4DDCFMR",
+  "mission_number": null,
+  "mission_slug": "charter-yaml-legacy-deny-key-01M6GRK6",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter yaml legacy deny key on issue-6855-charter-yaml-legacy-deny-key so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter yaml legacy deny key",
+  "slug": "charter-yaml-legacy-deny-key-01M6GRK6",
+  "target_branch": "issue-6855-charter-yaml-legacy-deny-key",
+  "topology": "single_branch"
+}
