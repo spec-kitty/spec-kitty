@@ -6,10 +6,11 @@ Defines the output schema for:
 - metadata.yaml (extraction provenance and statistics)
 """
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
 
 from charter.activation.activations import ActivationEntry
@@ -357,6 +358,14 @@ class CharterYamlMetadata(BaseModel):
     bundle_schema_version: int = 2
 
 
+#: The deny-list key prefix (``deactivated_<plural>``), restated from
+#: ``charter.activation.activation_ledger._DENY_PREFIX``. A literal, not an import:
+#: ``pack_manager`` imports this module, so reaching into the activation writer/ledger
+#: layer here would be circular (#6556), and the prefix is the ledger's own posture for
+#: a kind it does not know as well as for one it does.
+_DENY_KEY_PREFIX = "deactivated_"
+
+
 class CharterYaml(BaseModel):
     """The structured shape of the git-tracked, authorable ``charter.yaml``.
 
@@ -392,6 +401,20 @@ class CharterYaml(BaseModel):
     ``None`` == absent key == the kind is unrestricted (every available
     artifact of it is effective); ``[]`` == explicit fail-closed empty; a
     non-empty list == the activated set.
+
+    The DENY side (``deactivated_<kind>``) is deliberately **not** declared and
+    never will be (#6855). A deactivation is activation-ledger content, not
+    ``charter.yaml`` content: ADR 2026-10-19-1 Decision 1 (constraint C-003)
+    states that ``deactivated_*`` keys never appear in ``charter.yaml`` or
+    ``config.yaml``, ``spec-kitty doctor charter-packs`` reports a hand-written
+    one there as the ``LEGACY_DENY_KEY`` error, and the activation-ledger
+    migration refuses to move it. A document carrying one is therefore an error
+    state to be repaired by hand, not a supported shape; this model refuses it
+    by design through :meth:`_refuse_deny_keys`, with a message naming the
+    ledger and the remedy. Do not "complete" the vocabulary by declaring these
+    fields: a declared ``None``-defaulted field would be dumped by
+    :func:`emit_yaml` and emitted by ``charter.activation.compiler`` into every
+    regenerated ``charter.yaml``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -420,6 +443,35 @@ class CharterYaml(BaseModel):
 
     overrides: dict[str, Any] = Field(default_factory=dict)
     metadata: CharterYamlMetadata = Field(default_factory=CharterYamlMetadata)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _refuse_deny_keys(cls, data: Any) -> Any:
+        """Refuse a ``deactivated_<kind>`` key: it is ledger content, never ``charter.yaml`` (#6855).
+
+        The refusal is by prefix, restating
+        :data:`charter.activation.activation_ledger._DENY_PREFIX` rather than a kind
+        table: an unknown ``deactivated_<x>`` a later CLI adds is preserved and
+        reported by the ledger, and it is equally not part of this document.
+
+        ``mode="before"`` is load-bearing: without it the same document is
+        rejected by ``extra="forbid"`` with pydantic's generic
+        ``extra_forbidden`` text, which reads like a model bug and says nothing
+        about where an exclusion belongs. The input is returned untouched for
+        every other document, so the strictness guards (the nested
+        ``activation:`` rejection, the unknown-``activated_*`` rejection) are
+        unchanged.
+        """
+        if isinstance(data, Mapping):
+            denied = sorted(key for key in data if isinstance(key, str) and key.startswith(_DENY_KEY_PREFIX))
+            if denied:
+                raise ValueError(
+                    f"{', '.join(denied)} cannot appear on charter.yaml: a deactivation "
+                    "(deactivated_<kind>) is recorded only in .kittify/charter/activation.yaml. "
+                    "A hand-written deny key on a legacy charter.yaml was never applied; remove it "
+                    "by hand, then run `spec-kitty upgrade` (or `spec-kitty migrate activation-ledger`)."
+                )
+        return data
 
 
 # WP02: keys that are NEW additions in this mission and MUST be omitted
