@@ -349,13 +349,21 @@ def _spell(kind: ArtifactKind, token: str, identity: IdentityLookup) -> DenySet:
     mission step contract, whose node tail is the owning ``<mission>/<action>`` pair rather than the
     declared id: before #6741 the deny set held ``mission_step_contract:implement``, matched no node,
     and silently admitted the contract it meant to deny.
+
+    Fail-closed on an unmintable URN (#6887 landing fold): a KNOWN token whose
+    :meth:`IdentityLookup.urn` is ``None`` -- a step contract whose file declares no readable
+    ``mission``/``action`` -- holds NO URN here. Falling back to ``<kind>:<declared id>`` would
+    re-mint the #6741 phantom: that spelling matches no node (node tails carry a ``/``), so it
+    pretended a coverage it never had. The state is reported once by the consistency check's
+    unknown-reference finding.
     """
     declared = identity.declared_id(kind, token)
     if declared is None:
         return DenySet(frozenset({token}), frozenset(), frozenset({artifact_to_urn(kind.value, token)}))
     stem = identity.stem(kind, token) or token
-    urn = identity.urn(kind, token) or f"{kind.value}:{declared}"
-    return DenySet(frozenset({stem}), frozenset({declared}), frozenset({urn}))
+    urn = identity.urn(kind, token)
+    urns: frozenset[str] = frozenset({urn}) if urn is not None else frozenset()
+    return DenySet(frozenset({stem}), frozenset({declared}), urns)
 
 
 def _union(parts: Iterable[DenySet]) -> DenySet:

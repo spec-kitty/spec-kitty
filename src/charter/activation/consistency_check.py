@@ -204,7 +204,9 @@ class ConsistencyReport:
         coherent: True when no unknown references, missing cross-references,
             kind violations, duplicates, config<->derived parity
             divergences, or verification failures were found.
-        unknown_references: IDs activated for a kind that do not exist in doctrine.
+        unknown_references: IDs activated for a kind that do not exist in doctrine -- plus a
+            mission step contract token that exists but resolves to no node, its file declaring
+            no readable mission/action (#6887 landing fold).
         missing_from_offering: IDs referenced by DRG edges but absent from the
             target kind's activation set.
         kind_violations: IDs that appear in the wrong kind's activation set, or
@@ -448,15 +450,31 @@ def _check_unknown_references(
 
     This is the one report of an unknown token (warn and keep, #6433): the parity
     checks below skip a token the index does not know instead of reporting it again.
+
+    A KNOWN mission-step-contract token whose file declares no readable
+    ``mission``/``action`` pair is also reported here (#6887 landing fold): the
+    index knows the file, so it is never "unknown", yet
+    :meth:`~charter.activation.identity_index.IdentityIndex.urn` cannot mint its node
+    URN, so the parity stem check and the per-kind activated-URN resolution drop it
+    silently and its gate bindings stop firing. It gets its own finding, once.
     """
     for kind in YAML_KEY_MAP:
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
+        kind_enum = _artifact_kind(kind)
         for activated_id in sorted(activated):
             if not _is_known(kind, activated_id, identity, all_offering_ids):
                 unknown_references.append(f"{kind}/{activated_id}")
                 suggestions.append(f"{kind}/{activated_id}: Not found in doctrine. Run 'charter deactivate {kind} {activated_id}' to remove.")
+            elif kind_enum is ArtifactKind.MISSION_STEP_CONTRACT and identity.urn(kind_enum, activated_id) is None:
+                unknown_references.append(f"{kind}/{activated_id}")
+                suggestions.append(
+                    f"{kind}/{activated_id}: The step contract's file declares no readable 'mission'/'action' pair, so "
+                    f"no graph node identity exists for it: the activation filter silently drops it (its gate bindings "
+                    f"stop firing) and a deny of it cannot match its node. Restore 'mission'/'action' in the contract file, "
+                    f"or run 'charter deactivate {kind} {activated_id}' to remove it."
+                )
 
 
 def _check_drg_cross_kind_refs(
