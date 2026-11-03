@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from kernel.vcs_lock import VCS_LOCK_META_FIELDS, is_vcs_lock_only_change
+from kernel.vcs_lock import VCS_LOCK_META_FIELDS, is_vcs_lock_only_change, project_metadata_without_vcs_lock
 
 pytestmark = pytest.mark.fast
 
@@ -99,3 +99,35 @@ def test_present_but_none_lock_field_is_still_lock_only() -> None:
 
 def test_empty_mappings_are_vcs_lock_only() -> None:
     assert is_vcs_lock_only_change({}, {}) is True
+
+
+# --------------------------------------------------------------------------- #
+# ``project_metadata_without_vcs_lock`` -- the lock normalisation other modules
+# use instead of inspecting the field set themselves (#7106).
+# --------------------------------------------------------------------------- #
+def test_projection_drops_the_timestamp_whenever_present() -> None:
+    """The write timestamp never carries planning meaning, whatever its value."""
+    projected = project_metadata_without_vcs_lock({"mission_id": "01ABC", "vcs_locked_at": "t0"})
+    assert projected == {"mission_id": "01ABC"}
+    assert project_metadata_without_vcs_lock({"mission_id": "01ABC", "vcs_locked_at": None}) == {"mission_id": "01ABC"}
+
+
+def test_projection_treats_absent_and_supported_backend_alike() -> None:
+    """An absent selector and the backend a claim writes are the same state."""
+    absent = project_metadata_without_vcs_lock({"mission_id": "01ABC"})
+    written = project_metadata_without_vcs_lock({"mission_id": "01ABC", "vcs": "git", "vcs_locked_at": "t0"})
+    assert absent == written == {"mission_id": "01ABC"}
+
+
+@pytest.mark.parametrize("value", ["hg", "", None, 0])
+def test_projection_preserves_any_other_backend_value(value: object) -> None:
+    """Anything a claim would not write stays visible, so corruption is not silenced."""
+    projected = project_metadata_without_vcs_lock({"mission_id": "01ABC", "vcs": value})
+    assert projected == {"mission_id": "01ABC", "vcs": value}
+
+
+def test_projection_does_not_mutate_its_input() -> None:
+    original = {"mission_id": "01ABC", "vcs": "git", "vcs_locked_at": "t0"}
+    snapshot = dict(original)
+    project_metadata_without_vcs_lock(original)
+    assert original == snapshot
