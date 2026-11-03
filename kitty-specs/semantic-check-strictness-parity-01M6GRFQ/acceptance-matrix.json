@@ -2,7 +2,7 @@
   "mission_slug": "semantic-check-strictness-parity-01M6GRFQ",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/agent/glossary/test_strictness_parity.py::TestEmitterDoesNotInventPolicy",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:46:32.751190+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
