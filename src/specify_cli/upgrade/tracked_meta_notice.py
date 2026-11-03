@@ -76,6 +76,10 @@ def tracked_meta_refusal(feature_dir: Path, repo_root: Path, tracked: TrackedMet
 
     *tracked* is the caller's own :func:`~specify_cli.mission_metadata.read_tracked_meta` answer.
     ``None`` when git can supply the identity or holds nothing for the path (a pre-identity Mission).
+
+    A caller inside an ``if tracked.unavailable:`` guard therefore always holds a refusal, and may
+    state that as an assertion rather than re-testing for ``None`` (pythonbugs:S2583, #7113). A
+    caller outside that guard must still branch on the ``None``.
     """
     if not tracked.unavailable:
         return None
