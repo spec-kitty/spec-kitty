@@ -12,5 +12,7 @@
   "purpose_tldr": "issue 6859 accept pin fixture",
   "slug": "issue-6859-accept-pin-fixture-01M6GS08",
   "target_branch": "issue-6859-accept-pin-fixture",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T13:21:25.011218+00:00"
 }
