@@ -14,6 +14,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from mission_runtime import MissionTopology, OwnedCheckout
 from runtime.next._tmp_namespace import SPEC_KITTY_PROMPT_NAMESPACE, _repo_identity
 from tests._owned_tree_hash import hash_tree
@@ -55,6 +57,22 @@ def mint_test_fact(
         topology=topology,
         write_branch=write_branch,
     )
+
+
+@pytest.fixture
+def claim_counter(monkeypatch: pytest.MonkeyPatch) -> list[Path | None]:
+    """Count real ownership validations at their canonical lookup seam."""
+    from specify_cli.core import checkout_ownership
+
+    calls: list[Path | None] = []
+    original = checkout_ownership.resolve_ownership_claim
+
+    def _counting(claimed_checkout: Path | None, *, resolved_primary: Path) -> object:
+        calls.append(claimed_checkout)
+        return original(claimed_checkout, resolved_primary=resolved_primary)
+
+    monkeypatch.setattr(checkout_ownership, "resolve_ownership_claim", _counting)
+    return calls
 
 
 def prompt_cache_prefix(owned_root: Path) -> str:

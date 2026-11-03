@@ -189,6 +189,7 @@ def make_owned_checkouts(tmp_path: Path) -> Callable[..., OwnedCheckouts]:
         mission_slug: str = "owned-fixture-01M2D900",
         mission_id: str = _DEFAULT_MISSION_ID,
         target_branch: str = "codex/owned",
+        mission_branch: str | None = None,
     ) -> OwnedCheckouts:
         r_root = tmp_path / "primary"
         _init_repo(r_root)
@@ -201,7 +202,7 @@ def make_owned_checkouts(tmp_path: Path) -> Callable[..., OwnedCheckouts]:
             _git(r_root, "commit", "-qm", "protect target")
 
         p_root = r_root / ".worktrees" / "owned-a" if placement == "under_worktrees" else tmp_path / "owned"
-        _git(r_root, "worktree", "add", "-qb", target_branch, str(p_root))
+        _git(r_root, "worktree", "add", "-qb", mission_branch or target_branch, str(p_root))
 
         sibling = tmp_path / "sibling"
         _git(r_root, "worktree", "add", "-qb", "codex/sibling", str(sibling))
@@ -223,6 +224,13 @@ def make_owned_checkouts(tmp_path: Path) -> Callable[..., OwnedCheckouts]:
             wp_ids=wp_ids,
             topology=topology,
         )
+        if mission_branch is not None:
+            # Model the real protected-target mint: P's recorded write branch
+            # differs from the landing target, without changing default fixtures.
+            meta_path = mission_dir / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta["mission_branch"] = mission_branch
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
         _git(p_root, "add", ".")
         _git(p_root, "commit", "-qm", "owned mission")
 
