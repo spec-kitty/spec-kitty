@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: issue-7076-test-harness-temp-ceiling
 merge_target_branch: issue-7076-test-harness-temp-ceiling
 branch_strategy: Planning artifacts for this mission were generated on issue-7076-test-harness-temp-ceiling. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7076-test-harness-temp-ceiling unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-test-harness-temp-ceiling-01M6G9V8
+base_commit: 4b9dd1d844dc8503a2ce0dc7df27d9cdbff31d61
+created_at: '2026-11-03T09:38:16.201777+00:00'
 subtasks:
 - T005
 - T006

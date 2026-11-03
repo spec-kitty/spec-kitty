@@ -60,6 +60,9 @@
       "last_event_id": "01M6GFFRRCG0EFTB3GX7RW5MDW",
       "last_transition_at": "2026-11-03T10:32:42.508384+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: six child environments carry the ceiling; five red-first tests plus the in-module bake assertion"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3480654,
