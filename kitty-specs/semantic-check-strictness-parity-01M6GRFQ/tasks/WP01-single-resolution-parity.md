@@ -1,25 +1,46 @@
 ---
-work_package_id: "WP01"
-title: "One resolved strictness for the event and the gate"
+work_package_id: WP01
+title: One resolved strictness for the event and the gate
 dependencies: []
-planning_base_branch: "issue-7065-semantic-check-strictness"
-merge_target_branch: "issue-7065-semantic-check-strictness"
-branch_strategy: "Planning artifacts were generated on issue-7065-semantic-check-strictness; completed changes must merge back into issue-7065-semantic-check-strictness."
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- NFR-001
+- NFR-002
+- NFR-003
+- C-001
+- C-002
+- C-003
+- SC-001
+- SC-002
+- SC-003
+- SC-004
+planning_base_branch: issue-7065-semantic-check-strictness
+merge_target_branch: issue-7065-semantic-check-strictness
+branch_strategy: Planning artifacts for this mission were generated on issue-7065-semantic-check-strictness. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7065-semantic-check-strictness unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-phase: "Phase 1 - Implementation"
-assignee: ""
-agent: ""
-shell_pid: ""
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+phase: Phase 1 - Implementation
 history:
-  - timestamp: "2026-11-03T13:10:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-11-03T13:10:00Z'
+  agent: system
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/glossary/
+create_intent: []
+execution_mode: code_change
+owned_files:
+- src/glossary/**
+- tests/agent/glossary/**
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – One resolved strictness for the event and the gate

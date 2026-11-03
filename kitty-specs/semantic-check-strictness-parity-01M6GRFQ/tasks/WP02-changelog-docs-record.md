@@ -1,23 +1,33 @@
 ---
-work_package_id: "WP02"
-title: "Changelog fragment, docs and mission record"
+work_package_id: WP02
+title: Changelog fragment, docs and mission record
 dependencies:
-  - "WP01"
-planning_base_branch: "issue-7065-semantic-check-strictness"
-merge_target_branch: "issue-7065-semantic-check-strictness"
-branch_strategy: "Planning artifacts were generated on issue-7065-semantic-check-strictness; completed changes must merge back into issue-7065-semantic-check-strictness."
+- WP01
+requirement_refs:
+- FR-001
+- FR-002
+- SC-001
+planning_base_branch: issue-7065-semantic-check-strictness
+merge_target_branch: issue-7065-semantic-check-strictness
+branch_strategy: Planning artifacts for this mission were generated on issue-7065-semantic-check-strictness. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7065-semantic-check-strictness unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T007"
-  - "T008"
-  - "T009"
-phase: "Phase 2 - Documentation"
-assignee: ""
-agent: ""
-shell_pid: ""
+- T007
+- T008
+- T009
+phase: Phase 2 - Documentation
 history:
-  - timestamp: "2026-11-03T13:10:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-11-03T13:10:00Z'
+  agent: system
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: docs/changelog/
+create_intent: []
+execution_mode: code_change
+owned_files:
+- docs/changelog/CHANGELOG.md
+- docs/changelog/unreleased/<pr/**
+- docs/changelog/unreleased/README.md
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Changelog fragment, docs and mission record
