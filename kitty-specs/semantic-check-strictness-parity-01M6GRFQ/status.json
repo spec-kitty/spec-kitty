@@ -1,0 +1,29 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M6GRHPWTQ513HD0GVEK6BN5T",
+  "materialized_at": "2026-11-03T13:11:03.322300+00:00",
+  "mission_number": "",
+  "mission_slug": "semantic-check-strictness-parity-01M6GRFQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6GRHPWTQ513HD0GVEK6BN5T",
+      "last_transition_at": "2026-11-03T13:11:03.322300+00:00"
+    }
+  }
+}
