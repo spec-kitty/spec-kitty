@@ -38,7 +38,7 @@ tree and reads each Mission out of another:
 Reproduced on `main` at `faaceb314f` in a linked worktree:
 
 ```
-git worktree add --detach /tmp/wt-main origin/main && cd /tmp/wt-main && make sync-packs
+git worktree add --detach <scratch>/wt-main origin/main && cd <scratch>/wt-main && make sync-packs
 uv run pytest tests/contract/test_mission_status_reality.py -q -m "corpus and not windows_ci" \
   -k "kinds_one_and_two or kind_three or project_report or per_mission_reports or payloads_validate"
 # 5 failed  (KeyError: 'findings' ×3, project fallbacks ×1, DriftReport schema ×1)

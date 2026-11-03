@@ -34,14 +34,14 @@ topology is coord-less (`SINGLE_BRANCH` / `LANES`) therefore resolves PRIMARY").
 the first entry of `git worktree list --porcelain`.
 
 So in a linked worktree the check enumerates `kitty-specs/` from the worktree and reads every Mission
-from the primary worktree's copy. Measured on `9aed3a8012` in `/tmp/wt-main`, with the resolver's
+from the primary worktree's copy. Measured on `9aed3a8012` in `<scratch>/wt-main`, with the resolver's
 answer printed:
 
 ```
-DIAG-OUTSIDE name= 002-lightweight-pypi-release outcome= /home/exedev/work/sk-6966/kitty-specs/002-...
-DIAG-OUTSIDE name= 003-auto-protect-agent  outcome= /home/exedev/work/sk-6966/kitty-specs/003-...
+DIAG-OUTSIDE name= 002-lightweight-pypi-release outcome= <worktree>/kitty-specs/002-...
+DIAG-OUTSIDE name= 003-auto-protect-agent  outcome= <worktree>/kitty-specs/003-...
 ...
-DIAG-SCAN-500 mission= 002-lightweight-pypi-release err= ScanUnreadable('ReadDirOutsideRoot') root= /tmp/wt-main
+DIAG-SCAN-500 mission= 002-lightweight-pypi-release err= ScanUnreadable('ReadDirOutsideRoot') root= <scratch>/wt-main
 ```
 
 Two readers then disagree about that same condition:
