@@ -11,6 +11,8 @@ from charter.offering.packs.pack_clean_digest import clean_tree_digest
 from charter.offering.packs.pack_pin import PackPin, TreeDigest, full_tree_digest
 from kernel.pack_tiers import BUILT_IN
 
+from tests._support.temp_root import harness_env
+
 __all__ = ["PackRemote", "git", "make_pack_remote", "write_pack_tree"]
 
 PACK_ID = "01ARWG13C000000000000000FG"
@@ -47,6 +49,10 @@ def _env() -> dict[str, str]:
         GIT_COMMITTER_NAME="t",
         GIT_COMMITTER_EMAIL="t@example.invalid",
     )
+    # The harness's discovery boundary survives the GIT_* strip (#7076): it is not config
+    # or credentials, and without it this fixture's git can resolve into whatever
+    # encloses the test's temp tree.
+    env.update(harness_env())
     return env
 
 

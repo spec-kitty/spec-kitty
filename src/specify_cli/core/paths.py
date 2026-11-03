@@ -222,7 +222,7 @@ def get_project_root_override() -> Path | None:
     return None
 
 
-def locate_project_root(start: Path | None = None, *, stop: Path | None = None) -> Path | None:
+def locate_project_root(start: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -244,18 +244,13 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
 
     Args:
         start: Starting directory for search (defaults to current working directory)
-        stop: Last directory examined by the walk-up (Tier 2/3). Production
-            callers keep the unbounded default (``None``), which walks all the
-            way to the filesystem root. Tests pass an explicit *stop* because
-            nothing above a test's own temp tree is under test control — on a
-            shared machine or under parallel test workers, a sibling test can
-            leave a stray ``.git``/``.kittify`` in a shared ancestor, which
-            would otherwise flip this walk's verdict non-deterministically
-            (same class of bug as #130/#139's ``_find_project_root``).
-            ``GIT_CEILING_DIRECTORIES`` bounds the walk the same way, with
-            :func:`resolve_canonical_root`'s semantics (see
-            :func:`git_ceiling_dirs`): a listed directory is examined, nothing
-            above it is (#7022).
+
+    The walk's only boundary is ``GIT_CEILING_DIRECTORIES``, with
+    :func:`resolve_canonical_root`'s semantics (see :func:`git_ceiling_dirs`): a listed
+    directory is examined and nothing above it is (#7022). Tests used to pass an explicit
+    last directory because nothing above a test's own temp tree is under test control; the
+    harness now points its own temp root inside that ceiling instead (#7076), so the walk
+    carries no test-only boundary of its own — one mechanism, not two.
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -282,7 +277,6 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
-    boundary = stop.resolve() if stop is not None else None
     ceilings = git_ceiling_dirs()
 
     for candidate in [current, *current.parents]:
@@ -327,8 +321,6 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
         if not broken_symlink and kittify_path.is_dir():
             return candidate
 
-        if boundary is not None and candidate == boundary:
-            break
         if candidate in ceilings:
             break
 
