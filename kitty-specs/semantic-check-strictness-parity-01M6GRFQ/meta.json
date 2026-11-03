@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T13:46:42.814924+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "a35763b3750f42f15a9a254d992283ddaa922236"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T13:46:42.814924+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "a35763b3750f42f15a9a254d992283ddaa922236",
   "created_at": "2026-11-03T13:09:58.856758+00:00",
   "flattened": false,
   "friendly_name": "semantic check strictness parity",
