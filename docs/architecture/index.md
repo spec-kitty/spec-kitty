@@ -183,7 +183,7 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development artifact set and its change-intent canvas.
-- [Team Kitty and Zeitgeist](../context/team-kitty.md) — the live hosted model: CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram.
+- [Team Kitty and Zeitgeist](../context/team-kitty.md) — the **historical** hosted model (removed from this repository in #6164): CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram. Kept for orientation only.
 
 ### Status, trail & workflow models
 

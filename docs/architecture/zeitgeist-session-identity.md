@@ -1,15 +1,19 @@
 ---
 title: Zeitgeist publisher and lease identity
 type: explanation
-doc_status: active
-updated: '2026-09-30'
+doc_status: deprecated
+updated: '2026-11-03'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
-description: How logical agents, SaaS leases, and relay session references relate.
+description: How logical agents, SaaS leases, and relay session references related before the hosted surfaces were removed.
 ---
 
 # Zeitgeist publisher and lease identity
+
+> **Deprecated (2026-11-03).** The Zeitgeist publisher, its session identity and the
+> `SPEC_KITTY_ZEITGEIST_SESSION_ID` variable were removed from this repository in #6164. No
+> `src/` code reads this variable; the page is retained only as a record of the retired design.
 
 A logical agent can invoke several CLI commands and run a separate reader. Its
 `logical_session_id` selects its own capability cache and SaaS lease scope.
