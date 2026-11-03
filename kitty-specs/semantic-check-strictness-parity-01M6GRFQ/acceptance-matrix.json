@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/agent/glossary/test_strictness_parity.py::TestEventMatchesTheGate::test_medium_policy_does_not_report_a_block_the_gate_would_not_apply",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T13:46:22.050416+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
