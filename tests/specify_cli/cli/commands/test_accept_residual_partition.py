@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -48,6 +49,8 @@ from kernel.git import GitPath, StatusEntry
 from specify_cli.acceptance import _filter_coordination_residue
 from specify_cli.cli.commands.accept import (
     _commit_residual_acceptance_artifacts,
+    _nonartifact_residual_paths,
+    _note_deferred_residuals,
     _residual_commit_files,
     _run_residual_acceptance_commit,
     _spec_artifact_dirty_paths,
@@ -757,3 +760,202 @@ def test_residual_commit_files_defensive_guard_when_coord_worktree_root_vanishes
     )
 
     assert files == (repo_root / f"kitty-specs/{_SLUG}/spec.md",)
+
+
+# ---------------------------------------------------------------------------
+# #7091 -- the coordination worktree's mission event log.
+#
+# ``mission-events.jsonl`` (the append-only log ``spec-kitty next`` writes
+# through the coordination-routed status seam) is deliberately NOT a mission
+# artifact kind (#5669 -- keep-local, must stay real dirt for the dirty gates),
+# so the residual commit grouped the coordination worktree's copy into the
+# PRIMARY partition and handed ``safe_commit`` a path under ``.worktrees/`` --
+# which ``safe_commit`` correctly refuses (#2155 / #3784). ``accept`` therefore
+# exited 1 for a mission whose readiness had already passed.
+#
+# The fix is a scoped survivor in the residual committer: a coordination-leg
+# path that classifies to NO kind has no owning surface, so it is neither
+# committed from the primary root nor allowed to fail acceptance; it is left
+# where it is and reported. The three tests below pin the survivor, its
+# narrowness (a PRIMARY-classified path in the coordination worktree still
+# refuses) and the unchanged flat-mission behaviour.
+# ---------------------------------------------------------------------------
+
+
+def test_residual_commit_defers_coord_worktree_mission_event_log(tmp_path: Path) -> None:
+    """#7091: the coordination-worktree event log is left local, not committed and not fatal.
+
+    Red-first: pre-fix the classifier returns ``None`` for the basename, the
+    router groups it PRIMARY, and ``_run_residual_acceptance_commit`` raises
+    ``ResidualCommitError`` naming ``safe_commit: refusing to stage path under
+    .worktrees/``. Post-fix the log is excluded from the batch (it has no owning
+    surface, per #5669) while the coordination-owned matrix dirty in the same run
+    still commits -- so the leg is not disabled and the tree state is reported.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root)
+    coord_root = coord_feature_dir.parent.parent
+
+    # A committed baseline on the coordination branch so the later append
+    # registers as tracked-modified dirt, not an untracked file (the dirty
+    # scan deliberately excludes ``??``).
+    (coord_feature_dir / "mission-events.jsonl").write_text('{"event": "MissionCreated"}\n', encoding="utf-8")
+    _git(coord_root, "add", "-A")
+    _git(coord_root, "commit", "-q", "-m", "coord event-log baseline")
+
+    primary_head_before = _head_sha(repo_root)
+    coord_head_before = _head_sha(coord_root)
+
+    # What ``spec-kitty next`` does at every step: append an event to the log.
+    (coord_feature_dir / "mission-events.jsonl").write_text(
+        '{"event": "MissionCreated"}\n{"event": "MissionNextInvoked"}\n',
+        encoding="utf-8",
+    )
+    # ...and what accept's readiness checks do: resolve the matrix on coord.
+    write_acceptance_matrix(
+        coord_feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_HANDLE,
+            criteria=[],
+            negative_invariants=[
+                NegativeInvariant(
+                    invariant_id="NI1",
+                    description="legacy symbol must be absent",
+                    verification_method="grep_absence",
+                    verification_command="ZZZ_PATTERN_THAT_NEVER_MATCHES_ZZZ",
+                    result="confirmed_absent",
+                )
+            ],
+        ),
+    )
+
+    result = _run_residual_acceptance_commit(repo_root, _HANDLE)
+
+    assert result is not None, "the committable coordination matrix must still produce a router result"
+    assert [surface for surface in result.surfaces if surface.status in ("refused", "error")] == [], "the non-artifact event log must not be refused on any surface"
+
+    # The coordination-owned matrix still commits; the primary branch is untouched.
+    assert _head_sha(repo_root) == primary_head_before, "the primary branch must gain no commit for a coordination residual"
+    assert _head_sha(coord_root) != coord_head_before, "the coordination matrix must still commit"
+
+    # The event log stays LOCAL (#5669): not committed on the coordination branch,
+    # and still dirty in the coordination worktree it lives in.
+    coord_show = _git(coord_root, "show", f"HEAD:kitty-specs/{_HANDLE}/mission-events.jsonl")
+    assert "MissionNextInvoked" not in coord_show.stdout, "the keep-local event log must not be committed to the coordination branch"
+    assert f"kitty-specs/{_HANDLE}/mission-events.jsonl" in _porcelain(coord_root), "the deferred log must be left where it is, dirty by design"
+    # ...while everything that WAS committed leaves no residue behind.
+    assert f"kitty-specs/{_HANDLE}/acceptance-matrix.json" not in _porcelain(coord_root)
+
+
+def test_residual_commit_still_refuses_a_primary_artifact_stranded_in_the_coord_worktree(tmp_path: Path) -> None:
+    """#7091 narrowness: the survivor is for non-artifacts only.
+
+    A PRIMARY-classified artifact stranded in the coordination worktree (here
+    ``spec.md``) is real misplaced dirt, not a keep-local log. It must keep
+    flowing to the router and keep being refused loudly -- the survivor must not
+    become a blanket "ignore coordination-worktree dirt".
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root)
+    coord_root = coord_feature_dir.parent.parent
+
+    (coord_feature_dir / "spec.md").write_text("# spec\nv1\n", encoding="utf-8")
+    _git(coord_root, "add", "-A")
+    _git(coord_root, "commit", "-q", "-m", "stranded coord spec baseline")
+    (coord_feature_dir / "spec.md").write_text("# spec\nv2\n", encoding="utf-8")
+
+    with pytest.raises(TaskCliError) as exc_info:
+        _run_residual_acceptance_commit(repo_root, _HANDLE)
+
+    assert "refusing to stage path under .worktrees/" in str(exc_info.value)
+
+
+def test_residual_commit_still_lands_flat_mission_event_log_on_its_own_branch(tmp_path: Path) -> None:
+    """#7091 paired control: a flat mission's ``mission-events.jsonl`` still commits locally.
+
+    There is no coordination surface on a coord-less mission: the log lives in
+    the primary checkout, where the residual commit already lands it on the
+    mission's own unprotected branch. The #7091 survivor applies to the
+    coordination LEG only; the pre-existing flat behaviour must not regress.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _git(repo_root, "init", "-q", ".")
+    _git(repo_root, "config", "user.email", "t@t")
+    _git(repo_root, "config", "user.name", "t")
+    _git(repo_root, "branch", "-M", "main")
+    _git(repo_root, "checkout", "-q", "-b", "work")
+
+    feature_dir = repo_root / "kitty-specs" / _SLUG
+    _write_meta(feature_dir, coordination_branch=None)
+    (feature_dir / "mission-events.jsonl").write_text('{"event": "MissionCreated"}\n', encoding="utf-8")
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-q", "-m", "flat event-log baseline")
+
+    head_before = _head_sha(repo_root)
+    (feature_dir / "mission-events.jsonl").write_text(
+        '{"event": "MissionCreated"}\n{"event": "MissionNextInvoked"}\n',
+        encoding="utf-8",
+    )
+
+    created = _commit_residual_acceptance_artifacts(repo_root, _SLUG)
+
+    assert created is True
+    assert _head_sha(repo_root) != head_before
+    assert _porcelain(repo_root) == ""
+    show = _git(repo_root, "show", f"HEAD:kitty-specs/{_SLUG}/mission-events.jsonl")
+    assert "MissionNextInvoked" in show.stdout
+
+
+def test_nonartifact_residual_paths_uses_the_one_classifier() -> None:
+    """#7091: the survivor is decided by ``kind_for_mission_file``, never a filename literal.
+
+    ``mission-events.jsonl`` has no kind (#5669), so it is the only path the
+    residual committer defers. Classified artifacts on both partitions
+    (matrix/status/tracer on COORD, spec on PRIMARY) stay in the batch.
+    """
+    paths = [
+        f"kitty-specs/{_HANDLE}/mission-events.jsonl",
+        f"kitty-specs/{_HANDLE}/acceptance-matrix.json",
+        f"kitty-specs/{_HANDLE}/status.events.jsonl",
+        f"kitty-specs/{_HANDLE}/traces/approach.md",
+        f"kitty-specs/{_HANDLE}/spec.md",
+    ]
+
+    assert _nonartifact_residual_paths(paths) == [f"kitty-specs/{_HANDLE}/mission-events.jsonl"]
+
+
+def test_deferred_residual_note_reports_the_keep_local_log(tmp_path: Path) -> None:
+    """#7091: the deferral is reported on the acceptance result, never silent.
+
+    Paired control at the end: an empty deferral adds no note.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    _primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root)
+    coord_root = coord_feature_dir.parent.parent
+
+    (coord_feature_dir / "mission-events.jsonl").write_text('{"event": "MissionCreated"}\n', encoding="utf-8")
+    _git(coord_root, "add", "-A")
+    _git(coord_root, "commit", "-q", "-m", "coord event-log baseline")
+    (coord_feature_dir / "mission-events.jsonl").write_text(
+        '{"event": "MissionCreated"}\n{"event": "MissionNextInvoked"}\n',
+        encoding="utf-8",
+    )
+
+    run = SimpleNamespace(repo_root=repo_root, mission_slug=_HANDLE, owned=None)
+    result = SimpleNamespace(notes=[])
+    _note_deferred_residuals(run, SimpleNamespace(result=result))
+
+    assert len(result.notes) == 1
+    assert f"kitty-specs/{_HANDLE}/mission-events.jsonl" in result.notes[0]
+    assert "#5669" in result.notes[0]
+
+    # Paired control: nothing deferred -> no note.
+    _git(coord_root, "add", "-A")
+    _git(coord_root, "commit", "-q", "-m", "coord event-log clean again")
+    clean_result = SimpleNamespace(notes=[])
+    _note_deferred_residuals(run, SimpleNamespace(result=clean_result))
+    assert clean_result.notes == []
