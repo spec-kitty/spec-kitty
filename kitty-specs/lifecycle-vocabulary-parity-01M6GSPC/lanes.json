@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "lifecycle-vocabulary-parity-01M6GSPC",
+  "mission_id": "01M6GSPCB5WHQJJM8TFAV07A5C",
+  "mission_branch": "issue-6876-lifecycle-vocabulary-parity",
+  "target_branch": "issue-6876-lifecycle-vocabulary-parity",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/6876-lifecycle-vocabulary-parity.internal.md",
+        "tests/status/test_lifecycle_events_package_parity.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:33:55.079619+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "192215dd68de7fb9555e13d81a13d5814c59bc7d"
+}
