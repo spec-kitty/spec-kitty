@@ -2,7 +2,7 @@
 title: Analysis report transactions
 description: Record an analysis report while preserving unrelated work and checking the report commit against its material governance inputs.
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-11-03'
 audience:
 - profile: internal/ai-collaboration-agent
   guidance_text: Written for the AI Collaboration Agent reader.
@@ -40,6 +40,14 @@ content digests. Missing paths are recorded so their later creation invalidates
 analysis. WP lane/review fields use the canonical mutable-field vocabulary and
 are excluded from definition hashes. Runtime events, context-state and synthesis
 bookkeeping are excluded. Symlinks and external mutable org roots are refused.
+
+A fetched pack tree is one of those inputs, and its committed state is its pin,
+not a blob in this repository: `.gitignore` excludes `/packs/<name>/` because
+`make sync-packs` writes it from the commit recorded in the tracked
+`packs/<name>.source.yaml`. The transaction therefore treats a tree whose content
+verifies against that committed pin as clean input. It still refuses when the
+tree no longer matches the pin, when the pin itself is uncommitted or missing,
+and for every other untracked or ignored material input.
 
 ## Outcomes and recovery
 
