@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#7076": {
+      "evidence_ref": "WP01: harness temp root under basetemp (#7076 item 2a)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
     "#7082": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
