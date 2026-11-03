@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6988": {
+      "evidence_ref": "context citation: the changelog-fragment convention from #6988 is followed, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7065": {
       "evidence_ref": "commit 84aac7a29e + tests/agent/glossary/test_strictness_parity.py",
       "fr": null,
