@@ -1,17 +1,17 @@
 {
   "mission_slug": "stray-git-anchor-identity-01M6G9QV",
-  "mission_number": "",
-  "mission_type": "",
+  "mission_number": "249",
+  "mission_type": "software-dev",
   "overall_verdict": "pending",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal, ::test_an_empty_directory_named_git_is_not_a_refusal, tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py::test_a_stray_git_directory_does_not_block_the_mint (all failed before the fix, pass after)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T09:42:26.757387+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
