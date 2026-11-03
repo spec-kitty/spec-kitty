@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/unit/test_harness_temp_root.py::test_a_tempfile_dir_under_a_hostile_temp_root_resolves_no_project with its same-fixture non-vacuity control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T10:35:37.986056+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
