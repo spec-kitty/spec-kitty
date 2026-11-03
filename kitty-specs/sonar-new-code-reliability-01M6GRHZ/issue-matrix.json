@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#7109": {
+      "evidence_ref": "spec.md User Story 1: #7109 made the quality-gate step informational; it is context for why this debt went untracked, and owes this mission no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7113": {
+      "evidence_ref": "PR resolves the two BLOCKER drivers (S5756, S3827) and the S2583 dead branch at source; new-code reliability moves E->C. Two items remain and stay tracked on #7113: the java:S5960 on acceptance-jvm (documented MAIN-code scan scope, maintainer decision) and the 19 pre-existing findings outside the new-code window (evidence/README.md).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
