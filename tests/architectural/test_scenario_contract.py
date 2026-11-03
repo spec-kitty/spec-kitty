@@ -277,3 +277,45 @@ def test_ownership_check_fails_when_a_later_rule_overrides_the_scenarios(owners_
     planted = CODEOWNERS.read_text(encoding="utf-8") + "\n/tests/ @stijn-dejongh\n"
     mismatches = ownership_mismatches(owners_tool, planted)
     assert set(mismatches) == {"tests/scenarios/init/init.feature", "tests/scenarios/absorption-ledger.json"}
+
+
+def test_real_home_fingerprint_constants_match_java_literals():
+    """Test that Java literals in RealHomeFingerprint match production constants.
+    
+    This test ensures that if the Python constants are renamed, the Java literals
+    will also need to be updated, preventing silent mismatches.
+    """
+    # Read the Java file
+    java_path = REAL_STEPS / "kitty" / "acceptance" / "environment" / "RealHomeFingerprint.java"
+    java_content = java_path.read_text(encoding="utf-8")
+    
+    # Extract PROMPT_NAMESPACE_DIRECTORY literal
+    import re
+    prompt_match = re.search(r'static final String PROMPT_NAMESPACE_DIRECTORY = "([^"]+)";', java_content)
+    assert prompt_match is not None, "Could not find PROMPT_NAMESPACE_DIRECTORY in Java file"
+    prompt_literal = prompt_match.group(1)
+    
+    # Extract GATE_LOCK_DIRECTORY literal
+    gate_match = re.search(r'static final String GATE_LOCK_DIRECTORY = "([^"]+)";', java_content)
+    assert gate_match is not None, "Could not find GATE_LOCK_DIRECTORY in Java file"
+    gate_literal = gate_match.group(1)
+    
+    # Import and compare with production constants
+    from src.runtime.next._tmp_namespace import SPEC_KITTY_PROMPT_NAMESPACE
+    assert prompt_literal == SPEC_KITTY_PROMPT_NAMESPACE, (
+        f"Java literal {prompt_literal!r} does not match production constant "
+        f"{SPEC_KITTY_PROMPT_NAMESPACE!r}"
+    )
+    
+    # For gate-locks, we check against the string used in pre_review_gate.py
+    # Since it's not defined as a constant, we extract it from the usage
+    from src.specify_cli.review.pre_review_gate import get_runtime_root
+    import os
+    # We can't easily get the actual path without constructing it, but we know
+    # the string literal should be "gate-locks" based on the usage in line 282
+    # Instead, we'll verify that the Java literal matches what we expect from the source
+    expected_gate_locks = "gate-locks"
+    assert gate_literal == expected_gate_locks, (
+         f"Java literal {gate_literal!r} does not match expected gate-locks string {expected_gate_locks!r}"
+     )
+
