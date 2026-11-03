@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import ruamel.yaml
 
@@ -111,6 +111,70 @@ def load_global_strictness(repo_root: Path) -> Strictness:
         pass
 
     return Strictness.MEDIUM
+
+
+def coerce_strictness(value: Any) -> Strictness | None:
+    """Normalise a strictness value coming from a context, a config or a CLI flag.
+
+    Contexts and callers may carry a :class:`Strictness`, its string value, or
+    nothing at all. Anything unrecognised returns ``None`` so the caller can fall
+    back to the documented default instead of publishing a policy value that was
+    never configured.
+
+    Args:
+        value: ``Strictness``, string, or ``None``.
+
+    Returns:
+        The matching :class:`Strictness`, or ``None`` when absent/unrecognised.
+    """
+    if value is None:
+        return None
+    if isinstance(value, Strictness):
+        return value
+    if hasattr(value, "value"):
+        value = value.value
+    try:
+        return Strictness(value)
+    except ValueError:
+        return None
+
+
+def resolve_context_strictness(
+    context: Any,
+    *,
+    repo_root: Path | None = None,
+    runtime_override: Strictness | None = None,
+) -> Strictness:
+    """Resolve the effective strictness for a primitive execution context.
+
+    This is the single resolution path for the whole glossary pipeline: the
+    semantic-check emitter (which records the value on ``SemanticCheckEvaluated``)
+    and the generation gate (which enforces it) both call it, so the event and the
+    enforcement cannot drift apart (#7065).
+
+    Precedence, highest first: runtime override, step metadata, mission config,
+    global default from ``.kittify/config.yaml``. Tiers are read from
+    ``context.step_strictness`` and ``context.mission_strictness``; unknown or
+    malformed values are ignored, leaving the documented ``medium`` default in
+    force rather than raising during emission.
+
+    Args:
+        context: Execution context carrying optional mission/step overrides.
+        repo_root: Repository root used to load the global default. When ``None``
+            the global default is :attr:`Strictness.MEDIUM`.
+        runtime_override: CLI ``--strictness`` value (highest precedence).
+
+    Returns:
+        The effective :class:`Strictness` for this context.
+    """
+    global_default = load_global_strictness(repo_root) if repo_root is not None else Strictness.MEDIUM
+
+    return resolve_strictness(
+        global_default=global_default,
+        mission_override=coerce_strictness(getattr(context, "mission_strictness", None)),
+        step_override=coerce_strictness(getattr(context, "step_strictness", None)),
+        runtime_override=coerce_strictness(runtime_override),
+    )
 
 
 def should_block(

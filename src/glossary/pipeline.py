@@ -251,10 +251,13 @@ def create_standard_pipeline(
     middleware: list[GlossaryMiddleware] = [
         # Layer 1: Extract term candidates from step inputs
         GlossaryCandidateExtractionMiddleware(repo_root=repo_root),
-        # Layer 2: Resolve terms and detect conflicts
+        # Layer 2: Resolve terms and detect conflicts. The runtime override is
+        # passed here as well as to the gate so the SemanticCheckEvaluated event
+        # records the strictness the gate will enforce (#7065).
         SemanticCheckMiddleware(
             glossary_store=store,
             repo_root=repo_root,
+            runtime_override=runtime_strictness,
         ),
         # Layer 3: Interactive conflict clarification (runs BEFORE gate)
         ClarificationMiddleware(
