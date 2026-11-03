@@ -1,7 +1,7 @@
 {
   "rows": {
     "#7065": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "commit 84aac7a29e + tests/agent/glossary/test_strictness_parity.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
