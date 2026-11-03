@@ -201,6 +201,12 @@ def test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing(
     _build_empty_tasks_leg(canonical_dir)
     divergent_dir = repo_root / "stale-worktree-copy" / _SLUG
     _build_empty_tasks_leg(divergent_dir)
+    # Make an incorrectly early seed observable, even if the refusal reports zero seeds.
+    (divergent_dir / "tasks" / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nshell_pid: 44821\nshell_pid_created_at: '1784458183.44'\nagent: tester\n"
+        "assignee: tester\ntracker_refs: [ISSUE-1]\n---\n# Legacy WP\n",
+        encoding="utf-8",
+    )
     status_dir = tmp_path / "coord-leg"
     _build_status_leg(status_dir)
 
@@ -210,6 +216,7 @@ def test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing(
     assert result.seeded_count == 0
     assert result.skipped_notice is not None
     assert result.skipped_notice.endswith("[TRACKED_META_UNAVAILABLE]")
+    assert not (status_dir / "status.events.jsonl").exists()
     assert not (divergent_dir / "meta.json").exists()
     assert not (canonical_dir / "meta.json").exists()
 
