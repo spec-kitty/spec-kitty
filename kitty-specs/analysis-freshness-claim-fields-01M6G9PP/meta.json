@@ -1,0 +1,49 @@
+{
+  "accept_commit": "7dea20289130dd98b3801550b17d4720793f2fd6",
+  "acceptance_history": [
+    {
+      "accept_commit": "d67038cc0ddef265003e3d39aeaa2ebd5b46603a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T10:55:51.579087+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "1956460e26d72eabfa8bdb82cef45154f05342e3"
+    },
+    {
+      "accept_commit": "917e5d8706e8a0ff6d5df49973ed33f5a309d43f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T10:56:01.855512+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "42cf9a2f9572bd576b7da61604185d1aa433dcc8"
+    },
+    {
+      "accept_commit": "7dea20289130dd98b3801550b17d4720793f2fd6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T10:56:10.679097+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f7e130bc2d98a61cdfdb781c28c887208477d5d6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T10:56:10.679097+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f7e130bc2d98a61cdfdb781c28c887208477d5d6",
+  "baseline_merge_commit": "0c8c9de8ffd7ed568938692f68e4a1281db728e3",
+  "created_at": "2026-11-03T08:51:38.267796+00:00",
+  "flattened": false,
+  "friendly_name": "Analysis freshness ignores claim runtime fields",
+  "merged_at": "2026-11-03T10:57:01.563764+00:00",
+  "merged_commit": "e11d4f7f8b1e3aab2351939198cb5b9a006f6fb0",
+  "mid8": "01M6G9PP",
+  "mission_id": "01M6G9PPGVYGBEG54S597HG1AX",
+  "mission_number": 249,
+  "mission_slug": "analysis-freshness-claim-fields-01M6G9PP",
+  "mission_type": "software-dev",
+  "purpose_context": "A claim no longer stales the analysis report, so a multi-WP implement loop can claim every work package from one recorded analysis.",
+  "purpose_tldr": "Claiming a work package keeps the recorded analysis current",
+  "slug": "analysis-freshness-claim-fields-01M6G9PP",
+  "status_phase": "1",
+  "target_branch": "issue-7106-analysis-freshness-claim-fields",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T08:57:21.486133+00:00"
+}
