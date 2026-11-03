@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "test_the_emitted_recipe_clears_the_gate_it_was_printed_for takes the recipe line out of the refusal, shlex-splits it and drives the real agent tasks mark-status app over a two-WP mission whose WP01/WP02 both author T001/T002; exit code 0 and status.events.jsonl records exactly [('WP02', {'T001': 'done'})], so no --force is needed and nothing is cross-attributed to WP01.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:54:00.171057+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
