@@ -11862,6 +11862,7 @@ pages:
     - {slug: "stored-test-universe-collection", text: "Stored test-universe collection", level: 2}
     - {slug: "where-it-lives-and-what-it-is-keyed-on", text: "Where it lives and what it is keyed on", level: 3}
     - {slug: "when-the-store-is-bypassed", text: "When the store is bypassed", level: 3}
+    - {slug: "the-per-test-budget-on-a-collecting-gate", text: "The per-test budget on a collecting gate", level: 3}
     - {slug: "the-report-line", text: "The report line", level: 3}
     - {slug: "the-pre-test-step-and-the-post-test-check", text: "The pre-test step and the post-test check", level: 3}
     - {slug: "where-it-runs", text: "Where it runs", level: 3}
