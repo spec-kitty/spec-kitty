@@ -242,6 +242,21 @@ class TestResolutionAuthority:
         assert event["effective_strictness"] == Strictness.MEDIUM.value
         build_record(event)
 
+    def test_a_direct_caller_can_pass_the_runtime_override(self, tmp_path: Path) -> None:
+        """A caller that bypasses the middleware still resolves the CLI override."""
+        root = _repo_with_strictness(tmp_path, "max")
+
+        event = emit_semantic_check_evaluated(
+            context=ParityContext(),
+            conflicts=[],
+            repo_root=root,
+            runtime_override=Strictness.OFF,
+        )
+
+        assert event is not None
+        assert event["effective_strictness"] == Strictness.OFF.value
+        build_record(event)
+
     def test_an_explicit_argument_still_wins(self, tmp_path: Path) -> None:
         root = _repo_with_strictness(tmp_path, "off")
 
