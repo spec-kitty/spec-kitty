@@ -1626,7 +1626,7 @@ jobs:
   # the build when a global-state module hand-rolls `Path.home() / ".spec-kitty"` instead of deriving
   # from specify_cli.paths.get_runtime_root (#2171). No per-PR lane ran it: tests/audit is an
   # out_of_matrix_test_dirs entry, and the only nightly lane that names the tree
-  # (ci-nightly.yml interpreter-matrix-shard-5) runs it under `-m "fast or unit"`, which deselects
+  # (ci-nightly.yml interpreter matrix shard 5) runs it under `-m "fast or unit"`, which deselects
   # every test in this module (it is `pytestmark = [pytest.mark.integration]`, 8 tests). So the lane
   # below -- gated on the `path_literal_audit` group, which a src/specify_cli/status/** or
   # src/kernel/paths.py diff matches -- is the guard's only home that actually executes it, and it
