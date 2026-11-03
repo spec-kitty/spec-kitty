@@ -29,6 +29,21 @@ def test_job_is_not_a_pull_request_job(job: dict[str, Any]) -> None:
     assert "pull_request" not in str(job["if"])
 
 
+# Scripts this job runs that import ``kernel`` from ``src/`` (directly or through ``scripts/sync_services.py``).
+_KERNEL_IMPORTING_SCRIPTS = ("scripts/sync_services.py", "scripts/ci/acceptance_jvm_gradle_pin_check.py")
+
+
+def test_kernel_importing_scripts_run_with_src_on_the_path(job: dict[str, Any]) -> None:
+    """The job installs without the project (``--no-install-project``), so ``kernel`` resolves only through PYTHONPATH.
+
+    The Gradle pin check once ran without it and exited 2 ("No module named 'kernel'") before any scenario.
+    """
+    assert any("--no-install-project" in str(s.get("run") or "") for s in job["steps"]), "the premise moved: re-derive this guard"
+    lines = [line for s in job["steps"] for line in str(s.get("run") or "").splitlines() if any(sc in line for sc in _KERNEL_IMPORTING_SCRIPTS)]
+    assert lines, "the scan must see the job's kernel-importing script runs"
+    assert [line.strip() for line in lines if "PYTHONPATH=" not in line] == []
+
+
 _LOOP_MARKERS = ("||", "for ", "while ", "until ", "retry")
 
 
