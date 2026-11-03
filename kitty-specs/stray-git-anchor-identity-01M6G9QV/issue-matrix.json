@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6988": {
+      "evidence_ref": "Context-only citation: #6988 is the changelog-fragment assembly change this mission follows (docs/changelog/unreleased/<pr>.fixed.md), not a defect it fixes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7082": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
