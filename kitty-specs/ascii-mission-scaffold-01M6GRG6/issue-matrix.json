@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6579": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "context-only: #6579 is the already-landed writer-side sibling (9cf7088465); this mission reuses its pin shape and owes it no work",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6877": {
       "evidence_ref": "core-owned half: commit 387c41c492 + pin 0288d18554 (14 passed); pack-owned half deferred to the upstream open-packs issue, cited in the PR",
