@@ -676,7 +676,7 @@ def emit_semantic_check_evaluated(
     context, else :func:`resolve_context_strictness` over the same precedence
     chain the gate uses (#7065). The emitter never substitutes a policy value of
     its own, and ``blocked`` mirrors the gate's ``should_block`` decision for the
-    conflicts present at check time.
+    conflicts passed to this check.
 
     Args:
         context: PrimitiveExecutionContext
