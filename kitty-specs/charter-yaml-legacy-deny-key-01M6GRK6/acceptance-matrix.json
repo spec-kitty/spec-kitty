@@ -2,7 +2,7 @@
   "mission_slug": "charter-yaml-legacy-deny-key-01M6GRK6",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_activation_vocabulary_setequal.py #6855 block (commit c332188): derived DENY_KEYS, disjointness from ACTIVATION_YAML_KEYS, no deny field, and a parametrized named refusal over all 11 deny keys with a same-fixture positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude-opus-4-5",
+      "verified_at": "2026-11-03T13:45:37.954598+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
