@@ -19,7 +19,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import statistics
 import subprocess
+import time
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,6 +51,9 @@ UNREADABLE_PREFIX = "could not read file"
 ACTIVE_STATUS_LANES = frozenset({"claimed", "in_progress", "for_review", "in_review", "approved"})
 COMPLETED_STATES = frozenset({"recently_completed", "archived"})
 PROBE_TIMEOUT = 5.0
+RECEIPT_ROW_CAP = 12  # rows of the healthy receipts a summary prints
+RECEIPT_FAILED_CAP = 25  # rows of the failed (error, timeout) receipts a summary prints; the count line always covers all of them
+RECEIPT_NOTE_CAP = 100
 
 # Why an Op is skipped, as the oracle names it (coarser than the reader's reasons: the named list is the legacy completion alone).
 SKIP_LEGACY_COMPLETION = "legacy_completion"
@@ -111,12 +117,100 @@ def probe_remotes(repo_root: Path, *, timeout: float = PROBE_TIMEOUT) -> RemoteS
     unreachable = []
     for remote in remotes:
         try:
-            answered = run_git(repo_root, "ls-remote", "--heads", remote, timeout=timeout).returncode == 0
+            answered = _timed_ls_remote(repo_root, remote, timeout).returncode == 0
         except (subprocess.TimeoutExpired, OSError):
             answered = False
         if not answered:
             unreachable.append(remote)
     return RemoteState(remotes, tuple(unreachable))
+
+
+# ---------------------------------------------------------------------------
+# Receipts: raw evidence of every remote probe (diagnostic only, decides nothing)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Receipt:
+    """One ``git ls-remote`` contact as it happened: who asked, what answered, and how long it took (#7152)."""
+
+    who: str  # "oracle" or "production"
+    repo: str
+    remote: str
+    target: str  # the probed branch, or "--heads" for the oracle's whole listing
+    outcome: str  # ok | hit | miss | timeout | oserror | exit<N> | error
+    elapsed: float
+    note: str  # the first stderr line, empty when there was none
+    started: float  # time.monotonic() at the start of the contact
+
+    @property
+    def failed(self) -> bool:
+        return self.outcome not in {"ok", "hit", "miss"}
+
+
+RECEIPTS: list[Receipt] = []
+
+
+def record_receipt(who: str, repo_root: Path, remote: str, target: str, outcome: str, started: float, note: str = "") -> None:
+    """Append one receipt; ``started`` is the ``time.monotonic()`` reading taken before the contact."""
+    first_line = note.strip().partition("\n")[0][:RECEIPT_NOTE_CAP]
+    RECEIPTS.append(Receipt(who, str(repo_root), remote, target, outcome, time.monotonic() - started, first_line, started))
+
+
+def _timed_ls_remote(repo_root: Path, remote: str, timeout: float) -> subprocess.CompletedProcess[str]:
+    """``git ls-remote --heads <remote>`` by the oracle, with a receipt; an exception still propagates unchanged."""
+    started = time.monotonic()
+    try:
+        answer = run_git(repo_root, "ls-remote", "--heads", remote, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        record_receipt("oracle", repo_root, remote, "--heads", "timeout", started)
+        raise
+    except OSError as error:
+        record_receipt("oracle", repo_root, remote, "--heads", "oserror", started, f"{type(error).__name__}: {error}")
+        raise
+    record_receipt("oracle", repo_root, remote, "--heads", "ok" if answer.returncode == 0 else f"exit{answer.returncode}", started, answer.stderr)
+    return answer
+
+
+def _receipt_line(receipt: Receipt) -> str:
+    note = f" {receipt.note}" if receipt.note else ""
+    return f"{receipt.who} {receipt.remote} {receipt.target} {receipt.outcome} {receipt.elapsed:.2f}s @{receipt.started:.1f}{note}"
+
+
+def receipts_summary(repo_root: Path, mission_branches: Mapping[str, str] | None = None, *, receipts: list[Receipt] | None = None) -> str:
+    """A compact account of the remote-probe receipts of ``repo_root``: counts, timings, every failed contact and the named Missions' probes.
+
+    ``mission_branches`` maps the Missions a failure names to their coordination branch. Bounded: failed rows are all printed, the rest are capped.
+    """
+    own = [r for r in (RECEIPTS if receipts is None else receipts) if r.repo == str(repo_root)]
+    if not own:
+        return "remote-probe receipts: none recorded"
+    counts = Counter((r.who, r.outcome) for r in own)
+    elapsed = [r.elapsed for r in own]
+    lines = [
+        "remote-probe receipts: "
+        + ", ".join(f"{who}/{outcome}={count}" for (who, outcome), count in sorted(counts.items()))
+        + f"; elapsed max {max(elapsed):.2f}s, median {statistics.median(elapsed):.2f}s (timeout {PROBE_TIMEOUT}s)"
+    ]
+    failed = [r for r in own if r.failed]
+    lines += [f"  FAILED {_receipt_line(r)}" for r in failed[:RECEIPT_FAILED_CAP]]
+    if len(failed) > RECEIPT_FAILED_CAP:
+        lines.append(f"  ... and {len(failed) - RECEIPT_FAILED_CAP} more failed receipts")
+    for name, branch in sorted((mission_branches or {}).items()):
+        mine = [r for r in own if r.who == "production" and r.target == branch][:RECEIPT_ROW_CAP]
+        lines += [f"  mission {name}: {_receipt_line(r)}" for r in mine] or [f"  mission {name}: no production probe of {branch!r}"]
+    return "\n".join(lines)
+
+
+def receipts_markdown(repo_root: Path, *, receipts: list[Receipt] | None = None) -> str:
+    """The same receipts as a markdown table for a CI step summary (the first failures, then the first healthy rows)."""
+    own = [r for r in (RECEIPTS if receipts is None else receipts) if r.repo == str(repo_root)]
+    if not own:
+        return ""
+    shown = [r for r in own if r.failed][: RECEIPT_FAILED_CAP * 2] + [r for r in own if not r.failed][:RECEIPT_ROW_CAP]
+    rows = [f"| {r.who} | {r.remote} | {r.target} | {r.outcome} | {r.elapsed:.2f} | {r.started:.1f} | {r.note.replace('|', '/')} |" for r in shown]
+    header = f"### Corpus remote-probe receipts (#7152): {len(own)} recorded, {sum(r.failed for r in own)} failed, {len(shown)} shown"
+    return "\n".join([header, "", "| who | remote | target | outcome | seconds | start | note |", "|---|---|---|---|---|---|---|", *rows, ""])
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +297,7 @@ def live_remote_heads(repo_root: Path, *, timeout: float = PROBE_TIMEOUT) -> Liv
     inconclusive = False
     for remote in sorted(listing.stdout.split()):
         try:
-            answer = run_git(repo_root, "ls-remote", "--heads", remote, timeout=timeout)
+            answer = _timed_ls_remote(repo_root, remote, timeout)
         except (subprocess.TimeoutExpired, OSError):
             inconclusive = True
             continue
