@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6117": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context only: ADR 2026-10-29-1 D-9's exit is tracked by #6117 and was executed by a212ccdf55; no work owed here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6447": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "The twelve literals are deleted by #6447's own parked mission (lifecycle-event-constants-import-6447-01M68JAS); this mission deliberately does not touch src/specify_cli/status/lifecycle_events.py, and the pin stays green when that import lands (proved). Follow-up: #6447",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
     },
     "#6876": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR on issue-6876-lifecycle-vocabulary-parity: tests/status/test_lifecycle_events_package_parity.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,8 +33,20 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6915": {
+      "evidence_ref": "Context only: #6915 removed contracts/ from core (a212ccdf55); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
