@@ -13,7 +13,7 @@
       "wp": null
     },
     "#7108": {
-      "evidence_ref": "In progress: attribution half already fixed on main by 642359bbae (#6463); this mission fixes the remaining dead-end recipe. Emitters wired in WP02, fragment in WP03.",
+      "evidence_ref": "Fixed on this branch: 790bd82a89 wires all four emitters (move-task refusal, implement prompt WHEN DONE, three implement runbook sites) through core/subtask_recipe.mark_status_recipe, so every printed recipe names the WP; red-first proven \u2014 reverting the two emitters reds 5 of 13 tests in tests/specify_cli/cli/commands/agent/test_move_task_unchecked_recipe_scoped.py, including an end-to-end replay of the printed command through mark-status on a two-WP shared-id mission and an AST census that rejects any future hand-formatted recipe. The attribution half (#6463, 642359bbae) already shipped on main and is unchanged.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
