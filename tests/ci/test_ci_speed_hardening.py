@@ -93,7 +93,9 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
         "tests-events-consumers",
         "mission-state-audit",
     ]
-    assert quality["clean-install-verification"]["name"] == "Clean install verification"
+    # The clean-install-verification name is a dynamic expression; assert it
+    # contains the static suffix (the label no-op branch is conditional).
+    assert "Clean install verification" in quality["clean-install-verification"]["name"]
 
 
 def test_ruff_uses_hash_locked_dependencies_without_installing_the_project() -> None:
@@ -137,10 +139,10 @@ def test_windows_cancels_only_superseded_pr_evidence() -> None:
 
 def test_aggregate_explicitly_enables_uv_cache_for_workflow_run() -> None:
     jobs = _workflow("ci-aggregate.yml")["jobs"]
-    # The census job (which this PR changed) must explicitly enable uv cache.
+    # The diff-cover job (which this PR changed) must explicitly enable uv cache.
     # Other jobs' cache settings are their own concern.
-    census = jobs["census"]
-    setup = next(step for step in census["steps"] if step.get("uses", "").startswith("astral-sh/setup-uv@"))
+    diff_cover = jobs["diff-cover"]
+    setup = next(step for step in diff_cover["steps"] if step.get("uses", "").startswith("astral-sh/setup-uv@"))
     assert setup.get("with", {}).get("enable-cache") is True
 
 
