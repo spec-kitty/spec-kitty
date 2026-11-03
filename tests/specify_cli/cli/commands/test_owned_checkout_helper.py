@@ -483,6 +483,51 @@ class TestResolveOwnedOpRecordRoot:
         )
         assert result == owned.resolve()
 
+    def test_coordination_worktree_claim_is_refused(self, owned_checkouts: OwnedCheckouts, capsys: pytest.CaptureFixture[str]) -> None:
+        """#6956: the Op commands inherit the create minter's Mission-worktree refusal.
+
+        Before the fix this claim was admitted with the documented residual
+        ("no Mission is bound, so a coordination worktree is not refused
+        here"); the residual is gone, so the Op record root can no longer be a
+        coordination worktree.
+        """
+        import subprocess
+
+        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
+
+        coord = owned_checkouts.repository_root / ".worktrees" / f"{owned_checkouts.mission_slug}-coord"
+        subprocess.run(
+            ["git", "worktree", "add", "-qb", "codex/coord", str(coord)],
+            cwd=owned_checkouts.repository_root,
+            check=True,
+            capture_output=True,
+        )
+
+        with pytest.raises(typer.Exit) as excinfo:
+            resolve_owned_op_record_root(
+                owned_checkouts.repository_root,
+                coord,
+                cwd=owned_checkouts.repository_root,
+                json_output=True,
+            )
+        assert excinfo.value.exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["error"]["code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_MISSION_WORKTREE
+
+    def test_ordinary_linked_checkout_is_admitted(self, owned_checkouts: OwnedCheckouts) -> None:
+        """Positive control for the refusal above: a plain linked checkout still validates."""
+        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
+
+        assert (
+            resolve_owned_op_record_root(
+                owned_checkouts.repository_root,
+                owned_checkouts.sibling,
+                cwd=owned_checkouts.repository_root,
+                json_output=True,
+            )
+            == owned_checkouts.sibling.resolve()
+        )
+
     def test_repository_root_is_refused_on_stderr_in_human_mode(self, owned_checkouts: OwnedCheckouts, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
 

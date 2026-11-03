@@ -1,0 +1,96 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6GX3VFJZCS6K79E6XDFZXFV",
+  "materialized_at": "2026-11-03T14:30:52.146657+00:00",
+  "mission_number": "249",
+  "mission_slug": "owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6GX3V50PZTX02RXZBTKD6QB",
+      "last_transition_at": "2026-11-03T14:30:51.808260+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-03T13:47:49Z – claude – shell_pid=627373 – T001/T002 red-first: both CLI refusal tests failed pre-fix (coord claim exited 0 and scaffolded inside the coordination worktree; lane claim exited 0 and scaffolded inside the lane worktree). Post-fix both exit 1 with OWNED_CHECKOUT_IS_MISSION_WORKTREE and leave the claimed checkout unmutated; both same-fixture positive controls still create. Half-by-half: reverting only the coordination leg reddens the coord CLI/minter/selector tests; reverting only the lane leg reddens the lane ones. Verification: test_mission_create_owned_worktree_refusal.py + test_owned_mission_minter.py + test_mission_create_phases.py = 66 passed; test_owned_checkout_helper.py + test_adopt_owned_checkout.py + architectural single-authority + mission_runtime surface = 109 passed; mission-creation owned/charter/restore/golden-refusal suites = 32 passed; ruff check, ruff format, mypy clean. Analysis finding G1 closed by test_startup_gates_keep_the_repository_root_for_a_mission_worktree.",
+        "Ready for review: the create claim refuses a registered coordination or lane worktree with the leaf's OWNED_CHECKOUT_IS_MISSION_WORKTREE; red-first CLI and minter pins, both positive controls green.",
+        "- 2026-11-03T14:10:13Z – claude – shell_pid=627373 – Review cycle 1 (independent reviewer, gpt-6.1-sol, read-only): REQUEST-CHANGES with 1 MEDIUM + 2 LOW + 1 test note. Fixed in 33fcdee195: read budget restated honestly (ownership validation's own registry read is out of this guard's scope; the guard adds exactly one read for both legs), reserved lane directory name documented and pinned, stored MissionTopology vs WorktreeTopology distinguished, husk/unreadable-registry pin docstrings scoped. Review cycle 2: all cycle-1 items RESOLVED; 3 new LOW prose/test-precision findings (over-claimed reservation justification, rename control created a different worktree, false claim that the leaf still refuses relocated lanes). Fixed in 4b7b969b19 + 41fb1976ce. Review cycle 3: APPROVE, no blocker-or-higher findings. Final targeted runs after the fixes: 112 passed across the refusal, minter and owned-helper suites; ruff check/format and mypy clean.",
+        "Review passed (cycle 3 APPROVE by an independent reviewer on gpt-6.1-sol; findings resolved in 33fcdee195, 4b7b969b19, 41fb1976ce).",
+        "- 2026-11-03T14:27:36Z – reviewer-renata – shell_pid=627373 – Mission wrap-up additions (out-of-map, docs only): contracts/owned-create-claim-refusal.md pins the refusal matrix and the consumer list; quickstart.md gives the hand-verification recipe the accept gate asks for."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 627373,
+      "shell_pid_created_at": "1793713643.36",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6956"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6GX3VFJZCS6K79E6XDFZXFV",
+      "last_transition_at": "2026-11-03T14:30:52.146657+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-03T14:13:44Z – claude – shell_pid=1006917 – T007: retired the false 'Known residual' paragraph in resolve_owned_op_record_root (now states the two Mission-worktree legs ARE shared through the minter, and what still needs a bound Mission); grep confirms no 'Known residual'/'NOT refused here' prose left in src/. T008: docs/changelog/unreleased/6956-create-root-refusal.fixed.md (one entry, impact-first lead, #6956, Before/After, US spelling). T009: check_changelog_style = 0 errors (86 pre-existing warnings, none mine), check_spelling --pass unreleased = 0 findings, check_docs_freshness --ci = errors=0 / 7 warnings, all pre-existing and reproduced on pristine origin/main (8 findings there). No docs page or CLI surface changed, so no index regeneration was needed.",
+        "Ready for review: residual prose retired, changelog fragment added, docs surfaces verified.",
+        "- 2026-11-03T14:25:59Z – claude – shell_pid=1006917 – Review cycle 1 (independent reviewer, read-only): REQUEST-CHANGES with 1 MEDIUM (invocations_cmd.py still carried the false lowercase 'known residual' comment) + 2 LOW (qualify reserved-name vs proven membership; no direct test for the Op-command claim). Fixed in f118221e30 with a new TestResolveOwnedOpRecordRoot refusal + plain-linked-checkout control. Cycle 2: all three RESOLVED, no new findings, APPROVE. Verification after the fix: test_owned_checkout_helper.py -k OpRecordRoot = 4 passed; check_changelog_style = 0 errors; check_spelling = 0 findings; ruff check/format clean; grep -rin 'known residual' src/ = no matches.",
+        "Review passed (cycle 2 APPROVE): residual prose retired, changelog fragment in house shape, Op-command refusal now covered."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1006917,
+      "shell_pid_created_at": "1793715066.38",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6956"
+      ]
+    }
+  }
+}

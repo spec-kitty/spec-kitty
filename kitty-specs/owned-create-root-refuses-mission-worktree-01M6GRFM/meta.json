@@ -1,0 +1,31 @@
+{
+  "accept_commit": "e43dd10e340e3a877268727fc9879ce9e2ac9984",
+  "acceptance_history": [
+    {
+      "accept_commit": "e43dd10e340e3a877268727fc9879ce9e2ac9984",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T14:30:13.562284+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "dd437c80759822a6135b29aad313f91a8390e453"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T14:30:13.562284+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "dd437c80759822a6135b29aad313f91a8390e453",
+  "created_at": "2026-11-03T13:09:55.888864+00:00",
+  "flattened": false,
+  "friendly_name": "owned create root refuses mission worktree",
+  "mid8": "01M6GRFM",
+  "mission_branch": "kitty/mission-owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "mission_id": "01M6GRFMX0C5YWQ16SYQ19R5FM",
+  "mission_number": 249,
+  "mission_slug": "owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances owned create root refuses mission worktree on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "owned create root refuses mission worktree",
+  "slug": "owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

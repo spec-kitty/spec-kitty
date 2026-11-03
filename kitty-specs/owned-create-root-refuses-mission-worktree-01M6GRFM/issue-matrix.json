@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6694": {
+      "evidence_ref": "merged PR #6694; referenced only as provenance for the residual docstring this mission retires",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6956": {
+      "evidence_ref": "4b7b969b19",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
