@@ -272,6 +272,33 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedChecko
     return _dirty_paths_with_prefix(git_status_entries(worktree_root), prefix)
 
 
+def _nonartifact_residual_paths(paths: Iterable[str]) -> list[str]:
+    """Residual paths that classify to NO :class:`MissionArtifactKind` (#7091).
+
+    A path the ONE file->kind authority does not recognise is not a mission
+    artifact: no surface owns it. Under coordination topology the residual scan
+    still surfaces such paths from the coordination worktree, and handing them to
+    the commit router routes them PRIMARY -- where ``safe_commit`` correctly
+    refuses to stage a ``.worktrees/`` path from the primary checkout (#2155 /
+    #3784), so a mission whose readiness passed reported a failed ``accept``
+    (exit 1) for bookkeeping plumbing.
+
+    The shape this happens with is the mission-root ``mission-events.jsonl``:
+    spec-kitty's own tracked, write-only lifecycle log, appended by
+    ``spec-kitty next``. It is deliberately NOT a kind and must stay real dirt
+    for the dirty gates (#5669 -- keep-local ruling: it has live research-gate
+    readers, and a global churn exemption would let gate rows be silently
+    discarded). Accept's residual committer therefore neither commits it to a
+    surface nor fails because of it: it leaves it where it is and reports it.
+
+    Pure classifier over the paths the caller already scanned (no I/O), so the
+    survivor decision cannot become a second dirty-scan implementation.
+    """
+    from mission_runtime import kind_for_mission_file
+
+    return [path for path in paths if kind_for_mission_file(path) is None]
+
+
 def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     """Return tracked-but-uncommitted spec/meta artifacts under the mission dir.
 
@@ -559,6 +586,12 @@ def _run_residual_acceptance_commit(
     as ``False``). Raises :class:`ResidualCommitError` (carrying the result,
     B3) naming every refused/error surface's diagnostic (B2) when any
     surface comes back ``refused`` or ``error``.
+
+    #7091: a coordination-worktree residual path that the file->kind authority
+    does not recognise is excluded from the batch (see
+    :func:`_nonartifact_residual_paths`) -- it is not a mission artifact, so no
+    surface may claim it and its presence must not fail acceptance. Such paths
+    are reported by :func:`_note_deferred_residuals`.
     """
     from specify_cli.coordination.commit_router import commit_for_mission
     from specify_cli.core.git_ops import get_current_branch
@@ -566,6 +599,16 @@ def _run_residual_acceptance_commit(
 
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     coord_dirty = _coord_dirty_paths(repo_root, mission_slug, owned=owned)
+    # #7091: a coordination-worktree path that is not a mission artifact at all
+    # (``kind_for_mission_file`` -> ``None``) is never handed to the router: it
+    # has no owning surface, the router would route it PRIMARY, and
+    # ``safe_commit`` would refuse the ``.worktrees/`` path -- failing a ready
+    # mission's accept over bookkeeping plumbing. It is reported instead
+    # (:func:`_note_deferred_residuals`) and left where it lives.
+    deferred = _nonartifact_residual_paths(coord_dirty)
+    if deferred:
+        deferred_set = set(deferred)
+        coord_dirty = [path for path in coord_dirty if path not in deferred_set]
     if not primary_dirty and not coord_dirty:
         return None
 
@@ -1432,6 +1475,36 @@ def _run_post_acceptance_steps(run: _AcceptRun, outcome: _FinalizeOutcome, pr_me
         outcome.residual_commit_result = residue_exc.result
     except Exception as residue_exc:
         outcome.residue_exc = residue_exc
+    _note_deferred_residuals(run, outcome)
+
+
+def _note_deferred_residuals(run: _AcceptRun, outcome: _FinalizeOutcome) -> None:
+    """Report residual dirt the acceptance tidy-up deliberately leaves alone (#7091).
+
+    The residual committer excludes coordination-worktree paths that classify to
+    no :class:`MissionArtifactKind` (see :func:`_nonartifact_residual_paths`):
+    they are not mission artifacts, so no surface may claim them, and staging one
+    from the primary checkout is exactly what ``safe_commit`` refuses. That
+    exclusion must not be silent -- the acceptance result carries a note naming
+    every deferred path and the keep-local ruling that keeps it uncommitted
+    (#5669), so an operator reading either output lane sees the file is by design
+    still dirty rather than a failed commit.
+    """
+    if outcome.result is None:
+        return
+    try:
+        coord_dirty = _coord_dirty_paths(run.repo_root, run.mission_slug, owned=run.owned)
+    except Exception:  # noqa: BLE001 -- advisory note, never a new failure path
+        return
+    deferred = _nonartifact_residual_paths(coord_dirty)
+    if not deferred:
+        return
+    outcome.result.notes.append(
+        "Residual artifacts left uncommitted by design (#5669, #7091): "
+        + ", ".join(deferred)
+        + " -- not a mission artifact, so no commit surface owns it; accept neither "
+        "commits nor fails on it."
+    )
 
 
 def _stamp_step(run: _AcceptRun, outcome: _FinalizeOutcome) -> None:
