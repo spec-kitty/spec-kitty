@@ -669,6 +669,7 @@ def generate(
                     {
                         "result": "success",
                         "success": True,
+                        # Raises (no _display_path fallback): charter_path is built lexically under repo_root.
                         "charter_path": repo_relative_posix(charter_path, repo_root),
                         "interview_source": interview_source,
                         "mission": compiled.mission,

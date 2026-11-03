@@ -522,6 +522,7 @@ def interview(  # noqa: C901
                     {
                         "result": "success",
                         "success": True,
+                        # Raises (no _display_path fallback): answers_path is built lexically under repo_root.
                         "interview_path": repo_relative_posix(answers_path, repo_root),
                         "mission": interview_data.mission,
                         "profile": interview_data.profile,
