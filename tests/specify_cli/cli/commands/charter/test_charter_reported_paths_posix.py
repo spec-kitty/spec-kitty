@@ -132,7 +132,6 @@ def test_interview_json_reports_a_posix_interview_path(tmp_path: Path, monkeypat
     payload = _json_payload(result.stdout)
 
     assert payload["interview_path"] == INTERVIEW_REL
-    assert "\\" not in payload["interview_path"]
     assert (repo / payload["interview_path"]).exists(), "the reported path must still resolve on disk"
 
 
@@ -145,7 +144,6 @@ def test_generate_json_reports_a_posix_charter_path(tmp_path: Path, monkeypatch:
     payload = _json_payload(result.stdout)
 
     assert payload["charter_path"] == CHARTER_REL
-    assert "\\" not in payload["charter_path"]
     assert (repo / payload["charter_path"]).exists(), "the reported path must still resolve on disk"
 
 
@@ -193,7 +191,11 @@ def test_generate_missing_interview_names_the_posix_path(tmp_path: Path, monkeyp
 
 
 def test_generate_malformed_interview_names_the_posix_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The ``#2940`` sibling message (present but unreadable) carries the same POSIX path."""
+    """The ``#2940`` sibling message (present but unreadable) carries the same POSIX path.
+
+    It shares ``rel_path`` with the missing-interview test, so both go red together on a revert;
+    it is kept for the distinct malformed-answers message branch, not for the path rendering.
+    """
     repo = _repo(tmp_path, monkeypatch)
     answers = repo / ".kittify" / "charter" / "interview" / "answers.yaml"
     answers.parent.mkdir(parents=True)
@@ -244,4 +246,3 @@ def test_display_path_is_posix_in_repo_and_keeps_the_out_of_repo_fallback(tmp_pa
 
     fallback = _display_path(out_of_repo, repo)
     assert fallback == str(out_of_repo), "an out-of-repo path keeps its native spelling"
-    assert "charter.md" in fallback
