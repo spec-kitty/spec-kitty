@@ -169,7 +169,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_uncommitted_changes_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Should fail when moving to done with uncommitted changes."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -197,7 +197,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_committed_changes_but_unmerged_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Should fail when moving to done if branch is not merged and no override provided."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -231,7 +231,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_force_requires_override_reason_when_unmerged(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Even with --force, done transition should require explicit override reason when unmerged."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -254,7 +254,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_override_reason_succeeds_when_unmerged(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Should allow done transition when unmerged only with explicit override reason."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -330,7 +330,7 @@ class TestMoveTaskGitValidation:
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
         monkeypatch: pytest.MonkeyPatch,
-    ):
+    ) -> None:
         """move-task must fail non-zero if the expected event is not readable."""
         repo_root, _worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -369,7 +369,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_after_branch_merged_succeeds_without_override(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Should allow done transition without override when ancestry is verified."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -397,7 +397,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_for_review_still_validates(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """With auto-commit OFF, moving to for_review still validates and blocks on
         uncommitted work (#2335: the guard defers to the operator only when
         auto-commit is disabled; with it on, deliverables are committed instead)."""
@@ -425,7 +425,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_staged_but_uncommitted_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Should fail when moving to done with staged but uncommitted changes."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -449,7 +449,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
     def test_review_validation_allows_behind_status_only_commits(
         self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Status-only commits on planning branch should not force rebases."""
         repo_root, worktree = git_repo_with_worktree
         mission_slug = "017-test-feature"
@@ -479,7 +479,7 @@ class TestMoveTaskGitValidation:
     @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
     def test_review_validation_allows_behind_config_and_status_commits(
         self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         """Config/status-only commits on planning branch should not force rebase."""
         repo_root, worktree = git_repo_with_worktree
         mission_slug = "017-test-feature"
@@ -520,7 +520,7 @@ class TestMoveTaskGitValidation:
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
-    ):
+    ) -> None:
         """for_review gate should block lane branches that committed planning artifacts."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -559,7 +559,7 @@ class TestMoveTaskGitValidation:
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
         monkeypatch: pytest.MonkeyPatch,
-    ):
+    ) -> None:
         """Moving from a lane worktree should not add kitty-specs commits to the lane branch."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
@@ -612,7 +612,7 @@ class TestMoveTaskCommitsLaneDeliverables:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_for_review_auto_commits_uncommitted_deliverables(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
-    ):
+    ) -> None:
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -648,7 +648,7 @@ class TestMoveTaskCommitsLaneDeliverables:
         assert any(e.wp_id == "WP01" and e.to_lane == Lane.FOR_REVIEW for e in main_events)
 
 
-def test_lane_deliverable_paths_takes_status_entries(tmp_path: Path):
+def test_lane_deliverable_paths_takes_status_entries(tmp_path: Path) -> None:
     """Typed status entries yield modified/untracked paths and BOTH sides of a rename."""
     from kernel.git import GitPath, StatusEntry
     from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
