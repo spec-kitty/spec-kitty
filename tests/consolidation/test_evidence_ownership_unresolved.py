@@ -69,6 +69,8 @@ def _break_task_file(fd: Path, how: str) -> None:
         (tasks / "WP-broken.md").write_text("---\nowned_files: [unclosed\n---\n", encoding="utf-8")
     elif how == "duplicate":
         shutil.copy(tasks / _TASK_FILE, tasks / "WP01-copy.md")
+    elif how == "conflict":
+        (tasks / "WP01-broken.md").write_text("---\nowned_files: [unclosed\n---\n", encoding="utf-8")
     else:
         shutil.rmtree(tasks)
 
@@ -90,6 +92,8 @@ def _break_task_file(fd: Path, how: str) -> None:
         pytest.param(_lanes_case, "unattributable", ("declares work_package_id WP01 (1 task file(s) could not be read: WP-broken.md)",), id="lanes-unattributable"),
         # Two task files declaring one id cannot both be authoritative: fail closed and name them.
         pytest.param(_lanes_case, "duplicate", ("declared by 2 task files", _TASK_FILE, "WP01-copy.md"), id="lanes-duplicate"),
+        # One readable declaration beside a broken file for the same id: the readable one cannot be trusted alone.
+        pytest.param(_lanes_case, "conflict", ("WP01-broken.md exists but could not be read", f"while {_TASK_FILE} also declares WP01"), id="lanes-conflict"),
         # The breakage kind is topology-independent, so one single_branch row proves the alias.
         pytest.param(_single_branch_case, "absent_file", ("no task file", "declares work_package_id WP01"), id="single_branch-absent_file"),
     ],
@@ -113,6 +117,7 @@ def test_an_unreadable_ownership_declaration_is_unresolved_not_missing(
         assert reason in str(report.refusal), f"the line names why ownership is unresolved: {reason!r}"
     assert ev.ATTEST_NO_IMPLEMENTATION_FLAG not in str(report.refusal), "no attestation is offered for an unresolved declaration"
     assert "unknown or retired key" in str(report.refusal), "the recovery covers a task file rejected for a key"
+    assert "for `accept`, pass `--owned-checkout" in str(report.refusal), "the flag is offered only where it exists"
     if single_branch:
         assert "Recovery: implement" not in str(report.refusal), "only the unresolved-specific recovery is offered"
         assert str(report.refusal).count(f"Recovery for {code}:") == 1
@@ -133,3 +138,19 @@ def test_unresolved_and_missing_work_packages_are_each_named_once_with_their_own
     assert report.verdicts == {"WP01": ev.OWNERSHIP_UNRESOLVED, "WP02": ev.IMPLEMENTATION_MISSING}
     assert str(report.refusal).count(f"Recovery for {ev.OWNERSHIP_UNRESOLVED}:") == 1
     assert str(report.refusal).count(f"Recovery for {ev.IMPLEMENTATION_MISSING}:") == 1
+
+
+def test_an_unlistable_tasks_directory_is_refused_as_unresolved_not_raised(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``tasks/`` directory that cannot be listed (e.g. permission denied) is a named refusal, not a traceback."""
+    import specify_cli.status as status
+
+    repo, fd, manifest, code = _lanes_case(tmp_path)
+
+    def _denied(tasks_dir: Path) -> list[Path]:
+        raise PermissionError(13, "Permission denied", str(tasks_dir))
+
+    monkeypatch.setattr(status, "wp_task_files", _denied)
+    report = _evaluate(repo, fd, manifest, {"WP01": "approved"})
+
+    assert report.codes == [code], report.refusal
+    assert "the tasks directory could not be read" in str(report.refusal)
