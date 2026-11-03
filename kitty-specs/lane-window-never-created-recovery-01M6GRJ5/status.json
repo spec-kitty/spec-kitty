@@ -1,0 +1,111 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M6GZF4FA2GPKE2M6JMWHW08X",
+  "materialized_at": "2026-11-03T15:11:58.954841+00:00",
+  "mission_number": "",
+  "mission_slug": "lane-window-never-created-recovery-01M6GRJ5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6GXQB4FAHMG9X4TCH644FW4",
+      "last_transition_at": "2026-11-03T14:41:30.767471+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: absent-lane-window cause honest, conditional, escalation named; footer scope corrected in round 2"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1228428,
+      "shell_pid_created_at": "1793716839.58",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6GYBDWPQ84ZHTYEH8H6ACVX",
+      "last_transition_at": "2026-11-03T14:52:28.950471+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: failure-path-only probe, still refuses, wording delegates to the shared cause"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1272453,
+      "shell_pid_created_at": "1793717535.19",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6GZF4FA2GPKE2M6JMWHW08X",
+      "last_transition_at": "2026-11-03T15:11:58.954841+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed after two fixes: unneeded --force removed from setup, output de-wrapped so the old-instruction assertion discriminates; red-first verified against the pre-fix sources"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261103",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1307439,
+      "shell_pid_created_at": "1793718705.6",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}
