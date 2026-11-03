@@ -13,7 +13,7 @@ lost:
 | Surface | Guarantee | Enforced by |
 | --- | --- | --- |
 | `render_tasks_readme_content(planning_branch)` | Returns text whose every byte is `< 0x80`, for any ASCII branch name; interpolates only `planning_branch` | `tests/core/test_tasks_readme_scaffold_ascii.py` |
-| The same text written to `kitty-specs/<mission>/tasks/README.md` | `detect_problematic_characters()` (the detector `specify-kitty validate-encoding` uses) finds nothing | same module, plus `tests/git_ops/test_worktree.py::test_tasks_readme_comes_from_the_canonical_renderer` |
+| The same text written to `kitty-specs/<mission>/tasks/README.md` | `detect_problematic_characters()` (the detector `spec-kitty validate-encoding` uses) finds nothing | same module, plus `tests/git_ops/test_worktree.py::test_tasks_readme_comes_from_the_canonical_renderer` |
 | The renderer's behaviour | Formats; never sanitises. Authored non-ASCII passes through unchanged | `test_renderer_formats_it_does_not_sanitise`, `test_scaffold_module_never_sanitises` |
 | Ownership | Exactly one module holds the text | `tests/git_ops/test_worktree.py::test_no_second_copy_of_the_tasks_readme_scaffold` |
 
