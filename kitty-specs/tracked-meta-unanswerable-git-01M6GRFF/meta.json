@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-03T13:58:27.085195+00:00",
+      "accepted_by": "pi",
+      "accepted_from_commit": "8d253c0be0de5a0bc8b8d04708827689c925f182"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-03T13:58:27.085195+00:00",
+  "accepted_by": "pi",
+  "accepted_from_commit": "8d253c0be0de5a0bc8b8d04708827689c925f182",
   "coordination_branch": "kitty/mission-tracked-meta-unanswerable-git-01M6GRFF",
   "created_at": "2026-11-03T13:09:50.396615+00:00",
   "flattened": false,
