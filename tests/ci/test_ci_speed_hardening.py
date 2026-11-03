@@ -91,6 +91,7 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
         "tests-corpus-blocking",
         "tests-contract-tools",
         "tests-events-consumers",
+        "tests-path-literal-audit",
         "mission-state-audit",
     ]
     # The clean-install-verification name is a dynamic expression; assert it
