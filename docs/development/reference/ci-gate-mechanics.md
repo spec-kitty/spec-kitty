@@ -972,11 +972,13 @@ digest-verify; `tests/pinned_service_assets.py` fails closed when they are missi
   checkout would enumerate one `kitty-specs/` tree and read Missions out of another whenever the
   checkout is a linked worktree — the drift read then refuses the whole report with
   `500 drift_scan_unreadable` and the Project read reports an `outside root` fallback the oracle
-  never derives. From a `git worktree` the check therefore judges the primary worktree's corpus, so an
-  uncommitted corpus change made in a worktree is not seen until it is committed; from the primary
-  checkout (CI, a plain clone) the root, the corpus and the pass counts are exactly as before. When git
-  cannot name the primary worktree (no git, not a repository, an empty or failed listing) the checkout
-  root is used and the linked-worktree mixing can return — the module must still collect there.
+  never derives. From a `git worktree` the check therefore judges the primary worktree's corpus, so a
+  corpus change made in a linked worktree — committed or not — is not seen there; it is covered by the
+  corpus-blocking CI job on the PR (whose checkout is the primary worktree) and after the change lands.
+  From the primary checkout (CI, a plain clone) the root, the corpus and the pass counts are exactly
+  as before. When git cannot name the primary worktree (no git, not a repository, an empty or failed
+  listing) the checkout root is used and the linked-worktree mixing can return — the module must still
+  collect there.
 - **The nightly corpus compare** (`mission-status-corpus` in `ci-nightly.yml`) starts the pinned
   native read-service binary and compares it with the Python reference over the whole corpus, with
   no exemption list (`scripts/ci/mission_status_corpus_compare.py`).
