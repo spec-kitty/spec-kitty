@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#6715": {
+      "evidence_ref": "the evidence/independence axis whose refusal text this mission extends; the axis itself is unchanged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6780": {
+      "evidence_ref": "cited as the landed-window precedent (#6780) whose exit-1-only absence rule this mission reuses",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6859": {
+      "evidence_ref": "cited for the fixture class; a different Mission's lane fixture",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6871": {
+      "evidence_ref": "cited for the fleet evidence that motivated the issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7082": {
+      "evidence_ref": "cited for the mission-never-closes complaint; not fixed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7120": {
+      "evidence_ref": "Option 1 implemented: move-task and accept/consolidate refuse an absent lane window with the shape it detected (tests/consolidation/test_wp_evidence.py, tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py, tests/integration/test_7120_lane_window_never_created.py). Option 2 (widening the evidence window for a lanes Mission that ran on its target branch) is a policy change left open for the operator's ruling on #7120.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#7121": {
+      "evidence_ref": "different axis (anchorless coordination run); expressly out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
