@@ -35,6 +35,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
       "wp": "WP01"
+    },
+    "#6879": {
+      "evidence_ref": "context-only: the process note that wrap-up owns the changelog fragment; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
