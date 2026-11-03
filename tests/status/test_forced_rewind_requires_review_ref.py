@@ -26,6 +26,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.status import app
+from specify_cli.status.models import GuardContext, Lane
+from specify_cli.status.wp_state import REVIEW_REF_REQUIRED_EDGES, wp_state_for
 
 pytestmark = pytest.mark.fast
 
@@ -384,6 +386,39 @@ def test_unforced_attempt_keeps_the_historical_refusal_text() -> None:
 
     assert ok is False
     assert error == "Illegal transition: for_review -> in_progress"
+
+
+@pytest.mark.parametrize(
+    ("from_lane", "to_lane"),
+    sorted((from_lane.value, to_lane.value) for from_lane, to_lane in REVIEW_REF_REQUIRED_EDGES),
+)
+def test_every_gated_edge_refuses_an_unforced_pointerless_attempt(from_lane: str, to_lane: str) -> None:
+    """The unforced early return in ``check_transition`` is safe on every gated edge.
+
+    ``check_transition`` returns ``self.guard_for(target, ctx)`` before the
+    force-insurmountable ``review_ref`` requirement whenever the move is unforced
+    (the #6955 parity baseline), so that requirement never runs on the unforced
+    path. The early return is behaviour-preserving only because every member of
+    ``REVIEW_REF_REQUIRED_EDGES`` already refuses an unforced, pointerless attempt
+    some other way: either the edge is force-only (the source state's
+    ``allowed_targets`` excludes the target, so the earlier ``Illegal transition``
+    return fires first) or the state's own guard refuses a pointerless context.
+    Pin that invariant so a future member cannot silently rely on the gated
+    check running unforced.
+    """
+    state = wp_state_for(from_lane)
+    target = Lane(to_lane)
+
+    if state.may_transition_to(target):
+        ok, _ = state.guard_for(target, GuardContext())
+        assert ok is False, (
+            f"{from_lane} -> {to_lane} is structurally allowed but its guard admits a "
+            "pointerless unforced context, so the unforced early return would let the move through"
+        )
+
+    # Either way (force-only edge or pointerless-refusing guard), the composed
+    # unforced decision still refuses.
+    assert state.check_transition(target, GuardContext())[0] is False
 
 
 def test_validator_reads_the_same_requirement() -> None:
