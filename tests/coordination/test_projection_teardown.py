@@ -696,7 +696,7 @@ def _commit_in_coord_worktree(worktree: Path, rel_path: str, content: str, msg: 
     return _rev(worktree, "HEAD")
 
 
-def _first_run_with_coord_worktree(tmp_path: Path) -> tuple["_MergeRunState", Path, str]:
+def _first_run_with_coord_worktree(tmp_path: Path) -> tuple[_MergeRunState, Path, str]:
     """The gated FIRST-run state of a coordination Mission, with its real coordination worktree."""
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     worktree, tip = _materialise_coord_worktree(repo, coord)
@@ -725,7 +725,8 @@ def test_first_run_lands_a_coordination_commit_made_between_the_gate_and_teardow
     phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch is deleted only after the window landed"
-    assert _git(run.main_repo, "show", f"main:{rel}").stdout == "late coordination record\n", "the late record must be committed on the target, not merely in its working tree"
+    landed = _git(run.main_repo, "show", f"main:{rel}").stdout
+    assert landed == "late coordination record\n", "the late record must be COMMITTED on the target, not merely in its working tree"
     meta = json.loads((_mission_dir(run.main_repo) / "meta.json").read_text(encoding="utf-8"))
     assert "coordination_branch" not in meta
     assert run.coord_tip_after_projection == late, "the proven tip becomes the tip teardown approved"
