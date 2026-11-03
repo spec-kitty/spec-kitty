@@ -1,0 +1,40 @@
+{
+  "accept_commit": "e237c6474c2c0c631733a97d0595bc26f6171064",
+  "acceptance_history": [
+    {
+      "accept_commit": "f0f1d3eda7bb5ecc7ce926a11252d28ba967acf4",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-03T09:21:15.723362+00:00",
+      "accepted_by": "pi",
+      "accepted_from_commit": "9efda070e161a0c753a0f83a5db8970304f228e6"
+    },
+    {
+      "accept_commit": "e237c6474c2c0c631733a97d0595bc26f6171064",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-03T09:21:21.037787+00:00",
+      "accepted_by": "pi",
+      "accepted_from_commit": "06664946938e61442e1100f4b76cf4a34f3a0b97"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-03T09:21:21.037787+00:00",
+  "accepted_by": "pi",
+  "accepted_from_commit": "06664946938e61442e1100f4b76cf4a34f3a0b97",
+  "baseline_merge_commit": "34cd37d987e21dce54fd61802b8be6493b68d606",
+  "created_at": "2026-11-03T08:54:20.576731+00:00",
+  "flattened": false,
+  "friendly_name": "stray git anchor not a repository",
+  "merged_at": "2026-11-03T09:21:54.759497+00:00",
+  "merged_commit": "34cd37d987e21dce54fd61802b8be6493b68d606",
+  "mid8": "01M6G9VN",
+  "mission_id": "01M6G9VN0RN86HG341NQKHW8J6",
+  "mission_number": 249,
+  "mission_slug": "stray-git-anchor-not-a-repository-01M6G9VN",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances stray git anchor not a repository on issue-7093-stray-git-anchor-not-a-repository so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "stray git anchor not a repository",
+  "slug": "stray-git-anchor-not-a-repository-01M6G9VN",
+  "status_phase": "1",
+  "target_branch": "issue-7093-stray-git-anchor-not-a-repository",
+  "topology": "single_branch"
+}

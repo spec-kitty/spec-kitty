@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "stray-git-anchor-not-a-repository-01M6G9VN",
+  "mission_id": "01M6G9VN0RN86HG341NQKHW8J6",
+  "mission_branch": "issue-7093-stray-git-anchor-not-a-repository",
+  "target_branch": "issue-7093-stray-git-anchor-not-a-repository",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_metadata.py",
+        "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py",
+        "tests/upgrade/migrations/test_m_2_0_6_consistency_sweep.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T08:54:55.494054+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "304eb4c302629945d50ebb2230b1ddf83f189440"
+}

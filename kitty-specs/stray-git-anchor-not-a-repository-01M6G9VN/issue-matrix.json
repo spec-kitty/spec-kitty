@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5756": {
+      "evidence_ref": "Cited as the origin of the stray /tmp/.git shape the fix tolerates; that writer is tracked by its own issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6673": {
+      "evidence_ref": "Cited as the refusal contract the fix must preserve; no work owed to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6954": {
+      "evidence_ref": "Cited as the mission that filed the report; no work owed to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7093": {
+      "evidence_ref": "Commits 7cebba99ca (anchor fix) and 03f113cfbc (fail-closed seams); tests/upgrade/migrations/test_m_2_0_6_consistency_sweep.py::test_apply_repairs_feature_state_and_legacy_prompt_refs and tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_nothing_tracked_is_not_a_refusal both green with assertions unchanged from origin/main",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
