@@ -14,5 +14,7 @@
   "purpose_tldr": "stray git anchor identity",
   "slug": "stray-git-anchor-identity-01M6G9QV",
   "target_branch": "issue-7084-stray-git-anchor-identity",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T08:58:28.109211+00:00"
 }

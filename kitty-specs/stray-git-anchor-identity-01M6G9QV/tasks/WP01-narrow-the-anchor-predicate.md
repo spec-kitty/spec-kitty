@@ -18,6 +18,9 @@ requirement_refs:
 planning_base_branch: issue-7084-stray-git-anchor-identity
 merge_target_branch: issue-7084-stray-git-anchor-identity
 branch_strategy: Planning artifacts for this mission were generated on issue-7084-stray-git-anchor-identity. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7084-stray-git-anchor-identity unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-stray-git-anchor-identity-01M6G9QV
+base_commit: b73acc8276124b1cdcce0fa38f4c25a833c6dd7e
+created_at: '2026-11-03T08:58:36.316564+00:00'
 subtasks:
 - T001
 - T002
