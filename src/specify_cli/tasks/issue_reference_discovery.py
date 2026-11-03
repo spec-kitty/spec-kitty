@@ -353,8 +353,45 @@ _SOURCE_DESCRIPTION_LEAD_PATTERN = re.compile(
 # names is a source issue: ``Closes #12`` / ``Fixes: #12`` / ``resolved by #12``.
 _CLOSING_KEYWORD_PATTERN = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*#(\d{2,6})\b", re.IGNORECASE)
 
+# Every ``#N`` a line cites, with its offset, so the ONE label classifier can
+# decide which of them is context and which is the Mission's own target.
+_INPUT_ISSUE_REF_PATTERN = re.compile(r"#(\d{2,6})\b")
+
 # The spec header convention (``**Input**: Issue #NNNN — …``).
 _SPEC_INPUT_PREFIX = "**Input**"
+
+
+def _is_negated_close_match(spec_text: str, match: re.Match[str]) -> bool:
+    """Check if a closing keyword match is negated (e.g., "does not fix #123").
+
+    Looks for negation words immediately before the matched closing keyword.
+    """
+    # Get the text before this match
+    prefix = spec_text[: match.start()]
+    if not prefix:
+        return False
+
+    # Check for common negation patterns ending right before the match
+    # We look for patterns like "does not", "did not", "is not", etc.
+    # that end right before our match starts
+    negation_patterns = [
+        r"\bdoes\s+not\s*$",
+        r"\bdoesn't\s*$",
+        r"\bdid\s+not\s*$",
+        r"\bdidn't\s*$",
+        r"\bis\s+not\s*$",
+        r"\bisn't\s*$",
+        r"\bwas\s+not\s*$",
+        r"\bwasn't\s*$",
+        r"\bwill\s+not\s*$",
+        r"\bwon't\s*$",
+        r"\bhas\s+not\s*$",
+        r"\bhasn't\s*$",
+        r"\bhad\s+not\s*$",
+        r"\bhadn't\s*$",
+    ]
+
+    return any(re.search(pattern, prefix, re.IGNORECASE) for pattern in negation_patterns)
 
 
 def _read_json_object(path: Path) -> dict[str, object]:
@@ -398,16 +435,26 @@ def _source_issues_from_spec(spec_text: str) -> set[int]:
     :func:`~specify_cli.tasks.issue_matrix.issue_numbers_in_text` so this module
     keeps its single-pattern invariant.
     """
-    from specify_cli.tasks.issue_matrix import issue_numbers_in_text
 
     found: set[int] = set()
     for line in spec_text.splitlines():
         if line.strip().startswith(_SPEC_INPUT_PREFIX):
-            numbers = issue_numbers_in_text(line)
-            if numbers:
-                found.add(numbers[0])
+            # The Input line names the Mission's own issue. Take its first
+            # reference that no positional citation label (``epic``/``parent``/
+            # ``see``) leads into, so an ``Epic #6100`` lead cannot promote the
+            # umbrella ahead of the target (#7011). The line-scoped
+            # ``follow-up:`` marker does not veto: the header convention is the
+            # statement here.
+            content_offset = len(line) - len(line[len(_SPEC_INPUT_PREFIX) :].lstrip())
+            for ref in _INPUT_ISSUE_REF_PATTERN.finditer(line, content_offset):
+                occurrence = Occurrence(source_file="spec.md", line_text=line, ref_offset=ref.start())
+                if not _positional_label_precedes_citation(occurrence):
+                    found.add(int(ref.group(1)))
+                    break
             break
-    found.update(int(match.group(1)) for match in _CLOSING_KEYWORD_PATTERN.finditer(spec_text))
+    for match in _CLOSING_KEYWORD_PATTERN.finditer(spec_text):
+        if not _is_negated_close_match(spec_text, match):
+            found.add(int(match.group(1)))
     return found
 
 
