@@ -353,8 +353,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Informational, like its siblings: a red quality gate is reported on the step (and in SonarCloud), but it does not
+      # turn the nightly Sonar run red. The scan above is what must succeed; the gate verdict on new code is debt
+      # tracked in the issue tracker (#2970, #4304), not a workflow failure.
       - name: SonarCloud Quality Gate (informational; never PR-blocking)
         if: always() && steps.sonar_token.outputs.enabled == 'true'
+        continue-on-error: true
         uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         timeout-minutes: 5
         env:
