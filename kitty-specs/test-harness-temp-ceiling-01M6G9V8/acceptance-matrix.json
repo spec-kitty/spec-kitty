@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/unit/test_harness_child_env.py (5 sites) and tests/consolidation/test_bake_commit_scope_meta_only.py::test_the_hermetic_strip_keeps_the_harness_discovery_ceiling",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T10:35:42.837208+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
