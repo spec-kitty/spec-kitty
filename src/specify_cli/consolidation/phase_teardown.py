@@ -4,7 +4,9 @@ Lane worktree removal (through the destructive-op guard) and lane branch deletio
 the topology-aware mission/coordination cleanup, the coordination triple
 (worktree -> compare-and-swap branch delete -> marker flatten, INV-2 / #3926),
 the projection teardown gate construction, and the late-landing projection of
-coordination commits that arrived during teardown (#5570).
+coordination commits that arrived during teardown (#5570) -- on a resumed run
+(everything the coordination branch changed since the merge began) and on a first
+run (what landed after the tip this run verified, #6871).
 
 Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 """
@@ -367,6 +369,29 @@ def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_re
     return sorted(set(unlanded))
 
 
+def _late_window_base(run: _MergeRunState) -> str | None:
+    """The coordination tip the late-teardown window starts at, per RUN KIND (#6871).
+
+    A ``--resume`` has no in-memory record of what the interrupted merge verified, so it anchors on
+    the persisted PRE-mutation coordination snapshot (``state.pre_mutation_coord_sha``): that window
+    spans everything the coordination branch changed since the merge began, which is what a second
+    attempt must not drop (#5570/#6791).
+
+    A first run does have that record. ``run.coord_tip_after_projection`` is captured at the end of
+    the bookkeeping phase, after every merge-owned coordination write, and is the tip the
+    projection teardown gate compare-and-swaps against: everything at or before it was projected by
+    the merge itself, so a commit AFTER it is exactly "landed between the gate and teardown".
+    Anchoring the first run here keeps a clean run a provable no-op; reusing the resume base instead
+    would re-walk the whole merge and re-project primary artifacts the target authored for itself.
+
+    ``None`` means the run recorded no anchor at all (a coordination placement that did not resolve),
+    so no window can be built — see :func:`_land_late_coordination_commits`.
+    """
+    if run.is_resume:
+        return run.state.pre_mutation_coord_sha
+    return run.coord_tip_after_projection
+
+
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
     """Project the coordination commits the target never received, before teardown deletes them (#5570).
 
@@ -379,10 +404,19 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     follows stays a compare-and-swap at the live tip, so a commit landing after THIS
     projection still refuses instead of being lost.
 
-    A no-op on a fresh run (the teardown gate covers it) and when nothing landed late.
+    A no-op when nothing landed late, and on a first run that recorded no anchor of its own.
     A resume that cannot build the window (no recorded coordination checkpoint or
     pre-mutation tip) while the branch still exists FAILS CLOSED instead: it cannot tell
     whether a late commit sits on the branch, and the delete that follows reads the live tip.
+
+    #6871 — the FIRST run gets the same projection and the same proof, over a narrower window. Its
+    base is the tip THIS run verified (:func:`_late_window_base`), so only a commit made after the
+    merge captured it is carried; a clean run projects nothing. Without this, a coordination commit
+    made between the gate and the teardown was either refused by the projection teardown gate
+    (leaving an operator to hand-assemble a landing that was already complete) or — when no gate
+    could be built — deleted with the branch at exit 0. After the window is proven landed, the run
+    records that tip as the one teardown approved, so the gate and the branch delete anchor on a tip
+    whose content is on the target, never on one that was merely read.
 
     #6791 widens WHICH records this window carries and adds the proof that it carried them: a
     gate matrix committed here (``agent issue-verdict`` after the refusal's own instruction to
@@ -400,20 +434,29 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     used to exit 0 and drop the deletion with the branch (see :func:`assert_late_window_landed`).
     """
     checkpoint = run.coord_checkpoint
-    base = run.state.pre_mutation_coord_sha
+    base = _late_window_base(run)
     branch = run.lanes_manifest.mission_branch
-    if not run.is_resume:
-        return
-    if checkpoint is None or not base:
+    if run.is_resume and (checkpoint is None or not base):
         _refuse_unbuildable_late_window(run)
         return
-    if checkpoint.ref not in (branch, f"refs/heads/{branch}"):
+    if not base:
+        # A first run with no recorded post-projection tip cannot prove what the coordination branch
+        # held when the merge verified it, so there is no window to build. Refusing here would strand
+        # a Mission whose coordination placement does not resolve, and no `--resume` could clear it;
+        # the projection teardown gate (when one was built) is this run's guard. Reported as a
+        # residual in the PR's `## Deferred` (#6871).
         return
+    # The window is read from the coordination ref; a run that recorded no checkpoint names the
+    # branch itself (the same ref the delete below operates on).
+    coord_ref = checkpoint.ref if checkpoint is not None else branch
+    if coord_ref not in (branch, f"refs/heads/{branch}"):
+        return
+    projected_tip = _resolve_ref_sha(run.main_repo, coord_ref)
     target = run.lanes_manifest.target_branch
     try:
-        if not _post_checkpoint_commit_shas(run.main_repo, base, checkpoint.ref):
+        if not _post_checkpoint_commit_shas(run.main_repo, base, coord_ref):
             return
-        stranded = _unlanded_paths_outside_mission_dir(run, base, checkpoint.ref)
+        stranded = _unlanded_paths_outside_mission_dir(run, base, coord_ref)
         if stranded:
             raise CoordinationTeardownError(
                 f"a commit on coordination branch {branch!r} changes files outside kitty-specs/{run.target_feature_dir.name}/ "
@@ -427,9 +470,9 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             mission_slug=run.mission_slug,
             status_feature_dir=run.feature_dir,
             checkpoint_sha=base,
-            coord_ref=checkpoint.ref,
+            coord_ref=coord_ref,
         )
-        late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, checkpoint.ref)]
+        late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, coord_ref)]
         # #6791: a gate matrix changed in this window is projected too. The window starts at
         # the PRE-mutation snapshot, so it reaches back to the start of the merge; a matrix in
         # it is newer than the checkpoint but not necessarily newer than the target's
@@ -439,7 +482,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             project_late_gate_matrix_commits(
                 main_repo=run.main_repo,
                 mission_slug=run.mission_slug,
-                coord_ref=checkpoint.ref,
+                coord_ref=coord_ref,
                 checkpoint_sha=base,
             )
         )
@@ -453,20 +496,30 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths, *gate_matrix_paths]) if path.exists()]
     if paths and _paths_have_status_changes(run.main_repo, paths):
         _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
-        console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
+        window = "during teardown" if run.is_resume else "between the gate and teardown"
+        console.print(f"  Projected the coordination commit(s) that landed {window} onto {target}")
     # #6791: whatever the seams above could not carry is REFUSED here, before the branch
     # delete, instead of dying with the branch at exit 0.
     try:
         assert_late_window_landed(
             main_repo=run.main_repo,
             mission_slug=run.mission_slug,
-            coord_ref=checkpoint.ref,
+            coord_ref=coord_ref,
             checkpoint_sha=base,
             target_feature_dir=run.target_feature_dir,
             target_ref=target,
         )
     except LateProjectionRefused as exc:
         raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
+    # #6871: only a PROVEN landing may move the tip teardown approves. The projection teardown gate
+    # and the compare-and-swap branch delete anchor on ``coord_tip_after_projection``; leaving it at
+    # the pre-window tip after landing the window would refuse the very commit this run just landed.
+    # The advance is a compare-and-swap on the tip the assertion was made over: a commit that lands
+    # DURING the projection leaves the ref somewhere else, the anchor stays put, and the gate refuses
+    # (fail-closed) -- a foreign commit is never stamped approved. A resume keeps its own anchor (its
+    # checkpoint is re-captured live), so this stays a first-run rule.
+    if not run.is_resume and projected_tip and _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
+        run.coord_tip_after_projection = projected_tip
 
 
 def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target: str) -> str:

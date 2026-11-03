@@ -619,6 +619,171 @@ def test_unmoved_coord_branch_is_still_deleted_and_flattened(tmp_path: Path) -> 
     assert "coordination_branch" not in meta
 
 
+# ---------------------------------------------------------------------------
+# #6871 -- a FIRST run (not a resume) must not delete what it never landed
+# ---------------------------------------------------------------------------
+
+
+def _commit_path_on_main(repo: Path, rel_path: str, content: str, msg: str) -> str:
+    """Commit *rel_path* onto the target (``main``) in the primary checkout."""
+    path = repo / rel_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", msg)
+    return _rev(repo, "main")
+
+
+def _delete_coord_path(repo: Path, coord_branch: str, rel_path: str, msg: str) -> str:
+    """Commit the DELETION of *rel_path* on *coord_branch* (same throwaway-worktree shape)."""
+    wt = repo.parent / f"_coordwt_del_{rel_path.replace('/', '_')}"
+    _git(repo, "worktree", "add", "-q", str(wt), coord_branch)
+    try:
+        _git(wt, "rm", "-q", rel_path)
+        _git(wt, "commit", "-q", "-m", msg)
+        sha = _rev(wt, "HEAD")
+    finally:
+        _git(repo, "worktree", "remove", "--force", str(wt))
+    return sha
+
+
+def _materialise_coord_worktree(repo: Path, coord_branch: str) -> tuple[Path, str]:
+    """A REAL coordination worktree on *coord_branch*, with its status directory committed.
+
+    The general late-window projection only runs when the STATUS surface is a coordination checkout
+    (``_project_status_bookkeeping_to_target`` short-circuits for a primary one), so a faithful
+    first-run fixture needs the worktree a coordination Mission really has. The canonical path is
+    what the teardown's destroy leg removes, so the branch is releasable afterwards.
+    """
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    worktree = CoordinationWorkspace.worktree_path(repo, SLUG, MID8)
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    _git(repo, "worktree", "add", "-q", str(worktree), coord_branch)
+    mission_dir = worktree / "kitty-specs" / SLUG
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    # A parseable event log: the fold stage leg reads it, and the bootstrap fixture's placeholder
+    # row predates the merge reader.
+    event = {
+        "event_id": "01M380R6EVENTWP01000000000001",
+        "mission_slug": SLUG,
+        "mission_id": MISSION_ID,
+        "wp_id": "WP01",
+        "from_lane": "planned",
+        "to_lane": "approved",
+        "at": "2026-11-02T00:00:00+00:00",
+        "actor": "tester",
+        "force": False,
+        "execution_mode": "worktree",
+    }
+    for base in (mission_dir, _mission_dir(repo)):
+        (base / "status.events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+        (base / "status.json").write_text('{"work_packages": {}}\n', encoding="utf-8")
+    _git(worktree, "add", "-A")
+    staged = subprocess.run(["git", "-C", str(worktree), "diff", "--cached", "--quiet"], check=False)
+    if staged.returncode != 0:
+        _git(worktree, "commit", "-q", "-m", "status(WP01): approved")
+    return worktree, _rev(worktree, "HEAD")
+
+
+def _commit_in_coord_worktree(worktree: Path, rel_path: str, content: str, msg: str) -> str:
+    """Commit a coordination write IN the coordination checkout: the concurrent-writer shape."""
+    path = worktree / rel_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _git(worktree, "add", "-A")
+    _git(worktree, "commit", "-q", "-m", msg)
+    return _rev(worktree, "HEAD")
+
+
+def _first_run_with_coord_worktree(tmp_path: Path) -> tuple["_MergeRunState", Path, str]:
+    """The gated FIRST-run state of a coordination Mission, with its real coordination worktree."""
+    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
+    worktree, tip = _materialise_coord_worktree(repo, coord)
+    run = _coord_run_state(repo, coord, tip)
+    run.feature_dir = worktree / "kitty-specs" / SLUG
+    assert run.is_resume is False, "fixture invalid: this is the FIRST-run path"
+    assert run.coord_tip_after_projection == tip
+    return run, worktree, tip
+
+
+def test_first_run_lands_a_coordination_commit_made_between_the_gate_and_teardown(tmp_path: Path) -> None:
+    """#6871: on a FIRST run, a coordination commit after ``coord_tip_after_projection`` is LANDED.
+
+    The merge captures ``coord_tip_after_projection`` after its own last coordination write and
+    builds the projection teardown gate on it. A commit that lands after that capture used to be
+    dropped on a first run: ``_land_late_coordination_commits`` returned early for
+    ``is_resume=False``, so the run either refused at the projection teardown gate (leaving an
+    operator to hand-assemble a landing that was already complete) or -- with no gate to build --
+    deleted the commit with the branch at exit 0. It must instead be projected onto the target,
+    committed, and proven landed before the branch is deleted.
+    """
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    rel = f"kitty-specs/{SLUG}/traces/late.md"
+    late = _commit_in_coord_worktree(worktree, rel, "late coordination record\n", "late verdict")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch is deleted only after the window landed"
+    assert _git(run.main_repo, "show", f"main:{rel}").stdout == "late coordination record\n", "the late record must be committed on the target, not merely in its working tree"
+    meta = json.loads((_mission_dir(run.main_repo) / "meta.json").read_text(encoding="utf-8"))
+    assert "coordination_branch" not in meta
+    assert run.coord_tip_after_projection == late, "the proven tip becomes the tip teardown approved"
+    assert tip != late, "fixture invalid: the late commit moved the coordination branch"
+
+
+def test_first_run_projects_the_late_window_as_one_commit(tmp_path: Path) -> None:
+    """The late window lands as ONE bookkeeping commit, and a clean first run makes none (#6871)."""
+    run, _worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    clean_tip = _rev(run.main_repo, "main")
+
+    phase_teardown._teardown_coordination_triple(run)  # clean run: nothing landed late
+
+    clean_log = _git(run.main_repo, "log", "--format=%s", f"{clean_tip}..main").stdout
+    assert "project coordination commits that landed during teardown" not in clean_log, "a clean first run must not invent a projection commit"
+
+    (tmp_path / "second").mkdir()
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path / "second")
+    before = _rev(run.main_repo, "main")
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/a.md", "a\n", "late a")
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/b.md", "b\n", "late b")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    log = _git(run.main_repo, "log", "--format=%s", f"{before}..main").stdout
+    assert log.count("project coordination commits that landed during teardown") == 1, log
+
+
+def test_first_run_refuses_a_late_deletion_it_cannot_express_and_keeps_the_triple(tmp_path: Path) -> None:
+    """#6871: a late coordination commit the projection cannot carry REFUSES, loudly.
+
+    A deletion of a record the target still holds cannot be expressed by a content projection. On a
+    first run that used to end with the branch deleted and the deletion silently applied to nothing;
+    now it refuses before the delete, keeps the coordination branch at the late tip, keeps the
+    Mission's coordination marker, and names the recovery.
+    """
+    repo = _init_repo(tmp_path)
+    coord = _make_coord_branch(repo)
+    rel = f"kitty-specs/{SLUG}/traces/record.md"
+    _commit_path_on_main(repo, rel, "the record the target holds\n", "record on the target")
+    verified = _append_coord_commit(repo, coord, rel, "the record the target holds\n", "record on the coordination branch")
+    run = _coord_run_state(repo, coord, verified)
+    late = _delete_coord_path(repo, coord, rel, "late: drop the record")
+
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert coord in message, "the refusal names the branch it kept"
+    assert "main" in message, "the refusal names the target"
+    assert "restore the deleted file" in message, "the deletion kind keeps its own remedy (#6791)"
+    assert "spec-kitty consolidate --resume" in message, "the refusal names the recovery"
+    assert _branch_exists(repo, coord), "the branch was NOT deleted"
+    assert _rev(repo, coord) == late, "the late commit is still the branch tip"
+    meta = json.loads((_mission_dir(repo) / "meta.json").read_text(encoding="utf-8"))
+    assert meta.get("coordination_branch") == coord, "the marker must not be flattened while the branch survives"
+
+
 def test_ungated_teardown_deletes_only_at_the_tip_read_before_the_window(tmp_path: Path) -> None:
     """No gate ran (no checkpoint): the delete still compare-and-swaps, at the tip read before teardown began."""
     from specify_cli.coordination import teardown
@@ -763,8 +928,8 @@ def test_teardown_hands_the_persist_commit_to_the_caller(tmp_path: Path) -> None
     assert seen == [], "a persist that committed nothing has no commit to hand over"
 
 
-def test_late_commits_are_only_landed_by_a_resume(tmp_path: Path) -> None:
-    """A fresh run is covered by the teardown gate; nothing is projected or committed by the landing step."""
+def test_a_clean_first_run_projects_nothing(tmp_path: Path) -> None:
+    """#6871: a first run whose tip is the tip it verified has an EMPTY window -- no commit, no claim."""
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
