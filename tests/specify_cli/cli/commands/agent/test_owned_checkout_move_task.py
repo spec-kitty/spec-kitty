@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
+from mission_runtime import ActionContextError
 from specify_cli.cli.commands.agent import tasks_move_task as move_task_module
 from specify_cli.cli.commands.agent import tasks_move_task_gates
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
@@ -531,6 +532,28 @@ def test_owned_review_auto_commits_selected_checkout_deliverables(finalized_chec
     assert "chore(WP01): commit lane deliverables for review" in messages
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == other_before
+
+
+@pytest.mark.parametrize(
+    "task_text, error_class",
+    [
+        pytest.param("---\nwork_package_id: WP01\nnot_a_key: 1\n---\nbody\n", "ValidationError", id="unknown_frontmatter_key"),
+        pytest.param(None, "FrontmatterError", id="missing_task_file"),
+    ],
+)
+def test_an_unreadable_task_file_is_a_named_refusal_not_a_traceback(tmp_path, task_text, error_class):
+    """The roster guard is skipped under --force, so the owned-files read must refuse by itself (OWNED_IMPLEMENTATION_MISSING)."""
+    task_file = tmp_path / "WP01-test.md"
+    if task_text is not None:
+        task_file.write_text(task_text, encoding="utf-8")
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_owned_file_patterns(SimpleNamespace(wp=SimpleNamespace(path=task_file)))
+
+    assert refused.value.code == "OWNED_IMPLEMENTATION_MISSING"
+    message = str(refused.value)
+    assert task_file.name in message and f"could not be read ({error_class}" in message
+    assert "restore the file" in message
 
 
 @pytest.mark.parametrize(
