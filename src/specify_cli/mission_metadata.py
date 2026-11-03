@@ -606,33 +606,29 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
 
 
-#: The marker every repository's git directory carries, with or without a commit (``objects/``
-#: and ``refs/`` accompany it). A directory named ``.git`` without one is not a repository.
-_GIT_HEAD = "HEAD"
-
-
 def _is_repository_home(git_entry: Path) -> bool:
-    """Whether an existing ``.git`` entry can be the repository home git holds a copy in (#7084).
+    """Whether *git_entry* can be the repository home git holds a copy in (#7084).
 
     A ``.git`` *file* is a ``gitdir:``/worktree pointer: the repository lives elsewhere and may hold
-    the identity, so it is a home. A ``.git`` *directory* is a home only when it carries ``HEAD``,
-    which every repository has, even one with no commit yet. A directory without ``HEAD`` -- a bare
-    ``.git`` a tool left behind, or one holding only subdirectories such as a lock home -- is not a
-    repository at all: git skips it and holds nothing there, so there is no identity to preserve and
-    nothing to restore.
+    the identity, so it is a home. A ``.git`` *directory* is a home only when it carries ``HEAD``:
+    every repository has one, even before its first commit, while a bare ``.git`` a tool left behind
+    (or one holding only subdirectories, such as a lock home) has none. Such a directory is not a
+    repository at all -- git walks past it -- so it holds nothing to preserve and nothing to restore.
 
     Fail-closed: an entry that cannot be read counts as a home, so the caller refuses rather than
-    minting over a copy git might hold (NFR-002).
+    minting over a copy git might hold (NFR-002). So does a dangling ``.git`` symlink, which points
+    at a repository git cannot reach; a name with nothing behind it is not an anchor at all.
     """
     try:
-        if not git_entry.is_dir():
-            return True
-        (git_entry / _GIT_HEAD).stat()
+        if not git_entry.exists():
+            return git_entry.is_symlink()
+        if git_entry.is_dir():
+            (git_entry / _HEAD).stat()
+        return True
     except FileNotFoundError:
         return False
     except OSError:
         return True
-    return True
 
 
 def _has_no_git_anchor(feature_dir: Path) -> bool:
@@ -648,8 +644,7 @@ def _has_no_git_anchor(feature_dir: Path) -> bool:
     """
     for candidate in (feature_dir, *feature_dir.parents):
         try:
-            git_entry = candidate / ".git"
-            if git_entry.exists() and _is_repository_home(git_entry):
+            if _is_repository_home(candidate / ".git"):
                 return False
         except OSError:
             return False

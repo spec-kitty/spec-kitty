@@ -397,3 +397,15 @@ def test_a_git_marker_file_is_still_an_anchor(tmp_path: Path) -> None:
     (ancestor / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
 
     assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
+
+
+def test_a_dangling_git_symlink_is_still_an_anchor(tmp_path: Path) -> None:
+    """A `.git` symlink that points at nothing is a repository git cannot reach: fail closed, never mint.
+
+    The counterpart of the empty-directory case above: the difference is that a name *with nothing
+    behind it* is not a repository, while a pointer git cannot follow may still be one.
+    """
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    (ancestor / ".git").symlink_to(ancestor / "missing-gitdir", target_is_directory=True)
+
+    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
