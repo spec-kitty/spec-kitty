@@ -37,15 +37,15 @@
       "wp": null
     },
     "#7091": {
-      "evidence_ref": "mission spec; red-first regression through _run_residual_acceptance_commit",
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/7119",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "title": "accept: coord-topology residual artifact commit refuses its own coord-worktree path",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
