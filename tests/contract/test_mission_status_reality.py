@@ -50,6 +50,8 @@ import yaml
 from kernel.clock import FrozenClock, parse_iso
 from specify_cli.context import mission_resolver
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from kernel.git.remote import RemoteUnreachable
+from specify_cli.git import remote_probes
 from specify_cli.git.remote_probes import _reset_remote_branch_lookup_cache
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 from specify_cli.review.artifacts import ReviewCycleArtifact
@@ -2244,6 +2246,49 @@ def remote_state() -> oracles.RemoteState:
     return oracles.probe_remotes(REPO_ROOT)
 
 
+def _recording_remote_heads(original: Callable[..., dict[str, str]]) -> Callable[..., dict[str, str]]:
+    """The production per-branch ``ls-remote`` seam with a receipt per call; the answer or the ``RemoteUnreachable`` is passed on unchanged (#7152)."""
+
+    def recorded(cwd: Path, remote: str, branches: Sequence[str], **options: Any) -> dict[str, str]:
+        started = time.monotonic()
+        target = ",".join(branches)
+        try:
+            heads = original(cwd, remote, branches, **options)
+        except RemoteUnreachable as error:
+            how = "timeout" if error.timed_out else f"exit{error.returncode}"
+            oracles.record_receipt("production", cwd, remote, target, how, started, error.stderr)
+            raise
+        oracles.record_receipt("production", cwd, remote, target, "hit" if heads else "miss", started)
+        return heads
+
+    return recorded
+
+
+@pytest.fixture(scope="module", autouse=True)
+def remote_probe_receipts() -> Iterator[None]:
+    """Keep a receipt of every remote probe (the oracle's and production's) for the failure messages, and publish them to the Actions step summary."""
+    oracles.RECEIPTS.clear()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(remote_probes, "remote_heads", _recording_remote_heads(remote_probes.remote_heads))
+        yield
+    table = oracles.receipts_markdown(REPO_ROOT)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if table and summary:
+        with open(summary, "a", encoding="utf-8") as handle:
+            handle.write(table + "\n")
+
+
+def receipts_for(missions: Iterable[str] = ()) -> str:
+    """The receipts summary for a failure message, with the probes of the Missions it names (their coordination branch, from the raw ``meta.json``)."""
+    branches = {name: str(oracles.raw_meta(REPO_ROOT, name).get("coordination_branch")) for name in missions}
+    return "\n" + oracles.receipts_summary(REPO_ROOT, branches)
+
+
+def fallback_receipts(run: CorpusRun) -> str:
+    """The receipts for the Missions on which the scan and the oracle disagree about the fallback."""
+    return receipts_for(set(run.scan.fallbacks) ^ set(run.oracle.fallbacks))
+
+
 @pytest.fixture(autouse=True)
 def case_ledger(request: pytest.FixtureRequest) -> None:
     """Record each corpus case as executed, or skip it by name when the environment cannot run it."""
@@ -2547,7 +2592,7 @@ def corpus_run(remote_state: oracles.RemoteState, tools: helper.ContractTools) -
     offline skip first, which a module-scoped fixture would pre-empt; the run itself is executed once and cached."""
     failure = actions_origin_failure(remote_state, os.environ)
     if failure is not None:
-        pytest.fail(failure)
+        pytest.fail(failure + receipts_for())
     if not remote_state.online:
         pytest.skip(OFFLINE_SKIP)
     return execute_corpus_run(tools)
@@ -2632,7 +2677,8 @@ def test_corpus_drift_scan_is_a_200_and_the_resolver_ran_once_per_mission(corpus
     assert names, "no Mission was discovered"
     assert run.memo.runs == len(names) == len(run.memo.entries()), f"the resolver ran {run.memo.runs} times for {len(names)} Missions"
     assert all(run.memo.lookup((REPO_ROOT.resolve(), name)) is not None for name in names), "a Mission has no memo entry"
-    assert run.oracle.resolver_errors == {}, f"a resolver exception outside the named fallback: {run.oracle.resolver_errors}"
+    errors = run.oracle.resolver_errors
+    assert errors == {}, f"a resolver exception outside the named fallback: {errors}{receipts_for(errors)}"
 
 
 def raised_the_named_fallback(run: CorpusRun) -> set[str]:
@@ -2654,7 +2700,7 @@ def test_corpus_fallback_list_equals_the_independent_derivation(corpus_run: Corp
     problems += difference_problems("Missions that raised CoordinationBranchDeleted", raised_the_named_fallback(run), run.oracle.fallbacks)
     print(f"drift fallbacks the derivation dropped because the branch is live on a remote (the resolver judges these present): {run.oracle.remote_present}")
     print(f"drift coordination fallbacks (environment-dependent, never floored): {len(run.scan.fallbacks)} {sorted(run.scan.fallbacks)}")
-    assert not problems, "; ".join(problems)
+    assert not problems, "; ".join(problems) + fallback_receipts(run)
     assert all(reason == FALLBACK_REASON for reason in run.scan.fallbacks.values())
 
 
@@ -2704,7 +2750,7 @@ def test_corpus_project_report_equals_the_oracles(corpus_run: CorpusRun) -> None
     body = run.project.body
     assert body["missionCount"] == len(run.oracle.names) > 0
     problems = difference_problems("project fallbacks", run.project.fallbacks, run.oracle.fallbacks)
-    assert not problems, "; ".join(problems)
+    assert not problems, "; ".join(problems) + receipts_for(set(run.project.fallbacks) ^ set(run.oracle.fallbacks))
     assert all(reason == "CoordinationBranchDeleted" for reason in run.project.fallbacks.values())
     assert body["currentBranch"] == oracles.current_branch(REPO_ROOT)
 
@@ -2789,7 +2835,7 @@ def test_corpus_offline_scan_is_a_200_with_no_fallback_entry() -> None:
     """With a remote unreachable the scan is still a 200 read from each Mission's own directory, and names no fallback (operator ruling at WP07)."""
     outcome = drift.scan_drift(REPO_ROOT, memo_module.ResolverMemo(), clock=FrozenClock(instant=NOW))
     assert outcome.status == 200, f"offline the project-wide read answered {outcome.status} {outcome.body.get('code')}"
-    assert outcome.fallbacks == {}, f"offline the scan named fallbacks: {sorted(outcome.fallbacks)[:3]}"
+    assert outcome.fallbacks == {}, f"offline the scan named fallbacks: {sorted(outcome.fallbacks)[:3]}{receipts_for(sorted(outcome.fallbacks)[:3])}"
 
 
 # ---------------------------------------------------------------------------
@@ -3429,6 +3475,13 @@ def test_the_probe_sees_an_unreachable_remote_and_the_offline_outcome_is_pinned_
         assert outcome.status == 200
         assert outcome.fallbacks == ({} if not state.online else {name: FALLBACK_REASON}), repo.name
     _reset_remote_branch_lookup_cache()
+    # #7152: the receipts record the failed contact of both sides without changing the fail-closed outcome
+    _reset_remote_branch_lookup_cache()
+    assert remote_probes.remote_branch_lookup(unreachable, "no-such-branch") is remote_probes.RemoteLookup.ERROR
+    _reset_remote_branch_lookup_cache()
+    failed = {(r.who, r.outcome.startswith("exit")) for r in oracles.RECEIPTS if r.repo == str(unreachable) and r.failed}
+    assert failed == {("oracle", True), ("production", True)}, oracles.receipts_summary(unreachable)
+    assert "FAILED production origin no-such-branch exit" in oracles.receipts_summary(unreachable)
 
 
 # ---------------------------------------------------------------------------
