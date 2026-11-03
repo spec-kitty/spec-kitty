@@ -429,7 +429,8 @@ def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
     if unresolved:
         body_parts.append(
             f"Recovery for {_SINGLE_BRANCH_OWNERSHIP_UNRESOLVED}: restore or commit the work package's task file with its owned_files, "
-            "or re-run from the checkout that owns the Mission (`--owned-checkout <path>`), then re-run. No attestation lifts this."
+            "or re-run from the checkout that owns the Mission (for `accept`, pass `--owned-checkout <path>`), then re-run. A task file rejected for an unknown "
+            "or retired key needs that key removed (its validation error names it). No attestation lifts this."
         )
     if not unresolved or len(codes) > 1:
         body_parts.append(
@@ -492,7 +493,8 @@ _RECOVERY: Mapping[str, str] = {
     ),
     OWNERSHIP_UNRESOLVED: (
         f"Recovery for {OWNERSHIP_UNRESOLVED}: restore or commit the work package's task file with its owned_files, or re-run from the "
-        "checkout that owns the Mission (`--owned-checkout <path>`), then re-run. No attestation lifts this."
+        "checkout that owns the Mission (for `accept`, pass `--owned-checkout <path>`), then re-run. A task file rejected for an unknown or retired key "
+        "needs that key removed (its validation error names it). No attestation lifts this."
     ),
 }
 
