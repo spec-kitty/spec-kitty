@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "mission_slug": "stray-git-anchor-identity-01M6G9QV",
+  "mission_id": "01M6G9QV88AR6VTMMYW7FFNKCP",
+  "mission_branch": "kitty/mission-stray-git-anchor-identity-01M6G9QV",
+  "target_branch": "issue-7084-stray-git-anchor-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_metadata.py",
+        "tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py",
+        "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md",
+        "docs/guides/how-to/installation/upgrade-project.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T08:57:17.541605+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "8a86baaeb96f0223617d7bbbabce2683ad57c8b9"
+}
