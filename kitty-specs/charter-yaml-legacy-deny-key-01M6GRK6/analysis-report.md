@@ -1,12 +1,36 @@
 ---
-schema: analysis-findings/v1
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: charter-yaml-legacy-deny-key-01M6GRK6
+mission_id: 01M6GRK6J2B3VY7JVFH4DDCFMR
+generated_at: '2026-11-03T13:16:26.193867+00:00'
+analyzer_agent: claude
+input_artifacts:
+  spec.md:
+    path: kitty-specs/charter-yaml-legacy-deny-key-01M6GRK6/spec.md
+    sha256: 039886a0994e76f7cb102482d97ea2f0276feb7692a3ab7bd5b18e3ddd8a9615
+  plan.md:
+    path: kitty-specs/charter-yaml-legacy-deny-key-01M6GRK6/plan.md
+    sha256: 8a46f4a4a3d8e733d20f380fe9e21532892edbb5c3b3c859707262cfe5e5a174
+  tasks.md:
+    path: kitty-specs/charter-yaml-legacy-deny-key-01M6GRK6/tasks.md
+    sha256: 9cf4ef17f6151484ec133c6263c0155407ed36f045ff7f02b65d93c8238ad181
+  charter:
+    path: .kittify/charter/charter.yaml
+    sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
+verdict: ready
+issue_counts:
+  high: 0
+  low: 1
+  critical: 0
+  medium: 0
+  info: 0
 findings:
-  - id: A1
-    severity: low
-    category: consistency
-    summary: "spec.md NFR-004/SC-004 named a timing budget and a '#6556 all-keys fixture' that no task verified verbatim; both are restated structurally (prefix scan; the #6556 test's assembled document) and WP01 T005 now checks the dump explicitly."
-counts: {critical: 0, high: 0, medium: 0, low: 1, info: 0}
-verdict_hint: ready
+- id: A1
+  severity: low
+  category: consistency
+  summary: "spec.md NFR-004/SC-004 named a timing budget and a '#6556 all-keys fixture' that no task verified verbatim; both are restated structurally (prefix scan; the #6556 test's assembled document) and WP01 T005 now checks the dump explicitly."
 ---
 
 ## Specification Analysis Report
