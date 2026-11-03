@@ -140,7 +140,7 @@ def test_owned_implement_completion_commands_carry_the_owned_checkout_flag(owned
 
     text, path = _build(owned_checkouts, "implement")
 
-    assert f"spec-kitty agent tasks mark-status T001 --status done --mission {owned_checkouts.mission_slug} {flag}" in text
+    assert f"spec-kitty agent tasks mark-status T001 --wp {_WP} --status done --mission {owned_checkouts.mission_slug} {flag}" in text
     assert f"move-task {_WP} --to for_review --mission {owned_checkouts.mission_slug} {flag}" in text
     path.unlink()
 
