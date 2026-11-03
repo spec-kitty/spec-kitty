@@ -351,8 +351,12 @@ class IdentityIndex:
         per path per index instance) so a higher-layer contract contributes *its* pair, never a
         built-in's.
 
-        An unknown token, or a contract file whose ``mission``/``action`` cannot be read, yields
-        ``None``: callers skip such a token and the existing unknown-reference check reports it. This
+        ``None`` has two causes with one report each (#6887 landing fold): an UNKNOWN token --
+        callers skip it and the unknown-reference check reports it -- and a KNOWN step contract
+        whose file declares no readable ``mission``/``action``: such a token is never "unknown" (the
+        index knows the file), so the unknown-reference check reports it as its own finding, the
+        parity stem and activated-URN resolutions skip it rather than minting or matching a phantom,
+        and the deny resolution holds no URN for it (never the ``"<kind>:<declared id>"`` form). This
         method never raises -- it is consumed by fail-closed-**report** callers.
         """
         entry = self._lookup(kind, token)

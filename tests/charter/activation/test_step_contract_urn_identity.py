@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.activation_ledger import resolve_deny
-from charter.activation.consistency_check import _check_graph_kind_parity, _resolve_graph_kind_parity_stem
+from charter.activation.consistency_check import _check_graph_kind_parity, _check_unknown_references, _resolve_graph_kind_parity_stem
 from charter.activation.drg_activation import filter_graph_by_activation
 from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
@@ -214,6 +214,45 @@ def test_denying_by_the_mission_scoped_spelling_still_works(base_context: PackCo
 
     assert _DENIED_STEP_URN not in surviving
     assert _UNTOUCHED_STEP_URN in surviving
+
+
+# --------------------------------------------------------------------------- #
+# The fail-open the safety net missed: a known contract with no readable pair
+# --------------------------------------------------------------------------- #
+
+
+def test_a_contract_without_a_readable_pair_is_reported_and_mints_no_phantom_urn(tmp_path: Path) -> None:
+    """Every #6741 net failed open here: the index KNOWS the token (its file exists), so the
+    unknown-reference check never fired, the parity stem and the per-kind activated-URN resolution
+    skipped it (gate bindings silently stop firing), and the deny path minted the phantom
+    ``mission_step_contract:<declared id>`` this mission removed. The state must be its own finding,
+    and the deny must hold no invented URN.
+    """
+    contract_dir = tmp_path / ".kittify" / "charter-packs" / "mission_step_contracts"
+    contract_dir.mkdir(parents=True)
+    (contract_dir / "pairless.step-contract.yaml").write_text(
+        "schema_version: '1.0'\nid: pairless\nsteps:\n  - id: only\n    description: A contract that declares no mission/action pair\n",
+        encoding="utf-8",
+    )
+    overlay = IdentityIndex.build(tmp_path, org_roots=[])
+
+    assert overlay.knows(ArtifactKind.MISSION_STEP_CONTRACT, "pairless")
+    assert overlay.urn(ArtifactKind.MISSION_STEP_CONTRACT, "pairless") is None
+
+    unknown: list[str] = []
+    suggestions: list[str] = []
+    _check_unknown_references({"mission-step-contract": frozenset({"pairless"})}, {}, unknown, suggestions, identity=overlay)
+
+    assert unknown == ["mission-step-contract/pairless"]  # RED before the fold: []
+    assert len(suggestions) == 1
+    assert "no readable 'mission'/'action' pair" in suggestions[0]
+
+    phantom = "mission_step_contract:pairless"  # the exact pre-fold spelling
+    deny = resolve_deny(ArtifactKind.MISSION_STEP_CONTRACT, ["pairless"], overlay)
+    assert deny.urns == frozenset()  # RED before the fold: frozenset({phantom})
+    assert phantom not in deny.spellings()
+    assert deny.declared_ids == frozenset({"pairless"})
+    assert not deny.admits("pairless")
 
 
 # --------------------------------------------------------------------------- #
