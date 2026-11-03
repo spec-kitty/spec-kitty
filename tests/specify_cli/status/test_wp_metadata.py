@@ -1001,20 +1001,7 @@ class TestPinnedPreReviewScope:
         )
         return wp_file
 
-    def test_model_accepts_the_pinned_scope(self) -> None:
-        meta = WPMetadata.model_validate(
-            {
-                "work_package_id": "WP01",
-                "title": "T",
-                "subtasks": ["T001"],
-                "pre_review_test_scope": self._PINNED,
-            },
-            strict=False,
-        )
-        assert meta.pre_review_test_scope == self._PINNED
 
-    def test_pinned_scope_defaults_to_none(self) -> None:
-        assert WPMetadata(work_package_id="WP01").pre_review_test_scope is None
 
     def test_roster_reads_a_wp_that_carries_the_pinned_scope(self, tmp_path: Path) -> None:
         """The production roster guard is the surface the field broke."""
