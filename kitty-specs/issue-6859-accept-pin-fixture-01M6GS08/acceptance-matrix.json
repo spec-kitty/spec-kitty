@@ -1,0 +1,39 @@
+{
+  "mission_slug": "issue-6859-accept-pin-fixture-01M6GS08",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The #4891 CLI pin passes: accept succeeds when lanes.json and a passing matrix are present, and both controls report 2 passed.",
+      "proof_type": "automated_test",
+      "evidence": "uv run pytest tests/specify_cli/cli/commands/test_issue_4891_accept_missing_lanes.py -q -> 2 passed (109 s) on lane-a head fbacb48f93; red before the change on pristine origin/main (1 failed, 1 passed, IMPLEMENTATION_UNREADABLE).",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-03T14:05:00+00:00",
+      "notes": "FR-001 / SC-001."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Both controls are built by one shared fixture builder and differ only by lanes.json and the acceptance matrix.",
+      "proof_type": "automated_test",
+      "evidence": "Instrumented run of the negative control reports blocked checks ['lanes_manifest'] only; both tests call _build_accept_ready_mission and only the positive control writes lanes.json.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T14:05:00+00:00",
+      "notes": "FR-002 / SC-003, reviewed in round 2 after round 1 rejected the asymmetric fixture."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The fixture satisfies the post-#6715/#5939 landing axes honestly (authored owned_files, lane-branch implementation commit, independent approval), and each part is load-bearing.",
+      "proof_type": "automated_test",
+      "evidence": "Half-by-half reverts each turn the positive control red with the matching code: no implementation commit -> IMPLEMENTATION_UNREADABLE; no owned_files -> IMPLEMENTATION_MISSING; approval by the implementer -> REVIEW_NOT_INDEPENDENT.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-03T14:05:00+00:00",
+      "notes": "FR-003 / SC-002; no gate was mocked or waived."
+    }
+  ],
+  "negative_invariants": []
+}
