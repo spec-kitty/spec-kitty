@@ -286,7 +286,10 @@ def test_pr_mode_uses_the_frozen_lock_and_full_mode_upgrades_the_resolved_releas
     assert '"$WARMUP_MODE" = "full"' in run, "the sync must branch on the mode"
     assert "--frozen" in run, "pr mode installs exactly what uv.lock pins"
     assert "--upgrade-package" in run and "spec-kitty-events" in run, "full mode resolves the latest release as an upstream-drift signal"
-    assert "steps.resolve-rev.outputs.resolved-events-rev" in run, "full mode installs the revision this run resolved"
+    assert str(sync.get("env", {}).get("RESOLVED_REV")) == "${{ steps.resolve-rev.outputs.resolved-events-rev }}", (
+        "the resolved rev reaches the sync through the environment, never interpolated into its shell body"
+    )
+    assert '"$RESOLVED_REV"' in run, "full mode installs the revision this run resolved"
 
 
 def test_the_mode_input_reaches_shell_steps_through_the_environment() -> None:
@@ -302,7 +305,10 @@ def test_the_built_environment_is_verified_against_the_resolved_revision() -> No
     run = str(verify["run"])
     assert "importlib.metadata" in run, "the check must read the installed distribution's version"
     assert "spec-kitty-events" in run
-    assert "resolved-events-rev" in run, "the installed revision is compared with this run's resolved revision"
+    assert str(verify.get("env", {}).get("RESOLVED_REV")) == "${{ steps.resolve-rev.outputs.resolved-events-rev }}", (
+        "the resolved rev reaches the verify step through the environment, never interpolated into its shell body"
+    )
+    assert '"$RESOLVED_REV"' in run, "the installed revision is compared with this run's resolved revision"
     assert "::error::" in run and "exit 1" in run, "a mismatch fails closed — a cache hit cannot excuse it"
     assert _index_of_id("sync-env") < _index_of_id("verify-env"), "verify the environment after the sync"
 
