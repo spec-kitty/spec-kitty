@@ -743,7 +743,10 @@ def evaluate_evidence(
     commit; a lanes/coord lane whose window tip no longer resolves is then judged on
     ``planning_commit..landed_commit`` instead (:func:`_landed_window`, #6780). ``None`` keeps
     every other caller on the lane window, unchanged. The validated *owned* fact selects
-    ownership and stored-topology authority; ``None`` preserves PRIMARY reads.
+    ownership and stored-topology authority; ``None`` preserves PRIMARY reads. If both are
+    supplied, an explicit ``is_single_branch`` outranks ``owned``: the argument is the caller's
+    own topology verdict, so the owned checkout's stored topology is only read to fill the gap
+    while the argument is ``None``.
     """
     from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
 
