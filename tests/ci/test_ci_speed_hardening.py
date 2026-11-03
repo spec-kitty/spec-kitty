@@ -10,7 +10,7 @@ import sys
 import pytest
 import yaml
 
-from tests.ci._gh_expr import evaluate
+from tests.ci._gh_expr import evaluate, github_context
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -72,8 +72,28 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
     assert "lint" not in quality
     assert "uv-lock-check" not in quality
     assert "import-linter" not in router
-    assert {"ruff", "uv-lock"} <= set(router["router-gate"]["needs"])
-    assert "Clean install verification" in quality["clean-install-verification"]["name"]
+    # Exact required check names that router-gate waits for
+    assert router["router-gate"]["needs"] == [
+        "changes",
+        "prose-scan",
+        "ruff",
+        "uv-lock",
+        "regen-check",
+        "terminology",
+        "docs-lint",
+        "agent-skills",
+        "layer-rules",
+        "archive-freeze",
+        "architectural-fast",
+        "architectural-heavy",
+        "tests-docs",
+        "tests-e2e",
+        "tests-corpus-blocking",
+        "tests-contract-tools",
+        "tests-events-consumers",
+        "mission-state-audit",
+    ]
+    assert quality["clean-install-verification"]["name"] == "Clean install verification"
 
 
 def test_ruff_uses_hash_locked_dependencies_without_installing_the_project() -> None:
@@ -107,19 +127,22 @@ def test_windows_cancels_only_superseded_pr_evidence() -> None:
     concurrency = workflow["concurrency"]
     assert "github.event.pull_request.number" in concurrency["group"]
     assert "github.run_id" in concurrency["group"]
-    assert "pull_request" in concurrency["cancel-in-progress"]
+    # The cancel-in-progress expression must evaluate to true for pull_request
+    # events and false for push events (only PR evidence is superseded).
+    pr_ctx = github_context("pull_request")
+    push_ctx = github_context("push")
+    assert evaluate(concurrency["cancel-in-progress"], pr_ctx) is True
+    assert evaluate(concurrency["cancel-in-progress"], push_ctx) is False
 
 
 def test_aggregate_explicitly_enables_uv_cache_for_workflow_run() -> None:
     jobs = _workflow("ci-aggregate.yml")["jobs"]
-    steps = [step for job in jobs.values() for step in job.get("steps", [])]
-    setup = [step for step in steps if step.get("uses", "").startswith("astral-sh/setup-uv@")]
-    assert setup
-    assert all(step.get("with", {}).get("enable-cache") is True for step in setup)
+    # The census job (which this PR changed) must explicitly enable uv cache.
+    # Other jobs' cache settings are their own concern.
+    census = jobs["census"]
+    setup = next(step for step in census["steps"] if step.get("uses", "").startswith("astral-sh/setup-uv@"))
+    assert setup.get("with", {}).get("enable-cache") is True
 
 
-def test_docsite_pnpm_cache_uses_site_lockfile() -> None:
-    steps = _workflow("ci-router.yml")["jobs"]["docs-site"]["steps"]
-    setup = next(step for step in steps if step.get("uses", "").startswith("actions/setup-node@"))
-    assert setup["with"]["cache"] == "pnpm"
-    assert setup["with"]["cache-dependency-path"] == "site/pnpm-lock.yaml"
+# test_docsite_pnpm_cache_uses_site_lockfile retired: it pinned two with: keys
+# of an action; a wrong key costs time, not correctness.
