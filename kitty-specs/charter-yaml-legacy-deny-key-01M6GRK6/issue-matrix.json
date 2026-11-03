@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6850": {
+      "evidence_ref": "cited for context only: #6850 is background evidence for the strictness decision, no work is owed to it here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6855": {
       "evidence_ref": "<link or commit>",
       "fr": null,
