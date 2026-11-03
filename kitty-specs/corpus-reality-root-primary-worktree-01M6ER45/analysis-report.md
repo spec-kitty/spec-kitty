@@ -8,16 +8,16 @@ generated_at: '2026-11-02T18:30:02.614223+00:00'
 analyzer_agent: pi/deepseek-v4.1-flash-1017
 input_artifacts:
   spec.md:
-    path: /home/exedev/work/sk-6966/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/spec.md
+    path: <worktree>/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/spec.md
     sha256: c6a88c9f0894ca2c094e35ddf3b0cbf541a2426123fb9c66388bf3d0c4b10c6f
   plan.md:
-    path: /home/exedev/work/sk-6966/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/plan.md
+    path: <worktree>/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/plan.md
     sha256: 3fe8c6a4797d9d85cde82c321de953dd1e9447ca1136adaa1af5a70d8d56b801
   tasks.md:
-    path: /home/exedev/work/sk-6966/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/tasks.md
+    path: <worktree>/kitty-specs/corpus-reality-root-primary-worktree-01M6ER45/tasks.md
     sha256: d6f9bb6cdc5c91a91e29cf8cbf417af76ef114e83d32069f8e7093a6930ebd25
   charter:
-    path: /home/exedev/work/sk-6966/.kittify/charter/charter.yaml
+    path: <worktree>/.kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: pass
 issue_counts:
