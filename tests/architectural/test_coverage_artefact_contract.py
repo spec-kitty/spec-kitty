@@ -244,11 +244,13 @@ def test_ci_aggregate_all_actions_sha_pinned() -> None:
     40-hex-char commit SHA, never a floating tag."""
     workflow = _aggregate_yaml()
     uses_values = _iter_uses_values(workflow.get("jobs", {}))
-    local_reusable = [u for u in uses_values if u.startswith("./")]
+    local_reusable = [u for u in uses_values if u.startswith("./.github/workflows/")]
     external = [u for u in uses_values if not u.startswith("./")]
     assert external, "ci-aggregate.yml must reference at least one external action"
     for uses in external:
         assert _SHA_PIN_RE.match(uses), f"action not SHA-pinned: {uses!r}"
+    # Only a local *workflow* re-invocation would re-run module-tests.yml (FR-007);
+    # a local composite action (./.github/actions/...) runs inline and re-runs nothing.
     assert not local_reusable, "ci-aggregate.yml must consume shard artefacts, never re-invoke module-tests.yml (would re-run tests, violating FR-007)"
 
 
