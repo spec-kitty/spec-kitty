@@ -49,7 +49,7 @@
       "wp": "WP02"
     },
     "#7080": {
-      "evidence_ref": "this mission: the emit path threads review_result.reference and in_review -> in_progress joins REVIEW_REF_REQUIRED_EDGES; pointerless rewinds refused, pointer-carrying ones validate against the pinned contract",
+      "evidence_ref": "PR #7126: prepare_transition derives review_ref from review_result.reference; in_review -> in_progress is in REVIEW_REF_REQUIRED_EDGES; pointerless rewinds refused pre-append, pointer-carrying ones validate against the pinned spec_kitty_events contract; parity rows moved only on this edge",
       "fr": "FR-001,FR-002,FR-003,FR-004",
       "nfr": "NFR-001,NFR-003",
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "in_review -> in_progress still records a wire-invalid rewind",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#7102": {
