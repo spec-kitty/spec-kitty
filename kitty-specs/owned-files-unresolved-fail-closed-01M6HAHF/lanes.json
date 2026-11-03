@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "mission_slug": "owned-files-unresolved-fail-closed-01M6HAHF",
+  "mission_id": "01M6HAHFHHJ7BA4A6X4N8V4PYD",
+  "mission_branch": "kitty/mission-owned-files-unresolved-fail-closed-01M6HAHF",
+  "target_branch": "fix/7149-ownership-unresolved",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/no_implementation_attestation.py",
+        "src/specify_cli/consolidation/wp_evidence.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/consolidation/test_evidence_code_literals.py",
+        "tests/consolidation/test_evidence_ownership_unresolved.py",
+        "tests/consolidation/test_no_implementation_attestation.py",
+        "tests/integration/test_owned_acceptance_authority_6023.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/consolidation/done_bookkeeping.py",
+        "tests/integration/test_owned_accept_canceled_work_package.py",
+        "tests/specify_cli/cli/commands/agent/test_owned_checkout_move_task.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T18:33:29.615852+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2e851bc5bf87012a1f42eb1df5a06c3b2c99dd99"
+}

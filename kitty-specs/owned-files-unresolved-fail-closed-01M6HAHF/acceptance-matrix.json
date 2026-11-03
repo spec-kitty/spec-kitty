@@ -1,0 +1,89 @@
+{
+  "mission_slug": "owned-files-unresolved-fail-closed-01M6HAHF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_evidence_ownership_unresolved.py::test_an_unreadable_ownership_declaration_is_unresolved_not_missing (absent file, unreadable file, missing tasks/) + tests/integration/test_owned_acceptance_authority_6023.py[missing_owned_task_file] through spec-kitty accept --owned-checkout; verified by WP01 review (reviewer-renata/opus): red-first, revert-check 9 red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:33.263254+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Same tests assert the OWNERSHIP_UNRESOLVED line names the tasks/ directory read and the recovery line (restore the task file / run from the owning checkout; 'No attestation lifts this.'); verified by WP01 review (reviewer-renata/opus): red-first, revert-check 9 red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:35.103435+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_unresolved_and_missing_work_packages_are_each_named_once_with_their_own_recovery: _judge returns early on an unresolved WP, so it is never also IMPLEMENTATION_MISSING; verified by WP01 review (reviewer-renata/opus): red-first, revert-check 9 red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:36.932472+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_no_implementation_attestation.py::test_the_planner_refuses_an_unresolved_ownership_but_attests_a_missing_implementation (event log unchanged; resolved control still attested); WP01 review: revert-check 1 red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:38.752804+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "One predicate: accept.py:1238, reconciliation.py:1748 and orchestrator_api/consolidation.py:575 all call mission_evidence_report/evaluate_evidence; codes registered in _NEUTRAL_CODES/_SINGLE_BRANCH_ALIASES (test_evidence_code_literals.py); orchestrator-api CONTRACT_VERSION 1.23.0 (test_contract_version.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:40.590485+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_accept_canceled_work_package.py::test_owned_checkout_canceled_work_packages_are_read_from_the_owned_checkout (owned Mission absent from the repository root + non-owned control); accept passes owned=run.owned at both sites; WP02 review (reviewer-renata/opus) revert-check red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:42.445108+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_owned_checkout_move_task.py::test_owned_review_refuses_status_only_commits[authored_empty_declaration] (code OWNED_IMPLEMENTATION_MISSING unchanged; [declared_without_change] control); WP02 review revert-check red",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:44.277806+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_acceptance_authority_6023.py[missing_owned_ownership] (authored owned_files: []) still IMPLEMENTATION_MISSING, unchanged; tests/consolidation: 2922 passed (only #7111 red, pre-existing)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T19:46:46.125709+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
