@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-11-03T13:31:05.080512+00:00",
+  "flattened": false,
+  "friendly_name": "lifecycle vocabulary parity",
+  "mid8": "01M6GSPC",
+  "mission_id": "01M6GSPCB5WHQJJM8TFAV07A5C",
+  "mission_number": null,
+  "mission_slug": "lifecycle-vocabulary-parity-01M6GSPC",
+  "mission_type": "software-dev",
+  "purpose_context": "Pins the CLI lifecycle vocabulary to the canonical spec_kitty_events constants so a drifted copy is a CI failure, and records that ADR 2026-10-29-1 D-9's freeze exited with the removal of contracts/tools.",
+  "purpose_tldr": "Lifecycle event types pinned to spec_kitty_events",
+  "slug": "lifecycle-vocabulary-parity-01M6GSPC",
+  "target_branch": "issue-6876-lifecycle-vocabulary-parity",
+  "topology": "single_branch"
+}
