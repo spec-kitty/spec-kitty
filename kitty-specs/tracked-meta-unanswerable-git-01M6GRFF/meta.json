@@ -1,6 +1,8 @@
 {
+  "accept_commit": "0233e2e2012e6c436e43cacb49e8f752106c3708",
   "acceptance_history": [
     {
+      "accept_commit": "0233e2e2012e6c436e43cacb49e8f752106c3708",
       "acceptance_mode": "local",
       "accepted_at": "2026-11-03T13:58:27.085195+00:00",
       "accepted_by": "pi",
