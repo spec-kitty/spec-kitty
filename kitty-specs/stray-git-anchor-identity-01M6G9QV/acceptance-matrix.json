@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/lanes/test_refinalize_mission_branch.py byte-identical to origin/main (git diff empty) and 11 passed with the ambient /tmp/.git present; 1 failed/10 passed before the fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T09:42:36.989109+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
