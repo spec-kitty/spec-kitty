@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "mission_slug": "test-harness-temp-ceiling-01M6G9V8",
+  "mission_id": "01M6G9V8X7A4MBZGAJ95BWAZKH",
+  "mission_branch": "kitty/mission-test-harness-temp-ceiling-01M6G9V8",
+  "target_branch": "issue-7076-test-harness-temp-ceiling",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/_support/temp_root.py",
+        "tests/_support/test_temp_root.py",
+        "tests/conftest.py",
+        "tests/unit/test_harness_temp_root.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/task_utils/support.py",
+        "tests/specify_cli/charter_preflight/test_cli.py",
+        "tests/specify_cli/cli/commands/test_cli_boundary_mission_types.py",
+        "tests/status/test_lock_fallback_never_mints_marker.py",
+        "tests/unit/test_root_walk_has_one_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/charter_offering/conftest_pack_remote.py",
+        "tests/consolidation/test_bake_commit_scope_meta_only.py",
+        "tests/cross_cutting/packaging/test_sdist_offline_wheel.py",
+        "tests/kernel/git/test_remote_fetch_commit_subtree.py",
+        "tests/scripts/test_activate_isolated_env.py",
+        "tests/unit/test_harness_child_env.py",
+        "tests/upgrade/preview_support/process.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-03T08:57:02.876435+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "955c45c2ac6fcf83920c3fa606e25bacb3a0a9e9"
+}
