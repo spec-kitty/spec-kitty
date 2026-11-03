@@ -421,6 +421,38 @@ def test_ratchet_planted_cases(tmp_path: Path, pinned: bool, wired: bool, violat
         assert violation is not None and "wire it now" in violation
 
 
+_RUNS_PYTEST = re.compile(r"(?:^|[\s;&|(\"])pytest(?=\s|$)")
+
+
+def nightly_jobs_running_pytest_unsynced(workflow: Path) -> tuple[list[str], list[str]]:
+    """``(pytest jobs, those that run pytest before syncing the service extras)`` of *workflow*.
+
+    The nightly runs whole directories, so any of its pytest jobs can collect a test that reads the pinned extras
+    (``tests/pinned_service_assets.py`` fails closed with ``SERVICE_BINARY_MISSING`` without them). The repo-wide
+    ratchet above only needs one wired job, which let 14 nightly jobs go red after the #6915 cut-over.
+    """
+    jobs = (yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}).get("jobs") or {}
+    running: list[str] = []
+    unsynced: list[str] = []
+    for job_id, job in jobs.items():
+        synced = False
+        for step in (job or {}).get("steps") or []:
+            synced = synced or str(step.get("uses", "")).startswith(_ACTION_REF)
+            if not _RUNS_PYTEST.search(str(step.get("run", ""))):
+                continue
+            if job_id not in running:
+                running.append(job_id)
+            if not synced and job_id not in unsynced:
+                unsynced.append(job_id)
+    return running, unsynced
+
+
+def test_every_nightly_pytest_job_syncs_the_service_extras_first() -> None:
+    running, unsynced = nightly_jobs_running_pytest_unsynced(_WORKFLOWS / "ci-nightly.yml")
+    assert len(running) >= 10, f"the scan must see the nightly's pytest jobs, saw {running}"
+    assert unsynced == [], f"ci-nightly.yml jobs run pytest before {_ACTION_REF} (extras-only): {unsynced}"
+
+
 # --------------------------------------------------------------------------- #
 # Cut-over (#6915): extras only, verified unpack, the path query
 # --------------------------------------------------------------------------- #
