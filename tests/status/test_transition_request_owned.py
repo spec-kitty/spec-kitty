@@ -30,7 +30,7 @@ import pytest
 from mission_runtime import OwnedCheckout
 from mission_runtime.context import MissionTopology
 from specify_cli.status.models import TransitionRequest
-from tests._owned_fixtures import RSnapshotter
+from tests._owned_fixtures import RSnapshotter, claim_counter
 from tests.integration.conftest import (
     OwnedCheckouts,
     make_owned_checkouts,
@@ -39,7 +39,7 @@ from tests.integration.conftest import (
     r_snapshot,
 )
 
-__all__ = ["make_owned_checkouts", "make_r_snapshot", "owned_checkouts", "r_snapshot"]
+__all__ = ["claim_counter", "make_owned_checkouts", "make_r_snapshot", "owned_checkouts", "r_snapshot"]
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -476,27 +476,6 @@ def test_owned_kwargs_helper_carries_the_fact(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # T037 -- NFR-002 exactly-one-ownership-validation proof through the real CLI.
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def claim_counter(monkeypatch: pytest.MonkeyPatch) -> list[Path | None]:
-    """Count real calls to ``resolve_ownership_claim`` (T037).
-
-    Patches the module attribute directly (``resolve_owned_mission`` imports
-    it lazily inside its function body, per ``owned_mission.py``), so this
-    counting wrapper intercepts every call regardless of caller.
-    """
-    from specify_cli.core import checkout_ownership
-
-    calls: list[Path | None] = []
-    original = checkout_ownership.resolve_ownership_claim
-
-    def _counting(claimed_checkout: Path | None, *, resolved_primary: Path) -> object:
-        calls.append(claimed_checkout)
-        return original(claimed_checkout, resolved_primary=resolved_primary)
-
-    monkeypatch.setattr(checkout_ownership, "resolve_ownership_claim", _counting)
-    return calls
 
 
 def _write_finalizable_tasks_md(checkouts: OwnedCheckouts) -> None:
