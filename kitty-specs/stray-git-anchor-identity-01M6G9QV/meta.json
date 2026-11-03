@@ -2,9 +2,8 @@
   "baseline_merge_commit": "25d4450155aa877fc891be987c12e349d2be6425",
   "contracts": "none",
   "contracts_rationale": "This mission changes a private predicate in specify_cli/mission_metadata.py; it adds no interface, endpoint, event payload or persisted schema, so there is no contract to write.",
-  "coordination_branch": "kitty/mission-stray-git-anchor-identity-01M6G9QV",
   "created_at": "2026-11-03T08:52:15.889955+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "stray git anchor identity",
   "merged_at": "2026-11-03T09:39:45.273062+00:00",
   "merged_commit": "cf6f3d96b35a953b7b56e42cd3529ca32689de23",
@@ -18,7 +17,6 @@
   "slug": "stray-git-anchor-identity-01M6G9QV",
   "status_phase": "1",
   "target_branch": "issue-7084-stray-git-anchor-identity",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-11-03T08:58:28.109211+00:00"
 }
