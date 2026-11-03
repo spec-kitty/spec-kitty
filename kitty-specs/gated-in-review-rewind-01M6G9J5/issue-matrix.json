@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#3307": {
+      "evidence_ref": "cited for the silent-sync-rejection class this mission closes on the in_review edge; not modified",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "silent sync rejection of wire-invalid status events",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#5446": {
+      "evidence_ref": "cited for the migration-actor exemption precedent the widened edge inherits; not modified",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "bare forced review exit requires a note",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#6514": {
+      "evidence_ref": "prior mission that gated the for_review edge; this mission extends the same one owning set",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "refuse a forced for_review rewind without a review_ref",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#6955": {
+      "evidence_ref": "prior mission that gated the approved edge and filed this follow-up; its deferral pin is flipped deliberately here, its own edge is untouched",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "forced approved reopen records a wire-valid event",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#7080": {
+      "evidence_ref": "this mission: the emit path threads review_result.reference and in_review -> in_progress joins REVIEW_REF_REQUIRED_EDGES; pointerless rewinds refused, pointer-carrying ones validate against the pinned contract",
+      "fr": "FR-001,FR-002,FR-003,FR-004",
+      "nfr": "NFR-001,NFR-003",
+      "repo": null,
+      "sc": "SC-001,SC-002,SC-003,SC-004",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "in_review -> in_progress still records a wire-invalid rewind",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#7102": {
+      "evidence_ref": "open PR for #6955; owns the approved edge and its exact-set pin. This branch neither asserts nor changes that edge, so either merge order keeps both pins true",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "PR #7102 - forced approved reopen records a wire-valid status event",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
