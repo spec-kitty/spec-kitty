@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "mission_slug": "tracked-meta-unanswerable-git-01M6GRFF",
+  "mission_id": "01M6GRFFGHKDF8GVNYVNRKD13M",
+  "mission_branch": "kitty/mission-tracked-meta-unanswerable-git-01M6GRFF",
+  "target_branch": "issue-7131-tracked-meta-unanswerable-git",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/git/__init__.py",
+        "src/kernel/git/runner.py",
+        "src/specify_cli/core/git_preflight.py",
+        "tests/git_ops/test_git_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/*.md",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/upgrade/tracked_meta_notice.py",
+        "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-03T13:13:13.371690+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0a26c74ffb2ee3d305495c07dd2da86d541c1ac7"
+}
