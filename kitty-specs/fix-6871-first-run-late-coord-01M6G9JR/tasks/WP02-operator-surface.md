@@ -1,30 +1,32 @@
 ---
-work_package_id: "WP02"
-title: "Operator surface and regression sweep"
+work_package_id: WP02
+title: Operator surface and regression sweep
 dependencies:
-  - "WP01"
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on the issue branch; completed changes must merge back into main."
-owned_files:
-  - "docs/changelog/unreleased"
+- WP01
 requirement_refs:
-  - FR-006
-  - FR-007
-  - FR-009
+- FR-006
+- FR-007
+- FR-009
+planning_base_branch: issue-6871-first-run-late-coord
+merge_target_branch: issue-6871-first-run-late-coord
+branch_strategy: Planning artifacts for this mission were generated on issue-6871-first-run-late-coord. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6871-first-run-late-coord unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-phase: "Phase 2 - Operator surface"
-assignee: ""
-agent: ""
-shell_pid: ""
+- T006
+- T007
+- T008
+- T009
+phase: Phase 2 - Operator surface
 history:
-  - timestamp: "2026-11-02T00:00:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-11-02T00:00:00Z'
+  agent: system
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: docs/changelog/
+create_intent: []
+execution_mode: code_change
+owned_files:
+- docs/changelog/unreleased
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Operator surface and regression sweep

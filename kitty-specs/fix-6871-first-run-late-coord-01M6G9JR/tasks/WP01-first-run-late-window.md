@@ -1,34 +1,36 @@
 ---
-work_package_id: "WP01"
-title: "First-run late-coordination window"
+work_package_id: WP01
+title: First-run late-coordination window
 dependencies: []
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on the issue branch; completed changes must merge back into main."
-owned_files:
-  - "src/specify_cli/consolidation/phase_teardown.py"
-  - "tests/coordination/test_projection_teardown.py"
 requirement_refs:
-  - FR-001
-  - FR-002
-  - FR-003
-  - FR-004
-  - FR-005
-  - FR-008
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-008
+planning_base_branch: issue-6871-first-run-late-coord
+merge_target_branch: issue-6871-first-run-late-coord
+branch_strategy: Planning artifacts for this mission were generated on issue-6871-first-run-late-coord. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6871-first-run-late-coord unless the human explicitly redirects the landing branch.
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-phase: "Phase 1 - Core fix"
-assignee: ""
-agent: ""
-shell_pid: ""
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 1 - Core fix
 history:
-  - timestamp: "2026-11-02T00:00:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-11-02T00:00:00Z'
+  agent: system
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/consolidation/
+create_intent: []
+execution_mode: code_change
+owned_files:
+- src/specify_cli/consolidation/phase_teardown.py
+- tests/coordination/test_projection_teardown.py
+tags: []
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – First-run late-coordination window
