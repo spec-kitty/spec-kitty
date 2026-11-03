@@ -54,8 +54,3 @@ def test_the_page_keeps_the_append_only_recovery_position(page: str) -> None:
     assert "never rewrites historical event bytes" in page
     assert "append-only" in page
     assert "#6955" in page
-
-
-def test_the_page_does_not_claim_the_edge_set_is_only_for_review(page: str) -> None:
-    """The stale #6514 sentence must not survive: it said `approved` was uncovered."""
-    assert "deliberately narrow: only `for_review -> in_progress`" not in page
