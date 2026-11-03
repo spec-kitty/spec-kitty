@@ -27,6 +27,7 @@ These tests are the gate for that invariant, not a snapshot of the text:
 
 from __future__ import annotations
 
+import ast
 import inspect
 import string
 from importlib import import_module
@@ -40,6 +41,10 @@ from specify_cli.core.mission_creation_scaffold import (
 )
 from specify_cli.text_sanitization import detect_problematic_characters
 
+#: The module whose helpers would repair text rather than refuse it. The scaffold
+#: must never reach it (#6877, NFR-001).
+_SANITIZER_MODULE = "specify_cli.text_sanitization"
+
 #: Branch names exercised by the pin. The renderer interpolates the planning
 #: branch into the scaffold's frontmatter example, so a glyph introduced by an
 #: interpolation would surface here too.
@@ -50,6 +55,30 @@ _MODULE_PATH = Path(inspect.getfile(render_tasks_readme_content))
 
 def _non_ascii_lines(text: str) -> list[str]:
     return [line for line in text.splitlines() if not line.isascii()]
+
+
+def _sanitizer_references(source: str) -> list[str]:
+    """Return every way ``source`` reaches the text sanitiser.
+
+    Parsed rather than pattern-matched: a substring scan cannot tell an import
+    from a mention, so it would flag a docstring explaining *why* the scaffold
+    does not sanitise -- and that false positive would push an editor to delete
+    either the explanation or the test.
+    """
+    references: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.ImportFrom) and node.module == _SANITIZER_MODULE:
+            names = ", ".join(alias.name for alias in node.names)
+            references.append(f"line {node.lineno}: from {_SANITIZER_MODULE} import {names}")
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == _SANITIZER_MODULE:
+                    references.append(f"line {node.lineno}: import {alias.name}")
+        else:
+            name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
+            if isinstance(name, str) and name.startswith("sanitize_"):
+                references.append(f"line {node.lineno}: calls or reads {name!r}")
+    return references
 
 
 @pytest.mark.parametrize("planning_branch", BRANCH_NAMES)
@@ -125,18 +154,50 @@ def test_scaffold_module_never_sanitises() -> None:
     """No sanitizer sits on the scaffold path (#6877, NFR-001)."""
     source = _MODULE_PATH.read_text(encoding="utf-8")
 
-    for forbidden in ("sanitize_markdown_text", "sanitize_directory", "detect_problematic_characters"):
-        assert forbidden not in source, (
-            f"{_MODULE_PATH.name} references {forbidden!r}; the scaffold must be ASCII by construction, not repaired on the way out (#6877, NFR-001)"
-        )
+    references = _sanitizer_references(source)
+
+    assert references == [], (
+        f"{_MODULE_PATH.name} reaches the text sanitiser ({references}); the scaffold must be ASCII by construction, not repaired on the way out (#6877, NFR-001)"
+    )
+
+
+@pytest.mark.parametrize(
+    "planted",
+    [
+        f"from {_SANITIZER_MODULE} import sanitize_markdown_text\n",
+        f"import {_SANITIZER_MODULE}\n",
+        "import specify_cli.text_sanitization as ts\n",
+        "def render(text):\n    return sanitize_markdown_text(text)\n",
+        "def render(module, text):\n    return module.sanitize_directory(text)\n",
+    ],
+)
+def test_no_sanitizer_check_can_fail(planted: str) -> None:
+    """Non-vacuity: the AST check must notice each way of reaching the sanitiser.
+
+    Without this the check is a screenshot: an AST walk with no planted
+    counter-example proves only that ``ast.parse`` ran. The ``import ... as ts``
+    case is the one a source-substring scan would miss.
+    """
+    assert _sanitizer_references(planted) != []
+
+
+def test_no_sanitizer_check_ignores_a_mention() -> None:
+    """The check parses, so prose about the sanitiser is not a finding.
+
+    This is the case that made a substring scan the wrong instrument: the
+    constant's own comment explains why the scaffold does not sanitise.
+    """
+    prose = '#: The scaffold never calls sanitize_markdown_text; see #6877.\nTEMPLATE = ""\n'
+
+    assert _sanitizer_references(prose) == []
 
 
 def test_template_placeholders_are_known() -> None:
     """The scaffold's only field is ``planning_branch``.
 
     Pins the mutation helper above to a real contract: if a second field is
-    added, ``_render`` must be updated with it rather than silently producing a
-    ``KeyError``-free but wrong string.
+    added, the mutation case must be updated with it rather than silently
+    producing a ``KeyError``-free but wrong string.
     """
     fields = {name for _, name, _, _ in string.Formatter().parse(TASKS_README_TEMPLATE) if name is not None}
 
