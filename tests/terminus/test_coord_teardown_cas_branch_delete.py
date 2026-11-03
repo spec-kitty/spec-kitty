@@ -399,7 +399,13 @@ def test_resume_without_a_window_and_without_a_branch_has_nothing_to_protect(tmp
     phase_teardown._land_late_coordination_commits(run)  # no branch: nothing is destroyed, so nothing to refuse
 
 
-def test_fresh_run_without_a_window_is_covered_by_the_teardown_gate(tmp_path: Path) -> None:
+def test_fresh_run_without_an_anchor_builds_no_window(tmp_path: Path) -> None:
+    """A first run with no anchor cannot build a window: the step returns and the delete CAS owns the tip.
+
+    No projection teardown gate exists in this shape either (one is built only from a checkpoint), so a
+    late commit can still be lost here -- filed as #7121, out of #6871's scope because a refusal would be
+    unclearable (no `--resume` can build the window this run could not).
+    """
     run = _windowless_resume_run(tmp_path, is_resume=False)
 
-    phase_teardown._land_late_coordination_commits(run)  # the fresh run's CAS gate owns this window
+    phase_teardown._land_late_coordination_commits(run)
