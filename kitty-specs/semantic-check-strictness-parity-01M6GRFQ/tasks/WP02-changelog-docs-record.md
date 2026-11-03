@@ -23,9 +23,8 @@ authoritative_surface: docs/changelog/
 create_intent: []
 execution_mode: code_change
 owned_files:
-- docs/changelog/CHANGELOG.md
-- docs/changelog/unreleased/<pr/**
-- docs/changelog/unreleased/README.md
+- docs/changelog/unreleased/**
+- docs/guides/how-to/governance/manage-glossary.md
 tags: []
 tracker_refs: []
 ---
