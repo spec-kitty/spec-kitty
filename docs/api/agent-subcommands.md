@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-10-10'
+updated: '2026-11-03'
 ---
 # Agent Subcommand Reference
 
@@ -86,7 +86,7 @@ An owned Mission lives in a linked checkout (`P`) rather than in the repository 
 (`R`). `agent tracer-append` resolves that ownership fact before it selects its write surface
 (#7081):
 
-- **Flagless adoption.** Running the command from inside `P` adopts `P` for the named Mission, so
+- **Flagless adoption (single_branch Missions today).** Running the command from inside `P` adopts `P` for the named Mission, so
 the entry lands in `P`'s `kitty-specs/<mission-slug>/traces/<category>.md` on the branch `P` is
 on. It no longer resolves `R`, writes an untracked `traces/` file there and refuses
 `PROTECTED_BRANCH_REFUSED` on `main`.
@@ -95,7 +95,9 @@ from `R`. It takes the shared owned-checkout help and validation: exactly one va
 invocation, the repository root refused, lane and coordination worktrees refused, and the
 lifecycle topology set (today `single_branch`) enforced.
 - **Mission-scoped protection.** The protection policy comes from the Mission's own `meta.json`
-(`commit_to_target`) in `P`, never from a copy the repository root happens to hold.
+(`commit_to_target`) in `P`, never from a copy the repository root happens to hold. Alternate handles
+(mid8 or full Mission id) are canonicalized from the validated fact before the commit router
+re-applies that policy, so a Mission's legitimate protected-target opt-in is retained.
 - **Refuse before writing.** An invalid target exits `1` with the owned refusal envelope
 (`{"ok": false, "error": {"code", "message"}}`) before the writer is reached: nothing is staged,
 no coordination surface is materialised and neither checkout gains a file.
