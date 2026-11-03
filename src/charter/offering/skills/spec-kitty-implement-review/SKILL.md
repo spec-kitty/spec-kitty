@@ -316,7 +316,7 @@ The prompt contains all context, acceptance criteria, and review feedback
     The command MUST exit 0. Paste command + exit code into the handoff note.
     Reviewers reject the WP if typecheck was skipped or is red.
 9. Commit only your deliverables: spec-kitty safe-commit <each file you changed> -m "feat(WP##): <description>"
-10. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
+10. Mark this WP's subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --wp WP## --status done
 11. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 """,
     run_in_background=True
