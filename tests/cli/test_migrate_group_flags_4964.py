@@ -224,6 +224,30 @@ def test_append_ceiling_dedupes_an_equivalent_symlinked_entry(tmp_path: Path) ->
     assert _append_ceiling(str(link), real) == str(link)
 
 
+def test_a_repository_above_the_ceiling_cannot_capture_the_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ceiling mechanism itself, on a shape every host can build (#6957).
+
+    ``test_positive_control_survives_a_temp_root_inside_a_repository`` needs a host whose
+    platform temp root sits inside a repository to observe the leak, so it skips on CI. This
+    guard builds that shape instead: an enclosing repository above a ceiling and a Mission
+    directory below it. With the ceiling in force the walk must stop below the repository and
+    fail; with the ceiling removed the same walk is captured by the enclosing repository --
+    exactly the leak the ceiling exists to prevent.
+    """
+    base = tmp_path / "base"
+    (base / ".git").mkdir(parents=True)  # an enclosing repository, as a stray /tmp/.git would be
+    deep = base / "deep"
+    mission = deep / "inner" / "kitty-specs" / "042-demo"
+    mission.mkdir(parents=True)
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(deep))
+    with pytest.raises(WorkspaceRootNotFound):
+        resolve_canonical_root(mission)
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", "")
+    assert resolve_canonical_root(mission) == base.resolve()
+
+
 def test_positive_control_survives_a_temp_root_inside_a_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#6957's host shape: the platform temp root sits inside a repository.
 
