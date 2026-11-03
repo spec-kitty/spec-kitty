@@ -20,7 +20,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -602,7 +602,7 @@ def _render_tail(outcome: UpgradeOutcome, **overrides: Any) -> str:
     kwargs: dict[str, Any] = {"manual_review_paths": [], "auto_commit_paths": [], "left_uncommitted": False, **overrides}
     with console.capture() as capture:
         upgrade_module._render_outcome_tail(outcome, **kwargs)
-    return capture.get()
+    return cast(str, capture.get())
 
 
 def test_an_error_diagnostic_on_an_otherwise_no_op_result_ends_on_the_failed_closing_line() -> None:
@@ -805,7 +805,12 @@ def test_refresh_of_the_agent_ignore_block_warns_once_and_never_fails(tmp_path: 
     import specify_cli.gitignore_manager as gitignore_manager
 
     calls: list[Path] = []
-    monkeypatch.setattr(gitignore_manager, "refresh_agent_block", lambda project: calls.append(project) or "block not refreshed")
+
+    def _refresh(project: Path) -> str:
+        calls.append(project)
+        return "block not refreshed"
+
+    monkeypatch.setattr(gitignore_manager, "refresh_agent_block", _refresh)
     outcome = _outcome()
 
     upgrade_module._refresh_agent_ignore_block(outcome, tmp_path)
