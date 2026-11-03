@@ -30,6 +30,8 @@
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
+      "shell_pid": 160810,
+      "shell_pid_created_at": "1793712324.01",
       "subtasks": {
         "T001": "done",
         "T002": "done",
