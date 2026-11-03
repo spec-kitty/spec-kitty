@@ -409,3 +409,24 @@ def test_a_dangling_git_symlink_is_still_an_anchor(tmp_path: Path) -> None:
     (ancestor / ".git").symlink_to(ancestor / "missing-gitdir", target_is_directory=True)
 
     assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
+
+
+def test_an_unreadable_git_anchor_stays_fail_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-002: an anchor whose ``HEAD`` cannot be read is a home the probe cannot rule out, so refuse.
+
+    The counterpart of every mint above: the narrowing must never turn an unreadable repository into
+    "nothing tracked". The `stat` is made to fail the way a permission-denied git directory does, so
+    the branch is exercised on every platform and for every user.
+    """
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
+    (ancestor / ".git").mkdir()
+    real_stat = Path.stat
+
+    def denied(self: Path, *args: object, **kwargs: object) -> object:
+        if self.name == "HEAD":
+            raise PermissionError(13, "Permission denied")
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", denied)
+
+    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
