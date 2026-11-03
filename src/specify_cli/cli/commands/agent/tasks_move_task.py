@@ -230,6 +230,7 @@ from specify_cli.cli.commands.agent.tasks_move_task_gates import (
     _mt_run_transition_gates as _mt_run_transition_gates,
     _mt_enrol_gate_byproducts as _mt_enrol_gate_byproducts,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
+    _mt_declared_command_runs_in_full as _mt_declared_command_runs_in_full,
 )
 
 
