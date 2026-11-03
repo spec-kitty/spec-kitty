@@ -1,4 +1,5 @@
 {
+  "accept_commit": "5ea252fd242117820d9767a4131c85d815f12084",
   "acceptance_history": [
     {
       "accept_commit": "357910289a74a2b4644fa6193b2b99dd83dc2387",
@@ -8,6 +9,7 @@
       "accepted_from_commit": "a35763b3750f42f15a9a254d992283ddaa922236"
     },
     {
+      "accept_commit": "5ea252fd242117820d9767a4131c85d815f12084",
       "acceptance_mode": "pr",
       "accepted_at": "2026-11-03T13:46:48.414793+00:00",
       "accepted_by": "reviewer-renata",
