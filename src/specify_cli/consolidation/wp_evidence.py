@@ -277,8 +277,8 @@ def _read_ownership(
     wp_ids: Iterable[str],
     *,
     owned: OwnedCheckout | None = None,
-) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
-    """The wanted work packages' authored ownership globs, and why each other one is unresolved.
+) -> tuple[dict[str, tuple[str, ...]], dict[str, str], Path]:
+    """The wanted work packages' authored ownership globs, why each other one is unresolved, and the ``tasks/`` dir read.
 
     Ownership comes from static frontmatter, never runtime state. A work package that is absent from
     the first mapping is unresolved (fail closed, #7149) and :func:`_judge` refuses it as
@@ -299,11 +299,11 @@ def _read_ownership(
         wp_files = wp_task_files(tasks_dir)
     except OSError as exc:
         logger.debug("evidence: could not list %s", tasks_dir, exc_info=True)
-        return {}, dict.fromkeys(wanted, f"the tasks directory could not be read ({tasks_dir}: {_failure_summary(exc)})")
+        return {}, dict.fromkeys(wanted, f"the tasks directory could not be read ({tasks_dir}: {_failure_summary(exc)})"), tasks_dir
     resolved: dict[str, tuple[str, ...]] = {}
-    unattributed: list[str] = []
     declared_in: dict[str, list[str]] = {}
     failures: dict[str, str] = {}
+    unattributed: list[str] = []
     for wp_file in wp_files:
         try:
             meta, _body = read_authored_wp_frontmatter(wp_file)
@@ -334,28 +334,7 @@ def _read_ownership(
         return f"no task file under {tasks_dir} declares work_package_id {wp}{suffix}"
 
     reasons = {wp: conflicts.get(wp) or failures.get(wp) or _default(wp) for wp in wanted if wp not in resolved}
-    return resolved, reasons
-
-
-def _owned_patterns_by_wp(
-    repo_root: Path,
-    mission_slug: str,
-    feature_dir: Path,
-    wp_ids: Iterable[str],
-    *,
-    owned: OwnedCheckout | None = None,
-) -> dict[str, tuple[str, ...]]:
-    """Each wanted work package's authored ownership globs (static frontmatter, never runtime state).
-
-    A work package file that cannot be read stays unresolved: its key is ABSENT from the result
-    (so is every key when ``tasks/`` is missing), and :func:`_judge` refuses it as
-    ``OWNERSHIP_UNRESOLVED`` (fail closed, #7149). A key that is present, even with an empty
-    tuple, is an authored declaration and is judged on the evidence. A task file that omits
-    ``owned_files`` reads as an authored empty list (``WPMetadata.owned_files`` defaults to
-    ``[]``), so it is resolved too, which keeps the pre-#7149 ``IMPLEMENTATION_MISSING`` verdict. *owned* threads
-    the validated owned-checkout fact to the one ``tasks/`` read (:func:`_wp_task_dir`, #7099).
-    """
-    return _read_ownership(repo_root, mission_slug, feature_dir, wp_ids, owned=owned)[0]
+    return resolved, reasons, tasks_dir
 
 
 @dataclass(frozen=True)
@@ -879,8 +858,7 @@ def evaluate_evidence(
     if not approved:
         return EvidenceReport()
     mission_slug = lanes_manifest.mission_slug
-    tasks_dir = _wp_task_dir(repo_root, mission_slug, feature_dir, owned=owned) / "tasks"
-    patterns, reasons = _read_ownership(repo_root, mission_slug, feature_dir, approved, owned=owned)
+    patterns, reasons, tasks_dir = _read_ownership(repo_root, mission_slug, feature_dir, approved, owned=owned)
     scan = _Scan(feature_dir, events, patterns, [], set(), tasks_dir, unresolved_reasons=reasons)
     single_branch = is_single_branch_mission(repo_root, lanes_manifest, owned=owned) if is_single_branch is None else is_single_branch
     if single_branch:

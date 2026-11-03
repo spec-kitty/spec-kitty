@@ -225,7 +225,7 @@ def test_work_package_ownership_is_read_from_the_primary_partition(tmp_path: Pat
     (coord_dir / "status.events.jsonl").write_text("", encoding="utf-8")
 
     assert ev._wp_task_dir(repo, _SLUG, coord_dir) == fd
-    assert ev._owned_patterns_by_wp(repo, _SLUG, coord_dir, ["WP01"]) == {"WP01": ("src/m1/**",)}
+    assert ev._read_ownership(repo, _SLUG, coord_dir, ["WP01"])[0] == {"WP01": ("src/m1/**",)}
 
 
 def test_ownership_is_never_read_from_a_coordination_copy(tmp_path: Path) -> None:
@@ -239,7 +239,7 @@ def test_ownership_is_never_read_from_a_coordination_copy(tmp_path: Path) -> Non
     )
 
     assert ev._wp_task_dir(repo, _SLUG, coord_dir) == repo / "kitty-specs" / _SLUG
-    assert ev._owned_patterns_by_wp(repo, _SLUG, coord_dir, ["WP01"]) == {}
+    assert ev._read_ownership(repo, _SLUG, coord_dir, ["WP01"])[0] == {}
 
 
 def test_attestation_reader_ignores_migration_actors_and_other_values() -> None:
