@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2657": {
+      "evidence_ref": "Context: the total activation read (absent key is not backfilled) that makes the unprovisioned fixture resolve empty; unchanged by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6988": {
+      "evidence_ref": "Context only: the per-PR changelog fragment convention this mission follows (docs/changelog/unreleased/7073-*.internal.md); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7057": {
+      "evidence_ref": "Boundary only: the same 8 nodes' IMPLEMENTATION_MISSING refusal is #7057's subject, fixed by PR #7100 (still open); this mission neither fixes nor masks it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7073": {
+      "evidence_ref": "Fixture provisions through the production init provisioner; TestFixtureCharterProvisioning pins resolution + no-fallback; 2 failed before, 2 passed after; 17/17 with PR #7100 applied",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7100": {
+      "evidence_ref": "PR reference (evidence fixture re-pin, #7057); this mission's hunks are disjoint and 17/17 pass together",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
