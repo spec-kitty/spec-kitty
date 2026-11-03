@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/integration/test_prompt_builder_owned_arms.py::test_owned_implement_completion_commands_carry_the_owned_checkout_flag asserts the owned prompt carries 'mark-status T001 --wp WP01 --status done --mission <slug> --owned-checkout <root>', i.e. --wp before --status and the owned flag last; tests/specify_cli/core/test_subtask_recipe.py pins the same option order, including an owned root given as a plain string and as a Path.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-03T11:54:06.590005+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
