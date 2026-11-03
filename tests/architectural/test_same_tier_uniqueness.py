@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import ast
 import collections
+import importlib
 import inspect
 import sys
 from collections.abc import Callable, Mapping
@@ -540,8 +541,30 @@ def _module_tests(module: ModuleType) -> dict[str, tuple[frozenset[str], float |
     }
 
 
+def _pinned_consumer_modules() -> list[tuple[str, ModuleType]]:
+    """The test modules the pre-step's pinned consumer registry names, loaded here.
+
+    The registry (``_PINNED_CONSUMERS`` in ``tests/ci/test_collect_universe_prestep.py``) is kept
+    exact by its own pin test -- a file that starts or stops calling ``collect_universe()`` fails
+    it -- so it is the authoritative list of modules whose fixtures may run a real collection.
+    Loading it here means a third consumer cannot be added without also facing this module's
+    budget guard.
+    """
+    from tests.ci.test_collect_universe_prestep import _PINNED_CONSUMERS
+
+    return [
+        (relpath, importlib.import_module(relpath.removesuffix(".py").replace("/", ".")))
+        for relpath in sorted(_PINNED_CONSUMERS)
+    ]
+
+
 def test_universe_consumers_carry_a_collection_sized_timeout_budget() -> None:
-    """#7052: a test whose setup may collect the universe must not inherit the 240 s backstop."""
+    """#7052: a test whose setup may collect the universe must not inherit the 240 s backstop.
+
+    Driven by the pre-step's pinned consumer registry plus this module's own fixture-closure
+    scan: every file pinned as calling ``collect_universe()`` is scanned, so a third consumer
+    cannot be added without a collection-sized budget.
+    """
     module = sys.modules[__name__]
     dependencies = _fixture_dependencies(vars(module))
     assert _UNIVERSE_FIXTURE in dependencies, "the universe fixture is not discoverable, so this guard proves nothing"
@@ -568,6 +591,29 @@ def test_universe_consumers_carry_a_collection_sized_timeout_budget() -> None:
         "every test in this module carries a timeout budget, so the marker was applied blanket: that raises the hang "
         "backstop on tests that never collect (#7052). Keep the marker on the universe consumers only."
     )
+
+    consumer_modules = _pinned_consumer_modules()
+    assert any(loaded is module for _, loaded in consumer_modules), (
+        "this module is not in the pinned consumer registry (tests/ci/test_collect_universe_prestep.py); "
+        "the registry and this guard have diverged"
+    )
+    for relpath, consumer_module in consumer_modules:
+        if consumer_module is module:
+            continue
+        dependencies = _fixture_dependencies(vars(consumer_module))
+        tests = _module_tests(consumer_module)
+        consumers = _consumer_names(dependencies, tests)
+        assert consumers, (
+            f"{relpath} is pinned as a universe consumer but none of its tests reaches the {_UNIVERSE_FIXTURE!r} "
+            "fixture through its own fixtures; the fixture was renamed or the pin is stale, and this guard would "
+            "pass vacuously"
+        )
+        offenders = _budget_offenders(dependencies, tests)
+        assert not offenders, (
+            f"{relpath}: these tests may collect the whole test universe in their setup but carry no per-test budget "
+            f"of at least gc.COLLECT_TIMEOUT_S ({gc.COLLECT_TIMEOUT_S} s), so a store bypass (dirty checkout, no "
+            f"record) turns a legitimate collection into 'Failed: Timeout' (#7052): {offenders}"
+        )
 
 
 def test_timeout_budget_guard_bites_on_a_markerless_consumer() -> None:
