@@ -20,8 +20,8 @@ G3            ``OwnedCheckout._mint`` is referenced only in
 G4            The identifier ``effective_root`` appears nowhere in ``src/``
               outside the org-pack module rule.
 G5            No parameter or field carries an owned root as a bare path.
-G6            Each nine-consumer of ``contracts/owned-checkout-carrier.md`` s7
-              declares ``owned: OwnedCheckout | None``.
+G6            The historical nine consumers plus the tracer writer (#7081)
+              declare ``owned: OwnedCheckout | None``.
 ============  ==============================================================
 
 The org-pack module rule (``ORG_PACK_MODULE_RULE``) is the one written
@@ -90,7 +90,9 @@ _G1_ALLOWED = frozenset({_MINTER, _CLAIM_DEFINITION})
 _G2_ALLOWED = frozenset({_MINTER, _CLI_HELPER})
 _G3_ALLOWED = frozenset({_MINTER})
 
-#: G6: contract s7 consumers, keyed by defining module then bare def/class name.
+#: G6: contract s7's historical consumers plus the #7081 entry point
+#: (2026-11-03); extend the positive carrier invariant, never an exemption.
+#: The original Mission contract is an immutable historical inventory.
 _G6_CONSUMERS: dict[str, dict[str, str]] = {
     "src/mission_runtime/resolution.py": {
         "placement_seam": "mission_runtime.placement_seam",
@@ -101,10 +103,11 @@ _G6_CONSUMERS: dict[str, dict[str, str]] = {
     "src/specify_cli/workspace/context.py": {"resolve_workspace_for_wp": "workspace.context.resolve_workspace_for_wp"},
     "src/specify_cli/coordination/status_service.py": {"EventLogReadContract": "coordination.status_service.EventLogReadContract"},
     "src/specify_cli/status/models.py": {"TransitionRequest": "status.models.TransitionRequest"},
+    "src/specify_cli/retrospective/tracer_writer.py": {"append_tracer_finding": "retrospective.tracer_writer.append_tracer_finding (#7081)"},
     "src/runtime/next/runtime_bridge.py": {"DecideNextContext": "runtime.next.runtime_bridge.DecideNextContext"},
     "src/runtime/next/prompt_builder.py": {"build_prompt": "runtime.next.prompt_builder.build_prompt (prompt-builder entry point)"},
 }
-_G6_CONSUMER_COUNT = 9
+_G6_CONSUMER_COUNT = 10
 
 
 def _format(offenders: Iterable[Offender]) -> str:
