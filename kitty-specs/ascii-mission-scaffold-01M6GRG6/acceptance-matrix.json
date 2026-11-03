@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/core/test_tasks_readme_scaffold_ascii.py::test_pin_fails_when_a_glyph_is_injected + ::test_no_sanitizer_check_can_fail (5 planted cases) + tests/git_ops/test_worktree.py::test_no_second_copy_of_the_tasks_readme_scaffold replayed pre-fix",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T14:07:54.381522+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
