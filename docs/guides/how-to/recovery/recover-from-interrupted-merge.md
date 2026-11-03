@@ -165,7 +165,8 @@ The other codes `consolidate` can report are listed in the
 
 A **first** run (no `--resume`) gets the same protection over a narrower window.
 The merge records the coordination tip it verified — its own last write to the
-coordination branch, after everything it was going to project had landed — and
+coordination branch, after everything it was going to project had been projected
+(the following bookkeeping commit lands it) — and
 anything committed to the coordination branch **after** that tip is late by
 definition. Before the branch is deleted, a first run projects that window and
 proves it landed, exactly as a resume does:
