@@ -1056,8 +1056,8 @@ def evaluate_with_scope(
             outcome=GateOutcome.SCOPE_OVERSIZED,
             scope=scope,
             reason=(
-                f"validation did not start because the selected scope ({scope_shape}: "
-                f"{', '.join(scope.test_targets) or '(empty)'}"[:_COMMAND_REASON_CHARS] + "}) is explicitly "
+                f"validation did not start because the selected scope ({scope_shape}: {', '.join(scope.test_targets) or '(empty)'}"[:_COMMAND_REASON_CHARS]
+                + "}) is explicitly "
                 f"oversized for the {assessment.effective_budget_seconds:g}s budget; "
                 f"{assessment.guidance}"
             ),
