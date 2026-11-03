@@ -120,6 +120,7 @@ def _write_single_lane_manifest(
     target_branch: str,
     wp_ids: tuple[str, ...],
     topology: str = "single_branch",
+    mission_branch: str | None = None,
 ) -> None:
     """Write P's own ``lanes.json``: ONE lane covering every requested WP.
 
@@ -141,7 +142,7 @@ def _write_single_lane_manifest(
         version=1,
         mission_slug=mission_slug,
         mission_id=mission_id,
-        mission_branch=f"kitty/mission-{mission_slug}",
+        mission_branch=mission_branch or f"kitty/mission-{mission_slug}",
         target_branch=target_branch,
         lanes=[
             ExecutionLane(
@@ -223,6 +224,7 @@ def make_owned_checkouts(tmp_path: Path) -> Callable[..., OwnedCheckouts]:
             target_branch=target_branch,
             wp_ids=wp_ids,
             topology=topology,
+            mission_branch=mission_branch,
         )
         if mission_branch is not None:
             # Model the real protected-target mint: P's recorded write branch

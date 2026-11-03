@@ -76,14 +76,14 @@ def _checkouts(make: Callable[..., OwnedCheckouts], *, protected_alias: bool = F
     return checkouts
 
 
-def _assert_committed(result: Result, checkouts: OwnedCheckouts) -> None:
+def _assert_committed(result: Result, checkouts: OwnedCheckouts, expected_branch: str) -> None:
     assert result.exit_code == 0, result.output
     payload = _json_payload(result.output)
     assert payload["ok"] is True, payload
-    branch = _git(checkouts.owned_root, "branch", "--show-current")
-    assert payload["commit_ref"] == branch
+    assert _git(checkouts.owned_root, "branch", "--show-current") == expected_branch
+    assert payload["commit_ref"] == expected_branch
     relative = f"kitty-specs/{SLUG}/traces/{CATEGORY}.md"
-    committed = _git(checkouts.owned_root, "show", f"{branch}:{relative}")
+    committed = _git(checkouts.owned_root, "show", f"{expected_branch}:{relative}")
     assert ENTRY in committed and ACTOR in committed
     assert _git(checkouts.owned_root, "status", "--porcelain") == ""
     assert _git(checkouts.repository_root, "status", "--porcelain") == ""
@@ -100,7 +100,9 @@ def test_flagless_invocation_from_the_owned_checkout_writes_into_it(
     protected_alias: bool,
 ) -> None:
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
     checkouts = _checkouts(make_owned_checkouts, protected_alias=protected_alias)
+    expected_branch = _git(checkouts.owned_root, "branch", "--show-current")
     snapshotter = make_r_snapshot(checkouts)
     before = snapshotter.take()
     monkeypatch.chdir(checkouts.mission_dir)
@@ -108,7 +110,7 @@ def test_flagless_invocation_from_the_owned_checkout_writes_into_it(
 
     result = _invoke(tracer_module, checkouts.mid8 if protected_alias else SLUG, [])
 
-    _assert_committed(result, checkouts)
+    _assert_committed(result, checkouts, expected_branch)
     assert len(claim_counter) == 1, claim_counter
     snapshotter.assert_unchanged(before, snapshotter.take(), tolerate_status_mutex_for=SLUG)
 
@@ -124,10 +126,11 @@ def test_explicit_selector_from_the_repository_root_writes_into_the_owned_checko
     snapshotter = make_r_snapshot(checkouts)
     before = snapshotter.take()
     monkeypatch.chdir(checkouts.repository_root)
+    expected_branch = _git(checkouts.owned_root, "branch", "--show-current")
 
     result = _invoke(tracer_module, SLUG, ["--owned-checkout", str(checkouts.owned_root)])
 
-    _assert_committed(result, checkouts)
+    _assert_committed(result, checkouts, expected_branch)
     snapshotter.assert_unchanged(before, snapshotter.take(), tolerate_status_mutex_for=SLUG)
 
 

@@ -210,7 +210,7 @@ def test_g6_named_consumers_declare_owned_pin() -> None:
         offenders.extend(Offender("G6", rel_path, 1, f"consumer {name} ({required[name]}) not defined in this module") for name in required.keys() - present)
         offenders.extend(owned_signature_pins(tree, rel_path, required))
     total = sum(len(v) for v in _G6_CONSUMERS.values())
-    assert total == _G6_CONSUMER_COUNT, f"G6 consumer table drifted from contract s7: {total} != {_G6_CONSUMER_COUNT}"
+    assert total == _G6_CONSUMER_COUNT, f"G6 consumer table drifted from historical s7 inventory plus #7081: {total} != {_G6_CONSUMER_COUNT}"
     assert len(found) == _G6_CONSUMER_COUNT, f"G6 found {len(found)} of {_G6_CONSUMER_COUNT} consumer definitions"
     assert not offenders, f"G6: consumers missing the `owned: OwnedCheckout | None` pin ({len(offenders)}):\n{_format(offenders)}"
 
