@@ -21,11 +21,11 @@ history:
 agent_profile: python-pedro
 authoritative_surface: docs/
 create_intent:
-- docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md
+- docs/changelog/unreleased/7117.fixed.md
 execution_mode: planning_artifact
 model: ''
 owned_files:
-- docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md
+- docs/changelog/unreleased/7117.fixed.md
 - docs/guides/how-to/installation/upgrade-project.md
 role: implementer
 tags: []
@@ -85,10 +85,10 @@ Done when:
 ### Subtask T007 – Changelog fragment
 
 - **Purpose**: user-visible fix needs a per-PR fragment.
-- **Steps**: create `docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md` (rename to
+- **Steps**: create `docs/changelog/unreleased/7117.fixed.md` (rename to
   `<pr>.fixed.md` in T009) with one entry in the changelog's own style: bold lead naming the change,
   `(#7084)`, then **Before:** / **After:** sentences.
-- **Files**: `docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md`
+- **Files**: `docs/changelog/unreleased/7117.fixed.md`
 
 ### Subtask T008 – Upgrade guide sentence
 
@@ -102,7 +102,7 @@ Done when:
 ### Subtask T009 – Rename to the PR number and validate
 
 - **Purpose**: the fragment's name is the pull request number.
-- **Steps**: `git mv docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md
+- **Steps**: `git mv docs/changelog/unreleased/7117.fixed.md
   docs/changelog/unreleased/<pr>.fixed.md` once the PR exists; re-run both doc checks; confirm
   `uv run python -m scripts.docs.check_docs_freshness --ci` reports no error for the touched pages.
 - **Files**: the fragment path.
