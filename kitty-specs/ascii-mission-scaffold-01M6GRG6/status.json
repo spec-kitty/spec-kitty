@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "reviewer-renata",
-      "agent": "reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -34,6 +34,7 @@
         "Ready for review: scaffold is ASCII, pin is green and non-vacuous"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/exedev/work/sk-6877/kitty-specs/ascii-mission-scaffold-01M6GRG6/tasks/WP01-ascii-scaffold-text-and-pin/review-cycle-1.md",
         "reference": "review-cycle://ascii-mission-scaffold-01M6GRG6/WP01-ascii-scaffold-text-and-pin/review-cycle-1.md",
@@ -41,14 +42,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 387731,
-      "shell_pid_created_at": "1793712949.16",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
       }
     },
     "WP02": {
