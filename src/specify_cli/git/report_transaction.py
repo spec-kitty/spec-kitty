@@ -19,7 +19,7 @@ from charter.bundle import CHARTER_MD, CHARTER_YAML
 from kernel.git import GitPath, IndexEntry, commit_paths, index_entries, status_entries, tracked_paths
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 
-from specify_cli.analysis_inputs import collect_material_inputs
+from specify_cli.analysis_inputs import collect_material_inputs, pack_pin_state
 from specify_cli.analysis_report import (
     ANALYSIS_REPORT_FILENAME,
     _sha256_file,
@@ -89,6 +89,11 @@ def _index(root: Path, report: str) -> tuple[IndexEntry, ...]:
         if entry.path != report_path:
             result.append(entry)
     return tuple(result)
+
+
+def _under_any(path: str, roots: tuple[str, ...]) -> bool:
+    """Is *path* inside one of *roots*? Component-wise, never a raw string prefix."""
+    return any(path.startswith(f"{root}/") for root in roots)
 
 
 def _working(root: Path, report: str) -> dict[str, tuple[str, int]]:
@@ -274,6 +279,41 @@ def _canonical_charter_dirt(owned: OwnedCheckout | None, inputs: dict[str, dict[
     return candidates & _dirty_paths(owned.repository_root)
 
 
+def _dirty_material_inputs(
+    *,
+    repo_root: Path,
+    inputs: dict[str, dict[str, str | None]],
+    relative: str,
+    owned: OwnedCheckout | None,
+    canonical_inputs: dict[str, dict[str, str | None]] | None,
+) -> set[str]:
+    """Material inputs whose committed state this recording commit cannot establish.
+
+    Four sources: index/worktree dirt on a material path (or on the report), a
+    dirty canonical charter, and a material path that exists on disk but is not
+    in the index. The last one is the only source that can be satisfied by
+    committed authority the repository does not hold itself: a fetched pack tree
+    is gitignored because its commit is pinned in ``packs/<name>.source.yaml``
+    (``make sync-packs``), so a tree that pin content-verifies is clean by
+    construction (#7128). Only those verified roots are subtracted; every other
+    untracked or ignored material input keeps refusing exactly as before.
+    """
+    material_paths = {entry["path"] for entry in inputs.values()}
+    relevant = _dirty_paths(repo_root) & (material_paths | {relative})
+    relevant.update(_canonical_charter_dirt(owned, canonical_inputs))
+    tracked = {str(path) for path in tracked_paths(repo_root)}
+    untracked_material = {path for path in material_paths if isinstance(path, str) and (repo_root / path).is_file() and path not in tracked}
+    if untracked_material:
+        pins = pack_pin_state(repo_root)
+        untracked_material = {path for path in untracked_material if not _under_any(path, pins.verified_roots)}
+        # An uncommitted or symlinked pin is *why* a fetched tree could not be
+        # verified: name it, so the operator fixes the cause rather than a list of
+        # pack files that do match the pin on disk.
+        relevant.update(pins.refused_pins)
+    relevant.update(untracked_material)
+    return relevant
+
+
 def record_report_transaction(
     *,
     repo_root: Path,
@@ -309,12 +349,7 @@ def record_report_transaction(
             raise ValueError("Analysis report placement changed before preflight")
         preflight_commit(repo_root=repo_root, worktree_root=repo_root, target=target, message=message, paths=(report,), owned=owned)
         inputs = collect_material_inputs(feature_dir, repo_root)
-        material_paths = {entry["path"] for entry in inputs.values()}
-        dirty = _dirty_paths(repo_root)
-        relevant = dirty & (material_paths | {relative})
-        relevant.update(_canonical_charter_dirt(owned, canonical_inputs))
-        tracked = {str(path) for path in tracked_paths(repo_root)}
-        relevant.update(path for path in material_paths if path is not None and (repo_root / path).is_file() and path not in tracked)
+        relevant = _dirty_material_inputs(repo_root=repo_root, inputs=inputs, relative=relative, owned=owned, canonical_inputs=canonical_inputs)
         if relevant:
             return ReportTransactionOutcome(
                 {"success": False, "commit_status": "failed_before_write", "error_code": "DIRTY_ANALYSIS_INPUT", "dirty_paths": sorted(relevant)}
