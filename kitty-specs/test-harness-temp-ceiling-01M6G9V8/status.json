@@ -51,7 +51,7 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
-      "agent": "claude",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -61,7 +61,8 @@
       "last_transition_at": "2026-11-03T10:33:48.954872+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: six child environments carry the ceiling; five red-first tests plus the in-module bake assertion"
+        "Ready for review: six child environments carry the ceiling; five red-first tests plus the in-module bake assertion",
+        "Review passed: six child sites carry the ceiling; strips still strip; child_environment keeps its own temp root"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
