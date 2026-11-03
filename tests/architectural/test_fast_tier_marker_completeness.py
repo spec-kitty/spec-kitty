@@ -18,6 +18,7 @@ import pytest
 
 from tests.architectural import _fast_tier_gate as ftg
 from tests.architectural import _gate_coverage as gc
+from tests.architectural.test_same_tier_uniqueness import _UNIVERSE_TIMEOUT_S
 
 pytestmark = pytest.mark.architectural
 
@@ -27,6 +28,16 @@ def universe() -> list[gc.TestRecord]:
     return gc.collect_universe()
 
 
+# #7052: the module-scoped ``universe`` fixture may run the real collection inside its own
+# setup when the store is bypassed (dirty checkout, unsupported platform, no record), so the
+# test below must not inherit the suite's 240 s runaway-hang backstop. The budget is the
+# sibling consumer's derived one (the collector's ceiling plus its allowance), so pytest-timeout
+# can never under-cut the collector; the guard in the sibling module scans this file through the
+# pinned consumer registry and fails if this marker is dropped.
+_COLLECTS_UNIVERSE = pytest.mark.timeout(_UNIVERSE_TIMEOUT_S)
+
+
+@_COLLECTS_UNIVERSE
 def test_every_fast_tier_dir_test_carries_a_vocabulary_marker(
     universe: list[gc.TestRecord],
 ) -> None:
