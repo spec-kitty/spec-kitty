@@ -57,10 +57,17 @@
       "last_event_id": "01M6GBJ16SQAN1B2WRER3SK141",
       "last_transition_at": "2026-11-03T09:24:02.377055+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-03T09:25:34Z – python-pedro – shell_pid=3257656 – Changelog fragment docs/changelog/unreleased/7084-stray-git-anchor-identity.fixed.md (0 errors from check_changelog_style, 0 findings from check_spelling --pass unreleased) and one sentence in docs/guides/how-to/installation/upgrade-project.md. check_docs_freshness --ci: errors=0 (9 pre-existing warnings, none on the touched page). T009 (rename to the PR number) stays open until the PR exists."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3257656,
-      "shell_pid_created_at": "1793697838.25"
+      "shell_pid_created_at": "1793697838.25",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
     }
   }
 }
