@@ -34,6 +34,7 @@
   "purpose_context": "This mission advances tracked meta unanswerable git on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "tracked meta unanswerable git",
   "slug": "tracked-meta-unanswerable-git-01M6GRFF",
+  "status_phase": "1",
   "target_branch": "main",
   "vcs": "git",
   "vcs_locked_at": "2026-11-03T13:15:14.350554+00:00"

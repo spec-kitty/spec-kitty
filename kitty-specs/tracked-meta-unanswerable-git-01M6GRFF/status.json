@@ -2,9 +2,9 @@
   "event_count": 14,
   "last_event_id": "01M6GVAMZVS5CCB2SE53T9MQJK",
   "materialized_at": "2026-11-03T13:59:37.723965+00:00",
-  "mission_number": "",
+  "mission_number": "249",
   "mission_slug": "tracked-meta-unanswerable-git-01M6GRFF",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -19,35 +19,63 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "pi",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M6GVAJSG0JWZEBRXSRVV36BC",
       "last_transition_at": "2026-11-03T13:59:35.472396+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Shared ownership predicate in kernel.git.runner; preflight consumes it; 14 passed",
+        "Review passed: byte-identical predicate move; preflight codes/messages/commands untouched; tests additive-only; 14 passed"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261103",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 68388,
-      "shell_pid_created_at": "1793711708.66"
+      "shell_pid_created_at": "1793711708.66",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "pi",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M6GVAMZVS5CCB2SE53T9MQJK",
       "last_transition_at": "2026-11-03T13:59:37.723965+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Cause carried on TrackedMeta; three repair-class notices; 5 new-cause tests green",
+        "Review round 1: one finding (classify_missing_tracked_meta's Returns docstring still described only the tracked-copy case) fixed in a follow-up commit. Refusal surface, codes and healthy branches unchanged; three causes each covered; no stderr echo; no write path added."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261103",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 225013,
-      "shell_pid_created_at": "1793712522.31"
+      "shell_pid_created_at": "1793712522.31",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     }
   }
 }
