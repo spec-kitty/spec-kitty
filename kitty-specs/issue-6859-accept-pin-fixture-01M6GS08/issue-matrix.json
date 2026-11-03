@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4891": {
+      "evidence_ref": "context-only reference: this Mission repairs the #4891 CLI pin's fixture; #4891, #6715 and #5939 fixes already shipped on main and need no work here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5939": {
+      "evidence_ref": "context-only reference: this Mission repairs the #4891 CLI pin's fixture; #4891, #6715 and #5939 fixes already shipped on main and need no work here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6715": {
+      "evidence_ref": "context-only reference: this Mission repairs the #4891 CLI pin's fixture; #4891, #6715 and #5939 fixes already shipped on main and need no work here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6859": {
+      "evidence_ref": "test(6859) commits on lane-a: 7f1adb1209 + 466b251e66 parent (2 passed; half-by-half reverts each refuse)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
