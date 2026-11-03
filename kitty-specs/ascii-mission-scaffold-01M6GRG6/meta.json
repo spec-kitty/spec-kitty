@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T14:08:22.253055+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "09f65f1017a67e1a77b9db191d08ced45818294a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T14:08:22.253055+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "09f65f1017a67e1a77b9db191d08ced45818294a",
   "created_at": "2026-11-03T13:10:13.863802+00:00",
   "flattened": false,
   "friendly_name": "ascii mission scaffold",
