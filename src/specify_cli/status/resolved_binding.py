@@ -1,11 +1,10 @@
 """Resolved-binding carrier for the dispatch→claim linkage (FR-014 / IC-08).
 
-The *genuinely dispatch-resolved* runtime identity — which model the routing
-catalog recommended and which profile the registry resolved — lives only on the
-invocation/Op path (``invocation/executor.py`` ``RoutingRecommendation`` /
+The *genuinely dispatch-resolved* runtime identity — which profile the registry
+resolved — lives only on the invocation/Op path (``invocation/executor.py``
 ``registry.resolve``, recorded in ``invocation/record.py`` keyed by
 ``invocation_id``). This module carries that resolution from the CLI claim
-commands (``--model``/``--profile``/``--invocation-id`` on
+commands (``--profile``/``--invocation-id`` on
 ``cli/commands/agent/workflow.py``) into the claim seams so the claim-time emit
 records the WP's **resolved binding**.
 
