@@ -222,7 +222,9 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   resolved ownership map; it used to refuse as `IMPLEMENTATION_MISSING`, whose recovery cannot
   help. The verdict is decided before `IMPLEMENTATION_MISSING`, and no attestation lifts it. An
   authored `owned_files` list, an empty one included, stays resolved and keeps
-  `IMPLEMENTATION_MISSING`. The code appears in `data.preflight_error_code(s)` and
+  `IMPLEMENTATION_MISSING`. A call that was previously refused with `IMPLEMENTATION_MISSING` may now be
+  refused with `OWNERSHIP_UNRESOLVED`, which no attestation lifts: a consumer that auto-attests
+  must handle it. The code appears in `data.preflight_error_code(s)` and
   `data.evidence_error_codes`, so the contract-visible error-code set grows, a minor bump; no field
   or `error_code` is removed or renamed.
 
