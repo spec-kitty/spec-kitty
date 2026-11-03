@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "semantic-check-strictness-parity-01M6GRFQ",
+  "mission_id": "01M6GRFQT8BPA7AH9VVH3X0CV3",
+  "mission_branch": "issue-7065-semantic-check-strictness",
+  "target_branch": "issue-7065-semantic-check-strictness",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/changelog/unreleased/<pr/**",
+        "docs/changelog/unreleased/README.md",
+        "src/glossary/**",
+        "tests/agent/glossary/**"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:11:03.908079+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c54c7f915ee3e23dd940b41a2fb97626b4487fd2"
+}
