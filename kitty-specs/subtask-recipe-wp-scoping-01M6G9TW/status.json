@@ -1,7 +1,7 @@
 {
-  "event_count": 16,
-  "last_event_id": "01M6GM0E9G9F06FKWY45JQ6Q9P",
-  "materialized_at": "2026-11-03T11:51:43.152902+00:00",
+  "event_count": 17,
+  "last_event_id": "01M6GM1NG3E9RD91MYM3Y5HTD1",
+  "materialized_at": "2026-11-03T11:52:23.299949+00:00",
   "mission_number": "",
   "mission_slug": "subtask-recipe-wp-scoping-01M6G9TW",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -83,18 +83,21 @@
       }
     },
     "WP03": {
-      "actor": "python-pedro",
+      "actor": "reviewer-renata",
       "agent": "python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M6GM0E9G9F06FKWY45JQ6Q9P",
-      "last_transition_at": "2026-11-03T11:51:43.152902+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6GM1NG3E9RD91MYM3Y5HTD1",
+      "last_transition_at": "2026-11-03T11:52:23.299949+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Fragment, tracers, issue verdict and docs freshness done"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 1137777,
       "shell_pid_created_at": "1793706379.82",
       "subtasks": {
