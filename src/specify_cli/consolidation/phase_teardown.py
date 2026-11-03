@@ -387,9 +387,13 @@ def _late_window_base(run: _MergeRunState) -> str | None:
     ``None`` means the run recorded no anchor at all (a coordination placement that did not resolve),
     so no window can be built — see :func:`_land_late_coordination_commits`.
     """
+    # Typed locals: the ``specify_cli.*`` ``follow_imports=skip`` override resolves these
+    # cross-module attributes as ``Any``, and returning ``Any`` trips ``no-any-return``.
     if run.is_resume:
-        return run.state.pre_mutation_coord_sha
-    return run.coord_tip_after_projection
+        resume_base: str | None = run.state.pre_mutation_coord_sha
+        return resume_base
+    first_run_base: str | None = run.coord_tip_after_projection
+    return first_run_base
 
 
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
