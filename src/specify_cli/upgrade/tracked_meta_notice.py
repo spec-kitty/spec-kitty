@@ -18,7 +18,7 @@ from pathlib import Path
 
 from specify_cli.mission_metadata import TrackedMeta, UnreadableReason, read_tracked_meta
 
-#: The one repair command every variant ends with.
+#: File-restore command for notices whose tracked-state diagnostics support it.
 _RESTORE = "git checkout -- {path}"
 
 #: Stable codes of a refusal, printed in its notice and carried in ``BackfillResult.reason``.
@@ -33,9 +33,9 @@ _LEAD_NO_IDENTITY = "has lost its mission_id"
 #: out the restore remedy: `git checkout -- <path>` fails for the same reason the read failed.
 _UNREADABLE_TAIL: dict[UnreadableReason, str] = {
     "ownership": (
-        "git refuses this checkout's ownership (it belongs to another user), so whether it is tracked here is "
+        "git reports an ownership-trust refusal for this checkout, so whether it is tracked here is "
         "unknown and no identity was minted — trusting the repository is an explicit operator decision, scoped to "
-        "this checkout only (`safe.directory` names that one path, never a wildcard), and no file restore can "
+        "this checkout only (name that exact path in `safe.directory`, never `*`), and no file restore can "
         "succeed until git answers"
     ),
     "repository": (
@@ -45,9 +45,10 @@ _UNREADABLE_TAIL: dict[UnreadableReason, str] = {
         "because no file restore can succeed until git answers"
     ),
     "objects": (
-        "git cannot read the committed content for it from this repository (a damaged or incomplete object "
-        "store), so whether it is tracked is unknown and no identity was minted — repair the object store first "
-        "(`git fsck` names the damage), because no file restore can succeed until git answers"
+        "git could not read the committed content for it from this repository (for example, a missing or corrupt "
+        "object, an unreadable ref, or an incomplete clone), so whether it is tracked is unknown and no identity "
+        "was minted — check repository and object-store access first (`git fsck` can help diagnose the failure), "
+        "because no file restore can succeed until git answers"
     ),
 }
 
