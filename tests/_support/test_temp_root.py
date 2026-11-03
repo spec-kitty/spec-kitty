@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -36,21 +37,22 @@ class _Config:
 
 def test_no_basetemp_is_a_no_op(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A run that never resolved a basetemp must not invent an environment."""
-    monkeypatch.setattr(tempfile, "tempdir", "/somewhere/else")
-    environ = {"TMPDIR": "/tmp", "TEMP": "/tmp", "TMP": "/tmp"}
+    platform_root = str(tmp_path / "platform-temp")
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "elsewhere"))
+    environ = dict.fromkeys(TEMP_ROOT_VARS, platform_root)
 
     assert temp_root_for(None) is None
     assert temp_root_for("") is None
     assert temp_root_dir(_Config(None)) is None
     assert install_temp_root(_Config(None), environ) is None
 
-    assert environ == {"TMPDIR": "/tmp", "TEMP": "/tmp", "TMP": "/tmp"}
-    assert tempfile.tempdir == "/somewhere/else"
+    assert environ == dict.fromkeys(TEMP_ROOT_VARS, platform_root)
+    assert tempfile.tempdir == str(tmp_path / "elsewhere")
 
 
 def test_install_points_every_temp_variable_at_the_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``tempfile`` reads ``TMPDIR`` first; Windows tools read ``TEMP``/``TMP``. All three."""
-    monkeypatch.setattr(tempfile, "tempdir", "/somewhere/else")
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "elsewhere"))
     environ: dict[str, str] = {}
 
     root = install_temp_root(_Config(str(tmp_path)), environ)
@@ -66,7 +68,7 @@ def test_install_points_every_temp_variable_at_the_root(tmp_path: Path, monkeypa
 def test_install_overwrites_a_previously_installed_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A second install (another worker, another basetemp) wins, and the directory exists."""
     monkeypatch.setattr(tempfile, "tempdir", None)
-    environ: dict[str, str] = {"TMPDIR": "/tmp"}
+    environ: dict[str, str] = {"TMPDIR": str(tmp_path / "platform-temp")}
 
     first = install_temp_root(_Config(str(tmp_path / "one")), environ)
     second = install_temp_root(_Config(str(tmp_path / "two")), environ)
@@ -84,26 +86,28 @@ def test_ensure_temp_root_is_idempotent(tmp_path: Path) -> None:
     assert ensure_temp_root(root) == root
 
 
-def test_harness_env_carries_the_ceiling_and_the_temp_variables() -> None:
+def test_harness_env_carries_the_ceiling_and_the_temp_variables(tmp_path: Path) -> None:
+    temp_root = str(tmp_path / "run" / "tmp")
+    ceiling = os.pathsep.join([str(tmp_path / "run"), str(tmp_path / "home")])
     environ: dict[str, Any] = {
-        GIT_CEILING_ENV: "/tmp/run:/tmp/home",
-        "TMPDIR": "/tmp/run/tmp",
-        "TEMP": "/tmp/run/tmp",
-        "TMP": "/tmp/run/tmp",
+        GIT_CEILING_ENV: ceiling,
+        "TMPDIR": temp_root,
+        "TEMP": temp_root,
+        "TMP": temp_root,
         # Everything below is NOT harness-owned and must not travel to a child.
-        "GIT_DIR": "/elsewhere/.git",
+        "GIT_DIR": str(tmp_path / "elsewhere" / ".git"),
         "GIT_ASKPASS": "/usr/bin/true",
-        "HOME": "/home/someone",
+        "HOME": str(tmp_path / "home-dir"),
         "PATH": "/usr/bin",
     }
 
     carried = harness_env(environ)
 
     assert carried == {
-        GIT_CEILING_ENV: "/tmp/run:/tmp/home",
-        "TMPDIR": "/tmp/run/tmp",
-        "TEMP": "/tmp/run/tmp",
-        "TMP": "/tmp/run/tmp",
+        GIT_CEILING_ENV: ceiling,
+        "TMPDIR": temp_root,
+        "TEMP": temp_root,
+        "TMP": temp_root,
     }
 
 

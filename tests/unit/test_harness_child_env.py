@@ -23,14 +23,17 @@ from tests._support.git_ceiling import GIT_CEILING_ENV
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-CEILING = "/tmp/harness-run:/tmp/harness-home"
-
 
 @pytest.fixture()
-def ceiling(monkeypatch: pytest.MonkeyPatch) -> str:
-    """The harness value a child environment must inherit."""
-    monkeypatch.setenv(GIT_CEILING_ENV, CEILING)
-    return CEILING
+def ceiling(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
+    """The harness value a child environment must inherit.
+
+    Derived from ``tmp_path`` rather than written as a literal: a shared temp path in test
+    source is exactly what ``tests/architectural/test_no_tmp_paths_in_tests.py`` forbids.
+    """
+    value = os.pathsep.join([str(tmp_path / "run"), str(tmp_path / "home")])
+    monkeypatch.setenv(GIT_CEILING_ENV, value)
+    return value
 
 
 def test_isolated_env_shell_helper_carries_the_ceiling(ceiling: str) -> None:
