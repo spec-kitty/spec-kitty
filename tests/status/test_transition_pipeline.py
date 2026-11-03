@@ -649,3 +649,96 @@ def test_forced_exit_from_a_verdict_lane_needs_a_verdict_or_a_note(from_lane: st
     assert (FORCE_NOTE_REQUIRED in str(raised.value)) is (outcome == "note-refusal")
     if outcome == "note-refusal":
         assert FORCE_NOTE_HINT in str(raised.value)
+
+
+# ── #7080: the wire pointer is derived from the structured review result ─────
+
+
+_REWIND_VERDICT = ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="review-cycle://WP01/7")
+
+
+class TestWireReviewRefDerivation:
+    """`prepare_transition` records the structured review reference when no pointer was given.
+
+    Every status door reaches this one function, so the rule lives here rather than in
+    each shell -- and it fills an ABSENT pointer only, so a caller's ``--review-ref`` and
+    the guard's consistency rule keep their behaviour (#7080).
+    """
+
+    def test_absent_pointer_is_derived_from_the_structured_reference(self, feature_dir: Path) -> None:
+        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
+
+        assert prepared.event is not None
+        assert prepared.event.review_ref == "review-cycle://WP01/7"
+        assert prepared.event.review_result == _REWIND_VERDICT
+
+    def test_the_recorded_pointer_satisfies_the_gated_edge(self, feature_dir: Path) -> None:
+        """No ``TransitionError``: the gate sees the derived pointer, not the absent one."""
+        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
+        assert prepared.event is not None
+
+    def test_a_supplied_pointer_is_recorded_unchanged(self, feature_dir: Path) -> None:
+        prepared = _prepare(
+            feature_dir,
+            _request(
+                feature_dir=feature_dir,
+                to_lane="in_progress",
+                review_ref="review-cycle://WP01/7",
+                review_result=_REWIND_VERDICT,
+            ),
+            Lane.IN_REVIEW,
+        )
+
+        assert prepared.event is not None
+        assert prepared.event.review_ref == "review-cycle://WP01/7"
+
+    def test_a_disagreeing_supplied_pointer_still_fails_the_consistency_rule(self, feature_dir: Path) -> None:
+        """The derivation must not paper over a caller's contradiction."""
+        with pytest.raises(TransitionError, match="review_ref must match review_result.reference"):
+            _prepare(
+                feature_dir,
+                _request(
+                    feature_dir=feature_dir,
+                    to_lane="in_progress",
+                    review_ref="feedback://someone-else",
+                    review_result=_REWIND_VERDICT,
+                ),
+                Lane.IN_REVIEW,
+            )
+
+    @pytest.mark.parametrize("reference", [None, "", "   "])
+    def test_a_blank_structured_reference_is_not_a_pointer(self, feature_dir: Path, reference: str | None) -> None:
+        """A blank/non-string reference leaves the pointer absent, so the write is refused.
+
+        Which refusal names the failure depends on the path: unforced moves keep the
+        ``in_review`` guard's established "review_result with reference" message, and a
+        forced one falls to the force-insurmountable ``review_ref`` rule. Both refuse
+        before any append, and neither records a pointer the contract would reject.
+        """
+        verdict = ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference=reference)  # type: ignore[arg-type]
+
+        with pytest.raises(TransitionError, match="review_result with reference|requires review_ref"):
+            _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=verdict), Lane.IN_REVIEW)
+
+        with pytest.raises(TransitionError, match="requires review_ref"):
+            _prepare(
+                feature_dir,
+                _request(feature_dir=feature_dir, to_lane="in_progress", review_result=verdict, force=True, reason="operator rewind"),
+                Lane.IN_REVIEW,
+            )
+
+    def test_the_derivation_reads_no_io(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """NFR-002: the derivation is a field read, never a file/pin/git lookup."""
+        import subprocess
+
+        def _no_io(*args: object, **kwargs: object):
+            raise AssertionError("the review_ref derivation performed I/O")
+
+        monkeypatch.setattr(Path, "read_text", _no_io)
+        monkeypatch.setattr(Path, "open", _no_io)
+        monkeypatch.setattr(subprocess, "run", _no_io)
+
+        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
+
+        assert prepared.event is not None
+        assert prepared.event.review_ref == "review-cycle://WP01/7"

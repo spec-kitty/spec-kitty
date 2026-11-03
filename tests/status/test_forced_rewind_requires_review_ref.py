@@ -315,10 +315,13 @@ def _in_progress():
     [
         ("for_review", "in_progress"),
         # #6955: a pointerless forced rewind from `approved` also recorded a row
-        # hosted sync rejects. `in_review` is the contract's third gated edge but
-        # carries its evidence as a structured `review_result` on the emit path, so
-        # it needs its own fix first (follow-up: #7080).
+        # hosted sync rejects.
         ("approved", "in_progress"),
+        # #7080 closed the #6955 deferral. ``in_review -> in_progress`` is admitted here
+        # only when the request carries a pointer, and the status emit path now derives
+        # that pointer from the structured review result. The deferral was pinned as
+        # still admitted so it could not flip silently; this is that deliberate flip.
+        ("in_review", "in_progress"),
     ],
 )
 def test_requires_review_ref_covers_the_gated_family(from_lane: str, to_lane: str) -> None:
@@ -509,15 +512,19 @@ def test_a_non_string_pointer_is_not_a_pointer(review_ref: object) -> None:
         ("approved", "planned"),
         ("in_progress", "planned"),
         ("blocked", "in_progress"),
-        # The pinned contract's third gated edge, deliberately deferred by #6955: its
-        # evidence is a structured review_result the emit path never turns into a
-        # review_ref, so the local writer still admits a pointerless rewind here. This
-        # row is the carve-out's pin -- #7080 must flip it, and nothing else may.
-        ("in_review", "in_progress"),
+        # ``in_review -> in_progress`` moved OUT of this list in #7080: it is a gated
+        # edge now, and its pointer-carrying arm is pinned by the #7080 tests below.
+        # This list stays the "still admitted with only actor + reason" set.
     ],
 )
 def test_force_elsewhere_is_unchanged(from_lane: str, to_lane: str) -> None:
-    """Every forced edge outside the gated set still admits actor + reason (`NFR-003`)."""
+    """T008: every forced edge outside the requirement set still admits actor + reason.
+
+    ``in_review -> in_progress`` moved OUT of this list in #7080 (it is a gated edge
+    now, and its pointer-carrying arm is pinned below). ``approved -> planned`` and
+    ``in_progress -> planned`` stay: they are review-rejection edges, not the gated
+    rewind family.
+    """
     from specify_cli.status.models import GuardContext, Lane
     from specify_cli.status.wp_state import requires_review_ref, wp_state_for
 
@@ -632,17 +639,17 @@ def _wire_payload(from_lane: str, to_lane: str, *, force: bool, review_ref: str 
 
 
 def test_local_edge_set_equals_the_contract_members_it_claims() -> None:
-    """`SC-003`/`FR-009`: one local set, holding exactly the edges this mission claims.
+    """`SC-003`/`FR-009`: one local set, holding exactly the contract's gated family.
 
     The per-member half is the non-vacuity control: each member is proven to be a
     real requirement of the *pinned dependency* (a pointerless payload is rejected,
     its sentinel-carrying twin accepted), so the local set cannot be narrowed
     without this failing -- and a member added beyond the contract fails here too.
 
-    The contract's third gated edge, ``in_review -> in_progress``, is deliberately
-    absent: its evidence is a structured ``review_result`` the emit path does not
-    turn into a ``review_ref`` yet (follow-up issue #7080). It is not silently
-    dropped -- this docstring and ``wp_state.REVIEW_REF_REQUIRED_EDGES`` name it.
+    #6955 pinned this as two members with ``in_review -> in_progress`` deliberately
+    absent, because the emit path did not turn a structured ``review_result`` into
+    a ``review_ref`` (follow-up #7080). That derivation now exists, so the third
+    member is here: the deferral flipped deliberately, in the pin that guarded it.
     """
     from spec_kitty_events.status import validate_transition
     from specify_cli.status.wp_state import REVIEW_REF_REQUIRED_EDGES
@@ -650,6 +657,7 @@ def test_local_edge_set_equals_the_contract_members_it_claims() -> None:
     expected = {
         ("for_review", "in_progress"),
         ("approved", "in_progress"),
+        ("in_review", "in_progress"),
     }
     assert {(from_lane.value, to_lane.value) for from_lane, to_lane in REVIEW_REF_REQUIRED_EDGES} == expected
 
@@ -659,7 +667,8 @@ def test_local_edge_set_equals_the_contract_members_it_claims() -> None:
         )
         assert validate_transition(_wire_payload(from_lane, to_lane, force=True, review_ref="force-override")).valid is True
 
-    # The carve-out is real, not a typo: the contract still gates this edge (#7080).
+    # The former carve-out is closed, not merely pinned: the same edge that #6955 left
+    # out is now a local member AND a wire requirement, proven in both directions above.
     assert validate_transition(_wire_payload("in_review", "in_progress", force=True, review_ref=None)).valid is False
 
 
@@ -776,6 +785,13 @@ def test_auditor_reports_a_pointerless_family_row(from_lane: str) -> None:
     assert validate_event_schema({**event, "review_ref": "force-override"}) == []
 
 
+# ---------------------------------------------------------------------------
+# #7080: the contract's third gated rewind, ``in_review -> in_progress``
+#
+# Its evidence is a STRUCTURED review result, which the status emit path never
+# turned into a ``review_ref`` (#6955 deferred the edge for exactly this reason).
+# These tests therefore come in the order the fix has to happen: the recorded
+# pointer first, the gate second, and a pointerless request still refused.
 # ---------------------------------------------------------------------------
 
 _REVIEW_RESULT_JSON = json.dumps({"reviewer": "reviewer-renata", "verdict": "changes_requested", "reference": "review-cycle://WP01/7"})

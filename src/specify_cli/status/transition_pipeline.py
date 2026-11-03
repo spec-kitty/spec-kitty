@@ -223,6 +223,37 @@ def _stamped_policy_metadata(
 _VERDICT_GATED_LANES: frozenset[str] = frozenset({Lane.IN_REVIEW, Lane.APPROVED})
 
 
+def _wire_review_ref(request: TransitionRequest) -> str | None:
+    """The pointer this transition should record: the caller's, else the structured one (#7080).
+
+    ``move-task`` has threaded ``review_result.reference`` onto the wire since #3307
+    (``tasks_transition_core.build_transition_plan``); the generic emit doors -- ``agent
+    status emit``, ``orchestrator-api wp transition`` and any direct
+    ``emit_status_transition`` caller -- did not, so an ``in_review`` exit recorded
+    ``review_ref: null`` while the caller had supplied the reference in structured form.
+    That is why the shared contract's third gated rewind could not be gated locally
+    without refusing a legitimate write (the #6955 deferral, closed here).
+
+    The derivation lives here, in the tree's only validation/event-build authority, so
+    every door gets the same rule and the guard and the recorded event cannot disagree.
+    It fills only an ABSENT pointer: a caller-supplied ``review_ref`` is returned
+    unchanged (the guard's own ``review_ref == review_result.reference`` consistency
+    rule still applies to it), and a blank or non-string structured reference is not a
+    pointer (``has_review_ref``'s definition), so the requirement stays unsatisfied.
+    """
+    # Annotated local, same reason as ``_stamped_policy_metadata``: with this repo's
+    # ``follow_imports = "skip"`` a narrow-file ``mypy --strict`` sees
+    # ``TransitionRequest.review_ref`` as ``Any``, so returning it verbatim trips
+    # ``no-any-return``. The annotation re-asserts the field's already-declared type.
+    request_review_ref: str | None = request.review_ref
+    if request_review_ref is not None:
+        return request_review_ref
+    reference = getattr(request.review_result, "reference", None)
+    if isinstance(reference, str) and reference.strip():
+        return reference
+    return None
+
+
 def _refuse_unnoted_review_exit(request: TransitionRequest, from_lane: str) -> None:
     """Refuse a forced exit from ``in_review``/``approved`` that is no verdict and carries no note (#5446).
 
@@ -366,7 +397,10 @@ def prepare_transition(
     # Step 5 + 6: guard context and the tree's only validate_transition call.
     # The dependency verdict is tri-state (FR-012): the shell's in-lock
     # readiness becomes ``dependency_ready``; no verdict stays ``None`` and the
-    # guard passes (C-004 fail-open, decision Q8).
+    # guard passes (C-004 fail-open, decision Q8). The pointer is derived ONCE
+    # here and used for both the guard and the recorded event, so the two can
+    # never disagree (#7080).
+    review_ref = _wire_review_ref(request)
     ok, error_msg = validate_transition(
         from_lane,
         resolved_lane,
@@ -377,7 +411,7 @@ def prepare_transition(
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
             reason=request.reason,
-            review_ref=request.review_ref,
+            review_ref=review_ref,
             evidence=done_evidence,
             review_result=request.review_result,
             current_actor=request.current_actor,
@@ -418,7 +452,7 @@ def prepare_transition(
         # canonical move-task command's cancel event carries operator/synthetic
         # onto the persisted StatusEvent.
         reason_source=request.reason_source,
-        review_ref=request.review_ref,
+        review_ref=review_ref,
         evidence=done_evidence,
         review_result=request.review_result,
         policy_metadata=stamped_policy_metadata,

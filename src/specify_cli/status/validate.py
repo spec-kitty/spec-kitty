@@ -85,10 +85,11 @@ def validate_event_schema(event: dict) -> list[str]:
     - force is boolean
     - execution_mode is "worktree" or "direct_repo"
     - If force=True, reason must be non-empty string
-    - If the edge is in ``wp_state.REVIEW_REF_REQUIRED_EDGES`` (``for_review``
-      and ``approved`` into ``in_progress``), review_ref must be present and
-      non-blank. That edge set is the single owning definition; the write path
-      enforces the same requirement before it appends (#6514, #6955).
+    - If the edge is in ``wp_state.REVIEW_REF_REQUIRED_EDGES`` (``for_review``,
+      ``in_review`` and ``approved`` into ``in_progress``), review_ref must be
+      present and non-blank. That edge set is the single owning definition; the
+      write path enforces the same requirement before it appends (#6514, #6955,
+      #7080).
 
     Extra unknown fields are NOT flagged (forward-compatible).
     """
