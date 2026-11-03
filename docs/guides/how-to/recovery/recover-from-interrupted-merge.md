@@ -2,7 +2,7 @@
 title: Recover from an Interrupted Consolidation
 description: 'How to recover from an interrupted consolidation: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.'
 doc_status: active
-updated: '2026-10-31'
+updated: '2026-11-02'
 type: how-to
 audience:
 - profile: external/project-owner
@@ -160,6 +160,31 @@ Then run `spec-kitty consolidate --resume` again.
 
 The other codes `consolidate` can report are listed in the
 [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).
+
+### What a first run lands before it tears down
+
+A **first** run (no `--resume`) gets the same protection over a narrower window.
+The merge records the coordination tip it verified — its own last write to the
+coordination branch, after everything it was going to project had landed — and
+anything committed to the coordination branch **after** that tip is late by
+definition. Before the branch is deleted, a first run projects that window and
+proves it landed, exactly as a resume does:
+
+- A late coordination record that can be landed is committed on the target, then
+  proven there, and only then does the coordination branch go.
+- A record that cannot be landed (a deletion, a copy that would lose evidence, an
+  unreadable matrix) refuses with `Error code: COORD_LATE_PROJECTION_REFUSED.`,
+  keeps the coordination branch, worktree and marker, and names its own repair —
+  the same per-kind remedies listed above.
+- A run where nothing landed late projects nothing and makes no extra commit, so
+  a clean consolidation behaves exactly as it did before.
+
+This closes the window where a verification or status write made *between* the
+gate and the teardown was either refused after a landing that was already complete
+(leaving you to hand-assemble it) or lost with the branch. A resume's window is
+wider on purpose — it spans everything the coordination branch changed since the
+merge began, because a resume has no in-memory record of what the interrupted
+attempt verified.
 
 ## Aborting a Consolidation
 
