@@ -1191,7 +1191,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
             wp_ids,
             reason,
             repo_root=run.repo_root,
-            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug, owned=run.owned),
             landed_commit=landed_commit,
             owned=run.owned,
         )
@@ -1239,7 +1239,7 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
             run.repo_root,
             _evidence_status_dir(run),
             manifest,
-            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug, owned=run.owned),
             landed_commit=landed_commit,
             owned=run.owned,
         )

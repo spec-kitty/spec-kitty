@@ -933,7 +933,15 @@ def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
             "Make sure that commit is reachable in this checkout (fetch it, or recreate the local branch that carries it), "
             f"or repoint `planning_commit_sha` in {st.feature_dir / 'lanes.json'} to a commit that is an ancestor of HEAD, then retry.",
         )
-    if not patterns or not any(_mt_matches_owned_file(path, patterns) for path in changed):
+    if not patterns:
+        # The task file was read successfully, so empty patterns are an authored empty declaration.
+        assert st.wp is not None
+        raise ActionContextError(
+            "OWNED_IMPLEMENTATION_MISSING",
+            f"Work package declares no `owned_files` in {st.wp.path}, so no committed change can be matched to it. "
+            "Declare its `owned_files`, or move it as a planning work package.",
+        )
+    if not any(_mt_matches_owned_file(path, patterns) for path in changed):
         raise ActionContextError(
             "OWNED_IMPLEMENTATION_MISSING",
             "Owned review requires a committed change matching WP owned_files.",

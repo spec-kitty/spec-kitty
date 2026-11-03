@@ -533,8 +533,20 @@ def test_owned_review_auto_commits_selected_checkout_deliverables(finalized_chec
     assert (snapshot(primary), snapshot(sibling)) == other_before
 
 
-def test_owned_review_refuses_status_only_commits(finalized_checkouts):
+@pytest.mark.parametrize(
+    "authored_empty, expected_detail",
+    [
+        pytest.param(False, "Owned review requires a committed change matching WP owned_files.", id="declared_without_change"),
+        pytest.param(True, "declares no `owned_files`", id="authored_empty_declaration"),
+    ],
+)
+def test_owned_review_refuses_status_only_commits(finalized_checkouts, authored_empty, expected_detail):
     primary, owned, sibling = finalized_checkouts
+    task_file = owned / "kitty-specs" / SLUG / "tasks" / "WP01-test.md"
+    if authored_empty:
+        task_file.write_text(task_file.read_text(encoding="utf-8").replace("owned_files:\n- app.py\n", "owned_files: []\n"), encoding="utf-8")
+        git(owned, "add", "--", str(task_file))
+        git(owned, "commit", "-qm", "fixture: WP01 authors an empty owned_files declaration")
     other_before = snapshot(primary), snapshot(sibling)
     started = CliRunner().invoke(
         tasks_app,
@@ -573,7 +585,11 @@ def test_owned_review_refuses_status_only_commits(finalized_checkouts):
     )
 
     assert submitted.exit_code == 1, submitted.output
-    assert_owned_catch_all_refusal(json.loads(submitted.output), "OWNED_IMPLEMENTATION_MISSING")
+    refusal = json.loads(submitted.output)
+    assert_owned_catch_all_refusal(refusal, "OWNED_IMPLEMENTATION_MISSING")
+    assert expected_detail in refusal["error"]["message"]
+    if authored_empty:
+        assert task_file.name in refusal["error"]["message"]
     assert git(owned, "rev-parse", "HEAD") == before_review
     mission = owned / "kitty-specs" / SLUG
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
