@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     # modules are pulled at runtime only inside the function-local imports
     # below, never at module scope.
     from specify_cli.context.mission_resolver import ResolvedMission
+    from specify_cli.coordination.surface_resolver import WorktreeTopology
     from specify_cli.core.checkout_ownership import OwnershipClaim
 
 
@@ -69,6 +70,9 @@ NEXT_OWNED_TOPOLOGIES: Final[frozenset[MissionTopology]] = frozenset(
 _REPOSITORY_ROOT_REFUSAL = "--owned-checkout names the repository root checkout; pass a linked owned checkout instead."
 _MISSION_WORKTREE_REFUSAL = (
     "--owned-checkout names a worktree already registered to this mission (coordination worktree or lane worktree); pass a linked owned checkout instead."
+)
+_CREATE_MISSION_WORKTREE_REFUSAL = (
+    "--owned-checkout names a worktree registered to an existing mission (coordination worktree or lane worktree); pass a linked owned checkout instead."
 )
 
 
@@ -215,6 +219,29 @@ def _is_lane_worktree_of_mission(checkout: Path, repository_root: Path, director
     return False
 
 
+def _classify_registered_worktree(checkout: Path, repository_root: Path) -> WorktreeTopology:
+    """Classify *checkout* against the git worktree registry, translating an unreadable registry.
+
+    ONE ``git worktree list`` read, shared by BOTH legs of
+    :func:`_require_not_create_mission_worktree`, which is why it returns the
+    classification rather than a single boolean: the create claim needs to know
+    coordination from lane without paying twice. An unreadable registry
+    (:class:`WorktreeRegistryUnavailable`) becomes a typed refusal carrying that
+    exception's own ``error_code``, so the caller's contract stays
+    ``ActionContextError`` only and fails closed (NFR-002).
+
+    The leaf keeps calling :func:`_is_coordination_worktree` directly: it needs
+    the same single read and no lane leg, and its flagless-adoption sibling
+    depends on that predicate's propagate-don't-translate contract.
+    """
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable, classify_worktree_topology
+
+    try:
+        return classify_worktree_topology(checkout, repo_root=repository_root)
+    except WorktreeRegistryUnavailable as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+
+
 def _require_not_mission_worktree(checkout: Path, repository_root: Path, directory: Path | None) -> None:
     """Refuse an explicit ``--owned-checkout`` naming a registered mission worktree.
 
@@ -242,6 +269,61 @@ def _require_not_mission_worktree(checkout: Path, repository_root: Path, directo
     is_lane = directory is not None and _is_lane_worktree_of_mission(checkout, repository_root, directory)
     if is_coord or is_lane:
         raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _MISSION_WORKTREE_REFUSAL)
+
+
+def _require_not_create_mission_worktree(checkout: Path, repository_root: Path) -> None:
+    """Refuse a create claim naming a worktree already registered to a Mission (#6956).
+
+    The create-time counterpart of :func:`_require_not_mission_worktree`. No
+    Mission is bound yet, so the leaf's lane leg (compare against the paths
+    predicted from *this* Mission's ``lanes.json``) cannot run; this guard uses
+    the two facts that do not need a Mission:
+
+    * **coordination** -- the registry registers the path under ``.worktrees``
+      and its name carries the ``-coord`` suffix, which is exactly
+      :attr:`WorktreeTopology.COORD_WORKTREE`;
+    * **lane** -- the registry registers it and
+      :func:`specify_cli.lanes.branch_naming.parse_lane_worktree_dir`, the
+      canonical slug-free lane-worktree directory grammar, recognises its name.
+      Both halves are required: ``LANE_WORKTREE`` alone also covers a
+      legitimate owned checkout placed under ``.worktrees/``, which must stay
+      admitted (the carrier-contract trap documented on
+      :func:`_is_lane_worktree_of_mission`).
+
+    A ``-coord``-shaped directory git does not register is a husk (F-005) and is
+    never classified coordination -- the registry disposes, never the name -- so
+    this guard never refuses it on the name alone. An unreadable registry
+    refuses through :func:`_classify_registered_worktree`.
+
+    **Reserved names.** The lane leg recognises the lane-worktree directory
+    grammar, so ``<slug>-lane-<id>`` is reserved BY THIS CREATE CLAIM: a linked
+    checkout a user happens to name that way is refused even when no Mission of
+    that name exists. This is a policy of the create seam, not a property some
+    other component already guarantees -- at create time no Mission is bound, so
+    shape is the only signal available, and refusing is the safe direction (the
+    message tells the operator to pass a differently named owned checkout).
+
+    **Known limit.** The allocator always composes
+    ``.worktrees/<slug>-<lane_id>``
+    (:func:`specify_cli.lanes.worktree_allocator.predict_lane_worktree`), so
+    canonical layouts are covered. A lane worktree that has been relocated out
+    of ``.worktrees``, or renamed out of the grammar, is missed by BOTH this leg
+    and the leaf's own lane check (which compares against that same predicted
+    path); neither altitude refuses it, and neither did before this change.
+
+    **Read budget.** Ownership validation already spends one registry read
+    (``checkout_ownership.resolve_ownership_claim``); this guard adds exactly
+    one more, for the two legs together, never one per leg.
+    """
+    from specify_cli.coordination.surface_resolver import WorktreeTopology
+    from specify_cli.core.checkout_ownership import OWNED_CHECKOUT_IS_MISSION_WORKTREE
+    from specify_cli.lanes.branch_naming import parse_lane_worktree_dir
+
+    topology = _classify_registered_worktree(checkout, repository_root)
+    if topology is WorktreeTopology.COORD_WORKTREE:
+        raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _CREATE_MISSION_WORKTREE_REFUSAL)
+    if topology is WorktreeTopology.LANE_WORKTREE and parse_lane_worktree_dir(checkout.name) is not None:
+        raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _CREATE_MISSION_WORKTREE_REFUSAL)
 
 
 def _resolve_mission_dir_best_effort(root: Path, handle: str | None) -> Path | None:
@@ -485,10 +567,23 @@ _CREATE_ROOT_TOKEN = object()
 def resolve_owned_create_root(repository_root: Path, checkout: Path) -> OwnedCreateRoot:
     """Validate a mission-create-time owned checkout, before the mission exists.
 
-    No branch or topology check: the mission does not exist yet, and
-    ``create`` keeps its own guards (``mission_creation.py``).
+    The claim check is :func:`_require_owned_claim` (foreign, nested, broken
+    pointer, repository root). On top of it, :func:`_require_not_create_mission_worktree`
+    refuses a checkout the registry registers as a coordination worktree or as a
+    lane worktree (#6956): the leaf refuses both, and a create that admitted one
+    would scaffold a Mission inside another Mission's write surface and only be
+    refused afterwards. Every consumer of this minter therefore refuses
+    ``agent mission create --owned-checkout``, the read-only startup-gate
+    consult and the Op record commands, in one place.
+
+    Still no stored-``MissionTopology`` or write-branch check: the mission does
+    not exist yet, and ``create`` keeps its own guards
+    (``mission_creation.py``). The worktree classification added above answers a
+    different question (which registered kind of checkout this is), not which
+    shape the Mission will run in.
     """
     claim = _require_owned_claim(repository_root, checkout)
+    _require_not_create_mission_worktree(claim.claimed_checkout, repository_root)
     return OwnedCreateRoot(repository_root=repository_root, checkout=claim.claimed_checkout, _token=_CREATE_ROOT_TOKEN)
 
 

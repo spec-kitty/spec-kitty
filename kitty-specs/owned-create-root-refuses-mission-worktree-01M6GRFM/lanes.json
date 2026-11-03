@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "mission_id": "01M6GRFMX0C5YWQ16SYQ19R5FM",
+  "mission_branch": "kitty/mission-owned-create-root-refuses-mission-worktree-01M6GRFM",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/6956-create-root-refusal.fixed.md",
+        "src/specify_cli/cli/commands/_owned_checkout.py",
+        "src/specify_cli/core/owned_mission.py",
+        "tests/core/test_owned_mission_minter.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_owned_worktree_refusal.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T13:14:19.200549+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f1e860a17f2293ea00794672bcad0267ac660ea1"
+}

@@ -242,10 +242,18 @@ def resolve_owned_op_record_root(
     ``dispatch``, ``profile-invocation complete`` and ``invocations list`` are
     not bound to a Mission, so only the checkout claim is validated, once, through
     :func:`resolve_owned_create_root` (the claim check every owned command
-    runs, plus the repository-root refusal); no Mission or topology is read.
-    Known residual: because no Mission is bound, a registered coordination
-    worktree or lane worktree is NOT refused here (the lane check needs a
-    Mission's ``lanes.json``); do not point ``--owned-checkout`` at one.
+    runs, plus the repository-root refusal). No Mission, no stored topology and
+    no write branch are read -- there is no Mission to read them from.
+
+    The claim's two Mission-worktree legs ARE shared, because they live in that
+    same minter (#6956): a checkout git registers as a coordination worktree, or
+    as a lane worktree by the canonical ``<slug>-lane-<id>`` directory grammar,
+    is refused here too, with ``OWNED_CHECKOUT_IS_MISSION_WORKTREE``. Note that
+    the lane leg recognises a reserved directory name rather than proving
+    Mission membership -- no Mission is bound here to prove it against. What
+    remains unvalidated for an Op command is exactly what needs a bound Mission:
+    the Mission identity, its stored topology and its write branch.
+
     A refusal prints the C2 owned refusal through :func:`emit_owned_refusal`
     and exits 1 before anything is written.
     Returns ``None`` without the flag, so the caller keeps the #6564
