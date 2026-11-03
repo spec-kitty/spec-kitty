@@ -1,15 +1,40 @@
 {
+  "accept_commit": "cee2024d853313cca12e8ff8500a62fce6707614",
+  "acceptance_history": [
+    {
+      "accept_commit": "b495a9e69cf662de38461ab8b2f5482533c80239",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T14:04:08.988326+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "6d3762cfcd6025a0a46d1f07a3638c544acc1493"
+    },
+    {
+      "accept_commit": "cee2024d853313cca12e8ff8500a62fce6707614",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T14:05:51.361627+00:00",
+      "accepted_by": "claude:opus-5.5:reviewer-renata",
+      "accepted_from_commit": "d240e1e4ae4e4395197cce64699409444532ba6b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T14:05:51.361627+00:00",
+  "accepted_by": "claude:opus-5.5:reviewer-renata",
+  "accepted_from_commit": "d240e1e4ae4e4395197cce64699409444532ba6b",
+  "baseline_merge_commit": "619c7ce2114958340879a31f6a93ef0d9433302e",
   "created_at": "2026-11-03T13:31:05.080512+00:00",
   "flattened": false,
   "friendly_name": "lifecycle vocabulary parity",
+  "merged_at": "2026-11-03T14:04:39.136240+00:00",
+  "merged_commit": "619c7ce2114958340879a31f6a93ef0d9433302e",
   "mid8": "01M6GSPC",
   "mission_id": "01M6GSPCB5WHQJJM8TFAV07A5C",
-  "mission_number": null,
+  "mission_number": 249,
   "mission_slug": "lifecycle-vocabulary-parity-01M6GSPC",
   "mission_type": "software-dev",
   "purpose_context": "Pins the CLI lifecycle vocabulary to the canonical spec_kitty_events constants so a drifted copy is a CI failure, and records that ADR 2026-10-29-1 D-9's freeze exited with the removal of contracts/tools.",
   "purpose_tldr": "Lifecycle event types pinned to spec_kitty_events",
   "slug": "lifecycle-vocabulary-parity-01M6GSPC",
+  "status_phase": "1",
   "target_branch": "issue-6876-lifecycle-vocabulary-parity",
   "topology": "single_branch"
 }
