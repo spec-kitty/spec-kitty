@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -403,3 +404,102 @@ def test_schemas_import_does_not_pull_in_pack_manager() -> None:
         [sys.executable, "-c", code], capture_output=True, text=True, check=False
     )
     assert completed.returncode == 0, completed.stderr
+
+
+# ---------------------------------------------------------------------------
+# #6855 -- the deny side is NOT part of the charter.yaml shape
+# ---------------------------------------------------------------------------
+#
+# The allow-side gate above pins "every key the writer may put on charter.yaml is a
+# model field". The deny side is the deliberate mirror image: ``deactivated_<kind>``
+# is activation-ledger content (ADR 2026-10-19-1 Decision 1, constraint C-003) and is
+# never ``charter.yaml`` content, so it must NOT be a model field and every one of the
+# ledger's deny keys must be refused. That decision is recorded here, beside the
+# allow-side gate, instead of only in prose (#6855; the deny-side twin of #6556).
+
+#: The deny-list key prefix, the same naming predicate the ledger uses
+#: (``activation_ledger._DENY_PREFIX``). A predicate, not a vocabulary: it names no kind,
+#: and the keys it is applied to come from the authority below.
+_DENY_KEY_PREFIX = "deactivated_"
+
+#: The one fact a refusal message must carry: where a deactivation is actually recorded.
+_LEDGER_PATH = ".kittify/charter/activation.yaml"
+
+
+def _deny_vocabulary() -> frozenset[str]:
+    """The ledger's deny vocabulary, from its single authority (lazy: #6556 import discipline)."""
+    from charter.activation.activation_ledger import DENY_KEYS
+
+    return frozenset(DENY_KEYS)
+
+
+def _charter_document() -> dict[str, Any]:
+    """A minimal sound ``charter.yaml`` mapping: every required block, no activation key."""
+    return {
+        "schema_version": "2.0.0",
+        "governance": {},
+        "directives": {"directives": []},
+        "catalog": {"mission": "software-dev", "template_set": "software-dev-default", "languages": [], "references": []},
+        "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
+    }
+
+
+def test_deny_vocabulary_is_non_empty_and_deny_shaped() -> None:
+    """Guard on the helper: an empty or mis-shaped authority would make the pins vacuous."""
+    deny = _deny_vocabulary()
+
+    assert deny, "DENY_KEYS is empty, so the refusal/disjointness pins below prove nothing"
+    unmatchable = sorted(key for key in deny if not key.startswith(_DENY_KEY_PREFIX))
+    assert not unmatchable, (
+        f"DENY_KEYS holds {unmatchable}, which do not have the {_DENY_KEY_PREFIX!r} shape, "
+        "so the model-side pins below cannot see them. Widen the predicate before trusting them."
+    )
+
+
+def test_deny_vocabulary_is_disjoint_from_the_activation_allow_vocabulary() -> None:
+    """A deny key must never be a legal activation key: one ledger, two disjoint vocabularies."""
+    overlap = sorted(_deny_vocabulary() & _authority())
+
+    assert not overlap, (
+        f"{overlap} appears in BOTH ACTIVATION_YAML_KEYS and the ledger's DENY_KEYS. The activation "
+        "writer and the deny side must not share a key: a deactivation is an exclusion, not an "
+        "activation of the same kind."
+    )
+
+
+def test_charter_yaml_declares_no_deny_field() -> None:
+    """``CharterYaml`` must declare no deny key: a field would be dumped and emitted (#6855)."""
+    from charter.activation.schemas import CharterYaml
+
+    declared_deny = sorted(name for name in CharterYaml.model_fields if name.startswith(_DENY_KEY_PREFIX))
+    inherited = sorted(_deny_vocabulary() & set(CharterYaml.model_fields))
+
+    assert not declared_deny, (
+        f"CharterYaml declares {declared_deny}. A declared deny field is dumped by emit_yaml and "
+        "emitted by charter.activation.compiler into every regenerated charter.yaml, and it "
+        "contradicts ADR 2026-10-19-1 C-003 ('deactivated_* keys never appear in charter.yaml')."
+    )
+    assert not inherited, f"CharterYaml declares deny keys {inherited} from the ledger's deny vocabulary."
+
+
+@pytest.mark.parametrize("deny_key", sorted(_deny_vocabulary()))
+def test_charter_yaml_refuses_every_deny_key_with_the_contract_message(deny_key: str) -> None:
+    """Every ledger deny key is REFUSED, and the refusal states the contract (#6855).
+
+    Same fixture, half by half: the document validates without the key (positive
+    control) and raises with it, so the refusal is attributable to the key rather than
+    to the fixture. The message must name the ledger and the "never applied" fact; the
+    surrounding prose is not pinned.
+    """
+    from charter.activation.schemas import CharterYaml
+
+    document = _charter_document()
+    # Positive control, same fixture: the document itself is sound.
+    CharterYaml.model_validate(document)
+
+    with pytest.raises(ValidationError) as excinfo:
+        CharterYaml.model_validate({**document, deny_key: ["some-id"]})
+
+    message = str(excinfo.value)
+    assert _LEDGER_PATH in message, f"the refusal for {deny_key} must name the activation ledger, got: {message}"
+    assert "never applied" in message, f"the refusal for {deny_key} must say the deny key was never applied, got: {message}"
