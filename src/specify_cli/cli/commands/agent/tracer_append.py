@@ -13,7 +13,10 @@ before any write input is computed, so an invalid target is refused typed
 with zero residue. The owned fact then supplies the write root
 (``owned_root``), the write branch (``write_branch``), the mission-scoped
 protection policy (``ProtectionPolicy.resolve_for_owned``) and the ``owned``
-keyword the writer threads into the seam.
+keyword the writer threads into the seam. The writer receives the fact's
+canonical Mission name, so the router's later protection fold retains the
+same scope for short handles. This is the live contract; the archived Mission's
+``resolve_for_owned(owned, mission)`` design text is not current guidance.
 
 Without a fact the command behaves exactly as it always has: it resolves the
 MAIN repo root (``get_main_repo_root``) exactly like ``record-analysis`` does,
@@ -166,7 +169,10 @@ def tracer_append(
 
         result = append_tracer_finding(
             repo_root=repo_root,
-            mission_slug=mission,
+            # The router scopes policy again at the commit decision. Give it
+            # the fact's canonical name so an alias cannot drop the Mission's
+            # commit_to_target opt-in after the tracer file has been staged.
+            mission_slug=owned.mission_slug if owned is not None else mission,
             category=category,
             entry=entry,
             actor=actor,

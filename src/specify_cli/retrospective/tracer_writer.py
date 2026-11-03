@@ -262,19 +262,18 @@ def append_tracer_finding(
 ) -> WriteSeamResult:
     """Append a dated, attributed finding to ``traces/<category>.md`` (FR-006).
 
-    Merges the new entry into the CURRENT coord-resolved content (never a
-    from-scratch file -- see module docstring), stages the merged result at
-    the primary checkout's ``kitty-specs/<mission_slug>/traces/<file>``, and
-    commits it through the WP03 seam. Residue cleanup is requested via
-    ``primary_paths_created_this_invocation`` so the staged local copy does not
-    linger as an untracked file on the primary checkout once the coord commit
-    lands.
+    Merge into the current owning surface, resolving both reads and writes
+    through the placement seam before committing through ``write_artifact``.
+    An owned fact selects its Mission directory and commit surface; non-owned
+    calls retain the existing primary/coordination routing. No intermediate
+    repository-root staging copy is used.
 
     Args:
-        repo_root: Primary checkout root (NOT a lane worktree -- callers
-            resolve this via ``get_main_repo_root`` first, the same pattern
-            every other coord-partition writer uses).
-        mission_slug: Mission handle.
+        repo_root: Primary checkout root for non-owned calls. With ``owned``
+            supplied it anchors lock/diagnostic context only; placement and
+            commit authority come from the fact, never this bare path.
+        mission_slug: Mission handle; owned CLI callers pass the fact's
+            canonical name so the router retains mission-scoped policy.
         category: One of :data:`TRACER_CATEGORIES` (``tooling-friction`` /
             ``approach`` / ``design-decisions``).
         entry: The free-text finding body.
@@ -282,8 +281,8 @@ def append_tracer_finding(
             :class:`TracerAttributionError` otherwise).
         policy: Duck-typed ``is_protected(ref) -> bool`` policy, threaded
             straight through to the seam.
-        target_branch: Optional short primary-branch name for the seam's
-            post-commit ff-advance.
+        target_branch: Compatibility input forwarded to the seam; the retired
+            ff-advance does not select the write surface or commit branch.
         entry_date: Overrides the entry's date (UTC today when ``None`` --
             exposed for deterministic tests, not a CLI-facing knob).
         owned: The validated owned-checkout fact when this write belongs to an
@@ -308,7 +307,7 @@ def append_tracer_finding(
         # resolution (which can materialize/seed a coordination surface) and
         # the read-before-write merge move INTO this thunk -- write_artifact's
         # single locus invokes it ONLY after the routability probe succeeds,
-        # so a refused write never touches disk, never materializes a
+        # so a routability refusal never touches disk, never materializes a
         # worktree, and leaves zero untracked residue. ``_local_staging_path``
         # now resolves the OWNING (write_dir) location directly -- the file
         # lands there IN PLACE, never staged in the repository root checkout
