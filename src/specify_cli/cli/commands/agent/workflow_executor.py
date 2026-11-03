@@ -48,6 +48,7 @@ from kernel.git import GitCommandError, status_entries
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
+from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.cli.commands.implement_claim import claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
@@ -1541,6 +1542,19 @@ def capture_and_commit_baseline(
         logger.warning("Baseline capture error: %s", bl_err)
 
 
+def _subtask_completion_recipe(normalized_wp_id: str, mission_slug: str, subtask_cmd: str) -> str:
+    """Render the convert-all-subtasks-first recipe for the printed runbooks.
+
+    The roster reaches these sites pre-joined (``workflow.py`` joins the WP's
+    authored ``subtasks:`` list, or substitutes the ``<subtask-ids>`` placeholder
+    when it declares none), so it is re-split here rather than threading a second
+    parameter through three call sites. The work package id is always passed:
+    subtask ids are mission-scoped, so an unscoped recipe is refused by
+    ``mark-status`` on any mission whose WPs reuse ``T001..`` (#7108).
+    """
+    return mark_status_recipe(subtask_cmd.split(), wp_id=normalized_wp_id, mission_slug=mission_slug)
+
+
 def build_implement_prompt_lines(
     *,
     normalized_wp_id: str,
@@ -1605,7 +1619,7 @@ def build_implement_prompt_lines(
     lines.append(f"     {_implement_recipe}  # NOT WP status files")
     lines.append("     git log -1 --oneline  # Verify commit succeeded")
     lines.append("  2. Mark all subtasks as done:")
-    lines.append(f"     spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+    lines.append(f"     {_subtask_completion_recipe(normalized_wp_id, mission_slug, subtask_cmd)}")
     lines.append("  3. Move WP to review:")
     lines.append(f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     lines.append("")
@@ -1683,7 +1697,7 @@ def build_implement_prompt_lines(
     lines.append("      git log -1 --oneline  # Verify commit succeeded")
     lines.append("      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
     lines.append("   2. Mark all subtasks as done:")
-    lines.append(f"      spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+    lines.append(f"      {_subtask_completion_recipe(normalized_wp_id, mission_slug, subtask_cmd)}")
     lines.append("   3. Move WP to review (will check for uncommitted changes):")
     lines.append(f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review: <summary>"')
     lines.append("")
@@ -1740,7 +1754,7 @@ def implement_finalize_and_print(
     print("After implementation, run:")
     _finalize_recipe = safe_commit_recipe(["<your-files>"], f"feat({normalized_wp_id}): <description>", workspace.branch_name)
     print(f"  1. git status && {_finalize_recipe}")
-    print(f"  2. spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+    print(f"  2. {_subtask_completion_recipe(normalized_wp_id, mission_slug, subtask_cmd)}")
     print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     print("     (Pre-flight check will verify no uncommitted changes)")
 

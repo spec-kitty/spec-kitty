@@ -85,6 +85,7 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _self_review_fallback_option_error,
 )
+from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.status import (
     GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
@@ -890,7 +891,9 @@ def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:
         error += f"  - [ ] {task}\n"
     error += "\nMark these complete first:\n"
     for task in unchecked[:3]:
-        error += f"  spec-kitty agent tasks mark-status {task} --status done\n"
+        # Subtask ids are mission-scoped, so the recipe names the WP being moved:
+        # an unscoped id is refused by ``mark-status`` when several WPs share it (#7108).
+        error += f"  {mark_status_recipe([task], wp_id=req.task_id, mission_slug=req.mission_slug)}\n"
     error += "\nOr use --force to override (not recommended)"
     return RefuseExit1(error)
 

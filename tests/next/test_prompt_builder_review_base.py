@@ -125,7 +125,7 @@ def test_review_pathspecs_exclude_mission_bookkeeping_only_when_the_mission_dir_
 def test_completion_lines_carry_no_owned_checkout_flag_without_a_fact() -> None:
     lines = _completion_lines("implement", "WP01", _SLUG, ["T001"])
 
-    assert any(line.startswith("  spec-kitty agent tasks mark-status T001 --status done") for line in lines)
+    assert any(line.startswith("  spec-kitty agent tasks mark-status T001 --wp WP01 --status done") for line in lines)
     assert not any("--owned-checkout" in line for line in lines)
 
 
