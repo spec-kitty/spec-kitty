@@ -351,6 +351,15 @@ WP_RUNTIME_FIELDS: frozenset[str] = frozenset(
     field for field in FrontmatterManager.WP_FIELD_ORDER if field in _RUNTIME_FIELD_NAMES
 )
 
+# The workspace-provenance triple the implementation claim stamps into a freshly
+# allocated lane's work-package prompt (``lanes.implement_support.create_lane_workspace``):
+# the branch/commit the workspace was cut from and when it was created. It is
+# runtime bookkeeping written by a non-planning command, so it is the ONE declared
+# set the analysis-freshness fingerprint excludes (#7106) -- declared here, beside
+# the field-name owner, and consumed by the writer (``dict(zip(...))``) so the
+# exclusion can never drift from what the claim actually writes.
+WP_CLAIM_PROVENANCE_FIELDS: tuple[str, ...] = ("base_branch", "base_commit", "created_at")
+
 # Global instance for convenience
 _manager = FrontmatterManager()
 

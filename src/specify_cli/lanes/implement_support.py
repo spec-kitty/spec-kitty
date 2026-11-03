@@ -515,13 +515,19 @@ def create_lane_workspace(
         base_commit_sha = _rev_parse(repo_root, base_branch)
         created_at = now_utc_iso()
 
-        from specify_cli.frontmatter import locked_update_frontmatter
+        from specify_cli.frontmatter import WP_CLAIM_PROVENANCE_FIELDS, locked_update_frontmatter
 
-        provenance = {
-            "base_branch": base_branch,
-            "base_commit": base_commit_sha,
-            "created_at": created_at,
-        }
+        # The declared provenance set (frontmatter.WP_CLAIM_PROVENANCE_FIELDS) is the
+        # ONE authority: the analysis-freshness fingerprint excludes exactly these
+        # keys, and this writer builds exactly them (strict zip), so the exclusion
+        # cannot drift from what the claim writes (#7106).
+        provenance = dict(
+            zip(
+                WP_CLAIM_PROVENANCE_FIELDS,
+                (base_branch, base_commit_sha, created_at),
+                strict=True,
+            )
+        )
         # A locked read-modify-write of the work package as it is now (plan A10): a field or note another
         # writer landed since the claim began (a map-requirements ref) survives.
         locked_update_frontmatter(wp_file, lambda frontmatter: frontmatter.update(provenance), feature_dir=wp_file.parent.parent, repo_root=repo_root)
