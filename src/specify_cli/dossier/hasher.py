@@ -228,6 +228,7 @@ WP_RUNTIME_PROJECTION_FIELDS: frozenset[str] = frozenset(
         "activity_log",
         "review_feedback",
         "review_feedback_file",
+        "pre_review_test_scope",
         "reviewed_by",
         "reviewer",
         "reviewer_agent",
