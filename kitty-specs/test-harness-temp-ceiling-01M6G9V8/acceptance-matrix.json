@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/unit/test_harness_temp_root.py::test_tempfile_root_is_below_the_run_basetemp and tests/_support/test_temp_root.py::test_install_points_every_temp_variable_at_the_root",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T10:35:28.898382+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
