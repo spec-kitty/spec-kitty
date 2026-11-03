@@ -20,7 +20,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "[bug] Subtask IDs are mission-global: mark-status attributes completions to the wrong WP, then move-task takes the refusal",
       "verdict": "fixed",
       "wp": "WP02"
     }
