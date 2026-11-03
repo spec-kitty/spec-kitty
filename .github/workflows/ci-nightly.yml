@@ -131,6 +131,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run performance-marked suite (full-mode, run-all-regardless)
         if: always()
@@ -245,6 +251,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
         if: always()
@@ -344,6 +356,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run stress-marked suite (full-mode, run-all-regardless)
         if: always()
@@ -420,6 +438,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run open-P0 reproductions (full-mode, run-all-regardless)
         if: always()
@@ -502,6 +526,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 1 (full-mode, run-all-regardless)
         if: always()
@@ -581,6 +611,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 2 (full-mode, run-all-regardless)
         if: always()
@@ -651,6 +687,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 3 (full-mode, run-all-regardless)
         if: always()
@@ -717,6 +759,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 4 (full-mode, run-all-regardless)
         if: always()
@@ -783,6 +831,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 5 (full-mode, run-all-regardless)
         if: always()
@@ -849,6 +903,12 @@ jobs:
         run: uv sync --frozen --all-extras --python "3.13"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run fast/unit suite, shard 6 (full-mode, run-all-regardless)
         if: always()
@@ -1024,6 +1084,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run integration + next suites by directory (full-mode, run-all-regardless)
         if: always()
@@ -1131,6 +1197,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run out-of-matrix tests/specify_cli trees by directory (full-mode, run-all-regardless)
         if: always()
@@ -1348,6 +1420,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run integration-marked tests no other nightly lane selects
         if: always()
@@ -1820,6 +1898,12 @@ jobs:
           echo "::notice::events-latest tests spec-kitty-events ${installed}"
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run events-consumer tests on the newest allowed spec-kitty-events (run-all-regardless)
         if: always()
