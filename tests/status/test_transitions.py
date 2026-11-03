@@ -158,6 +158,10 @@ class TestLegalTransitions:
                 "in_review",
                 "in_progress",
                 {
+                    # #7080: this rewind is review-ref-gated now, so the pointer the
+                    # status emit path derives from this reference is part of the
+                    # request. An ``in_review -> in_progress`` without one is refused.
+                    "review_ref": "feedback://1",
                     "review_result": ReviewResult(reviewer="r", verdict="changes_requested", reference="feedback://1"),
                 },
             ),
@@ -297,11 +301,32 @@ class TestGuardConditions:
         ok, error = validate_transition("planned", "claimed", GuardContext(actor=""))
         assert ok is False
 
+    def test_review_ref_required_for_in_review_to_in_progress(self) -> None:
+        """#7080: the third gated rewind is force-insurmountable at the FSM too.
+
+        The unforced move keeps its established ``review_result`` guard message; the
+        force route is where the pointer requirement itself must refuse.
+        """
+        unforced_ok, unforced_error = validate_transition("in_review", "in_progress", GuardContext())
+        assert unforced_ok is False
+        assert "review_result" in unforced_error.lower()
+
+        forced_ok, forced_error = validate_transition("in_review", "in_progress", GuardContext(force=True, actor="admin", reason="operator rewind"))
+        assert forced_ok is False
+        assert "review_ref" in forced_error.lower()
+
     def test_review_result_for_in_review_to_in_progress(self) -> None:
-        """in_review -> in_progress requires review_result."""
-        ok, error = validate_transition("in_review", "in_progress", GuardContext())
+        """in_review -> in_progress still requires review_result once a pointer is present."""
+        ok, error = validate_transition("in_review", "in_progress", GuardContext(review_ref="feedback://1"))
         assert ok is False
         assert "review_result" in error.lower()
+
+    def test_review_result_for_in_review_to_in_progress_accepted_with_both(self) -> None:
+        """The derived pointer plus the structured result is the legitimate write (#7080)."""
+        result = ReviewResult(reviewer="r", verdict="changes_requested", reference="feedback://1")
+        ok, error = validate_transition("in_review", "in_progress", GuardContext(review_ref="feedback://1", review_result=result))
+        assert ok is True, error
+        assert error is None
 
     def test_review_result_for_in_review_to_planned(self) -> None:
         """in_review -> planned requires review_result."""
@@ -563,6 +588,15 @@ _PARITY_BASELINE_PATH = Path(__file__).with_name("fsm_parity_baseline.jsonl")
 #   stays force-free; both are pinned in
 #   tests/status/test_forced_rewind_requires_review_ref.py and
 #   tests/integration/test_owned_reopen_feedback.py.
+#   2026-11-03 (#7080): the contract's third gated rewind, in_review->in_progress
+#   (and its alias in_review->doing), flipped for the [force_full] and
+#   [review_result] contexts, True -> False. Its evidence is a structured
+#   ``review_result``, and the status emit path now records
+#   ``review_result.reference`` as the event's ``review_ref`` when the caller
+#   supplied none, so the edge is gated without refusing the ordinary review loop.
+#   The edge's other pointerless rows keep their False verdict and only change
+#   which refusal they report (the review_ref rule is checked before the
+#   ``review_result`` guard). No other edge moved.
 
 
 def _parity_context_library() -> dict[str, GuardContext]:

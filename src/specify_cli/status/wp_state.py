@@ -39,23 +39,29 @@ _DEPENDENCIES_UNSATISFIED = "Transition {source} -> {target} blocked: unsatisfie
 #: it may not produce an event the shared wire contract -- the one any sync
 #: consumer of the log enforces -- calls malformed.
 #:
-#: The pinned ``spec_kitty_events`` contract gates three ``-> in_progress``
+#: The pinned ``spec_kitty_events`` contract gates all three ``-> in_progress``
 #: rewinds on a non-empty ``review_ref`` **whether or not** the event is forced
-#: (its "Review-Ref-Gated Rewind Family"). The local set covers two of them
-#: (#6514's ``for_review`` edge and, since #6955, the ``approved`` reopen):
-#: before #6955 a forced ``approved -> in_progress`` reopen was accepted locally
-#: (and audited clean) while the contract rejected it, so the row never reached
-#: its sync consumer (the #3307 silent-sync-rejection class).
+#: (its "Review-Ref-Gated Rewind Family"): ``for_review``, ``in_review`` and
+#: ``approved``. Every edge in this set also needs a writer that supplies a
+#: pointer, or the gate refuses legitimate writes:
 #:
-#: ``in_review -> in_progress`` is deliberately still absent: that edge carries
-#: its evidence as a structured ``review_result`` on the status emit path, which
-#: does not thread the reviewer's reference onto the wire, so requiring a
-#: ``review_ref`` there without that second fix would refuse legitimate writes.
-#: Closing it is tracked separately (#7080); do not add the member here without
-#: threading the reference first.
+#: - ``for_review -> in_progress`` (#6514): every door has a pointer to cite --
+#:   the caller's ``--review-ref`` or the command's ``force-override`` sentinel.
+#: - ``approved -> in_progress`` (#6955): the reopen cites an operator-supplied
+#:   feedback file or the same ``force-override`` sentinel.
+#: - ``in_review -> in_progress`` (#7080): its evidence is a STRUCTURED
+#:   ``review_result``, whose ``reference`` ``prepare_transition`` records as the
+#:   event's ``review_ref`` when the caller supplied none, so the gate does not
+#:   refuse the ordinary review loop. Do not remove that derivation without
+#:   removing the member.
+#:
+#: Before #6514/#6955/#7080 a pointerless row on these edges was accepted
+#: locally (and audited clean) while the contract rejected it, so the row never
+#: reached its sync consumer (the #3307 silent-sync-rejection class).
 REVIEW_REF_REQUIRED_EDGES: frozenset[tuple[Lane, Lane]] = frozenset(
     {
         (Lane.FOR_REVIEW, Lane.IN_PROGRESS),
+        (Lane.IN_REVIEW, Lane.IN_PROGRESS),
         (Lane.APPROVED, Lane.IN_PROGRESS),
     },
 )
@@ -64,7 +70,7 @@ REVIEW_REF_REQUIRED_EDGES: frozenset[tuple[Lane, Lane]] = frozenset(
 def requires_review_ref(from_lane: Lane | str, to_lane: Lane | str) -> bool:
     """True when an event on this edge must carry a ``review_ref``.
 
-    A plain membership test over :data:`REVIEW_REF_REQUIRED_EDGES` (#6514, #6955),
+    A plain membership test over :data:`REVIEW_REF_REQUIRED_EDGES` (#6514, #6955, #7080),
     tolerant of
     raw lane strings (the auditor reads decoded event dicts). It answers only
     *which* edges carry the requirement; *whether a given request satisfies it*

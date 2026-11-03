@@ -434,7 +434,18 @@ def test_emit_prints_the_forced_approval_warning(tmp_path: Path, feature_dir: Pa
 
     monkeypatch.setattr(approved_bound, "_maps_to_code_lane", lambda *_args: True)
     _walk_to_in_review(tmp_path, feature_dir)
-    rejected = _emit(tmp_path, "--to", "in_progress", "--force", "--reason", "operator pulls it back")
+    # #7080: ``in_review -> in_progress`` is review-ref-gated, so the operator's pull-back
+    # cites the review feedback it is rewinding; the warning under test is the approval one.
+    rejected = _emit(
+        tmp_path,
+        "--to",
+        "in_progress",
+        "--force",
+        "--reason",
+        "operator pulls it back",
+        "--review-ref",
+        "review-cycle://WP01/1",
+    )
     assert rejected.exit_code == 0, rejected.output
 
     result = _emit(
