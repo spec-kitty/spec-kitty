@@ -413,7 +413,11 @@ review result the status emit path does not turn into a `review_ref`, so gating 
 that second fix would refuse legitimate writes (tracked in
 [#7080](https://github.com/spec-kitty/spec-kitty/issues/7080)). A `migration:` actor is
 exempt from the write-path refusal (it reconstructs state; same precedent as the #5446 note
-rule), though the auditor still reports such a row.
+rule), though the auditor still reports such a row. A forced `approved -> planned` rewind
+is likewise outside this family: the sentinel fill follows the edge set and the
+evidence-gated reopen arm covers only `in_progress`, so that row still records
+`force: true` with `review_ref: null` — a forced rewind out of review does not by itself
+imply a pointer.
 
 A refused command exits non-zero, names `review_ref` and `--review-ref`, and writes nothing:
 `status.events.jsonl` and `status.json` are byte-identical afterwards, and
