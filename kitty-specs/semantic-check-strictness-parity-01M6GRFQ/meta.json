@@ -1,5 +1,4 @@
 {
-  "accept_commit": "357910289a74a2b4644fa6193b2b99dd83dc2387",
   "acceptance_history": [
     {
       "accept_commit": "357910289a74a2b4644fa6193b2b99dd83dc2387",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-11-03T13:46:42.814924+00:00",
       "accepted_by": "reviewer-renata",
       "accepted_from_commit": "a35763b3750f42f15a9a254d992283ddaa922236"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T13:46:48.414793+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "57856b2965fc6c27d8f0e5a70b6161579b4dfc62"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-11-03T13:46:42.814924+00:00",
+  "accepted_at": "2026-11-03T13:46:48.414793+00:00",
   "accepted_by": "reviewer-renata",
-  "accepted_from_commit": "a35763b3750f42f15a9a254d992283ddaa922236",
+  "accepted_from_commit": "57856b2965fc6c27d8f0e5a70b6161579b4dfc62",
   "created_at": "2026-11-03T13:09:58.856758+00:00",
   "flattened": false,
   "friendly_name": "semantic check strictness parity",
