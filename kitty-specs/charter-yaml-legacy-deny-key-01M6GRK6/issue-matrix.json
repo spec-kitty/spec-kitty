@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6556": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context only: #6556 is background evidence for the strictness decision, no work is owed to it here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6855": {
