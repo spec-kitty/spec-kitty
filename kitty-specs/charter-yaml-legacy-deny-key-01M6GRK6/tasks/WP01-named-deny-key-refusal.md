@@ -13,6 +13,9 @@ requirement_refs:
 - C-003
 - SC-002
 - SC-004
+planning_base_branch: issue-6855-charter-yaml-legacy-deny-key
+merge_target_branch: issue-6855-charter-yaml-legacy-deny-key
+branch_strategy: Planning artifacts for this mission were generated on issue-6855-charter-yaml-legacy-deny-key. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6855-charter-yaml-legacy-deny-key unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -20,9 +23,6 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Red-first fix
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-11-03T13:15:00Z'
   actor: system
@@ -37,7 +37,9 @@ owned_files:
 - src/charter/activation/pack_manager.py
 - tests/charter/test_charter_yaml_model.py
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP01 – A named refusal for a deny key on charter.yaml

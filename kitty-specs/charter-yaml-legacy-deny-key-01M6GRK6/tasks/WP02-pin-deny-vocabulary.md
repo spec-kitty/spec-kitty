@@ -9,15 +9,15 @@ requirement_refs:
 - C-002
 - SC-001
 - SC-003
+planning_base_branch: issue-6855-charter-yaml-legacy-deny-key
+merge_target_branch: issue-6855-charter-yaml-legacy-deny-key
+branch_strategy: Planning artifacts for this mission were generated on issue-6855-charter-yaml-legacy-deny-key. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6855-charter-yaml-legacy-deny-key unless the human explicitly redirects the landing branch.
 subtasks:
 - T006
 - T007
 - T008
 - T009
 phase: Phase 2 - Contract pin and record
-assignee: ''
-agent: claude
-shell_pid: ''
 history:
 - at: '2026-11-03T13:15:00Z'
   actor: system
@@ -32,7 +32,9 @@ owned_files:
 - tests/charter/test_activation_vocabulary_setequal.py
 - docs/changelog/unreleased/6855-charter-yaml-legacy-deny-key.internal.md
 role: implementer
+tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP02 – Pin the deny-side contract and record the change
