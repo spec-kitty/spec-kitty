@@ -196,6 +196,7 @@ def resolve_mission_scope(mission: str | None, repo_root: Path, *, json_output: 
     if mission in known_mission_slugs(repo_root):
         return mission
     from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: PLC0415
+
     return str(resolve_mission_handle(mission, repo_root, json_mode=json_output).mission_slug)
 
 
