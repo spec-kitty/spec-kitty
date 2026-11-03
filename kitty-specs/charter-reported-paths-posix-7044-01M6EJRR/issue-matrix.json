@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6277": {
-      "evidence_ref": "Context citation only: the synthesize --json fix for #6277 is PR #7045 (open, not merged). This mission applies the same seam to generate/interview and owes #6277 no work of its own.",
+      "evidence_ref": "Context citation only: the synthesize --json fix for #6277 merged as PR #7045. This mission applies the same seam (kernel.charter_pack_paths.repo_relative_posix) to generate/interview and owes #6277 no work of its own.",
       "fr": null,
       "nfr": null,
       "repo": null,

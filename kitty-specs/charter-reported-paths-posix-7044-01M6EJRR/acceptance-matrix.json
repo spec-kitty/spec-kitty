@@ -1,6 +1,6 @@
 {
   "mission_slug": "charter-reported-paths-posix-7044-01M6EJRR",
-  "mission_number": "",
+  "mission_number": "248",
   "mission_type": "software-dev",
   "overall_verdict": "pass",
   "criteria": [
@@ -8,50 +8,50 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_generate_json_reports_a_posix_charter_path (charter_path == .kittify/charter/charter.md under the Windows rendering simulation)",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_generate_json_reports_a_posix_charter_path; re-verified 2026-11-03 on the rebased tip b87f2ef228 (landing pass, #7147 option 2): test_charter_reported_paths_posix.py + test_charter_pack_paths.py + test_status_collectors_legacy_md_shape.py, 25 passed",
       "pass_fail": "pass",
-      "verified_by": "pi",
-      "verified_at": "2026-11-02T19:23:45.567831+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T16:33:49.233079+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_interview_json_reports_a_posix_interview_path (interview_path == .kittify/charter/interview/answers.yaml under the simulation)",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_reported_paths_posix.py::test_interview_json_reports_a_posix_interview_path; re-verified 2026-11-03 on the rebased tip b87f2ef228 (landing pass, #7147 option 2): test_charter_reported_paths_posix.py + test_charter_pack_paths.py + test_status_collectors_legacy_md_shape.py, 25 passed",
       "pass_fail": "pass",
-      "verified_by": "pi",
-      "verified_at": "2026-11-02T19:23:50.264024+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T16:33:50.563327+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "One seam: kernel/charter_pack_paths.py::repo_relative_posix delegates to kernel.paths.to_posix; zero remaining str(relative_to(repo_root)) in generate.py, interview.py, _common.py; docs/changelog fragment records it",
+      "evidence": "One seam: kernel.charter_pack_paths.repo_relative_posix (delegates to kernel.paths.to_posix); 0 remaining str(relative_to(repo_root)) sites in generate.py, interview.py, _common.py; re-verified 2026-11-03 on the rebased tip b87f2ef228 (landing pass, #7147 option 2): test_charter_reported_paths_posix.py + test_charter_pack_paths.py + test_status_collectors_legacy_md_shape.py, 25 passed",
       "pass_fail": "pass",
-      "verified_by": "pi",
-      "verified_at": "2026-11-02T19:23:54.270018+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T16:33:51.901662+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "test_generate_text_reports_a_posix_charter_line, test_interview_text_reports_a_posix_interview_line, test_generate_missing_interview_names_the_posix_path, test_generate_malformed_interview_names_the_posix_path",
+      "evidence": "test_generate_text_reports_a_posix_charter_line, test_interview_text_reports_a_posix_interview_line, test_generate_missing_interview_names_the_posix_path; re-verified 2026-11-03 on the rebased tip b87f2ef228 (landing pass, #7147 option 2): test_charter_reported_paths_posix.py + test_charter_pack_paths.py + test_status_collectors_legacy_md_shape.py, 25 passed",
       "pass_fail": "pass",
-      "verified_by": "pi",
-      "verified_at": "2026-11-02T19:23:58.411791+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T16:33:53.234483+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "test_display_path_is_posix_in_repo_and_keeps_the_out_of_repo_fallback (one fixture, both directions) + tests/kernel/test_charter_pack_paths.py::TestRepoRelativePosix (in-repo POSIX value, out-of-repo ValueError)",
+      "evidence": "test_display_path_is_posix_in_repo_and_keeps_the_out_of_repo_fallback + tests/kernel/test_charter_pack_paths.py; re-verified 2026-11-03 on the rebased tip b87f2ef228 (landing pass, #7147 option 2): test_charter_reported_paths_posix.py + test_charter_pack_paths.py + test_status_collectors_legacy_md_shape.py, 25 passed",
       "pass_fail": "pass",
-      "verified_by": "pi",
-      "verified_at": "2026-11-02T19:24:03.843709+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T16:33:54.565541+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
