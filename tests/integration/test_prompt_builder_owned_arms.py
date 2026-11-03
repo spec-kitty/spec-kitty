@@ -7,10 +7,11 @@ claim commit is found by event id, never by subject.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import json
+import shlex
 import shutil
+from dataclasses import replace
+from collections.abc import Callable
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,18 @@ _WP = "WP01"
 
 def _git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+
+
+def _spaced_owned_root(checkouts: OwnedCheckouts) -> OwnedCheckouts:
+    """Use a real moved worktree, so the validator still mints the owned fact."""
+    root = checkouts.owned_root.with_name("owned checkout")
+    relative_mission = checkouts.mission_dir.relative_to(checkouts.owned_root)
+    _git(checkouts.repository_root, "worktree", "move", str(checkouts.owned_root), str(root))
+    return replace(checkouts, owned_root=root, mission_dir=root / relative_mission)
+
+
+def _completion_argv(text: str, command: str) -> list[list[str]]:
+    return [shlex.split("spec-kitty" + line.partition("spec-kitty")[2]) for line in text.splitlines() if f"spec-kitty agent tasks {command} " in line]
 
 
 def _fact(checkouts: OwnedCheckouts) -> OwnedCheckout:
@@ -138,25 +151,37 @@ def test_owned_review_without_a_provable_base_raises_the_typed_refusal(owned_che
 
 
 def test_owned_implement_completion_commands_carry_the_owned_checkout_flag(owned_checkouts: OwnedCheckouts) -> None:
-    _set_wp_frontmatter(owned_checkouts, owned_files="[wp01.py]", subtasks="[T001]")
-    flag = f"--owned-checkout {owned_checkouts.owned_root}"
-
-    text, path = _build(owned_checkouts, "implement")
-
-    assert f"spec-kitty agent tasks mark-status T001 --wp {_WP} --status done --mission {owned_checkouts.mission_slug} {flag}" in text
-    assert f"move-task {_WP} --to for_review --mission {owned_checkouts.mission_slug} {flag}" in text
+    checkouts = _spaced_owned_root(owned_checkouts)
+    _set_wp_frontmatter(checkouts, owned_files="[wp01.py]", subtasks="[T001]")
+    text, path = _build(checkouts, "implement")
+    marks, moves = _completion_argv(text, "mark-status"), _completion_argv(text, "move-task")
+    assert marks and moves
+    for argv in marks:
+        assert "T001" in argv
+        assert argv[argv.index("--wp") + 1] == _WP
+        assert argv[argv.index("--status") + 1] == "done"
+    for argv in moves:
+        assert argv[4] == _WP
+        assert argv[argv.index("--to") + 1] == "for_review"
+    for argv in marks + moves:
+        assert argv[argv.index("--mission") + 1] == checkouts.mission_slug
+        assert argv[argv.index("--owned-checkout") + 1] == str(checkouts.owned_root)
     path.unlink()
 
 
 def test_owned_review_completion_commands_carry_the_owned_checkout_flag(owned_checkouts: OwnedCheckouts) -> None:
-    _set_wp_frontmatter(owned_checkouts, owned_files="[wp01.py]")
-    _claim(owned_checkouts)
-    flag = f"--owned-checkout {owned_checkouts.owned_root}"
-
-    text, path = _build(owned_checkouts, "review")
-
-    assert f"--to approved --mission {owned_checkouts.mission_slug} {flag}" in text
-    assert f"--review-feedback-file <feedback-file> --mission {owned_checkouts.mission_slug} {flag}" in text
+    checkouts = _spaced_owned_root(owned_checkouts)
+    _set_wp_frontmatter(checkouts, owned_files="[wp01.py]")
+    _claim(checkouts)
+    text, path = _build(checkouts, "review")
+    moves = _completion_argv(text, "move-task")
+    assert {argv[argv.index("--to") + 1] for argv in moves} == {"approved", "planned"}
+    for argv in moves:
+        assert argv[4] == _WP
+        assert argv[argv.index("--mission") + 1] == checkouts.mission_slug
+        assert argv[argv.index("--owned-checkout") + 1] == str(checkouts.owned_root)
+    rejected = next(argv for argv in moves if argv[argv.index("--to") + 1] == "planned")
+    assert rejected[rejected.index("--review-feedback-file") + 1] == "<feedback-file>"
     path.unlink()
 
 

@@ -39,7 +39,7 @@ from charter.activation.resolver import GovernanceResolutionError, resolve_proje
 from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.paths import get_feature_target_branch
-from specify_cli.core.subtask_recipe import mark_status_recipe
+from specify_cli.core.subtask_recipe import mark_status_recipe, owned_checkout_suffix
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.status import FrontmatterError, read_authored_wp_frontmatter
@@ -404,7 +404,7 @@ def _completion_lines(action: str, wp_id: str, mission_slug: str, subtask_ids: l
     is the supported owned lifecycle path, and a bare command would resolve the
     repository root checkout instead.
     """
-    suffix = f" --owned-checkout {owned.owned_root}" if owned is not None else ""
+    suffix = owned_checkout_suffix(owned.owned_root if owned is not None else None)
     lines = ["WHEN DONE:"]
     if action == "implement":
         if subtask_ids:
