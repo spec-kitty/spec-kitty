@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -760,6 +761,12 @@ def test_implement_prompt_and_finalize_summary_name_lane_branch_in_to_branch(wor
     assert f"--to-branch {expected_branch}" in content
     # implement_finalize_and_print's own recipe, printed to stdout.
     assert f"--to-branch {expected_branch}" in result.stdout
+    for emitted in (content, result.stdout):
+        recipes = [shlex.split("spec-kitty" + line.partition("spec-kitty")[2]) for line in emitted.splitlines() if "spec-kitty agent tasks mark-status " in line]
+        assert recipes
+        for argv in recipes:
+            assert argv[argv.index("--wp") + 1] == "WP01"
+            assert argv[argv.index("--mission") + 1] == mission_slug
 
 
 def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Path) -> None:

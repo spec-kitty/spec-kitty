@@ -27,7 +27,6 @@ still reproduces the pre-mission behaviour verbatim.
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +65,7 @@ from specify_cli.status.models import (
 )
 from specify_cli.status.store import append_annotations_atomic_verified, read_event_stream
 from tests._support.status_seed import seed_status_event
+from tests._support.tasks_transition_request import base_request as _base_request
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -75,48 +75,6 @@ pytestmark = pytest.mark.fast
 # A neutral, fully-passing request the per-branch tests perturb via ``replace``.
 # A simple forward ``in_progress -> for_review`` move that clears every guard.
 # ---------------------------------------------------------------------------
-
-
-def _base_request(**overrides: Any) -> MoveTaskRequest:
-    req = MoveTaskRequest(
-        task_id="WP01",
-        target_lane="for_review",
-        old_lane="in_progress",
-        force=False,
-        agent=None,
-        current_agent=None,
-        note=None,
-        auto_commit=False,
-        target_branch="feature/work",
-        skip_target_branch_commit=False,
-        tracker_ref_values=(),
-        assignee=None,
-        shell_pid=None,
-        self_review_fallback=False,
-        intended_reviewer=None,
-        reviewer_failure_reason=None,
-        protected_error=None,
-        review_verdict=None,
-        review_artifact_name=None,
-        skip_review_artifact_check=False,
-        feedback_provided=False,
-        feedback_source=None,
-        feedback_exists=False,
-        feedback_is_file=False,
-        feedback_content=None,
-        unchecked_subtasks=(),
-        review_ready=True,
-        review_guidance=(),
-        done_execution_mode=None,
-        done_merged=False,
-        done_merge_msg="",
-        done_override_reason=None,
-        issue_matrix_blocker=None,
-        is_arbiter_override=False,
-        effective_reviewer=None,
-        effective_approval_ref=None,
-    )
-    return replace(req, **overrides)
 
 
 # ---------------------------------------------------------------------------
@@ -797,6 +755,8 @@ def test_unchecked_subtasks_refuse_without_force() -> None:
     assert isinstance(outcome, RefuseExit1)
     assert "unchecked subtasks" in outcome.error
     assert "T001" in outcome.error
+    assert "  - [ ] T002" in outcome.error
+    assert "Or use --force to override (not recommended)" in outcome.error
 
 
 def test_unchecked_subtasks_bypassed_by_force() -> None:

@@ -11,6 +11,7 @@ feedback-absent (no crash, no spurious feedback banner).
 from __future__ import annotations
 
 from pathlib import Path
+import shlex
 
 import pytest
 
@@ -52,6 +53,16 @@ def _workspace(repo: Path, mission_slug: str) -> ResolvedWorkspace:
     )
 
 
+def _assert_subtask_context(text: str, mission_slug: str, subtask: str) -> None:
+    recipes = [shlex.split(line.strip()) for line in text.splitlines() if line.strip().startswith("spec-kitty agent tasks mark-status ")]
+    assert recipes
+    for argv in recipes:
+        assert subtask in argv
+        assert argv[argv.index("--wp") + 1] == "WP01"
+        assert argv[argv.index("--mission") + 1] == mission_slug
+        assert argv[argv.index("--status") + 1] == "done"
+
+
 def _agent_assignment() -> AgentAssignment:
     return AgentAssignment(tool="claude", model="claude-opus", profile_id=None, role=None)
 
@@ -89,6 +100,7 @@ def test_feedback_present_renders_reference_and_read_instruction(tmp_path: Path)
     assert "⚠️  This work package has review feedback." in text
     assert f"Canonical feedback reference: {pointer}" in text
     assert f'Read it first: cat "{feedback_file}"' in text
+    _assert_subtask_context(text, mission_slug, "T001")
 
 
 def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -> None:
@@ -107,7 +119,7 @@ def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -
         repo_root=repo,
         mission_slug=mission_slug,
         target_branch="main",
-        subtask_cmd="T001",
+        subtask_cmd="<subtask-ids>",
         has_feedback=False,
         review_feedback_ref=None,
         review_feedback_file=None,
@@ -118,6 +130,7 @@ def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -
     text = "\n".join(lines)
     assert "IMPLEMENT: WP01" in text
     assert "review feedback" not in text.lower()
+    _assert_subtask_context(text, mission_slug, "<subtask-ids>")
 
 
 def test_implement_footer_recipe_names_lane_branch_not_target_branch(tmp_path: Path) -> None:

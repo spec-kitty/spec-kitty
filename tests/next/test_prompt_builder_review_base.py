@@ -134,4 +134,5 @@ def test_review_completion_lines_offer_approve_and_reject_without_a_fact() -> No
 
     assert any("APPROVE:" in line for line in lines)
     assert any("REJECT:" in line for line in lines)
+    assert not any("mark-status" in line for line in lines)
     assert not any("--owned-checkout" in line for line in lines)
