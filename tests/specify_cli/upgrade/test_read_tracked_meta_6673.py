@@ -294,7 +294,6 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
 
     assert tracked.meta is None
     assert tracked.unavailable is True, "a refusing git was read as 'nothing tracked' (the fabricating branch)"
-    assert tracked.unreadable_reason == "repository", "the cause git gave was dropped on the way to the notice"
     # #7131: the notice must not assert that the tracked file is missing (git never established that
     # the path is tracked) and must not prescribe `git checkout --`, which fails for the same reason.
     from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
@@ -306,6 +305,8 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
     assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
     assert "tracked meta.json is missing" not in classified.notice, "it still claims the tracked copy is missing"
     assert "git checkout --" not in classified.notice, "it still offers a restore remedy git cannot perform"
+    assert tracked.unreadable_reason == "repository", "the cause git gave was dropped on the way to the notice"
+    assert not (mission_dir / "meta.json").exists(), "diagnosing unreadable Git must not mint an identity"
 
 
 def test_an_ownership_refusal_is_not_reported_as_a_missing_tracked_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

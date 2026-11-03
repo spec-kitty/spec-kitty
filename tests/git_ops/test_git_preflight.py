@@ -55,7 +55,11 @@ class _FakeCmdResult:
     ("stderr", "expected"),
     [
         ("fatal: detected dubious ownership in repository at '/srv/checkout'", True),
-        ("fatal: detected dubious ownership in repository at '/srv/checkout'\nto add an exception for this directory, call: safe.directory", True),
+        (
+            "fatal: unsafe repository ('/srv/checkout' is owned by someone else)\n"
+            "to add an exception for this directory, call: safe.directory",
+            True,
+        ),
         ("fatal: not a git repository (or any of the parent directories): .git", False),
         ("", False),
     ],
