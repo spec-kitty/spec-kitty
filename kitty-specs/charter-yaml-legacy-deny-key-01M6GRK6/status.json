@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M6GSW406T9FA6E91DJSEDCNH",
-  "materialized_at": "2026-11-03T13:34:12.998514+00:00",
+  "event_count": 9,
+  "last_event_id": "01M6GSWSZB69MGTRQPDSQ5FXTZ",
+  "materialized_at": "2026-11-03T13:34:35.496637+00:00",
   "mission_number": "",
   "mission_slug": "charter-yaml-legacy-deny-key-01M6GRK6",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -51,11 +51,20 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6GRT20G7R5W8MGPAPYJDGEP",
-      "last_transition_at": "2026-11-03T13:15:36.848439+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M6GSWSZB69MGTRQPDSQ5FXTZ",
+      "last_transition_at": "2026-11-03T13:34:35.496637+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 357668,
+      "shell_pid_created_at": "1793712871.66"
     }
   }
 }
