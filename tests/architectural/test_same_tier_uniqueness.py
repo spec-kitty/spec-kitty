@@ -77,7 +77,9 @@ _FINDINGS_SHOWN = 10
 # fixture setup it triggers. ``test_pytest_ini_timeout_default.py`` pins the sibling ini keys.
 _UNIVERSE_FIXTURE = "universe"
 # Measured in-setup work that runs beside the collection (per-job selection + pairwise overlap over
-# ~55k records, 20 s warm here) plus interpreter/import slack.
+# ~55k records, ~20 s warm here) plus interpreter/import slack. The 300 s is deliberately generous
+# headroom, NOT a measurement: it exists so a cold cache or a shared machine cannot turn legitimate
+# setup into a timeout, and it must not be read as "the work takes 300 s".
 _UNIVERSE_TIMEOUT_ALLOWANCE_S = 300
 _UNIVERSE_TIMEOUT_S = gc.COLLECT_TIMEOUT_S + _UNIVERSE_TIMEOUT_ALLOWANCE_S
 # The 8 tests whose closure reaches ``universe`` today; a floor, not an exact count, so adding one
