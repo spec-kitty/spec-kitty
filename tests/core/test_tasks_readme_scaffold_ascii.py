@@ -58,10 +58,7 @@ def test_rendered_tasks_readme_is_ascii(planning_branch: str) -> None:
     rendered = render_tasks_readme_content(planning_branch)
 
     worst = max(rendered.encode("utf-8"))
-    assert worst <= 0x7F, (
-        f"tasks/README.md renders non-ASCII byte 0x{worst:02X} for branch "
-        f"{planning_branch!r}; offending lines: {_non_ascii_lines(rendered)}"
-    )
+    assert worst <= 0x7F, f"tasks/README.md renders non-ASCII byte 0x{worst:02X} for branch {planning_branch!r}; offending lines: {_non_ascii_lines(rendered)}"
 
 
 def test_gate_detector_finds_nothing() -> None:
@@ -130,8 +127,7 @@ def test_scaffold_module_never_sanitises() -> None:
 
     for forbidden in ("sanitize_markdown_text", "sanitize_directory", "detect_problematic_characters"):
         assert forbidden not in source, (
-            f"{_MODULE_PATH.name} references {forbidden!r}; the scaffold must be ASCII by "
-            "construction, not repaired on the way out (#6877, NFR-001)"
+            f"{_MODULE_PATH.name} references {forbidden!r}; the scaffold must be ASCII by construction, not repaired on the way out (#6877, NFR-001)"
         )
 
 

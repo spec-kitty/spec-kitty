@@ -35,14 +35,22 @@ TASKS_README_TEMPLATE = """\
 
 This directory contains work package (WP) prompt files.
 
+<!--
+  ASCII ONLY. This file is written into ``kitty-specs/``, which
+  ``spec-kitty validate-encoding`` scans, so a typographic glyph here makes a new
+  mission fail its own encoding gate. The WP-frontmatter example below mirrors
+  ``packs/built-in/missions/software-dev/templates/task-prompt-template.md`` -- the
+  canonical source for WP structure.
+-->
+
 ## Directory Structure (v0.9.0+)
 
 ```
 tasks/
-\u251c\u2500\u2500 WP01-setup-infrastructure.md
-\u251c\u2500\u2500 WP02-user-authentication.md
-\u251c\u2500\u2500 WP03-api-endpoints.md
-\u2514\u2500\u2500 README.md
+|-- WP01-setup-infrastructure.md
+|-- WP02-user-authentication.md
+|-- WP03-api-endpoints.md
+`-- README.md
 ```
 
 All WP files are stored flat in `tasks/`. Status is tracked in `status.events.jsonl`, not in WP frontmatter.
@@ -67,12 +75,12 @@ assignee: ""
 agent: ""
 shell_pid: ""
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    agent: "system"
+  - at: "2025-01-01T00:00:00Z"
+    actor: "system"
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 
-# Work Package Prompt: WP01 \u2013 Work Package Title
+# Work Package Prompt: WP01 - Work Package Title
 
 [Content follows...]
 ```
