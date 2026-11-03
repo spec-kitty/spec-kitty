@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/core/test_tasks_readme_scaffold_ascii.py::test_renderer_formats_it_does_not_sanitise + ::test_scaffold_module_never_sanitises (AST guard, no sanitize_* on the scaffold path)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-03T14:07:57.587091+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
