@@ -12,5 +12,7 @@
   "purpose_tldr": "tracked meta unanswerable git",
   "slug": "tracked-meta-unanswerable-git-01M6GRFF",
   "target_branch": "issue-7131-tracked-meta-unanswerable-git",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T13:15:14.350554+00:00"
 }
