@@ -220,20 +220,18 @@ the claim records what actually ran, rather than copying the authored
 frontmatter recommendation:
 
 ```
---agent <tool> --profile <resolved-profile> [--model <resolved-model> --invocation-id <op-id>]
+--agent <tool> --profile <resolved-profile> [--invocation-id <op-id>]
 ```
 
 Examples:
 - `--agent claude --profile python-pedro`
 - `--agent claude --profile implementer-ivan`
-- `--agent claude --model claude-haiku-4-5 --profile reviewer-renata --invocation-id <op-id>`
+- `--agent claude --profile reviewer-renata --invocation-id <op-id>`
 
-Pass `--model` only with a correlated `--invocation-id`. The durable Op's
-mission identity, WP, action, profile, and catalog-winning model must match the
-claim; missing, malformed, or mismatched evidence fails closed. A direct
-`--profile` is resolved through the canonical profile registry. A bare
-`--agent` claim remains allowed, but records explicit absence for model/profile
-instead of fabricating values from frontmatter.
+The correlated Op carries no model; the claim records explicit absence
+(`RESOLVED_MODEL_ABSENT`). A direct `--profile` is resolved through the
+canonical profile registry. A bare `--agent` claim remains allowed, but records
+explicit absence for model/profile instead of fabricating values from frontmatter.
 
 This command:
 - Moves WP from `planned` to `in_progress`
