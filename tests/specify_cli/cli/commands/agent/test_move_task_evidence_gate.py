@@ -11,6 +11,7 @@ move (accept and consolidate stay strict).
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
@@ -152,6 +153,7 @@ def test_a_dependency_window_counts_the_lanes_own_commits(lanes_mission: _Facts,
 
 def test_an_unreadable_dependency_window_refuses_unreadable(lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
     lanes_mission.manifest = _manifest(_lane("lane-a", ("WP01",)), _lane("lane-b", ("WP02",), depends_on=("lane-a",)))
+    monkeypatch.setattr(wp_evidence, "branch_ref_absent", lambda _repo, _branch: False)
 
     def _unreadable(_repo: Path, _manifest: LanesManifest, _lane: ExecutionLane, tip: str | None = None) -> list[tuple[str, str]]:
         raise GitProbeError("no merge base")
@@ -164,14 +166,102 @@ def test_an_unreadable_dependency_window_refuses_unreadable(lanes_mission: _Fact
     assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
 
 
-def test_an_unreadable_window_refuses_unreadable(lanes_mission: _Facts) -> None:
+def test_an_unreadable_window_refuses_unreadable(lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ref that resolves but whose diff cannot be read keeps the pre-existing wording (#7120)."""
     lanes_mission.paths = {_lane_b_window(): GitProbeError("bad revision")}
+    monkeypatch.setattr(wp_evidence, "branch_ref_absent", lambda _repo, _branch: False)
 
     with pytest.raises(ActionContextError) as refused:
         move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
 
     assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
     assert str(refused.value).startswith("IMPLEMENTATION_UNREADABLE: ")
+    assert "could not be diffed" in str(refused.value)
+    assert "Make the lane branch and the recorded planning commit readable, then retry." in str(refused.value), "a present ref is unreadable, not absent"
+
+
+# ------------------------------------------- an absent lane branch (#7120)
+
+
+def _gate_repo(tmp_path: Path) -> Path:
+    """A real repository, because the absence of a ref is a git fact (not a mocked string)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    config = (("init", "-q", "-b", "main"), ("config", "user.name", "QA"), ("config", "user.email", "qa@example.invalid"), ("config", "commit.gpgsign", "false"))
+    for args in config:
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=repo, check=True, capture_output=True)
+    return repo
+
+
+def _absent_branch_state(repo: Path, target_lane: Lane = Lane.FOR_REVIEW) -> move_task_module._MoveTaskState:
+    state = _state(target_lane)
+    state.main_repo_root = repo
+    return state
+
+
+def test_a_never_created_lane_branch_names_the_shape_and_the_escalation(tmp_path: Path, lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7120: no lane branch at all is indistinguishable from work committed on the target branch."""
+    repo = _gate_repo(tmp_path)
+
+    def _unreadable(*_args: object, **_kwargs: object) -> frozenset[str]:
+        raise GitProbeError("git diff --name-status plan..kitty/mission-fx-lane-b failed (exit 128): fatal: bad revision")
+
+    monkeypatch.setattr(move_task_module, "_mt_lane_window_paths", _unreadable)
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_implementation_evidence(_absent_branch_state(repo))
+
+    message = str(refused.value)
+    assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
+    assert "no lane of this Mission has a branch here" in message
+    assert "without ever creating a lane branch" in message, "the target-branch shape is named as indistinguishable, not as a finding"
+    assert "committed on the target branch (main)" in message
+    assert "no supported recovery" in message and "stop retrying" in message
+    assert "issues/7120" in message, "the escalation is tracked"
+    assert "fabricates the evidence it checks" in message
+    assert "Make the lane branch and the recorded planning commit readable" not in message, "an absent branch cannot be made readable"
+
+
+def test_a_pruned_lane_branch_names_the_restore_remedy(tmp_path: Path, lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A sibling lane branch bounds the shape: this one was pruned, so restoring it is real."""
+    repo = _gate_repo(tmp_path)
+    subprocess.run(["git", "branch", "kitty/mission-fx-lane-a"], cwd=repo, check=True, capture_output=True)
+
+    def _unreadable(*_args: object, **_kwargs: object) -> frozenset[str]:
+        raise GitProbeError("bad revision")
+
+    monkeypatch.setattr(move_task_module, "_mt_lane_window_paths", _unreadable)
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_implementation_evidence(_absent_branch_state(repo))
+
+    message = str(refused.value)
+    assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
+    assert "refs/spec-kitty/lane-tip/kitty/mission-fx-lane-b" in message
+    assert "no supported recovery" not in message, "restoring a pruned lane branch is a real recovery"
+
+
+def test_a_present_ref_that_cannot_be_read_is_still_unreadable(tmp_path: Path, lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ref that exists but cannot be read (exit 128) is never reported as absent (#6780's rule)."""
+    repo = _gate_repo(tmp_path)
+    (repo / ".git" / "refs" / "heads" / "kitty").mkdir(parents=True, exist_ok=True)
+    (repo / ".git" / "refs" / "heads" / "kitty" / "mission-fx-lane-b").write_text("1" * 40 + "\n", encoding="utf-8")
+
+    def _unreadable(*_args: object, **_kwargs: object) -> frozenset[str]:
+        raise GitProbeError("bad object")
+
+    monkeypatch.setattr(move_task_module, "_mt_lane_window_paths", _unreadable)
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_implementation_evidence(_absent_branch_state(repo))
+
+    message = str(refused.value)
+    assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
+    assert "could not be diffed" in message
+    assert "no lane of this Mission has a branch here" not in message
 
 
 def test_no_planning_commit_refuses_window_uncomputable(lanes_mission: _Facts) -> None:
