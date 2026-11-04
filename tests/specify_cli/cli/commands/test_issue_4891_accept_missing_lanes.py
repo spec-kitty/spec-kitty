@@ -22,8 +22,7 @@ from pathlib import Path
 
 import pytest
 import typer
-from click.testing import Result
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from specify_cli.acceptance.matrix import write_acceptance_matrix
 from specify_cli.cli.commands import accept as accept_module
