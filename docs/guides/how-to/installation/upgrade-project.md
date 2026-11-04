@@ -2,7 +2,7 @@
 title: Upgrade an existing Spec Kitty project
 description: Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps.
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-04'
 type: how-to
 related:
 - guides/how-to/installation/install-and-upgrade
@@ -122,7 +122,7 @@ Or use `spec-kitty safe-commit <those files> -m "chore: upgrade Spec Kitty proje
 
 Each Mission's `kitty-specs/<slug>/meta.json` carries its immutable `mission_id`. If git tracks that file but it is missing from your working tree — an accidental delete, or a partial/sparse checkout that excludes it — the upgrade rebuilds it from the copy git holds, so the Mission keeps the identity its history uses. A working-tree copy that has lost its `mission_id` takes the tracked one back. Nothing is re-identified.
 
-A folder git does not track is given its identity normally, because there is nothing to restore. That includes a folder that merely sits under a directory named `.git` which is not a repository — a bare `.git` left behind in a temp root, which carries no `HEAD` and tracks nothing.
+A folder git does not track is given its identity normally. An empty `.git` directory, or one containing only `hooks/` and `spec-kitty-locks/`, does not by itself block that backfill. A missing `HEAD` is not proof that a repository holds nothing. When Git cannot answer, other contents, pointer entries, unreadable directories and explicit Git repository/storage redirects remain unknown and cause a refusal rather than a new identity. Repair a damaged repository before retrying the backfill.
 
 When the tracked copy cannot be read, the upgrade writes nothing for that Mission and names it, for example:
 

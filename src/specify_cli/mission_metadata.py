@@ -634,13 +634,12 @@ def _is_repository_home(git_entry: Path) -> bool:
 def _has_no_git_anchor(feature_dir: Path) -> bool:
     """Whether no ancestor's ``.git`` entry could be the repository home git holds a copy in.
 
-    The walk visits every ancestor, as git does before it answers "not a git repository": this
-    function explains that answer, so it asks the same question of the same directories.
+    Keep the existing ancestor traversal; ceiling-aware walking belongs to #7082. Explicit Git
+    redirects remain unknown even when these local ancestors contain no repository storage.
 
-    An entry counts only when :func:`_is_repository_home` accepts it. A name is not a repository
-    (#7084): reading one as a repository turned a stray ``.git`` directory -- the shape
-    spec-kitty's own lock and hook fallbacks leave behind -- into a tracked-metadata refusal, with
-    a ``git checkout --`` remedy, for every Mission below it.
+    An entry counts only when :func:`_is_repository_home` accepts it. Reading historical empty or
+    hook/lock-only ``.git`` residue as a repository caused a tracked-metadata refusal with a
+    ``git checkout --`` remedy for Missions whose identity git never held (#7084).
     """
     # A redirected repository/index/object store cannot be ruled out by the ancestor names.
     if any(
