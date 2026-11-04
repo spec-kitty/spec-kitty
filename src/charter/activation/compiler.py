@@ -1145,10 +1145,10 @@ def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterServ
     the raw service unwrapped (NFR-001) -- this preserves the exact
     pre-mission unfiltered behaviour for legacy repo-root-less callers.
     """
-    # Bound before the annotation below names it (python:S3827): the import stays function-local
-    # -- module scope is what the local import exists to avoid -- but it must precede its first
-    # mention in this scope. ``from __future__ import annotations`` keeps the annotation inert, so
-    # this is a reading-order fix, not a runtime one (#7113).
+    # Bound before the annotation below names it (python:S3827): a name imported in a function
+    # scope must precede its first mention there. The module already imports this module, so the
+    # local import is a ``sys.modules`` lookup with no cycle or cost; ``from __future__ import
+    # annotations`` keeps the annotation inert, so this is a reading-order fix, not a runtime one (#7113).
     from charter.activation.resolver import ActiveCharterService
 
     if repo_root is not None:
