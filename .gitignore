@@ -138,6 +138,7 @@ node_modules/
 sdd-*/
 
 # Added by Spec Kitty CLI (auto-managed)
+# Local to each maintainer: generated skills and profiles, hooks and session state. Never tracked here.
 .claude/
 .agents/
 .agents
@@ -254,3 +255,86 @@ acceptance-jvm/allure-report/
 # doc-kitty docsite (site/, #6930): Astro's generated types and cache. node_modules/ and dist/
 # are ignored above.
 site/.astro/
+
+# >>> Spec Kitty agent files (auto-managed; lines in this block are replaced) >>>
+.codex/auth.json
+.codex/history.jsonl
+.codex/sessions/
+.codex/log/
+.claude/settings.local.json
+.gemini/.env
+.qwen/.env
+.llxprt/.env
+.vibe/
+.pi/
+.letta/
+.github/copilot/
+.agents/skills/adversarial-squad/
+.agents/skills/kitty-issue-triage/
+.agents/skills/kitty-land-pr/
+.agents/skills/kitty-mission-from-issue/
+.agents/skills/kitty-report-debrief/
+.agents/skills/kitty-semi-auto/
+.agents/skills/spec-kitty-*/
+.agents/skills/spec-kitty.*/
+.agents/skills/spec-kitty/
+.agents/skills/spk-*/
+.claude/agents/analyst-annie.md
+.claude/agents/architect-alphonso.md
+.claude/agents/comms-cleo.md
+.claude/agents/curator-carla.md
+.claude/agents/debugger-debbie.md
+.claude/agents/designer-dagmar.md
+.claude/agents/diagram-daisy.md
+.claude/agents/doctrine-daphne.md
+.claude/agents/generic-agent.md
+.claude/agents/implementer-ivan.md
+.claude/agents/java-jenny.md
+.claude/agents/lexical-larry.md
+.claude/agents/minutes-mahad.md
+.claude/agents/paula-patterns.md
+.claude/agents/planner-priti.md
+.claude/agents/python-pedro.md
+.claude/agents/randy-reducer.md
+.claude/agents/researcher-robbie.md
+.claude/agents/retrospective-facilitator.md
+.claude/agents/reviewer-renata.md
+.claude/agents/scribe-sally.md
+.claude/agents/synthesizer-sam.md
+.claude/commands/spec-kitty.*
+.claude/skills/adversarial-squad/
+.claude/skills/kitty-issue-triage/
+.claude/skills/kitty-land-pr/
+.claude/skills/kitty-mission-from-issue/
+.claude/skills/kitty-report-debrief/
+.claude/skills/kitty-semi-auto/
+.claude/skills/spec-kitty-*/
+.claude/skills/spec-kitty.*/
+.claude/skills/spec-kitty/
+.claude/skills/spk-*/
+.codex/agents/analyst-annie.toml
+.codex/agents/architect-alphonso.toml
+.codex/agents/comms-cleo.toml
+.codex/agents/curator-carla.toml
+.codex/agents/debugger-debbie.toml
+.codex/agents/designer-dagmar.toml
+.codex/agents/diagram-daisy.toml
+.codex/agents/doctrine-daphne.toml
+.codex/agents/generic-agent.toml
+.codex/agents/implementer-ivan.toml
+.codex/agents/java-jenny.toml
+.codex/agents/lexical-larry.toml
+.codex/agents/minutes-mahad.toml
+.codex/agents/paula-patterns.toml
+.codex/agents/planner-priti.toml
+.codex/agents/python-pedro.toml
+.codex/agents/randy-reducer.toml
+.codex/agents/researcher-robbie.toml
+.codex/agents/retrospective-facilitator.toml
+.codex/agents/reviewer-renata.toml
+.codex/agents/scribe-sally.toml
+.codex/agents/synthesizer-sam.toml
+.cursor/commands/spec-kitty.*
+.cursor/rules/spec-kitty.mdc
+.opencode/command/spec-kitty.*
+# <<< Spec Kitty agent files <<<
