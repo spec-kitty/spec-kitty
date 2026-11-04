@@ -3528,6 +3528,7 @@ pages:
     - {slug: "follow-up-2026-10-07-a-forced-approval-is-a-review-only-when-a-review-claim-an-arbiter-override-or-an-attestation-backs-it-5721", text: "Follow-up 2026-10-07 — a forced approval is a review only when a review claim, an arbiter override or an attestation backs it (#5721)", level: 3}
     - {slug: "amendment-2026-10-29-owned-file-evidence-and-review-independence-are-a-separate-axis-on-every-topology-6715", text: "Amendment 2026-10-29 — owned-file evidence and review independence are a separate axis on every topology (#6715)", level: 3}
     - {slug: "amendment-2026-10-31-a-pruned-lane-is-judged-on-the-pull-request-s-own-side-of-the-landing-merge-6780", text: "Amendment 2026-10-31 — a pruned lane is judged on the pull request's own side of the landing merge (#6780)", level: 3}
+    - {slug: "amendment-2026-11-03-unresolved-ownership-is-its-own-verdict-not-a-missing-implementation-7149", text: "Amendment 2026-11-03 — unresolved ownership is its own verdict, not a missing implementation (#7149)", level: 3}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -4154,6 +4155,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "coordination-routed-missions-where-agent-writes-land", text: "Coordination-routed Missions: where agent writes land", level: 2}
     - {slug: "coordination-status-writes-refusal-on-a-diverged-status-log", text: "Coordination status writes: refusal on a diverged status log", level: 2}
+    - {slug: "owned-missions-where-agent-tracer-append-writes", text: "Owned Missions: where `agent tracer-append` writes", level: 2}
     - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
     - {slug: "spec-kitty-agent-acceptance-verdict", text: "spec-kitty agent acceptance-verdict", level: 2}
     - {slug: "spec-kitty-agent-action", text: "spec-kitty agent action", level: 2}
