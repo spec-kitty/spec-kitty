@@ -134,7 +134,7 @@ def _hard_repo_isolation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Ite
 # the *root walk* the migration cutover uses: ``runtime_state_cutover.
 # _resolve_primary_home_or_degrade`` calls ``core.paths.resolve_canonical_root``,
 # which ascends from the fixture to the first ancestor holding ``.git``. On a host
-# whose platform temp root sits inside a repository (a stray ``/tmp/.git``), that
+# whose platform temp root sits inside a repository (a stray temp-root ``.git``), that
 # ancestor is the foreign repository, so ``resolve_artifact_surface`` reports
 # ``<repo>/kitty-specs/<slug>`` and ``_flip_phase`` fails closed against the real
 # write target — the red in #6957.
@@ -235,7 +235,7 @@ def test_a_repository_above_the_ceiling_cannot_capture_the_walk(tmp_path: Path, 
     exactly the leak the ceiling exists to prevent.
     """
     base = tmp_path / "base"
-    (base / ".git").mkdir(parents=True)  # an enclosing repository, as a stray /tmp/.git would be
+    (base / ".git").mkdir(parents=True)  # an enclosing repository, as a stray temp-root .git would be
     deep = base / "deep"
     mission = deep / "inner" / "kitty-specs" / "042-demo"
     mission.mkdir(parents=True)
