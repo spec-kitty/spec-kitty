@@ -39,4 +39,3 @@ kitty-specs/**/canary-evidence/** linguist-generated=true
 # `doctor`). Two branches that each append conflict at the end of the file; git's built-in
 # `union` driver keeps both sides' lines, so local rebases and merges stop conflicting on it.
 kitty-ops/lifecycle.jsonl merge=union
-kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix
