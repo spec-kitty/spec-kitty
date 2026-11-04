@@ -24,8 +24,14 @@ few commits". `new_reliability_rating = 5` (E) against a threshold of `1` (A).
 | `/api/issues/search?…&types=BUG&sinceLeakPeriod=true` | **4** issues |
 | `/api/issues/search?…&types=BUG` (all time) | 23 issues |
 
-**4 findings are new code. 19 are not.** The 19 do not enter the rating; `bugs = 18` counts
-`type=BUG` issues excluding code smells, which is why it differs from both totals.
+**4 findings are new code. 19 are not.** The 19 do not enter the rating. `bugs = 18` counts the
+open findings: all 23 in `all-bugs.json` are `type=BUG`, 18 `OPEN` and 5 `CLOSED`, which is why it
+differs from both totals.
+
+**Landing note (2026-11-04).** The shape guard `tests/architectural/test_new_code_reliability_shapes.py`
+named in this Mission's plan, tasks and contract was retired at landing under `DIRECTIVE_041`: it
+pinned source shape, not behaviour. The behaviour stays covered by the existing events-tail, compiler
+and #6673 backfill tests, and SonarCloud itself re-raises these rules on new code.
 
 ### The 4 new-code findings
 
