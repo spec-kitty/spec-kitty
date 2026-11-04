@@ -505,11 +505,11 @@ class TestKernelIsolation:
         ).assert_applies(evaluable)
 
     @pytest.mark.parametrize("layer", ["glossary", "runtime", "mission_runtime"])
-    def test_kernel_does_not_import_sibling_layers(self, evaluable, landscape, layer):
-        """kernel is the root: it may not reach any other landscape layer (#7155).
+    def test_kernel_does_not_import_higher_layers(self, evaluable, landscape, layer):
+        """Reject kernel imports of higher layers in pytestarch's static graph.
 
-        The two rules above covered only the layers that existed when the chain
-        was first gated; the middle of the chain was unguarded.
+        The two rules above cover only charter and specify_cli. String-loaded
+        imports are outside this graph; these checks do not prove their absence.
         """
         (
             LayerRule()
@@ -556,7 +556,12 @@ class TestCharterBoundary:
 
     @pytest.mark.parametrize("layer", ["glossary", "runtime", "mission_runtime"])
     def test_charter_does_not_import_its_dependents(self, evaluable, landscape, layer):
-        """charter sits below its dependents and may not reach up to them (#7155)."""
+        """Reject charter imports of its dependents in the static graph.
+
+        The existing glossary_hook imports glossary.attachment dynamically and
+        is outside this assertion. Its boundary and fuller enforcement are
+        tracked in #7171; this check introduces no exception for that hook.
+        """
         (
             LayerRule()
             .based_on(landscape)
