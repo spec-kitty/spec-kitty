@@ -346,7 +346,7 @@ def _mission_under_ancestor(tmp_path: Path) -> tuple[Path, Path]:
     return mission_dir, ancestor
 
 
-@pytest.mark.parametrize("lock_residue", [False, True], ids=["empty", "lock-residue"])
+@pytest.mark.parametrize("lock_residue", [False, True], ids=["empty", "hook-lock-residue"])
 def test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal(tmp_path: Path, lock_residue: bool) -> None:
     """#7084: a stray `.git` directory holds nothing, so the mission is not "tracked but unreadable".
 
@@ -359,6 +359,7 @@ def test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal(tmp_pat
     stray = ancestor / ".git"
     stray.mkdir()
     if lock_residue:
+        (stray / "hooks").mkdir()
         (stray / "spec-kitty-locks").mkdir()
 
     tracked = read_tracked_meta(mission_dir)
