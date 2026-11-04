@@ -1,4 +1,7 @@
-<<<<<<< ours
+<!-- Non-authoritative review prose: both merge-driver bodies are retained below.
+The original delimiter envelope remains in the contributor history. Status events,
+not this Markdown, own the review verdict. -->
+
 # Review cycle 2 — APPROVE (round-1 findings resolved, no new findings)
 
 Reviewer: fresh independent review delegate (profile `reviewer-renata`) on lane head
@@ -20,7 +23,12 @@ Reviewer: fresh independent review delegate (profile `reviewer-renata`) on lane 
   no skip/xfail; `src/` and `tests/specify_cli/test_acceptance_regressions.py` unmodified. No
   assertion or product gate was weakened.
 
-=======
+## Retained alternate review text (historical, non-authoritative)
+
+The merge driver also retained the following earlier rejection text, whose heading
+says cycle 1 although its metadata says cycle 2. It is preserved verbatim, not a
+new rejection or a replacement for the event-sourced approval above.
+
 ---
 affected_files: []
 cycle_number: 2
@@ -70,4 +78,3 @@ alphabet and of the canonical length.
 - `ruff check` and `ruff format --check` clean; no `assert`/marker line changed
   (`git diff -U0 | grep assert` is empty).
 
->>>>>>> theirs
