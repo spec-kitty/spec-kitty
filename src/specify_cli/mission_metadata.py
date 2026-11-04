@@ -16,7 +16,9 @@ always either the old version or the new version, never a partial write.
 from __future__ import annotations
 
 import json
+import os
 import re
+import stat
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -587,8 +589,8 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     misconfigured ``GIT_DIR``) exits non-zero too, with the same "not a git repository"
     message. Message text cannot separate those, so a ``.git`` entry above *feature_dir* that
     could be a repository home raises :class:`_GitRefuses`: the caller refuses instead of falling
-    back to fabricating an identity over a copy git does hold (NFR-002). A ``.git`` entry that
-    cannot be one -- a directory with no ``HEAD`` -- is not a repository and does not raise (#7084).
+    back to fabricating an identity over a copy git does hold (NFR-002). Only an empty directory
+    or a hook/lock-only residue can be ruled out; a lost ``HEAD`` does not rule out stored identity.
     """
     try:
         result = run_git(feature_dir, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
@@ -607,26 +609,24 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
 
 
 def _is_repository_home(git_entry: Path) -> bool:
-    """Whether *git_entry* can be the repository home git holds a copy in (#7084).
+    """Fail closed unless a ``.git`` entry is absent or a known non-storage residue (#7084).
 
-    A ``.git`` *file* is a ``gitdir:``/worktree pointer: the repository lives elsewhere and may hold
-    the identity, so it is a home. A ``.git`` *directory* is a home only when it carries ``HEAD``:
-    every repository has one, even before its first commit, while a bare ``.git`` a tool left behind
-    (or one holding only subdirectories, such as a lock home) has none. Such a directory is not a
-    repository at all -- git walks past it -- so it holds nothing to preserve and nothing to restore.
-
-    Fail-closed: an entry that cannot be read counts as a home, so the caller refuses rather than
-    minting over a copy git might hold (NFR-002). So does a dangling ``.git`` symlink, which points
-    at a repository git cannot reach; a name with nothing behind it is not an anchor at all.
+    A missing ``HEAD`` does not erase objects, refs or an index. Only an empty directory or
+    one containing just hook/lock entries can be ruled out; every other name remains unknown.
+    Files, symlinks (including dangling ones), unreadable entries and directories that disappear
+    while being read all remain possible homes. One lstat and an immediate directory listing
+    replace the old repeated stats; no child stat, recursive walk or git invocation is added.
     """
     try:
-        if not git_entry.exists():
-            return git_entry.is_symlink()
-        if git_entry.is_dir():
-            (git_entry / _HEAD).stat()
-        return True
+        mode = git_entry.lstat().st_mode
     except FileNotFoundError:
         return False
+    except OSError:
+        return True
+    if not stat.S_ISDIR(mode):
+        return True
+    try:
+        return any(entry.name not in {"hooks", "spec-kitty-locks"} for entry in git_entry.iterdir())
     except OSError:
         return True
 
@@ -642,6 +642,19 @@ def _has_no_git_anchor(feature_dir: Path) -> bool:
     spec-kitty's own lock and hook fallbacks leave behind -- into a tracked-metadata refusal, with
     a ``git checkout --`` remedy, for every Mission below it.
     """
+    # A redirected repository/index/object store cannot be ruled out by the ancestor names.
+    if any(
+        name in os.environ
+        for name in (
+            "GIT_DIR",
+            "GIT_COMMON_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        )
+    ):
+        return False
     for candidate in (feature_dir, *feature_dir.parents):
         try:
             if _is_repository_home(candidate / ".git"):
