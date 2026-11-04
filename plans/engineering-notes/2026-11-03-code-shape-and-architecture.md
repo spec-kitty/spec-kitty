@@ -2,7 +2,7 @@
 title: 'Engineering notes: code shape and architecture survey (2026-11-03)'
 description: 'Measured code-shape and architecture-alignment debt on main: the C901 baseline gap, duplicate authorities, god modules, stale hosted docs, and the remediation scope.'
 doc_status: active
-updated: '2026-11-03'
+updated: '2026-11-04'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -13,7 +13,9 @@ related:
 ---
 # Engineering notes: code shape and architecture survey (2026-11-03)
 
-Tracking ticket: [#7155](https://github.com/spec-kitty/spec-kitty/issues/7155).
+Survey tracker: [#7155](https://github.com/spec-kitty/spec-kitty/issues/7155) remains open.
+The static-gate and hosted-doc slices are delivered by #7156 / #7170; they do not
+adopt the wider remediation programme below.
 Base: `main@dcdacbd2e5`. Three independent lenses (architecture, code shape, tests/gates)
 surveyed `src/**`, `tests/**`, `.github/**` and `docs/architecture/**`; every finding below was
 re-verified against the tree by the maintainer. Two proposed findings were wrong and are recorded
@@ -68,6 +70,9 @@ that belong in helpers.
 
 ### 3. The "living" C4 context diagram presents removed hosted surfaces as current
 
+**Addressed by #7156's hosted-doc cutover.** The following observations describe
+the surveyed base, not the corrected pages shipped with these notes.
+
 `docs/architecture/diagrams/01_context/README.md` (`doc_status: active`, updated 2026-11-01) still
 draws `Team Kitty SaaS`, the `Zeitgeist relay`, and the "one moment per lane transition, when drain
 is on" edge; the table describes the relay publish path in the present tense.
@@ -88,10 +93,21 @@ authorities must agree on the submodule case (FR-007)") and no gate covers it.
 
 ### 5. The layer chain is gated only against the top layer
 
-`tests/architectural/test_layer_rules.py` forbids kernel→{charter, specify_cli},
-charter→specify_cli and glossary→specify_cli. Nothing forbids kernel→{glossary, runtime,
-mission_runtime}, charter→{glossary, runtime, mission_runtime}, or sibling edges. Zero such imports
-exist today, so this is a latent gate gap rather than live rot.
+At the surveyed base, `tests/architectural/test_layer_rules.py` checked
+kernel→{charter, specify_cli}, charter→specify_cli and glossary→specify_cli.
+#7156 adds the six missing kernel/charter→{glossary, runtime, mission_runtime}
+pairs using the same static graph. The checks reject captured imports; green
+does **not** prove that every dependency form is absent or that the whole
+direction is closed.
+
+In particular, `charter.offering.missions.glossary_hook` still calls
+`import_module("glossary.attachment")`, outside that graph. The hook documents
+no production execution call sites. The historical glossary type-ownership ADR
+(`docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md`) sanctioned its then-lazy
+bridge, but this PR makes no new exception or hook-lifecycle decision. Current
+boundary disposition and fuller enforcement are tracked separately in #7171
+under functional epic #1868, alongside the existing glossary retirement work
+#2727. Sibling-layer enforcement is also outside this six-pair slice.
 
 ### 6. Ledgers ratchet breadth, not import-site mass
 
@@ -152,9 +168,12 @@ is discarded while the caller branches on the flattened result.
 
 1. **Shrink-only ratchet for the `ruff.toml` C901 exemptions**, then convert whole-file exemptions
    to per-function `# noqa: C901` with an inline rationale as each file is fixed.
-2. **Close the layer-chain direction gaps** (four missing `LayerRule` pairs; they land green today).
-3. **Hosted-surface docs cutover**: correct the context diagram, deprecate
-   `zeitgeist-session-identity.md`, fix the three `index.md` rows.
+2. **Add the six missing static layer-pair checks** — delivered by #7156 / #7170.
+   Dynamic import coverage and the known glossary hook remain on #7171; no full-direction
+   closure is claimed.
+3. **Hosted-surface docs cutover** — delivered by #7156 / #7170: correct the context diagram,
+   deprecate `zeitgeist-session-identity.md` as a historical record, and correct all three
+   hand-curated `index.md` abstracts.
 4. **Single repo-root authority**: delegate one resolver to the other behind a thin adapter that
    preserves the legacy error surface.
 5. **Unify the duplicated constants**, then add ledger *mass* caps, then split
