@@ -105,8 +105,8 @@ _DEFAULT_LOG_KIND = "status"
 # SonarCloud's S5756 cannot model an ``Enum`` built by the functional API and reads the value
 # lookup as a call on a non-callable, scoring the module BLOCKER (#7113). The two spellings
 # reach the same member -- ``_LOG_KIND_MEMBERS`` maps ``kind.upper() -> kind``, so ``"STATUS"``
-# is the member whose value is ``"status"`` -- and
-# ``tests/architectural/test_new_code_reliability_shapes.py`` pins the equivalence.
+# is the member whose value is ``"status"``. Tailing without ``--log`` (tests/cli/test_events_tail*.py)
+# exercises the default; SonarCloud itself guards the analyzer shape.
 _LOG_KIND_DEFAULT = _LogKind[_DEFAULT_LOG_KIND.upper()]
 
 
