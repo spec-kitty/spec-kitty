@@ -27,6 +27,7 @@ from typer.testing import CliRunner
 
 from specify_cli.acceptance.matrix import write_acceptance_matrix
 from specify_cli.cli.commands import accept as accept_module
+from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
@@ -93,21 +94,10 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
 
     # #6715: the evidence axis reads the work package's AUTHORED ownership, and nothing else.
     # Without it no change could ever prove WP01's implementation, whatever its lane branch holds.
-    (feature_dir / "tasks" / "WP01-test.md").write_text(
-        "---\n"
-        'work_package_id: "WP01"\n'
-        'title: "Test WP"\n'
-        'lane: "done"\n'
-        'assignee: "test-agent"\n'
-        'agent: "test-agent"\n'
-        'shell_pid: "12345"\n'
-        "owned_files:\n"
-        '  - "src/**"\n'
-        "subtasks: []\n"
-        "---\n"
-        "# WP01\nDone.\n",
-        encoding="utf-8",
-    )
+    wp_path = feature_dir / "tasks" / "WP01-test.md"
+    frontmatter, body = read_frontmatter(wp_path)
+    frontmatter["owned_files"] = ["src/**"]
+    write_frontmatter(wp_path, frontmatter, body)
 
     # Move onto a dedicated, never-protected work branch and repoint
     # target_branch at it (see ``_WORK_BRANCH`` docstring above).
@@ -137,7 +127,7 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
             at="2026-01-01T00:00:00+00:00",
-            actor="test-implementer",
+            actor="test-agent",
             force=False,
             execution_mode="direct_repo",
             policy_metadata=build_claim_policy_metadata(
@@ -171,7 +161,7 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
             from_lane=Lane.APPROVED,
             to_lane=Lane.DONE,
             at="2026-01-01T00:02:00+00:00",
-            actor="test-implementer",
+            actor="test-agent",
             force=True,
             execution_mode="direct_repo",
             reason="Test setup: approved work package lands as done",
