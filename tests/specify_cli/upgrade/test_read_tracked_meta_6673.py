@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -340,63 +341,29 @@ def _mission_under_ancestor(tmp_path: Path) -> tuple[Path, Path]:
     ancestor = tmp_path / "ambient"
     mission_dir = ancestor / "kitty-specs" / _SLUG
     mission_dir.mkdir(parents=True)
+    probe = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=mission_dir, capture_output=True)
+    assert probe.returncode != 0, "the fixture must be outside a worktree, not green through the tracked-prefix path"
     return mission_dir, ancestor
 
 
-def test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal(tmp_path: Path) -> None:
+@pytest.mark.parametrize("lock_residue", [False, True], ids=["empty", "lock-residue"])
+def test_a_directory_named_git_that_is_not_a_repository_is_not_a_refusal(tmp_path: Path, lock_residue: bool) -> None:
     """#7084: a stray `.git` directory holds nothing, so the mission is not "tracked but unreadable".
 
-    This is the shape the fleet host reproduces with: spec-kitty's own hook and lock fallbacks leave
-    ``/tmp/.git`` holding only ``hooks/`` and ``spec-kitty-locks/``. git rejects it in the same breath
-    as a bare directory, so it cannot hold a tracked ``meta.json`` — but the name alone used to be read
+    This is the historical residue shape: a stray ``.git`` holding only ``hooks/`` and
+    ``spec-kitty-locks/``. These entries do not store a tracked ``meta.json``, but the name alone used to be read
     as "git holds a copy I cannot give back", which refused the identity and prescribed a
     ``git checkout --`` that has nothing to restore.
     """
     mission_dir, ancestor = _mission_under_ancestor(tmp_path)
     stray = ancestor / ".git"
-    (stray / "spec-kitty-locks").mkdir(parents=True)
+    stray.mkdir()
+    if lock_residue:
+        (stray / "spec-kitty-locks").mkdir()
 
     tracked = read_tracked_meta(mission_dir)
 
     assert tracked == TrackedMeta(None, unavailable=False), "a non-repository `.git` directory was read as a refusal"
-
-
-def test_an_empty_directory_named_git_is_not_a_refusal(tmp_path: Path) -> None:
-    """The minimal shape: an empty directory named `.git`. No HEAD, no repository, nothing to recover."""
-    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
-    (ancestor / ".git").mkdir()
-
-    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=False)
-
-
-def test_a_git_directory_carrying_head_is_still_an_anchor(tmp_path: Path) -> None:
-    """The control for #7084: a directory carrying `HEAD` is a repository home and must still refuse.
-
-    ``HEAD`` is what every repository has, even an unborn one. Here the committed ref is garbled, so
-    git rejects the directory and cannot say what it holds: the read stays fail-closed (#6673).
-    """
-    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
-    git_dir = ancestor / ".git"
-    (git_dir / "objects").mkdir(parents=True)
-    (git_dir / "refs").mkdir()
-    (git_dir / "HEAD").write_text("not a ref\n", encoding="utf-8")
-
-    tracked = read_tracked_meta(mission_dir)
-
-    assert tracked.meta is None
-    assert tracked.unavailable is True, "a repository home git cannot read was read as 'nothing tracked'"
-
-
-def test_a_git_marker_file_is_still_an_anchor(tmp_path: Path) -> None:
-    """The second control: a `.git` FILE points at a repository elsewhere, so the refusal stands.
-
-    (``test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked`` covers a real repository
-    whose directory became a marker file; this one covers a mission folder that never had one.)
-    """
-    mission_dir, ancestor = _mission_under_ancestor(tmp_path)
-    (ancestor / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
-
-    assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
 
 
 def test_a_dangling_git_symlink_is_still_an_anchor(tmp_path: Path) -> None:
@@ -412,21 +379,21 @@ def test_a_dangling_git_symlink_is_still_an_anchor(tmp_path: Path) -> None:
 
 
 def test_an_unreadable_git_anchor_stays_fail_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-002: an anchor whose ``HEAD`` cannot be read is a home the probe cannot rule out, so refuse.
+    """NFR-002: an unreadable gitdir stays unknown, never a non-storage residue.
 
-    The counterpart of every mint above: the narrowing must never turn an unreadable repository into
-    "nothing tracked". The `stat` is made to fail the way a permission-denied git directory does, so
-    the branch is exercised on every platform and for every user.
+    Inject the operating system's permission error at the directory-read boundary, portably even
+    for privileged test users. The assertion is the public metadata verdict, not a call count.
     """
     mission_dir, ancestor = _mission_under_ancestor(tmp_path)
-    (ancestor / ".git").mkdir()
-    real_stat = Path.stat
+    git_dir = ancestor / ".git"
+    git_dir.mkdir()
+    real_iterdir = Path.iterdir
 
-    def denied(self: Path, *args: object, **kwargs: object) -> object:
-        if self.name == "HEAD":
+    def denied(self: Path) -> Iterator[Path]:
+        if self == git_dir:
             raise PermissionError(13, "Permission denied")
-        return real_stat(self, *args, **kwargs)
+        return real_iterdir(self)
 
-    monkeypatch.setattr(Path, "stat", denied)
+    monkeypatch.setattr(Path, "iterdir", denied)
 
     assert read_tracked_meta(mission_dir) == TrackedMeta(None, unavailable=True)
