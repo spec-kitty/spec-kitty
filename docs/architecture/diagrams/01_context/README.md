@@ -2,7 +2,7 @@
 title: System Context (living)
 description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-04'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
@@ -170,7 +170,7 @@ flowchart LR
 | Human In Charge | Command invocation and approval checkpoints | Final acceptance authority stays human-owned. |
 | Agent Tooling | Prompt-, skill-, and Op-driven workflow execution | Agents execute within host constraints and the resolved profile's governance scope. |
 | External Orchestrator Provider | Orchestrator API calls | Provider is adapter-only; host remains lifecycle authority. |
-| Team Kitty SaaS | **Historical — removed in #6164.** Browser-mediated OAuth, repository admission and capability mint no longer ship in this repository. | Recorded for orientation only; nothing in the CLI reaches it. |
+| Team Kitty SaaS | **Historical — removed in #6164.** Browser-mediated OAuth, repository admission and capability mint no longer ship in this repository. | Recorded for orientation only; no shipped client or transport reaches it. |
 | Zeitgeist relay | **Historical — removed in #6164.** The CLI no longer publishes lane-transition moments. | Not part of the current boundary; an unreachable relay cannot affect local persistence because no publish path exists. |
 | External Tracker Systems | Tracker commands through the local provider | Tracker binding is optional and discovered, not user-supplied (`2026-04-04-1`). |
 | Project Repository Artifacts | Filesystem state read/write | Repository artifacts are canonical persistent state. |

@@ -2,7 +2,7 @@
 title: Architecture
 description: 'Landing page and page index for docs/architecture/: the boundary rule between decisions and consumption, living and frozen pages, the decay rule, and ADR locations.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-04'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
@@ -143,7 +143,7 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 
 - [Architecture Vision (living)](vision/README.md) — current and future forward intent, including the 4.x forward signal.
 - [Architecture Diagrams (living C4)](diagrams/README.md) — the living C4 model and how its modules map onto the enforced layer packages.
-- [Diagrams: System Context (living)](diagrams/01_context/README.md) — C4 level 1, including Team Kitty and the Zeitgeist relay.
+- [Diagrams: System Context (living)](diagrams/01_context/README.md) — C4 level 1 for the shipped host boundary; retired Team Kitty SaaS and Zeitgeist clients are recorded as history.
 - [Diagrams: Containers (living)](diagrams/02_containers/README.md) — C4 level 2.
 - [Diagrams: Runtime/Execution Domain (living)](diagrams/02_containers/runtime-execution-domain.md) — C4 level 2 container detail.
 - [Diagrams: Components (living)](diagrams/03_components/README.md) — C4 level 3.
@@ -161,7 +161,7 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 - [Git worktrees](git-worktrees.md) — what worktrees share and keep separate.
 - [Git workflow: who does what](git-workflow.md) — infrastructure git vs content git.
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.
-- [Zeitgeist publisher and lease identity](zeitgeist-session-identity.md) — logical agents, SaaS leases, and relay session references.
+- [Zeitgeist publisher and lease identity](zeitgeist-session-identity.md) — **deprecated historical design** for logical agents, SaaS leases, and relay session references before the hosted clients were removed.
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
 - [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
 - [The acceptance scenario contract](acceptance-scenario-contract.md) — how scenarios link to product promises by identifier only, the per-PR scenario check, and the nightly evidence bundle.

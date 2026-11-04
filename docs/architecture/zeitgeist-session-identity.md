@@ -2,7 +2,7 @@
 title: Zeitgeist publisher and lease identity
 type: explanation
 doc_status: deprecated
-updated: '2026-11-03'
+updated: '2026-11-04'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
@@ -15,31 +15,32 @@ description: How logical agents, SaaS leases, and relay session references relat
 > `SPEC_KITTY_ZEITGEIST_SESSION_ID` variable were removed from this repository in #6164. No
 > `src/` code reads this variable; the page is retained only as a record of the retired design.
 
-A logical agent can invoke several CLI commands and run a separate reader. Its
-`logical_session_id` selects its own capability cache and SaaS lease scope.
-It does not identify the authenticated human and is not an authorization grant.
-Two agents using one account and repository need different selectors.
+## Historical design before #6164
 
-The CLI uses `SPEC_KITTY_ZEITGEIST_SESSION_ID` when supplied. Its value must match
-`[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. Otherwise, `CODEX_THREAD_ID` supplies a
-namespaced, SHA-256-derived selector. Without either, every process on the
-account shares one stable default selector: the credential cache and the
-reader surface (`spec-kitty zeitgeist watch`/`status`, the MCP stdio tools)
-are keyed by this selector, so a per-process value would leave a stored
-credential unreachable by the next command or reader. A harness running
-genuinely concurrent agents under one account must propagate an explicit,
-distinct `SPEC_KITTY_ZEITGEIST_SESSION_ID` to each agent's related command,
-watch, and MCP processes if it does not expose a Codex thread identifier;
-unidentified agents all share the default partition, so own-agent filtering
-cannot separate them — `NotCheckedOut` and the CLI hint name the variable
-that pins one.
+The following sections record the retired protocol, not current command or
+deployment instructions.
+
+A logical agent could invoke several CLI commands and run a separate reader.
+Its `logical_session_id` selected its capability cache and SaaS lease scope;
+it neither identified the authenticated human nor granted authorization.
+Agents sharing an account and repository needed distinct selectors.
+
+The retired CLI used `SPEC_KITTY_ZEITGEIST_SESSION_ID` when supplied, requiring
+`[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. Otherwise, `CODEX_THREAD_ID` supplied a
+namespaced, SHA-256-derived selector. Without either, processes shared a stable
+default selector for the credential cache and the retired `spec-kitty zeitgeist
+watch`/`status` and MCP readers. Per-process selectors would have stranded stored
+credentials between commands. Concurrent harnesses therefore propagated a
+distinct selector across each agent's related processes; unidentified agents
+shared the default partition, so own-agent filtering could not separate them.
 
 ## Issuer and relay boundaries
 
-The SaaS CLI mint accepts the selector and echoes it. The CLI rejects responses
-without the exact selector or a valid `session_ref`; an older server therefore
-leaves local work functional but cannot support managed publication. Deploy the
-SaaS contract first. No client computes or needs the relay's private salt.
+The SaaS CLI mint accepted and echoed the selector. The retired CLI rejected
+responses without the exact selector or a valid `session_ref`; an older server
+left local work functional but could not support managed publication. The
+historical rollout required the SaaS contract first. Clients neither computed
+nor needed the relay's private salt.
 
 | Identity | Owner | Use |
 | --- | --- | --- |
@@ -47,44 +48,44 @@ SaaS contract first. No client computes or needs the relay's private salt.
 | SaaS `session_ref` | SaaS lease issuer | Immutable raw ingress `session_id` for a particular lease generation and kind |
 | Relay `actor.session_ref` | Relay | Opaque salted egress reference for that raw ingress ID within the relay's lifetime |
 
-A presence lease's raw reference accompanies events and presence. A focus lease
-has its own raw reference, stored together with its focus capability. Each SaaS
-revoke uses the corresponding lease's raw reference. The relay removes only
-that session's state in the authenticated team/deployment/repository scope and
-emits its matching opaque reference.
+A presence lease's raw reference accompanied events and presence. A focus lease
+had its own raw reference, stored with its capability. Each SaaS revoke used the
+corresponding lease's raw reference. The relay removed only that session's state
+in the authenticated team/deployment/repository scope and emitted its opaque
+reference.
 
-Reminting changes the raw lease reference. A delayed revoke of an old generation
-therefore cannot delete its replacement. Presence and focus remint independently;
-a presence remint preserves an unexpired focus lease only within the same scope.
-The relay keys focus by session as well as repository and focus reference, so two
-agents can work on the same mission/WP without overwriting each other.
+Reminting changed the raw lease reference, so a delayed revoke could not delete
+its replacement. Presence and focus reminted independently; a presence remint
+preserved an unexpired focus lease only within the same scope. The relay keyed
+focus by session, repository and focus reference, allowing two agents to work on
+the same mission/WP without overwriting each other.
 
 ## Cache, reconnects, and restart
 
-The existing locked, owner-only TOML store lives under
+The retired locked, owner-only TOML store lived under
 `<runtime_state_root>/zeitgeist-sessions/<logical_session_id>/zeitgeist-credentials`.
-Repository keys remain `host/owner/repo`. Related processes use the same cache;
-other agents, negative admissions, and repositories remain separate. Legacy
-shared `zeitgeist-credentials` files are not imported: their bearer cannot prove
-which logical agent should own the lease. They are left untouched and a fresh
-mint populates the new partition.
+Repository keys were `host/owner/repo`. Related processes shared a cache while
+other agents, negative admissions and repositories stayed separate. Legacy
+shared credential files were left untouched: their bearer could not prove which
+logical agent owned the lease. A fresh mint populated the new partition.
 
-The watch/MCP credential reader uses this same partition. Zeitgeist issue #295's
-own-event filtering binds the logical agent to its current per-kind lease
-references, including replacements, and lets the relay derive opaque references.
-Comparing human account IDs would hide other agents. Comparing an ingress ID to
-an egress reference would never match. The reader consumes this identity boundary through the relay-owned `filterOwn` option.
+The retired watch/MCP credential reader used the same partition. Zeitgeist
+issue #295's own-event filtering bound the logical agent to its per-kind lease
+references, including replacements, while the relay derived opaque references.
+Comparing human account IDs would have hidden other agents; comparing ingress
+and egress references would never have matched. The reader used the relay-owned
+`filterOwn` option for this identity boundary.
 
-Relay restart clears volatile state and changes its private salt. The CLI can
-republish with a cached lease's raw ID while its authority remains valid; revoke
-then targets the new relay's representation without knowing either salt.
+A relay restart cleared volatile state and changed its private salt. The retired
+CLI could republish a cached lease's raw ID while its authority remained valid;
+revoke then targeted the new representation without knowing either salt.
 
 ## Cleanup is separate from authority
 
-Removing presence/focus state does not invalidate a signed capability. SaaS
-issue #1634 and its relay companion own authority lifetime and revocation
-validation. This identity change makes directed cleanup accurate; it does not
-claim to prevent further use of an otherwise-valid revoked token.
+In this design, removing presence/focus state did not invalidate a signed
+capability. SaaS issue #1634 and its relay companion owned authority lifetime and
+revocation validation. The identity change made directed cleanup accurate; it
+did not claim to prevent reuse of an otherwise-valid revoked token.
 
 ## Issue traceability
 
@@ -96,19 +97,19 @@ claim to prevent further use of an otherwise-valid revoked token.
 
 ## Reader own-session suppression
 
-CLI `zeitgeist watch`, `zeitgeist status`, retained `zeitgeist activity`, and their
-MCP tools request `filterOwn=true`. Each read loads the current credential cache
-and forwards its presence and focus issuer session refs in
-`X-Zeitgeist-Own-Sessions`. Only the relay derives opaque scoped references;
-readers never reproduce its salt or compare human accounts. Separate commands
-with the same logical session selector share these refs; another agent under
-the same account retains a separate cache partition and remains visible.
+The retired `zeitgeist watch`, `zeitgeist status`, `zeitgeist activity` and MCP
+readers requested `filterOwn=true`. Each read loaded the credential cache and
+forwarded presence/focus issuer session refs in `X-Zeitgeist-Own-Sessions`.
+Only the relay derived opaque scoped references; readers did not reproduce its
+salt or compare human accounts. Related commands shared refs through their
+logical-session selector; other agents retained separate partitions and stayed
+visible.
 
-Readers require `X-Zeitgeist-Filter-Own: true` before consuming any response.
-Missing identity or an older relay without acknowledgment fails explicitly.
-CLI `watch --raw` and `status --raw` request `filterOwn=false`; MCP tools accept
-`filter_own=false` for an intentional complete feed. Agent history replay still
-filters own frames unless explicitly opted out through MCP. Reconnects resolve
-credentials again. Global sequence jumps are intentional; only explicit relay
-gap/epoch signals reset continuity. Own suppression precedes subscriber queue
-and agent receipt/rate budgets, while transport signals remain visible.
+Readers required `X-Zeitgeist-Filter-Own: true`; missing identity or an older
+relay without acknowledgment failed explicitly. The retired `watch --raw` and
+`status --raw` commands requested `filterOwn=false`, and MCP accepted
+`filter_own=false` for a complete feed. History replay filtered own frames unless
+explicitly opted out. Reconnects resolved credentials again. Global sequence
+jumps were intentional; only relay gap/epoch signals reset continuity. Own
+suppression preceded subscriber queue and receipt/rate budgets, while transport
+signals remained visible.
