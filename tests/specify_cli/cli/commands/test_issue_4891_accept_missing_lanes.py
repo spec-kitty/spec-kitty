@@ -25,7 +25,6 @@ import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
-from kernel.clock import now_utc_iso
 from specify_cli.acceptance.matrix import write_acceptance_matrix
 from specify_cli.cli.commands import accept as accept_module
 from specify_cli.status.emit import build_claim_policy_metadata
@@ -137,13 +136,13 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
-            at="2020-01-01T00:00:00+00:00",
+            at="2026-01-01T00:00:00+00:00",
             actor="test-implementer",
             force=False,
             execution_mode="direct_repo",
             policy_metadata=build_claim_policy_metadata(
                 shell_pid=12345,
-                shell_pid_created_at="2020-01-01T00:00:00+00:00",
+                shell_pid_created_at="2026-01-01T00:00:00+00:00",
                 agent="test-agent",
             ),
         ),
@@ -156,7 +155,7 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
             to_lane=Lane.APPROVED,
-            at="2020-01-01T00:01:00+00:00",
+            at="2026-01-01T00:01:00+00:00",
             actor="test-reviewer",
             force=True,
             execution_mode="direct_repo",
@@ -171,7 +170,7 @@ def _build_accept_ready_mission(tmp_path: Path) -> tuple[Path, Path]:
             wp_id="WP01",
             from_lane=Lane.APPROVED,
             to_lane=Lane.DONE,
-            at=now_utc_iso(),
+            at="2026-01-01T00:02:00+00:00",
             actor="test-implementer",
             force=True,
             execution_mode="direct_repo",
