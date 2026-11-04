@@ -6270,8 +6270,9 @@ pages:
   - path: "docs/architecture/zeitgeist-session-identity.md"
     title: "Zeitgeist publisher and lease identity"
     divio_type: "explanation"
-    abstract: "How logical agents, SaaS leases, and relay session references relate."
+    abstract: "How logical agents, SaaS leases, and relay session references related before the hosted surfaces were removed."
     anchors:
+    - {slug: "historical-design-before-6164", text: "Historical design before #6164", level: 2}
     - {slug: "issuer-and-relay-boundaries", text: "Issuer and relay boundaries", level: 2}
     - {slug: "cache-reconnects-and-restart", text: "Cache, reconnects, and restart", level: 2}
     - {slug: "cleanup-is-separate-from-authority", text: "Cleanup is separate from authority", level: 2}
@@ -11927,6 +11928,7 @@ pages:
     - {slug: "what-done-enforces", text: "What `done` enforces", level: 2}
     - {slug: "reference-classification-which-citations-become-gating-rows", text: "Reference classification: which citations become gating rows", level: 2}
     - {slug: "default-gating-fail-safe", text: "Default-gating fail-safe", level: 3}
+    - {slug: "the-mission-s-own-source-issue-is-never-non-gating", text: "The Mission's own source issue is never non-gating", level: 3}
     - {slug: "multi-occurrence-aggregation-implementation-target-wins", text: "Multi-occurrence aggregation: implementation-target wins", level: 3}
     - {slug: "the-evidence-token-rule-deferred-with-followup", text: "The evidence-token rule (`deferred-with-followup`)", level: 2}
     - {slug: "early-discoverability", text: "Early discoverability", level: 2}
