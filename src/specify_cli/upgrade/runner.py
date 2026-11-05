@@ -994,24 +994,24 @@ class MigrationRunner:
                     result["worktree_failures"].extend(failure_messages)
 
             if dry_run:
-                outcome = WorktreeOutcome.FAILED if (worktree_failed or worktree_errored) else WorktreeOutcome.WOULD_UPGRADE
-            else:
-                commit_warnings, outcome = self._settle_worktree(
-                    worktree,
-                    wt_metadata,
-                    target_version=target_version,
-                    metadata_dirty=worktree_metadata_dirty,
-                    main_metadata=main_metadata,
-                    fallback_timestamp=fallback_timestamp,
-                    failed=worktree_failed,
-                    errored=worktree_errored,
-                    auto_commit=auto_commit,
-                    baseline=wt_baseline,
-                    from_version=wt_from_version,
-                    held_paths=sorted(worktree_held),
-                    wrote=worktree_migrated or _metadata_bytes(wt_kittify) != metadata_before,
-                )
-                result["warnings"].extend(commit_warnings)
+                # A dry run writes nothing, so the selected worktree keeps its initial outcome.
+                continue
+            commit_warnings, outcome = self._settle_worktree(
+                worktree,
+                wt_metadata,
+                target_version=target_version,
+                metadata_dirty=worktree_metadata_dirty,
+                main_metadata=main_metadata,
+                fallback_timestamp=fallback_timestamp,
+                failed=worktree_failed,
+                errored=worktree_errored,
+                auto_commit=auto_commit,
+                baseline=wt_baseline,
+                from_version=wt_from_version,
+                held_paths=sorted(worktree_held),
+                wrote=worktree_migrated or _metadata_bytes(wt_kittify) != metadata_before,
+            )
+            result["warnings"].extend(commit_warnings)
             results[worktree] = WorktreeRunResult(disposition=results[worktree].disposition, outcome=outcome)
 
         result["worktree_results"] = list(results.values())
