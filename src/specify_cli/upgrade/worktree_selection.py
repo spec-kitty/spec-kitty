@@ -86,7 +86,7 @@ class WorktreeDisposition:
     missing branch is never read as a detached HEAD. ``selectable`` is False for
     an entry that does not resolve in place to a direct child of
     ``.worktrees/`` (a symlink to elsewhere): no selection can opt it in, the
-    same rule :func:`validate_named` applies. Neither field is in the JSON.
+    same rule :func:`validate_named` applies.
     """
 
     path: Path
@@ -95,8 +95,9 @@ class WorktreeDisposition:
     git_worktree: bool = True
     selectable: bool = True
 
-    def to_json(self, *, relative_to: Path | None = None) -> dict[str, object]:
-        return {"path": _display_path(self.path, relative_to), "branch": self.branch, "action": self.action.value}
+    def display_path(self, *, relative_to: Path) -> str:
+        """The worktree path as shown to the operator, relative to ``relative_to`` when inside it."""
+        return _display_path(self.path, relative_to)
 
 
 class WorktreeOutcome(StrEnum):
@@ -116,10 +117,6 @@ class WorktreeRunResult:
 
     disposition: WorktreeDisposition
     outcome: WorktreeOutcome
-
-    @property
-    def path(self) -> Path:
-        return self.disposition.path
 
 
 def initial_results(dispositions: Iterable[WorktreeDisposition]) -> dict[Path, WorktreeRunResult]:
