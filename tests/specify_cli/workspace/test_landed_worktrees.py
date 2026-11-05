@@ -21,6 +21,7 @@ import pytest
 
 from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import (
+    BRANCH_DELETE_REFUSED_BY_GIT,
     DESTRUCTIVE_OP_ONLY_COPY,
     WORKTREE_PARTIALLY_REMOVED,
     WORKTREE_REMOVE_REFUSED_BY_GIT,
@@ -622,6 +623,23 @@ def test_the_same_fixture_deletes_the_branch_when_it_does_not_move(repo: Path, t
     assert calls == ["land-x"]
     assert outcome.removed and outcome.branch_deleted
     assert not _has_branch(repo, "land-x")
+    assert not worktree.exists()
+
+
+def test_a_guard_branch_refusal_keeps_the_operator_facing_vocabulary(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The guard's internal delete codes surface as the codes this report already used."""
+    worktree, _tip = _land_by_rebase(repo, "land-x")
+
+    def refuses(root: Path, branch: str, **_: Any) -> str | None:
+        raise DestructiveOpRefused(error_code=BRANCH_DELETE_REFUSED_BY_GIT, current_branch=branch, remediation="git refused the delete")
+
+    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", refuses)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed and not outcome.branch_deleted
+    assert outcome.refusal == landed_worktrees.BRANCH_DELETE_FAILED
+    assert _has_branch(repo, "land-x")
     assert not worktree.exists()
 
 

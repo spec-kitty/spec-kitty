@@ -104,6 +104,7 @@ from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.core.git_ops import COMMON_PRIMARY_BRANCHES, resolve_primary_branch
 from specify_cli.git.destructive_guard import (
     BRANCH_CHECKED_OUT,
+    BRANCH_DELETE_REFUSED_BY_GIT,
     BRANCH_TIP_MOVED,
     LANDED_INTENT,
     DestructiveOpRefused,
@@ -191,6 +192,7 @@ _DETACHED_OUTSIDE_DETAIL = "a detached worktree outside .worktrees/ (a scratch c
 _GUARD_BRANCH_REFUSALS: dict[str, str] = {
     BRANCH_TIP_MOVED: BRANCH_MOVED,
     BRANCH_CHECKED_OUT: Reason.BRANCH_IN_OTHER_WORKTREE.value,
+    BRANCH_DELETE_REFUSED_BY_GIT: BRANCH_DELETE_FAILED,
 }
 """The guard's delete refusals, under the vocabulary this report already uses."""
 

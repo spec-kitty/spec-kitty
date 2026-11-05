@@ -353,6 +353,26 @@ def test_landed_intent_refuses_a_branch_checked_out_in_a_worktree(tmp_path: Path
     assert [line for line in _spec_kitty_refs(root) if not line.endswith(f" {tip}")] == []
 
 
+def test_landed_intent_maps_a_compare_and_swap_refusal_to_the_moved_tip_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The window past the guard's own check: the ref moves between it and the CAS, so git refuses."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+    moved: list[str] = []
+    real = destructive_guard.ref_advance.delete_branch_ref
+
+    def move_then_delete(repo_root: Path, branch: str, expected_sha: str, *, env: dict[str, str] | None = None) -> None:
+        moved.append(_advance_branch(root, branch, "raced"))
+        real(repo_root, branch, expected_sha, env=env)
+
+    monkeypatch.setattr(destructive_guard.ref_advance, "delete_branch_ref", move_then_delete)
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)
+
+    assert info.value.error_code == BRANCH_TIP_MOVED
+    assert moved and _git(root, "rev-parse", "squashed").strip() == moved[0]
+
+
 def test_landed_intent_compare_and_swap_deletes_the_branch_at_the_approved_tip(tmp_path: Path) -> None:
     """Positive control for the two refusals above: the same fixture deletes when the ref did not move."""
     root = _repo(tmp_path)
