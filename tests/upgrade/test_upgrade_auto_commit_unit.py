@@ -1437,13 +1437,14 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
 
 def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkeypatch) -> None:
     """upgrade_worktrees_only() must call _upgrade_worktrees with an empty
-    migrations list, forwarding target_version, dry_run, and auto_commit.
+    migrations list, forwarding target_version, dry_run, auto_commit and the worktree selection.
 
     This pins the public-method contract introduced as the #2387 follow-up:
     the no-migrations CLI path must no longer call the private ``_upgrade_worktrees``
     directly.
     """
     from specify_cli.upgrade.runner import MigrationRunner
+    from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
     project_path = tmp_path / "project"
     project_path.mkdir()
@@ -1471,7 +1472,8 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkey
     runner = MigrationRunner(project_path)
     monkeypatch.setattr(runner, "_upgrade_worktrees", _fake_upgrade_worktrees)
 
-    result = runner.upgrade_worktrees_only("3.9.0", dry_run=True, auto_commit=False)
+    selection = WorktreeSelection.all()
+    result = runner.upgrade_worktrees_only("3.9.0", dry_run=True, auto_commit=False, worktree_selection=selection)
 
     assert result == {"warnings": [], "errors": []}
     assert len(calls) == 1
@@ -1479,7 +1481,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkey
     assert calls[0]["migrations"] == []
     assert calls[0]["dry_run"] is True
     assert calls[0]["auto_commit"] is False
-    assert calls[0]["worktree_selection"] is None  # None selects no non-Mission worktree (#7173)
+    assert calls[0]["worktree_selection"] is selection
 
 
 def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) -> None:
@@ -1498,7 +1500,7 @@ def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) 
         auto_commit: bool = False,
         worktree_selection: object = None,
     ) -> dict:
-        calls.append({"auto_commit": auto_commit, "worktree_selection": worktree_selection})
+        calls.append({"auto_commit": auto_commit})
         return {"warnings": [], "errors": []}
 
     runner = MigrationRunner(project_path)

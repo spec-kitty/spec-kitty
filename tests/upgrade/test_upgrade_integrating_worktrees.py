@@ -127,21 +127,36 @@ def test_integrating_rule_on_one_fixture(tmp_path: Path) -> None:
     assert actions[plain.name] is DispositionAction.SKIP_NOT_SELECTED
 
 
-@pytest.mark.parametrize("flag", ["--dry-run", "--no-worktrees"])
-def test_dry_run_and_no_worktrees_are_unchanged(tmp_path: Path, flag: str) -> None:
-    """``--dry-run`` writes nothing anywhere; ``--no-worktrees`` upgrades the root
-    checkout only. Neither touches a lane or the non-integrating control."""
+def _snapshot(checkouts: list[Path]) -> dict[Path, tuple[str, bytes | None, str]]:
+    return {wt: (_head(wt), _metadata_bytes(wt), _porcelain(wt)) for wt in checkouts}
+
+
+def _lanes_and_control(project: LanesProject) -> list[Path]:
+    return [*project.lane_worktrees.values(), project.extra_worktree(branch=NON_INTEGRATING_BRANCH)]
+
+
+def test_dry_run_writes_nothing_even_with_all_worktrees(tmp_path: Path) -> None:
+    """``--dry-run --all-worktrees`` writes nothing anywhere: no lane, no opted-in control, no root commit."""
     project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1)
-    control = project.extra_worktree(branch=NON_INTEGRATING_BRANCH)
-    checkouts = [*project.lane_worktrees.values(), control]
-    before = {wt: (_head(wt), _metadata_bytes(wt), _porcelain(wt)) for wt in checkouts}
+    checkouts = _lanes_and_control(project)
+    before = _snapshot(checkouts)
     root_head = _head(project.repo)
 
-    result = project.run("upgrade", "--yes", flag)
+    result = project.run("upgrade", "--yes", "--dry-run", "--all-worktrees")
 
     assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")
-    assert {wt: (_head(wt), _metadata_bytes(wt), _porcelain(wt)) for wt in checkouts} == before
-    if flag == "--dry-run":
-        assert _head(project.repo) == root_head
-    else:
-        assert upgrade_commits_on(project.repo, project.target_branch)
+    assert _snapshot(checkouts) == before
+    assert _head(project.repo) == root_head
+
+
+def test_no_worktrees_upgrades_only_the_root(tmp_path: Path) -> None:
+    """``--no-worktrees`` upgrades the root checkout only; no lane or control is touched."""
+    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1)
+    checkouts = _lanes_and_control(project)
+    before = _snapshot(checkouts)
+
+    result = project.run("upgrade", "--yes", "--no-worktrees")
+
+    assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")
+    assert _snapshot(checkouts) == before
+    assert upgrade_commits_on(project.repo, project.target_branch)

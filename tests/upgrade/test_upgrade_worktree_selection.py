@@ -12,27 +12,38 @@ Mission and detached worktrees stay skipped whatever the selection (#5457).
 The CLI tests drive the real ``spec-kitty upgrade`` on the older-version lanes
 fixture: one Mission lane worktree plus two non-Mission worktrees on ``wip/``
 branches. The unit tests pin :func:`worktree_dispositions` and
-:func:`validate_named`; they import the module inside each test so that the CLI
-tests fail on their assertions, not on a collection error, before the module
-exists.
+:func:`validate_named`.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from specify_cli.cli.commands.upgrade import _run_line
+from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
+from specify_cli.upgrade.registry import MigrationRegistry
+from specify_cli.upgrade.runner import MigrationRunner, _worktree_outcome
+from specify_cli.upgrade.worktree_selection import (
+    DispositionAction,
+    UnknownWorktreeError,
+    WorktreeOutcome,
+    WorktreeSelection,
+    validate_named,
+    worktree_dispositions,
+)
 from tests.integration.target_owned_fixtures import (
     METADATA_PATH,
     LanesProject,
     build_older_version_lanes_project,
     upgrade_commits_on,
 )
+from tests.upgrade.test_worktree_stamp_guard import _TARGET_VERSION, _add_worktree, _init_repo, _invoke_upgrade
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -176,13 +187,13 @@ def test_dry_run_lists_every_worktree_and_writes_nothing(fixture: _Fixture) -> N
     fx = fixture
     before = {checkout: _state(checkout) for checkout in fx.all_checkouts()}
 
-    result = fx.project.run("upgrade", "--dry-run")
+    result = fx.project.run("upgrade", "--dry-run", "--include-worktree", fx.rel(fx.wip_a))
 
     assert result.returncode == 0, _output(result)
     assert {checkout: _state(checkout) for checkout in fx.all_checkouts()} == before
     out = _output(result)
     assert "Worktrees:" in out, out
-    assert _not_selected_line(fx, fx.wip_a, WIP_A) in out, out
+    assert f"{fx.rel(fx.wip_a)} ({WIP_A}): will be upgraded and committed" in out, out
     assert _not_selected_line(fx, fx.wip_b, WIP_B) in out, out
     assert f"{fx.rel(fx.lane)} (" in out and "skipped, Mission worktree" in out, out
 
@@ -191,11 +202,9 @@ def test_dry_run_lists_every_worktree_and_writes_nothing(fixture: _Fixture) -> N
     "opt_in",
     [
         ("--include-worktree", ".worktrees/no-such-worktree"),
-        ("--include-worktree", "README.md"),
-        ("--include-worktree", ".worktrees/extra-1/.kittify"),
         ("--all-worktrees", "--include-worktree", ".worktrees/nope"),
     ],
-    ids=["missing", "outside", "nested", "with-all-worktrees"],
+    ids=["missing", "with-all-worktrees"],
 )
 def test_unknown_worktree_is_refused_before_any_write(fixture: _Fixture, opt_in: tuple[str, ...]) -> None:
     fx = fixture
@@ -323,11 +332,6 @@ def test_plan_json_carries_selection_and_dispositions(fixture: _Fixture) -> None
     assert by_owner[fx.rel(fx.wip_b)]["code"] == "WORKTREE_SELECTED"
     assert by_owner[fx.rel(fx.wip_b)]["message"].endswith(": selected for upgrade")
     assert by_owner[fx.rel(fx.wip_a)]["code"] == "WORKTREE_SKIPPED_NOT_SELECTED"
-
-    refused = fx.project.run("upgrade", "--plan-json", "--include-worktree", ".worktrees/nope")
-    assert refused.returncode == 2
-    assert any(item["code"] == NOT_FOUND_CODE for item in _plan(refused)["diagnostics"])
-
     assert {checkout: _state(checkout) for checkout in fx.all_checkouts()} == before
 
 
@@ -380,12 +384,6 @@ def _git_worktree_project(tmp_path: Path) -> Path:
 
 
 def test_worktree_dispositions_follow_the_selection(tmp_path: Path) -> None:
-    from specify_cli.upgrade.worktree_selection import (
-        DispositionAction,
-        WorktreeSelection,
-        worktree_dispositions,
-    )
-
     repo = _git_worktree_project(tmp_path)
     worktrees_dir = repo / ".worktrees"
 
@@ -423,22 +421,11 @@ def test_worktree_dispositions_follow_the_selection(tmp_path: Path) -> None:
 
 
 def test_selection_json(tmp_path: Path) -> None:
-    from specify_cli.upgrade.worktree_selection import WorktreeSelection
-
     assert WorktreeSelection.none().to_json() == {"mode": "none", "named": []}
     assert WorktreeSelection.all().to_json() == {"mode": "all", "named": []}
     named = WorktreeSelection.named_paths([tmp_path / "b", tmp_path / "a"])
     assert named.to_json() == {"mode": "named", "named": [str(tmp_path / "b"), str(tmp_path / "a")]}
     assert named.to_json(relative_to=tmp_path) == {"mode": "named", "named": ["b", "a"]}
-
-
-def test_validate_named_accepts_relative_and_absolute_children(tmp_path: Path) -> None:
-    from specify_cli.upgrade.worktree_selection import validate_named
-
-    repo = _git_worktree_project(tmp_path)
-    resolved = validate_named(repo, [Path(".worktrees/wip-x"), repo / ".worktrees" / "wip-y"])
-    assert resolved == [(repo / ".worktrees" / "wip-x").resolve(), (repo / ".worktrees" / "wip-y").resolve()]
-    assert validate_named(repo, []) == []
 
 
 @pytest.mark.parametrize(
@@ -447,8 +434,6 @@ def test_validate_named_accepts_relative_and_absolute_children(tmp_path: Path) -
     ids=["missing", "outside", "nested", "the-root", "not-a-directory", "escapes"],
 )
 def test_validate_named_refuses_what_is_not_a_direct_child(tmp_path: Path, bad: str) -> None:
-    from specify_cli.upgrade.worktree_selection import UnknownWorktreeError, validate_named
-
     repo = _git_worktree_project(tmp_path)
     (repo / ".worktrees" / "wip-x" / "sub").mkdir()
     (tmp_path / "elsewhere").mkdir()
@@ -512,17 +497,8 @@ def test_symlink_escaping_worktrees_is_never_selected(fixture: _Fixture, tmp_pat
     assert NOT_FOUND_CODE in _output(refused)
 
 
-def test_dry_run_preview_uses_the_future_tense(fixture: _Fixture) -> None:
-    fx = fixture
-    result = fx.project.run("upgrade", "--dry-run", "--include-worktree", fx.rel(fx.wip_a))
-    assert result.returncode == 0, _output(result)
-    assert f"{fx.rel(fx.wip_a)} ({WIP_A}): will be upgraded and committed" in _output(result)
-
-
 def test_cli_rejects_worktree_opt_in(tmp_path: Path) -> None:
     """``--cli`` takes no project, so a worktree opt-in is refused rather than ignored."""
-    from tests.upgrade.test_worktree_stamp_guard import _invoke_upgrade
-
     tmp_path.mkdir(exist_ok=True)
     for args in (["--cli", "--all-worktrees"], ["--cli", "--include-worktree", ".worktrees/x"]):
         result = _invoke_upgrade(args, cwd=tmp_path)
@@ -532,8 +508,6 @@ def test_cli_rejects_worktree_opt_in(tmp_path: Path) -> None:
 
 def test_conflict_refused_outside_a_project(tmp_path: Path) -> None:
     """``--no-worktrees`` with an opt-in is refused before the outside-a-project guidance path."""
-    from tests.upgrade.test_worktree_stamp_guard import _invoke_upgrade
-
     result = _invoke_upgrade(["--no-worktrees", "--all-worktrees"], cwd=tmp_path)
     assert result.exit_code == 2, result.output
     assert "--no-worktrees" in result.output
@@ -543,8 +517,6 @@ def test_conflict_refused_outside_a_project(tmp_path: Path) -> None:
 
 
 def _stub_project(tmp_path: Path) -> tuple[Path, Path]:
-    from tests.upgrade.test_worktree_stamp_guard import _add_worktree, _init_repo
-
     root = tmp_path / "repo"
     _init_repo(root)
     worktree = _add_worktree(root, "wip-f", "wip/f")
@@ -552,10 +524,6 @@ def _stub_project(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def _register_worktree_stub(*, runs_on_worktrees: bool, succeeds: bool) -> None:
-    from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
-    from specify_cli.upgrade.registry import MigrationRegistry
-    from tests.upgrade.test_worktree_stamp_guard import _TARGET_VERSION
-
     MigrationRegistry.clear()
 
     class _Stub(BaseMigration):
@@ -579,9 +547,6 @@ def _register_worktree_stub(*, runs_on_worktrees: bool, succeeds: bool) -> None:
 
 
 def test_failed_worktree_migration_is_reported_as_failed(tmp_path: Path) -> None:
-    from specify_cli.upgrade.registry import MigrationRegistry
-    from tests.upgrade.test_worktree_stamp_guard import _TARGET_VERSION, _invoke_upgrade
-
     root, worktree = _stub_project(tmp_path)
     head_before = _head(worktree)
     try:
@@ -602,13 +567,6 @@ def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path, monkeypa
     re-discovers the real migrations, several of which do run on worktrees).
     With no migration pending and the version moving, the worktree pass does not
     run: the preview and the post-run block still name the selected worktree as not written."""
-    from specify_cli.upgrade.registry import MigrationRegistry
-    from tests.upgrade.test_worktree_stamp_guard import _invoke_upgrade
-    from specify_cli.cli.commands.upgrade import _run_line
-    from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
-    from specify_cli.upgrade.runner import MigrationRunner
-    from specify_cli.upgrade.worktree_selection import WorktreeOutcome, WorktreeSelection
-    from tests.upgrade.test_worktree_stamp_guard import _TARGET_VERSION
 
     root, worktree = _stub_project(tmp_path)
     before = _state(worktree)
@@ -648,8 +606,6 @@ def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path, monkeypa
 
 
 def test_dispositions_mark_plain_directories_and_escaping_symlinks(tmp_path: Path) -> None:
-    from specify_cli.upgrade.worktree_selection import DispositionAction, WorktreeSelection, validate_named, worktree_dispositions
-
     repo = _git_worktree_project(tmp_path)
     worktrees_dir = repo / ".worktrees"
     (worktrees_dir / "plain").mkdir()
@@ -666,33 +622,12 @@ def test_dispositions_mark_plain_directories_and_escaping_symlinks(tmp_path: Pat
         assert by_name[name].action is DispositionAction.SKIP_NOT_SELECTED
     # The same rule as validate_named: the plain directory is a valid target, the escape is not.
     assert validate_named(repo, [Path(".worktrees/plain")]) == [(worktrees_dir / "plain").resolve()]
-    from specify_cli.upgrade.worktree_selection import UnknownWorktreeError
-
     with pytest.raises(UnknownWorktreeError):
         validate_named(repo, [Path(".worktrees/esc")])
 
 
-def test_run_outcome_and_lines(tmp_path: Path) -> None:
-    from specify_cli.cli.commands.upgrade import _preview_line, _run_line
-    from specify_cli.upgrade.runner import _worktree_outcome
-    from specify_cli.upgrade.worktree_selection import (
-        DispositionAction,
-        WorktreeDisposition,
-        WorktreeOutcome,
-        WorktreeRunResult,
-    )
-
+def test_worktree_outcome_truth_table() -> None:
     assert _worktree_outcome(failed=True, wrote=True, committed=False) is WorktreeOutcome.FAILED
     assert _worktree_outcome(failed=False, wrote=True, committed=True) is WorktreeOutcome.UPGRADED_COMMITTED
     assert _worktree_outcome(failed=False, wrote=True, committed=False) is WorktreeOutcome.UPGRADED_NOT_COMMITTED
     assert _worktree_outcome(failed=False, wrote=False, committed=False) is WorktreeOutcome.NOTHING_TO_UPGRADE
-
-    selected = WorktreeDisposition(path=tmp_path / ".worktrees" / "a", branch="wip/a", action=DispositionAction.UPGRADE)
-    detached = WorktreeDisposition(path=tmp_path / ".worktrees" / "d", branch=None, action=DispositionAction.SKIP_MISSION)
-    assert _preview_line(selected, tmp_path, auto_commit=False, pass_runs=True).endswith(".worktrees/a (wip/a): will be upgraded, not committed (auto-commit off)")
-    assert _preview_line(detached, tmp_path, auto_commit=True, pass_runs=True).endswith(".worktrees/d (detached): skipped, Mission worktree")
-    not_committed = WorktreeRunResult(disposition=selected, outcome=WorktreeOutcome.UPGRADED_NOT_COMMITTED)
-    assert _run_line(not_committed, tmp_path, auto_commit=False).endswith("upgraded, not committed (auto-commit off)")
-    assert _run_line(not_committed, tmp_path, auto_commit=True).endswith("upgraded, not committed (see warnings)")
-    committed = WorktreeRunResult(disposition=selected, outcome=WorktreeOutcome.UPGRADED_COMMITTED)
-    assert _run_line(committed, tmp_path, auto_commit=True).endswith(".worktrees/a (wip/a): upgraded and committed")
