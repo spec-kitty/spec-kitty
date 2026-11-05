@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+
 import subprocess
 import warnings
 from pathlib import Path
@@ -250,34 +252,43 @@ class TestSetupFeatureDirectory:
         """
         from specify_cli.core.mission_creation_scaffold import render_tasks_readme_content
 
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        # The ASCII scaffold stays clean; caller-authored Unicode is preserved,
+        # even when validate-encoding's sanitizer would change that character.
+        for directory_name in ("001-test", "001-caf\u00e9\u2013"):
+            feature_dir = tmp_path / "kitty-specs" / directory_name
 
-        setup_feature_directory(feature_dir, tmp_path, tmp_path, create_symlinks=False)
+            setup_feature_directory(feature_dir, tmp_path, tmp_path, create_symlinks=False)
 
-        written = (feature_dir / "tasks" / "README.md").read_text(encoding="utf-8")
+            written = (feature_dir / "tasks" / "README.md").read_text(encoding="utf-8")
 
-        assert written == render_tasks_readme_content(feature_dir.name)
-        assert written.isascii(), "the scaffold lands under kitty-specs/, so it must stay ASCII (#6877)"
+            assert written == render_tasks_readme_content(directory_name)
+            if directory_name.isascii():
+                assert written.isascii(), "the core-owned scaffold must stay ASCII (#6877)"
 
     def test_no_second_copy_of_the_tasks_readme_scaffold(self) -> None:
         """The scaffold text is defined in exactly one module (#6877, SC-006).
 
         The convergence above only holds while one literal owns the text. This census
-        makes the claim checkable: the scaffold's WP-title marker appears in exactly
-        one file under ``src/specify_cli/core/``, where every mission scaffold emitter
-        lives. A re-inlined copy fails here instead of quietly drifting outside the
-        ASCII pin.
+        makes the literal-owner claim checkable across ``src/``. Check assigned
+        string literals, not comments or docstrings quoting the marker. This is
+        a literal census, not a claim to detect dynamically assembled copies.
         """
-        core_dir = Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "core"
+        src_dir = Path(__file__).resolve().parents[2] / "src"
         marker = "# Work Package Prompt:"
 
         holders = sorted(
-            path.relative_to(core_dir).as_posix()
-            for path in core_dir.rglob("*.py")
-            if marker in path.read_text(encoding="utf-8", errors="replace")
+            path.relative_to(src_dir).as_posix()
+            for path in src_dir.rglob("*.py")
+            if any(
+                isinstance(node, (ast.Assign, ast.AnnAssign))
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+                and marker in node.value.value
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            )
         )
 
-        assert holders == ["mission_creation_scaffold.py"], (
+        assert holders == ["specify_cli/core/mission_creation_scaffold.py"], (
             f"the tasks/README.md scaffold text is held by {holders}; one module must own "
             "it (#6877, DIRECTIVE_044) so the ASCII pin covers every emitter"
         )

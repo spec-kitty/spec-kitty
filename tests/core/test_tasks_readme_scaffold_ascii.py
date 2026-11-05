@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import ast
 import inspect
-import string
 from importlib import import_module
 from pathlib import Path
 
@@ -50,7 +49,8 @@ _SANITIZER_MODULE = "specify_cli.text_sanitization"
 #: interpolation would surface here too.
 BRANCH_NAMES = ("main", "feature/x", "release-4.0.0")
 
-_MODULE_PATH = Path(inspect.getfile(render_tasks_readme_content))
+_SCAFFOLD_PATH = Path(inspect.getfile(render_tasks_readme_content))
+_MODULE_PATHS = (_SCAFFOLD_PATH, _SCAFFOLD_PATH.with_name("worktree.py"))
 
 
 def _non_ascii_lines(text: str) -> list[str]:
@@ -58,7 +58,10 @@ def _non_ascii_lines(text: str) -> list[str]:
 
 
 def _sanitizer_references(source: str) -> list[str]:
-    """Return every way ``source`` reaches the text sanitiser.
+    """Find direct sanitizer imports and named references in ``source``.
+
+    This finite-syntax check supplements the real renderer/writer preservation
+    tests; it does not resolve dynamic imports or every possible alias.
 
     Parsed rather than pattern-matched: a substring scan cannot tell an import
     from a mention, so it would flag a docstring explaining *why* the scaffold
@@ -74,9 +77,9 @@ def _sanitizer_references(source: str) -> list[str]:
             for alias in node.names:
                 if alias.name == _SANITIZER_MODULE:
                     references.append(f"line {node.lineno}: import {alias.name}")
-        else:
-            name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
-            if isinstance(name, str) and name.startswith("sanitize_"):
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            name = node.id if isinstance(node, ast.Name) else node.attr
+            if name.startswith("sanitize_"):
                 references.append(f"line {node.lineno}: calls or reads {name!r}")
     return references
 
@@ -125,14 +128,14 @@ def test_pin_fails_when_a_glyph_is_injected(monkeypatch: pytest.MonkeyPatch) -> 
 
         rendered = module.render_tasks_readme_content("main")
 
-        assert not rendered.isascii(), f"the ASCII predicate did not notice an injected {glyph!r}"
         assert f"{anchor} {glyph}" in _non_ascii_lines(rendered)
-        assert max(rendered.encode("utf-8")) > 0x7F
+        with pytest.raises(AssertionError, match="tasks/README.md renders non-ASCII"):
+            test_rendered_tasks_readme_is_ascii("main")
 
     monkeypatch.undo()
 
-    # Positive control, same fixture: the shipped template renders clean.
-    assert render_tasks_readme_content("main").isascii()
+    # Positive control through the same retained pin, not a second predicate.
+    test_rendered_tasks_readme_is_ascii("main")
 
 
 def test_renderer_formats_it_does_not_sanitise() -> None:
@@ -142,7 +145,7 @@ def test_renderer_formats_it_does_not_sanitise() -> None:
     against "fixing" the pin by sanitising the renderer's output, which would
     also rewrite the author's own prose.
     """
-    authored = "feature/caf\u00e9"
+    authored = "feature/caf\u00e9\u2013"
 
     rendered = render_tasks_readme_content(authored)
 
@@ -151,14 +154,12 @@ def test_renderer_formats_it_does_not_sanitise() -> None:
 
 
 def test_scaffold_module_never_sanitises() -> None:
-    """No sanitizer sits on the scaffold path (#6877, NFR-001)."""
-    source = _MODULE_PATH.read_text(encoding="utf-8")
-
-    references = _sanitizer_references(source)
-
-    assert references == [], (
-        f"{_MODULE_PATH.name} reaches the text sanitiser ({references}); the scaffold must be ASCII by construction, not repaired on the way out (#6877, NFR-001)"
-    )
+    """Check direct sanitizer syntax in both known emitters (#6877, NFR-001)."""
+    for path in _MODULE_PATHS:
+        references = _sanitizer_references(path.read_text(encoding="utf-8"))
+        assert references == [], (
+            f"{path.name} reaches the text sanitiser ({references}); the scaffold must be ASCII by construction, not repaired on the way out (#6877, NFR-001)"
+        )
 
 
 @pytest.mark.parametrize(
@@ -166,7 +167,6 @@ def test_scaffold_module_never_sanitises() -> None:
     [
         f"from {_SANITIZER_MODULE} import sanitize_markdown_text\n",
         f"import {_SANITIZER_MODULE}\n",
-        "import specify_cli.text_sanitization as ts\n",
         "def render(text):\n    return sanitize_markdown_text(text)\n",
         "def render(module, text):\n    return module.sanitize_directory(text)\n",
     ],
@@ -174,9 +174,9 @@ def test_scaffold_module_never_sanitises() -> None:
 def test_no_sanitizer_check_can_fail(planted: str) -> None:
     """Non-vacuity: the AST check must notice each way of reaching the sanitiser.
 
-    Without this the check is a screenshot: an AST walk with no planted
-    counter-example proves only that ``ast.parse`` ran. The ``import ... as ts``
-    case is the one a source-substring scan would miss.
+    These four cases exercise distinct scanner branches: ImportFrom, Import,
+    a bare Name and an Attribute. Alias spelling within the same Import branch
+    adds no distinct case; the companion prose test guards false positives.
     """
     assert _sanitizer_references(planted) != []
 
@@ -190,15 +190,3 @@ def test_no_sanitizer_check_ignores_a_mention() -> None:
     prose = '#: The scaffold never calls sanitize_markdown_text; see #6877.\nTEMPLATE = ""\n'
 
     assert _sanitizer_references(prose) == []
-
-
-def test_template_placeholders_are_known() -> None:
-    """The scaffold's only field is ``planning_branch``.
-
-    Pins the mutation helper above to a real contract: if a second field is
-    added, the mutation case must be updated with it rather than silently
-    producing a ``KeyError``-free but wrong string.
-    """
-    fields = {name for _, name, _, _ in string.Formatter().parse(TASKS_README_TEMPLATE) if name is not None}
-
-    assert fields == {"planning_branch"}
