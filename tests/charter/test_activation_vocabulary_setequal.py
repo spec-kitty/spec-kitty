@@ -39,6 +39,8 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
+from tests._factories.charters.charter_yaml import sound_charter_document
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
@@ -433,17 +435,6 @@ def _deny_vocabulary() -> frozenset[str]:
     return frozenset(DENY_KEYS)
 
 
-def _charter_document() -> dict[str, Any]:
-    """A minimal sound ``charter.yaml`` mapping: every required block, no activation key."""
-    return {
-        "schema_version": "2.0.0",
-        "governance": {},
-        "directives": {"directives": []},
-        "catalog": {"mission": "software-dev", "template_set": "software-dev-default", "languages": [], "references": []},
-        "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
-    }
-
-
 def test_deny_vocabulary_is_non_empty_and_deny_shaped() -> None:
     """Guard on the helper: an empty or mis-shaped authority would make the pins vacuous."""
     deny = _deny_vocabulary()
@@ -475,15 +466,21 @@ def test_charter_yaml_declares_no_deny_field() -> None:
     inherited = sorted(_deny_vocabulary() & set(CharterYaml.model_fields))
 
     assert not declared_deny, (
-        f"CharterYaml declares {declared_deny}. A declared deny field is dumped by emit_yaml and "
-        "emitted by charter.activation.compiler into every regenerated charter.yaml, and it "
+        f"CharterYaml declares {declared_deny}. A declared deny field advertises an unsupported authoring key and "
         "contradicts ADR 2026-10-19-1 C-003 ('deactivated_* keys never appear in charter.yaml')."
     )
     assert not inherited, f"CharterYaml declares deny keys {inherited} from the ledger's deny vocabulary."
 
 
-@pytest.mark.parametrize("deny_key", sorted(_deny_vocabulary()))
-def test_charter_yaml_refuses_every_deny_key_with_the_contract_message(deny_key: str) -> None:
+@pytest.mark.parametrize(
+    ("deny_key", "denied_ids"),
+    [pytest.param(key, ["some-id"], id=key) for key in sorted(_deny_vocabulary())]
+    + [
+        pytest.param("deactivated_directives", [], id="empty-deny-list"),
+        pytest.param("deactivated_future_kind", ["some-id"], id="unknown-deny-kind"),
+    ],
+)
+def test_charter_yaml_refuses_every_deny_key_with_the_contract_message(deny_key: str, denied_ids: list[str]) -> None:
     """Every ledger deny key is REFUSED, and the refusal states the contract (#6855).
 
     Same fixture, half by half: the document validates without the key (positive
@@ -493,12 +490,13 @@ def test_charter_yaml_refuses_every_deny_key_with_the_contract_message(deny_key:
     """
     from charter.activation.schemas import CharterYaml
 
-    document = _charter_document()
-    # Positive control, same fixture: the document itself is sound.
-    CharterYaml.model_validate(document)
+    document = sound_charter_document()
+    # Positive control, same fixture: sound, with the absent-key default intact.
+    charter = CharterYaml.model_validate(document)
+    assert charter.activated_tactics is None
 
     with pytest.raises(ValidationError) as excinfo:
-        CharterYaml.model_validate({**document, deny_key: ["some-id"]})
+        CharterYaml.model_validate({**document, deny_key: denied_ids})
 
     message = str(excinfo.value)
     assert _LEDGER_PATH in message, f"the refusal for {deny_key} must name the activation ledger, got: {message}"
