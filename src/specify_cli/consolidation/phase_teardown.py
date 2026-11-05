@@ -415,12 +415,13 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
 
     #6871 — the FIRST run gets the same projection and the same proof, over a narrower window. Its
     base is the tip THIS run verified (:func:`_late_window_base`), so only a commit made after the
-    merge captured it is carried; a clean run projects nothing. Without this, a coordination commit
-    made between the gate and the teardown was either refused by the projection teardown gate
-    (leaving an operator to hand-assemble a landing that was already complete) or — when no gate
-    could be built — deleted with the branch at exit 0. After the window is proven landed, the run
-    records that tip as the one teardown approved, so the gate and the branch delete anchor on a tip
-    whose content is on the target, never on one that was merely read.
+    merge captured it is carried; a clean run projects nothing. Without this, a first run that HAD
+    a coordination checkpoint refused such a commit at the projection teardown gate's compare-and-
+    swap, leaving an operator to hand-assemble a landing that was already complete. A first run
+    with no recorded coordination tip still builds no window and can lose the commit with the
+    branch (#7121). After the window is proven landed, the run records that tip as the one teardown
+    approved, so the gate and the branch delete anchor on a tip whose coordination records are on
+    the target, never on one that was merely read.
 
     #6791 widens WHICH records this window carries and adds the proof that it carried them: a
     gate matrix committed here (``agent issue-verdict`` after the refusal's own instruction to
