@@ -11,7 +11,8 @@ from typer.testing import CliRunner
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
-from tests.lane_test_utils import write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, write_single_lane_manifest
+from tests.terminus.conftest import declare_owned_files
 
 pytestmark = [pytest.mark.integration]
 
@@ -75,6 +76,17 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
         ),
         repo_root=feature_repo,
     )
+
+
+def _record_implementation(feature_repo: Path, mission_slug: str, wp_ids: tuple[str, ...] = ("WP01",)) -> None:
+    """#6715: declare the work packages' owned files and commit their lane's implementation."""
+    from tests.utils import run
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    declare_owned_files(feature_dir, wp_ids)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Declare work-package ownership"], cwd=feature_repo)
+    commit_lane_implementation(feature_repo, feature_dir, path="src/impl.py")
 
 
 def _seed_convention_dirs(feature_repo: Path, mission_slug: str) -> None:
@@ -233,10 +245,11 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     write_wp(feature_repo, mission_slug, "planned", "WP03")
     # #4891: accept fails closed when lanes.json is absent.
     feature_dir = feature_repo / "kitty-specs" / mission_slug
-    write_single_lane_manifest(feature_dir)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"))
     write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add more WPs and meta"], cwd=feature_repo)
+    _record_implementation(feature_repo, mission_slug, ("WP01", "WP02"))
 
     # WP-path gathering (_gather_work_packages): planned WPs are bucketed in
     # task-file order and drive the non-terminal-lane fix-order entry.
@@ -337,6 +350,7 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(feature_repo: P
     write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
+    _record_implementation(feature_repo, mission_slug)
     _approve_wp(feature_repo, mission_slug, "WP01")
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
@@ -472,6 +486,7 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo:
     run(["git", "branch", "-M", "main"], cwd=feature_repo)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Prepare accepted lane mission"], cwd=feature_repo)
+    _record_implementation(feature_repo, mission_slug)
     run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     matrix_path = feature_dir / "acceptance-matrix.json"
@@ -534,6 +549,7 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
     run(["git", "branch", "-M", "main"], cwd=feature_repo)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Prepare custom invariant mission"], cwd=feature_repo)
+    _record_implementation(feature_repo, mission_slug)
     run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     before_matrix = (feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8")
@@ -574,6 +590,7 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(feature_repo: Pat
     write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
+    _record_implementation(feature_repo, mission_slug)
 
     for lane in ("claimed", "in_progress", "for_review", "in_review"):
         emit_status_transition(

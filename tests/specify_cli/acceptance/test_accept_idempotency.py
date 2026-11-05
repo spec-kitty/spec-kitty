@@ -41,6 +41,8 @@ from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPIn
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_annotations_atomic_verified
 from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation
+from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -111,25 +113,34 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
         "subtasks: []\n"
+        "owned_files:\n"
+        '  - "src/**"\n'
         "---\n"
         "# WP01\nDone.\n"
     )
 
-    seed_status_event(
-        feature_dir,
-        StatusEvent(
-            event_id="01TESTACCEPTIDEMPOTENCY0001",
-            mission_slug=_SLUG,
-            wp_id="WP01",
-            from_lane=Lane.PLANNED,
-            to_lane=Lane.DONE,
-            at=now_utc_iso(),
-            actor="test-agent",
-            force=True,
-            execution_mode="direct_repo",
-            reason="Test setup: skip to done",
-        ),
-    )
+    # #6715: an implementer's claim, an approval by a different identity, then done.
+    hops = [
+        (Lane.PLANNED, Lane.CLAIMED, "test-agent", False),
+        (Lane.CLAIMED, Lane.APPROVED, "test-reviewer", True),
+        (Lane.APPROVED, Lane.DONE, "test-agent", True),
+    ]
+    for idx, (from_lane, to_lane, actor, force) in enumerate(hops):
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"01JZZZZZZZZZZZZZZZZZZZZZA{idx}",
+                mission_slug=_SLUG,
+                wp_id="WP01",
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=f"2026-01-01T00:0{idx}:00+00:00",
+                actor=actor,
+                force=force,
+                execution_mode="direct_repo",
+                reason="Test setup: implemented and independently reviewed",
+            ),
+        )
     append_annotations_atomic_verified(
         feature_dir,
         [
@@ -196,6 +207,9 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "init")
+    # #6715: record the planning commit and the lane's implementation, as a real Mission has them.
+    pin_planning_commit(repo_root, feature_dir, commit_message="record planning commit")
+    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
     _git(repo_root, "checkout", "-b", _MISSION_BRANCH)
     return feature_dir
 

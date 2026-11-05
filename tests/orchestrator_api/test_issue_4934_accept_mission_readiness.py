@@ -142,12 +142,10 @@ def _seed_lane_implementation(repo_root: Path, feature_dir: Path) -> None:
     so a fixture whose subject is readiness states the implementation it claims to have.
     """
     from tests.lane_test_utils import create_lane_branches
+    from tests.terminus.conftest import declare_owned_files
 
-    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
-    (feature_dir / "tasks" / "WP01-work.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: WP01 work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# WP01\n",
-        encoding="utf-8",
-    )
+    # #7176: declare ownership on the fixture's own WP01 task file; a second file would declare WP01 twice.
+    declare_owned_files(feature_dir, ["WP01"])
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "declare WP01's owned files")
     manifest = read_lanes_json(feature_dir)

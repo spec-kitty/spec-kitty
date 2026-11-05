@@ -51,7 +51,7 @@ from specify_cli.cli.commands import accept as accept_module
 from specify_cli.cli.commands.agent.acceptance_verdict import acceptance_verdict
 from specify_cli.status.locking import FeatureStatusLockTimeoutError
 from specify_cli.task_utils import LANES
-from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.test_acceptance_regressions import _create_test_feature
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.integration]
@@ -77,7 +77,7 @@ def _seed_fixture(
     mission_slug: str = _MISSION_SLUG,
 ) -> tuple[Path, Path]:
     """A passing criterion + pending NI-SLOW, committed clean on ``_WORK_BRANCH``."""
-    repo_root, feature_dir = _create_test_feature(tmp_path, mission_slug)
+    repo_root, feature_dir = _create_test_feature(tmp_path, mission_slug, reviewed_owned_files=("src/**",))
     subprocess.run(
         ["git", "-C", str(repo_root), "branch", "-M", _WORK_BRANCH],
         check=True,
@@ -125,6 +125,7 @@ def _seed_fixture(
         check=True,
         capture_output=True,
     )
+    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")  # #6715 evidence window
     monkeypatch.chdir(repo_root)
     return repo_root, feature_dir
 
@@ -421,14 +422,14 @@ class TestStampGuardFR010Branches:
         Mutating the bypass (``record_acceptance(...); return``) into
         ``raise AcceptanceError(...)`` turns this test red."""
         mission_slug = "wp02-m6-planning-only-stamp"
-        repo_root, feature_dir = _create_test_feature(tmp_path, mission_slug)
+        deliverables_path = f"docs/research/{mission_slug}/"
+        repo_root, feature_dir = _create_test_feature(tmp_path, mission_slug, reviewed_owned_files=(f"{deliverables_path}**",))
         # A dedicated non-protected branch (never ``main``): planning
         # artifacts must land on a feature branch (unrelated protected-branch
         # guard), which would otherwise mask the branch under test.
         subprocess.run(["git", "-C", str(repo_root), "branch", "-M", _WORK_BRANCH], check=True, capture_output=True)
         (repo_root / ".kittify").mkdir(exist_ok=True)
 
-        deliverables_path = f"docs/research/{mission_slug}/"
         meta_path = feature_dir / "meta.json"
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         mission_id = derive_mission_id(mission_slug)
