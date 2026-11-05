@@ -24,14 +24,14 @@ __all__ = [
 #: The lock's backend selector. An **absent** key means "the supported backend"
 #: (see :func:`project_metadata_without_vcs_lock`); the claim writes it on first use.
 #: Module-internal: the projection helper is the public way to use it.
-VCS_LOCK_BACKEND_FIELD = "vcs"
+_VCS_LOCK_BACKEND_FIELD = "vcs"
 
-#: The lock's write timestamp -- bookkeeping with no planning meaning.
-VCS_LOCK_TIMESTAMP_FIELD = "vcs_locked_at"
+#: The lock's write timestamp -- bookkeeping with no planning meaning. Module-internal.
+_VCS_LOCK_TIMESTAMP_FIELD = "vcs_locked_at"
 
 #: The only VCS-lock field-set, derived from its named members so the set and the
 #: members can never disagree. No inline-literal duplicates elsewhere (NFR-002).
-VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({VCS_LOCK_BACKEND_FIELD, VCS_LOCK_TIMESTAMP_FIELD})
+VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({_VCS_LOCK_BACKEND_FIELD, _VCS_LOCK_TIMESTAMP_FIELD})
 
 #: Sentinel distinguishing an *absent* key from a *present-but-``None``* value.
 #: Using ``.get()`` (which returns ``None`` for both) would erase that
@@ -110,7 +110,7 @@ def project_metadata_without_vcs_lock(
         A new mapping; the input is never mutated.
     """
     projected = dict(metadata)
-    projected.pop(VCS_LOCK_TIMESTAMP_FIELD, None)
-    if projected.get(VCS_LOCK_BACKEND_FIELD) == backend:
-        del projected[VCS_LOCK_BACKEND_FIELD]
+    projected.pop(_VCS_LOCK_TIMESTAMP_FIELD, None)
+    if projected.get(_VCS_LOCK_BACKEND_FIELD) == backend:
+        del projected[_VCS_LOCK_BACKEND_FIELD]
     return projected

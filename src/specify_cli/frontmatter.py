@@ -353,11 +353,13 @@ WP_RUNTIME_FIELDS: frozenset[str] = frozenset(
 
 # The workspace-provenance triple the implementation claim stamps into a freshly
 # allocated lane's work-package prompt (``lanes.implement_support.create_lane_workspace``):
-# the branch/commit the workspace was cut from and when it was created. It is
-# runtime bookkeeping written by a non-planning command, so it is the ONE declared
-# set the analysis-freshness fingerprint excludes (#7106) -- declared here, beside
-# the field-name owner, and consumed by the writer (``dict(zip(...))``) so the
-# exclusion can never drift from what the claim actually writes.
+# the branch/commit the workspace was cut from and when it was created, in that
+# order -- the order is part of the contract, since the writer zips values onto it
+# and the allocator's dirty-tree guard (``cli.commands.implement_cores``, #3471)
+# unpacks its anchor and stamp from it. It is runtime bookkeeping written by a
+# non-planning command, so the analysis-freshness fingerprint excludes exactly this
+# set (#7106); with all three consumers reading it, none can drift from what the
+# claim actually writes.
 WP_CLAIM_PROVENANCE_FIELDS: tuple[str, ...] = ("base_branch", "base_commit", "created_at")
 
 # Global instance for convenience
