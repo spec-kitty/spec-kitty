@@ -42,7 +42,12 @@ def _workspace_husk_status_label(registered: bool | None) -> str:
     return "unregistered (safe to --fix)"
 
 
-def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
+def _husk_fix(repo_root: Path, json_output: bool) -> tuple[dict[str, object], int]:
+    """Run the husk ``--fix``; print the text report, return ``(json payload, exit code)``.
+
+    A registration refusal still exits here: nothing was modified and nothing
+    else in the run can read the worktree list either.
+    """
     from specify_cli.status import WorkspaceHuskRegistrationError, fix_workspace_husks
 
     try:
@@ -70,9 +75,9 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
         **fix_result.to_dict(),
         "healthy": not remaining,
     }
+    exit_code = 0 if not remaining else 1
     if json_output:
-        console.print_json(json.dumps(fix_payload, indent=2))
-        raise typer.Exit(0 if not remaining else 1)
+        return fix_payload, exit_code
 
     for removed in fix_result.removed:
         console.print(f"[green]Removed husk:[/green] {removed}")
@@ -98,23 +103,23 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
             console.print(f"[green]Refreshed stale coord worktree:[/green] {wt_path}")
         elif outcome == "failed":
             console.print(f"[yellow]Could not refresh coord worktree:[/yellow] {wt_path}")
-    raise typer.Exit(0 if not remaining else 1)
+    return fix_payload, exit_code
 
 
-def _emit_workspace_husk_report(repo_root: Path, json_output: bool) -> None:
+def _husk_report(repo_root: Path, json_output: bool) -> tuple[dict[str, object], int]:
+    """Scan for husks; print the text report, return ``(json payload, exit code)``."""
     from specify_cli.status import scan_workspace_husks
 
     report = scan_workspace_husks(repo_root)
     if json_output:
-        console.print_json(json.dumps(report.to_dict(), indent=2))
-        raise typer.Exit(0 if report.healthy else 1)
+        return report.to_dict(), 0 if report.healthy else 1
 
     if report.healthy:
         console.print("[green]No workspace husks found.[/green]")
-        raise typer.Exit(0)
+        return {}, 0
     if report.registration_error is not None and not report.husks:
         console.print(f"[red]Error:[/red] {report.registration_error}")
-        raise typer.Exit(1)
+        return {}, 1
 
     console.print(f"[bold]Workspace husks under {report.worktrees_dir}[/bold]")
     for entry in report.husks:
@@ -124,7 +129,23 @@ def _emit_workspace_husk_report(repo_root: Path, json_output: bool) -> None:
     if report.registration_error is not None:
         console.print(f"[red]Error:[/red] {report.registration_error}")
     console.print("Remove unregistered husks with: spec-kitty doctor workspaces --fix")
-    raise typer.Exit(1)
+    return {}, 1
+
+
+def _finish(payload: dict[str, object], exit_code: int, json_output: bool) -> None:
+    if json_output:
+        console.print_json(json.dumps(payload, indent=2))
+    raise typer.Exit(exit_code)
+
+
+def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
+    """The husk-only ``--fix`` (outside a git repository): print, then exit."""
+    _finish(*_husk_fix(repo_root, json_output), json_output)
+
+
+def _emit_workspace_husk_report(repo_root: Path, json_output: bool) -> None:
+    """The husk-only report (outside a git repository): print, then exit."""
+    _finish(*_husk_report(repo_root, json_output), json_output)
 
 
 _COORD_SUFFIX = "-coord"
@@ -212,12 +233,64 @@ def _refresh_stale_coord_worktrees(
     return outcomes
 
 
-def run_workspaces(repo_root: Path, fix: bool, json_output: bool) -> None:
-    """Entry point for ``doctor workspaces`` (0 clean / 1 husks-or-error).
+def _inside_work_tree(path: Path) -> bool:
+    """``True`` when *path* is inside a git work tree.
 
-    *repo_root* is resolved + injected by the ``doctor.py`` command shell.
+    A ``.git`` entry at *path* answers without running git; otherwise (a
+    project root inside a larger repository) ``git rev-parse
+    --is-inside-work-tree`` decides, ``False`` when git cannot answer.
     """
-    if fix:
-        _emit_workspace_husk_fix(repo_root, json_output)
+    if (path / ".git").exists():
+        return True
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return probe.returncode == 0 and probe.stdout.strip() == "true"
+
+
+def run_workspaces(
+    repo_root: Path,
+    fix: bool,
+    json_output: bool,
+    *,
+    prune: bool = False,
+    current_dir: Path | None = None,
+) -> None:
+    """Entry point for ``doctor workspaces`` (0 clean / 1 husks, refusal or error).
+
+    *repo_root* is resolved + injected by the ``doctor.py`` command shell. The
+    husk section runs first and is unchanged; in a git repository the
+    landed-worktree section (#7173) follows, and with *prune* removes the
+    worktrees proven landed. A project root that is not inside a git work
+    tree has no worktrees, so it keeps the husk-only path; a project root
+    inside a larger repository (a monorepo subproject, no ``.git`` of its
+    own) gets the worktree section. ``healthy`` in the JSON payload follows
+    the exit code, so a worktree refusal makes it ``false``.
+    """
+    if not _inside_work_tree(repo_root):
+        if fix:
+            _emit_workspace_husk_fix(repo_root, json_output)
+            return
+        _emit_workspace_husk_report(repo_root, json_output)
         return
-    _emit_workspace_husk_report(repo_root, json_output)
+
+    from ._landed_worktree_doctor import run_worktree_section
+
+    husk_payload, husk_code = (_husk_fix if fix else _husk_report)(repo_root, json_output)
+    worktree_payload, worktree_code = run_worktree_section(
+        repo_root,
+        current_dir=current_dir if current_dir is not None else Path.cwd(),
+        prune=prune,
+        json_output=json_output,
+    )
+    exit_code = husk_code | worktree_code
+    payload = {**husk_payload, **worktree_payload}
+    if "healthy" in payload:
+        payload["healthy"] = bool(payload["healthy"]) and exit_code == 0
+    _finish(payload, exit_code, json_output)
