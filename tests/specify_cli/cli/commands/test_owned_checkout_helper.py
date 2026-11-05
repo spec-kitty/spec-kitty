@@ -358,7 +358,7 @@ class TestResolveOwnedOrAdopt:
         """WP02 review follow-up 1: the explicit ``--owned-checkout`` route fails closed.
 
         ``resolve_owned_mission`` -> ``_require_not_mission_worktree`` ->
-        ``_is_coordination_worktree`` reading an unreadable git worktree
+        ``_classify_registered_worktree`` reading an unreadable git worktree
         registry must surface as a typed ``WORKTREE_REGISTRY_UNAVAILABLE``
         refusal, not swallow it or crash -- unlike the flagless adoption
         path, which is allowed to degrade that same exception to ``None``.
@@ -369,7 +369,7 @@ class TestResolveOwnedOrAdopt:
         def _raise(*_args: Any, **_kwargs: Any) -> bool:
             raise WorktreeRegistryUnavailable(repo_root=owned_checkouts.repository_root, detail="synthetic registry read failure")
 
-        monkeypatch.setattr("specify_cli.core.owned_mission._is_coordination_worktree", _raise)
+        monkeypatch.setattr("specify_cli.coordination.surface_resolver.classify_worktree_topology", _raise)
 
         with pytest.raises(ActionContextError) as excinfo:
             resolve_owned_or_adopt(

@@ -232,10 +232,6 @@ def _classify_registered_worktree(checkout: Path, repository_root: Path) -> Work
     (:class:`WorktreeRegistryUnavailable`) becomes a typed refusal carrying that
     exception's own ``error_code``, so the caller's contract stays
     ``ActionContextError`` only and fails closed (NFR-002).
-
-    The leaf keeps calling :func:`_is_coordination_worktree` directly: it needs
-    the same single read and no lane leg, and its flagless-adoption sibling
-    depends on that predicate's propagate-don't-translate contract.
     """
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable, classify_worktree_topology
 
@@ -256,19 +252,17 @@ def _require_not_mission_worktree(checkout: Path, repository_root: Path, directo
     resolved against the repository root yet (the coordination-worktree leg
     of the check does not need it).
 
-    An unreadable worktree registry (:class:`WorktreeRegistryUnavailable`,
-    propagated by :func:`_is_coordination_worktree` -- review cycle 1's
-    fail-closed fix) is translated to a typed refusal here, carrying that
-    exception's own ``error_code``, so this public entry point's contract
-    (``ActionContextError`` only) holds even when the registry read fails.
+    An unreadable worktree registry (:class:`WorktreeRegistryUnavailable`) is
+    translated to a typed refusal by :func:`_classify_registered_worktree`,
+    carrying that exception's own ``error_code``, so this public entry point's
+    contract (``ActionContextError`` only) holds even when the registry read
+    fails. Flagless adoption keeps :func:`_is_coordination_worktree`'s
+    propagate-don't-translate contract instead.
     """
+    from specify_cli.coordination.surface_resolver import WorktreeTopology
     from specify_cli.core.checkout_ownership import OWNED_CHECKOUT_IS_MISSION_WORKTREE
-    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 
-    try:
-        is_coord = _is_coordination_worktree(checkout, repository_root)
-    except WorktreeRegistryUnavailable as exc:
-        raise ActionContextError(exc.error_code, str(exc)) from exc
+    is_coord = _classify_registered_worktree(checkout, repository_root) is WorktreeTopology.COORD_WORKTREE
     is_lane = directory is not None and _is_lane_worktree_of_mission(checkout, repository_root, directory)
     if is_coord or is_lane:
         raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _MISSION_WORKTREE_REFUSAL)
