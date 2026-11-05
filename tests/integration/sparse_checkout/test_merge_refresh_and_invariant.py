@@ -30,10 +30,9 @@ from kernel.git import GitPath, StatusEntry
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.lanes.compute import lane_created_branch
-from tests.lane_test_utils import create_lane_branches
+from tests.lane_test_utils import commit_branch_implementation, create_lane_branches
 from tests.consolidation.executor_family import patch_executor_family
 from tests.integration.test_merge_lane_planning_data_loss import _seed_wp_done_raw, _write_wp_file
-from tests.integration.target_owned_fixtures import commit_file_on_branch
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -55,11 +54,8 @@ def _seed_reviewed_wp01(repo: Path, feature_dir: Path, manifest: MagicMock) -> N
     WP01. The evidence axis also reads a recorded planning commit, WP01's declared ownership, a
     change to it on the lane branch and an independent approval stamped at that lane tip.
     """
-    manifest.planning_commit_sha = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
     _write_wp_file(feature_dir, "WP01")
-    lane_branch = lane_created_branch(manifest, "lane-a")
-    commit_file_on_branch(repo, lane_branch, "src/wp01.py", "# implementation of src/wp01.py\n", "feat: implement src/wp01.py")
-    lane_head = _run(["git", "-C", str(repo), "rev-parse", lane_branch]).stdout.strip()
+    lane_head = commit_branch_implementation(repo, manifest, lane_created_branch(manifest, "lane-a"), path="src/wp01.py")
     _seed_wp_done_raw(feature_dir, manifest.mission_slug, ["WP01"], lane_head=lane_head)
 
 
