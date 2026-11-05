@@ -273,23 +273,28 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, owned: OwnedChecko
 
 
 def _nonartifact_residual_paths(paths: Iterable[str]) -> list[str]:
-    """Residual paths that classify to NO :class:`MissionArtifactKind` (#7091).
+    """Coordination-worktree paths that classify to NO kind (#7091).
 
-    A path the ONE file->kind authority does not recognise is not a mission
-    artifact: no surface owns it. Under coordination topology the residual scan
-    still surfaces such paths from the coordination worktree, and handing them to
-    the commit router routes them PRIMARY -- where ``safe_commit`` correctly
-    refuses to stage a ``.worktrees/`` path from the primary checkout (#2155 /
-    #3784), so a mission whose readiness passed reported a failed ``accept``
-    (exit 1) for bookkeeping plumbing.
+    ``kind_for_mission_file`` returning ``None`` means the path is not a
+    coordination record, so it is primary-bound when submitted for writing;
+    it does not mean no surface can ever commit that same path. The caller
+    supplies coordination-worktree paths: this helper selects copies that
+    acceptance cleanup cannot commit from that worktree.
+
+    Handing these copies to the commit router routes them PRIMARY, where
+    ``safe_commit`` correctly refuses to stage a ``.worktrees/`` path from
+    the primary checkout (#2155 / #3784). A mission whose readiness passed
+    therefore reported a failed ``accept`` (exit 1) for bookkeeping plumbing.
 
     The shape this happens with is the mission-root ``mission-events.jsonl``:
     spec-kitty's own tracked, write-only lifecycle log, appended by
     ``spec-kitty next``. It is deliberately NOT a kind and must stay real dirt
     for the dirty gates (#5669 -- keep-local ruling: it has live research-gate
     readers, and a global churn exemption would let gate rows be silently
-    discarded). Accept's residual committer therefore neither commits it to a
-    surface nor fails because of it: it leaves it where it is and reports it.
+    discarded). Accept's residual committer therefore neither commits this
+    coordination copy nor fails because of it: it leaves it dirty and reports
+    it. Unclassified paths in the PRIMARY checkout retain the normal
+    PRIMARY-bound write fallback and are committed as before.
 
     Pure classifier over the paths the caller already scanned (no I/O), so the
     survivor decision cannot become a second dirty-scan implementation.
@@ -307,8 +312,9 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     *before* the acceptance commit is created. Those writes happen after the
     git-cleanliness snapshot is taken, so the acceptance commit only captures
     ``meta.json`` and leaves the materialized artifacts modified-unstaged. This
-    helper finds exactly those leftover tracked modifications so the command can
-    fold them into the acceptance state and leave a clean working tree.
+    helper returns those leftover tracked modifications from both surfaces.
+    Acceptance cleanup decides which copies are committable; see
+    :func:`_run_residual_acceptance_commit` for its keep-local exceptions.
 
     M2 (T008): under coordination topology the acceptance-matrix write lands in
     the coordination worktree, not the primary checkout, so the scan also
@@ -587,11 +593,11 @@ def _run_residual_acceptance_commit(
     B3) naming every refused/error surface's diagnostic (B2) when any
     surface comes back ``refused`` or ``error``.
 
-    #7091: a coordination-worktree residual path that the file->kind authority
-    does not recognise is excluded from the batch (see
-    :func:`_nonartifact_residual_paths`) -- it is not a mission artifact, so no
-    surface may claim it and its presence must not fail acceptance. Such paths
-    are reported by :func:`_note_deferred_residuals`.
+    #7091: an unclassified coordination-worktree copy is excluded from this
+    batch (see :func:`_nonartifact_residual_paths`). Acceptance cleanup neither
+    commits this physical copy nor fails because of it; the copy stays dirty
+    and is reported by :func:`_note_deferred_residuals`. Unclassified paths in
+    the PRIMARY checkout retain the normal PRIMARY-bound write fallback.
     """
     from specify_cli.coordination.commit_router import commit_for_mission
     from specify_cli.core.git_ops import get_current_branch
@@ -599,12 +605,11 @@ def _run_residual_acceptance_commit(
 
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     coord_dirty = _coord_dirty_paths(repo_root, mission_slug, owned=owned)
-    # #7091: a coordination-worktree path that is not a mission artifact at all
-    # (``kind_for_mission_file`` -> ``None``) is never handed to the router: it
-    # has no owning surface, the router would route it PRIMARY, and
-    # ``safe_commit`` would refuse the ``.worktrees/`` path -- failing a ready
-    # mission's accept over bookkeeping plumbing. It is reported instead
-    # (:func:`_note_deferred_residuals`) and left where it lives.
+    # #7091: an unclassified coordination-worktree copy is not handed to the
+    # router: its normal PRIMARY fallback would make safe_commit refuse the
+    # .worktrees/ path from the primary checkout. Acceptance cleanup leaves
+    # this copy dirty and reports it through _note_deferred_residuals.
+    # PRIMARY-checkout paths retain their normal write fallback.
     deferred = _nonartifact_residual_paths(coord_dirty)
     if deferred:
         deferred_set = set(deferred)
@@ -638,10 +643,11 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
 
     Returns True when a follow-up commit was created on at least one surface.
     This preserves the recorded ``accept_commit`` SHA (it still points at the
-    real acceptance commit) while guaranteeing a successful ``accept`` leaves
-    no staged-but-uncommitted or modified-unstaged spec/meta artifacts behind
-    (modulo a root-checkout COORD-record copy, reported skipped -- never
-    committed to the target, see :func:`_run_residual_acceptance_commit`'s
+    real acceptance commit). A successful ``accept`` leaves no staged or
+    modified spec/meta artifacts behind, with two intentional exceptions:
+    unclassified coordination-worktree copies stay dirty and are reported
+    (#7091), and root-checkout COORD-record copies are reported skipped, never
+    committed to the target (see :func:`_run_residual_acceptance_commit`'s
     ``COORD_RECORD_IN_ROOT_CHECKOUT`` fate).
 
     Kept as a ``bool`` return (operator decision, brownfield scout round 3),
@@ -1463,8 +1469,9 @@ def _run_post_acceptance_steps(run: _AcceptRun, outcome: _FinalizeOutcome, pr_me
     # meta.json. Derived artifacts materialized during readiness checks
     # (e.g. acceptance-matrix.json, status views) are written after the
     # git-cleanliness snapshot and would otherwise be left dirty. Fold
-    # them into a follow-up commit so all writing exit paths (including
-    # error paths and accept_commit == None) leave a clean working tree.
+    # committable copies into a follow-up commit on every writing exit path,
+    # including errors and accept_commit == None. Unclassified coordination
+    # copies stay dirty and are noted; root-checkout COORD copies stay skipped.
     try:
         outcome.residual_commit_result = _run_residual_acceptance_commit(run.repo_root, run.mission_slug, owned=run.owned)
     except ResidualCommitError as residue_exc:
@@ -1483,12 +1490,12 @@ def _note_deferred_residuals(run: _AcceptRun, outcome: _FinalizeOutcome) -> None
 
     The residual committer excludes coordination-worktree paths that classify to
     no :class:`MissionArtifactKind` (see :func:`_nonartifact_residual_paths`):
-    they are not mission artifacts, so no surface may claim them, and staging one
-    from the primary checkout is exactly what ``safe_commit`` refuses. That
-    exclusion must not be silent -- the acceptance result carries a note naming
-    every deferred path and the keep-local ruling that keeps it uncommitted
-    (#5669), so an operator reading either output lane sees the file is by design
-    still dirty rather than a failed commit.
+    acceptance cleanup cannot commit these physical copies from that worktree.
+    Unclassified paths in the PRIMARY checkout retain their normal PRIMARY-bound
+    write fallback. The exclusion must not be silent: the acceptance result
+    names every deferred copy and the keep-local ruling (#5669), so either
+    output lane explains that these copies remain dirty rather than claiming
+    that they committed or that all unclassified paths are ownerless.
     """
     if outcome.result is None:
         return
@@ -1500,10 +1507,9 @@ def _note_deferred_residuals(run: _AcceptRun, outcome: _FinalizeOutcome) -> None
     if not deferred:
         return
     outcome.result.notes.append(
-        "Residual artifacts left uncommitted by design (#5669, #7091): "
-        + ", ".join(deferred)
-        + " -- not a mission artifact, so no commit surface owns it; accept neither "
-        "commits nor fails on it."
+        "Unclassified coordination-worktree copies left uncommitted by acceptance "
+        "cleanup (#5669, #7091): " + ", ".join(deferred) + ". These copies remain dirty; unclassified primary-checkout paths retain "
+        "the normal PRIMARY-bound write fallback."
     )
 
 
