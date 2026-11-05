@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "pin-absent-lane-wording-7200-01M6P3HX",
+  "mission_id": "01M6P3HXNK8JR1BCGJ9MC8876M",
+  "mission_branch": "kitty/mission-pin-absent-lane-wording-7200-01M6P3HX",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7200-pin-absent-lane-wording.internal.md",
+        "tests/git_ops/test_move_task_evidence_refusals.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-05T15:02:17.015002+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b4d1e918e232f327b46de5df2b4563348e3bdec2"
+}
