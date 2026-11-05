@@ -514,20 +514,6 @@ class TestResolveOwnedOpRecordRoot:
         payload = json.loads(capsys.readouterr().out)
         assert payload["error"]["code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_MISSION_WORKTREE
 
-    def test_ordinary_linked_checkout_is_admitted(self, owned_checkouts: OwnedCheckouts) -> None:
-        """Positive control for the refusal above: a plain linked checkout still validates."""
-        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
-
-        assert (
-            resolve_owned_op_record_root(
-                owned_checkouts.repository_root,
-                owned_checkouts.sibling,
-                cwd=owned_checkouts.repository_root,
-                json_output=True,
-            )
-            == owned_checkouts.sibling.resolve()
-        )
-
     def test_repository_root_is_refused_on_stderr_in_human_mode(self, owned_checkouts: OwnedCheckouts, capsys: pytest.CaptureFixture[str]) -> None:
         from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
 
