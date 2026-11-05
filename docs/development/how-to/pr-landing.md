@@ -1,8 +1,8 @@
 ---
 title: 'Landing Contributor PRs: The Maintainer Runbook'
-description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
+description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first checks, push, hand-off and post-merge cleanup.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-05'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -45,7 +45,8 @@ Before step 1, [check the PR is handed off and worth landing](#before-you-claim-
 9. [Push discipline](#9-push-discipline)
 10. [Post the remediation summary](#10-post-the-remediation-summary)
 11. [Hand-off — the operator merges](#11-hand-off--the-operator-merges)
-12. [Follow-up hygiene](#12-follow-up-hygiene)
+12. [After the merge: remove the landing worktree](#12-after-the-merge-remove-the-landing-worktree)
+13. [Follow-up hygiene](#13-follow-up-hygiene)
 
 ## Before you claim: check the PR is handed off and worth landing
 
@@ -593,7 +594,118 @@ the queue and rebuilds every group behind it. The hand-off deliverable is:
 - landing-order constraints stated explicitly — for example, a structural
   cutover riding one PR forces an order on the rest of the pass.
 
-## 12. Follow-up hygiene
+## 12. After the merge: remove the landing worktree
+
+Once the operator merges, the landing worktree from
+[step 2](#2-one-isolated-worktree-per-pr) and its local branch are left
+behind. Remove them with `doctor workspaces`, not by hand:
+
+```bash
+git fetch origin
+spec-kitty doctor workspaces
+spec-kitty doctor workspaces --prune
+```
+
+- **`git fetch origin` first.** The check reads your local `origin/<primary>`
+  (for example `origin/main`) and never fetches. The primary branch comes from
+  `origin/HEAD`, or from a branch named `main`, `master` or `develop`; when it
+  cannot be told, every worktree is unproven (set it with
+  `git remote set-head origin <branch>`). The check does not read `upstream`.
+  If your `origin` is a fork, fetch the canonical repository into
+  `origin/<primary>` first, or expect "not landed".
+- **`spec-kitty doctor workspaces`** writes nothing. It gives every registered
+  worktree a verdict with a reason: landed, not landed, unproven, or
+  Mission-owned. "Landed" means the worktree's commits are on
+  `origin/<primary>` and nothing uncommitted or running is in it. Merge commits
+  count. Rebase and squash merges count with git 2.38 or newer. The report also
+  lists the ignored files a removal would delete, such as `.venv/` or `.env`.
+- **`--prune`** removes only the landed worktrees, then their local branches.
+  It never uses `--force`. It checks each worktree again right before it
+  removes it.
+
+`--fix` is unchanged: it still removes only unregistered husks.
+
+### What `--prune` never removes
+
+- a worktree with uncommitted changes or untracked files, including edits
+  hidden by `git update-index --assume-unchanged` or `--skip-worktree`;
+- a worktree with a nested repository (a `.git`, `.hg`, `.jj` or `.svn`
+  entry, or a bare or renamed git directory) under an ignored path;
+- a locked worktree;
+- a worktree whose committed content is not on `origin/<primary>`;
+- a worktree a running process of yours is standing in;
+- Mission lane and coordination worktrees (reported only; `consolidate` owns them);
+- the main worktree, and the worktree you run the command from.
+
+Some worktrees are kept and reported for you to decide:
+
+- **No commits of its own** (`NO_OWN_COMMITS`). The branch tip is on
+  `origin/<primary>`, but its reflog shows no commit made on it. Remove it by
+  hand if you are done with it. A branch with no reflog at all is unproven
+  (`REFLOG_MISSING`).
+- **Detached worktrees outside `.worktrees/`** (`DETACHED_OUTSIDE_WORKTREES`)
+  are never assessed. These are scratch checkouts another spec-kitty command
+  made and owns. They appear only in the `--json` output.
+
+### Known gaps
+
+- **Linux only.** On macOS and Windows, running processes cannot be checked.
+  Every candidate is then reported as unproven, and `--prune` removes nothing.
+  For a worktree unproven only for that reason, the report prints the hand
+  commands. Run them only after you have checked that nothing runs in the
+  worktree and its content is on `origin/<primary>`:
+  `git worktree remove <path>` (never `--force`), then `git branch -d <branch>`.
+  After a rebase or squash merge, `-d` refuses; use `git branch -D <branch>`.
+- **git 2.38 or newer for rebase and squash merges.** Older git cannot prove
+  them, so such a worktree is reported as unproven and kept.
+- Processes of other users are not detected. Nor are your own processes whose
+  working directory cannot be read; the command prints how many it could not
+  inspect. Close editors and shells in the worktree first.
+- Ignored files (for example `.venv/`, or an ignored `.env`) are deleted with
+  the worktree. The report lists them first. Any rebase or merge in progress
+  there is deleted too.
+- A stale `origin/<primary>` usually only hides a merge. It can also vouch for
+  content that was later rewritten off the remote's primary branch. That is
+  why `--prune` keeps any tip that no local branch or tag reaches (see below).
+
+### A merge that happens after the session ends
+
+The operator often merges after the landing session is over. Nothing has to
+remember the worktree. On Linux, the next `git fetch origin` and
+`spec-kitty doctor workspaces --prune`, from any later session, finds it
+landed and removes it. Until then it is reported as not landed and kept. On
+macOS and Windows, remove it by hand (see [Known gaps](#known-gaps)).
+
+### Restore a removed worktree
+
+Every removal prints its recreate command:
+
+```text
+Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
+  recreate: git branch pr-<N>-local 1a2b3c4d5e6f...
+  tip kept at refs/spec-kitty/discarded/pr-<N>-local
+```
+
+- Branch: `git branch <branch> <sha>`, then
+  `git worktree add .worktrees/pr-<N>-landing <branch>`.
+- Detached worktree: `git worktree add --detach <path> <sha>`.
+- When no local branch or tag reaches the tip (remote-tracking refs do not
+  count), the tip is also kept under `refs/spec-kitty/discarded/`: at
+  `refs/spec-kitty/discarded/<branch>` for a branch (with a suffix such as
+  `@<short-sha>` when an earlier tip already holds that name), and at
+  `refs/spec-kitty/discarded/detached/<sha>` for a detached worktree. Use the
+  ref printed on the `tip kept at` line:
+  `git branch <branch> <ref printed on the tip kept at line>`.
+
+### `upgrade` leaves landing worktrees alone
+
+`spec-kitty upgrade` no longer writes or commits into a non-Mission worktree
+under `.worktrees/` unless you name it with `--include-worktree <path>`
+(repeatable) or pass `--all-worktrees`. Its preview lists every worktree and
+what will happen to it, so a landing worktree is never committed into by
+surprise.
+
+## 13. Follow-up hygiene
 
 Most of what a landing pass discovers should be **folded, not filed** — see the
 fold-first default in [step 8](#8-adversarial-squad-for-architectural-or-api-surface-prs).
