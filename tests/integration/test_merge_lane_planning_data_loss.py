@@ -117,7 +117,7 @@ def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str], *
                 "execution_mode": "direct_repo",
                 "feature_slug": mission_slug,
                 "force": True,
-                "from_lane": "planned",
+                "from_lane": "approved",
                 "reason": "test seed",
                 "review_ref": None,
                 "to_lane": "done",
