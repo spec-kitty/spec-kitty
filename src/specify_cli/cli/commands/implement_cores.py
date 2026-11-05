@@ -36,7 +36,7 @@ from specify_cli.coordination.coherence import is_coord_residue_churn, is_status
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from specify_cli.frontmatter import WP_RUNTIME_FIELDS
+from specify_cli.frontmatter import WP_CLAIM_PROVENANCE_FIELDS, WP_RUNTIME_FIELDS
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError, is_dossier_snapshot, materialize_snapshot, materialize_to_json
 from specify_cli.task_utils.support import split_frontmatter
 
@@ -56,9 +56,9 @@ _WP_SELF_WRITE_FILENAME_RE = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNOREC
 # #3471: the allocator stamps ``created_at`` into a WP's frontmatter together
 # with ``base_commit`` on a fresh lane (``implement_support.create_lane_workspace``).
 # It is the claim's own write only inside that stamp: a ``created_at`` change
-# without a ``base_commit`` change is an operator edit and still blocks.
-_ALLOCATOR_STAMP_FIELD = "created_at"
-_ALLOCATOR_STAMP_ANCHOR = "base_commit"
+# without a ``base_commit`` change is an operator edit and still blocks. Both names
+# come from the declared provenance set the writer builds its stamp from.
+_, _ALLOCATOR_STAMP_ANCHOR, _ALLOCATOR_STAMP_FIELD = WP_CLAIM_PROVENANCE_FIELDS
 
 # #3471: the status transitions a claim appends (``start_implementation_status``).
 # On a topology without a coordination branch the claim leaves them, and the

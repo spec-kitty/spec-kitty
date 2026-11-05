@@ -517,10 +517,10 @@ def create_lane_workspace(
 
         from specify_cli.frontmatter import WP_CLAIM_PROVENANCE_FIELDS, locked_update_frontmatter
 
-        # The declared provenance set (frontmatter.WP_CLAIM_PROVENANCE_FIELDS) is the
-        # ONE authority: the analysis-freshness fingerprint excludes exactly these
-        # keys, and this writer builds exactly them (strict zip), so the exclusion
-        # cannot drift from what the claim writes (#7106).
+        # The declared provenance set (frontmatter.WP_CLAIM_PROVENANCE_FIELDS): the
+        # analysis-freshness fingerprint excludes exactly these keys, the dirty-tree
+        # guard classifies them, and this writer builds exactly them (strict zip), so
+        # neither can drift from what the claim writes (#7106, #3471).
         provenance = dict(
             zip(
                 WP_CLAIM_PROVENANCE_FIELDS,
