@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances fix 7198 late window accounting on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "fix 7198 late window accounting",
   "slug": "fix-7198-late-window-accounting-01M6P3DS",
-  "target_branch": "main",
+  "target_branch": "issue-7198-late-window-accounting",
   "topology": "coord"
 }
