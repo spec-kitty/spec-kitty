@@ -661,8 +661,9 @@ Some worktrees are kept and reported for you to decide:
   hand commands, with paths quoted for your shell. Run them only after you have
   checked that nothing runs in the worktree and its content is on
   `origin/<primary>`: `git worktree remove <path>` (never `--force`), then
-  `git update-ref refs/spec-kitty/discarded/<branch> <sha>` to keep the tip,
-  then `git branch -D <branch>`.
+  `git update-ref refs/spec-kitty/discarded/<branch> <sha> ''` to keep the tip
+  (the empty old value makes it refuse to overwrite an earlier record), then
+  `git branch -D <branch>`.
 - **git 2.38 or newer for rebase and squash merges.** Older git cannot prove
   them, so such a worktree is reported as unproven and kept.
 - Processes of other users are not detected. Nor are your own processes whose
