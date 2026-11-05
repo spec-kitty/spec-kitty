@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: fix-7199-resume-late-coord-anchor-01M6P3RN
 mission_id: 01M6P3RNTXRNRB5EDJCW7TCVG6
-generated_at: '2026-11-05T15:07:11.751733+00:00'
+generated_at: '2026-11-05T15:25:10.480615+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,16 +15,16 @@ input_artifacts:
     sha256: 692fd79efd4051cd1a949bd57a7d64491489ac97a72d3a39acc88f81955485da
   tasks.md:
     path: kitty-specs/fix-7199-resume-late-coord-anchor-01M6P3RN/tasks.md
-    sha256: f7fd52964c98c8521a567ad557db1186700d89d2c7dfcf81d337471bdbde3e9d
+    sha256: 76dee15a28f0830f2b4a5157b580f351d2eff6c27bb5d6b07a2a02fbd0a0cd7d
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  medium: 1
-  high: 0
   critical: 0
   low: 1
+  high: 0
+  medium: 1
   info: 0
 findings:
 - id: C1
@@ -41,8 +41,8 @@ findings:
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| C1 | Coverage | MEDIUM | spec.md:US1, tasks.md:WP01 | The defect is a concurrency window (a commit landing between the run's own anchor capture and its teardown window read). A subprocess CLI test cannot order that without racing. The red case therefore drives `_teardown_coordination_triple` on real git fixtures, exactly as the #7124 first-run twin does, and the real-CLI resume test stays as an unchanged end-to-end control. | Accepted; WP01 T001/T002 own it and WP02 names the e2e control in its prompt. |
-| T1 | Terminology | LOW | WP02 T007 | Renaming `### What a first run lands before it tears down` may leave a docs-index row for the old heading. | Leave the row to the `ci/regen-docs-index` bot; state it in the PR body. |
+| C1 | Coverage | MEDIUM | spec.md:US1, tasks.md:WP01, traces/design-decisions.md D3 | The defect is a concurrency window (a commit landing between the run's own anchor capture and its teardown window read). A subprocess CLI test cannot order that without racing. The red case therefore drives `_teardown_coordination_triple` on real git fixtures, exactly as the #7124 first-run twin does, and the real-CLI resume test stays as an unchanged end-to-end control. | Accepted; WP01 T001/T002 own it and WP02 names the e2e control in its prompt. |
+| T1 | Terminology | LOW | WP02 T007 (resolved: no index row references the old heading) | Renaming `### What a first run lands before it tears down` may leave a docs-index row for the old heading. | Leave the row to the `ci/regen-docs-index` bot; state it in the PR body. |
 
 **Coverage Summary Table:**
 
