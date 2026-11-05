@@ -221,23 +221,25 @@ def test_worktree_without_commit_names_held_files_as_skipped_and_keeps_the_commi
 
 
 @pytest.mark.parametrize(
-    ("landed", "failed", "wrote", "expected", "warnings"),
+    ("landed", "failed", "wrote", "held", "expected", "warnings"),
     [
-        (True, False, True, True, []),
-        (False, False, False, False, []),
-        (True, True, True, False, []),
+        (True, False, True, [], True, []),
+        (False, False, False, [], False, []),
+        (True, True, True, [], False, []),
         # Every path the run wrote was already dirty before it: no commit, and one named reason.
-        (False, False, True, False, [f"Worktree wt-a: {upgrade_runner.PRE_DIRTY_NOT_COMMITTED_WARNING}"]),
+        (False, False, True, [], False, [f"Worktree wt-a: {upgrade_runner.PRE_DIRTY_NOT_COMMITTED_WARNING}"]),
+        # Held files already explain the missing commit: only the held-files line, no pre-dirty reason.
+        (False, False, True, ["a.md"], False, ["Worktree wt-a: Skipped auto-commit of 1 file(s) held for manual review: a.md"]),
     ],
-    ids=["committed", "nothing-written", "failed", "pre-dirty"],
+    ids=["committed", "nothing-written", "failed", "pre-dirty", "held-files"],
 )
 def test_worktree_churn_reports_whether_a_commit_landed(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, landed: bool, failed: bool, wrote: bool, expected: bool, warnings: list[str]
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, landed: bool, failed: bool, wrote: bool, held: list[str], expected: bool, warnings: list[str]
 ) -> None:
     monkeypatch.setattr(autocommit, "prepare_upgrade_commit_files", lambda _c, _b: [])
     monkeypatch.setattr(autocommit, "commit_touched_checkout", lambda *_a, **_k: (landed, [], None))
     got_warnings, committed = upgrade_runner._commit_worktree_churn(
-        _worktree(tmp_path), baseline=set(), from_version="2", to_version="4", failed=failed, held_paths=[], wrote=wrote
+        _worktree(tmp_path), baseline=set(), from_version="2", to_version="4", failed=failed, held_paths=held, wrote=wrote
     )
     assert committed is expected
     assert got_warnings == warnings
