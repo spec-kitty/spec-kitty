@@ -221,8 +221,14 @@ def _payload(assessment: WorktreeAssessment, outcomes: Sequence[PruneOutcome], *
 
 
 def _exit_code(assessment: WorktreeAssessment, outcomes: Sequence[PruneOutcome]) -> int:
-    """1 when the worktree list is unreadable or a removal was refused; landed worktrees alone never fail."""
-    if assessment.error is not None or any(outcome.refusal is not None for outcome in outcomes):
+    """1 when the worktree list is unreadable or a removal was refused; landed worktrees alone never fail.
+
+    Keeping the primary branch (``BRANCH_IS_PRIMARY``) is the rule, not a refusal.
+    """
+    from specify_cli.workspace.landed_worktrees import BRANCH_IS_PRIMARY
+
+    refused = any(outcome.refusal not in (None, BRANCH_IS_PRIMARY) for outcome in outcomes)
+    if assessment.error is not None or refused:
         return 1
     return 0
 

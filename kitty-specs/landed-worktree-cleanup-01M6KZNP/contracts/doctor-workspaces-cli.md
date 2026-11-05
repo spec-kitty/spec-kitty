@@ -25,6 +25,8 @@ Removed .worktrees/land-7086 (branch land-7086 at 1a2b3c4d5e6f)
 
 The `tip kept at` line appears when no local branch or tag reaches the tip (remote-tracking refs do not count). A detached worktree's tip is kept at `refs/spec-kitty/discarded/detached/<sha>` (amended at closeout, #7173 squad).
 
+`recreate:` is `git branch <branch> <tip>` when the branch was deleted (or was already gone), `git worktree add <path> <branch>` when the branch was kept (a `branch kept:` line names why, e.g. `BRANCH_MOVED`, `BRANCH_IN_OTHER_WORKTREE`, or `BRANCH_IS_PRIMARY`: the local primary branch is never deleted, and that keep alone does not make the exit code 1), and `git worktree add --detach <path> <tip>` for a detached worktree (amended at landing, #7173).
+
 When `git worktree remove` fails part-way after unregistering the worktree (a file it cannot delete), the outcome is `removed: true` with refusal `WORKTREE_PARTIALLY_REMOVED`: the branch is kept, the text output adds `partly removed: WORKTREE_PARTIALLY_REMOVED` and points to `spec-kitty doctor workspaces --fix` for the leftover directory, and the exit code is 1 (amended at landing, #7173).
 
 Text output per kept worktree: path, branch, verdict, reason, and for `landed` without `--prune` the command `spec-kitty doctor workspaces --prune`. A verdict that found ignored files adds `will also delete ignored: <up to five paths> (+N more)`. A worktree unproven only because running processes cannot be checked (`PROCESS_PROOF_UNAVAILABLE`, no `/proc`) adds the hand commands `git worktree remove <path>` and `git branch -D <branch>`, to run only after checking (amended at closeout, #7173 squad). Detached worktrees outside `.worktrees/` (`excluded`) appear only in JSON.
