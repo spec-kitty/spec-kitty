@@ -1952,6 +1952,10 @@ class TestRetentionConstraintSurvivesCleanup:
             planning_wp_ids=[],
             mission_branch=mission_branch,
         )
+        # The dry run builds the full claim (#6771): seed WP01 approved by an independent
+        # reviewer with a real lane commit to its owned_files (#6715), as the sibling test does.
+        _write_wp_file(feature_dir, "WP01")
+        _seed_wp_approved(feature_dir, slug, "WP01")
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap dry-run retaining mission")
         _git(tmp_path, "branch", mission_branch, "main")
@@ -1959,6 +1963,18 @@ class TestRetentionConstraintSurvivesCleanup:
         # materialize it the way real coord writes do (42adce94 pattern).
         from specify_cli.coordination.workspace import CoordinationWorkspace
         _git(tmp_path, "worktree", "add", "-q", str(CoordinationWorkspace.worktree_path(tmp_path, slug, _RETENTION_MID8)), mission_branch)
+        lane_a_branch = f"kitty/mission-{slug}-lane-a"
+        _git(tmp_path, "branch", lane_a_branch, "main")
+        _commit_file(
+            tmp_path,
+            branch=lane_a_branch,
+            relpath="src/retention_repro.py",
+            content="def foo():\n    return 1\n",
+            message=f"feat({slug}): add foo function (WP01)",
+        )
+        _git(tmp_path, "checkout", "main")
+        restamp_log_at_lane_tips(tmp_path, feature_dir)
+        _restamp_coord_worktree(tmp_path, slug, feature_dir)
 
         # NO cleanup flags: the CLI default (unset tri-state) must resolve
         # through the mission's retention policy, not the pre-#3131 delete default.

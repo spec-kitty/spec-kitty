@@ -25,8 +25,11 @@ import pytest
 
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.lanes.compute import lane_created_branch
 from tests.lane_test_utils import create_lane_branches
 from tests.consolidation.executor_family import patch_executor_family
+from tests.integration.test_merge_lane_planning_data_loss import _seed_wp_done_raw, _write_wp_file
+from tests.integration.target_owned_fixtures import commit_file_on_branch
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -63,40 +66,9 @@ def _make_manifest(slug: str) -> MagicMock:
     lane = MagicMock()
     lane.lane_id = "lane-a"
     lane.wp_ids = ["WP01"]
+    lane.depends_on_lanes = ()
     manifest.lanes = [lane]
     return manifest
-
-
-def _seed_wp01_done(feature_dir: Path, mission_slug: str) -> None:
-    """Seed WP01 as ``done`` on the real event log (#4764/T007).
-
-    ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
-    and now refuses the merge before any mutation when WP01 is absent from
-    the log. This module's tests exercise the post-merge index-refresh
-    ordering, not readiness, so seed WP01 to let the merge proceed.
-    """
-    import json
-
-    event = {
-        "actor": "test",
-        "at": "2026-04-06T12:00:00+00:00",
-        "event_id": "01TESTWP01REFRESH",
-        "evidence": None,
-        "execution_mode": "worktree",
-        "feature_slug": mission_slug,
-        "force": True,
-        "from_lane": "approved",
-        "reason": "test seed",
-        "review_ref": None,
-        "to_lane": "done",
-        "wp_id": "WP01",
-    }
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    from specify_cli.status.reducer import materialize
-
-    materialize(feature_dir)
 
 
 def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
@@ -106,7 +78,14 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     create_lane_branches(tmp_path, manifest)
     feature_dir = tmp_path / "kitty-specs" / slug
     feature_dir.mkdir(parents=True, exist_ok=True)
-    _seed_wp01_done(feature_dir, slug)
+    # #6715: a recorded planning commit, WP01's declared ownership, its lane's implementation
+    # commit, and an independent approval stamped at that lane tip precede the seeded ``done``.
+    manifest.planning_commit_sha = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+    _write_wp_file(feature_dir, "WP01")
+    lane_branch = lane_created_branch(manifest, "lane-a")
+    commit_file_on_branch(tmp_path, lane_branch, "src/wp01.py", "# implementation of src/wp01.py\n", "feat: implement src/wp01.py")
+    lane_head = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", lane_branch], check=True, capture_output=True, text=True).stdout.strip()
+    _seed_wp_done_raw(feature_dir, slug, ["WP01"], lane_head=lane_head)
 
     lane_result = MagicMock()
     lane_result.success = True
