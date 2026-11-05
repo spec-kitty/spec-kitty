@@ -1,0 +1,49 @@
+{
+  "mission_slug": "issue-7209-skip-lanes-planning-commit-01M6P3JR",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_issue_2745_merge_skip_lanes.py: 4 passed (all 4 refused EVIDENCE_WINDOW_UNCOMPUTABLE on origin/main); synthesized manifest records a resolvable base",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T16:28:11.506331+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_synthesized_manifest_records_the_mission_start_boundary + test_resolved_base_is_deterministic: base is the real pre-planning commit, same on repeat runs, and never the implementation commit",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T16:28:15.573534+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_evidence_window_refusal_text.py: 4 passed; recovery names committing the Mission's planning artifacts on the target and keeps finalize-tasks for the pinned-lanes shape",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T16:28:19.820445+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same-fixture negative controls: IMPLEMENTATION_MISSING (untouched owned path) and REVIEW_NOT_INDEPENDENT (self-review) still refuse; 107 evidence-suite tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T16:28:23.665431+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

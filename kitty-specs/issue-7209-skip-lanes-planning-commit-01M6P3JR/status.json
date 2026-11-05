@@ -1,0 +1,121 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M6P8PP6BREG3FMD8958V3FK7",
+  "materialized_at": "2026-11-05T16:29:35.819157+00:00",
+  "mission_number": "250",
+  "mission_slug": "issue-7209-skip-lanes-planning-commit-01M6P3JR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6P8PK61VT748YY13F0JF5W1",
+      "last_transition_at": "2026-11-05T16:29:32.737450+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Synthesized manifest resolves its evidence-window base from target history; 4 CLI nodes + 7 new tests green; 107 evidence-suite tests green; ruff clean.",
+        "Approved after 4 review rounds; docs corrected in round 4 (APPROVE, no findings)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 925918,
+      "shell_pid_created_at": "1793891158.26",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#7209"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6P8PMR7A4PQKB0V0PV9CK1Q",
+      "last_transition_at": "2026-11-05T16:29:34.343168+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Refusal line + recovery name a remedy for both shapes; 4 new tests + 107 evidence-suite tests green; ruff clean.",
+        "APPROVE: refusal code/precedence/liftability unchanged, both remedies accurate, discrimination proven (3 failures pre-change, 1 positive control); only two test nits, fixed in follow-up commit."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2068473,
+      "shell_pid_created_at": "1793894242.91",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#7209",
+        "#7210"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "scribe-sally",
+      "lane": "done",
+      "last_event_id": "01M6P8PP6BREG3FMD8958V3FK7",
+      "last_transition_at": "2026-11-05T16:29:35.819157+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs note + fragment; changelog style 0 errors, spelling clean, docs freshness 0 errors.",
+        "APPROVE (round 2): docs commit is now 2 files, attestation exception and net-diff/root-commit shape verified against the code, changelog qualified; style 0 errors, spelling 0 findings."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2455338,
+      "shell_pid_created_at": "1793895464.29",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "#7209"
+      ]
+    }
+  }
+}
