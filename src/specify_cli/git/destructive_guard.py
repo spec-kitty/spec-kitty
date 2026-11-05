@@ -51,6 +51,8 @@ MERGE_UNSAFE_PRIMARY_DIRTY = "MERGE_UNSAFE_PRIMARY_DIRTY"
 MERGE_UNSAFE_WORKTREE_DIRTY = "MERGE_UNSAFE_WORKTREE_DIRTY"
 DESTRUCTIVE_OP_ONLY_COPY = "DESTRUCTIVE_OP_ONLY_COPY"
 BRANCH_HAS_UNIQUE_COMMITS = "BRANCH_HAS_UNIQUE_COMMITS"
+WORKTREE_REMOVE_REFUSED_BY_GIT = "WORKTREE_REMOVE_REFUSED_BY_GIT"
+"""``git worktree remove`` (no ``--force``) itself refused, e.g. a locked worktree; nothing was removed."""
 
 FORCE_RECREATE_INTENT = "force_recreate"
 """``operator_intent`` of ``mission create --force-recreate``: the operator asked for the branch to be discarded."""
@@ -71,11 +73,26 @@ only for the operator-explicit discard of a Mission's *own* branch; lane branche
 every other caller keep the full guard (a routing gate pins the exact callers allowed
 to pass it)."""
 
+LANDED_INTENT = "landed"
+"""``operator_intent`` of the landed-worktree prune: the branch's work already landed on the target.
+
+The guard is git-plumbing pure and does NOT verify absorption itself: the one
+caller allowed to pass this intent, ``workspace/landed_worktrees.py::prune_landed``,
+proves the branch's content is on the target first (a routing gate pins that
+caller). A squash landing leaves the branch's own commits on no other ref, so the
+unique-commit check (FR-009) would refuse; this intent skips it, but, exactly like
+:data:`DISCARD_INTENT`, a branch holding commits found nowhere else first has its
+tip recorded as ``refs/spec-kitty/discarded/<branch>`` (the deletion is refused,
+nothing deleted, when that record cannot be written), so it stays recoverable with
+``git branch <branch> refs/spec-kitty/discarded/<branch>``."""
+
 DISCARDED_REF_PREFIX = "refs/spec-kitty/discarded/"
-"""Namespace of the hidden, never-pushed refs that keep the tip of a branch deleted with :data:`DISCARD_INTENT`.
+"""Namespace of the hidden, never-pushed refs that keep the tip of a branch deleted with :data:`DISCARD_INTENT` or :data:`LANDED_INTENT`.
 
 Only ``refs/spec-kitty/lane-tip/`` and ``refs/spec-kitty/wp-base/`` are enumerated elsewhere, each by its own
 prefix, so this sibling namespace is invisible to them."""
+
+_OPERATOR_INTENTS: tuple[str | None, ...] = (None, FORCE_RECREATE_INTENT, DISCARD_INTENT, LANDED_INTENT)
 
 _RESUME_NOTE = "then resume the operation (e.g. `spec-kitty consolidate --resume`)"
 
@@ -265,15 +282,29 @@ def _repo_root_for_worktree(worktree: Path, env: dict[str, str] | None) -> Path:
     return Path(result.stdout.strip()).parent
 
 
-def _remove_worktree_force(worktree: Path, env: dict[str, str] | None) -> None:
+def _remove_worktree(worktree: Path, env: dict[str, str] | None, *, force: bool) -> None:
+    """Run ``git worktree remove`` from the shared repository; ``--force`` only when ``force`` is set.
+
+    Without ``--force`` git refuses a locked worktree (and any it still finds
+    dirty); that refusal is a :class:`DestructiveOpRefused` with
+    :data:`WORKTREE_REMOVE_REFUSED_BY_GIT` so a caller can report it per
+    worktree. Ignored files (e.g. ``.venv/``) are removed either way.
+    """
     repo_root = _repo_root_for_worktree(worktree, env)
-    result = _run_git(
-        repo_root,
-        ["worktree", "remove", "--force", "--", str(worktree)],
-        env=env,
-    )
+    if force:
+        result = _run_git(repo_root, ["worktree", "remove", "--force", "--", str(worktree)], env=env)
+        if result.returncode != 0:
+            raise RuntimeError(f"git worktree remove --force failed for {worktree}: {result.stderr.strip() or result.stdout.strip()}")
+        return
+    result = _run_git(repo_root, ["worktree", "remove", "--", str(worktree)], env=env)
     if result.returncode != 0:
-        raise RuntimeError(f"git worktree remove --force failed for {worktree}: {result.stderr.strip() or result.stdout.strip()}")
+        reason = result.stderr.strip() or result.stdout.strip() or f"git exited {result.returncode}"
+        raise DestructiveOpRefused(
+            error_code=WORKTREE_REMOVE_REFUSED_BY_GIT,
+            worktree_path=worktree,
+            dirty_entries=reason.splitlines(),
+            remediation=f"git refused to remove {worktree} (it is locked or holds local state); nothing was removed.",
+        )
 
 
 def guarded_worktree_remove(
@@ -282,6 +313,7 @@ def guarded_worktree_remove(
     retain: bool,
     context: ResidueClassifier,
     env: dict[str, str] | None = None,
+    force: bool = True,
 ) -> RemoveResult:
     """The shared removal chokepoint every live destroy site routes through.
 
@@ -297,6 +329,12 @@ def guarded_worktree_remove(
     an untracked-only operator file (never flagged by the obstruction-only
     default, which is correct only for a ``reset --hard``) must still be
     detected before it is destroyed.
+
+    ``force`` (default ``True``, every existing caller) runs
+    ``git worktree remove --force``. With ``force=False`` the same clean proof
+    runs and then a plain ``git worktree remove`` (never ``--force``): git
+    itself refuses a locked worktree, raised as :class:`DestructiveOpRefused`
+    with :data:`WORKTREE_REMOVE_REFUSED_BY_GIT` (in either ``retain`` mode).
     """
     if not retain:
         assert_worktree_clean(
@@ -305,7 +343,7 @@ def guarded_worktree_remove(
             env=env,
             treat_untracked_as_dirty=True,
         )
-        _remove_worktree_force(worktree, env)
+        _remove_worktree(worktree, env, force=force)
         return RemoveResult(outcome=RemoveOutcome.REMOVED, worktree_path=worktree)
 
     dirty = ref_advance._dirty_entries(
@@ -319,7 +357,7 @@ def guarded_worktree_remove(
     if dirty:
         return RemoveResult(outcome=RemoveOutcome.RETAINED_DIRTY, worktree_path=worktree)
 
-    _remove_worktree_force(worktree, env)
+    _remove_worktree(worktree, env, force=force)
     return RemoveResult(outcome=RemoveOutcome.REMOVED, worktree_path=worktree)
 
 
@@ -472,6 +510,19 @@ def guarded_worktree_prune(repo_root: Path, *, env: dict[str, str] | None = None
     _git_ok(repo_root, ["worktree", "prune"], env)
 
 
+_ALL_REF_NAMESPACES: tuple[str, ...] = ("refs/heads", "refs/remotes", "refs/tags")
+"""Every ref that counts as "another ref" for the unique-commit check (FR-009)."""
+
+_LOCAL_REF_NAMESPACES: tuple[str, ...] = ("refs/heads", "refs/tags")
+"""The refs that count under :data:`LANDED_INTENT`: remote-tracking refs are left out.
+
+A remote-tracking ref is a cache of the remote, read without a fetch: a stale
+``refs/remotes/origin/main`` can still reach a commit that was since rewritten
+off the remote, so it cannot vouch that a landed branch's commits exist
+somewhere else. Under that intent a tip reached only by ``refs/remotes/*`` is
+recorded before the delete."""
+
+
 def _unique_commits(
     repo_root: Path,
     branch: str,
@@ -479,15 +530,17 @@ def _unique_commits(
     env: dict[str, str] | None,
     *,
     ignoring: Sequence[str] = (),
+    namespaces: Sequence[str] = _ALL_REF_NAMESPACES,
 ) -> list[str]:
-    """Commits on ``branch`` that no other local ref, remote ref or tag (and none of ``extra_not``) reaches.
+    """Commits on ``branch`` that no other ref in ``namespaces`` (and none of ``extra_not``) reaches.
 
+    ``namespaces`` defaults to local refs, remote refs and tags.
     ``ignoring`` names local branches that do not count as "another ref" (the
     branches the caller is about to delete together with ``branch``).
     """
     own_ref = f"refs/heads/{branch}"
     skipped = {own_ref, *(f"refs/heads/{name}" for name in ignoring)}
-    refs = _git_ok(repo_root, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/remotes", "refs/tags"], env)
+    refs = _git_ok(repo_root, ["for-each-ref", "--format=%(refname) %(objectname)", *namespaces], env)
     others = [line.split(" ")[1] for line in refs.splitlines() if line and line.split(" ")[0] not in skipped]
     negated = "".join(f"^{rev}\n" for rev in [*others, *extra_not])
     result = _run_git(repo_root, ["rev-list", own_ref, "--stdin"], env=env, stdin=negated)
@@ -534,25 +587,33 @@ def guarded_branch_delete(
     or every commit is reachable from another ref. A branch that does not exist
     is a no-op.
 
-    ``operator_intent`` names the two explicit requests that skip the
+    ``operator_intent`` names the three explicit requests that skip the
     unique-commit check: :data:`FORCE_RECREATE_INTENT` (``mission create
     --force-recreate``) and :data:`DISCARD_INTENT` (``mission close --discard``),
-    each a case where the operator asked for the branch to be discarded. Any
-    other value is a :class:`ValueError`. A routing gate pins the exact callers
-    allowed to pass either.
+    each a case where the operator asked for the branch to be discarded, and
+    :data:`LANDED_INTENT` (the landed-worktree prune), where the caller has
+    proven the branch's work is on the target. This guard does not verify that
+    absorption itself; the caller does. Any other value is a
+    :class:`ValueError`. A routing gate pins the exact callers allowed to pass
+    any of them.
 
-    Under :data:`DISCARD_INTENT`, a branch holding commits that exist on no other
-    ref first has its tip recorded as ``refs/spec-kitty/discarded/<branch>`` (the
-    deletion is refused, nothing deleted, when that record cannot be written), and
-    that tip SHA is returned so the caller can tell the operator how to restore it.
-    Every other path returns ``None``.
+    Under :data:`DISCARD_INTENT` and :data:`LANDED_INTENT`, a branch holding
+    commits that exist on no other ref (for :data:`LANDED_INTENT`, no other
+    local branch or tag: remote-tracking refs do not count, see
+    :data:`_LOCAL_REF_NAMESPACES`) first has its tip recorded as
+    ``refs/spec-kitty/discarded/<branch>`` (the deletion is refused, nothing
+    deleted, when that record cannot be written), and that tip SHA is returned
+    so the caller can tell the operator how to restore it. Every other path
+    returns ``None``.
     """
-    if operator_intent not in (None, FORCE_RECREATE_INTENT, DISCARD_INTENT):
-        raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r} or {DISCARD_INTENT!r}")
+    if operator_intent not in _OPERATOR_INTENTS:
+        raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r}, {DISCARD_INTENT!r} or {LANDED_INTENT!r}")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
         return None
     if operator_intent == DISCARD_INTENT:
-        return _discard_branch_keeping_tip(repo_root, branch, env)
+        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_ALL_REF_NAMESPACES)
+    if operator_intent == LANDED_INTENT:
+        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_LOCAL_REF_NAMESPACES)
     if operator_intent is not None:
         _git_ok(repo_root, ["branch", "-D", "--", branch], env)
         return None
@@ -587,13 +648,37 @@ def _keep_discarded_tip(repo_root: Path, ref: str, tip: str, env: dict[str, str]
     held = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], env=env)
     if held.returncode == 0 and held.stdout.strip() == tip:
         return True
-    return ref_advance.write_bookkeeping_ref(repo_root, ref, tip, create_only=True)
+    return bool(ref_advance.write_bookkeeping_ref(repo_root, ref, tip, create_only=True))
 
 
-def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str] | None) -> str | None:
-    """Delete ``branch`` on an operator-explicit discard; keep its tip when it holds commits found nowhere else."""
+DETACHED_DISCARDED_REF_PREFIX = f"{DISCARDED_REF_PREFIX}detached/"
+"""Where :func:`keep_detached_tip` records the tip of a detached worktree before it is removed."""
+
+
+def keep_detached_tip(repo_root: Path, sha: str, *, env: dict[str, str] | None = None) -> str:
+    """Record ``sha`` as ``refs/spec-kitty/discarded/detached/<sha>`` (create-only) and return that ref.
+
+    A detached worktree has no branch to keep its commits reachable: once it is
+    removed, a tip that no ref reaches lives only in the removed worktree's
+    HEAD reflog. A caller about to remove one records the tip here first.
+    Idempotent: a ref already holding ``sha`` is accepted. When the ref cannot
+    be written, :class:`DestructiveOpRefused` (``DESTRUCTIVE_OP_ONLY_COPY``)
+    is raised and the caller must remove nothing.
+    """
+    ref = f"{DETACHED_DISCARDED_REF_PREFIX}{sha}"
+    if not _keep_discarded_tip(repo_root, ref, sha, env):
+        raise DestructiveOpRefused(
+            error_code=DESTRUCTIVE_OP_ONLY_COPY,
+            worktree_path=repo_root,
+            remediation=f"Could not record detached tip {sha[:12]} under {DETACHED_DISCARDED_REF_PREFIX}; nothing was removed.",
+        )
+    return ref
+
+
+def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str] | None, *, namespaces: Sequence[str]) -> str | None:
+    """Delete ``branch`` under :data:`DISCARD_INTENT` or :data:`LANDED_INTENT`; keep its tip when no ref in ``namespaces`` holds its commits."""
     recorded: str | None = None
-    if _unique_commits(repo_root, branch, [], env):
+    if _unique_commits(repo_root, branch, [], env, namespaces=namespaces):
         tip = branch_tip(repo_root, branch, env=env)
         if tip is None or not _keep_discarded_tip(repo_root, discarded_ref(repo_root, branch, tip, env=env), tip, env):
             raise DestructiveOpRefused(
