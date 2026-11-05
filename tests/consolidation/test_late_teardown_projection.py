@@ -261,6 +261,20 @@ _REMEDY_PHRASES: dict[LateProjectionRefusalKind, tuple[tuple[str, ...], tuple[st
         (f"`git checkout {_TARGET} -- <path>`",),
     ),
     LateProjectionRefusalKind.RECORD_NOT_LANDED: ((f"land the named record on {_TARGET!r} from {_BRANCH!r}",), ()),
+    # #7198: the log is proved by EVENT containment and the union stage reads the coordination
+    # worktree's working tree, so the repair is about that copy -- never a blind file copy onto the
+    # target, which would drop the events the target already holds.
+    LateProjectionRefusalKind.STATUS_EVENTS_NOT_LANDED: (
+        ("coordination worktree", "status.events.jsonl", "Do NOT overwrite"),
+        (f"land the named record on {_TARGET!r} from {_BRANCH!r}",),
+    ),
+    # #7198: a primary artifact is never projected (#5460), so "revert or land it yourself" is the
+    # only repair; pointing the operator at the coordination worktree's status copy would be the
+    # other kind's remedy and would not clear this one.
+    LateProjectionRefusalKind.NON_COORDINATION_RECORD_NOT_LANDED: (
+        (f"land the change on {_TARGET!r} yourself", "projection cannot carry"),
+        ("coordination worktree", f"land the named record on {_TARGET!r} from {_BRANCH!r}"),
+    ),
 }
 
 

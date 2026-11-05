@@ -760,9 +760,11 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
     A concurrent commit landing WHILE the projection runs must leave the anchor at the pre-window tip.
     The teardown then refuses at the projection teardown gate's compare-and-swap (the anchor no longer
     matches the live ref) and keeps the branch, so a tip nobody proved can never become "what teardown
-    approved". The injected commit touches ``meta.json``, which the late-window assertion exempts (a
-    PRIMARY artifact the target owns) and the projection never carries -- so the refusal under test is
-    the gate's, not the assertion's.
+    approved". The injected commit touches ``status.json``, the DERIVED snapshot: the late-window
+    assertion excludes it by rule (#7198 -- the projection rematerializes it from the proved event log,
+    so its own bytes are never an independent record) and the projection never carries it -- so the
+    refusal under test is the gate's, not the assertion's. A ``meta.json`` injection would now refuse at
+    the assertion instead, which is the #7198 behaviour and not what this case is pinning.
     """
     from specify_cli.coordination.teardown import ProjectionTeardownAbort
 
@@ -773,8 +775,8 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
 
     def commit_then_land_a_foreign_one(target_run: object, paths: list[Path], message: str) -> None:
         real_commit(target_run, paths, message)  # type: ignore[arg-type]
-        meta = worktree / "kitty-specs" / SLUG / "meta.json"
-        meta.write_text(json.dumps({**json.loads(meta.read_text(encoding="utf-8")), "concurrent": "emit"}) + "\n", encoding="utf-8")
+        snapshot = worktree / "kitty-specs" / SLUG / "status.json"
+        snapshot.write_text('{"work_packages": {"WP01": "approved", "concurrent": "emit"}}\n', encoding="utf-8")
         _git(worktree, "add", "kitty-specs")
         _git(worktree, "commit", "-q", "-m", "concurrent emit")
         foreign_landed.append(True)
