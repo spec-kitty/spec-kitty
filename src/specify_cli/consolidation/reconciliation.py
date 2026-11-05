@@ -3885,7 +3885,6 @@ def _collect_authored(
 
 __all__ = [
     "ApprovedWpCommitSet",
-    "Divergence",
     "MergeOutcomeVerifier",
     "TERMINUS_ENTRY_POINTS",
     "UnroutedTerminusPathError",
