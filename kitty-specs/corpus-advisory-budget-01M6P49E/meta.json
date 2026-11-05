@@ -26,6 +26,7 @@
   "purpose_context": "Issue #7206: the advisory Packs corpus suite runs at its 20-minute budget (measured p95 20.3 min, 102% of cap) and cancels on unrelated PRs. This mission records the measured cost breakdown, derives the cap with the repository's #5378 headroom formula, enforces it with a guard, and makes a budget expiry legible as INCOMPLETE (#4437) without touching selection semantics.",
   "purpose_tldr": "Derive the advisory corpus job's timeout from its measured worst case and make a budget expiry read as incomplete advisory, not a failed test.",
   "slug": "corpus-advisory-budget-01M6P49E",
+  "status_phase": "1",
   "target_branch": "issue-7206-corpus-advisory-budget",
   "topology": "coord",
   "vcs": "git",
