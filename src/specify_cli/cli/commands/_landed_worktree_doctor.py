@@ -34,6 +34,7 @@ __all__ = [
 ]
 
 PRUNE_COMMAND = "spec-kitty doctor workspaces --prune"
+HUSK_FIX_COMMAND = "spec-kitty doctor workspaces --fix"
 _SHORT_SHA = 12
 _INDENT = "  "
 _REMOTES_PREFIX = "refs/remotes/"
@@ -149,6 +150,7 @@ def _render_assessment(assessment: WorktreeAssessment, repo_root: Path, *, prune
 
 def _refusal_hint(outcome: PruneOutcome, primary: str) -> str | None:
     """What the operator does next for a prune refusal that is not the guard's own (``None`` for the guard's)."""
+    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED
     from specify_cli.workspace.landed_worktrees import (
         BRANCH_DELETE_FAILED,
         BRANCH_MOVED,
@@ -161,6 +163,8 @@ def _refusal_hint(outcome: PruneOutcome, primary: str) -> str | None:
         return f"the worktree changed after it was assessed; run `{PRUNE_COMMAND}` again"
     if outcome.refusal == WORKTREE_REMOVE_FAILED:
         return f"the removal could not run; inspect it, then `git worktree remove {outcome.path}` (no --force)"
+    if outcome.refusal == WORKTREE_PARTIALLY_REMOVED:
+        return f"git unregistered the worktree but could not delete all of it; the branch is kept; clear the leftover with `{HUSK_FIX_COMMAND}`"
     if outcome.branch is None:
         return None
     if outcome.refusal == BRANCH_MOVED:
@@ -177,6 +181,8 @@ def _print_hint(outcome: PruneOutcome, primary: str) -> None:
 
 
 def _render_outcome(outcome: PruneOutcome, repo_root: Path, primary: str) -> None:
+    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED
+
     path = escape(_shown_path(outcome.path, repo_root))
     where = f"branch {escape(outcome.branch)}" if outcome.branch is not None else "detached"
     head = f"{path} ({where} at {_short(outcome.tip)})"
@@ -189,7 +195,8 @@ def _render_outcome(outcome: PruneOutcome, repo_root: Path, primary: str) -> Non
     if outcome.kept_ref is not None:
         _print(f"{_INDENT}tip kept at {escape(outcome.kept_ref)}")
     if outcome.refusal is not None:
-        _print(f"{_INDENT}[yellow]branch kept:[/yellow] {escape(outcome.refusal)}")
+        label = "partly removed" if outcome.refusal == WORKTREE_PARTIALLY_REMOVED else "branch kept"
+        _print(f"{_INDENT}[yellow]{label}:[/yellow] {escape(outcome.refusal)}")
         _print_hint(outcome, primary)
 
 

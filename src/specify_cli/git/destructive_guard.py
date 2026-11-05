@@ -13,7 +13,8 @@ dirty check.
 
 git-plumbing purity (C-005): this module imports **zero** ``specify_cli``
 application modules or ``coordination.*`` — only its git-plumbing sibling
-:mod:`specify_cli.git.ref_advance` (same layer, relative import) and the
+:mod:`specify_cli.git.ref_advance` and :mod:`specify_cli.git.worktree_listing`
+(same layer, relative imports) and the
 standard library. Disposability is decided from a caller-supplied CONTEXT
 (``coordination.coherence.ResidueContext``, structurally a
 :class:`ref_advance.ResidueClassifier`): the caller says which checkout and
@@ -45,6 +46,7 @@ from kernel.git import GitCommandError, GitPath, changed_paths, status_entries
 
 from . import ref_advance
 from .ref_advance import ResidueClassifier
+from .worktree_listing import worktree_entries
 
 MERGE_UNSAFE_PRIMARY_OFF_TARGET = "MERGE_UNSAFE_PRIMARY_OFF_TARGET"
 MERGE_UNSAFE_PRIMARY_DIRTY = "MERGE_UNSAFE_PRIMARY_DIRTY"
@@ -53,6 +55,8 @@ DESTRUCTIVE_OP_ONLY_COPY = "DESTRUCTIVE_OP_ONLY_COPY"
 BRANCH_HAS_UNIQUE_COMMITS = "BRANCH_HAS_UNIQUE_COMMITS"
 WORKTREE_REMOVE_REFUSED_BY_GIT = "WORKTREE_REMOVE_REFUSED_BY_GIT"
 """``git worktree remove`` (no ``--force``) itself refused, e.g. a locked worktree; nothing was removed."""
+WORKTREE_PARTIALLY_REMOVED = "WORKTREE_PARTIALLY_REMOVED"
+"""``git worktree remove`` (no ``--force``) failed after it unregistered the worktree; a husk directory is left."""
 
 FORCE_RECREATE_INTENT = "force_recreate"
 """``operator_intent`` of ``mission create --force-recreate``: the operator asked for the branch to be discarded."""
@@ -288,7 +292,10 @@ def _remove_worktree(worktree: Path, env: dict[str, str] | None, *, force: bool)
     Without ``--force`` git refuses a locked worktree (and any it still finds
     dirty); that refusal is a :class:`DestructiveOpRefused` with
     :data:`WORKTREE_REMOVE_REFUSED_BY_GIT` so a caller can report it per
-    worktree. Ignored files (e.g. ``.venv/``) are removed either way.
+    worktree. git can also fail part-way (a file it cannot delete) after it
+    already unregistered the worktree: that is
+    :data:`WORKTREE_PARTIALLY_REMOVED`, the leftover directory being a husk.
+    Ignored files (e.g. ``.venv/``) are removed either way.
     """
     repo_root = _repo_root_for_worktree(worktree, env)
     if force:
@@ -299,12 +306,29 @@ def _remove_worktree(worktree: Path, env: dict[str, str] | None, *, force: bool)
     result = _run_git(repo_root, ["worktree", "remove", "--", str(worktree)], env=env)
     if result.returncode != 0:
         reason = result.stderr.strip() or result.stdout.strip() or f"git exited {result.returncode}"
+        if not _still_registered(repo_root, worktree, env):
+            raise DestructiveOpRefused(
+                error_code=WORKTREE_PARTIALLY_REMOVED,
+                worktree_path=worktree,
+                dirty_entries=reason.splitlines(),
+                remediation=f"git unregistered {worktree} but could not delete all of it; clear what is left with `spec-kitty doctor workspaces --fix`.",
+            )
         raise DestructiveOpRefused(
             error_code=WORKTREE_REMOVE_REFUSED_BY_GIT,
             worktree_path=worktree,
             dirty_entries=reason.splitlines(),
             remediation=f"git refused to remove {worktree} (it is locked or holds local state); nothing was removed.",
         )
+
+
+def _still_registered(repo_root: Path, worktree: Path, env: dict[str, str] | None) -> bool:
+    """``True`` when ``worktree`` is still registered (or the list cannot be read: assume nothing changed)."""
+    try:
+        entries = worktree_entries(repo_root, env=env)
+    except GitCommandError:
+        return True
+    target = worktree.resolve(strict=False)
+    return any(entry.path.resolve(strict=False) == target for entry in entries)
 
 
 def guarded_worktree_remove(

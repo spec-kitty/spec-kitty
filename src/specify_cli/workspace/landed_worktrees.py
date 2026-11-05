@@ -103,6 +103,7 @@ from specify_cli.git.destructive_guard import (
     discarded_ref,
     guarded_branch_delete,
     guarded_worktree_remove,
+    WORKTREE_PARTIALLY_REMOVED,
     keep_detached_tip,
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
@@ -689,11 +690,14 @@ def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> Prun
     refusal = _still_landed_refusal(repo_root, verdict, ctx)
     if refusal is not None:
         return _outcome(verdict, removed=False, refusal=refusal)
+    detached_ref: str | None = None
     try:
         detached_ref = _keep_detached(repo_root, verdict)
         guarded_worktree_remove(verdict.path, retain=False, context=NothingIsResidue(), force=False)
     except DestructiveOpRefused as exc:
-        return _outcome(verdict, removed=False, refusal=exc.error_code)
+        # Partly removed: git unregistered it and left a husk; the branch stays for the operator.
+        removed = exc.error_code == WORKTREE_PARTIALLY_REMOVED
+        return _outcome(verdict, removed=removed, kept_ref=detached_ref if removed else None, refusal=exc.error_code)
     except (GitCommandError, RuntimeError, OSError):
         return _outcome(verdict, removed=False, refusal=WORKTREE_REMOVE_FAILED)
     if verdict.branch is None:
