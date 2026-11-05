@@ -216,6 +216,19 @@ def test_a_blank_remote_exits_one_instead_of_using_origin(fork_clone: dict[str, 
     assert path.exists() and _registered(root, path)
 
 
+def test_the_library_entry_point_defaults_to_origin(fork_clone: dict[str, object]) -> None:
+    """A caller that omits `remote` gets the module default, not an error."""
+    from specify_cli.cli.commands._landed_worktree_doctor import run_worktree_section
+
+    root = fork_clone["root"]
+    assert isinstance(root, Path)
+
+    payload, code = run_worktree_section(root, current_dir=root, prune=False, json_output=True)
+
+    assert code == 0
+    assert payload["remote"] == "origin"
+
+
 def test_fix_still_reports_against_the_named_remote_and_prunes_nothing(fork_clone: dict[str, object]) -> None:
     """--fix removes husks only; the report it also prints honours --remote and nothing is pruned."""
     root, path = fork_clone["root"], fork_clone["path"]

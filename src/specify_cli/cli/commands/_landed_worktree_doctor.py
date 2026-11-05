@@ -48,11 +48,11 @@ _VERDICT_STYLE = {
 }
 
 
-def _prune_command(remote: str | None) -> str:
+def _prune_command(remote: str) -> str:
     """The prune command that repeats the remote in force, so a printed remedy stays runnable."""
     from specify_cli.workspace.landed_worktrees import DEFAULT_REMOTE
 
-    if remote is None or remote == DEFAULT_REMOTE:
+    if remote == DEFAULT_REMOTE:
         return PRUNE_COMMAND
     return f"{PRUNE_COMMAND} --remote {remote}"
 
@@ -300,9 +300,7 @@ def run_worktree_section(
     assessment = assess_worktrees(repo_root, current_dir=current_dir, probe=probe, remote=handled)
     outcomes: list[PruneOutcome] = []
     if prune:
-        outcomes = prune_landed(
-            repo_root, current_dir=current_dir, probe=probe, assessment=assessment, remote=handled
-        )
+        outcomes = prune_landed(repo_root, current_dir=current_dir, probe=probe, assessment=assessment, remote=handled)
     if not json_output:
         _render_assessment(assessment, repo_root, prune=prune)
         if prune and assessment.error is None:
