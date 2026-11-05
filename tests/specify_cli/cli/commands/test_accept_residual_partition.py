@@ -912,19 +912,23 @@ def test_residual_commit_still_lands_flat_mission_event_log_on_its_own_branch(tm
 def test_nonartifact_residual_paths_uses_the_one_classifier() -> None:
     """#7091: the survivor is decided by ``kind_for_mission_file``, never a filename literal.
 
-    ``mission-events.jsonl`` has no kind (#5669), so it is the only path the
-    residual committer defers. Classified artifacts on both partitions
-    (matrix/status/tracer on COORD, spec on PRIMARY) stay in the batch.
+    The keep-local event log and an agent-authored REASONS canvas both have no
+    kind. A filename-only event-log exception would miss the canvas. Classified
+    artifacts on both partitions stay in the batch.
     """
     paths = [
         f"kitty-specs/{_HANDLE}/mission-events.jsonl",
+        f"kitty-specs/{_HANDLE}/reasons-canvas.md",
         f"kitty-specs/{_HANDLE}/acceptance-matrix.json",
         f"kitty-specs/{_HANDLE}/status.events.jsonl",
         f"kitty-specs/{_HANDLE}/traces/approach.md",
         f"kitty-specs/{_HANDLE}/spec.md",
     ]
 
-    assert _nonartifact_residual_paths(paths) == [f"kitty-specs/{_HANDLE}/mission-events.jsonl"]
+    assert _nonartifact_residual_paths(paths) == [
+        f"kitty-specs/{_HANDLE}/mission-events.jsonl",
+        f"kitty-specs/{_HANDLE}/reasons-canvas.md",
+    ]
 
 
 def test_deferred_residual_note_reports_the_keep_local_log(tmp_path: Path) -> None:
