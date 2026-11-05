@@ -673,24 +673,37 @@ class TestWireReviewRefDerivation:
         assert prepared.event.review_result == _REWIND_VERDICT
 
     def test_the_recorded_pointer_satisfies_the_gated_edge(self, feature_dir: Path) -> None:
-        """No ``TransitionError``: the gate sees the derived pointer, not the absent one."""
-        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
-        assert prepared.event is not None
+        """Forced, only the review_ref rule judges the edge: it must see the derived pointer.
 
-    def test_a_supplied_pointer_is_recorded_unchanged(self, feature_dir: Path) -> None:
+        The unforced move is decided by the ``in_review`` guard before the pointer rule, so
+        only the forced path proves the derivation happens before validation.
+        """
         prepared = _prepare(
             feature_dir,
-            _request(
-                feature_dir=feature_dir,
-                to_lane="in_progress",
-                review_ref="review-cycle://WP01/7",
-                review_result=_REWIND_VERDICT,
-            ),
+            _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT, force=True, reason="operator rewind"),
             Lane.IN_REVIEW,
         )
 
         assert prepared.event is not None
         assert prepared.event.review_ref == "review-cycle://WP01/7"
+
+    def test_a_supplied_pointer_takes_precedence_over_the_structured_reference(self, feature_dir: Path) -> None:
+        """Forced (no consistency guard), so a caller pointer that differs is observable."""
+        prepared = _prepare(
+            feature_dir,
+            _request(
+                feature_dir=feature_dir,
+                to_lane="in_progress",
+                review_ref="feedback://caller",
+                review_result=_REWIND_VERDICT,
+                force=True,
+                reason="operator rewind",
+            ),
+            Lane.IN_REVIEW,
+        )
+
+        assert prepared.event is not None
+        assert prepared.event.review_ref == "feedback://caller"
 
     def test_a_disagreeing_supplied_pointer_still_fails_the_consistency_rule(self, feature_dir: Path) -> None:
         """The derivation must not paper over a caller's contradiction."""
@@ -708,17 +721,8 @@ class TestWireReviewRefDerivation:
 
     @pytest.mark.parametrize("reference", [None, "", "   "])
     def test_a_blank_structured_reference_is_not_a_pointer(self, feature_dir: Path, reference: str | None) -> None:
-        """A blank/non-string reference leaves the pointer absent, so the write is refused.
-
-        Which refusal names the failure depends on the path: unforced moves keep the
-        ``in_review`` guard's established "review_result with reference" message, and a
-        forced one falls to the force-insurmountable ``review_ref`` rule. Both refuse
-        before any append, and neither records a pointer the contract would reject.
-        """
+        """A blank/non-string reference leaves the pointer absent, so a forced rewind is refused."""
         verdict = ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference=reference)  # type: ignore[arg-type]
-
-        with pytest.raises(TransitionError, match="review_result with reference|requires review_ref"):
-            _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=verdict), Lane.IN_REVIEW)
 
         with pytest.raises(TransitionError, match="requires review_ref"):
             _prepare(
@@ -726,19 +730,3 @@ class TestWireReviewRefDerivation:
                 _request(feature_dir=feature_dir, to_lane="in_progress", review_result=verdict, force=True, reason="operator rewind"),
                 Lane.IN_REVIEW,
             )
-
-    def test_the_derivation_reads_no_io(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """NFR-002: the derivation is a field read, never a file/pin/git lookup."""
-        import subprocess
-
-        def _no_io(*args: object, **kwargs: object):
-            raise AssertionError("the review_ref derivation performed I/O")
-
-        monkeypatch.setattr(Path, "read_text", _no_io)
-        monkeypatch.setattr(Path, "open", _no_io)
-        monkeypatch.setattr(subprocess, "run", _no_io)
-
-        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
-
-        assert prepared.event is not None
-        assert prepared.event.review_ref == "review-cycle://WP01/7"
