@@ -951,7 +951,6 @@ def _worktree_plan_diagnostics(
 _RUN_OUTCOME_TEXT = {
     WorktreeOutcome.UPGRADED_COMMITTED: "upgraded and committed",
     WorktreeOutcome.NOTHING_TO_UPGRADE: "selected, nothing to upgrade (nothing written)",
-    WorktreeOutcome.WOULD_UPGRADE: "will be upgraded",
     WorktreeOutcome.FAILED: "selected, migrations failed here, nothing committed (see errors)",
 }
 

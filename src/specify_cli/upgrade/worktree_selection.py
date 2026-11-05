@@ -107,7 +107,6 @@ class WorktreeOutcome(StrEnum):
     UPGRADED_COMMITTED = "upgraded_committed"
     UPGRADED_NOT_COMMITTED = "upgraded_not_committed"
     NOTHING_TO_UPGRADE = "nothing_to_upgrade"
-    WOULD_UPGRADE = "would_upgrade"
     FAILED = "failed"
 
 
