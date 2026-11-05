@@ -117,9 +117,7 @@ from typer.testing import CliRunner
 from specify_cli import app as root_app
 from specify_cli.analysis_report import write_analysis_report
 from tests.characterization._normalize import normalize_envelope, normalize_json_value
-from specify_cli.status.models import Lane, StatusEvent
-from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import commit_lane_implementation, derive_mission_id, write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, commit_reviewed_wp01, derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.charter_preflight._fixtures import (
     seed_bundle_files,
     seed_charter,
@@ -128,7 +126,7 @@ from tests.specify_cli.charter_preflight._fixtures import (
     seed_manifest,
     write_metadata,
 )
-from tests.terminus.conftest import declare_owned_files
+from tests.terminus.conftest import declare_owned_files, pin_planning_commit
 from tests.utils import write_wp
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -256,24 +254,9 @@ def _build_mission_repo(
         mission_id=mission_id,
     )
     if reviewed:
-        # #6715: WP01 owns src/**, is claimed by its implementer and approved by a different identity.
-        write_wp(repo_root, mission_dirname, "claimed", "WP01")
+        # #6715: WP01 owns src/**; its review is recorded below, once the implementation is committed.
+        write_wp(repo_root, mission_dirname, "planned", "WP01", agent="trio-implementer", seed_canonical=False)
         declare_owned_files(feature_dir, ["WP01"])
-        seed_status_event(
-            feature_dir,
-            StatusEvent(
-                event_id="01JTR10REV1EWAPPR0VA000001",
-                mission_slug=mission_dirname,
-                wp_id="WP01",
-                from_lane=Lane.CLAIMED,
-                to_lane=Lane(wp_lane),
-                at="2025-01-02T00:00:00+00:00",
-                actor="trio-reviewer",
-                force=True,
-                execution_mode="direct_repo",
-                reason="test fixture: approved by a non-implementer",
-            ),
-        )
     else:
         write_wp(repo_root, mission_dirname, wp_lane, "WP01")
 
@@ -307,7 +290,11 @@ def _build_mission_repo(
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-q", "-m", "seed mission scaffold")
     if reviewed:
-        commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+        # The order a real Mission records: the planning commit, the lane's implementation, then
+        # its implementer's claim chain and an approval by a different identity, stamped at the tip.
+        pin_planning_commit(repo_root, feature_dir, commit_message="record planning commit")
+        lane_tip = commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+        commit_reviewed_wp01(repo_root, feature_dir, lane_head=lane_tip, to_lane=wp_lane, implementer="trio-implementer", reviewer="trio-reviewer")
 
     if coord:
         # Branch the coord ref from the FULLY populated mission commit --

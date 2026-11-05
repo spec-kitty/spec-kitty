@@ -235,10 +235,9 @@ def _create_test_feature(
 ) -> Tuple[Path, Path]:
     """Create a minimal but valid feature for acceptance testing.
 
-    *reviewed_owned_files* (opt-in, #6715): WP01 declares those ``owned_files`` and its history is
-    an implementer's claim, an approval by a different identity, then ``done``, instead of one
-    forced ``planned -> done`` hop. The caller still commits the lane's implementation
-    (``commit_lane_implementation``) once ``lanes.json`` is written.
+    *reviewed_owned_files* (opt-in, #6715): WP01 declares those ``owned_files`` and no status history
+    is seeded. The caller writes ``lanes.json``, commits the work under review, then records the
+    review with ``tests.lane_test_utils.commit_reviewed_wp01``, in that order.
 
     Returns (repo_root, feature_dir).
     """
@@ -312,7 +311,7 @@ def _create_test_feature(
     (tasks_dir / "WP01-test.md").write_text(wp_content)
 
     # Status event log
-    if omit_status_events:
+    if omit_status_events or reviewed_owned_files is not None:
         pass
     elif malformed_events is not None:
         (feature_dir / "status.events.jsonl").write_text(malformed_events)
@@ -321,31 +320,19 @@ def _create_test_feature(
         from ulid import ULID
 
         now = now_utc_iso()
-        hops: list[tuple[Lane, Lane, str, str | None]]
-        if reviewed_owned_files is None:
-            hops = [(Lane.PLANNED, Lane.DONE, "test-agent", "Test setup: skip to done")]
-        else:
-            hops = [
-                (Lane.PLANNED, Lane.CLAIMED, "test-agent", None),
-                (Lane.CLAIMED, Lane.APPROVED, "test-reviewer", "Test setup: approved by a non-implementer"),
-                (Lane.APPROVED, Lane.DONE, "test-agent", "Test setup: approved work package lands as done"),
-            ]
-        for idx, (from_lane, to_lane, actor, reason) in enumerate(hops):
-            seed_status_event(
-                feature_dir,
-                StatusEvent(
-                    event_id=str(ULID()),
-                    mission_slug=mission_slug,
-                    wp_id="WP01",
-                    from_lane=from_lane,
-                    to_lane=to_lane,
-                    at=now if len(hops) == 1 else f"2026-01-01T00:0{idx}:00+00:00",
-                    actor=actor,
-                    force=from_lane != Lane.PLANNED or to_lane == Lane.DONE,
-                    execution_mode="direct_repo",
-                    reason=reason,
-                ),
-            )
+        event = StatusEvent(
+            event_id=str(ULID()),
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.DONE,
+            at=now,
+            actor="test-agent",
+            force=True,
+            execution_mode="direct_repo",
+            reason="Test setup: skip to done",
+        )
+        seed_status_event(feature_dir, event)
         append_annotations_atomic_verified(
             feature_dir,
             [
@@ -753,12 +740,12 @@ def test_accept_cli_no_commit_json_allows_planning_artifact_research_without_mat
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     deliverables_path = "docs/research/research-planning-only/"
-    # #6715: WP01 owns the research deliverables and is approved by a non-implementer.
+    # #6715: WP01 owns the research deliverables; its review follows their commit, below.
     repo_root, feature_dir = _create_test_feature(tmp_path, "research-planning-only", reviewed_owned_files=(f"{deliverables_path}**",))
     subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
     (repo_root / ".kittify").mkdir(exist_ok=True)
 
-    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.lane_test_utils import commit_reviewed_wp01, write_single_lane_manifest
 
     meta_path = feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -786,6 +773,7 @@ def test_accept_cli_no_commit_json_allows_planning_artifact_research_without_mat
         check=True,
         capture_output=True,
     )
+    commit_reviewed_wp01(repo_root, feature_dir, lane_head=None)  # a planning lane is never stamped
 
     cli = typer.Typer()
     cli.command(name="accept")(accept_module.accept)
