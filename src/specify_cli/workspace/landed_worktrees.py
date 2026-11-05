@@ -84,6 +84,8 @@ counted.
 from __future__ import annotations
 
 import os
+import shlex
+import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -124,6 +126,7 @@ __all__ = [
     "WorktreeVerdict",
     "assess_worktrees",
     "prune_landed",
+    "shell_command",
 ]
 
 ProbeFn = Callable[[Sequence[Path]], ProcessProbeResult]
@@ -602,13 +605,20 @@ def _reassess(repo_root: Path, path: Path, ctx: _Context) -> WorktreeVerdict | N
     return None
 
 
+def shell_command(*args: str) -> str:
+    """``args`` as one copy-pasteable command line for this platform's shell (POSIX quoting, or ``cmd.exe`` rules on Windows)."""
+    if os.name == "nt":
+        return subprocess.list2cmdline(args)
+    return shlex.join(args)
+
+
 def _recreate(verdict: WorktreeVerdict, *, branch_kept: bool) -> str:
     """The command that brings back what the prune removed: the worktree on a kept branch, else the branch or detached tip."""
     if verdict.branch is None:
-        return f"git worktree add --detach {verdict.path} {verdict.tip}"
+        return shell_command("git", "worktree", "add", "--detach", str(verdict.path), verdict.tip or "")
     if branch_kept:
-        return f"git worktree add {verdict.path} {verdict.branch}"
-    return f"git branch {verdict.branch} {verdict.tip}"
+        return shell_command("git", "worktree", "add", str(verdict.path), verdict.branch)
+    return shell_command("git", "branch", verdict.branch, verdict.tip or "")
 
 
 def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = False, kept_ref: str | None = None, refusal: str | None = None) -> PruneOutcome:
