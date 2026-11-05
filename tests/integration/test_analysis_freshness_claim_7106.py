@@ -11,9 +11,10 @@ review artifacts live under `tasks/<wp>/`) was refused with
 These tests drive the real CLI end to end on a finalized `lanes` mission: record
 the analysis through `record-analysis --report-only` (the material-manifest path
 the issue uses), claim WP01 through `agent action implement` (which allocates a
-real lane worktree and stamps the provenance), then claim WP02. The positive
-controls assert the opposite direction on the same fixture: a real planning edit,
-and a rework cycle, still gate implementation.
+real lane worktree and stamps the provenance), then claim WP02, and re-claim a
+rejected work package. The opposite direction -- a real planning edit still stales
+the report -- is pinned by the closure's unit controls in
+`tests/specify_cli/test_analysis_inputs.py`.
 """
 
 from __future__ import annotations
@@ -211,27 +212,6 @@ def test_claiming_a_work_package_keeps_the_analysis_current(tmp_path: Path) -> N
     assert _wp_lane(mission, "WP02") == "in_progress"
     # The recorded report itself is untouched -- nothing re-recorded it.
     assert report.read_bytes() == report_before
-
-
-def test_planning_edit_after_the_analysis_still_refuses_the_next_claim(tmp_path: Path) -> None:
-    """Positive control (#7106): a substantive planning edit still gates implementation."""
-    mission = _mission(tmp_path)
-    first = _sk(mission, "agent", "action", "implement", "WP01", "--agent", "alice", "--mission", mission.slug)
-    assert first.returncode == 0, _out(first)[-3000:]
-
-    wp01 = mission.wp_path("WP01")
-    edited = wp01.read_text(encoding="utf-8").replace("subtasks:\n- T1\n", "subtasks:\n- T1\n- T1b\n")
-    assert edited != wp01.read_text(encoding="utf-8")
-    wp01.write_text(edited, encoding="utf-8")
-    _commit_all(mission.repo, "planning edit after analysis")
-
-    second = _sk(mission, "agent", "action", "implement", "WP02", "--agent", "alice", "--mission", mission.slug)
-
-    assert second.returncode != 0, f"a planning edit must still refuse the claim:\n{_out(second)[-3000:]}"
-    assert "analysis_report_required" in _out(second)
-    assert "stale_analysis_report" in _out(second)
-    assert f"tasks/{wp01.name}" in _out(second)
-    assert _wp_lane(mission, "WP02") != "in_progress"
 
 
 def test_rework_reclaim_does_not_require_re_recording(tmp_path: Path) -> None:

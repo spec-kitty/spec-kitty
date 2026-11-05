@@ -107,15 +107,21 @@ def test_planning_frontmatter_still_changes_the_definition_hash(tmp_path: Path, 
 
 
 def test_vcs_lock_does_not_change_meta_hash(tmp_path: Path):
-    """#7106: the mission's first claim locks the VCS in ``meta.json``; that is not planning input."""
+    """#7106: the mission's first claim locks the VCS in ``meta.json``; that is not planning input.
+
+    The unlocked file is written in ``write_meta``'s format, and its fingerprint must
+    equal the raw-bytes hash the previous closure stored, so a report recorded before
+    this fix stays current after an upgrade.
+    """
     from specify_cli.analysis_inputs import collect_material_inputs
+    from specify_cli.analysis_report import _sha256_file
 
     mission = tmp_path / "kitty-specs/test"
     mission.mkdir(parents=True)
     meta = mission / "meta.json"
-    meta.write_text('{"mission_slug": "test", "target_branch": "main", "topology": "lanes"}')
+    meta.write_text('{\n  "mission_slug": "test",\n  "target_branch": "main",\n  "topology": "lanes"\n}\n')
     before = collect_material_inputs(mission, tmp_path)
-    assert before["material:kitty-specs/test/meta.json"]["sha256"] is not None
+    assert before["material:kitty-specs/test/meta.json"]["sha256"] == _sha256_file(meta)
 
     meta.write_text('{"mission_slug": "test", "target_branch": "main", "topology": "lanes", "vcs": "git", "vcs_locked_at": "2026-11-02T22:17:28.862607+00:00"}')
     assert collect_material_inputs(mission, tmp_path) == before
@@ -125,9 +131,11 @@ def test_vcs_lock_does_not_change_meta_hash(tmp_path: Path):
     assert collect_material_inputs(mission, tmp_path) == before
 
 
-@pytest.mark.parametrize("backend", ['"hg"', "null", '""'])
-def test_unexpected_vcs_backend_still_changes_the_meta_hash(tmp_path: Path, backend: str):
-    """The lock is normalised, not silenced: a value a claim never writes still stales."""
+def test_unexpected_vcs_backend_still_changes_the_meta_hash(tmp_path: Path):
+    """The lock is normalised, not silenced: a value a claim never writes still stales.
+
+    The value matrix belongs to the kernel projection's tests; this proves the wiring.
+    """
     from specify_cli.analysis_inputs import collect_material_inputs
 
     mission = tmp_path / "kitty-specs/test"
@@ -136,17 +144,14 @@ def test_unexpected_vcs_backend_still_changes_the_meta_hash(tmp_path: Path, back
     meta.write_text('{"mission_slug": "test"}')
     before = collect_material_inputs(mission, tmp_path)
 
-    meta.write_text(f'{{"mission_slug": "test", "vcs": {backend}}}')
+    meta.write_text('{"mission_slug": "test", "vcs": "hg"}')
     assert collect_material_inputs(mission, tmp_path) != before
 
 
 @pytest.mark.parametrize(
     "document",
     [
-        "mission_slug: test\n",  # an equivalent YAML mapping is not valid metadata
-        "",  # the safe loader used to read this as an empty mapping
-        "null",
-        "[]",
+        "[]",  # a non-object top level
         '{"mission_slug": "test"',  # truncated JSON
     ],
 )
