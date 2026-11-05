@@ -33,6 +33,7 @@ from specify_cli.consolidation.reconciliation import MergeOutcomeVerifier, Verif
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from tests.terminus.conftest import declare_owned_files
 
 pytestmark = [pytest.mark.performance, pytest.mark.git_repo]
 
@@ -51,9 +52,9 @@ def _rev(repo: Path, ref: str = "HEAD") -> str:
     return subprocess.run(["git", "rev-parse", ref], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
 
 
-def _event(seq: int, wp: str, frm: str, to: str, *, slug: str, at: str, stamp: str | None) -> dict[str, object]:
+def _event(seq: int, wp: str, frm: str, to: str, *, slug: str, at: str, stamp: str | None, actor: str = "implementer-ivan") -> dict[str, object]:
     ev: dict[str, object] = {
-        "actor": "implementer-ivan",
+        "actor": actor,
         "at": at,
         "event_id": f"01BENCH{seq:016d}",
         "evidence": None,
@@ -125,9 +126,15 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
         computed_from="wp06-nfr001-benchmark",
     )
     write_lanes_json(feature_dir, manifest)
+    # #6715: each WP declares the files its commits write.
+    for wp_id in _WP_IDS:
+        declare_owned_files(feature_dir, [wp_id], [f"src/pkg/{wp_id.lower()}_*.py"])
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap")
     coord_base = _rev(repo)
+    # #6715: the lane is cut from the recorded planning commit (committed with the events below).
+    manifest.planning_commit_sha = coord_base
+    write_lanes_json(feature_dir, manifest)
 
     lane_branch = lane_branch_name(slug, "lane-a", target_branch=_TARGET)
     _git(repo, "branch", lane_branch, coord_base)
@@ -164,12 +171,12 @@ def _build_five_wp_mixed_lane(tmp_path: Path, *, slug: str, wp05_canceled: bool)
     lane_tip = _rev(repo)
     for wp_index, wp_id in approving:
         seq += 1
-        events.append(_event(seq, wp_id, "in_review", "approved", slug=slug, at=f"2026-01-0{wp_index + 1}T00:04:00+00:00", stamp=lane_tip))
+        events.append(_event(seq, wp_id, "in_review", "approved", slug=slug, at=f"2026-01-0{wp_index + 1}T00:04:00+00:00", stamp=lane_tip, actor="reviewer-renata"))
 
     _git(repo, "checkout", "-q", _TARGET)
     events_path = feature_dir / "status.events.jsonl"
     events_path.write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
-    _git(repo, "add", str(events_path.relative_to(repo)))
+    _git(repo, "add", str(events_path.relative_to(repo)), str((feature_dir / "lanes.json").relative_to(repo)))
     _git(repo, "commit", "-qm", "record events")
 
     return repo, feature_dir, manifest, coord_base, lane_branch

@@ -53,6 +53,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.entry_preflight import _pre_mutation_safety_preflight
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
@@ -143,6 +144,8 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     _seed_wp_approved(feature_dir, slug, "WP01")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
+    # #6715: record the planning commit the lanes are cut from, as finalize-tasks does.
+    pin_planning_commit(tmp_path, feature_dir, commit_message=f"chore({slug}): record the planning commit")
 
     mission_branch = f"kitty/mission-{slug}"
     _git(tmp_path, "branch", mission_branch, "main")

@@ -67,6 +67,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, pin_planning_commit
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -190,7 +191,8 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
     return manifest
 
 
-def _write_wp_file(feature_dir: Path, wp_id: str) -> None:
+def _write_wp_file(feature_dir: Path, wp_id: str, owned: str) -> None:
+    # #6715: the WP declares the file its lane commits.
     (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
         "---\n"
         f"work_package_id: {wp_id}\n"
@@ -198,6 +200,7 @@ def _write_wp_file(feature_dir: Path, wp_id: str) -> None:
         "agent: implementer-bot\n"
         "review_status: approved\n"
         "reviewed_by: reviewer-bot\n"
+        f"owned_files:\n  - {owned}\n"
         "---\n"
         f"# {wp_id}\n",
         encoding="utf-8",
@@ -230,15 +233,18 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
     (feature_dir / "tasks").mkdir(parents=True)
     _write_meta(feature_dir)
     _write_manifest(feature_dir)
-    for wp_id in _WP_IDS:
-        _write_wp_file(feature_dir, wp_id)
+    for wp_id, owned in zip(_WP_IDS, _LANE_FILES.values(), strict=True):
+        _write_wp_file(feature_dir, wp_id, owned)
 
     # Pre-record per-WP APPROVED events (not done) so the real bookkeeping pass
     # has real done transitions to emit through the coordination worktree.
     (feature_dir / "status.events.jsonl").write_text(
         "".join(
-            json.dumps(_approved_event(wp_id, str(idx + 1)), sort_keys=True) + "\n"
+            json.dumps(event, sort_keys=True) + "\n"
             for idx, wp_id in enumerate(_WP_IDS)
+            # #6715: an implementer of record distinct from the approving reviewer.
+            for approved in [_approved_event(wp_id, str(idx + 1))]
+            for event in [*implementer_claim_events(approved, actor="implementer-bot"), approved]
         ),
         encoding="utf-8",
     )
@@ -248,6 +254,8 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+    # #6715: record the planning commit the lanes are cut from, as finalize-tasks does.
+    pin_planning_commit(repo, feature_dir, commit_message=f"chore({MISSION_SLUG}): record the planning commit")
 
     # Coordination/mission branch at the current tip.
     _git(repo, "branch", COORD_BRANCH)

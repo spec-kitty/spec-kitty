@@ -39,8 +39,11 @@ from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
+from specify_cli.lanes.compute import lane_created_branch
+from tests.integration.target_owned_fixtures import commit_file_on_branch
 from tests.lane_test_utils import create_lane_branches, write_mission_meta
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import declare_owned_files, implementer_claim_events
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -67,28 +70,40 @@ def _init_git_repo(repo: Path) -> None:
     _run(["git", "-C", str(repo), "commit", "-m", "init"])
 
 
-def _make_manifest(slug: str, lane_count: int = 10) -> MagicMock:
+def _make_manifest(repo: Path, slug: str, lane_count: int = 10) -> MagicMock:
     manifest = MagicMock()
     # Lane naming is keyed
     # on lanes_manifest.mission_slug; keep it aligned with the real slug.
     manifest.mission_slug = slug
     manifest.target_branch = "main"
     manifest.mission_branch = f"kitty/mission-{slug}"
+    # #6715: the evidence window starts at the recorded planning commit.
+    manifest.planning_commit_sha = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
     lanes = []
     for i in range(lane_count):
         lane = MagicMock()
         lane.lane_id = f"lane-{chr(ord('a') + i)}"
         lane.wp_ids = [f"WP{i+1:02d}"]
+        lane.depends_on_lanes = ()
         lanes.append(lane)
     manifest.lanes = lanes
+    # #5417: approved lanes must have their created branches, or the #5338
+    # claim-time integrity refusal stops the run before the resume logic.
+    create_lane_branches(repo, manifest)
+    # #6715: each WP declares its owned surface and its lane commits a change to it.
+    feature_dir = repo / "kitty-specs" / slug
+    declare_owned_files(feature_dir, [lane.wp_ids[0] for lane in lanes])
+    for lane in lanes:
+        path = f"src/{lane.wp_ids[0].lower()}.py"
+        commit_file_on_branch(repo, lane_created_branch(manifest, lane.lane_id), path, f"# implementation of {path}\n", f"feat: implement {path}")
     return manifest
 
 
-def _write_done_events(feature_dir: Path, wp_ids: list[str]) -> None:
-    _write_status_events(feature_dir, dict.fromkeys(wp_ids, "done"))
+def _write_done_events(feature_dir: Path, manifest: MagicMock, wp_ids: list[str]) -> None:
+    _write_status_events(feature_dir, manifest, dict.fromkeys(wp_ids, "done"))
 
 
-def _write_status_events(feature_dir: Path, wp_to_lane: dict[str, str]) -> None:
+def _write_status_events(feature_dir: Path, manifest: MagicMock, wp_to_lane: dict[str, str]) -> None:
     """Seed each ``wp_id`` at ``to_lane`` on the real event log (#4764/T007).
 
     ``_assert_mission_terminal_ready`` reads ``status.events.jsonl`` directly
@@ -97,24 +112,40 @@ def _write_status_events(feature_dir: Path, wp_to_lane: dict[str, str]) -> None:
     exercise the resume/idempotence bookkeeping, not readiness, so every WP
     the fixture references must be seeded acceptable.
     """
-    events = []
-    for wp_id, to_lane in wp_to_lane.items():
-        events.append(
-            json.dumps(
+    repo = feature_dir.parents[1]
+    lane_of = {lane.wp_ids[0]: lane.lane_id for lane in manifest.lanes}
+    events: list[str] = []
+    for index, (wp_id, to_lane) in enumerate(wp_to_lane.items()):
+        # #6715/#5668: an implementer's claim and an independent approval stamped at the lane tip.
+        lane_head = _run(["git", "-C", str(repo), "rev-parse", lane_created_branch(manifest, lane_of[wp_id])]).stdout.strip()
+        approved: dict[str, object] = {
+            "event_id": f"01HXYZAPPR0000000000000{index:03d}",
+            "mission_slug": feature_dir.name,
+            "wp_id": wp_id,
+            "from_lane": "in_review",
+            "to_lane": "approved",
+            "at": "2026-04-06T11:00:00+00:00",
+            "actor": "reviewer-renata",
+            "force": False,
+            "execution_mode": "worktree",
+            "policy_metadata": {"lane_head": lane_head},
+        }
+        history = [*implementer_claim_events(approved), approved]
+        if to_lane == "done":
+            history.append(
                 {
                     "event_id": f"01TEST{wp_id}",
                     "mission_slug": feature_dir.name,
                     "wp_id": wp_id,
-                    "from_lane": "in_review" if to_lane == "approved" else "approved",
-                    "to_lane": to_lane,
+                    "from_lane": "approved",
+                    "to_lane": "done",
                     "at": "2026-04-06T12:00:00+00:00",
                     "actor": "merge",
                     "force": False,
                     "execution_mode": "worktree",
-                },
-                sort_keys=True,
+                }
             )
-        )
+        events.extend(json.dumps(event, sort_keys=True) for event in history)
     (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
 
 
@@ -168,16 +199,15 @@ def _patches(
     from specify_cli.consolidation.reconciliation import write_post_fix_marker
     _meta = json.loads((tmp_path / "kitty-specs" / manifest.mission_slug / "meta.json").read_text(encoding="utf-8"))
     write_post_fix_marker(tmp_path, _meta["mission_id"])
-    # #5417: approved lanes must have their created branches, or the #5338
-    # claim-time integrity refusal stops the run before the resume logic.
-    create_lane_branches(tmp_path, manifest)
     if initial_state is not None:
         # Post-fix attempt-1 persists these BEFORE consolidating any lane
         # (persist-before-mutate); anchor them to a real commit object.
-        from specify_cli.lanes.compute import lane_created_branch
         _base = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
         initial_state.pre_mutation_coord_sha = _base
-        initial_state.pre_interrupt_lane_tips = {lane_created_branch(manifest, lane.lane_id): _base for lane in manifest.lanes}
+        initial_state.pre_interrupt_lane_tips = {
+            lane_created_branch(manifest, lane.lane_id): _run(["git", "-C", str(tmp_path), "rev-parse", lane_created_branch(manifest, lane.lane_id)]).stdout.strip()
+            for lane in manifest.lanes
+        }
     return [
         patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
         patch("specify_cli.consolidation.resolve.load_state", return_value=initial_state),
@@ -236,8 +266,8 @@ class TestMergeResumeIdempotence:
         # write resolves a non-empty mid8 instead of tripping the #2091 guard.
         write_mission_meta(feature_dir)
 
-        manifest = _make_manifest(slug, lane_count=3)
-        _write_done_events(feature_dir, ["WP01", "WP02", "WP03"])
+        manifest = _make_manifest(tmp_path, slug, lane_count=3)
+        _write_done_events(feature_dir, manifest, ["WP01", "WP02", "WP03"])
 
         # State says all three WPs are completed already.
         existing = ConsolidationState(
@@ -315,11 +345,11 @@ class TestMergeResumeAfterInterruption:
         # write resolves a non-empty mid8 instead of tripping the #2091 guard.
         write_mission_meta(feature_dir)
 
-        manifest = _make_manifest(slug, lane_count=3)
+        manifest = _make_manifest(tmp_path, slug, lane_count=3)
         # WP01 already done; WP02/WP03 approved (real pre-merge shape) so the
         # merge-ready precondition (#4764/T007) lets the resume proceed.
         _write_status_events(
-            feature_dir, {"WP01": "done", "WP02": "approved", "WP03": "approved"}
+            feature_dir, manifest, {"WP01": "done", "WP02": "approved", "WP03": "approved"}
         )
         # WP01 completed; WP02 and WP03 remaining.
         existing = ConsolidationState(
@@ -401,11 +431,11 @@ def _run_bounded_merge_fixture(tmp_path: Path) -> tuple[float, list[str], list[s
     # write resolves a non-empty mid8 instead of tripping the #2091 guard.
     write_mission_meta(feature_dir)
 
-    manifest = _make_manifest(slug, lane_count=10)
+    manifest = _make_manifest(tmp_path, slug, lane_count=10)
     wp_ids = [f"WP{i+1:02d}" for i in range(10)]
     # #4764/T007: seed every WP approved so the merge-ready precondition
     # lets this full-resume fixture proceed to the code under test.
-    _write_status_events(feature_dir, dict.fromkeys(wp_ids, "approved"))
+    _write_status_events(feature_dir, manifest, dict.fromkeys(wp_ids, "approved"))
 
     existing = ConsolidationState(
         mission_id=slug,
