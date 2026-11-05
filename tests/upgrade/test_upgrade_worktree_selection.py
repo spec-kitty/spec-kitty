@@ -597,10 +597,14 @@ def test_failed_worktree_migration_is_reported_as_failed(tmp_path: Path) -> None
     assert _head(worktree) == head_before
 
 
-def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path) -> None:
+def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Migrations are pending but none runs on worktrees: the selected worktree is
     untouched, and the pass reports it as nothing written (runner level: the CLI
-    re-discovers the real migrations, several of which do run on worktrees)."""
+    re-discovers the real migrations, several of which do run on worktrees).
+    With no migration pending and the version moving, the worktree pass does not
+    run: the preview and the post-run block still name the selected worktree as not written."""
+    from specify_cli.upgrade.registry import MigrationRegistry
+    from tests.upgrade.test_worktree_stamp_guard import _invoke_upgrade
     from specify_cli.cli.commands.upgrade import _run_line
     from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
     from specify_cli.upgrade.runner import MigrationRunner
@@ -631,6 +635,17 @@ def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path) -> None:
     assert run.outcome is WorktreeOutcome.NOTHING_TO_UPGRADE
     assert _state(worktree) == before
     assert _run_line(run, root, auto_commit=True) == "  .worktrees/wip-f (wip/f): selected, nothing to upgrade (nothing written)"
+
+    monkeypatch.setattr(MigrationRegistry, "get_applicable", classmethod(lambda cls, *a, **k: []))
+    args = ["--target", _TARGET_VERSION, "--yes", "--include-worktree", ".worktrees/wip-f"]
+    preview = _invoke_upgrade([*args, "--dry-run"], cwd=root)
+    assert preview.exit_code == 0, preview.output
+    assert ".worktrees/wip-f (wip/f): selected, nothing to upgrade (nothing will be written)" in preview.output
+    assert "will be upgraded" not in preview.output
+    real = _invoke_upgrade(args, cwd=root)
+    assert real.exit_code == 0, real.output
+    assert ".worktrees/wip-f (wip/f): selected, nothing to upgrade (nothing written)" in real.output
+    assert _state(worktree) == before
 
 
 def test_dispositions_mark_plain_directories_and_escaping_symlinks(tmp_path: Path) -> None:
@@ -675,8 +690,8 @@ def test_run_outcome_and_lines(tmp_path: Path) -> None:
 
     selected = WorktreeDisposition(path=tmp_path / ".worktrees" / "a", branch="wip/a", action=DispositionAction.UPGRADE)
     detached = WorktreeDisposition(path=tmp_path / ".worktrees" / "d", branch=None, action=DispositionAction.SKIP_MISSION)
-    assert _preview_line(selected, tmp_path, auto_commit=False).endswith(".worktrees/a (wip/a): will be upgraded, not committed (auto-commit off)")
-    assert _preview_line(detached, tmp_path, auto_commit=True).endswith(".worktrees/d (detached): skipped, Mission worktree")
+    assert _preview_line(selected, tmp_path, auto_commit=False, pass_runs=True).endswith(".worktrees/a (wip/a): will be upgraded, not committed (auto-commit off)")
+    assert _preview_line(detached, tmp_path, auto_commit=True, pass_runs=True).endswith(".worktrees/d (detached): skipped, Mission worktree")
     not_committed = WorktreeRunResult(disposition=selected, outcome=WorktreeOutcome.UPGRADED_NOT_COMMITTED)
     assert _run_line(not_committed, tmp_path, auto_commit=False).endswith("upgraded, not committed (auto-commit off)")
     assert _run_line(not_committed, tmp_path, auto_commit=True).endswith("upgraded, not committed (see warnings)")
