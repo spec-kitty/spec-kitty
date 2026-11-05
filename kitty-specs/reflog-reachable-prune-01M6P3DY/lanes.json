@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "mission_slug": "reflog-reachable-prune-01M6P3DY",
+  "mission_id": "01M6P3DYYFERG9ZSFWFA1CZE86",
+  "mission_branch": "kitty/mission-reflog-reachable-prune-01M6P3DY",
+  "target_branch": "issue-7211-reflog-reachable-prune",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_landed_worktree_doctor.py",
+        "src/specify_cli/git/destructive_guard.py",
+        "src/specify_cli/workspace/landed_worktrees.py",
+        "tests/specify_cli/cli/commands/test_doctor_workspaces_prune.py",
+        "tests/specify_cli/workspace/test_landed_worktrees.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/unreleased/**",
+        "docs/development/how-to/pr-landing.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-05T14:59:28.542779+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "bcd25833afa2bddce4d26e49cfa366cb9605e828"
+}
