@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances reflog reachable prune on issue-7211-reflog-reachable-prune so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "reflog reachable prune",
   "slug": "reflog-reachable-prune-01M6P3DY",
+  "status_phase": "1",
   "target_branch": "issue-7211-reflog-reachable-prune",
   "topology": "lanes",
   "vcs": "git",
