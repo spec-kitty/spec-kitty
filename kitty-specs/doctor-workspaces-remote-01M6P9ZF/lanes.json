@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-workspaces-remote-01M6P9ZF",
+  "mission_id": "01M6P9ZFPPPCAP7WSKQKV5B5D3",
+  "mission_branch": "issue-7214-doctor-workspaces-remote",
+  "target_branch": "issue-7214-doctor-workspaces-remote",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/development/how-to/pr-landing.md",
+        "src/specify_cli/cli/commands/_landed_worktree_doctor.py",
+        "src/specify_cli/cli/commands/_workspace_husk_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/workspace/landed_worktrees.py",
+        "tests/specify_cli/cli/commands/test_doctor_workspaces_remote.py",
+        "tests/specify_cli/workspace/test_landed_worktrees_remote.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-05T16:52:38.599138+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "794381c57ca62bc924f9e12cba5c9e02d7791222"
+}

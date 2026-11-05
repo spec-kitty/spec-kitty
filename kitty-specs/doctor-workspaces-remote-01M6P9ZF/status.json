@@ -1,0 +1,89 @@
+{
+  "event_count": 10,
+  "last_event_id": "01M6PAH9D286CJBXE7K2GQ6XHF",
+  "materialized_at": "2026-11-05T17:01:36.034512+00:00",
+  "mission_number": "",
+  "mission_slug": "doctor-workspaces-remote-01M6P9ZF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "reviewer-renata",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M6PA9QR3NEF9C2VQGTAQBWGJ",
+      "last_transition_at": "2026-11-05T16:57:28.579375+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation for review: commits e05b9c8eff, 731fa78167, 7e1fb0a74b",
+        "Implementation ready for review. --force records a true ordering fact: the code was written before the mission was re-scaffolded after the workspace loss, so no commit postdates the claim; the commits themselves are e05b9c8eff (red tests), 731fa78167 (fix), 7e1fb0a74b (golden snapshot).",
+        "Review passed (self-review round under the reviewer profile): kernel remote owner reused, fail-closed mismatch proof, 255 tests green including golden surface and completion manifest"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#7214"
+      ]
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "reviewer-renata",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M6PAH9D286CJBXE7K2GQ6XHF",
+      "last_transition_at": "2026-11-05T17:01:36.034512+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs implementation: runbook, CLI reference, fragment",
+        "Docs ready; --force records that the docs commits (24bc4064ec) predate the mission re-scaffold",
+        "Docs review passed: runbook fork-clone path, CLI reference freshness exit 0, fragment under 900 chars and style-clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#7214"
+      ]
+    }
+  }
+}
