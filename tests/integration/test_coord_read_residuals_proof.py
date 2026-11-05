@@ -289,11 +289,9 @@ def test_dry_run_forecast_returns_primary_wp_set(
 
     ctx = coord_topology_mission_sentinel_meta
     _assert_divergence_triad(ctx)
-    # Neutralise the PRIMARY decoy event log: the dry-run review-artifact preflight
-    # materialises the PRIMARY status events (WORK_PACKAGE_TASK leg), but the shared
-    # fixture seeds a deliberately NON-reducible wrong-leg probe there. The STATUS
-    # partition is not under test here (forecast asserts the LANE_STATE WP set), so
-    # an empty (reducible) log lets the real preflight run end-to-end.
+    # Empty the PRIMARY decoy event log (the shared fixture seeds a wrong-leg probe there): the
+    # STATUS partition is not under test here (forecast asserts the LANE_STATE WP set). The
+    # forecast's claim reads the approved WP01 seeded on the coord log just below, not this log.
     (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
     _seed_approved_wp01(ctx)
 
