@@ -20,7 +20,7 @@ authoritative_surface: docs/
 create_intent:
 - docs/guides/how-to/missions/merge-mission.md
 - docs/changelog/unreleased/7209-skip-lanes-evidence-window.fixed.md
-execution_mode: docs_change
+execution_mode: planning_artifact
 model: ''
 owned_files:
 - docs/guides/how-to/missions/merge-mission.md
