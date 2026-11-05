@@ -176,7 +176,7 @@ def test_report_names_an_unavailable_baseline(tmp_path: Path) -> None:
 def _worktree_warnings(worktree: Path, *, baseline: set[str] | None, from_version: str, to_version: str, failed: bool, held_paths: list[str]) -> list[str]:
     """The warnings half of ``_commit_worktree_churn_reporting``."""
     warnings, _committed = upgrade_runner._commit_worktree_churn_reporting(
-        worktree, baseline=baseline, from_version=from_version, to_version=to_version, failed=failed, held_paths=held_paths
+        worktree, baseline=baseline, from_version=from_version, to_version=to_version, failed=failed, held_paths=held_paths, wrote=True
     )
     return warnings
 
@@ -217,11 +217,24 @@ def test_worktree_without_commit_names_held_files_as_skipped_and_keeps_the_commi
     assert warnings[1].startswith("Worktree wt-a: Skipped auto-commit of 1 file(s)")
 
 
-@pytest.mark.parametrize(("landed", "failed", "expected"), [(True, False, True), (False, False, False), (True, True, False)])
-def test_worktree_churn_reports_whether_a_commit_landed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, landed: bool, failed: bool, expected: bool) -> None:
+@pytest.mark.parametrize(
+    ("landed", "failed", "wrote", "expected", "warnings"),
+    [
+        (True, False, True, True, []),
+        (False, False, False, False, []),
+        (True, True, True, False, []),
+        # Every path the run wrote was already dirty before it: no commit, and one named reason.
+        (False, False, True, False, [f"Worktree wt-a: {upgrade_runner.PRE_DIRTY_NOT_COMMITTED_WARNING}"]),
+    ],
+    ids=["committed", "nothing-written", "failed", "pre-dirty"],
+)
+def test_worktree_churn_reports_whether_a_commit_landed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, landed: bool, failed: bool, wrote: bool, expected: bool, warnings: list[str]
+) -> None:
     monkeypatch.setattr(autocommit, "prepare_upgrade_commit_files", lambda _c, _b: [])
-    monkeypatch.setattr(autocommit, "commit_touched_checkout", lambda *_a, **_k: (landed, ["x"], None))
-    _warnings, committed = upgrade_runner._commit_worktree_churn_reporting(
-        _worktree(tmp_path), baseline=set(), from_version="2", to_version="4", failed=failed, held_paths=[]
+    monkeypatch.setattr(autocommit, "commit_touched_checkout", lambda *_a, **_k: (landed, [], None))
+    got_warnings, committed = upgrade_runner._commit_worktree_churn_reporting(
+        _worktree(tmp_path), baseline=set(), from_version="2", to_version="4", failed=failed, held_paths=[], wrote=wrote
     )
     assert committed is expected
+    assert got_warnings == warnings

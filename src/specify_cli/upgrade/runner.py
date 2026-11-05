@@ -188,6 +188,11 @@ def _append_warnings(target: list[str], new: list[str], *, notice_root: Path, se
         target.append(line)
 
 
+#: The no-commit reason for a worktree whose upgrade changes were all already uncommitted
+#: before the run: the commit-set excludes pre-run dirty paths, so nothing is left to commit.
+PRE_DIRTY_NOT_COMMITTED_WARNING = "The upgrade changed only files that were already uncommitted before the run, so nothing was committed — commit them yourself."
+
+
 def _commit_worktree_churn_reporting(
     worktree: Path,
     *,
@@ -196,6 +201,7 @@ def _commit_worktree_churn_reporting(
     to_version: str,
     failed: bool,
     held_paths: list[str],
+    wrote: bool,
 ) -> tuple[list[str], bool]:
     """Commit one upgraded worktree's churn; return its warnings (each prefixed with its name)
     and whether a commit landed (#7173: the post-run output reports what happened).
@@ -204,7 +210,8 @@ def _commit_worktree_churn_reporting(
     commits nothing and says so (only when the run left changes there); an unavailable
     baseline is reported instead of committed against; files held for manual review are
     named, with the wording that depends on whether a commit landed; and a no-commit case
-    prints exactly one reason.
+    prints exactly one reason. A worktree the run wrote whose changes were all dirty before
+    the run (so excluded from the commit-set) is named as such rather than left unexplained.
     """
     prefix = f"Worktree {worktree.name}: "
     committed = False
@@ -216,6 +223,8 @@ def _commit_worktree_churn_reporting(
             reason = autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING
     else:
         committed, _paths, reason = autocommit.commit_touched_checkout(worktree, baseline, from_version, to_version)
+        if not committed and reason is None and wrote and not held_paths:
+            reason = PRE_DIRTY_NOT_COMMITTED_WARNING
     warnings = [prefix + reason] if reason else []
     if held_paths and not failed:
         joined = ", ".join(held_paths)
@@ -1064,6 +1073,7 @@ class MigrationRunner:
                 to_version=target_version,
                 failed=failed or errored,
                 held_paths=held_paths,
+                wrote=wrote,
             )
         return warnings, _worktree_outcome(failed=failed or errored, wrote=wrote or bool(held_paths), committed=committed)
 
