@@ -4,15 +4,15 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: reflog-reachable-prune-01M6P3DY
 mission_id: 01M6P3DYYFERG9ZSFWFA1CZE86
-generated_at: '2026-11-05T15:40:04.029624+00:00'
+generated_at: '2026-11-05T15:59:12.020519+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
     path: kitty-specs/reflog-reachable-prune-01M6P3DY/spec.md
-    sha256: 05a50a82489aab62fa71990a79db00dd1ce6e9d4270c1a068f4970664c289175
+    sha256: 6af47cf11b83018d8a2e6242cf1978b7dad2c79077f5c6e4394dca4a59e6c0fe
   plan.md:
     path: kitty-specs/reflog-reachable-prune-01M6P3DY/plan.md
-    sha256: 2a4758890908eb59a1df6780efda6b668e3424014c5be0e3e1b6eb51f939a371
+    sha256: af0af691ff5b3298503e5e6b4a8f01821cec4f817ea79f2d235acd6b492f9a35
   tasks.md:
     path: kitty-specs/reflog-reachable-prune-01M6P3DY/tasks.md
     sha256: c0b98918d1020b609cf002631972651c63c719f5dd7e0729e880addfa36bd131
@@ -21,9 +21,9 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  medium: 1
   low: 2
   high: 0
+  medium: 1
   critical: 0
   info: 0
 findings:
