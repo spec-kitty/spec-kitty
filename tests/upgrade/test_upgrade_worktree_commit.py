@@ -28,7 +28,7 @@ import yaml
 from specify_cli.migration.schema_version import CURRENT_SCHEMA_CAPABILITIES, REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
-from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.runner import PRE_DIRTY_NOT_COMMITTED_WARNING, MigrationRunner
 from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -291,23 +291,38 @@ def test_genuine_worktree_migration_never_runs_in_an_integrating_worktree(tmp_pa
 
 def test_no_migrations_stamp_pass_leaves_integrating_worktree_untouched(tmp_path: Path) -> None:
     """#5457: the no-migrations path (``upgrade_worktrees_only``) shares the seam:
-    a lagging lane worktree is not re-stamped or committed; the control is."""
+    a lagging lane worktree is not re-stamped or committed; the control is. A control
+    whose ``metadata.yaml`` was already dirty is re-stamped but not committed, and says why."""
     root = tmp_path / "repo"
     _init_repo(root, version="3.2.1")
     lane = _add_worktree(root, "m-lane-y", "kitty/mission-m-lane-y")
     control = _add_worktree(root, "m-control", f"{NON_INTEGRATING_PREFIX}m-control")
+    pre_dirty = _add_worktree(root, "m-pre-dirty", f"{NON_INTEGRATING_PREFIX}m-pre-dirty")
+    pre_dirty_metadata = pre_dirty / ".kittify" / "metadata.yaml"
+    pre_dirty_metadata.write_text(pre_dirty_metadata.read_text(encoding="utf-8") + "# operator note\n", encoding="utf-8")
     lane_before = _snapshot(lane)
     control_head = _git_out(control, "rev-parse", "HEAD")
+    pre_dirty_head = _git_out(pre_dirty, "rev-parse", "HEAD")
 
     result = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     runs = result.pop("worktree_results")
-    assert {r.disposition.path.name: r.outcome.value for r in runs} == {"m-lane-y": "skipped_mission", "m-control": "upgraded_committed"}
-    assert result == {"warnings": [], "errors": [], "worktree_failures": []}
+    assert {r.disposition.path.name: r.outcome.value for r in runs} == {
+        "m-lane-y": "skipped_mission",
+        "m-control": "upgraded_committed",
+        "m-pre-dirty": "upgraded_not_committed",
+    }
+    assert result == {"warnings": [f"Worktree m-pre-dirty: {PRE_DIRTY_NOT_COMMITTED_WARNING}"], "errors": [], "worktree_failures": []}
+    assert _git_out(pre_dirty, "rev-parse", "HEAD") == pre_dirty_head
     assert _snapshot(lane) == lane_before
     assert _git_out(control, "rev-parse", "HEAD") != control_head
     control_data = yaml.safe_load((control / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
     assert control_data["spec_kitty"]["version"] == "3.2.9"
+
+    # A re-run writes nothing anywhere, so no worktree gives a no-commit reason, not even the pre-dirty one.
+    rerun = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True, worktree_selection=WorktreeSelection.all())
+    assert {r.disposition.path.name: r.outcome.value for r in rerun.pop("worktree_results")}["m-pre-dirty"] == "nothing_to_upgrade"
+    assert rerun["warnings"] == []
 
 
 def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_path: Path) -> None:
