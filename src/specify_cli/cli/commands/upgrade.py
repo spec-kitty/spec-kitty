@@ -1715,7 +1715,7 @@ def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path
 
 _REASONS_THAT_KEEP_THE_MAIN_COMMIT = frozenset({UpgradeFailureReason.WORKTREE_FAILURE, UpgradeFailureReason.SURFACE_DRIFT})
 """Reasons that do not make the main checkout's own run a failure: a failed worktree gates only
-its own commit (``runner._commit_worktree_churn_reporting``), and drift held for consent is an upgrade that
+its own commit (``runner._commit_worktree_churn``), and drift held for consent is an upgrade that
 finished and commits the rest (FR-021)."""
 
 

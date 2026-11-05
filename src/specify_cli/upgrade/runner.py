@@ -193,7 +193,7 @@ def _append_warnings(target: list[str], new: list[str], *, notice_root: Path, se
 PRE_DIRTY_NOT_COMMITTED_WARNING = "The upgrade changed only files that were already uncommitted before the run, so nothing was committed — commit them yourself."
 
 
-def _commit_worktree_churn_reporting(
+def _commit_worktree_churn(
     worktree: Path,
     *,
     baseline: set[str] | None,
@@ -1066,7 +1066,7 @@ class MigrationRunner:
         warnings: list[str] = []
         committed = False
         if auto_commit:
-            warnings, committed = _commit_worktree_churn_reporting(
+            warnings, committed = _commit_worktree_churn(
                 worktree,
                 baseline=baseline,
                 from_version=from_version,
