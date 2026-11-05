@@ -54,3 +54,4 @@ def test_the_page_keeps_the_append_only_recovery_position(page: str) -> None:
     assert "never rewrites historical event bytes" in page
     assert "append-only" in page
     assert "#6955" in page
+    assert "#7080" in page
