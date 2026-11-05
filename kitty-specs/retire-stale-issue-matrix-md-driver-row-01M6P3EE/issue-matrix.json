@@ -85,7 +85,7 @@
       "wp": null
     },
     "#7217": {
-      "evidence_ref": "tests/upgrade/test_issue_matrix_md_row_retirement_7217.py (7 passed)",
+      "evidence_ref": "PR #7234; tests/upgrade/test_issue_matrix_md_row_retirement_7217.py (7 passed)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,7 +93,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
