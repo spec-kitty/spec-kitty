@@ -10,6 +10,7 @@ for the ordinary cases, and a view linking the real ``/proc`` entry of a real
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
 import time
@@ -558,8 +559,10 @@ def test_a_branch_moved_after_removal_is_not_deleted(repo: Path, tmp_path: Path,
     assert outcome.removed and not outcome.branch_deleted
     assert outcome.refusal == landed_worktrees.BRANCH_MOVED
     assert _has_branch(repo, "land-x")
-    assert outcome.recreate == f"git branch land-x {tip}"
     assert not worktree.exists()
+    assert outcome.recreate == f"git worktree add {outcome.path} land-x", "the branch was kept: recreate the worktree on it"
+    _git(repo, *shlex.split(outcome.recreate)[1:])
+    assert worktree.exists() and _git(worktree, "branch", "--show-current").strip() == "land-x"
 
 
 def test_a_branch_delete_failure_is_a_per_worktree_refusal(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -871,6 +874,7 @@ def test_a_branch_checked_out_in_another_worktree_is_kept(repo: Path, tmp_path: 
 
     assert outcome.removed and not outcome.branch_deleted
     assert outcome.refusal == Reason.BRANCH_IN_OTHER_WORKTREE
+    assert outcome.recreate == f"git worktree add {outcome.path} land-x"
     assert not worktree.exists() and second.exists() and _has_branch(repo, "land-x")
 
 

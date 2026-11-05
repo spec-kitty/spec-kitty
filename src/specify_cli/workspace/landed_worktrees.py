@@ -112,6 +112,7 @@ from specify_cli.workspace.process_probe import ProcessProbeResult, processes_wi
 
 __all__ = [
     "BRANCH_DELETE_FAILED",
+    "BRANCH_IS_PRIMARY",
     "BRANCH_MOVED",
     "NOT_REGISTERED",
     "TIP_MOVED",
@@ -140,6 +141,8 @@ BRANCH_MOVED = "BRANCH_MOVED"
 """The branch tip changed after the assessment; the branch is kept."""
 BRANCH_DELETE_FAILED = "BRANCH_DELETE_FAILED"
 """``git branch -D`` failed after the worktree was removed; the branch is kept."""
+BRANCH_IS_PRIMARY = "BRANCH_IS_PRIMARY"
+"""The worktree had the local primary branch checked out; the primary branch is never deleted."""
 
 
 class Verdict(StrEnum):
@@ -599,13 +602,17 @@ def _reassess(repo_root: Path, path: Path, ctx: _Context) -> WorktreeVerdict | N
     return None
 
 
-def _recreate(verdict: WorktreeVerdict) -> str:
-    if verdict.branch is not None:
-        return f"git branch {verdict.branch} {verdict.tip}"
-    return f"git worktree add --detach {verdict.path} {verdict.tip}"
+def _recreate(verdict: WorktreeVerdict, *, branch_kept: bool) -> str:
+    """The command that brings back what the prune removed: the worktree on a kept branch, else the branch or detached tip."""
+    if verdict.branch is None:
+        return f"git worktree add --detach {verdict.path} {verdict.tip}"
+    if branch_kept:
+        return f"git worktree add {verdict.path} {verdict.branch}"
+    return f"git branch {verdict.branch} {verdict.tip}"
 
 
 def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = False, kept_ref: str | None = None, refusal: str | None = None) -> PruneOutcome:
+    """``refusal`` set means the branch still exists (the removal or the branch delete was refused)."""
     return PruneOutcome(
         path=verdict.path,
         branch=verdict.branch,
@@ -613,7 +620,7 @@ def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = 
         removed=removed,
         branch_deleted=branch_deleted,
         kept_ref=kept_ref,
-        recreate=_recreate(verdict),
+        recreate=_recreate(verdict, branch_kept=refusal is not None),
         refusal=refusal,
     )
 
@@ -648,7 +655,7 @@ def _delete_landed_branch(repo_root: Path, branch: str, tip: str | None, ctx: _C
     branch itself is never deleted.
     """
     if branch == ctx.primary:
-        return False, None, None
+        return False, None, BRANCH_IS_PRIMARY
     live = branch_tip(repo_root, branch)
     if live is None:
         return False, None, None
