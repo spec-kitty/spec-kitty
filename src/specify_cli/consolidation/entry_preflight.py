@@ -394,8 +394,18 @@ def _synthesize_no_lane_manifest(
     no separate mission branch to merge FROM on this path. WP ids are read off
     the mission's reduced status snapshot (the same mission's WPs the T007
     precondition will evaluate), never re-derived from a different source.
+
+    ``planning_commit_sha`` is derived from git (#7209): the parent of the first
+    commit on the target branch that added the Mission's ``meta.json``. It opens
+    the implementation-evidence window, which ``wp_evidence`` alone computes;
+    it stays ``None`` when no such parent exists, and the gate then refuses.
     """
     from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from specify_cli.lanes.derived_planning_base import (
+        SKIP_LANES_SYNTHESIS_SOURCE,
+        derive_base_before_first_add,
+        mission_meta_pathspec,
+    )
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.status import read_events, reduce
 
@@ -420,7 +430,8 @@ def _synthesize_no_lane_manifest(
         target_branch=target_branch,
         lanes=[lane],
         computed_at=now_utc_iso(),
-        computed_from="skip-lanes direct-on-target synthesis (T021, FR-012)",
+        computed_from=SKIP_LANES_SYNTHESIS_SOURCE,
+        planning_commit_sha=derive_base_before_first_add(main_repo, target_branch, mission_meta_pathspec(mission_slug)),
     )
 
 

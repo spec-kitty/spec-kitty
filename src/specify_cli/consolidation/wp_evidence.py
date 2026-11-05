@@ -10,7 +10,8 @@ recorded by the implementer itself.
 
 Per approved (or ``done``), non-canceled work package, first match wins (data-model.md):
 
-1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit.
+1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit (for a
+   ``consolidate --skip-lanes`` Mission with no ``lanes.json``: none could be derived from git, #7209).
 2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002). When
    the window's tip is a branch ref that is truly absent, the refusal says which shape that is
    (:func:`absent_lane_window_cause`): restore actual lane history if it existed, or escalate an
@@ -62,6 +63,7 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
 from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range, commit_parents, sha_reachable_from
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
+from specify_cli.lanes.derived_planning_base import SKIP_LANES_SYNTHESIS_SOURCE
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import is_migration_actor
@@ -821,14 +823,22 @@ def widened_lane_paths(
     return paths
 
 
+def _no_window_cause(lanes_manifest: LanesManifest, lane: ExecutionLane) -> str:
+    """Why *lane* has no evidence window: no recorded planning commit, or none derivable for ``--skip-lanes`` (#7209)."""
+    if lanes_manifest.computed_from == SKIP_LANES_SYNTHESIS_SOURCE:
+        return (
+            f"{lane.lane_id}: --skip-lanes found no lanes.json, and no planning base could be derived from git, because "
+            f"kitty-specs/{lanes_manifest.mission_slug}/meta.json was added in a root commit or is not on {lanes_manifest.target_branch}"
+        )
+    return f"{lane.lane_id}: lanes.json records no planning commit"
+
+
 def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, approved: Sequence[str], landed_commit: str | None = None) -> None:
     window = lane_evidence_window(lanes_manifest, lane)
     if window is None:
+        cause = _no_window_cause(lanes_manifest, lane)
         for wp_id in approved:
-            scan.add(
-                wp_id,
-                f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: {wp_id} has no evidence window ({lane.lane_id}: lanes.json records no planning commit), {_CANNOT_VERIFY}",
-            )
+            scan.add(wp_id, f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: {wp_id} has no evidence window ({cause}), {_CANNOT_VERIFY}")
         return
     try:
         judged = _landed_window(repo_root, window, landed_commit)

@@ -467,6 +467,22 @@ def test_missing_planning_commit_is_uncomputable(tmp_path: Path) -> None:
     assert "finalize-tasks" in str(report.refusal)
 
 
+def test_skip_lanes_manifest_with_no_derivable_base_names_the_skip_lanes_cause(tmp_path: Path) -> None:
+    """#7209: a synthesized --skip-lanes manifest whose base could not be derived says so, not 'lanes.json records'."""
+    from specify_cli.lanes.derived_planning_base import SKIP_LANES_SYNTHESIS_SOURCE
+
+    repo, fd, _planning = _lane_fixture(tmp_path)
+    _write_events(fd, _independent_review(fd, "WP01"))
+    manifest = _manifest([_lane("lane-planning", ["WP01"])], None)
+    manifest.computed_from = SKIP_LANES_SYNTHESIS_SOURCE
+    report = _evaluate(repo, fd, manifest, {"WP01": "approved"})
+    assert report.codes == [ev.EVIDENCE_WINDOW_UNCOMPUTABLE]
+    refusal = str(report.refusal)
+    assert "--skip-lanes found no lanes.json" in refusal
+    assert f"kitty-specs/{_SLUG}/meta.json was added in a root commit or is not on main" in refusal
+    assert "lanes.json records no planning commit" not in refusal
+
+
 def test_unreadable_window_is_unreadable(tmp_path: Path) -> None:
     repo, fd, _planning = _lane_fixture(tmp_path)
     report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], "0" * 40), {"WP01": "approved"})
