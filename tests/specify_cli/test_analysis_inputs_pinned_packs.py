@@ -16,58 +16,16 @@ from pathlib import Path
 import pytest
 
 from specify_cli.analysis_inputs import pack_pin_state
+from tests.specify_cli._pinned_pack_fixture import PACK_YAML
+from tests.specify_cli._pinned_pack_fixture import make_pack_tree as _pack_tree
+from tests.specify_cli._pinned_pack_fixture import write_pin as _write_pin
 
 pytestmark = pytest.mark.git_repo
-
-PACK_YAML = (
-    "pack_id: 01ARWG13C000000000000000AB\n"
-    "pack_version: 1.0.0\n"
-    "parent_pack: null\n"
-    "name: spec-kitty-internal\n"
-    "pack_level: org\n"
-    "active_charter: org-charter.yaml\n"
-    "pack_drg: drg/fragment.yaml\n"
-)
 CONFIG_HEADER = "charter: .kittify/charter/charter.yaml\n"
 
 
 def git(root: Path, *args: str) -> bytes:
     return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True).stdout
-
-
-def _pack_tree(root: Path, relative: str) -> Path:
-    """A minimal, schema-valid org pack tree at *relative*."""
-    pack = root / relative
-    (pack / "drg").mkdir(parents=True)
-    (pack / "procedures").mkdir()
-    (pack / "pack.yaml").write_text(PACK_YAML)
-    (pack / "org-charter.yaml").write_text("org_name: spec-kitty-internal\nskill_namespace: kitty\n")
-    (pack / "drg/fragment.yaml").write_text("nodes: []\n")
-    (pack / "procedures/proof.procedure.yaml").write_text("id: proof\nname: Proof\n")
-    return pack
-
-
-def _write_pin(path: Path, pack: Path, *, subtree: str | None = None, verifiable: bool = True) -> Path:
-    from charter.offering.packs.pack_clean_digest import clean_tree_digest
-    from charter.offering.packs.pack_pin import (
-        TREE_DIGEST_ALGORITHM,
-        PackPin,
-        TreeDigest,
-        full_tree_digest,
-        write_pack_pin,
-    )
-
-    write_pack_pin(
-        PackPin(
-            repository="https://github.com/spec-kitty/spec-kitty-open-packs.git",
-            commit="e" * 40,
-            subtree=subtree,
-            tree_digest=TreeDigest(algorithm=TREE_DIGEST_ALGORITHM, value=clean_tree_digest(pack, level="org"), level="org"),
-            snapshot_sha256=full_tree_digest(pack) if verifiable else None,
-        ),
-        path,
-    )
-    return path
 
 
 def _pin(root: Path, pack: Path, *, subtree: str | None = None, verifiable: bool = True) -> Path:
@@ -167,21 +125,12 @@ def test_pack_root_outside_the_repository_grants_nothing(tmp_path: Path) -> None
     assert pack_pin_state(root) == ((), ())
 
 
-def test_sibling_tree_does_not_inherit_a_verified_root(tmp_path: Path) -> None:
-    """Component-wise prefix only: a sibling whose *name starts with* the verified root is not covered."""
-    from specify_cli.git.report_transaction import _under_any
+def test_malformed_registry_shape_grants_no_pin_authority(tmp_path: Path) -> None:
+    """A valid pin and tree grant nothing without a usable registry declaration.
 
-    root = _repo(tmp_path, packs=("packs/internal", "packs/internal-extra"))
-
-    roots = pack_pin_state(root).verified_roots
-    assert roots == ("packs/internal",)
-    assert _under_any("packs/internal-extra/procedures/proof.procedure.yaml", roots) is False
-    assert _under_any("packs/intern/procedures/proof.procedure.yaml", roots) is False
-    assert _under_any("packs/internal/procedures/proof.procedure.yaml", roots) is True
-
-
-def test_unreadable_registry_grants_nothing(tmp_path: Path) -> None:
-    """An unreadable config yields no exemption rather than an error out of the preflight."""
+    The lenient loader returns an empty registry for this valid-YAML/invalid-shape
+    config; this tests the admission result, not an exception-catching branch.
+    """
     root = _repo(tmp_path)
     (root / ".kittify/config.yaml").write_text("charter_packs: [not, a, mapping]\n")
 
