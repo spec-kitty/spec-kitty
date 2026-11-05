@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from kernel.git import blob_at
 from kernel.git import changed_paths as git_changed_paths
 from kernel.git import run_git, tracked_paths
 from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
@@ -835,8 +836,8 @@ class LateProjectionRefusalKind(StrEnum):
     A refusal has to tell the operator what to DO, and the actions differ: restoring a record the
     coordination branch deleted, correcting a coordination copy that would overturn an established
     judgement, landing a record the projection could not carry, moving the events into the copy the
-    union stage actually reads (#7198), and writing a target-owned document on the target yourself
-    (#7198) are five different repairs. The single "land the file on the target yourself" instruction
+    union stage actually reads (#7198), reconciling a log the canonical union refuses (#7198), and
+    writing a target-owned document on the target yourself (#7198) are six different repairs. The single "land the file on the target yourself" instruction
     the refusal used to give cleared none of them (and, for an overturn, would have written the stale
     copy over the verdict).
     """
@@ -846,9 +847,12 @@ class LateProjectionRefusalKind(StrEnum):
     EVIDENCE_WOULD_BE_LOST = "evidence-would-be-lost"
     DELETION_CANNOT_BE_EXPRESSED = "deletion-cannot-be-expressed"
     RECORD_NOT_LANDED = "record-not-landed"
-    # #7198: the status log is proved by event containment, not by a file copy -- the union stage
+    # #7198: the status log is proved by EVENT containment, not by a file copy -- the union stage
     # reads the coordination worktree's working tree, so the repair is about THAT copy.
     STATUS_EVENTS_NOT_LANDED = "status-events-not-landed"
+    # #7198: a log that does not parse, or two payloads for one event id that differ (the canonical
+    # union refuses that pair), is repaired ON THE COORDINATION BRANCH -- not by adding the missing id.
+    STATUS_LOG_NOT_RECONCILABLE = "status-log-not-reconcilable"
     # #7198: a non-coordination (primary) artifact is never projected (#5460), so "copy the file"
     # is not the repair either; the target has to author the change.
     NON_COORDINATION_RECORD_NOT_LANDED = "non-coordination-record-not-landed"
@@ -1084,6 +1088,19 @@ def project_late_gate_matrix_commits(
     return tuple(written)
 
 
+def _strict_blob_at(main_repo: Path, ref: str, repo_rel: str) -> bytes | None:
+    """Bytes of ``ref:repo_rel``, distinguishing ABSENCE from a failed read (#7198 review).
+
+    :func:`~specify_cli.consolidation.git_probes._read_git_blob_bytes` collapses EVERY nonzero
+    ``git show`` into ``None``, so two failed reads compare equal and would read as "landed" -- the
+    one thing this assertion must never do. ``kernel.git.blob_at`` answers ``None`` only when the ref
+    is readable and does not track the path, and raises
+    :class:`~kernel.git.GitCommandError` otherwise; the caller turns that into the "could not be
+    read" teardown error instead of a proof.
+    """
+    return blob_at(main_repo, ref, repo_rel)
+
+
 def _status_event_ids_missing_from_target(
     *,
     repo_rel: str,
@@ -1099,57 +1116,129 @@ def _status_event_ids_missing_from_target(
     target's log is the wrong test for an append-only, id-keyed log: the union's output is a
     SUPERSET, so id containment is the proof and byte equality is its special case.
 
-    Both sides are parsed through the canonical event-log reader (one owner for event identity), and
-    an unparseable side REFUSES rather than reading as "nothing missing" (fail-closed).
+    Both sides are parsed through the canonical event-log reader, and the pair is put through the
+    canonical UNION (:func:`~specify_cli.status.event_log_merge.merge_event_payloads`) before the ids
+    are compared: the union is what refuses one id carrying two different payloads, and asking it here
+    keeps ONE identity rule instead of trusting whichever side sorts last. An unparseable or
+    self-conflicting pair REFUSES rather than reading as "nothing missing" (fail-closed).
     """
-    from specify_cli.status.event_log_merge import EventLogMergeError, read_event_log_text
+    from specify_cli.status.event_log_merge import EventLogMergeError, merge_event_payloads, read_event_log_text
 
     try:
         coord_events = read_event_log_text(coord_content.decode("utf-8"), source=f"{repo_rel} on the coordination branch")
         target_events = read_event_log_text((target_content or b"").decode("utf-8"), source=f"{repo_rel} on the target")
+        merge_event_payloads(coord_events, target_events)
     except (EventLogMergeError, UnicodeDecodeError) as exc:
         raise LateProjectionRefused(
-            f"{repo_rel} cannot be compared with the target's committed log ({exc}); an unreadable status log is never proof that a status event landed",
-            kind=LateProjectionRefusalKind.STATUS_EVENTS_NOT_LANDED,
+            f"{repo_rel} cannot be reconciled with the target's committed log ({exc}); an unreadable or "
+            "self-conflicting status log is never proof that a status event landed",
+            kind=LateProjectionRefusalKind.STATUS_LOG_NOT_RECONCILABLE,
         ) from exc
     landed_ids = {str(event["event_id"]) for event in target_events}
     return sorted({str(event["event_id"]) for event in coord_events} - landed_ids)
 
 
-def _json_value_carried_by(coord_value: object, target_value: object) -> bool:
-    """True when ``target_value`` already carries every key/value of ``coord_value`` (recursive)."""
-    if isinstance(coord_value, dict):
-        if not isinstance(target_value, dict):
-            return False
-        return all(key in target_value and _json_value_carried_by(value, target_value[key]) for key, value in coord_value.items())
-    return coord_value == target_value
+#: Sentinel for "this key path is absent from a JSON document".
+_MISSING_JSON: object = object()
 
 
-def _json_document_carried_by(coord_content: bytes, target_content: bytes | None) -> bool:
-    """True when the target's committed copy already carries the coordination JSON document (#7198).
+def _json_value_equals(left: object, right: object) -> bool:
+    """Type-strict JSON equality: ``true`` is not ``1``, arrays compare element by element."""
+    if isinstance(left, bool) or isinstance(right, bool):
+        return isinstance(left, bool) and isinstance(right, bool) and left == right
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(_json_value_equals(left[key], right[key]) for key in left)
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_value_equals(one, other) for one, other in zip(left, right, strict=True))
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right  # JSON has one number type: 1 and 1.0 are the same value
+    return type(left) is type(right) and left == right
 
-    ``meta.json`` and the other PRIMARY-partition artifacts are re-authored on the target after the
-    merge captured the coordination tip (the mission-number bake, the baseline stamp, the marker
-    flatten) and are deliberately never projected (#5460), so the coordination copy can be legitimately
-    stale-but-carried: the target's document is the coordination document PLUS the merge's own keys.
-    Containment therefore means recursive JSON OBJECT containment -- every coordination key present in
-    the target with an equal value, nested objects recursed, arrays and scalars compared whole. A
-    changed or removed field is NOT carried, and a non-object or unparseable side is never "carried".
+
+def _json_changes(checkpoint_doc: Mapping[str, object], coord_doc: Mapping[str, object], prefix: tuple[str, ...] = ()) -> list[tuple[tuple[str, ...], object]]:
+    """``(key path, new value | _MISSING_JSON)`` for every key the window CHANGED or REMOVED."""
+    changes: list[tuple[tuple[str, ...], object]] = []
+    for key, coord_value in coord_doc.items():
+        path = (*prefix, key)
+        if key not in checkpoint_doc:
+            changes.append((path, coord_value))
+            continue
+        checkpoint_value = checkpoint_doc[key]
+        if isinstance(checkpoint_value, dict) and isinstance(coord_value, dict):
+            changes.extend(_json_changes(checkpoint_value, coord_value, path))
+        elif not _json_value_equals(checkpoint_value, coord_value):
+            changes.append((path, coord_value))
+    changes.extend(((*prefix, key), _MISSING_JSON) for key in checkpoint_doc if key not in coord_doc)
+    return changes
+
+
+def _json_value_at(document: Mapping[str, object], path: tuple[str, ...]) -> object:
+    """The value at *path* in *document*, or :data:`_MISSING_JSON` when any segment is absent."""
+    node: object = document
+    for key in path:
+        if not isinstance(node, dict) or key not in node:
+            return _MISSING_JSON
+        node = node[key]
+    return node
+
+
+def _json_delta_carried_by(*, checkpoint_content: bytes | None, coord_content: bytes, target_content: bytes | None) -> bool:
+    """True when every change the window made to a JSON document is already on the target (#7198).
+
+    The comparison is the CHECKPOINT -> COORDINATION **delta**, not the whole document. A document also
+    carries fields nobody changed in the window, and the target legitimately rewrites some of them (the
+    mission-number bake, the baseline stamp), so comparing whole documents would refuse runs whose late
+    change DID land. Conversely, containment of the coordination document alone would approve every
+    REMOVAL -- the target still holding a key the window deleted -- so a removal is checked as absence:
+
+    * an added or changed key must be present on the target with an equal, type-strict value;
+    * a key the window removed must be ABSENT from the target;
+    * a key nobody touched is not compared at all (it is not a change in this window).
+
+    ``checkpoint_content`` is the window base's blob: ``None`` (the file did not exist at the base) means
+    the whole document is the change, so every key must be carried. An unparseable or non-object side is
+    never "carried".
     """
     if target_content is None:
         return False
     try:
         coord_document = json.loads(coord_content.decode("utf-8"))
         target_document = json.loads(target_content.decode("utf-8"))
+        checkpoint_document = json.loads(checkpoint_content.decode("utf-8")) if checkpoint_content is not None else {}
     except (json.JSONDecodeError, UnicodeDecodeError):
         return False
-    if not isinstance(coord_document, dict) or not isinstance(target_document, dict):
+    if not isinstance(coord_document, dict) or not isinstance(target_document, dict) or not isinstance(checkpoint_document, dict):
         return False
-    # An EMPTY coordination document asserts nothing, so it can never be evidence that its content is
-    # carried -- and `{}` is a subset of every document, which would make this rule vacuously true.
-    if not coord_document:
+    for path, expected in _json_changes(checkpoint_document, coord_document):
+        actual = _json_value_at(target_document, path)
+        if expected is _MISSING_JSON:
+            if actual is not _MISSING_JSON:
+                return False  # the window removed the key; the target still holds it
+        elif actual is _MISSING_JSON or not _json_value_equals(expected, actual):
+            return False
+    return True
+
+
+def _status_snapshot_is_derived(*, main_repo: Path, target_feature_dir: Path, mission_root: str, target_ref: str, target_content: bytes | None) -> bool:
+    """True when the target's committed ``status.json`` IS the reduction of its committed event log (#7198).
+
+    ``status.json`` may be excluded from the late-window proof only while it is DERIVED: the projection
+    rematerializes it from the unioned event log, so its own bytes carry no record the log does not. That
+    is checkable on the target -- equality with :func:`_rematerialize_status_snapshot` of the target's
+    committed log -- and it fails closed in the two cases where the snapshot is NOT derived: a legacy
+    Mission with no event log (where a ``status.json`` fallback copy IS the record) and a log that cannot
+    be read or reduced.
+    """
+    if target_content is None:
         return False
-    return _json_value_carried_by(coord_document, target_document)
+    target_log = _strict_blob_at(main_repo, target_ref, f"{mission_root}{_STATUS_EVENTS_FILENAME}")
+    if target_log is None:
+        return False
+    try:
+        reduced = _rematerialize_status_snapshot(target_log, target_feature_dir)
+    except Exception:  # noqa: BLE001 — an unreadable log cannot prove the snapshot redundant (fail-closed)
+        return False
+    return reduced == target_content
 
 
 def assert_late_window_landed(
@@ -1174,10 +1263,13 @@ def assert_late_window_landed(
     * **landed** -- the coordination bytes equal the target's committed blob (the original proof);
     * **landed by the union** -- ``status.events.jsonl``: every event id committed on the coordination
       branch is present in the target's committed log (:func:`_status_event_ids_missing_from_target`);
-    * **excluded as derived** -- ``status.json``: a reduced snapshot that the projection itself
-      rematerializes from the unioned event log, so its own bytes are never an independent record;
-    * **carried by the target's copy** -- a non-coordination JSON document whose coordination copy is
-      contained in the target's committed copy (:func:`_json_document_carried_by`);
+    * **excluded as derived** -- ``status.json``: a reduced snapshot that the projection rematerializes
+      from the unioned event log, so its own bytes carry no record the log does not -- and only while
+      the target's committed snapshot really is that reduction
+      (:func:`_status_snapshot_is_derived`);
+    * **carried by the target's copy** -- a non-coordination JSON document whose CHECKPOINT -> branch
+      delta is on the target: an added or changed key present with an equal value, a removed key
+      absent (:func:`_json_delta_carried_by`);
     * **refused** -- everything else, plus any deletion the target still holds.
 
     No disposition is a property of a filename alone: each is a rule with a reason, and a new file kind
@@ -1201,12 +1293,16 @@ def assert_late_window_landed(
     unlanded_events: list[str] = []
     unlanded_records: list[str] = []
     unlanded_primary: list[str] = []
-    for changed in git_changed_paths(main_repo, checkpoint_sha, coord_ref, renames=True, pathspecs=(mission_prefix,)):
+    # renames=False ON PURPOSE (#7198 review): with rename detection the window reports only the
+    # DESTINATION of a rename, so the source deletion never reaches the deletion guard below and the
+    # target keeps both paths -- a change nobody landed. Rename detection off reports the pair as
+    # delete + add, which is what a content projection can actually express.
+    for changed in git_changed_paths(main_repo, checkpoint_sha, coord_ref, renames=False, pathspecs=(mission_prefix,)):
         repo_rel = str(changed)
         relpath = repo_rel[len(mission_prefix) :]
         target_rel = (target_feature_dir / relpath).relative_to(main_repo).as_posix()
-        coord_content = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
-        target_content = _read_git_blob_bytes(main_repo, target_ref, target_rel)
+        coord_content = _strict_blob_at(main_repo, coord_ref, repo_rel)
+        target_content = _strict_blob_at(main_repo, target_ref, target_rel)
         if coord_content == target_content:
             continue
         if coord_content is None:
@@ -1216,21 +1312,34 @@ def assert_late_window_landed(
                 f"the coordination branch deletes {repo_rel}, and a projection can only bring content forward; the target still holds it",
                 kind=LateProjectionRefusalKind.DELETION_CANNOT_BE_EXPRESSED,
             )
-        # Classified through the module's SSOT helper rather than a new filename list (R-014: one
-        # owner decides what a status bookkeeping file is).
-        if _classify_status_bookkeeping_filename(Path(repo_rel).name) is MissionArtifactKind.STATUS_STATE:
-            if Path(repo_rel).name == _STATUS_EVENTS_FILENAME:
-                missing = _status_event_ids_missing_from_target(repo_rel=repo_rel, coord_content=coord_content, target_content=target_content)
-                if missing:
-                    unlanded_events.append(f"{repo_rel} (event {', '.join(missing[:20])})")
-            # The other status file is ``status.json``, the DERIVED snapshot: the projection
-            # rematerializes it from the unioned event log, so its own bytes carry no record the log
-            # does not. Deliberate exclusion, not an oversight (#7198).
+        # The kind authority answers for the WHOLE mission-relative path, not its basename: a nested
+        # ``research/status.json`` is a research artifact, not the Mission's derived status snapshot
+        # (#7198 review). R-014: one owner still decides what kind a mission file is.
+        kind = kind_for_mission_file(repo_rel, mission_slug=safe_slug)
+        is_status_state = kind is MissionArtifactKind.STATUS_STATE
+        if is_status_state and relpath == _STATUS_EVENTS_FILENAME:
+            missing = _status_event_ids_missing_from_target(repo_rel=repo_rel, coord_content=coord_content, target_content=target_content)
+            if missing:
+                unlanded_events.append(f"{repo_rel} (event {', '.join(missing[:20])})")
             continue
-        if is_coordination_kind_file(relpath):
+        if is_status_state and relpath == _STATUS_FILENAME:
+            if _status_snapshot_is_derived(
+                main_repo=main_repo,
+                target_feature_dir=target_feature_dir,
+                mission_root=mission_prefix,
+                target_ref=target_ref,
+                target_content=target_content,
+            ):
+                # Derived: the target's committed snapshot IS the reduction of its committed event log,
+                # so the coordination copy's bytes carry no record the proved log does not.
+                continue
+            # Otherwise the snapshot is NOT derived (no event log, or an unreadable one) and its own
+            # bytes are a record -- judged by the document rule below, never exempted on filename alone.
+        elif is_coordination_kind_file(relpath):
             unlanded_records.append(repo_rel)
             continue
-        if _json_document_carried_by(coord_content, target_content):
+        checkpoint_content = _strict_blob_at(main_repo, checkpoint_sha, repo_rel)
+        if _json_delta_carried_by(checkpoint_content=checkpoint_content, coord_content=coord_content, target_content=target_content):
             continue
         unlanded_primary.append(repo_rel)
     _raise_unlanded_late_window(

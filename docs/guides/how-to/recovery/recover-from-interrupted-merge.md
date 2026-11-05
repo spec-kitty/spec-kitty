@@ -183,12 +183,21 @@ bytes carry nothing the target lacks:
 - **Landed:** the file is byte-identical on the target branch.
 - **Landed by the status union:** every event id committed to the coordination
   branch's `status.events.jsonl` is present in the target's committed event log.
+  The two logs must also reconcile: an event id carrying different bytes on the
+  two sides is refused, exactly as the merge's own event union refuses it.
 - **Derived, so not proved:** `status.json` is a reduced snapshot the
   consolidation rematerializes from the unioned event log, so its own bytes are
-  never an independent record.
-- **Carried by the target's own copy:** a target-authored document (for example
-  `meta.json`) whose coordination copy is contained in the target's committed
-  copy — the mission-number, baseline-stamp and marker-flatten shape.
+  not an independent record — but only while the target's committed snapshot
+  really is that reduction. A Mission with no event log keeps `status.json` as a
+  record, and it is judged like any other document.
+- **Carried by the target's own copy:** a document the target authors for itself
+  (for example `meta.json`) when the change the window made is already on the
+  target's committed copy. The comparison is the change since the window began,
+  not the whole file, because the merge legitimately rewrites other fields there
+  (the mission-number bake, the baseline stamp). A key the window removed must be
+  absent from the target; a key nobody touched is not compared.
+- **A rename** is judged by both halves: the new path must be on the target, and
+  the old one must not still be there.
 
 Anything else refuses, keeps the coordination branch, worktree and marker, and
 names the repair above. A change to a file the target does not carry is never

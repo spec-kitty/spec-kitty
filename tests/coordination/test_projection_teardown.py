@@ -1071,14 +1071,14 @@ def test_moved_tip_refusal_names_the_mission_branch_without_coordination_topolog
 # ---------------------------------------------------------------------------
 
 
-def _late_event(event_id: str, to_lane: str) -> dict[str, object]:
+def _late_event(event_id: str, to_lane: str, from_lane: str = "in_progress") -> dict[str, object]:
     """A parseable status event for the coverage fixture (the canonical field set)."""
     return {
         "event_id": event_id,
         "mission_slug": SLUG,
         "mission_id": MISSION_ID,
         "wp_id": "WP01",
-        "from_lane": "in_progress",
+        "from_lane": from_lane,
         "to_lane": to_lane,
         "at": "2026-11-05T00:00:00+00:00",
         "actor": "tester",
@@ -1090,10 +1090,10 @@ def _late_event(event_id: str, to_lane: str) -> dict[str, object]:
 def _advance_branch_from_another_checkout(repo: Path, branch: str, rel_path: str, content: str, msg: str) -> str:
     """Commit onto *branch* from a checkout that is NOT the coordination worktree (#7198).
 
-    The coordination worktree holds ``branch`` checked out, so a second worktree cannot check it out
-    and ``git branch -f`` refuses a checked-out branch. Committing detached and moving the ref with
+    The coordination worktree holds ``branch`` checked out, so a second worktree cannot check it out and
+    ``git branch -f`` refuses a checked-out branch. Committing detached and moving the ref with
     ``git update-ref`` is exactly the shape the issue describes: the branch moved, the coordination
-    worktree's working tree did not — and the union stage reads the working tree.
+    worktree's working tree did not -- and the union stage reads the working tree.
     """
     wt = repo.parent / f"_detachedwt_{rel_path.replace('/', '_')}"
     _git(repo, "worktree", "add", "-q", "--detach", str(wt), branch)
@@ -1117,18 +1117,18 @@ def _status_log(worktree: Path) -> str:
 def test_first_run_refuses_a_status_event_the_union_could_not_see(tmp_path: Path) -> None:
     """#7198 shape 1: an event committed OUTSIDE the coordination worktree is never unioned.
 
-    The union stage merges the coordination worktree's WORKING-TREE event log, not the branch's
-    commits, so a branch-only append is not in the target's log. Before this change the assertion
-    exempted the status byte-sets, the approved tip advanced to the late commit and the branch was
-    deleted at exit 0, dropping the event.
+    The union stage merges the coordination worktree's WORKING-TREE event log, not the branch's commits,
+    so a branch-only append is not in the target's log. Before this change the assertion exempted the
+    status byte-sets, the approved tip advanced to the late commit and the branch was deleted at exit 0,
+    dropping the event.
     """
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
     branch = run.lanes_manifest.mission_branch
     rel = f"kitty-specs/{SLUG}/status.events.jsonl"
     event = _late_event("01M380R6EVENTWP01000000000042", "done")
     base_log = _git(run.main_repo, "show", f"{branch}:{rel}").stdout
-    # The target's committed log parses and matches the worktree baseline, so the only thing missing
-    # is the branch-only append (not an unreadable-target artifact of the fixture).
+    # The target's committed log parses and matches the worktree baseline, so the only thing missing is
+    # the branch-only append (not an unreadable-target artifact of the fixture).
     _commit_path_on_main(run.main_repo, rel, _status_log(worktree), "target log matches the worktree baseline")
     late = _advance_branch_from_another_checkout(run.main_repo, branch, rel, base_log + json.dumps(event) + "\n", "late status emit from another checkout")
 
@@ -1138,6 +1138,7 @@ def test_first_run_refuses_a_status_event_the_union_could_not_see(tmp_path: Path
     message = " ".join(str(caught.value).split())
     assert branch in message, "the refusal names the coordination branch it kept"
     assert "status.events.jsonl" in message, "the refusal names the record it could not prove landed"
+    assert "01M380R6EVENTWP01000000000042" in message, "the refusal names the missing event id"
     assert "coordination worktree" in message, "the remedy names the copy the union stage actually reads"
     assert "spec-kitty consolidate --resume" in message
     assert _branch_exists(run.main_repo, branch), "the branch was NOT deleted over an unlanded event"
@@ -1147,55 +1148,100 @@ def test_first_run_refuses_a_status_event_the_union_could_not_see(tmp_path: Path
     assert meta.get("coordination_branch") == branch, "the marker must not be flattened while the branch survives"
 
 
-def test_first_run_lands_when_the_target_log_already_carries_the_event(tmp_path: Path) -> None:
-    """#7198 positive control: byte equality is the special case; id containment is the proof.
+def test_the_status_event_repair_clears_its_own_refusal(tmp_path: Path) -> None:
+    """#7198 review: the remedy must actually clear the refusal, not repeat it.
 
-    The target's committed log is a superset of the coordination branch's log, so the window is
-    proven landed even though the two files are not byte-identical.
+    The printed repair for a missing event is to make the COORDINATION WORKTREE's copy hold the branch's
+    log (that is what the union folds). Doing exactly that and re-running must land the event and finish
+    the teardown -- proving the instruction and the machinery agree.
     """
     run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
     branch = run.lanes_manifest.mission_branch
     rel = f"kitty-specs/{SLUG}/status.events.jsonl"
-    event = _late_event("01M380R6EVENTWP01000000000043", "done")
+    event = _late_event("01M380R6EVENTWP01000000000045", "done")
     base_log = _git(run.main_repo, "show", f"{branch}:{rel}").stdout
-    landed_log = base_log + json.dumps(event) + "\n"
-    _commit_path_on_main(run.main_repo, rel, landed_log, "target log already carries the late event")
-    _advance_branch_from_another_checkout(run.main_repo, branch, rel, landed_log, "late status emit from another checkout")
+    _commit_path_on_main(run.main_repo, rel, _status_log(worktree), "target log matches the worktree baseline")
+    _advance_branch_from_another_checkout(run.main_repo, branch, rel, base_log + json.dumps(event) + "\n", "late status emit from another checkout")
+    with pytest.raises(run_state.CoordinationTeardownError):
+        phase_teardown._teardown_coordination_triple(run)
+
+    # The printed repair, verbatim: in the coordination worktree, check the branch's log out.
+    _git(worktree, "checkout", branch, "--", rel)
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert not _branch_exists(run.main_repo, branch), "the repaired window lands and tears down"
+    assert "01M380R6EVENTWP01000000000045" in _git(run.main_repo, "show", f"main:{rel}").stdout
+
+
+def test_first_run_lands_when_the_target_log_is_a_superset(tmp_path: Path) -> None:
+    """#7198 positive control: byte equality is the special case; id containment is the proof.
+
+    The target's committed log carries a late event the coordination branch does not (a concurrent target
+    writer) AND the branch's late event. The window is proven landed, the target-only event survives, and
+    teardown completes.
+    """
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
+    rel = f"kitty-specs/{SLUG}/status.events.jsonl"
+    target_only = _late_event("01M380R6EVENTWP01000000000046", "for_review")
+    late = _late_event("01M380R6EVENTWP01000000000043", "done")
+    base_log = _git(run.main_repo, "show", f"{branch}:{rel}").stdout
+    _commit_path_on_main(run.main_repo, rel, base_log + json.dumps(target_only) + "\n" + json.dumps(late) + "\n", "the target also wrote its own event")
+    _advance_branch_from_another_checkout(run.main_repo, branch, rel, base_log + json.dumps(late) + "\n", "late status emit from another checkout")
 
     phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(run.main_repo, branch), "a proven window tears down"
-    assert "01M380R6EVENTWP01000000000043" in _git(run.main_repo, "show", f"main:{rel}").stdout
+    landed_log = _git(run.main_repo, "show", f"main:{rel}").stdout
+    assert "01M380R6EVENTWP01000000000043" in landed_log, "the branch's late event landed"
+    assert "01M380R6EVENTWP01000000000046" in landed_log, "the target-only event was not erased by the union"
 
 
-def test_resume_refuses_a_status_event_the_target_log_does_not_carry(tmp_path: Path) -> None:
-    """#7198: the same verdict on a --resume -- the rule does not depend on the window base."""
-    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
-    run = _coord_run_state(repo, coord, projected_tip)
-    run.is_resume = True
-    run.state.pre_mutation_coord_sha = projected_tip
+def test_a_status_log_that_does_not_parse_refuses_as_not_reconcilable(tmp_path: Path) -> None:
+    """#7198 review: an unreadable log is NOT the missing-event case, and its repair is not a checkout."""
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
     rel = f"kitty-specs/{SLUG}/status.events.jsonl"
-    event = _late_event("01M380R6EVENTWP01000000000044", "done")
-    base_log = _git(repo, "show", f"{coord}:{rel}").stdout
-    _commit_path_on_main(repo, rel, base_log, "target log matches the coordination log")
-    _advance_branch_from_another_checkout(repo, coord, rel, base_log + json.dumps(event) + "\n", "late status emit from another checkout")
+    _commit_path_on_main(run.main_repo, rel, _status_log(worktree), "target log matches the worktree baseline")
+    _advance_branch_from_another_checkout(run.main_repo, branch, rel, "this is not jsonl\n", "late status emit from another checkout")
 
     with pytest.raises(run_state.CoordinationTeardownError) as caught:
-        phase_teardown._land_late_coordination_commits(run)
+        phase_teardown._teardown_coordination_triple(run)
 
     message = " ".join(str(caught.value).split())
-    assert "status.events.jsonl" in message
-    assert "coordination worktree" in message, "the remedy names the copy the union stage actually reads"
-    assert _branch_exists(repo, coord)
-    assert run.coord_tip_after_projection == projected_tip
+    assert "cannot be reconciled" in message
+    assert "repair the coordination branch's status.events.jsonl" in message
+    assert "coordination worktree" not in message, "checking out a corrupt log would hand the union the same bytes"
+    assert _branch_exists(run.main_repo, branch)
+    assert run.coord_tip_after_projection == tip
+
+
+def test_two_payloads_for_one_event_id_refuse_through_the_canonical_union(tmp_path: Path) -> None:
+    """#7198 review: id containment alone would trust whichever side sorts last; the union refuses the pair."""
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
+    rel = f"kitty-specs/{SLUG}/status.events.jsonl"
+    shared = _late_event("01M380R6EVENTWP01000000000047", "for_review")
+    _commit_path_on_main(run.main_repo, rel, _status_log(worktree) + json.dumps(shared) + "\n", "the target recorded the event")
+    conflicting = {**shared, "to_lane": "approved"}
+    conflicting_log = _status_log(worktree) + json.dumps(conflicting) + "\n"
+    _advance_branch_from_another_checkout(run.main_repo, branch, rel, conflicting_log, "late status emit from another checkout")
+
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert "Conflicting payloads" in message, "the canonical union's refusal is the one that surfaces"
+    assert "cannot be reconciled" in message
+    assert _branch_exists(run.main_repo, branch)
 
 
 def test_first_run_refuses_a_meta_json_change_the_target_does_not_carry(tmp_path: Path) -> None:
     """#7198 shape 2: a late primary-artifact change is judged, not exempted.
 
-    ``meta.json`` is the target's own file (the merge bakes the mission number and stamps the
-    baseline), so the projection never carries it. That made it exempt too -- a late coordination-side
-    document change was deleted with the branch. It is now "carried by the target's copy" or refused.
+    ``meta.json`` is the target's own file (the merge bakes the mission number and stamps the baseline),
+    so the projection never carries it. That made it exempt too -- a late coordination-side document
+    change was deleted with the branch. It is now carried by the target's copy or refused.
     """
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
     branch = run.lanes_manifest.mission_branch
@@ -1210,6 +1256,7 @@ def test_first_run_refuses_a_meta_json_change_the_target_does_not_carry(tmp_path
     message = " ".join(str(caught.value).split())
     assert rel in message, "the refusal names the document it could not prove landed"
     assert "projection cannot carry" in message, "the remedy says why copying is not the answer here"
+    assert "BY HAND" in message, "a whole-file checkout would overwrite the fields the target owns"
     assert "spec-kitty consolidate --resume" in message
     assert _branch_exists(run.main_repo, branch)
     assert _rev(run.main_repo, branch) == late
@@ -1218,31 +1265,128 @@ def test_first_run_refuses_a_meta_json_change_the_target_does_not_carry(tmp_path
     assert meta.get("coordination_branch") == branch
 
 
-def test_first_run_proceeds_when_the_target_copy_carries_the_meta_json_change(tmp_path: Path) -> None:
-    """#7198 positive control: the bake/stamp/flatten shape must not manufacture a refusal.
+def test_first_run_refuses_a_meta_json_key_the_window_removed(tmp_path: Path) -> None:
+    """#7198 review (BLOCKER): containment would approve every REMOVAL. A removed key must be gone from
+    the target, not merely absent from the coordination document."""
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
+    rel = f"kitty-specs/{SLUG}/meta.json"
+    seeded = {**json.loads((worktree / rel).read_text(encoding="utf-8")), "remove_me": "present at the checkpoint"}
+    base = _commit_in_coord_worktree(worktree, rel, json.dumps(seeded) + "\n", "seed the key")
+    run.coord_tip_after_projection = base
+    _commit_path_on_main(run.main_repo, rel, json.dumps(seeded) + "\n", "the target holds the key too")
+    without = {key: value for key, value in seeded.items() if key != "remove_me"}
+    _commit_in_coord_worktree(worktree, rel, json.dumps(without) + "\n", "drop the key on the coordination branch")
 
-    The target's committed ``meta.json`` is the coordination document plus the keys the merge owns,
-    so the coordination document is CONTAINED in it and the window is carried.
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert rel in message
+    assert _branch_exists(run.main_repo, branch), "a removal the target still holds is not landed"
+
+
+def test_first_run_proceeds_when_the_target_copy_carries_the_late_delta(tmp_path: Path) -> None:
+    """#7198 review (MAJOR): the comparison is the CHECKPOINT -> branch delta, not the whole document.
+
+    The mission-number bake rewrites ``meta.json`` on the target and the baseline writer replaces a null
+    baseline. Neither is a change the window made, so neither may turn a landed late edit into a refusal.
     """
     run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
     rel = f"kitty-specs/{SLUG}/meta.json"
-    coord_meta = json.loads((worktree / rel).read_text(encoding="utf-8"))
-    coord_meta["late_field"] = "landed on the target too"
-    target_meta = {**coord_meta, "mission_number": 12, "coordination_branch": run.lanes_manifest.mission_branch}
-    _commit_path_on_main(run.main_repo, rel, json.dumps(target_meta) + "\n", "the target authored its own meta.json")
-    _commit_in_coord_worktree(worktree, rel, json.dumps(coord_meta) + "\n", "late meta field")
+    checkpoint_meta = {**json.loads((worktree / rel).read_text(encoding="utf-8")), "baseline_merge_commit": None}
+    base = _commit_in_coord_worktree(worktree, rel, json.dumps(checkpoint_meta) + "\n", "seed the null baseline")
+    run.coord_tip_after_projection = base
+    coord_meta = {**checkpoint_meta, "mission_number": 12}
+    _commit_in_coord_worktree(worktree, rel, json.dumps(coord_meta) + "\n", "the bake records the mission number")
+    target_meta = {
+        **coord_meta,
+        "baseline_merge_commit": "b" * 40,
+        "coordination_branch": run.lanes_manifest.mission_branch,
+    }
+    _commit_path_on_main(run.main_repo, rel, json.dumps(target_meta) + "\n", "the target stamped its own baseline")
 
     phase_teardown._teardown_coordination_triple(run)
 
-    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "a carried document tears down"
+    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "a carried delta tears down"
+
+
+def test_first_run_refuses_a_rename_whose_source_the_target_still_holds(tmp_path: Path) -> None:
+    """#7198 review (MAJOR): rename detection reported only the destination, so the source deletion was
+    never judged and the target kept BOTH paths."""
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
+    old_rel = f"kitty-specs/{SLUG}/traces/old-name.md"
+    new_rel = f"kitty-specs/{SLUG}/traces/new-name.md"
+    body = "the record\n"
+    _commit_path_on_main(run.main_repo, old_rel, body, "the target holds the record")
+    base = _commit_in_coord_worktree(worktree, old_rel, body, "the coordination branch holds the record")
+    run.coord_tip_after_projection = base
+    _git(worktree, "mv", old_rel, new_rel)
+    _git(worktree, "commit", "-q", "-m", "rename the record")
+
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert old_rel in message, "the refusal names the deletion the projection cannot express"
+    assert "restore the deleted file" in message
+    assert _branch_exists(run.main_repo, branch)
+
+
+def test_first_run_refuses_a_status_snapshot_outside_the_derived_surface(tmp_path: Path) -> None:
+    """#7198 review (MAJOR): the derived exclusion is for the MISSION's snapshot, not any basename.
+
+    ``research/status.json`` is a research artifact. Classifying by basename alone exempted it, so its
+    branch-only bytes were approved with no target copy at all.
+    """
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    branch = run.lanes_manifest.mission_branch
+    rel = f"kitty-specs/{SLUG}/research/status.json"
+    _commit_in_coord_worktree(worktree, rel, json.dumps({"finding": "only on the coordination branch"}) + "\n", "a research note, not the snapshot")
+
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert rel in message
+    assert _branch_exists(run.main_repo, branch)
+
+
+def test_resume_refuses_a_status_event_the_target_log_does_not_carry(tmp_path: Path) -> None:
+    """#7198: the same verdict on a --resume, over the REAL coordination worktree.
+
+    The resume base is the persisted pre-mutation snapshot (here the run's own captured tip), the union
+    still reads the worktree, and the assertion refuses on the branch-only event -- so the rule does not
+    depend on the window base or on the status surface being the primary checkout.
+    """
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    run.is_resume = True
+    run.state.pre_mutation_coord_sha = tip
+    branch = run.lanes_manifest.mission_branch
+    rel = f"kitty-specs/{SLUG}/status.events.jsonl"
+    event = _late_event("01M380R6EVENTWP01000000000044", "done")
+    base_log = _git(run.main_repo, "show", f"{branch}:{rel}").stdout
+    _commit_path_on_main(run.main_repo, rel, _status_log(worktree), "target log matches the worktree baseline")
+    _advance_branch_from_another_checkout(run.main_repo, branch, rel, base_log + json.dumps(event) + "\n", "late status emit from another checkout")
+
+    with pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._land_late_coordination_commits(run)
+
+    message = " ".join(str(caught.value).split())
+    assert "status.events.jsonl" in message
+    assert "01M380R6EVENTWP01000000000044" in message, "the fixture is a MISSING-event case, not an unreadable one"
+    assert "coordination worktree" in message, "the remedy names the copy the union stage actually reads"
+    assert _branch_exists(run.main_repo, branch)
+    assert run.coord_tip_after_projection == tip
 
 
 def test_a_status_json_only_window_tears_down(tmp_path: Path) -> None:
-    """#7198: ``status.json`` stays excluded -- by RULE, because it is a snapshot of the proved log.
+    """#7198: ``status.json`` stays excluded -- by RULE, because the target's copy IS the log's reduction.
 
-    The derived file is rematerialized from the unioned events by the projection itself, so its own
-    bytes are never an independent record. This is the path the gate-CAS fixture injects, so the
-    exclusion has to be real and stated rather than accidental.
+    The derived file is rematerialized from the unioned events by the projection itself, so its own bytes
+    are not an independent record. This is the path the gate-CAS fixture injects, so the exclusion has to
+    be real and checkable rather than accidental.
     """
     run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
     _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/status.json", '{"work_packages": {"WP01": "approved"}}\n', "derived snapshot")

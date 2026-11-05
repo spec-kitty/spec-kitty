@@ -265,14 +265,20 @@ _REMEDY_PHRASES: dict[LateProjectionRefusalKind, tuple[tuple[str, ...], tuple[st
     # worktree's working tree, so the repair is about that copy -- never a blind file copy onto the
     # target, which would drop the events the target already holds.
     LateProjectionRefusalKind.STATUS_EVENTS_NOT_LANDED: (
-        ("coordination worktree", "status.events.jsonl", "Do NOT overwrite"),
-        (f"land the named record on {_TARGET!r} from {_BRANCH!r}",),
+        ("coordination worktree", "status.events.jsonl", "Do NOT overwrite", "branch-move guard"),
+        (f"land the named record on {_TARGET!r} from {_BRANCH!r}", "repair the coordination branch's status.events.jsonl"),
     ),
-    # #7198: a primary artifact is never projected (#5460), so "revert or land it yourself" is the
-    # only repair; pointing the operator at the coordination worktree's status copy would be the
-    # other kind's remedy and would not clear this one.
+    # #7198 review: an unparseable log (and two payloads for one id) is repaired ON THE BRANCH --
+    # checking the same bytes out into the worktree would hand the union the same corruption.
+    LateProjectionRefusalKind.STATUS_LOG_NOT_RECONCILABLE: (
+        ("repair the coordination branch's status.events.jsonl", "Revert the commit that corrupted or forked it"),
+        ("coordination worktree", "Do NOT overwrite", f"land the change on {_TARGET!r} yourself"),
+    ),
+    # #7198: a primary artifact is never projected (#5460), so "revert or merge the change yourself" is
+    # the only repair, and a whole-file checkout is explicitly ruled out; pointing the operator at the
+    # coordination worktree's status copy would be the other kind's remedy and would not clear this one.
     LateProjectionRefusalKind.NON_COORDINATION_RECORD_NOT_LANDED: (
-        (f"land the change on {_TARGET!r} yourself", "projection cannot carry"),
+        (f"land the change on {_TARGET!r} yourself", "projection cannot carry", "BY HAND", "branch-move guard"),
         ("coordination worktree", f"land the named record on {_TARGET!r} from {_BRANCH!r}"),
     ),
 }
