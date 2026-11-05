@@ -16,6 +16,8 @@ here.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tests.integration.test_6715_consolidate_lane_evidence import _commit_specs, _git, _sk, lanes_of, setup_mission
@@ -23,7 +25,7 @@ from tests.integration.test_6715_consolidate_lane_evidence import _commit_specs,
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.timeout(600)]
 
 
-def test_a_lane_mission_implemented_on_the_target_branch_names_the_shape(tmp_path) -> None:
+def test_a_lane_mission_implemented_on_the_target_branch_names_the_shape(tmp_path: Path) -> None:
     mission = setup_mission(tmp_path, "lanes")
 
     # The implementation lands on the target branch, exactly as a single agent working in the repo
@@ -48,7 +50,7 @@ def test_a_lane_mission_implemented_on_the_target_branch_names_the_shape(tmp_pat
     assert "IMPLEMENTATION_UNREADABLE" in output, raw[-2500:]
     assert "no lane of this Mission has a branch here" in output, "the local fact is stated as such:\n" + raw[-2500:]
     assert "without ever creating a lane branch" in output, "the target-branch shape is named:\n" + raw[-2500:]
-    assert "no supported recovery" in output and "stop retrying" in output, "the refusal says there is nothing to retry:\n" + raw[-2500:]
+    assert "no lane window to restore" in output and "stop retrying that window" in output, "retrying the missing lane window cannot help:\n" + raw[-2500:]
     assert "issues/7120" in output, "the escalation is tracked:\n" + raw[-2500:]
     assert "fabricates the evidence it checks" in output, "manufacturing a lane window is named as fabrication:\n" + raw[-2500:]
     assert "Make the lane branch and the recorded planning commit readable, then retry." not in output, (
