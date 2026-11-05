@@ -10,6 +10,7 @@ inspected.
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
@@ -256,7 +257,9 @@ def test_prune_removes_landed_worktree_and_prints_recreate(repo: Path) -> None:
 
 
 def test_prune_detached_worktree_prints_worktree_add_recreate(repo: Path) -> None:
-    path, tip = _landed_worktree(repo)
+    landed, tip = _landed_worktree(repo)
+    path = repo / ".worktrees" / "my lane"
+    _git(repo, "worktree", "move", str(landed), str(path))
     _git(path, "checkout", "-q", "--detach")
     _git(repo, "branch", "-q", "-D", _LANDED)
 
@@ -264,9 +267,11 @@ def test_prune_detached_worktree_prints_worktree_add_recreate(repo: Path) -> Non
 
     assert code == 0, out
     assert f"(detached @{tip[:12]}): landed" in out
-    assert f"Removed .worktrees/{_LANDED} (detached at {tip[:12]})" in out
-    assert f"recreate: git worktree add --detach {path.resolve()} {tip}" in out
+    assert f"Removed .worktrees/my lane (detached at {tip[:12]})" in out
+    [recreate] = [line.split("recreate: ", 1)[1] for line in out.splitlines() if "recreate: " in line]
     assert not _registered(repo, path)
+    _git(repo, *shlex.split(recreate)[1:])  # the printed command, pasted into a shell, works on a path with a space
+    assert _git(path, "rev-parse", "HEAD").strip() == tip
 
 
 def test_prune_json_payload(repo: Path) -> None:

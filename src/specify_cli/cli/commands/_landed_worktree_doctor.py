@@ -99,16 +99,16 @@ def _ignored_line(verdict: WorktreeVerdict) -> str | None:
 
 def _manual_commands(verdict: WorktreeVerdict, primary: str) -> list[str]:
     """The hand removal for a worktree unproven only because running processes cannot be checked (else ``[]``)."""
-    from specify_cli.workspace.landed_worktrees import Reason
+    from specify_cli.workspace.landed_worktrees import Reason, shell_command
 
     if verdict.reason is not Reason.PROCESS_PROOF_UNAVAILABLE:
         return []
     lines = [
         f"only after checking nothing runs in it; content is on {primary}:",
-        f"{_INDENT}git worktree remove {verdict.path.resolve(strict=False)}",
+        f"{_INDENT}{shell_command('git', 'worktree', 'remove', str(verdict.path.resolve(strict=False)))}",
     ]
     if verdict.branch is not None:
-        lines.append(f"{_INDENT}git branch -D {verdict.branch}")
+        lines.append(f"{_INDENT}{shell_command('git', 'branch', '-D', verdict.branch)}")
     return lines
 
 
@@ -157,20 +157,21 @@ def _refusal_hint(outcome: PruneOutcome, primary: str) -> str | None:
         NOT_REGISTERED,
         TIP_MOVED,
         WORKTREE_REMOVE_FAILED,
+        shell_command,
     )
 
     if outcome.refusal in (TIP_MOVED, NOT_REGISTERED):
         return f"the worktree changed after it was assessed; run `{PRUNE_COMMAND}` again"
     if outcome.refusal == WORKTREE_REMOVE_FAILED:
-        return f"the removal could not run; inspect it, then `git worktree remove {outcome.path}` (no --force)"
+        return f"the removal could not run; inspect it, then `{shell_command('git', 'worktree', 'remove', str(outcome.path))}` (no --force)"
     if outcome.refusal == WORKTREE_PARTIALLY_REMOVED:
         return f"git unregistered the worktree but could not delete all of it; the branch is kept; clear the leftover with `{HUSK_FIX_COMMAND}`"
     if outcome.branch is None:
         return None
     if outcome.refusal == BRANCH_MOVED:
-        return f"the branch moved after it was assessed; inspect it with `git log {outcome.branch}`"
+        return f"the branch moved after it was assessed; inspect it with `{shell_command('git', 'log', outcome.branch)}`"
     if outcome.refusal == BRANCH_DELETE_FAILED:
-        return f"the branch delete failed; content is on {primary}: `git branch -D {outcome.branch}`"
+        return f"the branch delete failed; content is on {primary}: `{shell_command('git', 'branch', '-D', outcome.branch)}`"
     return None
 
 
