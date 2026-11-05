@@ -782,7 +782,7 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
     with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(ProjectionTeardownAbort) as caught:
         phase_teardown._teardown_coordination_triple(run)
 
-    assert foreign_landed == [True], "the projection ran, and the foreign commit landed during it"
+    assert foreign_landed == [True], "fixture invalid: the foreign commit was never injected (the late.md assert below proves the projection ran)"
     assert _git(run.main_repo, "show", f"main:kitty-specs/{SLUG}/traces/late.md").stdout == "late\n", "the projection landed before the gate refused"
     assert "compare-and-swap failed" in str(caught.value), "the gate refuses, because the anchor no longer matches the live ref"
     assert run.coord_tip_after_projection == tip, "the anchor stays at the pre-window tip: a tip the assertion did not cover is never stamped approved"
@@ -983,15 +983,15 @@ def test_teardown_hands_the_persist_commit_to_the_caller(tmp_path: Path) -> None
 
 
 def test_a_clean_first_run_projects_nothing(tmp_path: Path) -> None:
-    """#6871: a first run whose tip is the tip it verified has an EMPTY window -- no commit, no claim."""
+    """#6871: a first run whose tip is the tip it captured has an EMPTY window -- no commit, no claim."""
 
-    repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
-    run = _coord_run_state(repo, coord, projected_tip)
-    target_before = _rev(repo, "main")
+    run, _worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    target_before = _rev(run.main_repo, "main")
 
     phase_teardown._land_late_coordination_commits(run)
 
-    assert _rev(repo, "main") == target_before
+    assert _rev(run.main_repo, "main") == target_before, "a clean first run must not commit onto the target"
+    assert run.coord_tip_after_projection == tip, "a clean first run approves no new tip"
 
 
 def test_resume_with_nothing_landed_late_commits_nothing(tmp_path: Path) -> None:
