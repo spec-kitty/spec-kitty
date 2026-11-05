@@ -114,8 +114,9 @@ The resume proves that before it deletes anything, and refuses when it cannot:
 - It will not express a deletion. A coordination record the window deletes does
   stay on the target — a projection can only bring content forward — so the
   resume REFUSES the window instead of treating the deletion as landed.
-- It refuses if any coordination record changed in that window is not on the
-  target.
+- It refuses if any change made in that window is not on the target: a
+  coordination record, a status event, or a file the target authors for itself
+  (see [What the late window proves](#what-the-late-window-proves)).
 
 **This is stricter than earlier releases.** On ANY `--resume` -- not only one
 that follows `COORD_TEARDOWN_KEPT_ONLY_COPY` -- a window that holds a record the
@@ -155,8 +156,43 @@ What to do depends on the refusal, and each one names its own repair:
   the coordination branch (`git checkout <coordination-branch> -- <path>` in the
   target checkout, then commit it), or, if it must not exist at all, delete it on
   both branches.
+- **A status event that is not in the target's log:** the resume folds the
+  coordination **worktree's** working-tree `status.events.jsonl`, not the
+  coordination branch's commits, so make that copy hold the events (`git
+  checkout <coordination-branch> -- kitty-specs/<slug>/status.events.jsonl` in
+  the coordination worktree) or append them to the target's log and rematerialize
+  `status.json` from the union. Do **not** copy the coordination file over the
+  target's log: that would drop the events the target already holds.
+- **A file the target authors for itself (for example `meta.json`) that the
+  target's copy does not carry:** land the change on the target yourself (`git
+  checkout <coordination-branch> -- <path>` in the target checkout, then commit
+  it), or revert the coordination commit that made it. A consolidation never
+  projects these files — the merge writes its own mission number, baseline stamp
+  and marker onto the target — so copying them is the operator's call, not the
+  tool's.
 
 Then run `spec-kitty consolidate --resume` again.
+
+### What the late window proves
+
+Before the coordination branch is deleted, every change the window made inside
+the Mission directory is accounted for, on a first run and on a resume alike.
+Each one is either landed on the target, or excluded by a rule that says why its
+bytes carry nothing the target lacks:
+
+- **Landed:** the file is byte-identical on the target branch.
+- **Landed by the status union:** every event id committed to the coordination
+  branch's `status.events.jsonl` is present in the target's committed event log.
+- **Derived, so not proved:** `status.json` is a reduced snapshot the
+  consolidation rematerializes from the unioned event log, so its own bytes are
+  never an independent record.
+- **Carried by the target's own copy:** a target-authored document (for example
+  `meta.json`) whose coordination copy is contained in the target's committed
+  copy — the mission-number, baseline-stamp and marker-flatten shape.
+
+Anything else refuses, keeps the coordination branch, worktree and marker, and
+names the repair above. A change to a file the target does not carry is never
+approved just because the consolidation did not project it.
 
 The other codes `consolidate` can report are listed in the
 [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).
@@ -171,12 +207,14 @@ anything committed to the coordination branch **after** that tip is late by
 definition. Before the branch is deleted, a first run projects that window and
 proves it landed, exactly as a resume does:
 
-- A late coordination record that can be landed is committed on the target, then
-  proven there, and only then does the coordination branch go.
+- A late record that can be landed is committed on the target, then proven
+  there, and only then does the coordination branch go.
 - A record that cannot be landed (a deletion, a copy that would lose evidence, an
-  unreadable matrix) refuses with `Error code: COORD_LATE_PROJECTION_REFUSED.`,
-  keeps the coordination branch, worktree and marker, and names its own repair —
-  the same per-kind remedies listed above.
+  unreadable matrix, a status event the union could not see, a target-authored
+  file the target does not carry) refuses with
+  `Error code: COORD_LATE_PROJECTION_REFUSED.`, keeps the coordination branch,
+  worktree and marker, and names its own repair — the same per-kind remedies
+  listed above.
 - A run where nothing landed late projects nothing and makes no extra commit, so
   a clean consolidation behaves exactly as it did before.
 
