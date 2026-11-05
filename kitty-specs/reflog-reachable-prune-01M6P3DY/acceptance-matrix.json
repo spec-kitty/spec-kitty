@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_workspaces_prune.py::test_prune_names_the_kept_reflog_ref",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-05T16:21:15.765782+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
