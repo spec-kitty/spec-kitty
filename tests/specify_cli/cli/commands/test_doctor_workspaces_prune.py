@@ -506,8 +506,8 @@ def test_unproven_only_for_the_process_probe_prints_the_manual_commands(repo: Pa
     assert "--force" not in out
     assert _registered(repo, path)
     commands = [line.strip() for line in out.splitlines() if line.strip().startswith("git ")]
-    keep, delete = f"git update-ref refs/spec-kitty/discarded/{_LANDED} {tip}", f"git branch -D {_LANDED}"
-    assert commands[1:] == [keep, delete], "the tip is kept before the branch goes"
+    keep = ["git", "update-ref", f"refs/spec-kitty/discarded/{_LANDED}", tip, ""]  # create-only, like the prune's own write
+    assert [shlex.split(command) for command in commands[1:]] == [keep, ["git", "branch", "-D", _LANDED]], "the tip is kept before the branch goes"
     for command in commands:  # pasted into a shell, in order, they work on a path with a space
         _git(repo, *shlex.split(command)[1:])
     assert not _registered(repo, path) and not path.exists() and not _has_branch(repo, _LANDED)

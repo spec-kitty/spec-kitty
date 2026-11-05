@@ -101,9 +101,11 @@ def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) ->
     """The hand removal for a worktree unproven only because running processes cannot be checked (else ``[]``).
 
     Like the prune (``LANDED_INTENT``), the branch tip is kept under
-    ``refs/spec-kitty/discarded/<branch>`` before the branch is deleted.
+    ``refs/spec-kitty/discarded/<branch>`` before the branch is deleted; the
+    printed write is the guard's own create-only bookkeeping write.
     """
     from specify_cli.git.destructive_guard import discarded_ref
+    from specify_cli.git.ref_advance import bookkeeping_ref_write_args
     from specify_cli.workspace.landed_worktrees import Reason, shell_command
 
     if verdict.reason is not Reason.PROCESS_PROOF_UNAVAILABLE:
@@ -114,7 +116,8 @@ def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) ->
     ]
     if verdict.branch is not None:
         if verdict.tip is not None:
-            lines.append(f"{_INDENT}{shell_command('git', 'update-ref', discarded_ref(repo_root, verdict.branch, verdict.tip), verdict.tip)}")
+            keep = bookkeeping_ref_write_args(discarded_ref(repo_root, verdict.branch, verdict.tip), verdict.tip, create_only=True)
+            lines.append(f"{_INDENT}{shell_command('git', *keep)}")
         lines.append(f"{_INDENT}{shell_command('git', 'branch', '-D', verdict.branch)}")
     return lines
 
