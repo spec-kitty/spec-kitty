@@ -2,7 +2,7 @@
 title: Analysis report transactions
 description: Record an analysis report while preserving unrelated work and checking the report commit against its material governance inputs.
 doc_status: draft
-updated: '2026-11-03'
+updated: '2026-11-05'
 audience:
 - profile: internal/ai-collaboration-agent
   guidance_text: Written for the AI Collaboration Agent reader.
@@ -41,13 +41,32 @@ analysis. WP lane/review fields use the canonical mutable-field vocabulary and
 are excluded from definition hashes. Runtime events, context-state and synthesis
 bookkeeping are excluded. Symlinks and external mutable org roots are refused.
 
-A fetched pack tree is one of those inputs, and its committed state is its pin,
-not a blob in this repository: `.gitignore` excludes `/packs/<name>/` because
-`make sync-packs` writes it from the commit recorded in the tracked
-`packs/<name>.source.yaml`. The transaction therefore treats a tree whose content
-verifies against that committed pin as clean input. It still refuses when the
-tree no longer matches the pin, when the pin itself is uncommitted or missing,
-and for every other untracked or ignored material input.
+In the documented `make sync-packs` layout, a fetched pack tree is an input
+whose committed authority is its tracked sibling pin, not an indexed tree.
+The [pin-and-fetch ADR](../adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md)
+describes this layout. For a registry-declared, in-repository root such as
+`packs/internal/`, the transaction exempts ignored, untracked material only when
+its sibling `packs/internal.source.yaml` is tracked, clean and not symlinked,
+its `subtree` equals that repo-relative resolved root, and the canonical offline
+check matches both committed pin digests and refuses in-tree symlinks.
+This proves local content equality to the pin, not that its remote commit exists
+or contains those bytes. Index/worktree dirt and canonical-charter checks are
+never relaxed; a non-ignored, status-visible untracked tree still refuses.
+
+The sibling-root and matching-subtree rules do not generally support registry
+aliases, nested `subdir` roots or non-mirroring upstream layouts. These remain
+fail-closed; #7194 owns the binding-contract decision. It is not permission to
+broaden admission or treat ignored paths as clean. A changed tree, missing or
+uncommitted pin, and unrelated ignored material still refuse. Refusals can name
+the pin **alongside** pack files; `dirty_paths` can include a pin that fails the
+trust check even when its own Git status is clean.
+
+The report hashes the fetched tree's material bytes, not the pin file itself.
+A committed pin-only bump with unchanged tree bytes therefore does not by itself
+invalidate an already-qualified report, and the report does not identify its
+authorizing pin. This is the existing manifest contract, not a new pin-provenance
+attestation. Existing HEAD, whole-index, working-byte and material-input rechecks
+still detect cooperative changes during the recording transaction.
 
 ## Outcomes and recovery
 
