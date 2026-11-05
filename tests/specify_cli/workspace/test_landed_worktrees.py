@@ -555,7 +555,11 @@ def test_a_git_refusal_is_recorded_and_the_run_continues(repo: Path, tmp_path: P
 
 
 def test_a_branch_moved_after_removal_is_not_deleted(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The guard's branch delete is not compare-and-swap: the prune compares the tip itself first."""
+    """The prune's own comparison is the fast path: a branch moved before it is refused without touching a ref.
+
+    The window *after* that comparison is closed inside the guard; see
+    ``test_a_branch_moved_inside_the_delete_is_kept``.
+    """
     worktree, tip = _land_by_rebase(repo, "land-x")
     real_remove = landed_worktrees.guarded_worktree_remove
 
