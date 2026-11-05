@@ -761,9 +761,9 @@ class UpgradeObservation:
         return [b for b, shas in self.upgrade_commits_by_branch.items() if shas]
 
 
-def observe_upgrade_divergence(project: LanesProject) -> UpgradeObservation:
-    """Run ``spec-kitty upgrade --yes`` and report what each branch ended up with."""
-    result = project.upgrade()
+def observe_upgrade_divergence(project: LanesProject, *upgrade_args: str) -> UpgradeObservation:
+    """Run ``spec-kitty upgrade --yes [upgrade_args...]`` and report what each branch ended up with."""
+    result = project.run("upgrade", "--yes", *upgrade_args)
     branches = project.branches()
     return UpgradeObservation(
         returncode=result.returncode,

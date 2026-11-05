@@ -49,6 +49,7 @@ from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult, 
 from specify_cli.upgrade.registry import MigrationRegistry, settled_in_selection_view
 from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS, superseded_note
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -863,7 +864,7 @@ def test_a_worktree_with_its_own_ledger_that_records_the_predecessor_is_left_alo
     _record(wt, PRED_090, "success")
     before = _snapshot(wt / "kitty-specs")
 
-    result = MigrationRunner(repo)._upgrade_worktrees(TARGET, [successor], False)  # the worktree pass of `upgrade`
+    result = MigrationRunner(repo)._upgrade_worktrees(TARGET, [successor], False, worktree_selection=WorktreeSelection.all())  # the worktree pass of `upgrade`
 
     assert result["errors"] == []
     assert _snapshot(wt / "kitty-specs") == before
@@ -996,7 +997,7 @@ def test_the_runner_records_a_git_command_error_as_a_failure_and_does_not_raise(
         repo = _tracked_project(tmp_path, worktree=True)
         project = repo / ".worktrees" / "wt1"
         ProjectMetadata(version="3.0.0", initialized_at=now_utc()).save(project / ".kittify")
-        errors = MigrationRunner(repo)._upgrade_worktrees(TARGET, [migration], False)["worktree_failures"]
+        errors = MigrationRunner(repo)._upgrade_worktrees(TARGET, [migration], False, worktree_selection=WorktreeSelection.all())["worktree_failures"]
 
     assert len(errors) == 1
     assert "git failed" in errors[0]

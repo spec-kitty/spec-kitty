@@ -29,6 +29,7 @@ from specify_cli.migration.schema_version import CURRENT_SCHEMA_CAPABILITIES, RE
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -99,7 +100,7 @@ def test_worktree_upgrade_churn_is_committed_on_its_own_branch(tmp_path: Path) -
     _init_repo(root)
     wt = _add_worktree(root, "m-lane-a", f"{NON_INTEGRATING_PREFIX}m-lane-a")
 
-    result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
+    result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     assert result["errors"] == []
     assert not any("auto-commit" in w.lower() for w in result["warnings"]), result["warnings"]
@@ -122,7 +123,7 @@ def test_preexisting_uncommitted_work_in_worktree_is_not_committed(tmp_path: Pat
     (wt / "kitty-specs" / "wip.md").write_text("wip\n", encoding="utf-8")
     (wt / "README.md").write_text("# repo (edited in lane)\n", encoding="utf-8")
 
-    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
+    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     remaining = _dirty(wt)
     # Untracked dirs are reported as a single `?? kitty-specs/` entry.
@@ -152,7 +153,7 @@ def test_synthesized_worktree_metadata_is_saved_when_version_matches_target(tmp_
 
     monkeypatch.setattr("specify_cli.upgrade.runner.VersionDetector", _StubDetector)
 
-    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
+    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     assert (wt / ".kittify" / "metadata.yaml").exists(), "synthesized worktree metadata must be saved to disk (#1873)"
     assert _dirty(wt) == [], "the healed metadata must also be committed"
@@ -213,7 +214,9 @@ def test_genuine_worktree_migration_still_mints_fresh_stamp_not_main_aligned(tmp
             return MigrationResult(success=True, changes_made=["wrote genuine-change.txt"])
 
     try:
-        result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [_GenuineChangeStub()], dry_run=False, auto_commit=True)
+        result = MigrationRunner(root)._upgrade_worktrees(
+            "3.2.9", [_GenuineChangeStub()], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all()
+        )
         assert result["errors"] == []
 
         wt_data = yaml.safe_load((wt / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
@@ -270,10 +273,12 @@ def test_genuine_worktree_migration_never_runs_in_an_integrating_worktree(tmp_pa
             return MigrationResult(success=True, changes_made=["wrote genuine-change.txt"])
 
     try:
-        result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [_SpyMigration()], dry_run=False, auto_commit=True)
+        result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [_SpyMigration()], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     finally:
         MigrationRegistry.clear()
 
+    runs = result.pop("worktree_results")
+    assert {r.path.name: r.outcome.value for r in runs} == {"m-lane-x": "skipped_mission", "m-control": "upgraded_committed"}
     assert result == {"warnings": [], "errors": [], "worktree_failures": []}
     assert detected.count(lane) == 0, "integrating worktree must not be probed"
     assert detected.count(control) > 0, "non-integrating control must still be probed"
@@ -294,8 +299,10 @@ def test_no_migrations_stamp_pass_leaves_integrating_worktree_untouched(tmp_path
     lane_before = _snapshot(lane)
     control_head = _git_out(control, "rev-parse", "HEAD")
 
-    result = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True)
+    result = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True, worktree_selection=WorktreeSelection.all())
 
+    runs = result.pop("worktree_results")
+    assert {r.path.name: r.outcome.value for r in runs} == {"m-lane-y": "skipped_mission", "m-control": "upgraded_committed"}
     assert result == {"warnings": [], "errors": [], "worktree_failures": []}
     assert _snapshot(lane) == lane_before
     assert _git_out(control, "rev-parse", "HEAD") != control_head
@@ -358,7 +365,7 @@ def test_current_equals_target_worktree_catchup_ends_byte_identical_to_main(tmp_
     # current_version == target_version: this mirrors upgrade.py:822's guard
     # (no-migrations, already-current main) funneling into the shared
     # `_upgrade_worktrees` call with an empty migrations list.
-    result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True)
+    result = MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     assert result["errors"] == []
 
     main_data = yaml.safe_load((root / ".kittify" / "metadata.yaml").read_text(encoding="utf-8-sig"))
@@ -375,7 +382,7 @@ def test_dry_run_writes_and_commits_nothing_in_worktrees(tmp_path: Path) -> None
     wt = _add_worktree(root, "m-lane-d", f"{NON_INTEGRATING_PREFIX}m-lane-d")
     head_before = _git_out(wt, "rev-parse", "HEAD")
 
-    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=True, auto_commit=True)
+    MigrationRunner(root)._upgrade_worktrees("3.2.9", [], dry_run=True, auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     assert _dirty(wt) == []
     assert _git_out(wt, "rev-parse", "HEAD") == head_before
@@ -425,7 +432,7 @@ def test_upgrade_invariant_every_touched_checkout_ends_clean(tmp_path: Path) -> 
             return MigrationResult(success=True, changes_made=["wrote .kittify/.invariant-stub"])
 
     try:
-        result = MigrationRunner(root).upgrade("3.2.9", dry_run=False, auto_commit=True)
+        result = MigrationRunner(root).upgrade("3.2.9", dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
         assert result.success, result.errors
 
         # Worktree: only the pre-existing WIP dir survives uncommitted.

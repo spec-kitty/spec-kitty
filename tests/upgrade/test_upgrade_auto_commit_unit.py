@@ -920,6 +920,7 @@ def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
         json_output=True,
         verbose=False,
         no_worktrees=False,
+        all_worktrees=True,  # a non-Mission worktree is written only when opted in (#7173)
         cli=False,
         project=False,
     )
@@ -1454,6 +1455,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkey
         migrations: list,
         dry_run: bool,
         auto_commit: bool = False,
+        worktree_selection: object = None,
     ) -> dict:
         calls.append(
             {
@@ -1461,6 +1463,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkey
                 "migrations": migrations,
                 "dry_run": dry_run,
                 "auto_commit": auto_commit,
+                "worktree_selection": worktree_selection,
             }
         )
         return {"warnings": [], "errors": []}
@@ -1476,6 +1479,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkey
     assert calls[0]["migrations"] == []
     assert calls[0]["dry_run"] is True
     assert calls[0]["auto_commit"] is False
+    assert calls[0]["worktree_selection"] is None  # None selects no non-Mission worktree (#7173)
 
 
 def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) -> None:
@@ -1492,8 +1496,9 @@ def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) 
         migrations: list,
         dry_run: bool,
         auto_commit: bool = False,
+        worktree_selection: object = None,
     ) -> dict:
-        calls.append({"auto_commit": auto_commit})
+        calls.append({"auto_commit": auto_commit, "worktree_selection": worktree_selection})
         return {"warnings": [], "errors": []}
 
     runner = MigrationRunner(project_path)

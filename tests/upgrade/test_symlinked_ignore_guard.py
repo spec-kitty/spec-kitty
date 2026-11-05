@@ -31,6 +31,7 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -166,7 +167,7 @@ class TestWorktreeMigrationGuard:
         _register(_DetectRaisesMigration)
         runner = MigrationRunner(migration_project)
 
-        result = runner._upgrade_worktrees("0.0.1", [_DetectRaisesMigration()], dry_run=False)
+        result = runner._upgrade_worktrees("0.0.1", [_DetectRaisesMigration()], dry_run=False, worktree_selection=WorktreeSelection.all())
 
         assert any("0.0.1_detect_raises" in e for e in result["errors"])
         # The ledger is the applied authority post-cutover: the migration is
@@ -181,7 +182,7 @@ class TestWorktreeMigrationGuard:
         _register(_ApplyRaisesMigration)
         runner = MigrationRunner(migration_project)
 
-        result = runner._upgrade_worktrees("0.0.1", [_ApplyRaisesMigration()], dry_run=False)
+        result = runner._upgrade_worktrees("0.0.1", [_ApplyRaisesMigration()], dry_run=False, worktree_selection=WorktreeSelection.all())
 
         assert any("0.0.1_apply_raises" in e for e in result["errors"])
 
