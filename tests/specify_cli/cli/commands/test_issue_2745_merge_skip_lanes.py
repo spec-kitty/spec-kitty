@@ -121,9 +121,16 @@ def _write_meta(feature_dir: Path, mission_slug: str, *, purpose: str) -> None:
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _write_wp_file(feature_dir: Path, wp_id: str) -> None:
+def _write_wp_file(feature_dir: Path, wp_id: str, owned_files: tuple[str, ...]) -> None:
+    """A task file as a real Mission authors it: the work package declares its ``owned_files``.
+
+    The #6715 evidence axis reads that authored declaration (a file with no ``owned_files`` key
+    reads as an authored empty list and can never own a change), so a fixture that omits it is
+    not a direct-on-target Mission, it is a work package that owes nothing (#7209).
+    """
+    owned = "".join(f"  - {path}\n" for path in owned_files)
     (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nagent: implementer-bot\n---\n# {wp_id}\n",
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nagent: implementer-bot\nowned_files:\n{owned}---\n# {wp_id}\n",
         encoding="utf-8",
     )
 
@@ -164,7 +171,7 @@ def _bootstrap_direct_on_target_mission(
     feature_dir = repo / "kitty-specs" / mission_slug
     (feature_dir / "tasks").mkdir(parents=True)
     _write_meta(feature_dir, mission_slug, purpose="direct-on-target skip-lanes fixture")
-    _write_wp_file(feature_dir, WP_ID)
+    _write_wp_file(feature_dir, WP_ID, (f"src/{code_filename}",))
     events = [
         _event(mission_slug, WP_ID, "01HXYZSK750000000000000001", from_lane="claimed", to_lane="in_progress", actor="implementer-bot"),
     ]

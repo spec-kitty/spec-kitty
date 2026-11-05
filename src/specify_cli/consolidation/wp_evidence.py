@@ -10,7 +10,9 @@ recorded by the implementer itself.
 
 Per approved (or ``done``), non-canceled work package, first match wins (data-model.md):
 
-1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit.
+1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: no planning commit is recorded or resolvable. Every other
+   topology reads ``lanes.json`` (``finalize-tasks`` records the pin there); a ``--skip-lanes``
+   direct-on-target Mission records it from the target's own history instead (#7209).
 2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002). When
    the window's tip is a branch ref that is truly absent, the refusal says which shape that is
    (:func:`absent_lane_window_cause`): restore actual lane history if it existed, or escalate an
@@ -487,7 +489,9 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
 
 _RECOVERY: Mapping[str, str] = {
     EVIDENCE_WINDOW_UNCOMPUTABLE: (
-        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
+        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run. "
+        "For a Mission with no `lanes.json` (a `--skip-lanes` direct-on-target Mission) that command records nothing this gate reads: "
+        "commit the Mission's planning artifacts (`kitty-specs/<slug>/`) on the target branch so its start is in history and the window is resolvable, then re-run."
     ),
     IMPLEMENTATION_UNREADABLE: (
         f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
@@ -827,7 +831,7 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
         for wp_id in approved:
             scan.add(
                 wp_id,
-                f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: {wp_id} has no evidence window ({lane.lane_id}: lanes.json records no planning commit), {_CANNOT_VERIFY}",
+                f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: {wp_id} has no evidence window ({lane.lane_id}: no planning commit is recorded or resolvable), {_CANNOT_VERIFY}",
             )
         return
     try:

@@ -2,7 +2,7 @@
 title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup.'
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-05'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
@@ -157,6 +157,24 @@ Set the policy when you create the Mission:
 ```bash
 spec-kitty agent mission create "<slug>" --retain-branches --retain-worktrees ...
 ```
+
+## Complete a Direct-on-Target Mission (`--skip-lanes`)
+
+A direct-on-target Mission commits its work packages straight onto the target branch: no lane branch exists, and there is no `kitty-specs/<slug>/lanes.json`. `--skip-lanes` (alias `--no-lanes`) completes one transactionally:
+
+```bash
+spec-kitty consolidate --mission 015-user-authentication --skip-lanes
+```
+
+The flag is an explicit opt-in and does nothing for a Mission that has a `lanes.json`. With no `lanes.json` to read, the run synthesizes the lanes manifest it needs, and that manifest takes its implementation-evidence base from the target branch's own history: the target tip immediately before the commit that introduced `kitty-specs/<slug>/`. (When that commit is the repository root it has no parent and is its own base, so content that root already carries is outside the window.) The evidence window is the net tree diff from that base to the target tip: a path changed and then reverted counts as unchanged, and Mission bookkeeping never counts as implementation.
+
+The review and evidence gates are the same as on any other Mission, and `--skip-lanes` does not relax them:
+
+- A work package approved with no change to its `owned_files` inside that window is refused `IMPLEMENTATION_MISSING`, unless a no-implementation attestation is in force for it (`--attest-no-implementation`, recorded on `accept` or `consolidate`).
+- An approval recorded by the implementer itself is refused `REVIEW_NOT_INDEPENDENT`.
+- A work package whose `owned_files` cannot be read is refused `OWNERSHIP_UNRESOLVED`, and no attestation lifts it.
+
+When the Mission's planning artifacts are not in the target branch's history, no window can be computed and the run refuses `EVIDENCE_WINDOW_UNCOMPUTABLE`. `spec-kitty agent mission finalize-tasks` records nothing this gate reads on this topology; commit `kitty-specs/<slug>/` on the target branch so the Mission's start is in history, then re-run.
 
 ## Publish the Result
 
