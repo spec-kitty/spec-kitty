@@ -194,8 +194,8 @@ def record_evidence_prerequisites(
 
     One call for a fixture whose subject is something other than implementation evidence: every
     work package the manifest lists declares the surface its lane commits, and the manifest
-    records the planning commit the lanes are cut from. Both are committed, as a real Mission has
-    them committed. Returns the recorded planning commit.
+    records the planning commit the lanes are cut from. Both land in one commit, so the pin names
+    that commit's parent, one earlier than a real Mission's pin. Returns the recorded planning commit.
     """
     from specify_cli.lanes.persistence import read_lanes_json
 
