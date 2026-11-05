@@ -2452,6 +2452,7 @@ module = [
     "specify_cli.cli.commands._test_env_check",     # assert_typer_click_lock_parity() -> list[PackageSkew] (review, #5222)
     "specify_cli.core.paths",                       # locate_project_root() -> Path | None (core.ledger_posture)
     "specify_cli.core.errors",                      # error base classes subclassed by callers
+    "specify_cli.core.subtask_recipe",              # mark_status_recipe() -> str (workflow_executor, prompt_builder, #7108)
     "specify_cli.requirement_mapping.grammar",      # requirement-mapping grammar types
     "specify_cli.skills.paths",                     # get_primary_*_skill_root() (skills/installer.py, #4998)
     "specify_cli.skills.manifest",                  # compute_content_hash() -> str (skills/verifier.py, #4998)
