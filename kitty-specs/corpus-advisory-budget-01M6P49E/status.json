@@ -2,10 +2,9 @@
   "event_count": 14,
   "last_event_id": "01M6P72QJN0BW8ZJETRGJDSBE9",
   "materialized_at": "2026-11-05T16:01:13.301589+00:00",
-  "mission_number": "250",
+  "mission_number": "",
   "mission_slug": "corpus-advisory-budget-01M6P49E",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,72 +19,35 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M6P72NYY31H4MWEBF3XAD54F",
       "last_transition_at": "2026-11-05T16:01:11.646658+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review: cap derived (31) + guard, step budget 28 + legible notice; 25 new/extended guard tests and the lane's 5 invariant modules green",
-        "Review passed (reviewer-renata). Checklist: dead code N/A (the guard helpers are the deliverable, called by the live tests); synthetic-fixture PASS (each property asserts the real packs.yml plus a mutation control through the same production function); silent-empty PASS; FR coverage PASS with FR-006 proved by the pre-existing live guards (analysis finding C1 accepted, citations in the PR); frozen surface N/A; locked decisions PASS (C-001 no shard/matrix, C-002 wiring byte-identical per targeted diff); shared-file PASS (packs.yml owned only by WP01); fragility N/A. Review round 1 changed the step-budget floor message and its mutation needle to name the measured suite p95. Tests: 25 passed (two guard modules), 49 passed (corpus_blocking_home, contracts_routing, xdist_worker_policy), 84 passed 1 skipped (ci_corpus_trigger_completeness, no_duplicate_suite_execution), ruff clean."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261105",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 1058713,
-      "shell_pid_created_at": "1793891825.69",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
-      },
-      "tracker_refs": [
-        "#7206"
-      ]
+      "shell_pid_created_at": "1793891825.69"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M6P72QJN0BW8ZJETRGJDSBE9",
       "last_transition_at": "2026-11-05T16:01:13.301589+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review: reference bullet + fragment; changelog style 0 errors, spelling 0 findings, docs freshness errors=0",
-        "Review passed (reviewer-renata). Numbers cross-checked against research.md and the raw job logs (p95 20.3 min over 55 runs; collection ~8 min, scan 212 s, execution ~6.3 min; 1 624 items from 103 of 4 429 modules). Checklist: dead code N/A (docs + fragment); synthetic-fixture N/A; silent-empty N/A; FR coverage PASS (FR-007 wording matches the workflow record and the guards, SC-004 covered); frozen surface N/A; locked decisions PASS (no claim that the suite got faster; selection stated unchanged); shared-file PASS (docs owned only by WP02). Review round 1 changed 'the suite's p95' to 'the job's p95'. Checks: check_changelog_style 0 errors (entry 899 chars), check_spelling 0 findings, check_docs_freshness --ci errors=0."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261105",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 1977330,
-      "shell_pid_created_at": "1793893803.8",
-      "subtasks": {
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
-      },
-      "tracker_refs": [
-        "#7206"
-      ]
+      "shell_pid_created_at": "1793893803.8"
     }
   }
 }
