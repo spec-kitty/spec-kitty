@@ -511,14 +511,7 @@ def guarded_merge_abort(
 
 def _prunable_paths_on_disk(repo_root: Path, env: dict[str, str] | None) -> list[str]:
     """Registered worktrees git marks prunable whose directory nevertheless exists."""
-    listing = _git_ok(repo_root, ["worktree", "list", "--porcelain"], env)
-    present: list[str] = []
-    for block in listing.split("\n\n"):
-        lines = block.strip().split("\n")
-        path = next((line[len("worktree ") :] for line in lines if line.startswith("worktree ")), None)
-        if path is not None and any(line.startswith("prunable") for line in lines) and Path(path).exists():
-            present.append(path)
-    return present
+    return [str(entry.path) for entry in worktree_entries(repo_root, env=env) if entry.prunable and entry.path.exists()]
 
 
 def guarded_worktree_prune(repo_root: Path, *, env: dict[str, str] | None = None) -> None:

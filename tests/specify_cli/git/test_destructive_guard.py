@@ -680,15 +680,12 @@ def test_guarded_worktree_prune_refuses_when_a_prunable_path_exists(tmp_path: Pa
     existing = tmp_path / "still-here"
     existing.mkdir()
     import specify_cli.git.destructive_guard as guard
+    from specify_cli.git.worktree_listing import WorktreeEntry
 
-    real = guard._git_ok
+    def fake(cwd: Path, **_kwargs: object) -> tuple[WorktreeEntry, ...]:
+        return (WorktreeEntry(path=existing, head="abc", branch=None, detached=False, bare=False, locked=False, prunable=True),)
 
-    def fake(cwd: Path, args: list[str], env: dict[str, str] | None) -> str:
-        if args[:2] == ["worktree", "list"]:
-            return f"worktree {existing}\nHEAD abc\nprunable gitdir file points to non-existent location\n\n"
-        return real(cwd, args, env)
-
-    monkeypatch.setattr(guard, "_git_ok", fake)
+    monkeypatch.setattr(guard, "worktree_entries", fake)
 
     with pytest.raises(DestructiveOpRefused) as info:
         guarded_worktree_prune(root)

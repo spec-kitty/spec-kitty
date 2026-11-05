@@ -13,7 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.git.worktree_listing import WorktreeEntry, parse_worktree_porcelain, worktree_entries
+from specify_cli.git.worktree_listing import WorktreeEntry, worktree_entries
+from specify_cli.git.worktree_listing import _parse_worktree_porcelain as parse_worktree_porcelain
 from kernel.git.runner import GitCommandError
 
 _SHA_A = "a" * 40

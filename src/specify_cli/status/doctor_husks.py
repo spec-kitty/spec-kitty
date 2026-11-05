@@ -17,11 +17,11 @@ file was deleted) is never removed automatically; it is reported for manual
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.git.worktree_listing import parse_worktree_porcelain
+from kernel.git import GitCommandError
+from specify_cli.git.worktree_listing import worktree_entries
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_tree_delete
 
 __all__ = [
@@ -116,26 +116,15 @@ class WorkspaceHuskRegistrationError(RuntimeError):
 
 def registered_worktree_paths(repo_root: Path) -> RegisteredWorktreePaths:
     """Return resolved paths registered in ``git worktree list --porcelain``."""
-    result = subprocess.run(
-        ["git", "worktree", "list", "--porcelain"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    registered: set[Path] = set()
-    if result.returncode != 0:
-        detail = (
-            result.stderr.strip()
-            or result.stdout.strip()
-            or f"exit {result.returncode}"
-        )
+    try:
+        entries = worktree_entries(repo_root)
+    except GitCommandError as exc:
+        detail = exc.stderr.strip() or f"exit {exc.returncode}"
         return RegisteredWorktreePaths(
             error=f"git worktree list --porcelain failed: {detail}"
         )
-    for entry in parse_worktree_porcelain(result.stdout):
+    registered: set[Path] = set()
+    for entry in entries:
         # ``.strip()`` keeps the pre-parser behaviour byte for byte.
         raw = str(entry.path).strip()
         try:
