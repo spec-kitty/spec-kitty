@@ -219,14 +219,16 @@ def resolve_owned_or_refuse(
 
 #: ``--owned-checkout`` help for the Op commands, which are not bound to a Mission.
 OP_RECORD_OWNED_CHECKOUT_HELP: Final[str] = (
-    "Keep this Op's record in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout. "
+    "Keep this Op's record in an owned checkout: a linked checkout of this repository. "
+    "Refuses the repository root checkout, coordination worktrees and lane worktrees. "
     "A record already in another checkout is closed where it lives."
 )
 
 
 #: ``--owned-checkout`` help for ``invocations list``, which reads Op records and writes none.
 OP_RECORD_LIST_OWNED_CHECKOUT_HELP: Final[str] = (
-    "List the Op records kept in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout."
+    "List the Op records kept in an owned checkout: a linked checkout of this repository. "
+    "Refuses the repository root checkout, coordination worktrees and lane worktrees."
 )
 
 
@@ -290,8 +292,10 @@ def refuse_owned_action(
     tests. With a ``handle``, validates through :func:`resolve_owned_mission`
     (``LIFECYCLE_OWNED_TOPOLOGIES``) so every invalid-path refusal code
     surfaces before the unconditional ``OWNED_ACTION_UNSUPPORTED`` refusal.
-    Without one, validates only the claim and the repository-root refusal via
-    :func:`resolve_owned_create_root` (the mission may not be resolvable yet).
+    Without one, validates the claim through :func:`resolve_owned_create_root`
+    (the mission may not be resolvable yet): the repository root, a registered
+    coordination worktree, and a registered checkout with a lane-worktree
+    directory name are all refused.
     """
     from specify_cli.core.owned_mission import (
         LIFECYCLE_OWNED_TOPOLOGIES,

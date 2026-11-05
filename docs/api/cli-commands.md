@@ -2056,7 +2056,8 @@ _Dispatch a request to a governed Op (canonical surface)._
 │ --owned-checkout          <path>  Keep this Op's record in an owned          │
 │                                   checkout: a linked checkout of this        │
 │                                   repository. Refuses the repository root    │
-│                                   checkout. A record already in another      │
+│                                   checkout, coordination worktrees and lane  │
+│                                   worktrees. A record already in another     │
 │                                   checkout is closed where it lives.         │
 │ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3282,7 +3283,8 @@ _Query local invocation records._
 │ --owned-checkout          <path>  List the Op records kept in an owned       │
 │                                   checkout: a linked checkout of this        │
 │                                   repository. Refuses the repository root    │
-│                                   checkout.                                  │
+│                                   checkout, coordination worktrees and lane  │
+│                                   worktrees.                                 │
 │ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -5624,8 +5626,10 @@ _Manage invocation records._
 │    --owned-checkout          <path>  Keep this Op's record in an owned       │
 │                                      checkout: a linked checkout of this     │
 │                                      repository. Refuses the repository root │
-│                                      checkout. A record already in another   │
-│                                      checkout is closed where it lives.      │
+│                                      checkout, coordination worktrees and    │
+│                                      lane worktrees. A record already in     │
+│                                      another checkout is closed where it     │
+│                                      lives.                                  │
 │    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

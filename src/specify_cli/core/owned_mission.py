@@ -317,8 +317,13 @@ def _require_not_create_mission_worktree(checkout: Path, repository_root: Path) 
     path); neither altitude refuses it, and neither did before this change.
 
     **Read budget.** Ownership validation already spends one registry read
-    (``checkout_ownership.resolve_ownership_claim``); this guard adds exactly
-    one more, for the two legs together, never one per leg.
+    (``checkout_ownership.resolve_ownership_claim``); this guard adds at most
+    one more, for the two legs together, never one per leg. A checkout with no
+    ``.worktrees/<name>`` ancestor (itself included) classifies PRIMARY with no
+    registry read at all, so the ordinary linked checkout costs nothing here.
+    The guard's result is not cached by ``owned_claim_scope`` (only the
+    ownership claim is), so a command that runs the startup consult and then
+    the real claim pays this read twice.
     """
     from specify_cli.coordination.surface_resolver import WorktreeTopology
     from specify_cli.core.checkout_ownership import OWNED_CHECKOUT_IS_MISSION_WORKTREE
