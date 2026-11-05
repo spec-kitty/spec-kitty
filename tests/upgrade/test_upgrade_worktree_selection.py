@@ -188,15 +188,20 @@ def test_dry_run_lists_every_worktree_and_writes_nothing(fixture: _Fixture) -> N
 
 
 @pytest.mark.parametrize(
-    "bad_path",
-    [".worktrees/no-such-worktree", "README.md", ".worktrees/extra-1/.kittify"],
-    ids=["missing", "outside", "nested"],
+    "opt_in",
+    [
+        ("--include-worktree", ".worktrees/no-such-worktree"),
+        ("--include-worktree", "README.md"),
+        ("--include-worktree", ".worktrees/extra-1/.kittify"),
+        ("--all-worktrees", "--include-worktree", ".worktrees/nope"),
+    ],
+    ids=["missing", "outside", "nested", "with-all-worktrees"],
 )
-def test_unknown_worktree_is_refused_before_any_write(fixture: _Fixture, bad_path: str) -> None:
+def test_unknown_worktree_is_refused_before_any_write(fixture: _Fixture, opt_in: tuple[str, ...]) -> None:
     fx = fixture
     before = {checkout: _state(checkout) for checkout in fx.all_checkouts()}
 
-    result = fx.project.run("upgrade", "--yes", "--include-worktree", bad_path)
+    result = fx.project.run("upgrade", "--yes", *opt_in)
 
     assert result.returncode == 2, _output(result)
     assert NOT_FOUND_CODE in _output(result)

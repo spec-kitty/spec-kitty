@@ -1110,9 +1110,9 @@ def _worktree_selection_from_options(
     """Build the operator's worktree selection, refusing a bad one before any write (FR-008).
 
     A ``--include-worktree`` path that is not a direct child of ``.worktrees/``
-    (``UPGRADE_WORKTREE_NOT_FOUND``) exits 2; flag conflicts were already
-    refused by :func:`_check_worktree_flag_conflicts`. The default selects no
-    non-Mission worktree (FR-007).
+    (``UPGRADE_WORKTREE_NOT_FOUND``) exits 2, also alongside ``--all-worktrees``;
+    flag conflicts were already refused by :func:`_check_worktree_flag_conflicts`.
+    The default selects no non-Mission worktree (FR-007).
     """
     refuse = functools.partial(
         _refuse_worktree_selection,
@@ -1125,15 +1125,16 @@ def _worktree_selection_from_options(
     )
     if no_worktrees:
         return WorktreeSelection.none()
+    named: list[Path] = []
+    if include:
+        try:
+            named = validate_named(project_path, include)
+        except UnknownWorktreeError as exc:
+            refuse(str(exc), code=exc.code, requested=_requested_selection(include, all_worktrees))
+            raise  # unreachable: refuse() always raises typer.Exit
     if all_worktrees:
         return WorktreeSelection.all()
-    if not include:
-        return WorktreeSelection.none()
-    try:
-        return WorktreeSelection.named_paths(validate_named(project_path, include))
-    except UnknownWorktreeError as exc:
-        refuse(str(exc), code=exc.code, requested=WorktreeSelection.named_paths(include))
-        raise  # unreachable: refuse() always raises typer.Exit
+    return WorktreeSelection.named_paths(named) if named else WorktreeSelection.none()
 
 
 def _build_no_migrations_outcome(
