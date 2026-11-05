@@ -285,10 +285,13 @@ def test_an_unmaterialized_coordination_worktree_refuses_with_a_typed_code(evide
     assert evidence.harness.calls == []
 
 
-@pytest.mark.parametrize("error", [StoreError("torn line"), OSError("permission denied")])
-@pytest.mark.parametrize("extra", [(), ("--no-commit",), ("--diagnose",)])
+_UNREADABLE_LOGS = [StoreError("torn line"), OSError("permission denied")]
+
+
+@pytest.mark.parametrize("error", _UNREADABLE_LOGS)
+@pytest.mark.parametrize("extra", [(), ("--no-commit",)])
 def test_an_unreadable_status_surface_refuses_with_a_typed_code(evidence: Evidence, error: Exception, extra: tuple[str, ...]) -> None:
-    """The status log cannot be read: exit 1 with ``EVIDENCE_STATUS_UNREADABLE`` in every mode, ``--diagnose`` included."""
+    """The status log cannot be read: exit 1 with ``EVIDENCE_STATUS_UNREADABLE``."""
     evidence.report_error = error
 
     result = evidence.harness.invoke("--mission", _SLUG, *extra)
@@ -300,6 +303,25 @@ def test_an_unreadable_status_surface_refuses_with_a_typed_code(evidence: Eviden
     assert payload["error"].startswith("EVIDENCE_STATUS_UNREADABLE: ")
     assert "could not be checked for implementation evidence" in payload["error"]
     assert str(error) in payload["error"]
+    assert evidence.harness.calls == []
+
+
+@pytest.mark.parametrize("error", _UNREADABLE_LOGS)
+def test_diagnose_skips_the_evidence_check_on_an_unreadable_status_log(evidence: Evidence, error: Exception) -> None:
+    """Operator ruling: --diagnose exits 0 and lists the skip, like the other uncomputable cases."""
+    evidence.report_error = error
+
+    result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
+
+    payload = json.loads(result.output)
+    assert result.exit_code == 0, result.output
+    assert payload["diagnose"] is True
+    assert "error_code" not in payload
+    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
+    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
+    assert skipped[0][1].startswith("implementation_evidence skipped: EVIDENCE_STATUS_UNREADABLE: ")
+    assert str(error) in skipped[0][1]
+    assert evidence.harness.summary.blocked_checks == []
     assert evidence.harness.calls == []
 
 

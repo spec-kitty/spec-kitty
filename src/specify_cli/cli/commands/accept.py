@@ -1215,15 +1215,20 @@ def _uncomputable_evidence(exc: Exception) -> tuple[str, str, dict[str, object]]
     """``(error code, message, extra JSON)`` of an evidence check that cannot be computed (#7222, #7223).
 
     A corrupt ``lanes.json`` is ``EVIDENCE_WINDOW_UNCOMPUTABLE``; a coordination worktree that
-    was never materialized keeps its own code and recovery ``next_step``. The verdict is never
-    judged on a substitute surface (the primary checkout) instead (#4959).
+    was never materialized keeps its own code and recovery ``next_step``; an unreadable status
+    log is ``EVIDENCE_STATUS_UNREADABLE``. The verdict is never judged on a substitute surface
+    (the primary checkout) instead (#4959).
     """
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
     if isinstance(exc, CorruptLanesError):
         code = EVIDENCE_WINDOW_UNCOMPUTABLE
         return code, f"{code}: the implementation-evidence window cannot be computed ({exc}).", {}
-    code = str(getattr(exc, "error_code", EVIDENCE_WINDOW_UNCOMPUTABLE))
-    next_step = getattr(exc, "next_step", None)
-    return code, f"{code}: the implementation evidence cannot be read ({exc}).", ({"next_step": next_step} if next_step else {})
+    if isinstance(exc, CoordinationWorktreeUnmaterialized):
+        code = exc.error_code
+        return code, f"{code}: the implementation evidence cannot be read ({exc}).", {"next_step": exc.next_step}
+    code = EVIDENCE_STATUS_UNREADABLE
+    return code, f"{code}: the Mission could not be checked for implementation evidence ({exc}); nothing was accepted.", {}
 
 
 def _fail_uncomputable_evidence(run: _AcceptRun, exc: Exception) -> NoReturn:
@@ -1288,8 +1293,8 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
         typer.echo(f"Operator attestation recorded for {wp_id} (no implementation owed) by {actor}: {reason}", err=True)
 
 
-#: The status log the evidence preflight reads cannot be read (#7222 follow-up). Unlike an
-#: uncomputable window it refuses under ``--diagnose`` too: no readiness check owns it.
+#: The status log the evidence preflight reads cannot be read (#7222 follow-up). Like the other
+#: uncomputable cases, ``--diagnose`` skips it (exit 0) and every other mode refuses with it.
 EVIDENCE_STATUS_UNREADABLE = "EVIDENCE_STATUS_UNREADABLE"
 
 #: The ``--diagnose`` blocked/skipped-check name of the evidence preflight (#6715).
@@ -1317,12 +1322,12 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
     whatever ``--lenient`` says and however the work package was approved (``move-task --force``
     included). It runs before the acceptance summary is collected, so a refusal writes nothing;
     ``--no-commit`` and ``--diagnose`` report it the same way. No ``lanes.json`` leaves the
-    acceptance readiness check in charge (it refuses on its own); an unreadable status log
-    refuses here with ``EVIDENCE_STATUS_UNREADABLE``, under ``--diagnose`` too. A check that cannot be computed (a corrupt ``lanes.json``, a coordination
-    worktree that was never materialized) refuses with its typed code (``EVIDENCE_WINDOW_UNCOMPUTABLE``,
-    ``COORDINATION_WORKTREE_UNMATERIALIZED``); under *report_only* it is skipped instead and the
-    readiness report, which blocks on the same root cause, owns the blocker (#7222, #7223,
-    operator ruling 2026-11-05). The ``--json`` envelope carries ``error_code`` (the first code)
+    acceptance readiness check in charge (it refuses on its own). A check that cannot be
+    computed refuses with its typed code: a corrupt ``lanes.json`` (``EVIDENCE_WINDOW_UNCOMPUTABLE``),
+    a coordination worktree that was never materialized (``COORDINATION_WORKTREE_UNMATERIALIZED``)
+    or an unreadable status log (``EVIDENCE_STATUS_UNREADABLE``). Under *report_only* it is
+    skipped instead and the readiness report owns the blocker (#7222, #7223, operator rulings
+    2026-11-05). The ``--json`` envelope carries ``error_code`` (the first code)
     and ``error_codes`` (every code), like the origin-freshness refusal. With *report_only*
     (``--diagnose``) the refused report is returned instead, so the diagnosis can show it as a
     blocked check beside the rest of the readiness report (:func:`_report_evidence_diagnosis`).
@@ -1346,14 +1351,11 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
             landed_commit=landed_commit,
             owned=run.owned,
         )
-    except (CorruptLanesError, CoordinationWorktreeUnmaterialized) as exc:
+    except (CorruptLanesError, CoordinationWorktreeUnmaterialized, StoreError, OSError) as exc:
         if not report_only:
             _fail_uncomputable_evidence(run, exc)
         _code, message, _extra = _uncomputable_evidence(exc)
         return _EvidencePreflight(skipped=AcceptanceCheckDiagnostic(check=_EVIDENCE_CHECK, detail=f"{_EVIDENCE_CHECK} skipped: {message}"))
-    except (StoreError, OSError) as exc:
-        message = f"{EVIDENCE_STATUS_UNREADABLE}: the Mission could not be checked for implementation evidence ({exc}); nothing was accepted."
-        _fail(run.json_output, message, extra_json={"error_code": EVIDENCE_STATUS_UNREADABLE, "error_codes": [EVIDENCE_STATUS_UNREADABLE]})
     if report.refusal is None:
         return _EvidencePreflight()
     if report_only:
