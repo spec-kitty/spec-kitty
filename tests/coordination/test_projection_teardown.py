@@ -719,7 +719,9 @@ def test_first_run_lands_a_coordination_commit_made_between_the_gate_and_teardow
     no recorded coordination tip builds no window at all; that loss is #7121.)
     """
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    before = _rev(run.main_repo, "main")
     rel = f"kitty-specs/{SLUG}/traces/late.md"
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/earlier.md", "earlier\n", "earlier verdict")
     late = _commit_in_coord_worktree(worktree, rel, "late coordination record\n", "late verdict")
 
     phase_teardown._teardown_coordination_triple(run)
@@ -727,32 +729,12 @@ def test_first_run_lands_a_coordination_commit_made_between_the_gate_and_teardow
     assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch is deleted only after the window landed"
     landed = _git(run.main_repo, "show", f"main:{rel}").stdout
     assert landed == "late coordination record\n", "the late record must be COMMITTED on the target, not merely in its working tree"
+    log = _git(run.main_repo, "log", "--format=%s", f"{before}..main").stdout
+    assert log.count("project coordination commits that landed after the merge captured the coordination tip") == 1, "the window lands as ONE commit"
     meta = json.loads((_mission_dir(run.main_repo) / "meta.json").read_text(encoding="utf-8"))
     assert "coordination_branch" not in meta
     assert run.coord_tip_after_projection == late, "the proven tip becomes the tip teardown approved"
     assert tip != late, "fixture invalid: the late commit moved the coordination branch"
-
-
-def test_first_run_projects_the_late_window_as_one_commit(tmp_path: Path) -> None:
-    """The late window lands as ONE bookkeeping commit, and a clean first run makes none (#6871)."""
-    run, _worktree, _tip = _first_run_with_coord_worktree(tmp_path)
-    clean_tip = _rev(run.main_repo, "main")
-
-    phase_teardown._teardown_coordination_triple(run)  # clean run: nothing landed late
-
-    clean_log = _git(run.main_repo, "log", "--format=%s", f"{clean_tip}..main").stdout
-    assert "project coordination commits that landed after the merge captured the coordination tip" not in clean_log, "a clean first run must not commit"
-
-    (tmp_path / "second").mkdir()
-    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path / "second")
-    before = _rev(run.main_repo, "main")
-    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/a.md", "a\n", "late a")
-    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/b.md", "b\n", "late b")
-
-    phase_teardown._teardown_coordination_triple(run)
-
-    log = _git(run.main_repo, "log", "--format=%s", f"{before}..main").stdout
-    assert log.count("project coordination commits that landed after the merge captured the coordination tip") == 1, log
 
 
 def test_first_run_whose_coordination_branch_is_already_gone_reads_no_window(tmp_path: Path) -> None:
@@ -787,6 +769,7 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
     _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
     real_commit = phase_teardown._commit_projection_and_carry
+    foreign_landed: list[bool] = []
 
     def commit_then_land_a_foreign_one(target_run: object, paths: list[Path], message: str) -> None:
         real_commit(target_run, paths, message)  # type: ignore[arg-type]
@@ -794,10 +777,13 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
         meta.write_text(json.dumps({**json.loads(meta.read_text(encoding="utf-8")), "concurrent": "emit"}) + "\n", encoding="utf-8")
         _git(worktree, "add", "kitty-specs")
         _git(worktree, "commit", "-q", "-m", "concurrent emit")
+        foreign_landed.append(True)
 
     with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(ProjectionTeardownAbort) as caught:
         phase_teardown._teardown_coordination_triple(run)
 
+    assert foreign_landed == [True], "the projection ran, and the foreign commit landed during it"
+    assert _git(run.main_repo, "show", f"main:kitty-specs/{SLUG}/traces/late.md").stdout == "late\n", "the projection landed before the gate refused"
     assert "compare-and-swap failed" in str(caught.value), "the gate refuses, because the anchor no longer matches the live ref"
     assert run.coord_tip_after_projection == tip, "the anchor stays at the pre-window tip: a tip the assertion did not cover is never stamped approved"
     assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unproven commit"
@@ -1001,7 +987,6 @@ def test_a_clean_first_run_projects_nothing(tmp_path: Path) -> None:
 
     repo, coord, projected_tip = _gated_coord_fixture(tmp_path)
     run = _coord_run_state(repo, coord, projected_tip)
-    run.is_resume = False
     target_before = _rev(repo, "main")
 
     phase_teardown._land_late_coordination_commits(run)
