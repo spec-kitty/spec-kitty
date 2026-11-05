@@ -216,7 +216,10 @@ def _extract_conflicts_from_events(  # noqa: C901
         event_type = event.get("event_type", "")
 
         if event_type == EVT_SEMANTIC_CHECK_EVALUATED:
-            if event.get("blocked"):
+            # Index every check that found something: ``blocked`` records the
+            # gate's decision, and a conflict the gate let through (``off``, or a
+            # non-high conflict under ``medium``) is still listed (#7065).
+            if event.get("findings"):
                 step_id = event.get("step_id", "unknown")
                 check_event_index[step_id] = event
                 for finding in event.get("findings", []):
@@ -570,7 +573,7 @@ def resolve(  # noqa: C901
     # Index SemanticCheckEvaluated findings for enrichment
     finding_index: dict[tuple[str, str], dict] = {}
     for event in all_events:
-        if event.get("event_type") == EVT_SEMANTIC_CHECK_EVALUATED and event.get("blocked"):
+        if event.get("event_type") == EVT_SEMANTIC_CHECK_EVALUATED and event.get("findings"):
             step_id = event.get("step_id", "unknown")
             for finding in event.get("findings", []):
                 term_data = finding.get("term", {})

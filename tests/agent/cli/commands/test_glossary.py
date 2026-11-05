@@ -858,7 +858,16 @@ class TestGlossaryResolve:
         assert last_event["event_type"] == "GlossaryClarificationResolved"
 
     def test_resolve_shows_conflict_details(self, mock_event_log_unresolved, monkeypatch):
-        """Verify conflict details are displayed before prompting."""
+        """Verify conflict details are displayed before prompting.
+
+        The check ran under ``off``, so the gate let the conflict through and the
+        event records ``blocked: false`` (#7065); its finding still supplies the
+        type, severity and context shown here.
+        """
+        event_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "software-dev.events.jsonl"
+        events = [json.loads(line) for line in event_file.read_text().splitlines()]
+        events[0].update(blocked=False, effective_strictness="off")
+        event_file.write_text("".join(json.dumps(event) + "\n" for event in events))
         monkeypatch.chdir(mock_event_log_unresolved)
 
         result = runner.invoke(
@@ -869,7 +878,8 @@ class TestGlossaryResolve:
 
         assert result.exit_code == 0
         assert "workspace" in result.stdout
-        assert "ambiguous" in result.stdout
+        assert "Type: ambiguous" in result.stdout
+        assert "Context: step input" in result.stdout
         assert "high" in result.stdout
         assert "Git worktree directory" in result.stdout
 
@@ -1083,7 +1093,12 @@ class TestExtractConflicts:
         assert result[0]["term"] == "a"
 
     def test_strictness_filter(self):
-        """Verify strictness filter works."""
+        """Verify strictness filter works, including for a check the gate let through.
+
+        A low-severity finding under ``medium`` is recorded ``blocked: False``
+        (the gate's decision, #7065); its conflict must still carry the check's
+        strictness so ``--strictness medium`` lists it.
+        """
         from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
 
         events = [
@@ -1092,7 +1107,7 @@ class TestExtractConflicts:
                 "step_id": "s1",
                 "mission_id": "m1",
                 "timestamp": "2026-01-01T00:00:00Z",
-                "blocked": True,
+                "blocked": False,
                 "effective_strictness": "medium",
                 "findings": [{"term": {"surface_text": "a"}, "conflict_type": "unknown", "severity": "low"}],
             },
@@ -1132,6 +1147,9 @@ class TestExtractConflicts:
         result = _extract_conflicts_from_events(events, strictness_filter="max")
         assert len(result) == 1
         assert result[0]["term"] == "b"
+
+        result = _extract_conflicts_from_events(events, strictness_filter="medium")
+        assert [c["term"] for c in result] == ["a"]
 
     def test_enriches_from_semantic_check(self):
         """Verify conflict data is enriched from SemanticCheckEvaluated findings."""
