@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -80,15 +81,22 @@ def test_the_probing_process_itself_is_ignored(tmp_path: Path, worktrees: tuple[
 
 
 def test_another_users_process_is_not_considered(tmp_path: Path, worktrees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neither its cwd nor an unreadable cwd of it counts (U1): it is skipped, not counted as uninspected."""
     first, _ = worktrees
     proc = tmp_path / "proc"
     _proc(proc, 101, first)
     monkeypatch.setattr(process_probe, "_current_uid", lambda: os.stat(proc / "101").st_uid + 1)
 
+    def denied(link: Path) -> str:
+        raise PermissionError(13, "Permission denied", str(link))
+
+    monkeypatch.setattr(process_probe, "_read_cwd", denied)
+
     result = processes_with_cwd_under([first], proc_root=proc)
 
     assert result.available
     assert result.busy == frozenset()
+    assert result.uninspected == 0
 
 
 @pytest.mark.parametrize("error", [PermissionError(13, "Permission denied"), OSError(22, "Invalid argument")])
@@ -115,28 +123,23 @@ def test_a_same_uid_unreadable_cwd_is_skipped_and_counted(tmp_path: Path, worktr
     assert result.busy == frozenset({first})
 
 
-def test_an_unreadable_process_of_another_user_is_not_counted(tmp_path: Path, worktrees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    first, _ = worktrees
+def test_an_unlistable_proc_root_is_unavailable(tmp_path: Path, worktrees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     proc = tmp_path / "proc"
-    _proc(proc, 101, first)
-    monkeypatch.setattr(process_probe, "_current_uid", lambda: os.stat(proc / "101").st_uid + 1)
+    proc.mkdir()
+    real = os.scandir
 
-    def denied(link: Path) -> str:
-        raise PermissionError(13, "Permission denied", str(link))
+    def refused(path: Any) -> Any:
+        if path == proc:
+            raise PermissionError(13, "Permission denied", str(path))
+        return real(path)
 
-    monkeypatch.setattr(process_probe, "_read_cwd", denied)
-
-    assert processes_with_cwd_under([first], proc_root=proc).uninspected == 0
-
-
-def test_an_unlistable_proc_root_is_unavailable(tmp_path: Path, worktrees: tuple[Path, Path]) -> None:
-    proc = tmp_path / "proc-file"
-    proc.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(process_probe.os, "scandir", refused)
 
     result = processes_with_cwd_under(list(worktrees), proc_root=proc)
 
     assert not result.available
     assert result.busy == frozenset()
+    assert result.detail == f"cannot list {proc}: Permission denied"
 
 
 def test_a_process_that_exits_mid_scan_is_skipped(tmp_path: Path, worktrees: tuple[Path, Path]) -> None:
@@ -200,7 +203,6 @@ def test_real_proc_smoke(tmp_path: Path, sleeper: tuple[subprocess.Popen[bytes],
     whole = processes_with_cwd_under([cwd])
     assert whole.available
     assert whole.busy == frozenset({cwd})
-    assert whole.uninspected >= 0
     # A view holding only the real sleeping process, linked to its real /proc entry.
     view = tmp_path / "proc-view"
     view.mkdir()
