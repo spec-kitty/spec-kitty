@@ -593,6 +593,22 @@ def flat_topology_mission(tmp_path: Path) -> FlatTopologyContext:
     )
 
 
+def record_wp01_implementation(ctx: CoordTopologyContext) -> tuple[str, str]:
+    """Opt-in (#6715): give WP01 the implementation evidence a real Mission carries.
+
+    Declares WP01's ``owned_files`` (``src/wp01/**``) and pins the planning commit on PRIMARY
+    (committed), then commits an owned change on the ``lane-a`` branch. ``move-task`` toward
+    review and the consolidation claim refuse a work package without this evidence. Returns
+    ``(planning_commit, lane_tip)``.
+    """
+    from tests.lane_test_utils import commit_lane_implementation
+    from tests.terminus.conftest import record_evidence_prerequisites
+
+    pin = record_evidence_prerequisites(ctx.repo, ctx.primary_feature_dir, globs=("src/wp01/**",))
+    tip = commit_lane_implementation(ctx.repo, ctx.primary_feature_dir, lane_id="lane-a", path="src/wp01/impl.py")
+    return pin, tip
+
+
 # ---------------------------------------------------------------------------
 # Dual-leg asserter helpers (T002)
 # ---------------------------------------------------------------------------
@@ -693,4 +709,5 @@ __all__ = [
     "coord_topology_mission_sentinel_meta",
     "coord_topology_mission_tasks_husk",
     "flat_topology_mission",
+    "record_wp01_implementation",
 ]

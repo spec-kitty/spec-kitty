@@ -32,6 +32,8 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation
+from tests.terminus.conftest import record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -314,6 +316,9 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     husk = repo / ".worktrees" / f"{MISSION_SLUG}-lane-a"
     if husk.is_dir():
         husk.rmdir()
+    # #6715: approval reads the planning pin, WP01's ownership and its owned change on lane-a.
+    record_evidence_prerequisites(repo, feature_dir, globs=("src/**",))
+    commit_lane_implementation(repo, feature_dir, lane_id="lane-a", path="src/core.py")
 
     # WP starts at for_review (fixture). Move it into in_review for the FIRST
     # (real) review round.

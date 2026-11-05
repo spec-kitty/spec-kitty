@@ -89,6 +89,7 @@ from specify_cli.status import materialize as _materialize
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     _build_coord_topology,
+    record_wp01_implementation,
 )
 from tests.integration.test_review_durability_matrix import (
     _REVIEW_GATE_BYPASS,
@@ -172,6 +173,7 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
     # --- Realistic coord-topology mission (real coord worktree, no stubs). ---
     ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
     _disable_branch_protection_for_coord_cell(ctx.repo)
+    record_wp01_implementation(ctx)  # #6715: the ->for_review hop reads implementation evidence
 
     # Seed WP01 in_progress on the authoritative coord status log.
     ctx.status_events_path.unlink()
