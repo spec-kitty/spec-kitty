@@ -771,6 +771,16 @@ def validate_purpose_summary(
     return errors
 
 
+def format_meta_text(meta: dict[str, Any]) -> str:
+    """Return the standard ``meta.json`` text: sorted keys, 2-space indent, Unicode kept, trailing newline.
+
+    :func:`write_meta` writes exactly this text, and the analysis-freshness fingerprint
+    hashes a lock-free projection in the same form, so an unclaimed ``meta.json`` keeps
+    the hash a report recorded from its raw bytes (#7106).
+    """
+    return json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+
+
 def write_meta(
     feature_dir: Path,
     meta: dict[str, Any],
@@ -795,7 +805,7 @@ def write_meta(
         errors = validate_meta(meta)
         if errors:
             raise ValueError(f"Invalid meta.json for {feature_dir.name}: {'; '.join(errors)}")
-    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    content = format_meta_text(meta)
     meta_path = feature_dir / "meta.json"
     atomic_write(meta_path, content)
 
