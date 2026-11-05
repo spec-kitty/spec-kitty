@@ -55,7 +55,7 @@
     },
     "WP02": {
       "actor": "pi",
-      "agent": "claude:deepseek-v4.1-flash-1017:planner-priti",
+      "agent": "pi:openai-codex/gpt-6.1-sol:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -65,7 +65,8 @@
       "last_transition_at": "2026-11-05T16:20:01.527831+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: runbook rule + restore recipe, JSON key, changelog fragment"
+        "Ready for review: runbook rule + restore recipe, JSON key, changelog fragment",
+        "Review passed (round 2): Verified the runbook, CLI help/reference, and changelog against the lane implementation, including narrow patch proof, kept refs, restore recipe, JSON output, and refusal behavior. No workspaces help drift; docs freshness has zero errors, changelog and spelling checks pass, and the 894-character fragment leaves CHANGELOG.md untouched."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
