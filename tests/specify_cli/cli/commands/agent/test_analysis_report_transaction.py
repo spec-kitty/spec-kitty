@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any, NoReturn
 
 import pytest
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from specify_cli.cli.commands.agent.mission import app
 from tests.specify_cli._pinned_pack_fixture import make_pack_tree as _pack_tree
@@ -67,7 +68,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return root
 
 
-def invoke(*extra: str):
+def invoke(*extra: str) -> Result:
     return CliRunner().invoke(app, ["record-analysis", "--mission", SLUG, "--json", *extra], input=BODY)
 
 
@@ -95,7 +96,7 @@ def _compile_catalog_from_other_checkout(repo: Path, monkeypatch: pytest.MonkeyP
     return charter_path
 
 
-def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: Path, monkeypatch: pytest.MonkeyPatch):
+def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     charter_path = _compile_catalog_from_other_checkout(repo, monkeypatch)
     head = git(repo, "rev-parse", "HEAD")
 
@@ -108,7 +109,7 @@ def test_report_only_succeeds_with_charter_generated_in_another_checkout(repo: P
     assert "${SPEC_KITTY_PACKS_ROOT}/built-in/missions/software-dev/mission.yaml" in charter_path.read_text(encoding="utf-8")
 
 
-def test_report_only_refuses_unverified_external_template_authority_after_migration(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_report_only_refuses_unverified_external_template_authority_after_migration(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
     from charter.offering.provenance import is_built_in_pack_path
     from specify_cli.upgrade.migrations.m_4_0_0rc5_heal_template_set_provenance import (
@@ -142,7 +143,7 @@ def test_report_only_refuses_unverified_external_template_authority_after_migrat
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_report_only_still_refuses_committed_external_catalog_authority(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_report_only_still_refuses_committed_external_catalog_authority(repo: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 
     charter_path = _compile_catalog_from_other_checkout(repo, monkeypatch)
@@ -173,7 +174,7 @@ def test_report_only_still_refuses_committed_external_catalog_authority(repo: Pa
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_report_only_preserves_unrelated_partial_staging(repo: Path):
+def test_report_only_preserves_unrelated_partial_staging(repo: Path) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     app_file = repo / "application.txt"
@@ -197,7 +198,7 @@ def test_report_only_preserves_unrelated_partial_staging(repo: Path):
     assert check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
 
 
-def test_default_still_refuses_unrelated_work(repo: Path):
+def test_default_still_refuses_unrelated_work(repo: Path) -> None:
     (repo / "application.txt").write_text("pending\n")
     result = invoke()
     assert result.exit_code == 1
@@ -208,7 +209,7 @@ def test_default_still_refuses_unrelated_work(repo: Path):
 @pytest.mark.parametrize(
     "path", [".kittify/charter/charter.yaml", ".kittify/config.yaml", f"kitty-specs/{SLUG}/spec.md", f"kitty-specs/{SLUG}/tasks/WP01-proof.md"]
 )
-def test_dirty_material_input_refuses_before_write(repo: Path, path: str):
+def test_dirty_material_input_refuses_before_write(repo: Path, path: str) -> None:
     with (repo / path).open("a") as stream:
         stream.write("\n# changed\n")
     head = git(repo, "rev-parse", "HEAD")
@@ -219,7 +220,7 @@ def test_dirty_material_input_refuses_before_write(repo: Path, path: str):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_failed_commit_never_reports_success(repo: Path):
+def test_failed_commit_never_reports_success(repo: Path) -> None:
     hook = repo / ".git/hooks/pre-commit"
     hook.write_text("#!/bin/sh\nexit 1\n")
     hook.chmod(0o755)
@@ -232,7 +233,7 @@ def test_failed_commit_never_reports_success(repo: Path):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_post_commit_index_race_cannot_unlock_analysis(repo: Path):
+def test_post_commit_index_race_cannot_unlock_analysis(repo: Path) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     hook = repo / ".git/hooks/post-commit"
@@ -249,7 +250,7 @@ def test_post_commit_index_race_cannot_unlock_analysis(repo: Path):
 
 
 @pytest.mark.parametrize("mode", ["detached", "wrong_branch", "merge", "assume_unchanged", "symlink", "ignored_input"])
-def test_unsafe_state_refuses_without_report_write(repo: Path, mode: str):
+def test_unsafe_state_refuses_without_report_write(repo: Path, mode: str) -> None:
     if mode == "detached":
         git(repo, "checkout", "--detach", "-q")
     elif mode == "wrong_branch":
@@ -274,7 +275,7 @@ def test_unsafe_state_refuses_without_report_write(repo: Path, mode: str):
         assert not (repo / REPORT).exists()
 
 
-def test_post_commit_head_only_race_is_unqualified(repo: Path):
+def test_post_commit_head_only_race_is_unqualified(repo: Path) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     hook = repo / ".git/hooks/post-commit"
@@ -286,7 +287,7 @@ def test_post_commit_head_only_race_is_unqualified(repo: Path):
     assert not check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
 
 
-def test_material_change_invalidates_qualified_report(repo: Path):
+def test_material_change_invalidates_qualified_report(repo: Path) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     result = invoke("--report-only")
@@ -298,14 +299,14 @@ def test_material_change_invalidates_qualified_report(repo: Path):
 
 
 @pytest.mark.parametrize("change", ["input", "index", "report"])
-def test_race_before_commit_preserves_concurrent_state(repo: Path, monkeypatch: pytest.MonkeyPatch, change: str):
-    from specify_cli.analysis_report import check_analysis_report_current
+def test_race_before_commit_preserves_concurrent_state(repo: Path, monkeypatch: pytest.MonkeyPatch, change: str) -> None:
+    from specify_cli.analysis_report import AnalysisReportResult, check_analysis_report_current, write_analysis_report
     from specify_cli.git import report_transaction
 
-    original = report_transaction.write_analysis_report
+    original = write_analysis_report
     target = repo / ({"input": f"kitty-specs/{SLUG}/spec.md", "report": REPORT}.get(change, "application.txt"))
 
-    def race(**kwargs):
+    def race(**kwargs: Any) -> AnalysisReportResult:
         result = original(**kwargs)
         target.write_text("concurrent content\n")
         if change == "index":
@@ -324,7 +325,7 @@ def test_race_before_commit_preserves_concurrent_state(repo: Path, monkeypatch: 
         assert git(repo, "show", ":application.txt") == b"concurrent content\n"
 
 
-def test_missing_receipt_never_qualifies_copied_report(repo: Path):
+def test_missing_receipt_never_qualifies_copied_report(repo: Path) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     result = invoke("--report-only")
@@ -334,7 +335,7 @@ def test_missing_receipt_never_qualifies_copied_report(repo: Path):
     assert not check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
 
 
-def test_dirty_existing_report_is_preserved(repo: Path):
+def test_dirty_existing_report_is_preserved(repo: Path) -> None:
     report = repo / REPORT
     report.write_text("unreviewed analysis\n")
     result = invoke("--report-only")
@@ -343,7 +344,7 @@ def test_dirty_existing_report_is_preserved(repo: Path):
     assert report.read_text() == "unreviewed analysis\n"
 
 
-def test_package_identical_global_template_and_project_override_are_supported(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_package_identical_global_template_and_project_override_are_supported(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from kernel.paths import get_package_asset_root
     from specify_cli.runtime import resolver
 
@@ -367,7 +368,7 @@ def test_package_identical_global_template_and_project_override_are_supported(re
     assert accepted.exit_code == 0, accepted.output
 
 
-def test_repeated_qualified_analysis_is_unchanged(repo: Path):
+def test_repeated_qualified_analysis_is_unchanged(repo: Path) -> None:
     first = invoke("--report-only")
     assert first.exit_code == 0, first.output
     report = (repo / REPORT).read_bytes()
@@ -386,7 +387,7 @@ def test_repeated_qualified_analysis_is_unchanged(repo: Path):
 
 
 @pytest.mark.parametrize("change", ["analyzer", "body", "receipt"])
-def test_unchanged_requires_same_semantics_and_existing_qualification(repo: Path, change: str):
+def test_unchanged_requires_same_semantics_and_existing_qualification(repo: Path, change: str) -> None:
     from specify_cli.analysis_report import check_analysis_report_current
 
     first = invoke("--report-only")
@@ -407,7 +408,7 @@ def test_unchanged_requires_same_semantics_and_existing_qualification(repo: Path
     assert check_analysis_report_current(repo / "kitty-specs" / SLUG, repo).ok
 
 
-def test_material_input_closure_backs_the_report_only_transaction(repo: Path):
+def test_material_input_closure_backs_the_report_only_transaction(repo: Path) -> None:
     """The material-input closure the report-only transaction commits against is
     reachable and well-formed: it hashes the mission's declarative inputs and
     surfaces charter-authority failures as a typed ``MaterialInputError`` wrapping
@@ -442,7 +443,7 @@ def _add_pinned_pack(repo: Path) -> None:
     git(repo, "commit", "-qm", "register the pinned org pack")
 
 
-def test_report_only_records_over_a_pin_verified_pack_tree(repo: Path):
+def test_report_only_records_over_a_pin_verified_pack_tree(repo: Path) -> None:
     """#7128: the fetched, gitignored pack tree has committed state (its pin), so it is not dirty input."""
     _add_pinned_pack(repo)
     head = git(repo, "rev-parse", "HEAD")
@@ -457,7 +458,7 @@ def test_report_only_records_over_a_pin_verified_pack_tree(repo: Path):
     assert git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").decode().splitlines() == [REPORT]
 
 
-def test_report_only_refuses_a_pack_tree_that_breaks_its_pin(repo: Path):
+def test_report_only_refuses_a_pack_tree_that_breaks_its_pin(repo: Path) -> None:
     _add_pinned_pack(repo)
     edited = repo / PACK_ROOT / "procedures/proof.procedure.yaml"
     edited.write_text("id: proof\nname: Proof, edited in place\n")
@@ -473,7 +474,7 @@ def test_report_only_refuses_a_pack_tree_that_breaks_its_pin(repo: Path):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_report_only_refuses_an_uncommitted_pin(repo: Path):
+def test_report_only_refuses_an_uncommitted_pin(repo: Path) -> None:
     _add_pinned_pack(repo)
     (repo / PIN).write_text((repo / PIN).read_text() + "# bumped locally\n")
     head = git(repo, "rev-parse", "HEAD")
@@ -488,7 +489,7 @@ def test_report_only_refuses_an_uncommitted_pin(repo: Path):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path):
+def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path) -> None:
     """Same fixture, opposite outcome: the exemption is the pin, not the ignore rule."""
     _add_pinned_pack(repo)
     siblings = ("packs/internal-extra", "packs/intern")
@@ -519,11 +520,11 @@ def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path):
     assert git(repo, "rev-parse", "HEAD") == head
 
 
-def test_clean_checkout_never_verifies_a_pack_tree(repo: Path, monkeypatch: pytest.MonkeyPatch):
+def test_clean_checkout_never_verifies_a_pack_tree(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """NFR-001: a clone with no untracked material input must not pay for pin verification."""
     from specify_cli.git import report_transaction
 
-    def unexpected(repo_root: Path):
+    def unexpected(repo_root: Path) -> NoReturn:
         raise AssertionError("the exemption must not be computed when nothing is untracked")
 
     monkeypatch.setattr(report_transaction, "pack_pin_state", unexpected)
