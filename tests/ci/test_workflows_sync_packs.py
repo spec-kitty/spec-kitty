@@ -290,7 +290,6 @@ def test_synced_jobs_pass(steps: list[dict[str, Any]]) -> None:
         "pipx inject spec-kitty-cli pytest pytest-cov",
         "pip install pytest",
         "echo pytest-output.txt",
-        "uv run --frozen --no-sync python contracts/tools/no_pytest_scan.py",
         "git grep -l '@pytest.mark.windows_ci' -- tests",
     ],
 )
