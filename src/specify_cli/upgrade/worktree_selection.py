@@ -155,13 +155,6 @@ def _display_path(path: Path, relative_to: Path | None) -> str:
         return str(path)
 
 
-def _branch_of(worktree: Path) -> str | None:
-    if not (worktree / ".git").exists():
-        return None
-    branch: str | None = get_current_branch(worktree)
-    return branch
-
-
 def _is_direct_child(worktrees_dir_resolved: Path, candidate_resolved: Path) -> bool:
     return candidate_resolved.parent == worktrees_dir_resolved and candidate_resolved.is_dir()
 
@@ -171,8 +164,8 @@ def _resolves_in_place(worktrees_dir_resolved: Path, entry: Path) -> bool:
     return entry.resolve() == worktrees_dir_resolved / entry.name and _is_direct_child(worktrees_dir_resolved, entry.resolve())
 
 
-def is_integrating_worktree(worktree: Path) -> bool:
-    """Return True when ``worktree`` integrates back into its mission's target branch (#5457).
+def is_integrating_worktree(git_worktree: bool, branch: str | None) -> bool:
+    """Return True when a worktree integrates back into its mission's target branch (#5457).
 
     An *integrating worktree* (a Mission worktree) receives project-global
     upgrade state (``.kittify/metadata.yaml``, ``.gitattributes``, ...) through
@@ -180,7 +173,7 @@ def is_integrating_worktree(worktree: Path) -> bool:
     or every lane and coordination branch diverges on bookkeeping that
     ``consolidate`` and the lane auto-rebase then refuse.
 
-    The rule:
+    The rule, on the worktree's ``.git`` presence and its already-read branch:
 
     * no ``.git`` entry (a plain directory, not a git worktree): not
       integrating;
@@ -188,9 +181,8 @@ def is_integrating_worktree(worktree: Path) -> bool:
     * otherwise integrating iff the branch is a mission, lane or coordination
       branch, as recognised by the branch-naming authority.
     """
-    if not (worktree / ".git").exists():
+    if not git_worktree:
         return False
-    branch = get_current_branch(worktree)
     if branch is None:
         return True
     return parse_mission_slug_from_branch(branch) is not None
@@ -214,21 +206,15 @@ def worktree_dispositions(worktrees_dir: Path, selection: WorktreeSelection) -> 
         if not worktree.is_dir():
             continue
         selectable = _resolves_in_place(root, worktree)
-        if is_integrating_worktree(worktree):
+        git_worktree = (worktree / ".git").exists()
+        branch: str | None = get_current_branch(worktree) if git_worktree else None
+        if is_integrating_worktree(git_worktree, branch):
             action = DispositionAction.SKIP_MISSION
         elif selectable and selection.selects(worktree):
             action = DispositionAction.UPGRADE
         else:
             action = DispositionAction.SKIP_NOT_SELECTED
-        out.append(
-            WorktreeDisposition(
-                path=worktree,
-                branch=_branch_of(worktree),
-                action=action,
-                git_worktree=(worktree / ".git").exists(),
-                selectable=selectable,
-            )
-        )
+        out.append(WorktreeDisposition(path=worktree, branch=branch, action=action, git_worktree=git_worktree, selectable=selectable))
     return out
 
 
