@@ -75,6 +75,22 @@ That delete is not compare-and-swap, so the prune re-reads the branch tip and
 compares it with the assessed tip first; a moved branch is kept. Every refusal
 is recorded per worktree and the run continues (I1).
 
+Keeping the tip reachable is not enough on its own (#7211):
+``git worktree remove`` deletes the removed worktree's ``HEAD`` reflog and
+``git branch -D`` deletes the branch reflog, so a commit made while detached
+and then left behind, or dropped with ``reset --hard``, can be reached by
+nothing once the prune is done. Before either destructive step, the prune
+reads both reflogs, asks which of their entries no ref reaches
+(:func:`_unreachable_after_prune`), and records each such commit under
+``refs/spec-kitty/discarded/reflog/<sha>``. A commit whose patch is already on
+the primary ref is not recorded: this repository lands by rebase, so that
+half of every landing's reflog is superseded rather than lost, and keeping it
+would pin an object per superseded commit forever. The patch check is
+fail-closed — a merge, an empty answer or an error all keep the commit — so it
+can only decline to duplicate something, never drop something unproven. A
+record that cannot be written refuses the removal, the same contract as the
+detached-tip record.
+
 Residuals of the process probe (documented for operators, WP06): only
 processes owned by the current uid are considered (U1), so another user's
 process inside a worktree is not detected; and a process whose cwd cannot be
@@ -109,6 +125,7 @@ from specify_cli.git.destructive_guard import (
     guarded_worktree_remove,
     WORKTREE_PARTIALLY_REMOVED,
     keep_detached_tip,
+    keep_reflog_tip,
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
@@ -234,6 +251,7 @@ class PruneOutcome:
     kept_ref: str | None
     recreate: str
     refusal: str | None
+    kept_commits: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -245,6 +263,7 @@ class PruneOutcome:
             "kept_ref": self.kept_ref,
             "recreate": self.recreate,
             "refusal": self.refusal,
+            "kept_commits": list(self.kept_commits),
         }
 
 
@@ -639,7 +658,15 @@ def _recreate(verdict: WorktreeVerdict, *, refusal: str | None) -> str:
     return shell_command("git", "branch", verdict.branch, verdict.tip or "")
 
 
-def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = False, kept_ref: str | None = None, refusal: str | None = None) -> PruneOutcome:
+def _outcome(
+    verdict: WorktreeVerdict,
+    *,
+    removed: bool,
+    branch_deleted: bool = False,
+    kept_ref: str | None = None,
+    refusal: str | None = None,
+    kept_commits: tuple[str, ...] = (),
+) -> PruneOutcome:
     """``refusal`` set means the branch still exists (the removal or the branch delete was refused)."""
     return PruneOutcome(
         path=verdict.path,
@@ -650,6 +677,7 @@ def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = 
         kept_ref=kept_ref,
         recreate=_recreate(verdict, refusal=refusal),
         refusal=refusal,
+        kept_commits=kept_commits,
     )
 
 
@@ -721,6 +749,103 @@ def _keep_detached(repo_root: Path, verdict: WorktreeVerdict) -> str | None:
     return kept
 
 
+def _reflog_commits(repo_root: Path, rev: str) -> list[str]:
+    """The shas ``rev``'s reflog records, newest first; ``[]`` when it has none or git cannot read it."""
+    try:
+        listed = run_git(repo_root, "reflog", "show", "--format=%H", rev, check=False)
+    except GitCommandError:
+        return []
+    if listed.returncode != 0:
+        return []
+    return [sha for sha in decode_path(listed.stdout).split() if sha]
+
+
+def _reflog_candidates(repo_root: Path, verdict: WorktreeVerdict) -> list[str]:
+    """Every sha the worktree ``HEAD`` reflog and the branch reflog still record (#7211).
+
+    A commit reached only through an entry's ancestry is covered transitively by
+    that entry. The assessed tip is left out: the detached-tip record and the
+    guard's ``LANDED_INTENT`` delete already own it, so including it here would
+    write a second ref for the same commit.
+    """
+    found: dict[str, None] = {}
+    for sha in _reflog_commits(verdict.path, "HEAD"):
+        found.setdefault(sha, None)
+    if verdict.branch is not None:
+        for sha in _reflog_commits(repo_root, f"refs/heads/{verdict.branch}"):
+            found.setdefault(sha, None)
+    if verdict.tip is not None:
+        found.pop(verdict.tip, None)
+    return list(found)
+
+
+def _unreachable_after_prune(repo_root: Path, candidates: Sequence[str]) -> list[str]:
+    """The candidates no ref reaches now: the commits the prune would leave orphaned.
+
+    This is the rule the issue states (#7211): ``rev-list <shas> --not --all``,
+    intersected with the candidates so an ancestor that is not itself an entry
+    cannot be mistaken for one. The branch this prune deletes is still a ref at
+    this point, and its own tip is protected by the landing proof and by the
+    guard's discarded ref, so leaving it in the negation only avoids recording
+    its ancestors twice; a commit that only the reflog held is not an ancestor
+    of that tip, so it still surfaces here and is kept. ``--exclude`` for
+    ``--all`` was measured not to drop a ref when a linked worktree exists
+    (git 2.43), so the plain ``--all`` is used instead.
+    Anything git cannot answer for is returned as unreachable, so the caller
+    keeps it: the check must fail closed.
+    """
+    if not candidates:
+        return []
+    try:
+        listed = run_git(repo_root, "rev-list", *candidates, "--not", "--all", check=False)
+    except GitCommandError:
+        return list(candidates)
+    if listed.returncode != 0:
+        return list(candidates)
+    reachable = set(decode_path(listed.stdout).split())
+    return [sha for sha in candidates if sha in reachable]
+
+
+def _patch_on_the_primary(repo_root: Path, primary_ref: str, sha: str) -> bool:
+    """``True`` only when everything ``sha`` adds over ``primary_ref`` is provably there already.
+
+    ``git cherry`` marks a commit ``-`` when an equivalent patch is on the
+    upstream, which is exactly the pre-rebase half of a rebase landing. It
+    omits merges, so a merge's own content -- a conflict resolution, which no
+    patch carries -- would go unproven while its non-merge ancestors all read
+    ``-``; a merge anywhere between ``primary_ref`` and ``sha`` therefore
+    answers ``False``. Empty output and any error are not proof either. The
+    caller keeps every commit this function cannot prove, so a wrong answer can
+    only cost a kept ref.
+    """
+    try:
+        merges = run_git(repo_root, "rev-list", "--merges", "--max-count=1", sha, "--not", primary_ref, check=False)
+    except GitCommandError:
+        return False
+    if merges.returncode != 0 or decode_path(merges.stdout).strip():
+        return False
+    try:
+        listed = run_git(repo_root, "cherry", primary_ref, sha, check=False)
+    except GitCommandError:
+        return False
+    if listed.returncode != 0:
+        return False
+    marks = [line.strip() for line in decode_path(listed.stdout).splitlines() if line.strip()]
+    return bool(marks) and all(mark.startswith("-") for mark in marks)
+
+
+def _reflog_commits_to_keep(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> list[str]:
+    """The reflog-only commits to record under ``refs/spec-kitty/discarded/reflog/`` before the prune."""
+    candidates = _reflog_candidates(repo_root, verdict)
+    unreachable = _unreachable_after_prune(repo_root, candidates)
+    return [sha for sha in unreachable if not _patch_on_the_primary(repo_root, ctx.primary_ref, sha)]
+
+
+def _keep_reflog_commits(repo_root: Path, shas: Sequence[str]) -> tuple[str, ...]:
+    """Record each reflog-only commit; raises :class:`DestructiveOpRefused` when one cannot be written."""
+    return tuple(keep_reflog_tip(repo_root, sha) for sha in shas)
+
+
 def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> PruneOutcome:
     refusal = _still_landed_refusal(repo_root, verdict, ctx)
     if refusal is not None:
@@ -728,6 +853,7 @@ def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> Prun
     detached_ref: str | None = None
     try:
         detached_ref = _keep_detached(repo_root, verdict)
+        kept_commits = _keep_reflog_commits(repo_root, _reflog_commits_to_keep(repo_root, verdict, ctx))
         guarded_worktree_remove(verdict.path, retain=False, context=NothingIsResidue(), force=False)
     except DestructiveOpRefused as exc:
         # Partly removed: git unregistered it and left a husk; the branch stays for the operator.
@@ -736,9 +862,16 @@ def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> Prun
     except (GitCommandError, RuntimeError, OSError):
         return _outcome(verdict, removed=False, refusal=WORKTREE_REMOVE_FAILED)
     if verdict.branch is None:
-        return _outcome(verdict, removed=True, kept_ref=detached_ref)
+        return _outcome(verdict, removed=True, kept_ref=detached_ref, kept_commits=kept_commits)
     deleted, kept_ref, branch_refusal = _delete_landed_branch(repo_root, verdict.branch, verdict.tip, ctx)
-    return _outcome(verdict, removed=True, branch_deleted=deleted, kept_ref=kept_ref, refusal=branch_refusal)
+    return _outcome(
+        verdict,
+        removed=True,
+        branch_deleted=deleted,
+        kept_ref=kept_ref,
+        refusal=branch_refusal,
+        kept_commits=kept_commits,
+    )
 
 
 def prune_landed(
