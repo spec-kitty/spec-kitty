@@ -117,7 +117,9 @@ from typer.testing import CliRunner
 from specify_cli import app as root_app
 from specify_cli.analysis_report import write_analysis_report
 from tests.characterization._normalize import normalize_envelope, normalize_json_value
-from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
+from specify_cli.status.models import Lane, StatusEvent
+from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation, derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.charter_preflight._fixtures import (
     seed_bundle_files,
     seed_charter,
@@ -126,6 +128,7 @@ from tests.specify_cli.charter_preflight._fixtures import (
     seed_manifest,
     write_metadata,
 )
+from tests.terminus.conftest import declare_owned_files
 from tests.utils import write_wp
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -152,6 +155,7 @@ def _build_mission_repo(
     mission_slug: str,
     wp_lane: str,
     materialize_coord: bool = False,
+    reviewed: bool = False,
 ) -> tuple[Path, str]:
     """Return ``(repo_root, mission_handle)`` -- the ``--mission`` CLI value.
 
@@ -251,7 +255,27 @@ def _build_mission_repo(
         target_branch=target_branch,
         mission_id=mission_id,
     )
-    write_wp(repo_root, mission_dirname, wp_lane, "WP01")
+    if reviewed:
+        # #6715: WP01 owns src/**, is claimed by its implementer and approved by a different identity.
+        write_wp(repo_root, mission_dirname, "claimed", "WP01")
+        declare_owned_files(feature_dir, ["WP01"])
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01JTR10REV1EWAPPR0VA000001",
+                mission_slug=mission_dirname,
+                wp_id="WP01",
+                from_lane=Lane.CLAIMED,
+                to_lane=Lane(wp_lane),
+                at="2025-01-02T00:00:00+00:00",
+                actor="trio-reviewer",
+                force=True,
+                execution_mode="direct_repo",
+                reason="test fixture: approved by a non-implementer",
+            ),
+        )
+    else:
+        write_wp(repo_root, mission_dirname, wp_lane, "WP01")
 
     from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
 
@@ -282,6 +306,8 @@ def _build_mission_repo(
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-q", "-m", "seed mission scaffold")
+    if reviewed:
+        commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
 
     if coord:
         # Branch the coord ref from the FULLY populated mission commit --
@@ -309,8 +335,14 @@ def _build_mission_repo(
 
 @pytest.fixture()
 def flat_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
-    """Flat (no coordination_branch) mission, WP01 in ``approved`` -- accept surface."""
+    """Flat (no coordination_branch) mission, WP01 in ``approved`` -- recover surface."""
     return _build_mission_repo(tmp_path, monkeypatch, coord=False, mission_slug="trio-flat-mission", wp_lane="approved")
+
+
+@pytest.fixture()
+def flat_repo_reviewed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
+    """``flat_repo`` with WP01 implemented on its lane and independently approved (#6715) -- accept surface."""
+    return _build_mission_repo(tmp_path, monkeypatch, coord=False, mission_slug="trio-flat-mission", wp_lane="approved", reviewed=True)
 
 
 @pytest.fixture()
@@ -393,8 +425,8 @@ class TestAcceptJsonDiagnose:
         normalized: dict[str, Any] = normalize_json_value(payload, repo_root)
         return normalized
 
-    def test_flat_mission_diagnose_envelope(self, flat_repo: tuple[Path, str]) -> None:
-        repo_root, mission_slug = flat_repo
+    def test_flat_mission_diagnose_envelope(self, flat_repo_reviewed: tuple[Path, str]) -> None:
+        repo_root, mission_slug = flat_repo_reviewed
         payload = self._run(repo_root, mission_slug)
 
         assert payload["diagnose"] is True

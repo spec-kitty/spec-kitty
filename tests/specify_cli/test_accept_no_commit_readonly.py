@@ -35,6 +35,8 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation
+from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
 
@@ -250,6 +252,8 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
         "subtasks: []\n"
+        "owned_files:\n"
+        '  - "src/**"\n'
         "---\n"
         "# WP01\nDone.\n"
     )
@@ -285,12 +289,27 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
             mission_slug=_CLI_SLUG,
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
+            to_lane=Lane.APPROVED,
+            at="2026-01-01T00:01:00+00:00",
+            actor="test-reviewer",
+            force=True,
+            execution_mode="direct_repo",
+            reason="Test setup: approved by a non-implementer (#6715)",
+        ),
+    )
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01TESTACCEPTNOCOMMITCLI0002",
+            mission_slug=_CLI_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.APPROVED,
             to_lane=Lane.DONE,
             at=now_utc_iso(),
             actor="test-agent",
             force=True,
             execution_mode="direct_repo",
-            reason="Test setup: skip to done",
+            reason="Test setup: approved work package lands as done",
         ),
     )
     materialize(feature_dir)
@@ -343,6 +362,9 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "init")
+    # #6715: record the planning commit and the lane's implementation, as a real Mission has them.
+    pin_planning_commit(repo_root, feature_dir, commit_message="record planning commit")
+    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
     _git(repo_root, "checkout", "-b", _CLI_MISSION_BRANCH)
     return feature_dir
 

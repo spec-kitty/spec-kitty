@@ -61,6 +61,7 @@ from tests.migration.test_birth_cutover import (
     _seed_planned,
     _write_wp01_with_subtask,
 )
+from tests.lane_test_utils import commit_lane_implementation
 from tests.specify_cli.test_specify_topology_flag import _git
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -144,6 +145,8 @@ def _build_accept_ready_mission(repo: Path) -> Path:
     write_lanes_json(
         feature_dir,
         LanesManifest(
+            # #6715: the planning commit the lane is cut from, as finalize-tasks records it.
+            planning_commit_sha=_git(repo, "rev-parse", "HEAD").stdout.strip(),
             version=1,
             mission_slug=_SLUG,
             mission_id=_SLUG,
@@ -195,6 +198,7 @@ def _build_accept_ready_mission(repo: Path) -> Path:
     if diff_check.returncode != 0:
         _git(repo, "commit", "-q", "-m", f"chore({_SLUG}): WP01 runtime bookkeeping residue")
 
+    commit_lane_implementation(repo, feature_dir, path="src/a/wp01.py")  # #6715 evidence window
     _git(repo, "checkout", "-q", "-b", _MISSION_BRANCH)
     return feature_dir
 
