@@ -23,14 +23,11 @@ from charter.pack_paths import PackRootNotFound, built_in_root
 from kernel.charter_pack_paths import project_pack_root
 from kernel.pack_tiers import pin_filename
 from kernel.paths import get_package_asset_root
+from specify_cli.mission_metadata import META_FILENAME, format_meta_text, parse_meta_file
 
 
 class MaterialInputError(ValueError):
     """The declared dependency closure cannot be safely represented."""
-
-
-#: The mission metadata file whose VCS lock the first claim writes (#7106).
-META_FILENAME = "meta.json"
 
 
 def _mapping(path: Path) -> dict[str, Any]:
@@ -146,14 +143,11 @@ def _meta_mapping(path: Path) -> dict[str, Any]:
     cannot be certified as unchanged planning input. The missing-file sentinel is
     decided before this call, so an absent ``meta.json`` is never an error.
     """
-    from specify_cli.mission_metadata import parse_meta_file
-
     try:
-        metadata = parse_meta_file(path)
+        # ``on_malformed="raise"`` (the default) never returns the ``None`` sentinel.
+        metadata = cast(dict[str, Any], parse_meta_file(path))
     except (OSError, ValueError) as exc:
         raise MaterialInputError(f"Invalid mission metadata: {path.name}") from exc
-    if not isinstance(metadata, dict):
-        raise MaterialInputError(f"Expected mapping in {path.name}")
     return metadata
 
 
@@ -169,14 +163,16 @@ def _meta_fingerprint(path: Path, relative: str) -> dict[str, str | None]:
 
     Every key the projection keeps -- ``target_branch``, ``topology``, ``mission_id``,
     ``status_phase``, and any lock value a claim would never write -- still gates
-    freshness.
+    freshness. The projection is hashed in :func:`~specify_cli.mission_metadata.format_meta_text`
+    form, the text ``write_meta`` writes, so an unclaimed ``meta.json`` keeps the hash
+    a report recorded from its raw bytes before this projection existed.
     """
     from kernel.vcs_lock import project_metadata_without_vcs_lock
 
     from specify_cli.analysis_report import _sha256_text
 
     planning = project_metadata_without_vcs_lock(_meta_mapping(path))
-    return {"path": relative, "sha256": _sha256_text(json.dumps(planning, sort_keys=True, default=str) + "\n")}
+    return {"path": relative, "sha256": _sha256_text(format_meta_text(planning))}
 
 
 def _source_paths(charter: dict[str, Any], root: Path) -> list[Path]:
@@ -449,8 +445,8 @@ def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dic
     root = repo_root.absolute()
     paths: set[Path] = set()
 
-    def include(path: Path, *, recurse: bool = True) -> None:
-        _include(root, paths, path, recurse=recurse)
+    def include(path: Path) -> None:
+        _include(root, paths, path)
 
     config_path = root / ".kittify/config.yaml"
     include(config_path)
