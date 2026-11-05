@@ -285,13 +285,21 @@ def test_an_unmaterialized_coordination_worktree_refuses_with_a_typed_code(evide
     assert evidence.harness.calls == []
 
 
-def test_an_unreadable_status_surface_refuses(evidence: Evidence) -> None:
-    evidence.report_error = StoreError("torn line")
+@pytest.mark.parametrize("error", [StoreError("torn line"), OSError("permission denied")])
+@pytest.mark.parametrize("extra", [(), ("--no-commit",), ("--diagnose",)])
+def test_an_unreadable_status_surface_refuses_with_a_typed_code(evidence: Evidence, error: Exception, extra: tuple[str, ...]) -> None:
+    """The status log cannot be read: exit 1 with ``EVIDENCE_STATUS_UNREADABLE`` in every mode, ``--diagnose`` included."""
+    evidence.report_error = error
 
-    result = evidence.harness.invoke("--mission", _SLUG)
+    result = evidence.harness.invoke("--mission", _SLUG, *extra)
 
-    assert result.exit_code == 1
-    assert "could not be checked for implementation evidence" in json.loads(result.output)["error"]
+    payload = json.loads(result.output)
+    assert result.exit_code == 1, result.output
+    assert payload["error_code"] == "EVIDENCE_STATUS_UNREADABLE"
+    assert payload["error_codes"] == ["EVIDENCE_STATUS_UNREADABLE"]
+    assert payload["error"].startswith("EVIDENCE_STATUS_UNREADABLE: ")
+    assert "could not be checked for implementation evidence" in payload["error"]
+    assert str(error) in payload["error"]
     assert evidence.harness.calls == []
 
 

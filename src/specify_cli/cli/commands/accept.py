@@ -1288,6 +1288,10 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
         typer.echo(f"Operator attestation recorded for {wp_id} (no implementation owed) by {actor}: {reason}", err=True)
 
 
+#: The status log the evidence preflight reads cannot be read (#7222 follow-up). Unlike an
+#: uncomputable window it refuses under ``--diagnose`` too: no readiness check owns it.
+EVIDENCE_STATUS_UNREADABLE = "EVIDENCE_STATUS_UNREADABLE"
+
 #: The ``--diagnose`` blocked/skipped-check name of the evidence preflight (#6715).
 _EVIDENCE_CHECK = "implementation_evidence"
 
@@ -1314,7 +1318,7 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
     included). It runs before the acceptance summary is collected, so a refusal writes nothing;
     ``--no-commit`` and ``--diagnose`` report it the same way. No ``lanes.json`` leaves the
     acceptance readiness check in charge (it refuses on its own); an unreadable status log
-    refuses here. A check that cannot be computed (a corrupt ``lanes.json``, a coordination
+    refuses here with ``EVIDENCE_STATUS_UNREADABLE``, under ``--diagnose`` too. A check that cannot be computed (a corrupt ``lanes.json``, a coordination
     worktree that was never materialized) refuses with its typed code (``EVIDENCE_WINDOW_UNCOMPUTABLE``,
     ``COORDINATION_WORKTREE_UNMATERIALIZED``); under *report_only* it is skipped instead and the
     readiness report, which blocks on the same root cause, owns the blocker (#7222, #7223,
@@ -1348,7 +1352,8 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
         _code, message, _extra = _uncomputable_evidence(exc)
         return _EvidencePreflight(skipped=AcceptanceCheckDiagnostic(check=_EVIDENCE_CHECK, detail=f"{_EVIDENCE_CHECK} skipped: {message}"))
     except (StoreError, OSError) as exc:
-        _fail(run.json_output, f"The Mission could not be checked for implementation evidence ({exc}); nothing was accepted.")
+        message = f"{EVIDENCE_STATUS_UNREADABLE}: the Mission could not be checked for implementation evidence ({exc}); nothing was accepted."
+        _fail(run.json_output, message, extra_json={"error_code": EVIDENCE_STATUS_UNREADABLE, "error_codes": [EVIDENCE_STATUS_UNREADABLE]})
     if report.refusal is None:
         return _EvidencePreflight()
     if report_only:
