@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
 
 from charter.activation.activations import ActivationEntry
+from kernel.activation_ledger_store import ACTIVATION_LEDGER
 
 __all__ = [
     "BranchStrategyConfig",
@@ -358,11 +359,10 @@ class CharterYamlMetadata(BaseModel):
     bundle_schema_version: int = 2
 
 
-#: The deny-list key prefix (``deactivated_<plural>``), restated from
-#: ``charter.activation.activation_ledger._DENY_PREFIX``. A literal, not an import:
-#: ``pack_manager`` imports this module, so reaching into the activation writer/ledger
-#: layer here would be circular (#6556), and the prefix is the ledger's own posture for
-#: a kind it does not know as well as for one it does.
+#: Schema-only prefix predicate matching ``activation_ledger._DENY_PREFIX``.
+#: Keep the model independent of that private ledger I/O interface and the
+#: activation writer; ``DENY_KEYS`` remains the sole kind vocabulary. The prefix
+#: covers unknown kinds too. Importing ``pack_manager`` here would be circular.
 _DENY_KEY_PREFIX = "deactivated_"
 
 
@@ -412,9 +412,9 @@ class CharterYaml(BaseModel):
     state to be repaired by hand, not a supported shape; this model refuses it
     by design through :meth:`_refuse_deny_keys`, with a message naming the
     ledger and the remedy. Do not "complete" the vocabulary by declaring these
-    fields: a declared ``None``-defaulted field would be dumped by
-    :func:`emit_yaml` and emitted by ``charter.activation.compiler`` into every
-    regenerated ``charter.yaml``.
+    fields: they would advertise an unsupported authoring key. The constraint
+    comes from ADR C-003, not a claim that a ``None`` default is always emitted:
+    the two charter writers serialize with ``exclude_none=True``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -467,7 +467,7 @@ class CharterYaml(BaseModel):
             if denied:
                 raise ValueError(
                     f"{', '.join(denied)} cannot appear on charter.yaml: a deactivation "
-                    "(deactivated_<kind>) is recorded only in .kittify/charter/activation.yaml. "
+                    f"(deactivated_<kind>) is recorded only in {ACTIVATION_LEDGER.as_posix()}. "
                     "A hand-written deny key on a legacy charter.yaml was never applied; remove it "
                     "by hand, then run `spec-kitty upgrade` (or `spec-kitty migrate activation-ledger`)."
                 )
