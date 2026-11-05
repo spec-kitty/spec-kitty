@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/workspace/test_landed_worktrees.py::test_reachability_keeps_only_the_candidates_no_ref_reaches",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-05T16:20:59.600426+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
