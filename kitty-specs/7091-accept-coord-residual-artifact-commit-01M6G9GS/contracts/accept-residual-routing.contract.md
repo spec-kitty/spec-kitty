@@ -21,7 +21,9 @@ using the file→kind authority.
 ## Rule 2 — A coordination-leg path with no kind is not committable
 
 A coordination-worktree residual path for which `kind_for_mission_file` returns `None` is
-not a mission artifact. No commit surface owns it:
+not a coordination record and is primary-bound when submitted for writing. This rule is
+about the **physical copy in the coordination worktree**, which acceptance cleanup cannot
+commit from that worktree:
 
 - the commit router would route it PRIMARY (an unclassified path is primary-bound, #5697);
 - `safe_commit` then refuses, correctly, to stage a path under `.worktrees/` from the
@@ -32,7 +34,8 @@ Therefore `_run_residual_acceptance_commit` excludes such paths from the batch. 
 commit them to either surface and does not fail on them. Classified artifacts — on either
 partition — keep flowing to the router unchanged, and a PRIMARY-classified path stranded in
 the coordination worktree still resolves PRIMARY and is still refused loudly: that is real
-misplaced dirt, not a keep-local log.
+misplaced dirt, not a keep-local log. Unclassified paths in the PRIMARY checkout retain
+the normal PRIMARY-bound write fallback and are committed as before.
 
 ## Rule 3 — The deferral is reported, never silent
 
