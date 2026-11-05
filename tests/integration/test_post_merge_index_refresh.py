@@ -72,14 +72,16 @@ def _make_manifest(slug: str) -> MagicMock:
 
 def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     manifest = _make_manifest(slug)
+    feature_dir = tmp_path / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    # #6715: WP01's committed ownership, a planning commit pinned after it, its lane's implementation
+    # commit, and an independent approval stamped at that lane tip precede the seeded ``done``.
+    _write_wp_file(feature_dir, "WP01")
+    _run(["git", "-C", str(tmp_path), "add", "kitty-specs"])
+    _run(["git", "-C", str(tmp_path), "commit", "-m", "plan the mission"])
     # #5417: the approved lane needs its created branch, or the #5338
     # claim-time integrity refusal stops the merge before the refresh.
     create_lane_branches(tmp_path, manifest)
-    feature_dir = tmp_path / "kitty-specs" / slug
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    # #6715: a recorded planning commit, WP01's declared ownership, its lane's implementation
-    # commit, and an independent approval stamped at that lane tip precede the seeded ``done``.
-    _write_wp_file(feature_dir, "WP01")
     lane_head = commit_branch_implementation(tmp_path, manifest, lane_created_branch(manifest, "lane-a"), path="src/wp01.py")
     _seed_wp_done_raw(feature_dir, slug, ["WP01"], lane_head=lane_head)
 
