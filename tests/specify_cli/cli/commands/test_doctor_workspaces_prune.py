@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import shlex
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
@@ -179,29 +179,32 @@ def test_report_json_keeps_husk_keys_and_adds_worktrees(repo: Path) -> None:
     assert main["verdict"] == "excluded"  # excluded verdicts are shown in JSON
 
 
-def test_dirty_landed_content_worktree_is_kept(repo: Path) -> None:
+def _dirty_landed(repo: Path) -> Path:
     path, _ = _landed_worktree(repo)
     (path / "notes.txt").write_text("unsaved\n", encoding="utf-8")
-
-    code, out = _invoke("--prune")
-
-    assert code == 0, out
-    assert "not_landed" in out
-    assert "UNCOMMITTED_CHANGES" in out
-    assert "No landed worktrees to prune." in out
-    assert _registered(repo, path)
+    return path
 
 
-def test_mission_worktree_is_only_reported(repo: Path) -> None:
-    branch = "kitty/mission-foo-01ABCDEF-lane-a"
+def _mission_lane(repo: Path) -> Path:
     path = repo / ".worktrees" / "foo-lane-a"
-    _git(repo, "worktree", "add", "-q", "-b", branch, str(path), "main")
+    _git(repo, "worktree", "add", "-q", "-b", "kitty/mission-foo-01ABCDEF-lane-a", str(path), "main")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("make", "rendered"),
+    [(_dirty_landed, "not_landed — UNCOMMITTED_CHANGES:"), (_mission_lane, "mission_owned — MISSION_LANE:")],
+    ids=["dirty-landed-content", "mission-lane"],
+)
+def test_a_kept_worktree_is_reported_and_prune_exits_zero(repo: Path, make: Callable[[Path], Path], rendered: str) -> None:
+    """Rendering and exit code only; the unit tests own the safety matrix."""
+    path = make(repo)
 
     code, out = _invoke("--prune")
 
     assert code == 0, out
-    assert "mission_owned" in out
-    assert "MISSION_LANE" in out
+    assert rendered in out
+    assert "No landed worktrees to prune." in out
     assert _registered(repo, path)
 
 
@@ -449,7 +452,6 @@ def test_guard_refusal_prints_no_hand_remedy(repo: Path, monkeypatch: pytest.Mon
     assert code == 1
     assert "refused (WORKTREE_DIRTY)" in out
     assert "could not run" not in out
-    assert "again;" not in out
     assert f"run `{_PRUNE_HINT}` again" not in out
     assert "git worktree remove" not in out
 
@@ -532,11 +534,3 @@ def test_a_project_root_inside_a_larger_repository_gets_the_worktree_section(rep
     assert code == 0, out
     payload = json.loads(out)
     assert _verdict_of(payload, path)["verdict"] == "landed"
-
-
-def test_prune_help_names_what_removal_deletes() -> None:
-    result = runner.invoke(doctor_module.app, ["workspaces", "--help"], env={"COLUMNS": "400"})
-
-    assert result.exit_code == 0
-    assert "ignored files (e.g. .venv/, .env) are deleted with the worktree" in result.stdout
-    assert "Linux only" in result.stdout

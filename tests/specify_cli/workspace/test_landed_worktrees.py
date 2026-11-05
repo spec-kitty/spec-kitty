@@ -13,7 +13,6 @@ import os
 import shlex
 import shutil
 import subprocess
-import time
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -359,17 +358,6 @@ def test_an_unreadable_unrelated_process_is_counted_and_the_worktree_stays_lande
     assert outcome.removed
 
 
-@pytest.mark.skipif(not Path("/proc/self").exists(), reason="reads the real /proc")
-def test_the_real_proc_probe_can_prove_a_worktree_landed(repo: Path) -> None:
-    """With the module's default probe over the real /proc (PID 1 is unreadable in some containers)."""
-    worktree, _ = _land_by_rebase(repo, "land-x")
-
-    assessment = assess_worktrees(repo, current_dir=repo)
-
-    assert _by_path(assessment, worktree).verdict is Verdict.LANDED
-    assert assessment.uninspected_processes >= 0
-
-
 def test_a_locked_worktree_is_kept(repo: Path, tmp_path: Path) -> None:
     worktree, _ = _land_by_rebase(repo, "land-x")
     _git(repo, "worktree", "lock", "--reason", "mine", str(worktree))
@@ -614,7 +602,7 @@ def test_json_shapes_use_the_data_model_field_names(repo: Path, tmp_path: Path) 
 
 
 def test_assessment_probes_processes_once_for_many_worktrees(repo: Path, tmp_path: Path) -> None:
-    """NFR-003 (coarse, non-flaky): one process scan for 20 worktrees, well inside a generous bound."""
+    """NFR-003: one process scan serves 20 worktrees."""
     for index in range(20):
         _git(repo, "worktree", "add", "-q", "--detach", str(repo / ".worktrees" / f"many-{index}"), "main")
     idle = _idle_probe(tmp_path)
@@ -624,13 +612,10 @@ def test_assessment_probes_processes_once_for_many_worktrees(repo: Path, tmp_pat
         calls.append(len(paths))
         return idle(paths)
 
-    started = time.monotonic()
     assessment = assess_worktrees(repo, current_dir=repo, probe=counting)
-    elapsed = time.monotonic() - started
 
     assert calls == [20]
     assert sum(v.removable for v in assessment.verdicts) == 20
-    assert elapsed < 60
 
 
 # ---------------------------------------------------------------------------

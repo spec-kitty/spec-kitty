@@ -170,8 +170,8 @@ def test_no_force_removes_a_worktree_holding_only_an_ignored_venv(tmp_path: Path
     assert not _registered(root, worktree)
 
 
-def test_default_force_still_removes_a_locked_clean_worktree(tmp_path: Path) -> None:
-    """Existing callers keep ``--force``: the default is unchanged."""
+def test_default_force_fails_on_a_locked_worktree_as_a_runtime_error_not_a_refusal(tmp_path: Path) -> None:
+    """Existing callers keep a single ``--force``: git still refuses a locked worktree, raised as before (not ``DestructiveOpRefused``)."""
     root = _repo(tmp_path)
     worktree = _worktree(root, tmp_path)
     _git(root, "worktree", "lock", str(worktree))
