@@ -234,12 +234,14 @@ def _wire_review_ref(request: TransitionRequest) -> str | None:
     That is why the shared contract's third gated rewind could not be gated locally
     without refusing a legitimate write (the #6955 deferral, closed here).
 
-    The derivation lives here, in the tree's only validation/event-build authority, so
-    every door gets the same rule and the guard and the recorded event cannot disagree.
-    It fills only an ABSENT pointer: a caller-supplied ``review_ref`` is returned
-    unchanged (the guard's own ``review_ref == review_result.reference`` consistency
-    rule still applies to it), and a blank or non-string structured reference is not a
-    pointer (``has_review_ref``'s definition), so the requirement stays unsatisfied.
+    The derivation lives here, in the validation/event-build function every generic door
+    goes through, so those doors share one rule and the guard and the recorded event
+    cannot disagree. It applies to any transition that carries a structured review
+    result, not only the gated edge. It fills only an ABSENT pointer: a caller-supplied
+    ``review_ref`` is returned unchanged (on an unforced move the guard's own
+    ``review_ref == review_result.reference`` consistency rule still applies to it; a
+    forced move skips the guards), and a blank or non-string structured reference is
+    not a pointer (``has_review_ref``'s definition), so the requirement stays unsatisfied.
     """
     # Annotated local, same reason as ``_stamped_policy_metadata``: with this repo's
     # ``follow_imports = "skip"`` a narrow-file ``mypy --strict`` sees
