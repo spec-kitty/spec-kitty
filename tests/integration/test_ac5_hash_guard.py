@@ -33,7 +33,8 @@ from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.store import read_event_stream
 from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, write_single_lane_manifest
+from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -101,6 +102,7 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
         "title: Core\n"
         "agent: claude\n"
         "subtasks: [T001]\n"
+        "owned_files: [src/**]\n"
         "tracker_refs: []\n"
         "dependencies: []\n"
         "---\n\n# WP01\n\n## Activity Log\n",
@@ -109,6 +111,9 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "seed ac5 hash-guard fixture")
+    # #6715: pin the planning commit and commit WP01's owned change on its lane.
+    pin_planning_commit(repo, feature_dir, commit_message="record planning commit")
+    commit_lane_implementation(repo, feature_dir, lane_id="lane-a", path="src/core.py")
 
     # Seed genesis -> planned so the WP exists in the log at planned.
     seed_status_event(
@@ -220,9 +225,10 @@ def test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive(
     drive("history-note", ["move-task", "WP01", "--to", "in_progress",
                            "--note", "closeout audit note", *m])
     drive("re-for_review", ["move-task", "WP01", "--to", "for_review", *m])
-    drive("re-in_review", ["move-task", "WP01", "--to", "in_review", *m])
+    # #6715: an independent reviewer (codex, not the implementer claude) takes the review and approves.
+    drive("re-in_review", ["move-task", "WP01", "--to", "in_review", "--agent", "codex", *m])
 
     # 8. review-approve (in_review -> approved): evidence-gated, force-free.
     approval_ref = _write_review_cycle(feature_dir, 2, "approved")
-    drive("review-approve", ["move-task", "WP01", "--to", "approved",
+    drive("review-approve", ["move-task", "WP01", "--to", "approved", "--agent", "codex",
                              "--reviewer", "reviewer-renata", "--approval-ref", approval_ref, *m])

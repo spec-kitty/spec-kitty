@@ -36,12 +36,14 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.migration.mission_state import LANES_REBUILT_ACTION, repair_repo
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.status.emit import emit_status_transition
+from tests.lane_test_utils import commit_lane_implementation
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 _MISSION_SLUG = "073-wp03-advance"
 _AGENT = "codex"
+_REVIEWER = "claude"  # #6715: the approver must be independent of the implementer
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -162,12 +164,14 @@ def test_repaired_wedge_advances_to_approval_on_default_lane_cli(tmp_path: Path,
     # target-branch tip rather than a bare ``None``.
     assert lanes.planning_commit_sha is not None
 
+    # #6715: the implementer's owned-file change lives on the rebuilt lane's branch.
+    commit_lane_implementation(repo, feature_dir, lane_id=lanes.lanes[0].lane_id, path="src/wp01/mod.py")
     monkeypatch.chdir(repo)
 
-    def _move(to: str, *extra: str) -> None:
+    def _move(to: str, *extra: str, agent: str = _AGENT) -> None:
         invocation = runner.invoke(
             tasks_app,
-            ["move-task", "WP01", "--to", to, "--agent", _AGENT, "--mission", _MISSION_SLUG, "--json", *extra],
+            ["move-task", "WP01", "--to", to, "--agent", agent, "--mission", _MISSION_SLUG, "--json", *extra],
         )
         assert invocation.exit_code == 0, invocation.output
 
@@ -175,8 +179,8 @@ def test_repaired_wedge_advances_to_approval_on_default_lane_cli(tmp_path: Path,
     # drive the rest of the chain through to approval. No step should refuse.
     _move("doing")
     _move("for_review")
-    _move("in_review", "--reviewer", "reviewer")
-    _move("approved", "--reviewer", "reviewer", "--approval-ref", "local-review")
+    _move("in_review", "--reviewer", "reviewer", agent=_REVIEWER)
+    _move("approved", "--reviewer", "reviewer", "--approval-ref", "local-review", agent=_REVIEWER)
 
     events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     transitions = [row["to_lane"] for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]

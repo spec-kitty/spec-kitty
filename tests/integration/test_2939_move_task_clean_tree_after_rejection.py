@@ -34,6 +34,7 @@ from tests.integration.coord_topology_fixture import (
     FlatTopologyContext,
     _build_coord_topology,
     flat_topology_mission,
+    record_wp01_implementation,
 )
 from tests.integration.test_review_durability_matrix import (
     _REVIEW_GATE_BYPASS,
@@ -192,6 +193,7 @@ def test_for_review_move_task_with_note_leaves_clean_coord_tree(tmp_path: Path) 
     """
     ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
     _disable_branch_protection_for_coord_cell(ctx.repo)
+    record_wp01_implementation(ctx)  # #6715: the ->for_review hop reads implementation evidence
     # Seed WP01 currently in_progress on the coord husk (fresh, single event).
     ctx.status_events_path.unlink()
     _seed_wp_event(ctx.coord_feature_dir, _WP_ID, "in_progress", seq=0)

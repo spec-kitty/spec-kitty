@@ -60,6 +60,7 @@ _CLI_TIMEOUT_SECONDS = 180
 _STATUS_LOG = "status.events.jsonl"
 _LEDGER_INDEX = "decisions/index.json"
 _AGENT = "e2e"
+_REVIEWER = "codex"  # #6715: the approver must be independent of the implementer
 _LANE_ID = "a"
 
 _HEX40 = frozenset("0123456789abcdef")
@@ -367,10 +368,14 @@ def _decide_mid_flight(run: _Run) -> None:
 
 def _approve_wp01(run: _Run) -> None:
     # #5721: a forced entry into ``in_review`` makes the later approval no review, so only the last hop is forced.
-    for lane, force in (("for_review", ()), ("in_review", ()), ("approved", ("--force",))):
+    for lane, agent, force in (
+        ("for_review", _AGENT, ()),
+        ("in_review", _REVIEWER, ()),
+        ("approved", _REVIEWER, ("--force",)),
+    ):
         _cli(
             run.repo, "agent", "tasks", "move-task", "WP01", "--to", lane, "--mission", run.handle,
-            "--agent", _AGENT, *force, "--note", _AGENT,
+            "--agent", agent, *force, "--note", agent,
         )  # fmt: skip
     _cli(
         run.repo, "agent", "acceptance-verdict", "--mission", run.handle, "--criterion", "FR-001", "--result", "pass",

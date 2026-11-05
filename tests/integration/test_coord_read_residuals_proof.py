@@ -51,6 +51,7 @@ from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_TYPE,
     CoordTopologyContext,
     FlatTopologyContext,
+    record_wp01_implementation,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -294,6 +295,7 @@ def test_dry_run_forecast_returns_primary_wp_set(
     # partition is not under test here (forecast asserts the LANE_STATE WP set), so
     # an empty (reducible) log lets the real preflight run end-to-end.
     (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    _seed_approved_wp01(ctx)
 
     forecast.run_dry_run_forecast(
         repo_root=ctx.repo,
@@ -565,6 +567,44 @@ def test_flat_topology_recovery_is_noop(
 # ---------------------------------------------------------------------------
 # Local helpers (no resolver patching — real git + filesystem)
 # ---------------------------------------------------------------------------
+
+
+def _seed_approved_wp01(ctx: CoordTopologyContext) -> None:
+    """#6715: model WP01 as implemented on its lane and approved by an independent reviewer.
+
+    The dry-run forecast builds the real claim, which holds only approved work packages with
+    implementation evidence (``record_wp01_implementation``); the stamped lane hops follow the
+    fixture's own claim on the coord status log, so its claim stays the first implementer hop.
+    """
+    from specify_cli.status.models import Lane, StatusEvent
+
+    from tests._support.status_seed import seed_status_events
+
+    pin, tip = record_wp01_implementation(ctx)
+    hops = [
+        (Lane.CLAIMED, Lane.IN_PROGRESS, "implementer-ivan", pin),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "implementer-ivan", tip),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, "reviewer-renata", tip),
+        (Lane.IN_REVIEW, Lane.APPROVED, "reviewer-renata", tip),
+    ]
+    seed_status_events(
+        ctx.coord_feature_dir,
+        [
+            StatusEvent(
+                event_id=f"01KW2E7AFC0000000000APPR0{idx}",
+                mission_slug=ctx.slug,
+                wp_id="WP01",
+                from_lane=frm,
+                to_lane=to,
+                at=f"2026-06-26T00:0{idx + 1}:00+00:00",
+                actor=actor,
+                force=False,
+                execution_mode="worktree",
+                policy_metadata={"lane_head": head},
+            )
+            for idx, (frm, to, actor, head) in enumerate(hops)
+        ],
+    )
 
 
 def _git_branch(ctx: CoordTopologyContext | FlatTopologyContext, branch: str) -> None:

@@ -106,11 +106,11 @@ def _independent_claim_commit(root: Path, mission_dir: Path, wp_id: str) -> str:
     return shas[0]
 
 
-def _move(monkeypatch: pytest.MonkeyPatch, cwd: Path, slug: str, wp_id: str, to: str, *extra: str) -> None:
+def _move(monkeypatch: pytest.MonkeyPatch, cwd: Path, slug: str, wp_id: str, to: str, *extra: str, agent: str = "claude") -> None:
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     monkeypatch.setenv("SPEC_KITTY_SKIP_PRE_REVIEW_GATE", "1")
     monkeypatch.chdir(cwd)
-    result = runner.invoke(tasks_app, ["move-task", wp_id, "--to", to, "--mission", slug, "--agent", "claude", *extra, "--json"])
+    result = runner.invoke(tasks_app, ["move-task", wp_id, "--to", to, "--mission", slug, "--agent", agent, *extra, "--json"])
     assert result.exit_code == 0, result.output
 
 
@@ -359,6 +359,9 @@ class TestFr009PromptGovernance:
 # ---------------------------------------------------------------------------
 
 
+_REVIEWER = "codex"
+
+
 class TestClaimEventUniquenessPin:
     """The ``-S<event_id>`` algorithm assumes no later status event mentions a claim ``event_id``.
 
@@ -374,14 +377,15 @@ class TestClaimEventUniquenessPin:
         repo, mission_dir = _non_owned_review_ready(tmp_path, monkeypatch)
         feedback = tmp_path / "feedback.md"
         feedback.write_text("Please rework.\n", encoding="utf-8")
-        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "in_review")
-        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "planned", "--review-feedback-file", str(feedback))
+        # #6715: review hops run as an identity independent of the implementer (claude).
+        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "in_review", agent=_REVIEWER)
+        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "planned", "--review-feedback-file", str(feedback), agent=_REVIEWER)
         _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "claimed")
         _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "in_progress")
         _write_and_commit(repo, "wp01.py", "# WP01 reworked\n")
         _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "for_review")
-        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "in_review")
-        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "approved", "--approval-ref", "PR#1")
+        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "in_review", agent=_REVIEWER)
+        _move(monkeypatch, repo, _NON_OWNED_SLUG, "WP01", "approved", "--approval-ref", "PR#1", agent=_REVIEWER)
 
         raw = (mission_dir / _EVENTS).read_text(encoding="utf-8").splitlines()
         events = [json.loads(line) for line in raw if line.strip()]
