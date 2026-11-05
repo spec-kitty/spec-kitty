@@ -468,19 +468,15 @@ class TestDoctorHuskCheck:
     ) -> None:
         import specify_cli.cli.commands.doctor as doctor_module
         import specify_cli.status.doctor_husks as doctor_husks
+        from kernel.git import GitCommandError
 
         repo, husk = husk_repo
         rel = str(husk.relative_to(repo))
 
-        def fail_worktree_list(cmd: Any, *args: Any, **kwargs: Any) -> SimpleNamespace:
-            assert cmd == ["git", "worktree", "list", "--porcelain"]
-            return SimpleNamespace(
-                returncode=128,
-                stdout="",
-                stderr="fatal: unable to read worktree registrations\n",
-            )
+        def fail_worktree_list(cwd: Path, **_kwargs: Any) -> tuple[()]:
+            raise GitCommandError(argv=("worktree", "list", "--porcelain"), cwd=cwd, returncode=128, stderr="fatal: unable to read worktree registrations\n")
 
-        monkeypatch.setattr(doctor_husks.subprocess, "run", fail_worktree_list)
+        monkeypatch.setattr(doctor_husks, "worktree_entries", fail_worktree_list)
         monkeypatch.setattr(doctor_module, "locate_project_root", lambda *a, **k: repo)
 
         report = doctor_husks.scan_workspace_husks(repo)

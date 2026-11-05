@@ -7,7 +7,7 @@ This lives beside :mod:`specify_cli.git.destructive_guard`, not in
 The subprocess still goes through the kernel's one seam,
 :func:`kernel.git.runner.run_git`, and is decoded with its lossless rule.
 
-:func:`parse_worktree_porcelain` is a pure function so it can be tested against
+:func:`_parse_worktree_porcelain` is a pure function so it can be tested against
 captured git output; :func:`worktree_entries` asks git and parses the answer.
 """
 
@@ -21,7 +21,6 @@ from kernel.git.runner import decode_path, run_git
 
 __all__ = [
     "WorktreeEntry",
-    "parse_worktree_porcelain",
     "worktree_entries",
 ]
 
@@ -92,7 +91,7 @@ def _worktree_entry(record: Sequence[str]) -> WorktreeEntry | None:
     )
 
 
-def parse_worktree_porcelain(text: str) -> tuple[WorktreeEntry, ...]:
+def _parse_worktree_porcelain(text: str) -> tuple[WorktreeEntry, ...]:
     """Parse ``git worktree list --porcelain`` (without ``-z``), in git's order.
 
     The first entry git reports is the main worktree. Records are separated by
@@ -113,4 +112,4 @@ def worktree_entries(cwd: Path, *, env: Mapping[str, str] | None = None, timeout
             timeout or a git that did not start).
     """
     raw = run_git(cwd, "worktree", "list", "--porcelain", env=env, timeout=timeout).stdout
-    return parse_worktree_porcelain(decode_path(raw))
+    return _parse_worktree_porcelain(decode_path(raw))
