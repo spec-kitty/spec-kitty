@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-fix-7198-late-window-accounting-01M6P3DS",
+  "created_at": "2026-11-05T14:57:21.497557+00:00",
+  "flattened": false,
+  "friendly_name": "fix 7198 late window accounting",
+  "mid8": "01M6P3DS",
+  "mission_id": "01M6P3DS9SV0EBF95DM7N8TWAH",
+  "mission_number": null,
+  "mission_slug": "fix-7198-late-window-accounting-01M6P3DS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances fix 7198 late window accounting on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "fix 7198 late window accounting",
+  "slug": "fix-7198-late-window-accounting-01M6P3DS",
+  "target_branch": "main",
+  "topology": "coord"
+}
