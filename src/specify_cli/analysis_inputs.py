@@ -401,6 +401,8 @@ def pack_pin_state(repo_root: Path) -> PackPinState:
             continue
         verified.append(relative)
     return PackPinState(tuple(verified), tuple(refused))
+
+
 def _include(root: Path, paths: set[Path], path: Path, *, recurse: bool = True) -> None:
     """Add *path* (recursively by default) to a material closure, refusing escapes."""
     path = _safe_path(root, path)
