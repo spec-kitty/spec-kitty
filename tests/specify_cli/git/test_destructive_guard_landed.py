@@ -309,6 +309,18 @@ def test_landed_intent_requires_the_approved_tip(tmp_path: Path) -> None:
     assert _spec_kitty_refs(root) == [], "nothing recorded for a refused call"
 
 
+@pytest.mark.parametrize("intent", [None, DISCARD_INTENT])
+def test_an_expected_tip_outside_the_landed_intent_is_refused_not_ignored(tmp_path: Path, intent: str | None) -> None:
+    """A bound-tip argument on a path that ignores it would read as a guarantee it does not give."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+
+    with pytest.raises(ValueError, match="expected_tip"):
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=intent, expected_tip=tip)
+
+    assert _git(root, "rev-parse", "squashed").strip() == tip
+
+
 def test_landed_intent_refuses_a_branch_that_moved_past_the_approved_tip(tmp_path: Path) -> None:
     """The approved tip was proven absorbed; the commit now on the branch was not."""
     root = _repo(tmp_path)

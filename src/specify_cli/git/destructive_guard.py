@@ -635,12 +635,13 @@ def guarded_branch_delete(
     swap ref delete. It is **required** under :data:`LANDED_INTENT` (the prune
     proved *this* tip's absorption, and only a bound delete keeps the proof
     true while it runs); omitting it raises :class:`ValueError` before any git
-    call. A branch that moved is refused with :data:`BRANCH_TIP_MOVED` and
-    nothing is deleted. The keep-record, when written, is written at
-    ``expected_tip`` before the delete (crash safety); a refused compare-and-
-    swap may leave that create-only record behind, which keeps the approved tip
-    reachable and is harmless. The other intents ignore ``expected_tip`` and
-    keep their ``git branch -D`` path.
+    call. It is accepted only with :data:`LANDED_INTENT`: the other intents pass
+    no tip and keep their ``git branch -D`` path, and naming one there raises
+    :class:`ValueError` rather than being silently ignored. A branch that moved
+    is refused with :data:`BRANCH_TIP_MOVED` and nothing is deleted. The
+    keep-record, when written, is written at ``expected_tip`` before the delete
+    (crash safety); a refused compare-and-swap may leave that create-only record
+    behind, which keeps the approved tip reachable and is harmless.
     """
     if operator_intent not in _OPERATOR_INTENTS:
         raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r}, {DISCARD_INTENT!r} or {LANDED_INTENT!r}")
@@ -649,10 +650,12 @@ def guarded_branch_delete(
             f"operator_intent={LANDED_INTENT!r} requires expected_tip: the landed prune deletes {branch!r} "
             "only at the tip whose absorption it proved (compare-and-swap)."
         )
+    if expected_tip is not None and operator_intent != LANDED_INTENT:
+        raise ValueError(f"expected_tip is only supported with operator_intent={LANDED_INTENT!r}; {operator_intent!r} keeps its unconditional path.")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
         return None
     if operator_intent == DISCARD_INTENT:
-        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_ALL_REF_NAMESPACES, expected_tip=expected_tip)
+        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_ALL_REF_NAMESPACES)
     if operator_intent == LANDED_INTENT:
         return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_LOCAL_REF_NAMESPACES, expected_tip=expected_tip)
     if operator_intent is not None:
