@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-10-05'
+updated: '2026-11-05'
 ---
 
 **Status:** Accepted
@@ -84,3 +84,14 @@ A Mission already caught in the broken state heals on its next `consolidate`, re
   - For a genuine overlap between two lanes on an operator-editable file, the printed stale remedy is still a no-op after the in-run rollback. This Mission removes the upgrade-induced trigger only. The general stale-remedy wording is a defect. Follow-up: [#5711](https://github.com/spec-kitty/spec-kitty/issues/5711).
   - Migrations with `runs_on_worktrees=True` that rewrite tracked Mission state no longer reach coordination or lane branches. For example, `m_3_1_1_normalize_status_json` rewrites `kitty-specs/*/status.json`, and now does so only in the repository root checkout and in worktrees that upgrade still visits. `status.json` is a derived snapshot that is re-materialized from the event log, so the impact is low today. A future migration of tracked Mission state must not rely on the worktree pass to reach in-flight branches. Follow-up: [#5712](https://github.com/spec-kitty/spec-kitty/issues/5712).
 - This decision adds no writer of `.kittify/metadata.yaml`. The file already has several (`ProjectMetadata.save()`, the schema stamp in `upgrade/runner.py`, `migration/runner.py`, `migration/backfill_identity.py` and `init`; see #5229), and nothing ties the state contract's path to them: if the file moved, the target-owned declaration would go inert without a failing test.
+
+## Amendment 2026-11-05 (#7173): non-Mission worktrees are opt-in
+
+**Decision item 1 changes for worktrees on other branches.** Item 1 said a worktree on any other branch keeps the earlier behaviour: upgrade writes, stamps and commits there. Since [#7173](https://github.com/spec-kitty/spec-kitty/issues/7173), `spec-kitty upgrade` skips every non-Mission worktree under `.worktrees/` by default. The operator opts in with `--include-worktree <path>` (repeatable) or `--all-worktrees`. Integrating (Mission) and detached worktrees stay skipped even when named or when `--all-worktrees` is passed.
+
+- The Mission check moved from `_is_integrating_worktree` in `upgrade/runner.py` to `is_integrating_worktree` in `src/specify_cli/upgrade/worktree_selection.py`, unchanged. `_worktrees_to_upgrade` is replaced by `worktree_dispositions`, which gives every worktree a disposition: selected, skipped as Mission-owned, or skipped as not selected.
+- The preview and the run output now list every worktree with its disposition and outcome, which closes the residual "Skipped worktrees are not listed".
+- The residual "Worktrees on other branches are still upgraded" now applies only to worktrees the operator selected.
+- In `--plan-json`, `commit_policy.worktrees_enabled` now means at least one worktree is selected, so a plain run reports `false`.
+
+The original decision text above is unchanged.

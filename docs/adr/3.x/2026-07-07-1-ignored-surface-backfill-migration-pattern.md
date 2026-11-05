@@ -169,6 +169,8 @@ Lanes receive the gitignore protection through integration instead: the reposito
 
 **Residual window.** Between the upgrade and that merge, an integrating worktree keeps its pre-upgrade `.gitignore` (and `.gitattributes`). A new `IGNORED` surface that the backfill covers can be untracked-visible in that worktree until the lane integrates. The original decision text above is unchanged.
 
+> **Updated 2026-11-05 (#7173).** `_is_integrating_worktree` and `_worktrees_to_upgrade` no longer exist. The Mission check is now `is_integrating_worktree` in `src/specify_cli/upgrade/worktree_selection.py`, and upgrade also skips every other worktree under `.worktrees/` unless the operator names it with `--include-worktree` or passes `--all-worktrees`. The `True` default therefore reaches only the worktrees the operator selected. See the 2026-11-05 amendment to [ADR 2026-10-04-4](../4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md).
+
 ## Amendment 2026-10-17 (#6233) — the "recorded-once, frozen" choice assumes a TRACKED effect
 
 The frozen-migration decision above records a migration by `migration_id` and skips it on every later run (the runner short-circuits at `metadata.has_migration(id)` before it ever calls `detect()`). That is sound **only because a gitignore backfill lands in the TRACKED `.gitignore`**: the effect travels with the commit, so the shared, pushed `metadata.yaml` ledger is a faithful record of the effect's presence on every clone.
