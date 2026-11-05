@@ -16,12 +16,17 @@ Design invariants:
       log dirty. A clean tree makes the commit a no-op — no double commit.
     * On failure, a ``retrospective.capture_failed`` event is appended to
       ``kitty-specs/<slug>/status.events.jsonl`` so the gap is auditable.
+    * Destination: the bookkeeping commit lands on the caller-resolved landing
+      branch when one is supplied (the consolidate run's resolved merge target,
+      ``mission close --target``), and on the placement-resolved ``meta.json``
+      target otherwise. A destination is never read from the checkout HEAD (#7201).
 """
 
 from __future__ import annotations
 
 import contextlib
 import logging
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -57,6 +62,7 @@ def run_retrospective_postcondition(
     mission_slug: str,
     repo_root: Path,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
+    destination_ref: str | None = None,
 ) -> str | None:
     """Run the post-merge retrospective postcondition check.
 
@@ -77,6 +83,15 @@ def run_retrospective_postcondition(
             ``"runtime_abandoned"`` so an abandoned mission is not tagged with
             completion provenance; the default keeps the merge/close-completion
             behaviour (``runtime_post_completion``).
+        destination_ref: The branch this run actually landed on, when the caller
+            already resolved it (the consolidate run's resolved merge target;
+            ``mission close --target``). ``None`` (the default) keeps placement-port
+            resolution, which reads the mission's ``meta.json`` ``target_branch``.
+            That value is STALE for a ``consolidate --target <branch>`` landing, so
+            the commit was refused with ``SafeCommitHeadMismatch`` and the fail-open
+            terminus left both artifacts uncommitted (#7201). The destination is
+            always a caller-resolved value — never a read of the current checkout
+            HEAD.
 
     Returns:
         The SHA of the bookkeeping commit this call made, or ``None`` when it made
@@ -163,6 +178,7 @@ def run_retrospective_postcondition(
         feature_dir=feature_dir,
         repo_root=repo_root,
         provenance_kind=provenance_kind,
+        destination_ref=destination_ref,
     )
 
 
@@ -273,7 +289,7 @@ def _has_recorded_identity(feature_dir: Path) -> bool:
     return bool(recorded_mid8(load_meta_or_empty(feature_dir)))
 
 
-def _rerun_command(mission_slug: str, provenance_kind: ProvenanceKind) -> str:
+def _rerun_command(mission_slug: str, provenance_kind: ProvenanceKind, destination_ref: str | None = None) -> str:
     """The idempotent command that re-runs this postcondition and heals a failed commit (#2280).
 
     ``mission close`` reaches the terminus again, finds the artefacts dirty and
@@ -281,24 +297,40 @@ def _rerun_command(mission_slug: str, provenance_kind: ProvenanceKind) -> str:
     ``safe-commit`` recipe is not offered: the latter is refused on a protected
     target. An abandoned mission was never merged, so it is re-run with
     ``--discard --force``.
+
+    ``--target`` is appended when this run knew which branch it landed on (#7201): the
+    resolved merge target is not durable after a successful consolidate
+    (``clear_state`` removes ``state.json`` and the ``--target`` override is never
+    written back to ``meta.json``/``lanes.json``), so the recovery command has to carry
+    it or it would resolve the same stale ``meta.json`` destination and be refused again.
     """
     command = f"spec-kitty mission close --mission {mission_slug}"
+    if destination_ref:
+        # A git branch name may legally contain characters a shell would split or
+        # expand ('&', ';', '~', ...). The operator is told to copy-paste this line,
+        # so quote it the way a shell would need it.
+        command += f" --target {shlex.quote(destination_ref)}"
     if provenance_kind == "runtime_abandoned":
         command += " --discard --force"
     return command
 
 
-def _recovery_guidance(mission_slug: str, feature_dir: Path, provenance_kind: ProvenanceKind) -> str:
+def _recovery_guidance(
+    mission_slug: str,
+    feature_dir: Path,
+    provenance_kind: ProvenanceKind,
+    destination_ref: str | None = None,
+) -> str:
     """The sentence telling the operator how to get the leftover artefacts committed."""
     if _has_recorded_identity(feature_dir):
-        return f"re-run `{_rerun_command(mission_slug, provenance_kind)}` to commit them."
+        return f"re-run `{_rerun_command(mission_slug, provenance_kind, destination_ref)}` to commit them."
     # A legacy Mission: ``mission close`` cannot reach the retrospective for it. Minting
     # the identity first makes the re-run work; the backfill's own meta.json write stays
     # uncommitted (verified in a scratch repo).
     return (
         "this Mission has no recorded identity (no mission_id in meta.json), so `mission close` cannot commit them yet. "
         f"Run `spec-kitty migrate backfill-identity --mission {mission_slug}`, then "
-        f"`{_rerun_command(mission_slug, provenance_kind)}`; the backfill leaves meta.json modified, so commit that too."
+        f"`{_rerun_command(mission_slug, provenance_kind, destination_ref)}`; the backfill leaves meta.json modified, so commit that too."
     )
 
 
@@ -308,6 +340,7 @@ def _commit_captured_retrospective(
     feature_dir: Path,
     repo_root: Path,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
+    destination_ref: str | None = None,
 ) -> str | None:
     """Commit the just-captured retrospective + its event-log append.
 
@@ -322,6 +355,14 @@ def _commit_captured_retrospective(
     Fail-open-but-loud: any failure is reported via a WARNING (surfaced by the CLI
     logging bootstrap) with the exact remediation command, and NEVER raised — the
     caller must not abort the merge/close.
+
+    ``destination_ref`` (#7201) is the caller's resolved landing branch. When supplied it
+    is the commit's destination, bypassing placement resolution — the same authoritative
+    override the merge executor threads for its own bookkeeping commit
+    (#4985/#4991). Without it, resolution reads the mission's ``meta.json``
+    ``target_branch``, which is stale for a ``consolidate --target <branch>`` run and made
+    ``safe_commit`` refuse with ``SafeCommitHeadMismatch`` while HEAD sat on the landing
+    branch.
     """
     candidates = [feature_dir / RETROSPECTIVE_FILENAME, feature_dir / _STATUS_EVENTS_FILENAME]
     paths = _paths_with_uncommitted_changes(repo_root, candidates)
@@ -355,6 +396,7 @@ def _commit_captured_retrospective(
             message=f"chore({mission_slug}): capture mission retrospective",
             paths=paths,
             branch=degrade_ref,
+            destination_ref_override=destination_ref,
         )
         logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
         sha: str | None = result.sha
@@ -368,7 +410,7 @@ def _commit_captured_retrospective(
             exc,
             " ".join(str(p) for p in paths),
             repo_root,
-            _recovery_guidance(mission_slug, feature_dir, provenance_kind),
+            _recovery_guidance(mission_slug, feature_dir, provenance_kind, destination_ref),
         )
         return None
 

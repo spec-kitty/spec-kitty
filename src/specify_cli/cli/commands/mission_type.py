@@ -408,6 +408,14 @@ def close_cmd(
             help="Skip the confirmation prompt when --discard is set.",
         ),
     ] = False,
+    target: Annotated[
+        str | None,
+        typer.Option(
+            "--target",
+            help="Branch this Mission was consolidated into. Aimed at the retrospective "
+            "bookkeeping commit; omit to resolve the target from meta.json (auto-detected).",
+        ),
+    ] = None,
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Emit a JSON envelope instead of a rich panel."),
@@ -444,6 +452,18 @@ def close_cmd(
 
     Implements FR-016 from
     ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
+
+    ``--target`` names the branch this Mission was consolidated into, and aims
+    the retrospective bookkeeping commit at it (#7201). Omit it to keep the
+    placement resolution from ``meta.json``'s ``target_branch``, which is right
+    for a Mission landed on its recorded target.
+
+    Pass it when the Mission was landed with ``consolidate --target <branch>``:
+    that resolved target is never written back to ``meta.json`` or
+    ``lanes.json``. A close that re-derived it would ask ``safe_commit`` for
+    ``main`` while the checkout sits on ``<branch>``, and the retrospective
+    would be refused and left uncommitted. The refusal warning names this
+    command with the right ``--target``.
     """
     project_root = get_project_root_or_exit(json_output=json_output)
     repo_root = _resolve_primary_repo_root(project_root)
@@ -524,6 +544,7 @@ def close_cmd(
                 mid8_value=mid8_value,
                 meta_path=meta_path,
                 force=force,
+                destination_ref=target,
             )
             # Fail closed (#2120): a destructive discard must not report success
             # while leaving worktrees/branches behind. Verify BEFORE flattening so the
@@ -577,7 +598,13 @@ def close_cmd(
             # Tolerates an orphaned ``coordination_branch`` marker (FR-013):
             # the seam's destroy leg is itself idempotent on a missing
             # worktree/branch, so no traceback surfaces here.
-            _teardown_coordination_worktree(repo_root, mission_slug, mid8_value, quiet=json_output)
+            _teardown_coordination_worktree(
+                repo_root,
+                mission_slug,
+                mid8_value,
+                quiet=json_output,
+                destination_ref=target,
+            )
             if json_output:
                 console.emit_json({"ok": True, "result": "closed", "mission_slug": mission_slug})
             else:
@@ -597,6 +624,7 @@ def _discard_mission(
     mid8_value: str,
     meta_path: Path,
     force: bool,
+    destination_ref: str | None = None,
 ) -> str | None:
     """Discard a mission's branches/worktrees; return the minted mission branch, if any.
 
@@ -613,6 +641,7 @@ def _discard_mission(
             mid8_value=mid8_value,
             meta_path=meta_path,
             force=force,
+            destination_ref=destination_ref,
         )
     except DestructiveOpRefused as refusal:
         console.print(f"[red]Error:[/red] cannot discard {mission_slug}: {refusal}")
@@ -627,6 +656,7 @@ def _discard_mission_steps(
     mid8_value: str,
     meta_path: Path,
     force: bool,
+    destination_ref: str | None = None,
 ) -> str | None:
     _require_mission_on_checkout(repo_root, mission_slug, meta_path)
     lanes_manifest = _load_lanes_manifest_for_discard(feature_dir, mission_slug)
@@ -642,7 +672,13 @@ def _discard_mission_steps(
     # branch-first order silently leaked the coordination/lane branches.
     # #3716: this is the abandonment leg — the retrospective the teardown persists
     # must carry ``runtime_abandoned`` provenance, not completion provenance.
-    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value, provenance_kind="runtime_abandoned")
+    _teardown_coordination_worktree(
+        repo_root,
+        mission_slug,
+        mid8_value,
+        provenance_kind="runtime_abandoned",
+        destination_ref=destination_ref,
+    )
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
@@ -1124,6 +1160,7 @@ def _teardown_coordination_worktree(
     *,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
     quiet: bool = False,
+    destination_ref: str | None = None,
 ) -> None:
     if not mid8_value:
         return
@@ -1134,7 +1171,11 @@ def _teardown_coordination_worktree(
     # ``is_present`` truth so the operator sees whether manual cleanup is needed.
     # ``provenance_kind`` stamps the captured retrospective — the discard leg
     # passes ``"runtime_abandoned"`` (#3716) so an abandoned mission is not tagged
-    # with completion provenance. An orphaned ``coordination_branch`` marker
+    # with completion provenance. ``destination_ref`` (#7201) is the branch the
+    # operator says this Mission landed on (``--target``); the persist leg commits
+    # the retrospective there instead of at the possibly stale ``meta.json``
+    # target, which ``safe_commit`` would refuse when the checkout is on the
+    # landing branch. An orphaned ``coordination_branch`` marker
     # (FR-013, #2745) — declared in meta.json but absent from git — degrades
     # gracefully here: the seam's destroy leg is idempotent on a missing
     # worktree/branch, so this never raises.
@@ -1151,7 +1192,13 @@ def _teardown_coordination_worktree(
     from specify_cli.lanes.branch_naming import coord_mission_dir_name
 
     try:
-        teardown_coordination_topology(repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind)
+        teardown_coordination_topology(
+            repo_root,
+            mission_slug,
+            mid8_value,
+            provenance_kind=provenance_kind,
+            destination_ref=destination_ref,
+        )
     except ProjectionTeardownAbort as exc:
         _emit_mission_error(f"[red]Error:[/red] {exc}", code=exc.error_code, json_output=quiet)
         raise typer.Exit(1) from exc
