@@ -10,6 +10,8 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app
+from tests.specify_cli._pinned_pack_fixture import make_pack_tree as _pack_tree
+from tests.specify_cli._pinned_pack_fixture import write_pin as _write_pin
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 SLUG = "analysis-01M38YDX"
@@ -70,9 +72,10 @@ def invoke(*extra: str):
 
 
 def _compile_catalog_from_other_checkout(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    from ruamel.yaml import YAML
+
     from charter.activation.compiler import compile_charter, write_compiled_charter
     from charter.activation.interview import default_interview
-    from ruamel.yaml import YAML
 
     monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
     monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
@@ -296,8 +299,8 @@ def test_material_change_invalidates_qualified_report(repo: Path):
 
 @pytest.mark.parametrize("change", ["input", "index", "report"])
 def test_race_before_commit_preserves_concurrent_state(repo: Path, monkeypatch: pytest.MonkeyPatch, change: str):
-    from specify_cli.git import report_transaction
     from specify_cli.analysis_report import check_analysis_report_current
+    from specify_cli.git import report_transaction
 
     original = report_transaction.write_analysis_report
     target = repo / ({"input": f"kitty-specs/{SLUG}/spec.md", "report": REPORT}.get(change, "application.txt"))
@@ -341,8 +344,8 @@ def test_dirty_existing_report_is_preserved(repo: Path):
 
 
 def test_package_identical_global_template_and_project_override_are_supported(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    from specify_cli.runtime import resolver
     from kernel.paths import get_package_asset_root
+    from specify_cli.runtime import resolver
 
     global_home = tmp_path / "global"
     templates = global_home / "missions/software-dev/templates"
@@ -411,7 +414,6 @@ def test_material_input_closure_backs_the_report_only_transaction(repo: Path):
     the canonical ``PackRootNotFound``. Exercising it here keeps the closure and
     the charter pack-root error surface covered by a per-PR test."""
     from charter.pack_paths import PackRootNotFound
-
     from specify_cli.analysis_inputs import MaterialInputError, collect_material_inputs
 
     assert issubclass(MaterialInputError, ValueError)
@@ -430,41 +432,9 @@ PACK_ROOT = "packs/internal"
 
 def _add_pinned_pack(repo: Path) -> None:
     """A gitignored, pin-fetched org pack tree — the shape `make sync-packs` produces (#7128)."""
-    from charter.offering.packs.pack_clean_digest import clean_tree_digest
-    from charter.offering.packs.pack_pin import (
-        TREE_DIGEST_ALGORITHM,
-        PackPin,
-        TreeDigest,
-        full_tree_digest,
-        write_pack_pin,
-    )
-
-    pack = repo / PACK_ROOT
-    (pack / "drg").mkdir(parents=True)
-    (pack / "procedures").mkdir()
-    (pack / "pack.yaml").write_text(
-        "pack_id: 01ARWG13C000000000000000AB\n"
-        "pack_version: 1.0.0\n"
-        "parent_pack: null\n"
-        "name: spec-kitty-internal\n"
-        "pack_level: org\n"
-        "active_charter: org-charter.yaml\n"
-        "pack_drg: drg/fragment.yaml\n"
-    )
-    (pack / "org-charter.yaml").write_text("org_name: spec-kitty-internal\nskill_namespace: kitty\n")
-    (pack / "drg/fragment.yaml").write_text("nodes: []\n")
-    (pack / "procedures/proof.procedure.yaml").write_text("id: proof\nname: Proof\n")
+    pack = _pack_tree(repo, PACK_ROOT)
     (repo / ".gitignore").write_text(f"/{PACK_ROOT}/\n")
-    write_pack_pin(
-        PackPin(
-            repository="https://github.com/spec-kitty/spec-kitty-open-packs.git",
-            commit="e" * 40,
-            subtree=PACK_ROOT,
-            tree_digest=TreeDigest(algorithm=TREE_DIGEST_ALGORITHM, value=clean_tree_digest(pack, level="org"), level="org"),
-            snapshot_sha256=full_tree_digest(pack),
-        ),
-        repo / PIN,
-    )
+    _write_pin(repo / PIN, pack, subtree=PACK_ROOT)
     (repo / ".kittify/config.yaml").write_text(
         "charter: .kittify/charter/charter.yaml\ncharter_packs:\n  org:\n    packs:\n    - name: internal\n      local_path: packs/internal\n"
     )
@@ -521,6 +491,15 @@ def test_report_only_refuses_an_uncommitted_pin(repo: Path):
 def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path):
     """Same fixture, opposite outcome: the exemption is the pin, not the ignore rule."""
     _add_pinned_pack(repo)
+    siblings = ("packs/internal-extra", "packs/intern")
+    ignore = repo / ".gitignore"
+    config = repo / ".kittify/config.yaml"
+    for sibling in siblings:
+        _pack_tree(repo, sibling)
+        ignore.write_text(ignore.read_text() + f"/{sibling}/\n")
+        config.write_text(config.read_text() + f"    - name: {Path(sibling).name}\n      local_path: {sibling}\n")
+    git(repo, "add", ".gitignore", ".kittify/config.yaml")
+    git(repo, "commit", "-qm", "register an unpinned ignored sibling")
     (repo / ".git/info/exclude").write_text(".kittify/templates/\n")
     templates = repo / ".kittify/templates"
     templates.mkdir()
@@ -533,6 +512,9 @@ def test_pin_verified_pack_tree_does_not_exempt_other_ignored_input(repo: Path):
     payload = json.loads(result.output)
     assert payload["error_code"] == "DIRTY_ANALYSIS_INPUT"
     assert ".kittify/templates/hidden.md" in payload["dirty_paths"]
+    for sibling in siblings:
+        assert f"{sibling}/procedures/proof.procedure.yaml" in payload["dirty_paths"], "a name-prefix sibling must not inherit the verified root"
+    assert f"{PACK_ROOT}/procedures/proof.procedure.yaml" not in payload["dirty_paths"], "the valid pinned root stays exempt"
     assert not (repo / REPORT).exists()
     assert git(repo, "rev-parse", "HEAD") == head
 
