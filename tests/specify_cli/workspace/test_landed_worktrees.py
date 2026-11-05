@@ -781,9 +781,16 @@ def test_a_detached_tip_that_cannot_be_kept_keeps_the_worktree(repo: Path, tmp_p
     assert worktree.exists() and _registered(repo, worktree)
 
 
-def test_a_branch_with_no_own_commits_is_report_only(repo: Path, tmp_path: Path) -> None:
-    """Fold E: an idle branch at a main commit was never worked on; do not delete it for the operator."""
+@pytest.mark.parametrize("moved_by", ["created-only", "fast-forward-merge"])
+def test_a_branch_with_no_own_commits_is_report_only(repo: Path, tmp_path: Path, moved_by: str) -> None:
+    """Fold E: a branch at a main commit was never worked on (made, or only fast-forwarded to main); do not delete it."""
     worktree = _worktree(repo, "idle")
+    if moved_by == "fast-forward-merge":
+        _commit(repo, "later.txt", "later\n")
+        _git(repo, "push", "-q", "origin", "main")
+        _git(worktree, "fetch", "-q", "origin")
+        _git(worktree, "merge", "-q", "--ff-only", "origin/main")
+        assert _rev(worktree, "HEAD") == _rev(repo, "main")
 
     verdict = _by_path(assess_worktrees(repo, current_dir=repo, probe=_idle_probe(tmp_path)), worktree)
 
