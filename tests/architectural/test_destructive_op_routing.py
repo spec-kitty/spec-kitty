@@ -659,6 +659,81 @@ def test_operator_intent_scanner_detects_a_planted_caller(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
+# Bound-tip pin (#7212): a LANDED delete is a compare-and-swap, so every caller
+# that names it must pass the tip it approved. A caller-side tip check cannot
+# bind a later delete; only ``expected_tip`` does.
+# ---------------------------------------------------------------------------
+_LANDED_INTENT_NAME = "LANDED_INTENT"
+_EXPECTED_TIP_KEYWORD = "expected_tip"
+
+
+def _names_landed_intent(value: _ast.expr) -> bool:
+    """``True`` when the intent argument is the ``LANDED_INTENT`` constant (or its literal value)."""
+    if isinstance(value, _ast.Constant):
+        return value.value == "landed"
+    return isinstance(value, _ast.Name) and value.id == _LANDED_INTENT_NAME
+
+
+def _landed_deletes_without_expected_tip(path: Path) -> list[tuple[int, str]]:
+    """``(lineno, enclosing qualname)`` of each ``guarded_branch_delete(..., operator_intent=LANDED_INTENT)`` call in *path* that passes no ``expected_tip``.
+
+    The intent is recognised by the exported constant name (or its ``"landed"``
+    literal); a re-export under another name is out of scope for this pin and is
+    still refused at run time by the guard's own ``ValueError``.
+    """
+    source = path.read_text(encoding="utf-8")
+    unbound: list[tuple[int, str]] = []
+    for node in _ast.walk(_ast.parse(source)):
+        if not isinstance(node, _ast.Call):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, _ast.Attribute) else func.id if isinstance(func, _ast.Name) else ""
+        if name != _GUARDED_BRANCH_DELETE:
+            continue
+        keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg}
+        intent = keywords.get("operator_intent")
+        if intent is None or not _names_landed_intent(intent):
+            continue
+        if _EXPECTED_TIP_KEYWORD not in keywords:
+            unbound.append((node.lineno, composite_key(source, node.lineno)[0]))
+    return unbound
+
+
+def test_every_landed_branch_delete_names_the_tip_it_approved() -> None:
+    """#7212: a LANDED delete must be bound to a tip, or the prune is back to read-then-delete."""
+    live = {
+        (rel, qualname)
+        for root in _SCAN_ROOTS
+        for path in iter_py_files(root)
+        for rel in [path.relative_to(REPO_ROOT).as_posix()]
+        if not rel.endswith("git/destructive_guard.py")
+        for _, qualname in _landed_deletes_without_expected_tip(path)
+    }
+
+    assert live == set(), f"LANDED branch delete(s) without an expected_tip: {sorted(live)}"
+    assert ("src/specify_cli/workspace/landed_worktrees.py", "_delete_landed_branch") in _OPERATOR_INTENT_CALLERS, (
+        "the pin must keep seeing the landed caller; a renamed caller silently empties the check above"
+    )
+
+
+def test_landed_delete_scanner_detects_a_planted_unbound_caller(tmp_path: Path) -> None:
+    """Non-vacuity: the same scanner flags a planted unbound LANDED delete, and passes its bound twin."""
+    unbound = (
+        "from specify_cli.git.destructive_guard import LANDED_INTENT, guarded_branch_delete\n\n\n"
+        "def sneaky(root, branch):\n"
+        "    guarded_branch_delete(root, branch, creation_base=None, operator_intent=LANDED_INTENT)\n"
+    )
+    bound = (
+        "from specify_cli.git.destructive_guard import LANDED_INTENT, guarded_branch_delete\n\n\n"
+        "def careful(root, branch, tip):\n"
+        "    guarded_branch_delete(root, branch, creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)\n"
+    )
+
+    assert [qualname for _, qualname in scan_planted_source(tmp_path, "planted_unbound.py", unbound, _landed_deletes_without_expected_tip)] == ["sneaky"]
+    assert scan_planted_source(tmp_path, "planted_bound.py", bound, _landed_deletes_without_expected_tip) == []
+
+
+# ---------------------------------------------------------------------------
 # CensusKey construction (T018): ordinals, file and op separation, rendering.
 # ---------------------------------------------------------------------------
 

@@ -57,6 +57,12 @@ WORKTREE_REMOVE_REFUSED_BY_GIT = "WORKTREE_REMOVE_REFUSED_BY_GIT"
 """``git worktree remove`` (no ``--force``) itself refused, e.g. a locked worktree; nothing was removed."""
 WORKTREE_PARTIALLY_REMOVED = "WORKTREE_PARTIALLY_REMOVED"
 """``git worktree remove`` (no ``--force``) failed after it unregistered the worktree; a husk directory is left."""
+BRANCH_TIP_MOVED = "BRANCH_TIP_MOVED"
+"""The branch no longer holds the tip the caller approved; nothing was deleted (compare-and-swap refusal)."""
+BRANCH_CHECKED_OUT = "BRANCH_CHECKED_OUT"
+"""A worktree has the branch checked out, so deleting its ref would orphan that checkout; nothing was deleted."""
+BRANCH_DELETE_REFUSED_BY_GIT = "BRANCH_DELETE_REFUSED_BY_GIT"
+"""``git update-ref --no-deref -d`` refused the compare-and-swap delete for another reason; nothing was deleted."""
 
 FORCE_RECREATE_INTENT = "force_recreate"
 """``operator_intent`` of ``mission create --force-recreate``: the operator asked for the branch to be discarded."""
@@ -596,9 +602,10 @@ def guarded_branch_delete(
     *,
     creation_base: str | None,
     operator_intent: str | None = None,
+    expected_tip: str | None = None,
     env: dict[str, str] | None = None,
 ) -> str | None:
-    """``git branch -D <branch>``, refused while the branch holds commits that exist nowhere else (FR-009).
+    """Delete ``branch``, refused while it holds commits that exist nowhere else (FR-009).
 
     Deletion is allowed when the branch has no commit beyond ``creation_base``
     or every commit is reachable from another ref. A branch that does not exist
@@ -622,15 +629,32 @@ def guarded_branch_delete(
     deleted, when that record cannot be written), and that tip SHA is returned
     so the caller can tell the operator how to restore it. Every other path
     returns ``None``.
+
+    ``expected_tip`` binds the delete to a tip the caller approved: the branch
+    is removed only while it still holds this commit, through one compare-and-
+    swap ref delete. It is **required** under :data:`LANDED_INTENT` (the prune
+    proved *this* tip's absorption, and only a bound delete keeps the proof
+    true while it runs); omitting it raises :class:`ValueError` before any git
+    call. A branch that moved is refused with :data:`BRANCH_TIP_MOVED` and
+    nothing is deleted. The keep-record, when written, is written at
+    ``expected_tip`` before the delete (crash safety); a refused compare-and-
+    swap may leave that create-only record behind, which keeps the approved tip
+    reachable and is harmless. The other intents ignore ``expected_tip`` and
+    keep their ``git branch -D`` path.
     """
     if operator_intent not in _OPERATOR_INTENTS:
         raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r}, {DISCARD_INTENT!r} or {LANDED_INTENT!r}")
+    if operator_intent == LANDED_INTENT and expected_tip is None:
+        raise ValueError(
+            f"operator_intent={LANDED_INTENT!r} requires expected_tip: the landed prune deletes {branch!r} "
+            "only at the tip whose absorption it proved (compare-and-swap)."
+        )
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
         return None
     if operator_intent == DISCARD_INTENT:
-        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_ALL_REF_NAMESPACES)
+        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_ALL_REF_NAMESPACES, expected_tip=expected_tip)
     if operator_intent == LANDED_INTENT:
-        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_LOCAL_REF_NAMESPACES)
+        return _discard_branch_keeping_tip(repo_root, branch, env, namespaces=_LOCAL_REF_NAMESPACES, expected_tip=expected_tip)
     if operator_intent is not None:
         _git_ok(repo_root, ["branch", "-D", "--", branch], env)
         return None
@@ -692,11 +716,32 @@ def keep_detached_tip(repo_root: Path, sha: str, *, env: dict[str, str] | None =
     return ref
 
 
-def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str] | None, *, namespaces: Sequence[str]) -> str | None:
-    """Delete ``branch`` under :data:`DISCARD_INTENT` or :data:`LANDED_INTENT`; keep its tip when no ref in ``namespaces`` holds its commits."""
+def _discard_branch_keeping_tip(
+    repo_root: Path,
+    branch: str,
+    env: dict[str, str] | None,
+    *,
+    namespaces: Sequence[str],
+    expected_tip: str | None = None,
+) -> str | None:
+    """Delete ``branch`` under :data:`DISCARD_INTENT` or :data:`LANDED_INTENT`; keep its tip when no ref in ``namespaces`` holds its commits.
+
+    With ``expected_tip``, the delete is a compare-and-swap at that commit: the
+    tip is verified first, the keep-record (when needed) is written at the
+    approved tip, and the ref is deleted only while it still holds it.
+    """
+    if expected_tip is not None:
+        live = branch_tip(repo_root, branch, env=env)
+        if live != expected_tip:
+            raise DestructiveOpRefused(
+                error_code=BRANCH_TIP_MOVED,
+                current_branch=branch,
+                dirty_entries=[f"{(live or 'missing')[:12]} (branch no longer at {expected_tip[:12]})"],
+                remediation=f"Branch {branch!r} moved after its tip was approved; it was kept and nothing was deleted.",
+            )
     recorded: str | None = None
     if _unique_commits(repo_root, branch, [], env, namespaces=namespaces):
-        tip = branch_tip(repo_root, branch, env=env)
+        tip = expected_tip if expected_tip is not None else branch_tip(repo_root, branch, env=env)
         if tip is None or not _keep_discarded_tip(repo_root, discarded_ref(repo_root, branch, tip, env=env), tip, env):
             raise DestructiveOpRefused(
                 error_code=DESTRUCTIVE_OP_ONLY_COPY,
@@ -704,8 +749,43 @@ def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str
                 remediation=f"Could not record the tip of {branch!r} under {DISCARDED_REF_PREFIX}; nothing was deleted.",
             )
         recorded = tip
-    _git_ok(repo_root, ["branch", "-D", "--", branch], env)
+    if expected_tip is None:
+        _git_ok(repo_root, ["branch", "-D", "--", branch], env)
+        return recorded
+    _delete_branch_cas(repo_root, branch, expected_tip, env)
     return recorded
+
+
+def _delete_branch_cas(repo_root: Path, branch: str, expected_tip: str, env: dict[str, str] | None) -> None:
+    """Delete ``refs/heads/<branch>`` only while it still holds ``expected_tip`` (#7212).
+
+    Delegates to :func:`ref_advance.delete_branch_ref`, the one compare-and-swap
+    branch delete in the tree (#5570): ``git update-ref -d <ref> <expected>``,
+    plus the checked-out-branch protection ``git branch -D`` gave. Its refusals
+    become this module's typed refusals so no untyped git error escapes for an
+    expected race.
+    """
+    try:
+        ref_advance.delete_branch_ref(repo_root, branch, expected_tip, env=env)
+    except ref_advance.RefDeleteMismatchError as exc:
+        raise DestructiveOpRefused(
+            error_code=BRANCH_TIP_MOVED,
+            current_branch=branch,
+            dirty_entries=[f"{(exc.actual_sha or 'missing')[:12]} (branch no longer at {expected_tip[:12]})"],
+            remediation=f"Branch {branch!r} moved while it was being deleted; it was kept and nothing was deleted.",
+        ) from exc
+    except ref_advance.RefDeleteCheckedOutError as exc:
+        raise DestructiveOpRefused(
+            error_code=BRANCH_CHECKED_OUT,
+            current_branch=branch,
+            remediation=f"Branch {branch!r} is checked out in a worktree; delete that worktree first. Nothing was deleted.",
+        ) from exc
+    except ref_advance.RefDeleteError as exc:
+        raise DestructiveOpRefused(
+            error_code=BRANCH_DELETE_REFUSED_BY_GIT,
+            current_branch=branch,
+            remediation=f"git refused to delete {branch!r}: {exc}. Nothing was deleted.",
+        ) from exc
 
 
 def _make_writable_and_retry(function: Callable[[str], object], name: str, _exc: object) -> None:

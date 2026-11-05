@@ -71,9 +71,12 @@ refuses a locked or dirty worktree, a third net). The branch is then deleted
 with ``LANDED_INTENT``, which records the tip under
 ``refs/spec-kitty/discarded/<branch>`` when its commits exist on no other
 local branch or tag (remote-tracking refs do not count).
-That delete is not compare-and-swap, so the prune re-reads the branch tip and
-compares it with the assessed tip first; a moved branch is kept. Every refusal
-is recorded per worktree and the run continues (I1).
+That delete is bound to the assessed tip: the guard re-checks it and deletes
+with one compare-and-swap ``git update-ref -d <ref> <expected>``, so a branch
+that moves while the delete runs is kept. The prune compares the tip itself
+first as a fast path (no ref is touched on an already-moved branch); the guard's
+bind is what makes the proof hold. Every refusal is recorded per worktree and
+the run continues (I1).
 
 Residuals of the process probe (documented for operators, WP06): only
 processes owned by the current uid are considered (U1), so another user's
@@ -100,6 +103,8 @@ from specify_cli.git.worktree_listing import WorktreeEntry, worktree_entries
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.core.git_ops import COMMON_PRIMARY_BRANCHES, resolve_primary_branch
 from specify_cli.git.destructive_guard import (
+    BRANCH_CHECKED_OUT,
+    BRANCH_TIP_MOVED,
     LANDED_INTENT,
     DestructiveOpRefused,
     assert_worktree_clean,
@@ -146,7 +151,7 @@ WORKTREE_REMOVE_FAILED = "WORKTREE_REMOVE_FAILED"
 BRANCH_MOVED = "BRANCH_MOVED"
 """The branch tip changed after the assessment; the branch is kept."""
 BRANCH_DELETE_FAILED = "BRANCH_DELETE_FAILED"
-"""``git branch -D`` failed after the worktree was removed; the branch is kept."""
+"""The branch delete failed after the worktree was removed; the branch is kept."""
 BRANCH_IS_PRIMARY = "BRANCH_IS_PRIMARY"
 """The worktree had the local primary branch checked out; the primary branch is never deleted."""
 
@@ -182,6 +187,12 @@ class Reason(StrEnum):
 
 
 _DETACHED_OUTSIDE_DETAIL = "a detached worktree outside .worktrees/ (a scratch checkout of another command)"
+
+_GUARD_BRANCH_REFUSALS: dict[str, str] = {
+    BRANCH_TIP_MOVED: BRANCH_MOVED,
+    BRANCH_CHECKED_OUT: Reason.BRANCH_IN_OTHER_WORKTREE.value,
+}
+"""The guard's delete refusals, under the vocabulary this report already uses."""
 
 _SHOWN_IGNORED = 5
 """How many ignored path names a verdict carries (the count is always complete)."""
@@ -678,23 +689,25 @@ def _branch_checked_out(repo_root: Path, branch: str) -> bool:
 def _delete_landed_branch(repo_root: Path, branch: str, tip: str | None, ctx: _Context) -> tuple[bool, str | None, str | None]:
     """Delete ``branch`` after its worktree is gone; ``(deleted, kept_ref, refusal)``.
 
-    The guard's delete is not compare-and-swap, so the tip is compared with the
-    assessed one immediately before; a moved branch is kept. The local primary
-    branch itself is never deleted.
+    The delete is bound to the assessed tip (compare-and-swap in the guard), so a
+    branch that moves in the window between this read and the delete is kept.
+    The local comparison below is only a fast path: it refuses an already-moved
+    branch without touching a ref, and it never has to be the safety argument.
+    The local primary branch itself is never deleted.
     """
     if branch == ctx.primary:
         return False, None, BRANCH_IS_PRIMARY
     live = branch_tip(repo_root, branch)
     if live is None:
         return False, None, None
-    if live != tip:
+    if tip is None or live != tip:
         return False, None, BRANCH_MOVED
     if _branch_checked_out(repo_root, branch):
         return False, None, Reason.BRANCH_IN_OTHER_WORKTREE.value
     try:
-        recorded = guarded_branch_delete(repo_root, branch, creation_base=None, operator_intent=LANDED_INTENT)
+        recorded = guarded_branch_delete(repo_root, branch, creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)
     except DestructiveOpRefused as exc:
-        return False, None, exc.error_code
+        return False, None, _GUARD_BRANCH_REFUSALS.get(exc.error_code, exc.error_code)
     except (GitCommandError, RuntimeError):
         return False, None, BRANCH_DELETE_FAILED
     kept_ref = discarded_ref(repo_root, branch, recorded) if recorded is not None else None
