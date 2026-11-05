@@ -12465,7 +12465,6 @@ pages:
     - {slug: "when-does-each-mode-make-sense", text: "When Does Each Mode Make Sense?", level: 3}
     - {slug: "configuring-strictness", text: "Configuring Strictness", level: 3}
     - {slug: "precedence-chain", text: "Precedence Chain", level: 3}
-    - {slug: "what-the-event-log-records", text: "What the Event Log Records", level: 3}
     - {slug: "editing-seed-files", text: "Editing Seed Files", level: 2}
     - {slug: "seed-file-location", text: "Seed File Location", level: 3}
     - {slug: "yaml-schema", text: "YAML Schema", level: 3}
