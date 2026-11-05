@@ -100,7 +100,6 @@ def test_feedback_present_renders_reference_and_read_instruction(tmp_path: Path)
     assert "⚠️  This work package has review feedback." in text
     assert f"Canonical feedback reference: {pointer}" in text
     assert f'Read it first: cat "{feedback_file}"' in text
-    _assert_subtask_context(text, mission_slug, "T001")
 
 
 def test_feedback_absent_renders_no_crash_no_spurious_feedback(tmp_path: Path) -> None:

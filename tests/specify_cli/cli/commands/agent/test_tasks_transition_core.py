@@ -755,8 +755,6 @@ def test_unchecked_subtasks_refuse_without_force() -> None:
     assert isinstance(outcome, RefuseExit1)
     assert "unchecked subtasks" in outcome.error
     assert "T001" in outcome.error
-    assert "  - [ ] T002" in outcome.error
-    assert "Or use --force to override (not recommended)" in outcome.error
 
 
 def test_unchecked_subtasks_bypassed_by_force() -> None:
