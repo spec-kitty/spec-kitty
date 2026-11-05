@@ -11,8 +11,9 @@ from typer.testing import CliRunner
 from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
 from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.lanes.persistence import require_lanes_json
 from tests.lane_test_utils import commit_lane_implementation, write_single_lane_manifest
-from tests.terminus.conftest import declare_owned_files
+from tests.terminus.conftest import declare_owned_files, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration]
 
@@ -78,15 +79,15 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
     )
 
 
-def _record_implementation(feature_repo: Path, mission_slug: str, wp_ids: tuple[str, ...] = ("WP01",)) -> None:
-    """#6715: declare the work packages' owned files and commit their lane's implementation."""
-    from tests.utils import run
-
+def _record_implementation(feature_repo: Path, mission_slug: str) -> None:
+    """#6715: give each work package on the shared lane its own owned files and its own lane commit."""
     feature_dir = feature_repo / "kitty-specs" / mission_slug
-    declare_owned_files(feature_dir, wp_ids)
-    run(["git", "add", "."], cwd=feature_repo)
-    run(["git", "commit", "-m", "Declare work-package ownership"], cwd=feature_repo)
-    commit_lane_implementation(feature_repo, feature_dir, path="src/impl.py")
+    wp_ids = [wp_id for lane in require_lanes_json(feature_dir).lanes for wp_id in lane.wp_ids]
+    for wp_id in wp_ids:
+        declare_owned_files(feature_dir, [wp_id], [f"src/{wp_id.lower()}/**"])
+    record_evidence_prerequisites(feature_repo, feature_dir)
+    for wp_id in wp_ids:
+        commit_lane_implementation(feature_repo, feature_dir, path=f"src/{wp_id.lower()}/impl.py")
 
 
 def _seed_convention_dirs(feature_repo: Path, mission_slug: str) -> None:
@@ -249,7 +250,7 @@ def test_accept_command_reports_approved_wps_without_closing(feature_repo: Path,
     write_acceptance_matrix(feature_dir, _passing_acceptance_matrix(mission_slug))
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add more WPs and meta"], cwd=feature_repo)
-    _record_implementation(feature_repo, mission_slug, ("WP01", "WP02"))
+    _record_implementation(feature_repo, mission_slug)
 
     # WP-path gathering (_gather_work_packages): planned WPs are bucketed in
     # task-file order and drive the non-terminal-lane fix-order entry.
@@ -482,11 +483,13 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo:
             ],
         ),
     )
-    _approve_wp(feature_repo, mission_slug, "WP01")
     run(["git", "branch", "-M", "main"], cwd=feature_repo)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Prepare accepted lane mission"], cwd=feature_repo)
     _record_implementation(feature_repo, mission_slug)
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
     run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     matrix_path = feature_dir / "acceptance-matrix.json"
@@ -545,11 +548,13 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(feature_rep
             ],
         ),
     )
-    _approve_wp(feature_repo, mission_slug, "WP01")
     run(["git", "branch", "-M", "main"], cwd=feature_repo)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Prepare custom invariant mission"], cwd=feature_repo)
     _record_implementation(feature_repo, mission_slug)
+    _approve_wp(feature_repo, mission_slug, "WP01")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Approve WP01"], cwd=feature_repo)
     run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
 
     before_matrix = (feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8")
