@@ -321,6 +321,8 @@ def test_self_review_is_not_independent(tmp_path: Path) -> None:
     assert report.codes == [ev.REVIEW_NOT_INDEPENDENT]
     assert "a reviewer who is not the implementer" in str(report.refusal)
     assert "No attestation lifts this" in str(report.refusal)
+    assert "spec-kitty agent action review" in str(report.refusal)
+    assert f"Recovery for {ev.REVIEW_NOT_INDEPENDENT}:" in str(report.refusal)
 
 
 def test_attestation_lifts_only_implementation_missing(tmp_path: Path) -> None:
