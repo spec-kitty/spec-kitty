@@ -296,6 +296,7 @@ def test_lane_with_only_bookkeeping_and_foreign_commits_is_missing(tmp_path: Pat
     assert report.refusal.startswith(f"Mission {_SLUG}: work packages cannot be landed as reviewed:")
     assert f"{ev.IMPLEMENTATION_MISSING}: WP01" in report.refusal
     assert ev.ATTEST_NO_IMPLEMENTATION_FLAG in report.refusal
+    assert "--attest-reason" in report.refusal
 
 
 def test_commit_then_revert_counts_as_nothing(tmp_path: Path) -> None:
@@ -319,6 +320,7 @@ def test_self_review_is_not_independent(tmp_path: Path) -> None:
     report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], planning), {"WP01": "approved"})
     assert report.codes == [ev.REVIEW_NOT_INDEPENDENT]
     assert "a reviewer who is not the implementer" in str(report.refusal)
+    assert "No attestation lifts this" in str(report.refusal)
 
 
 def test_attestation_lifts_only_implementation_missing(tmp_path: Path) -> None:
