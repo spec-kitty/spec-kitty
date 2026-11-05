@@ -489,7 +489,7 @@ def _build_manifest(
         ExecutionLane(
             lane_id=_lane_id(idx),
             wp_ids=(wp_id,),
-            write_scope=(f"src/{_lane_id(idx).replace('-', '_')}/**",),
+            write_scope=(f"src/{_lane_package(_lane_id(idx))}/**",),
             predicted_surfaces=("code",),
             depends_on_lanes=tuple(depends_on_lanes.get(_lane_id(idx), ())),
             parallel_group=1 if depends_on_lanes.get(_lane_id(idx)) else 0,
@@ -541,8 +541,13 @@ def _new_mission(tmp_path: Path, target_branch: str, topology: Topology) -> Coor
     )
 
 
+def _lane_package(lane_id: str) -> str:
+    """The ``src/`` package a lane commits to and its work package owns."""
+    return lane_id.replace("-", "_")
+
+
 def _plant_lane_commit(worktree: Path, lane_id: str, wp_id: str) -> None:
-    package = lane_id.replace("-", "_")
+    package = _lane_package(lane_id)
     code = worktree / "src" / package / "m.py"
     code.parent.mkdir(parents=True, exist_ok=True)
     code.write_text(f"def {wp_id.lower()}() -> int:\n    return 1\n", encoding="utf-8")
@@ -567,6 +572,11 @@ def build_older_version_lanes_project(
     (adds a coordination branch and a coordination worktree materialised by
     product code, so its sparse checkout is exercised). Every lane has a real
     worktree from the product allocator, one committed file, and an approved WP.
+
+    As a Mission of that version does (#6715, the evidence axis reads both), the manifest records
+    the planning commit, the mission bootstrap commit its lanes follow; and each WP owns only
+    ``src/<lane_package>/**``, the package its lane commits to (:func:`_plant_lane_commit`), since
+    ``validate_no_overlap`` refuses concurrent WPs with overlapping ``owned_files``.
 
     Knobs for later work packages:
 
@@ -599,14 +609,11 @@ def build_older_version_lanes_project(
     (mission.feature_dir / "tasks").mkdir(parents=True)
     _write_meta(mission, topology)
     manifest = _build_manifest(mission, wps, depends_on_lanes or {})
-    # #6715: an older-version (>= 3.2.6) Mission already records the planning commit its lanes
-    # are cut from and the surface each work package owns; the evidence axis reads both.
-    manifest.planning_commit_sha = _harness.git_rev(mission.repo, "HEAD")
     write_lanes_json(mission.feature_dir, manifest)
     events: list[dict[str, object]] = []
-    for wp_id in wps:
+    for idx, wp_id in enumerate(wps):
         (mission.feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nsubtasks: []\nowned_files:\n  - src/{_lane_package(_lane_id(idx))}/**\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
         events.extend(status_event(mission, wp_id, frm, to) for frm, to in _APPROVE_CHAIN)
@@ -615,7 +622,11 @@ def build_older_version_lanes_project(
     materialize(mission.feature_dir)
     if with_analysis_report:
         _write_analysis_report(mission)
-    _commit_paths(mission.repo, [str(mission.feature_dir.relative_to(mission.repo))], f"chore({mission.slug}): bootstrap")
+    mission_dir = str(mission.feature_dir.relative_to(mission.repo))
+    _commit_paths(mission.repo, [mission_dir], f"chore({mission.slug}): bootstrap")
+    manifest.planning_commit_sha = _harness.git_rev(mission.repo, "HEAD")
+    write_lanes_json(mission.feature_dir, manifest)
+    _commit_paths(mission.repo, [mission_dir], f"chore({mission.slug}): record planning commit")
     _git(mission.repo, "branch", mission.coord_branch)
 
     project = LanesProject(
