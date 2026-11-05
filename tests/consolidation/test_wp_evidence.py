@@ -467,6 +467,17 @@ def test_missing_planning_commit_is_uncomputable(tmp_path: Path) -> None:
     assert "finalize-tasks" in str(report.refusal)
 
 
+def test_missing_planning_commit_recovery_names_the_route_that_works(tmp_path: Path) -> None:
+    """#7210 (b): the remedy is plain finalize-tasks (which derives the pin), never --refresh-planning-commit, with an honest fallback."""
+    repo, fd, _planning = _lane_fixture(tmp_path)
+    refusal = str(_evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], None), {"WP01": "approved"}).refusal)
+    assert "run plain `spec-kitty agent mission finalize-tasks` (no flags)" in refusal
+    assert "derives one from git" in refusal
+    assert "Do not use `--refresh-planning-commit` for this" in refusal
+    assert "escalate to the operator" in refusal
+    assert "to record the planning commit, then re-run" not in refusal, "the pre-#7210 remedy did not work and must not be offered"
+
+
 def test_skip_lanes_manifest_with_no_derivable_base_names_the_skip_lanes_cause(tmp_path: Path) -> None:
     """#7209: a synthesized --skip-lanes manifest whose base could not be derived says so, not 'lanes.json records'."""
     from specify_cli.lanes.derived_planning_base import SKIP_LANES_SYNTHESIS_SOURCE

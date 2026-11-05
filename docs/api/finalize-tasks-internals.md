@@ -118,7 +118,7 @@ acts on the class:
 | `ADVANCED` | The recorded object is present and an ancestor of the tip | Refreshed to the tip **only when** a PRIMARY planning file changed since the pin for a reason other than finalize's own earlier bookkeeping commits; otherwise preserved (0) |
 | `ORPHANED` | Present but not an ancestor (a mid-Mission rebase, #4827) | Fails closed before any write; `lanes.json` untouched; use `--refresh-planning-commit --allow-orphaned` (1) |
 | `FOREIGN` | The recorded object is absent from this repository | Kept, with a visible warning when the tip has advanced (0) |
-| `INDETERMINATE` | Nothing can be inspected (tip not capturable, or no recorded SHA) | Kept, with a visible warning and reason `indeterminate_tip_uncapturable`; never a silent preserve (0) |
+| `INDETERMINATE` | Nothing can be inspected (tip not capturable, or no recorded SHA) | With no recorded SHA and a capturable tip: derived from git, the parent of the first commit on the target that added the Mission's `tasks/WP*.md`, reported as `derived` (#7210). Otherwise kept, with a visible warning and reason `indeterminate_tip_uncapturable`; never a silent preserve (0) |
 
 The `--json` success payload carries the automatic decision in an additive field:
 
@@ -132,7 +132,7 @@ The `--json` success payload carries the automatic decision in an additive field
 }
 ```
 
-`status` is `preserved`, `refreshed` or `kept_with_warning`; `reason` is set only for
+`status` is `preserved`, `refreshed`, `derived` or `kept_with_warning`; `reason` is set only for
 `kept_with_warning`. The field is `null` before execution begins and for an explicit
 `--refresh-planning-commit` run, which keeps reporting through `planning_commit` (section 3).
 The explicit flag and its refusals are unchanged. Code: `PlanningCommitResolution` and

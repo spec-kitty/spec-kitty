@@ -456,13 +456,25 @@ def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
     return f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:\n{body}"
 
 
+#: #7210: the remedy that works when no planning commit is recorded. Plain finalize-tasks derives one
+#: from git; ``--refresh-planning-commit`` records the live target tip, an empty window.
+_PLANNING_PIN_RECOVERY = (
+    "run plain `spec-kitty agent mission finalize-tasks` (no flags): with no planning commit recorded it derives one from git, "
+    "the parent of the commit that first added the Mission's tasks/WP*.md on the target branch, and records it in lanes.json; then re-run. "
+    "Do not use `--refresh-planning-commit` for this: it records the live target tip, which leaves an empty window. "
+    "If finalize-tasks reports that it could not derive one (the task files were added in the repository's root commit or are not on "
+    "the target branch), or the Mission has no lanes.json (`--skip-lanes`), no command can recover the base: escalate to the operator "
+    "instead of writing a planning commit into lanes.json by hand."
+)
+
+
 def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, approved: Sequence[str], window: tuple[str, str] | None) -> str | None:
     if window is None:
         line = (
             f"{SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window "
             "(planning_commit..mission_branch) cannot be computed for this single_branch mission "
             f"(no recorded planning commit), {_CANNOT_VERIFY} "
-            "Recovery: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
+            f"Recovery: {_PLANNING_PIN_RECOVERY}"
         )
         scan.mark(approved, SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE)
         return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
@@ -488,9 +500,7 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
 # ---------------------------------------------------------------- lanes / coord (#6715)
 
 _RECOVERY: Mapping[str, str] = {
-    EVIDENCE_WINDOW_UNCOMPUTABLE: (
-        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
-    ),
+    EVIDENCE_WINDOW_UNCOMPUTABLE: (f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: {_PLANNING_PIN_RECOVERY}"),
     IMPLEMENTATION_UNREADABLE: (
         f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
         "or, for a Mission that landed through a pull request merge commit (not a squash), re-run `spec-kitty accept --mode pr --merge-commit <sha>` "

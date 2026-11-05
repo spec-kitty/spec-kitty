@@ -640,39 +640,70 @@ def test_finalize_warns_and_keeps_pin_when_auto_refresh_refused(tmp_path: Path, 
     assert after_explicit is not None and after_explicit.planning_commit_sha == foreign_sha, "the explicit refusal must leave lanes.json untouched"
 
 
-def test_finalize_warns_and_keeps_pin_when_recorded_sha_is_indeterminate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """C2-1 (WP15 cycle 2): a legacy lanes.json with NO recorded pin classifies
-    INDETERMINATE (``classify_recorded_pin`` returns INDETERMINATE whenever
-    ``recorded_sha is None``) and must be a VISIBLE ``kept_with_warning``
-    (exit 0), never a silent ``preserved`` -- the orchestrator's ruling on
-    ``contracts/commit-outcome.md`` overrides the classifier's own
-    "callers may degrade silently" docstring note for finalize specifically.
+def _blank_recorded_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, slug: str) -> tuple[CoordMission, str]:
+    """A finalized coord Mission, execution begun, whose lanes.json lost its pin (the legacy no-provenance shape).
+
+    Returns the Mission and the pin the first finalize recorded.
     """
     from specify_cli.lanes.persistence import write_lanes_json
 
-    coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug="wp15-c21-indeterminate")
+    coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug=slug)
     _write_coord_finalize_fixture(coord)
     _run_real_finalize(monkeypatch, coord)
     established = read_lanes_json(coord.root_mission_dir)
-    assert established is not None
+    assert established is not None and established.planning_commit_sha is not None
+    original_pin: str = established.planning_commit_sha
 
     _seed_execution_begun(coord, coord.mission_dir_name)
 
-    # Blank the recorded pin -- the legacy "no provenance recorded" shape
-    # ``test_preserve_or_capture_refresh_from_none_recorded_sha_is_a_safe_
-    # advance`` already exercises for the EXPLICIT flag; here it drives the
-    # AUTOMATIC (no-flag) path instead, which must classify INDETERMINATE.
     established.planning_commit_sha = None
     write_lanes_json(coord.root_mission_dir, established)
     _git_stdout(coord.repo_root, "add", "-A")
     _git_stdout(coord.repo_root, "commit", "-q", "-m", "fixture: blank the recorded pin")
+    return coord, original_pin
+
+
+def test_finalize_derives_a_pin_from_git_when_none_is_recorded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7210 (a): a lanes.json with NO recorded pin gets one derived from git by plain finalize.
+
+    Before #7210 this run kept the pin ``None`` with a warning (WP15 cycle 2, C2-1), so
+    the "run finalize-tasks to record the planning commit" remedy of the #6715 evidence
+    gate could not work. The derived pin is the parent of the commit that first added
+    the Mission's ``tasks/WP*.md`` on the target branch -- here, the commit the first
+    finalize itself recorded, since that run's own commit added the WP files. The
+    decision is reported as its own visible action, ``derived`` (exit 0).
+    """
+    coord, original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "issue-7210-derived")
 
     emitted = _run_real_finalize(monkeypatch, coord)
     success = _success_payload(emitted)
     after = read_lanes_json(coord.root_mission_dir)
-    assert after is not None and after.planning_commit_sha is None, (
-        f"an INDETERMINATE pin must stay unchanged (no SHA to advance from); got {after.planning_commit_sha!r}"
+    assert after is not None and after.planning_commit_sha == original_pin, (
+        f"plain finalize must derive the pin from git ({original_pin}); got {after.planning_commit_sha if after else None!r}"
     )
+    assert _LAST_FINALIZE_EXIT_CODE and _LAST_FINALIZE_EXIT_CODE[-1] == 0, f"deriving a pin is a success; got {_LAST_FINALIZE_EXIT_CODE}"
+    refresh = success.get("planning_commit_refresh")
+    assert refresh is not None and refresh.get("status") == "derived", f"planning_commit_refresh must report 'derived'; got {refresh!r}"
+    assert refresh.get("recorded") is None, f"no pin was recorded before; got {refresh!r}"
+    planning_commit = success.get("planning_commit")
+    assert isinstance(planning_commit, dict) and planning_commit.get("action") == "derived" and planning_commit.get("sha") == original_pin, (
+        f"planning_commit must carry the derived pin; got {planning_commit!r}"
+    )
+
+
+def test_finalize_warns_and_keeps_no_pin_when_none_can_be_derived(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C2-1 (WP15 cycle 2), narrowed by #7210: with no recorded pin AND no derivable one,
+    the run stays a VISIBLE ``kept_with_warning`` (exit 0), never a silent ``preserved``.
+    """
+    from specify_cli.lanes import derived_planning_base
+
+    coord, _original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "wp15-c21-indeterminate")
+    monkeypatch.setattr(derived_planning_base, "derive_base_before_first_add", lambda *_args, **_kwargs: None)
+
+    emitted = _run_real_finalize(monkeypatch, coord)
+    success = _success_payload(emitted)
+    after = read_lanes_json(coord.root_mission_dir)
+    assert after is not None and after.planning_commit_sha is None, f"an underivable pin must stay unchanged; got {after.planning_commit_sha if after else None!r}"
     assert _LAST_FINALIZE_EXIT_CODE and _LAST_FINALIZE_EXIT_CODE[-1] == 0, (
         f"INDETERMINATE must be a non-fatal warning (exit 0), never a failure; got {_LAST_FINALIZE_EXIT_CODE}"
     )
