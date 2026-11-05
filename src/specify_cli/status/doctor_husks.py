@@ -21,6 +21,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.git.worktree_listing import parse_worktree_porcelain
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_tree_delete
 
 __all__ = [
@@ -134,13 +135,13 @@ def registered_worktree_paths(repo_root: Path) -> RegisteredWorktreePaths:
         return RegisteredWorktreePaths(
             error=f"git worktree list --porcelain failed: {detail}"
         )
-    for line in result.stdout.splitlines():
-        if line.startswith("worktree "):
-            raw = line[len("worktree "):].strip()
-            try:
-                registered.add(Path(raw).resolve())
-            except OSError:
-                continue
+    for entry in parse_worktree_porcelain(result.stdout):
+        # ``.strip()`` keeps the pre-parser behaviour byte for byte.
+        raw = str(entry.path).strip()
+        try:
+            registered.add(Path(raw).resolve())
+        except OSError:
+            continue
     return RegisteredWorktreePaths(paths=registered)
 
 
