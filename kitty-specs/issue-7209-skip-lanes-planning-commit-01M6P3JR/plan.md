@@ -89,9 +89,14 @@ resolver, the fail-closed case and the refusal text).
 `_resolve_planning_base_commit(main_repo, mission_slug, target_branch) -> str | None`, private to
 `entry_preflight`:
 
-1. `git log --format=%H <target_branch> -- kitty-specs/<slug>` (newest-first). Empty output → `None`.
-2. The last line is the earliest commit on the target that touched this Mission's directory — the
-   commit that introduced its planning artifacts.
+1. `git log --first-parent --format=%H <target_branch> -- kitty-specs/<slug>` (newest-first).
+   Empty output → `None`. `--first-parent` is load-bearing: plain `git log` follows side
+   branches, so the oldest commit touching the directory can be a planning branch cut from a much
+   older tip and merged in later, and its parent would predate unrelated work already on the
+   target.
+2. The last line is the earliest commit on the target's **first-parent** line that touched this
+   Mission's directory — the commit where the artifacts first appeared on the target (a direct
+   commit, or the merge that brought them in).
 3. `commit_parents(main_repo, that_sha)[0]` — the target tip immediately *before* the Mission's
    artifacts appeared. A root commit has no parent and is its own base.
 4. Any `GitCommandError` / `GitProbeError` → `None`. Nothing is fabricated, no timestamp is used,

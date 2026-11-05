@@ -18,6 +18,9 @@ requirement_refs:
 planning_base_branch: issue-7209-skip-lanes-planning-commit
 merge_target_branch: issue-7209-skip-lanes-planning-commit
 branch_strategy: Planning artifacts for this mission were generated on issue-7209-skip-lanes-planning-commit. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7209-skip-lanes-planning-commit unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-issue-7209-skip-lanes-planning-commit-01M6P3JR
+base_commit: f6da03e2b2db29712ac481d2616ee335ec4c4c86
+created_at: '2026-11-05T15:06:10.354719+00:00'
 subtasks:
 - T001
 - T002

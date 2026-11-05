@@ -110,8 +110,9 @@ recorded by the implementer, and assert `REVIEW_NOT_INDEPENDENT`.
   commit that carries planning artifacts and a work-package change together still yields a
   non-empty window.
 - **The first commit that introduced the mission directory is the repository root commit.**
-  It has no parent, so the commit itself is the base and the window is non-empty by
-  construction.
+  It has no parent, so the commit itself is the base; whatever implementation that root commit
+  already carries is outside the window, so a work package whose only change arrived in that
+  root commit is refused `IMPLEMENTATION_MISSING` rather than passed.
 - **The mission directory is committed on a coordination branch, not the target.** No base
   is resolvable from target history; the refusal path of User Story 2 applies and nothing is
   fabricated.
