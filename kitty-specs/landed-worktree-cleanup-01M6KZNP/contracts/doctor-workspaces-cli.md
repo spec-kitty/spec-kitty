@@ -9,7 +9,7 @@ spec-kitty doctor workspaces [--fix] [--prune] [--json]
 | (none) | Husk report (unchanged) + landed-worktree report. Writes nothing. |
 | `--fix` | Unchanged: removes unregistered husks only. |
 | `--prune` | Removes each worktree whose verdict is `landed`, then its local branch, through the destructive guard (no `--force`). |
-| `--json` | Adds `worktrees: [WorktreeVerdict]` (each with `ignored_paths` and `ignored_count`), `uninspected_processes` and, with `--prune`, `pruned: [PruneOutcome]` beside the existing husk keys. |
+| `--json` | Adds `worktrees: [WorktreeVerdict]` (each with `ignored_paths` and `ignored_count`), `uninspected_processes`, `worktrees_error` (a string, present only when the worktree list cannot be read; `worktrees` is then empty) and, with `--prune`, `pruned: [PruneOutcome]` beside the existing husk keys. |
 
 Exit codes: 0 when there are no husks and no guard refusal; 1 when husks remain, the worktree list cannot be read, or a removal the verdict allowed was refused by the guard. Landed worktrees alone never make the exit non-zero.
 
