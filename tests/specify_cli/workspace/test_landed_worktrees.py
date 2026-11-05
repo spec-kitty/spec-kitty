@@ -352,14 +352,38 @@ def test_a_locked_worktree_is_kept(repo: Path, tmp_path: Path) -> None:
     assert worktree.exists()
 
 
-def test_a_mission_lane_is_report_only_even_when_absorbed(repo: Path, tmp_path: Path) -> None:
-    worktree = _worktree(repo, _MISSION_LANE)
+def _stop_rebase_at_start(worktree: Path) -> None:
+    """``git rebase -i main`` halted by a ``break`` before its first pick: HEAD is detached, the worktree clean."""
+    env = {**os.environ, "GIT_SEQUENCE_EDITOR": "sed -i '1i break'"}
+    _git(worktree, "rebase", "-q", "-i", "main", env=env)
+    assert subprocess.run(["git", "symbolic-ref", "-q", "HEAD"], cwd=worktree, check=False).returncode != 0
+
+
+@pytest.mark.parametrize(
+    ("branch", "rebasing", "expected"),
+    [
+        (_MISSION_LANE, False, (Verdict.MISSION_OWNED, Reason.MISSION_LANE)),
+        (_MISSION_LANE, True, (Verdict.MISSION_OWNED, Reason.MISSION_LANE)),
+        ("land-x", True, (Verdict.NOT_LANDED, Reason.OPERATION_IN_PROGRESS)),
+    ],
+    ids=["mission-lane", "mission-lane-mid-rebase", "plain-branch-mid-rebase"],
+)
+def test_a_mission_lane_is_report_only_even_when_absorbed(repo: Path, tmp_path: Path, branch: str, rebasing: bool, expected: tuple[Verdict, Reason]) -> None:
+    """A rebase stopped mid-way detaches HEAD under .worktrees/; the lane and its rebase state must survive."""
+    worktree = repo / ".worktrees" / "lane"
+    _git(repo, "worktree", "add", "-q", "-b", branch, str(worktree), "main")
+    _commit(worktree, "lane.txt", "lane\n")
+    _git(repo, "merge", "-q", "--ff-only", branch)
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+    if rebasing:
+        _stop_rebase_at_start(worktree)
 
     verdict = _by_path(assess_worktrees(repo, current_dir=repo, probe=_idle_probe(tmp_path)), worktree)
 
-    assert (verdict.verdict, verdict.reason) == (Verdict.MISSION_OWNED, Reason.MISSION_LANE)
+    assert (verdict.verdict, verdict.reason) == expected
     assert prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path)) == []
-    assert worktree.exists() and _has_branch(repo, _MISSION_LANE)
+    assert worktree.exists() and _has_branch(repo, branch)
 
 
 def test_without_origin_everything_is_unproven(tmp_path: Path) -> None:
