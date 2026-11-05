@@ -1,0 +1,84 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6P5C5DDVA8VWR7JSS8S9BQA",
+  "materialized_at": "2026-11-05T15:31:25.229316+00:00",
+  "mission_number": "250",
+  "mission_slug": "fix-7199-resume-late-coord-anchor-01M6P3RN",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6P5C4300WNRXS6TJ16ZTNJ4",
+      "last_transition_at": "2026-11-05T15:31:23.872867+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Resume anchor advance implemented; red-first case fails at base with the gate CAS refusal and passes with the fix",
+        "Review passed (reviewer-renata): 8/8 anti-pattern items PASS. One condition changed plus prose; 0 deleted lines in tests; real git fixture drives _teardown_coordination_triple; red at base with the gate CAS refusal; fail-closed twin keeps the anchor unmoved; ruff/mypy clean; 37/37 in tests/coordination/test_projection_teardown.py. Shared-file note: extends the #7124 machinery that #7198/#7209 also touch; no file overlap with them."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 937978,
+      "shell_pid_created_at": "1793891250.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6P5C5DDVA8VWR7JSS8S9BQA",
+      "last_transition_at": "2026-11-05T15:31:25.229316+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guide covers both run kinds; fragment 7226.fixed.md added and passes check_changelog_style/check_spelling; T006 scope corrected to re-running the real-CLI control",
+        "Review passed (reviewer-renata): 8/8 anti-pattern items PASS/N-A. Guide is scoped to the late-window section, states the rule for both run kinds, keeps the #7121 caveat and the refusal remedies; CLI reference already covered both kinds (no change needed); fragment 7226.fixed.md passes check_changelog_style (0 errors) and check_spelling; docs freshness errors=0 with only the expected DOCS-INDEX-DRIFT warning for the renamed heading. No test added by design (documented in traces/design-decisions.md D3): the assertion T006 proposed already exists in the real-CLI test, and the concurrency window is pinned in-process by WP01."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1431762,
+      "shell_pid_created_at": "1793892558.61",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

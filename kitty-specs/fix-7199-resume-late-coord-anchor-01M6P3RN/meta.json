@@ -5,7 +5,7 @@
   "friendly_name": "fix 7199 resume late coord anchor",
   "mid8": "01M6P3RN",
   "mission_id": "01M6P3RNTXRNRB5EDJCW7TCVG6",
-  "mission_number": null,
+  "mission_number": 250,
   "mission_slug": "fix-7199-resume-late-coord-anchor-01M6P3RN",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances fix 7199 resume late coord anchor on issue-7199-resume-late-coord-anchor so stakeholders can track the work from mission creation onward.",

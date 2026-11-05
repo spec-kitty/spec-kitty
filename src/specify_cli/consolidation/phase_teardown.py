@@ -384,6 +384,11 @@ def _late_window_base(run: _MergeRunState) -> str | None:
     Anchoring the first run here keeps a clean run a provable no-op; reusing the resume base instead
     would re-walk the whole merge and re-project primary artifacts the target authored for itself.
 
+    The base decides only WHERE the window starts. It does not decide whether teardown may approve
+    the proven tip: that advance applies to both run kinds (#7199), because either base is at or
+    before the anchor the run captured and every record in the window is proven landed before the
+    advance.
+
     ``None`` means the run recorded no anchor at all (a coordination placement that did not resolve),
     so no window can be built — see :func:`_land_late_coordination_commits`.
     """
@@ -419,9 +424,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     a coordination checkpoint refused such a commit at the projection teardown gate's compare-and-
     swap, leaving an operator to hand-assemble a landing that was already complete. A first run
     with no recorded coordination tip still builds no window and can lose the commit with the
-    branch (#7121). After the window is proven landed, the run records that tip as the one teardown
-    approved, so the gate and the branch delete anchor on a tip whose coordination records are on
-    the target, never on one that was merely read.
+    branch (#7121).
+
+    #7199 — after the window is proven landed, the run records that tip as the one teardown approved,
+    on EITHER run kind, so the gate and the branch delete anchor on a tip whose coordination records
+    are on the target, never on one that was merely read. A resume window starts at or before its own
+    captured anchor (:func:`_late_window_base`), so it covers at least the first-run window and the
+    same proof justifies the same advance; without it a resume refused the very commit its window had
+    just landed, because the gate still compared against the anchor captured earlier (#7124 reviewer
+    finding B5).
 
     #6791 widens WHICH records this window carries and adds the proof that it carried them: a
     gate matrix committed here (``agent issue-verdict`` after the refusal's own instruction to
@@ -538,15 +549,14 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         )
     except LateProjectionRefused as exc:
         raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
-    # #6871: only a PROVEN landing may move the tip teardown approves. The projection teardown gate
-    # and the compare-and-swap branch delete anchor on ``coord_tip_after_projection``; leaving it at
-    # the pre-window tip after landing the window would refuse the very commit this run just landed.
-    # The advance is a compare-and-swap on the tip the assertion was made over: a commit that lands
-    # DURING the projection leaves the ref somewhere else, the anchor stays put, and the gate refuses
-    # (fail-closed) -- a foreign commit is never stamped approved. This stays a first-run rule: a resume
-    # keeps the anchor its own bookkeeping phase captured, so a commit made after that capture can still
-    # be refused at the gate even once this window landed it (fail-closed; tracked separately).
-    if not run.is_resume and projected_tip and _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
+    # #6871/#7199: only a PROVEN landing may move the tip teardown approves, on either run kind. The
+    # projection teardown gate and the compare-and-swap branch delete anchor on
+    # ``coord_tip_after_projection``; leaving it at the anchor this run captured earlier would refuse
+    # the very commit this window just landed. The advance is a compare-and-swap on the tip the
+    # assertion was made over: a commit that lands DURING the projection leaves the ref somewhere
+    # else, the anchor stays put, and the gate refuses (fail-closed) -- a foreign commit is never
+    # stamped approved.
+    if projected_tip and _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
         run.coord_tip_after_projection = projected_tip
 
 
