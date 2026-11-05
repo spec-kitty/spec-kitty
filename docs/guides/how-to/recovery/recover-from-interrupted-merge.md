@@ -161,10 +161,13 @@ Then run `spec-kitty consolidate --resume` again.
 The other codes `consolidate` can report are listed in the
 [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).
 
-### What a first run lands before it tears down
+### What a run lands before it tears down
 
-A **first** run (no `--resume`) gets the same protection over a narrower window.
-The merge records the coordination tip it verified — its own last write to the
+Both run kinds project and prove the late window before the coordination branch is
+deleted; they differ only in where that window starts.
+
+A **first** run (no `--resume`) gets the protection over a narrower window. The
+merge records the coordination tip it verified — its own last write to the
 coordination branch, after everything it was going to project had been projected
 (the following bookkeeping commit lands it) — and
 anything committed to the coordination branch **after** that tip is late by
@@ -180,13 +183,21 @@ proves it landed, exactly as a resume does:
 - A run where nothing landed late projects nothing and makes no extra commit, so
   a clean consolidation behaves exactly as it did before.
 
+A **resume**'s window is wider on purpose — it spans everything the coordination
+branch changed since the merge began, because a resume has no in-memory record of
+what the interrupted attempt verified — and it uses the same projection and the
+same proof.
+
+Once a run has proven the window landed, that tip becomes the tip the projection
+teardown gate and the branch delete approve, on either run kind. So a resume that
+lands a commit made *after* it captured its own coordination tip finishes the
+consolidation instead of refusing a landing it just completed.
+
 This closes the window where a verification or status write made *between* the
 gate and the teardown was refused after a landing that was already complete,
 leaving you to hand-assemble it. A first run that recorded no coordination tip
 has no window to build and is still unprotected: such a commit can be lost with
-the branch (#7121). A resume's window is wider on purpose — it spans everything
-the coordination branch changed since the merge began, because a resume has no
-in-memory record of what the interrupted attempt verified.
+the branch (#7121).
 
 ## Aborting a Consolidation
 
