@@ -459,7 +459,7 @@ def test_deny_vocabulary_is_disjoint_from_the_activation_allow_vocabulary() -> N
 
 
 def test_charter_yaml_declares_no_deny_field() -> None:
-    """``CharterYaml`` must declare no deny key: a field would be dumped and emitted (#6855)."""
+    """``CharterYaml`` must not advertise a deny field forbidden by ADR C-003 (#6855)."""
     from charter.activation.schemas import CharterYaml
 
     declared_deny = sorted(name for name in CharterYaml.model_fields if name.startswith(_DENY_KEY_PREFIX))
