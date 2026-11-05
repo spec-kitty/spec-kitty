@@ -13,8 +13,8 @@ Per approved (or ``done``), non-canceled work package, first match wins (data-mo
 1. ``EVIDENCE_WINDOW_UNCOMPUTABLE``: ``lanes.json`` records no planning commit.
 2. ``IMPLEMENTATION_UNREADABLE``: the window's tree diff cannot be read (fail closed, NFR-002). When
    the window's tip is a branch ref that is truly absent, the refusal says which shape that is
-   (:func:`absent_lane_window_cause`): one pruned lane branch to restore, or a Mission whose lane
-   branches were never created, which has no supported in-product recovery (#7120).
+   (:func:`absent_lane_window_cause`): restore actual lane history if it existed, or escalate an
+   absent lane window without fabricating one; the verified-landing route stays available (#7120).
 3. ``OWNERSHIP_UNRESOLVED`` (#7149): the work package is absent from the resolved ownership map
    (its task file, or the whole ``tasks/`` directory, could not be read), so there is no
    ``owned_files`` declaration to judge against. It is decided before the owned-change test, so the
@@ -492,9 +492,9 @@ _RECOVERY: Mapping[str, str] = {
     IMPLEMENTATION_UNREADABLE: (
         f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
         "or, for a Mission that landed through a pull request merge commit (not a squash), re-run `spec-kitty accept --mode pr --merge-commit <sha>` "
-        "with the verified PR landing commit so the evidence is judged against the landed tree, then re-run. A Mission whose lane branches were never created "
-        "has no lane window to restore: its work-package line names that shape, and where its work is only on the target branch the verified landing commit above "
-        "is the one window that can still stand in, so escalate the evidence-policy question instead of retrying."
+        "with the verified PR landing commit so the evidence is judged against the landed tree. Restore a lane branch only from its actual recorded history; "
+        "a lane that never existed has no lane window to restore. If work exists only on the target branch and no verified PR landing commit is available, "
+        "escalate the evidence-policy question (#7120) instead of retrying that window. Do not manufacture a lane branch to satisfy this gate."
     ),
     IMPLEMENTATION_MISSING: (
         f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or on the "
@@ -542,9 +542,9 @@ def _merge_base(repo_root: Path, left: str, right: str) -> str:
 def branch_ref_absent(repo_root: Path, branch: str) -> bool:
     """True only when the local branch *branch* is truly absent (``git show-ref --verify`` exit 1).
 
-    A ref that exists but cannot be read (a missing object, a corrupt ref, a git error) is NOT
-    absent: ``show-ref`` exits 128 for it, and so does any other failure, so only the one exit
-    code that means "no such ref" lets the landed window stand in (#6780). Never raises.
+    A valid ref pointing at a missing object yields exit 128, not absence. Other statuses and
+    OS errors also fail closed. This preserves #6780's Git-status rule, not a filesystem-integrity
+    check: Git may ignore a malformed loose-ref file and return 1. Never raises.
 
     Public since #7120, so a surface outside this module (``move-task``'s evidence gate) applies
     the same rule instead of reading a failed diff as a missing branch.
@@ -602,37 +602,41 @@ def _lane_branches_absent_locally(repo_root: Path, lanes_manifest: LanesManifest
 def absent_lane_window_cause(repo_root: Path, lanes_manifest: LanesManifest, branch: str) -> str:
     """Why a window that ends at an absent *branch* cannot be read, and the honest next step (#7120).
 
-    Three shapes share the failed diff, and only one of them is a lane-window question:
+    Three local shapes share the failed diff; none establishes the missing branch's history:
 
     * *branch* is not a code lane's branch — a planning lane's window ends at the target branch, and
       a ``single_branch`` Mission's at its Mission branch. Neither is a lane window, so neither the
       lane-tip ref nor the never-created shape is named; the branch is simply missing here.
-    * *branch* is a code lane's branch and a sibling lane still has one: that lane was pruned or was
-      never fetched here, so restoring it from `refs/spec-kitty/lane-tip/<branch>` or the pull
-      request's head is a real recovery.
-    * *branch* is a code lane's branch and no code lane of the Mission has a branch here: that is
-      indistinguishable from a Mission implemented on its target branch with no lane branch ever
-      created. For that shape this command has no supported recovery — the work is on the target,
-      and pointing a new lane branch at it would manufacture the evidence this gate checks — so the
-      text names the escalation instead of a retry an operator cannot perform.
+    * *branch* is a code lane's branch but not every code-lane ref is confirmed absent. A sibling
+      may exist or be unreadable; neither proves this lane ever existed. Restoration is conditional
+      on actual recorded lane history, never a new branch pointed at target-branch work.
+    * Every code-lane ref is absent locally: that is indistinguishable from target-branch execution
+      without lane branches, but also from pruning or an incomplete fetch. State only the local fact.
 
-    A local ref probe cannot tell "never created" from "pruned or not fetched", so the third case is
-    worded as a possibility that carries its own remedy, never as a finding. Callers ask this once
-    per failed lane window, never per work package.
+    Both code-lane shapes share conditional restoration and the anti-fabrication caution. A lane
+    that never existed has no lane window to restore; absent a verified PR landing commit, the
+    remaining route is the open evidence-policy question. Callers ask this once per failed lane
+    window without a landing stand-in, never per work package.
     """
     lane_tip = f"refs/spec-kitty/lane-tip/{branch}"
     if branch not in _code_lane_branches(lanes_manifest):
         return f"the branch {branch} does not exist in this checkout; fetch it (or restore the commit the window ends at), then re-run"
-    if not _lane_branches_absent_locally(repo_root, lanes_manifest, branch):
-        return f"the lane branch {branch} does not exist in this checkout; restore it from `{lane_tip}` or the pull request's head, then re-run"
+    local_fact = f"the lane branch {branch} does not exist in this checkout"
+    if _lane_branches_absent_locally(repo_root, lanes_manifest, branch):
+        local_fact += (
+            ", and no lane of this Mission has a branch here. "
+            f"That is indistinguishable from a Mission whose work was committed on the target branch ({lanes_manifest.target_branch}) "
+            "without ever creating a lane branch"
+        )
     return (
-        f"the lane branch {branch} does not exist in this checkout, and no lane of this Mission has a branch here. "
-        f"That is indistinguishable from a Mission whose work was committed on the target branch ({lanes_manifest.target_branch}) "
-        "without ever creating a lane branch: for that shape this command has no supported recovery, so stop retrying and ask the "
-        "Mission's maintainer for an evidence-policy decision (limitation tracked at "
-        "https://github.com/spec-kitty/spec-kitty/issues/7120), naming the Mission, this refusal and the implementation commit. "
-        "Do not point a new lane branch at target-branch work to satisfy this gate: that fabricates the evidence it checks. "
-        f"If the lane did exist and was pruned or never fetched here, restore it from `{lane_tip}` or the pull request's head, then re-run"
+        f"{local_fact}. Local refs do not establish whether this lane previously existed. "
+        f"If it did exist and was pruned or never fetched here, restore its recorded tip from `{lane_tip}` or a "
+        "verified copy of that lane's history in the pull request's head, then re-run. "
+        "If the lane never existed, there is no lane window to restore; stop retrying that window. "
+        "Without a verified PR landing commit, ask the Mission's maintainer for an evidence-policy decision "
+        "(limitation tracked at https://github.com/spec-kitty/spec-kitty/issues/7120), naming the Mission, "
+        "this refusal and the implementation commit. Do not point a new lane branch at target-branch work to "
+        "satisfy this gate: that fabricates the evidence it checks"
     )
 
 
@@ -841,7 +845,9 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
         paths = evidence_paths(repo_root, judged.window, lanes_manifest.mission_slug)
     except GitProbeError as exc:
         judged = _naming_an_absent_tip(repo_root, judged)
-        absence_cause = absent_lane_window_cause(repo_root, lanes_manifest, judged.absent_ref) if judged.absent_ref is not None else None
+        absence_cause = (
+            absent_lane_window_cause(repo_root, lanes_manifest, judged.absent_ref) if judged.absent_ref is not None and judged.landed_commit is None else None
+        )
         for wp_id in approved:
             scan.add(wp_id, _unreadable_line(wp_id, lane, judged, exc, absence_cause))
         return

@@ -1097,10 +1097,9 @@ def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> No
     except GitProbeError as exc:
         code = wp_evidence.IMPLEMENTATION_UNREADABLE
         # #7120: a failed diff is not a missing branch. Only a ref that `git show-ref --verify`
-        # reports as exit 1 is absent, and the absent shape has its own two remedies — restore a
-        # pruned lane, or, for a Mission implemented on its target branch with no lane branch ever
-        # created, escalate instead of retrying. "Make the lane branch readable, then retry" is
-        # unimplementable for that shape and is what made agents loop.
+        # reports as exit 1 is absent. Local sibling refs do not prove this lane ever existed:
+        # restore only actual recorded lane history, or escalate the unsupported lane window.
+        # "Make the lane branch readable, then retry" cannot help a lane that never existed.
         if wp_evidence.branch_ref_absent(st.main_repo_root, tip):
             raise ActionContextError(
                 code,
