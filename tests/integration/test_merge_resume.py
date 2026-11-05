@@ -40,8 +40,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from tests._perf_helpers import assert_timing_budget
 from specify_cli.lanes.compute import lane_created_branch
-from tests.integration.target_owned_fixtures import commit_file_on_branch
-from tests.lane_test_utils import create_lane_branches, write_mission_meta
+from tests.lane_test_utils import commit_branch_implementation, create_lane_branches, write_mission_meta
 from tests.consolidation.executor_family import patch_executor_family
 from tests.terminus.conftest import declare_owned_files, implementer_claim_events
 
@@ -77,8 +76,6 @@ def _make_manifest(repo: Path, slug: str, lane_count: int = 10) -> MagicMock:
     manifest.mission_slug = slug
     manifest.target_branch = "main"
     manifest.mission_branch = f"kitty/mission-{slug}"
-    # #6715: the evidence window starts at the recorded planning commit.
-    manifest.planning_commit_sha = _run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
     lanes = []
     for i in range(lane_count):
         lane = MagicMock()
@@ -94,8 +91,7 @@ def _make_manifest(repo: Path, slug: str, lane_count: int = 10) -> MagicMock:
     feature_dir = repo / "kitty-specs" / slug
     declare_owned_files(feature_dir, [lane.wp_ids[0] for lane in lanes])
     for lane in lanes:
-        path = f"src/{lane.wp_ids[0].lower()}.py"
-        commit_file_on_branch(repo, lane_created_branch(manifest, lane.lane_id), path, f"# implementation of {path}\n", f"feat: implement {path}")
+        commit_branch_implementation(repo, manifest, lane_created_branch(manifest, lane.lane_id), path=f"src/{lane.wp_ids[0].lower()}.py")
     return manifest
 
 

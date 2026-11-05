@@ -26,10 +26,9 @@ import pytest
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.lanes.compute import lane_created_branch
-from tests.lane_test_utils import create_lane_branches
+from tests.lane_test_utils import commit_branch_implementation, create_lane_branches
 from tests.consolidation.executor_family import patch_executor_family
 from tests.integration.test_merge_lane_planning_data_loss import _seed_wp_done_raw, _write_wp_file
-from tests.integration.target_owned_fixtures import commit_file_on_branch
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -80,11 +79,8 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
     feature_dir.mkdir(parents=True, exist_ok=True)
     # #6715: a recorded planning commit, WP01's declared ownership, its lane's implementation
     # commit, and an independent approval stamped at that lane tip precede the seeded ``done``.
-    manifest.planning_commit_sha = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
     _write_wp_file(feature_dir, "WP01")
-    lane_branch = lane_created_branch(manifest, "lane-a")
-    commit_file_on_branch(tmp_path, lane_branch, "src/wp01.py", "# implementation of src/wp01.py\n", "feat: implement src/wp01.py")
-    lane_head = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", lane_branch], check=True, capture_output=True, text=True).stdout.strip()
+    lane_head = commit_branch_implementation(tmp_path, manifest, lane_created_branch(manifest, "lane-a"), path="src/wp01.py")
     _seed_wp_done_raw(feature_dir, slug, ["WP01"], lane_head=lane_head)
 
     lane_result = MagicMock()

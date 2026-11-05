@@ -176,6 +176,29 @@ def create_lane_branches(repo_root: Path, lanes_manifest: Any, *, start_point: s
     return created
 
 
+def _commit_implementation(repo_root: Path, branch: str, start_point: str, path: str) -> str:
+    """Commit a change to *path* on *branch* with git plumbing, creating it at *start_point* when absent.
+
+    No checkout or index of *repo_root* changes. Returns the new branch tip.
+    """
+
+    def git(*args: str, env: dict[str, str] | None = None, stdin: str | None = None) -> str:
+        proc = subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True, env=env, input=stdin)
+        return proc.stdout.strip()
+
+    exists = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], capture_output=True, text=True, check=False)
+    parent = exists.stdout.strip() if exists.returncode == 0 else start_point
+    with tempfile.TemporaryDirectory() as scratch:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
+        git("read-tree", parent, env=env)
+        blob = git("hash-object", "-w", "--stdin", stdin=f"# implementation of {path}\n")
+        git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=env)
+        tree = git("write-tree", env=env)
+    tip = git("commit-tree", tree, "-p", parent, "-m", f"feat: implement {path}")
+    git("update-ref", f"refs/heads/{branch}", tip)
+    return tip
+
+
 def commit_lane_implementation(repo_root: Path, feature_dir: Path, *, lane_id: str = "lane-a", path: str = "src/lane_impl.py") -> str:
     """#6715: commit a real change to *path* on a lane's branch, as an implementer would.
 
@@ -190,23 +213,19 @@ def commit_lane_implementation(repo_root: Path, feature_dir: Path, *, lane_id: s
 
     manifest = require_lanes_json(feature_dir)
     assert manifest.planning_commit_sha, "lanes.json must record planning_commit_sha (write it once the repository has a commit)"
-    branch = lane_created_branch(manifest, lane_id)
+    return _commit_implementation(repo_root, lane_created_branch(manifest, lane_id), manifest.planning_commit_sha, path)
 
-    def git(*args: str, env: dict[str, str] | None = None, stdin: str | None = None) -> str:
-        proc = subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True, env=env, input=stdin)
-        return proc.stdout.strip()
 
-    exists = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], capture_output=True, text=True, check=False)
-    parent = exists.stdout.strip() if exists.returncode == 0 else manifest.planning_commit_sha
-    with tempfile.TemporaryDirectory() as scratch:
-        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
-        git("read-tree", parent, env=env)
-        blob = git("hash-object", "-w", "--stdin", stdin=f"# implementation of {path}\n")
-        git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=env)
-        tree = git("write-tree", env=env)
-    tip = git("commit-tree", tree, "-p", parent, "-m", f"feat: implement {path}")
-    git("update-ref", f"refs/heads/{branch}", tip)
-    return tip
+def commit_branch_implementation(repo_root: Path, manifest: Any, branch: str, *, path: str) -> str:
+    """#6715: :func:`commit_lane_implementation` for a fixture whose manifest has no ``lanes.json``.
+
+    A mocked manifest cannot be read back from disk, so the caller names the lane *branch*. Pins
+    ``manifest.planning_commit_sha`` at HEAD (the plumbing commit leaves HEAD alone, so one pin
+    holds across several lanes) and commits a change to *path* on *branch*. Returns the new tip.
+    """
+    head = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+    manifest.planning_commit_sha = head
+    return _commit_implementation(repo_root, branch, head, path)
 
 
 def commit_reviewed_wp01(
