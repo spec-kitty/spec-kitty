@@ -55,6 +55,10 @@ def _seed_reviewed_wp01(repo: Path, feature_dir: Path, manifest: MagicMock) -> N
     change to it on the lane branch and an independent approval stamped at that lane tip.
     """
     _write_wp_file(feature_dir, "WP01")
+    _run(["git", "-C", str(repo), "add", "kitty-specs"])
+    _run(["git", "-C", str(repo), "commit", "-m", "plan the mission"])
+    # #5417: the approved lane needs its created branch (#5338 claim-time refusal).
+    create_lane_branches(repo, manifest)
     lane_head = commit_branch_implementation(repo, manifest, lane_created_branch(manifest, "lane-a"), path="src/wp01.py")
     _seed_wp_done_raw(feature_dir, manifest.mission_slug, ["WP01"], lane_head=lane_head)
 
@@ -95,8 +99,6 @@ class TestPostMergeRefreshAndInvariant:
         feature_dir.mkdir(parents=True)
 
         manifest = self._make_manifest(slug)
-        # #5417: the approved lane needs its created branch (#5338 claim-time refusal).
-        create_lane_branches(tmp_path, manifest)
         _seed_reviewed_wp01(tmp_path, feature_dir, manifest)
 
         lane_result = MagicMock()
@@ -230,8 +232,6 @@ class TestPostMergeRefreshAndInvariant:
         feature_dir.mkdir(parents=True)
 
         manifest = self._make_manifest(slug)
-        # #5417: the approved lane needs its created branch (#5338 claim-time refusal).
-        create_lane_branches(tmp_path, manifest)
         _seed_reviewed_wp01(tmp_path, feature_dir, manifest)
 
         lane_result = MagicMock()

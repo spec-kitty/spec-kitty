@@ -84,12 +84,14 @@ def _make_manifest(repo: Path, slug: str, lane_count: int = 10) -> MagicMock:
         lane.depends_on_lanes = ()
         lanes.append(lane)
     manifest.lanes = lanes
+    # #6715: each WP's committed ownership precedes the pin, and its lane commits a change to it.
+    feature_dir = repo / "kitty-specs" / slug
+    declare_owned_files(feature_dir, [lane.wp_ids[0] for lane in lanes])
+    _run(["git", "-C", str(repo), "add", "kitty-specs"])
+    _run(["git", "-C", str(repo), "commit", "-m", "plan the mission"])
     # #5417: approved lanes must have their created branches, or the #5338
     # claim-time integrity refusal stops the run before the resume logic.
     create_lane_branches(repo, manifest)
-    # #6715: each WP declares its owned surface and its lane commits a change to it.
-    feature_dir = repo / "kitty-specs" / slug
-    declare_owned_files(feature_dir, [lane.wp_ids[0] for lane in lanes])
     for lane in lanes:
         commit_branch_implementation(repo, manifest, lane_created_branch(manifest, lane.lane_id), path=f"src/{lane.wp_ids[0].lower()}.py")
     return manifest
