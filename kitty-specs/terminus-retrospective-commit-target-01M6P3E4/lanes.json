@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "terminus-retrospective-commit-target-01M6P3E4",
+  "mission_id": "01M6P3E46H9C4SES0ZXSBZ88NG",
+  "mission_branch": "kitty/mission-terminus-retrospective-commit-target-01M6P3E4",
+  "target_branch": "issue-7201-terminus-retrospective-target",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "src/specify_cli/coordination/teardown.py",
+        "src/specify_cli/post_merge/retrospective_terminus.py",
+        "tests/specify_cli/cli/commands/test_mission_close_target.py",
+        "tests/specify_cli/post_merge/test_retrospective_commit_target.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-05T15:00:56.823681+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "47675b5eaac7546c3773dc334ac65bacfca1e106"
+}
