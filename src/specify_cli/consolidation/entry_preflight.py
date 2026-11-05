@@ -49,10 +49,8 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.git.ref_advance import ResidueClassifier, worktrees_with_branch_checked_out
 from specify_cli.consolidation._constants import COORD_SEED_COMMIT_REFUSED_SUFFIX, COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX
 from specify_cli.consolidation.git_probes import (
-    GitProbeError,
     _has_branch_ref,
     _lane_already_integrated,
-    commit_parents,
 )
 from specify_cli.lanes.compute import lane_created_branch as _created_lane_branch
 from specify_cli.lanes.single_branch_landing import worktree_lanes
@@ -369,58 +367,17 @@ def _refuse_if_coordination_ledger_unrepaired(main_repo: Path, mission_slug: str
 
 
 def _resolve_planning_base_commit(main_repo: Path, mission_slug: str, target_branch: str) -> str | None:
-    """The target-branch commit immediately before this Mission's planning artifacts appeared (#7209).
+    """The target-branch commit immediately before this Mission's directory appeared (#7209).
 
     ``--skip-lanes`` synthesizes a manifest for a direct-on-target Mission that never recorded a
-    planning commit, so the evidence window (``planning_commit..target``) has no base and the
-    #6715 axis refuses ``EVIDENCE_WINDOW_UNCOMPUTABLE`` on every work package. The Mission's
-    planning artifacts are on the target branch, so the boundary between "before this Mission" and
-    "this Mission's work" is there: the earliest commit on the target's FIRST-PARENT line that
-    touched ``kitty-specs/<slug>/``, and the base is that commit's first parent.
-
-    ``--first-parent`` is load-bearing (#7209 review): plain ``git log`` follows side branches, so
-    the oldest commit touching the directory can be a planning branch cut from a much older tip,
-    merged in later. Its parent then predates unrelated work that already landed on the target, and
-    the over-broad window would admit an approved work package whose owned file only changed BEFORE
-    the Mission appeared. Walking the first-parent line picks the commit where the directory first
-    appeared ON the target (a direct commit, or the merge that brought it in).
-
-    Known limit, tracked as #7229: the window is a tree diff, so it cannot tell "the target gained
-    this path after the Mission started" from "the Mission's own branch merged the target in and
-    the target was then fast-forwarded onto that merge" -- there the base lands below the mission's
-    artifacts and pre-Mission content is inside the window. That shape needs a hand-made planning
-    branch and is not reachable through the sanctioned direct-on-target workflow (no mission
-    branch); a ref's prior tip cannot be reconstructed from refs (reflogs are local), and every
-    cheap ancestry probe either misses it or false-refuses ordinary histories. Before #7209 these
-    runs refused ``EVIDENCE_WINDOW_UNCOMPUTABLE`` outright; this enables the supported
-    direct-on-target histories while leaving the documented unsupported topology limited.
-
-    The PARENT is the base, not the introducing commit itself: a Mission whose first commit carries
-    planning artifacts AND a work-package change together (a squashed history, the shape of the
-    #2745 fixture) would otherwise get an empty window and a false ``IMPLEMENTATION_MISSING``. A
-    root introducing commit has no parent and is its own base.
-
-    Returns ``None`` when the directory never reached the target branch's history or git cannot
-    read it. Never fabricates a base (no timestamp, no current tip): an unresolvable window keeps
-    the fail-closed refusal.
+    planning commit, so the evidence window (``planning_commit..target``) needs a base read from git.
+    The one authority is :func:`specify_cli.lanes.planning_base.resolve_planning_base_commit`,
+    anchored here on ``kitty-specs/<slug>/`` (``finalize-tasks`` anchors it on the WP task files,
+    #7210). Returns ``None`` when no base can be resolved, which keeps the fail-closed refusal.
     """
-    from kernel.git import run_git
+    from specify_cli.lanes.planning_base import mission_dir_pathspec, resolve_planning_base_commit
 
-    try:
-        history = run_git(main_repo, "log", "--first-parent", "--format=%H", target_branch, "--", f"kitty-specs/{mission_slug}")
-    except GitCommandError:
-        return None
-    commits = [line.strip() for line in history.stdout.decode("utf-8", "replace").splitlines() if line.strip()]
-    if not commits:
-        return None
-    introducing = commits[-1]  # ``git log`` prints newest first
-    try:
-        parents = commit_parents(main_repo, introducing)
-    except (GitProbeError, OSError):
-        # An unreadable parent probe is "no base" (fail closed), never an exception out of
-        # the synthesis while the run still has work to judge.
-        return None
-    return parents[0] if parents else introducing
+    return resolve_planning_base_commit(main_repo, target_branch, mission_dir_pathspec(mission_slug))
 
 
 def _synthesize_no_lane_manifest(

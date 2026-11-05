@@ -150,6 +150,10 @@ class PlanningCommitResolution:
       as the compare-and-swap expectation; after execution begins, the tip is
       captured only after the advance-only ancestor check passes (orphaned
       pins require the separate ``--allow-orphaned`` path).
+    * ``"derived"`` — execution has begun, no pin was recorded (a legacy
+      ``lanes.json``) and the no-flag run derived one from git: the parent of
+      the first commit on the target that added the Mission's ``tasks/WP*.md``
+      (#7210).
     * ``"repinned"`` — execution has begun and the operator supplied both
       ``--refresh-planning-commit --allow-orphaned``; the recorded SHA was a
       proven ORPHAN (present, not an ancestor — the mid-mission-rebase
@@ -212,6 +216,7 @@ _PLANNING_REFRESH_STATUS_BY_ACTION: Final[dict[str, str]] = {
     "preserved": "preserved",
     "refreshed": "refreshed",
     "kept_with_warning": "kept_with_warning",
+    "derived": "derived",
 }
 
 
@@ -220,8 +225,8 @@ def _planning_commit_refresh_payload(
 ) -> dict[str, object] | None:
     """Build the additive ``planning_commit_refresh`` JSON field (FR-012, contracts/commit-outcome.md).
 
-    Populated only for the three actions the AUTOMATIC (no-flag) decision
-    path can resolve once execution has begun (preserved/refreshed/
+    Populated only for the four actions the AUTOMATIC (no-flag) decision
+    path can resolve once execution has begun (preserved/refreshed/derived/
     kept_with_warning) — ``None`` for a pre-execution ``"captured"`` run (no
     pin was yet recorded to refresh) and for the explicit
     ``--refresh-planning-commit``/``--allow-orphaned`` path (``"refreshed"``/
@@ -928,6 +933,31 @@ def _planning_changed_since_pin(
     return False
 
 
+def _derive_missing_pin(
+    repo_root: Path,
+    mission_slug: str,
+    target_branch: str,
+    recorded: str | None,
+    tip: str | None,
+) -> PlanningCommitResolution | None:
+    """#7210: a pin derived from git when none is recorded and the tip resolves, else ``None``.
+
+    The parent of the first commit on *target_branch*'s first-parent line that touched the
+    Mission's ``tasks/WP*.md`` (the one resolver the ``--skip-lanes`` base also uses, #7209) --
+    the tip a timely finalize would have recorded, or slightly earlier (operator ruling
+    2026-11-05, ADR ``2026-10-04-5`` Amendment 2026-11-05).
+    A recorded pin is never replaced.
+    """
+    if recorded is not None or tip is None:
+        return None
+    from specify_cli.lanes import planning_base
+
+    derived = planning_base.resolve_planning_base_commit(repo_root, target_branch, planning_base.mission_wp_tasks_pathspec(mission_slug))
+    if derived is None:
+        return None
+    return PlanningCommitResolution(sha=derived, action="derived", previous_sha=None, branch_tip=tip, pin_class=PinClass.INDETERMINATE.value)
+
+
 def _resolve_preserve_planning_commit_decision(
     *,
     repo_root: Path,
@@ -1009,6 +1039,9 @@ def _resolve_preserve_planning_commit_decision(
             refusal_reason=pin_class.value,
         )
     elif pin_class is PinClass.INDETERMINATE:
+        derived = _derive_missing_pin(repo_root, mission_slug, target_branch, recorded, tip)
+        if derived is not None:
+            return derived
         # WP15 cycle 2 (C2-1, orchestrator ruling on contracts/commit-outcome.md):
         # the classifier's OWN docstring says callers may degrade silently
         # for INDETERMINATE ("nothing about it can be inspected at all"), but
@@ -1268,6 +1301,12 @@ def _report_planning_sha_decision(
             f"[green]✓[/green] Re-pinned orphaned planning_commit_sha "
             f"{planning_sha.previous_sha or '(none)'} -> {planning_sha.sha} "
             f"(lanes merge the {target_branch} tip at their next allocation)"
+        )
+        return
+    if planning_sha.action == "derived":
+        _mf.console.print(
+            f"[green]✓[/green] Derived planning_commit_sha {planning_sha.sha} from git: no pin was recorded, so finalize "
+            f"recorded the parent of the commit that first added this Mission's tasks/WP*.md on {target_branch}"
         )
         return
     if planning_sha.action == "refreshed":
