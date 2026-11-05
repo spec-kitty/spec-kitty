@@ -712,11 +712,11 @@ def test_first_run_lands_a_coordination_commit_made_between_the_gate_and_teardow
 
     The merge captures ``coord_tip_after_projection`` after its own last coordination write and
     builds the projection teardown gate on it. A commit that lands after that capture used to be
-    dropped on a first run: ``_land_late_coordination_commits`` returned early for
-    ``is_resume=False``, so the run either refused at the projection teardown gate (leaving an
-    operator to hand-assemble a landing that was already complete) or -- with no gate to build --
-    deleted the commit with the branch at exit 0. It must instead be projected onto the target,
-    committed, and proven landed before the branch is deleted.
+    refused on a first run: ``_land_late_coordination_commits`` returned early for
+    ``is_resume=False``, so the projection teardown gate's compare-and-swap refused, leaving an
+    operator to hand-assemble a landing that was already complete. It must instead be projected
+    onto the target, committed, and proven landed before the branch is deleted. (A first run with
+    no recorded coordination tip builds no window at all; that loss is #7121.)
     """
     run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
     rel = f"kitty-specs/{SLUG}/traces/late.md"

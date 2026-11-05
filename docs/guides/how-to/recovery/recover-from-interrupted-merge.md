@@ -181,11 +181,12 @@ proves it landed, exactly as a resume does:
   a clean consolidation behaves exactly as it did before.
 
 This closes the window where a verification or status write made *between* the
-gate and the teardown was either refused after a landing that was already complete
-(leaving you to hand-assemble it) or lost with the branch. A resume's window is
-wider on purpose — it spans everything the coordination branch changed since the
-merge began, because a resume has no in-memory record of what the interrupted
-attempt verified.
+gate and the teardown was refused after a landing that was already complete,
+leaving you to hand-assemble it. A first run that recorded no coordination tip
+has no window to build and is still unprotected: such a commit can be lost with
+the branch (#7121). A resume's window is wider on purpose — it spans everything
+the coordination branch changed since the merge began, because a resume has no
+in-memory record of what the interrupted attempt verified.
 
 ## Aborting a Consolidation
 
