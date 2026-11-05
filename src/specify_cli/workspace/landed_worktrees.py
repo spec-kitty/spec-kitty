@@ -623,11 +623,17 @@ def shell_command(*args: str) -> str:
     return shlex.join(args)
 
 
-def _recreate(verdict: WorktreeVerdict, *, branch_kept: bool) -> str:
-    """The command that brings back what the prune removed: the worktree on a kept branch, else the branch or detached tip."""
-    if verdict.branch is None:
+def _recreate(verdict: WorktreeVerdict, *, refusal: str | None) -> str:
+    """The command that brings back what the prune removed.
+
+    A deleted (or already gone) branch comes back with ``git branch``; a kept
+    branch gets its worktree back on it, unless another worktree has it
+    checked out (git refuses a second checkout): then, like a detached
+    worktree, the worktree comes back detached at the tip.
+    """
+    if verdict.branch is None or refusal == Reason.BRANCH_IN_OTHER_WORKTREE:
         return shell_command("git", "worktree", "add", "--detach", str(verdict.path), verdict.tip or "")
-    if branch_kept:
+    if refusal is not None:
         return shell_command("git", "worktree", "add", str(verdict.path), verdict.branch)
     return shell_command("git", "branch", verdict.branch, verdict.tip or "")
 
@@ -641,7 +647,7 @@ def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = 
         removed=removed,
         branch_deleted=branch_deleted,
         kept_ref=kept_ref,
-        recreate=_recreate(verdict, branch_kept=refusal is not None),
+        recreate=_recreate(verdict, refusal=refusal),
         refusal=refusal,
     )
 
