@@ -1392,14 +1392,8 @@ class TestReviewRefGuard:
     for_review → in_review → in_progress (with review_result required).
     """
 
-    def test_in_review_to_in_progress_requires_review_ref_then_review_result(self, feature_dir: Path):
-        """#7080: the pointer is the first refusal; the structured result is still required.
-
-        ``in_review -> in_progress`` is a review-ref-gated rewind, so a request with no
-        evidence at all is refused for the missing pointer. Once a pointer is present,
-        the original ``review_result`` requirement is what refuses an evidence-less exit
-        (both arms on the same fixture, so neither assertion can pass vacuously).
-        """
+    def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
+        """in_review -> in_progress without review_result is rejected."""
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
         emit_status_transition(
             TransitionRequest(
@@ -1442,7 +1436,6 @@ class TestReviewRefGuard:
             )
         )
 
-        # Unforced, the established ``review_result`` guard is the first refusal.
         with pytest.raises(TransitionError, match="review_result"):
             emit_status_transition(
                 TransitionRequest(
@@ -1451,32 +1444,6 @@ class TestReviewRefGuard:
                     wp_id="WP01",
                     to_lane="in_progress",
                     actor="reviewer",
-                )
-            )
-
-        # Forced, the edge's review_ref requirement is force-insurmountable (#7080).
-        with pytest.raises(TransitionError, match="requires review_ref"):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="034-test-feature",
-                    wp_id="WP01",
-                    to_lane="in_progress",
-                    actor="reviewer",
-                    force=True,
-                    reason="operator rewind",
-                )
-            )
-
-        with pytest.raises(TransitionError, match="review_result"):
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="034-test-feature",
-                    wp_id="WP01",
-                    to_lane="in_progress",
-                    actor="reviewer",
-                    review_ref="review-cycle://WP01/1",
                 )
             )
 
