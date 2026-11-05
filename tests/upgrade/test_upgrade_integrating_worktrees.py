@@ -78,7 +78,8 @@ def test_upgrade_leaves_integrating_worktrees_untouched(tmp_path: Path, topology
     porcelain_before = {wt: _porcelain(wt) for wt in integrating}
     control_tip_before = _head(control)
 
-    observed = observe_upgrade_divergence(project)
+    # The control is a non-Mission worktree: opted in explicitly (#7173).
+    observed = observe_upgrade_divergence(project, "--all-worktrees")
     assert observed.returncode == 0, observed.output
 
     # The defect, named: no lane / coordination branch carries the upgrade
@@ -109,7 +110,7 @@ def test_upgrade_leaves_integrating_worktrees_untouched(tmp_path: Path, topology
 def test_integrating_rule_on_one_fixture(tmp_path: Path) -> None:
     """The exact rule (squad fold): lane, coordination and detached are integrating;
     an unrelated branch and a plain directory without ``.git`` are not."""
-    from specify_cli.upgrade.runner import _is_integrating_worktree
+    from specify_cli.upgrade.worktree_selection import is_integrating_worktree
 
     project = build_older_version_lanes_project(tmp_path, topology="lanes_with_coord", lanes=1)
     control = project.extra_worktree(branch=NON_INTEGRATING_BRANCH)
@@ -118,11 +119,11 @@ def test_integrating_rule_on_one_fixture(tmp_path: Path) -> None:
     (plain / ".kittify").mkdir(parents=True)
 
     assert project.coord_worktree is not None
-    assert _is_integrating_worktree(project.lane_worktrees["lane-a"]) is True
-    assert _is_integrating_worktree(project.coord_worktree) is True
-    assert _is_integrating_worktree(detached) is True
-    assert _is_integrating_worktree(control) is False
-    assert _is_integrating_worktree(plain) is False
+    assert is_integrating_worktree(project.lane_worktrees["lane-a"]) is True
+    assert is_integrating_worktree(project.coord_worktree) is True
+    assert is_integrating_worktree(detached) is True
+    assert is_integrating_worktree(control) is False
+    assert is_integrating_worktree(plain) is False
 
 
 @pytest.mark.parametrize("flag", ["--dry-run", "--no-worktrees"])

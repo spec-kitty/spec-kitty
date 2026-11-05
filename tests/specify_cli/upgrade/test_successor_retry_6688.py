@@ -58,6 +58,7 @@ from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry, settled_in_selection_view
 from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -210,7 +211,7 @@ def test_a_worktree_with_its_own_adopted_successor_still_gets_the_retry(tmp_path
     _record(worktree, NEW_311, "success")
     assert settled_in_selection_view(worktree, NEW_311) is False
 
-    result = MigrationRunner(repo).upgrade(TARGET, include_worktrees=True)
+    result = MigrationRunner(repo).upgrade(TARGET, include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
     assert result.success, result.errors
     assert json.loads((mission / "status.json").read_text(encoding="utf-8"))["materialized_at"] == ""

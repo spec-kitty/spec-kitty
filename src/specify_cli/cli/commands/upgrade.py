@@ -49,7 +49,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from kernel.clock import now_utc
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 
@@ -70,6 +70,7 @@ from specify_cli.cli.commands._confirm import safe_confirm
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     report_teamspace_mission_state_blockers,
 )
+from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -92,6 +93,17 @@ from specify_cli.upgrade.outcome import (
 from specify_cli.upgrade.ledger import MigrationLedgerLockTimeoutError
 from specify_cli.upgrade.runner import RepositoryProbe, UpgradeResult, migration_skipped_outside_repository, sequenced_predecessors
 from specify_cli.upgrade.version_stamp_boundary import version_stamp_boundary
+from specify_cli.upgrade.worktree_selection import (
+    DispositionAction,
+    UnknownWorktreeError,
+    WorktreeDisposition,
+    WorktreeOutcome,
+    SelectionMode,
+    WorktreeRunResult,
+    WorktreeSelection,
+    validate_named,
+    worktree_dispositions,
+)
 
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
@@ -123,6 +135,22 @@ _COMMAND_SKILL_RENAME_NOTICE = (
     "Command skills are now named spec-kitty-<command> (for example `{codex}` in Codex, `{slash}` in Vibe, Letta and Antigravity, `{pi}` in Pi)."
 )
 _LEGACY_COMMAND_REPORT_KINDS = frozenset({"legacy_removed", "legacy_kept"})
+_WORKTREES_SKIPPED_LINE = "Worktrees: skipped (--no-worktrees)"
+_WORKTREE_OPTIONS_CONFLICT = "--no-worktrees cannot be combined with --include-worktree or --all-worktrees (conflicting options)"
+_WORKTREE_OPTIONS_WITH_CLI = "--include-worktree and --all-worktrees cannot be combined with --cli (conflicting options)"
+
+# #7173 (FR-010): ``--plan-json`` reports the worktree selection and each
+# ``.worktrees/`` entry as ``info`` diagnostics, the one extensible array of the
+# frozen ``upgrade-plan`` schema (schema_version 1), so the document stays valid.
+_DIAG_WORKTREE_SELECTION = "WORKTREE_SELECTION"
+_DIAG_WORKTREE_SELECTED = "WORKTREE_SELECTED"
+_DIAG_WORKTREE_SKIPPED_MISSION = "WORKTREE_SKIPPED_MISSION"
+_DIAG_WORKTREE_SKIPPED_NOT_SELECTED = "WORKTREE_SKIPPED_NOT_SELECTED"
+_DISPOSITION_DIAGNOSTIC_CODES = {
+    DispositionAction.UPGRADE: _DIAG_WORKTREE_SELECTED,
+    DispositionAction.SKIP_MISSION: _DIAG_WORKTREE_SKIPPED_MISSION,
+    DispositionAction.SKIP_NOT_SELECTED: _DIAG_WORKTREE_SKIPPED_NOT_SELECTED,
+}
 
 
 def command_skill_rename_notice() -> str:
@@ -826,12 +854,16 @@ def _run_no_migrations_worktree_stamp(
     current_version: str,
     dry_run: bool,
     no_worktrees: bool,
+    worktree_selection: WorktreeSelection | None = None,
+    results_out: list[WorktreeRunResult] | None = None,
 ) -> tuple[list[str], list[str]]:
     """Stamp worktree metadata when the main checkout is already current.
 
-    Mirrors the pre-refactor no-migrations branch's worktree-only stamp pass
-    (unchanged semantics). Returns ``(warnings, worktree_failures)`` for the
-    caller to fold into the synthesized outcome (FR-012).
+    Mirrors the pre-refactor no-migrations branch's worktree-only stamp pass;
+    only the worktrees ``worktree_selection`` opts in are written (#7173).
+    Returns ``(warnings, worktree_failures)`` for the caller to fold into the
+    synthesized outcome (FR-012); what the pass did per worktree is appended
+    to ``results_out`` when given (FR-009).
     """
     if no_worktrees or current_version != target_version:
         return [], []
@@ -845,13 +877,252 @@ def _run_no_migrations_worktree_stamp(
         target_version,
         dry_run=dry_run,
         auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+        worktree_selection=worktree_selection,
     )
     warnings = list(worktrees_result.get("warnings", []))
     if worktrees_result.get("errors"):
         warnings.extend(worktrees_result["errors"])
         warnings.append("Some worktrees had issues - check errors above")
     worktree_failures = list(worktrees_result.get("worktree_failures", []))
+    if results_out is not None:
+        results_out.extend(worktrees_result.get("worktree_results", []))
     return warnings, worktree_failures
+
+
+def _worktree_head(disposition: WorktreeDisposition, project_path: Path) -> tuple[str, str]:
+    """``("  <rel> (<branch>): ", rel)`` for one ``Worktrees:`` line."""
+    rel = str(disposition.to_json(relative_to=project_path)["path"])
+    label = (disposition.branch or "detached") if disposition.git_worktree else "not a git worktree"
+    return f"  {rel} ({label}): ", rel
+
+
+def _skip_text(disposition: WorktreeDisposition, rel: str) -> str:
+    if disposition.action is DispositionAction.SKIP_MISSION:
+        return "skipped, Mission worktree"
+    if not disposition.selectable:
+        return "skipped, resolves outside .worktrees/ (cannot be selected)"
+    return f"skipped, not selected (use --include-worktree {rel} or --all-worktrees)"
+
+
+def _preview_line(disposition: WorktreeDisposition, project_path: Path, *, auto_commit: bool) -> str:
+    """One preview line: the selection, in the future tense (FR-009)."""
+    head, rel = _worktree_head(disposition, project_path)
+    if disposition.action is not DispositionAction.UPGRADE:
+        return head + _skip_text(disposition, rel)
+    return head + ("will be upgraded and committed" if auto_commit else "will be upgraded, not committed (auto-commit off)")
+
+
+def _info_diagnostic(code: str, owner: str | None, message: str) -> dict[str, object]:
+    return {"code": code, "owner": owner, "severity": "info", "message": message}
+
+
+def _selection_diagnostic(selection: WorktreeSelection, project_path: Path) -> dict[str, object]:
+    """``worktree selection: <mode>[ (<named>, ...)]`` for ``--plan-json`` (FR-010)."""
+    named = selection.to_json(relative_to=project_path)["named"]
+    suffix = f" ({', '.join(str(path) for path in named)})" if isinstance(named, list) and named else ""
+    return _info_diagnostic(_DIAG_WORKTREE_SELECTION, None, f"worktree selection: {selection.mode.value}{suffix}")
+
+
+def _disposition_diagnostic(disposition: WorktreeDisposition, project_path: Path) -> dict[str, object]:
+    """One ``.worktrees/`` entry and what upgrade does with it, for ``--plan-json`` (FR-010)."""
+    head, rel = _worktree_head(disposition, project_path)
+    text = "selected for upgrade" if disposition.action is DispositionAction.UPGRADE else _skip_text(disposition, rel)
+    return _info_diagnostic(_DISPOSITION_DIAGNOSTIC_CODES[disposition.action], rel, head.strip() + " " + text)
+
+
+def _worktree_plan_diagnostics(
+    selection: WorktreeSelection,
+    dispositions: Sequence[WorktreeDisposition],
+    project_path: Path,
+) -> list[dict[str, object]]:
+    """The selection diagnostic, then one per ``.worktrees/`` entry in name order."""
+    return [_selection_diagnostic(selection, project_path), *(_disposition_diagnostic(d, project_path) for d in dispositions)]
+
+
+_RUN_OUTCOME_TEXT = {
+    WorktreeOutcome.UPGRADED_COMMITTED: "upgraded and committed",
+    WorktreeOutcome.NOTHING_TO_UPGRADE: "selected, nothing to upgrade (nothing written)",
+    WorktreeOutcome.WOULD_UPGRADE: "will be upgraded",
+    WorktreeOutcome.FAILED: "selected, migrations failed here, nothing committed (see errors)",
+}
+
+
+def _run_line(run: WorktreeRunResult, project_path: Path, *, auto_commit: bool) -> str:
+    """One post-run line: what the run did there, in the past tense (FR-009)."""
+    head, rel = _worktree_head(run.disposition, project_path)
+    if run.outcome in (WorktreeOutcome.SKIPPED_MISSION, WorktreeOutcome.SKIPPED_NOT_SELECTED):
+        return head + _skip_text(run.disposition, rel)
+    if run.outcome is WorktreeOutcome.UPGRADED_NOT_COMMITTED:
+        return head + ("upgraded, not committed (see warnings)" if auto_commit else "upgraded, not committed (auto-commit off)")
+    return head + _RUN_OUTCOME_TEXT[run.outcome]
+
+
+def _print_worktree_block(lines: Sequence[str], *, no_worktrees: bool) -> None:
+    """Print the ``Worktrees:`` block; one skip line instead under ``--no-worktrees``.
+
+    Prints nothing when there is no worktree under ``.worktrees/`` (``lines`` empty).
+    """
+    if not lines:
+        return
+    if no_worktrees:
+        console.print(_WORKTREES_SKIPPED_LINE, markup=False, highlight=False, soft_wrap=True)
+        return
+    console.print("Worktrees:", markup=False, highlight=False)
+    for line in lines:
+        console.print(line, markup=False, highlight=False, soft_wrap=True)
+    console.print()
+
+
+def _preview_worktree_dispositions(
+    project_path: Path,
+    selection: WorktreeSelection,
+    *,
+    no_worktrees: bool,
+    json_output: bool,
+    dry_run: bool,
+    prompts: bool,
+) -> None:
+    """Print the ``Worktrees:`` block before anything is written (FR-009).
+
+    Shown for a ``--dry-run`` preview and before the confirm prompt, so the
+    operator sees where upgrade writes before agreeing. Reads only.
+    """
+    if json_output or not (dry_run or prompts):
+        return
+    auto_commit = should_auto_commit_for_worktree(project_path, dry_run=False)
+    dispositions = worktree_dispositions(project_path / WORKTREES_DIR, selection)
+    _print_worktree_block([_preview_line(d, project_path, auto_commit=auto_commit) for d in dispositions], no_worktrees=no_worktrees)
+
+
+def _report_worktree_dispositions(outcome: UpgradeOutcome, *, project_path: Path, no_worktrees: bool, json_output: bool, dry_run: bool) -> None:
+    """Print what the worktree pass did after a real run (FR-009); the preview covers ``--dry-run``."""
+    if json_output or dry_run:
+        return
+    if no_worktrees:
+        # Only whether ``.worktrees/`` holds an entry matters for the one skip line.
+        present = worktree_dispositions(project_path / WORKTREES_DIR, WorktreeSelection.none())
+        _print_worktree_block([_WORKTREES_SKIPPED_LINE] if present else [], no_worktrees=True)
+        return
+    auto_commit = should_auto_commit_for_worktree(project_path, dry_run=False)
+    _print_worktree_block([_run_line(run, project_path, auto_commit=auto_commit) for run in outcome.result.worktree_results], no_worktrees=False)
+
+
+def _requested_selection(include: Sequence[Path] | None, all_worktrees: bool) -> WorktreeSelection:
+    """The selection the operator asked for, as given (unvalidated), for a refusal's plan (FR-010)."""
+    if all_worktrees:
+        return WorktreeSelection(mode=SelectionMode.ALL, named=tuple(include or ()))
+    if include:
+        return WorktreeSelection.named_paths(include)
+    return WorktreeSelection.none()
+
+
+def _refuse_worktree_selection(
+    message: str,
+    *,
+    code: str,
+    plan_json: bool,
+    json_output: bool,
+    project_path: Path,
+    target: str | None,
+    project: bool,
+    no_worktrees: bool,
+    requested: WorktreeSelection,
+) -> None:
+    """Refuse a worktree opt-in before any write: exit 2 (FR-008).
+
+    A ``--plan-json`` refusal carries ``requested``, the selection as the
+    operator gave it, so the plan says what was refused (FR-010).
+    """
+    if plan_json:
+        _emit_blocked_full_plan(
+            project_path=project_path,
+            target=target,
+            project=project,
+            no_worktrees=no_worktrees,
+            confirm=False,
+            code=2,
+            diagnostic_code=code,
+            message=message,
+            worktree_selection=requested,
+        )
+    if json_output:
+        print(json.dumps({"success": False, "error_code": code, "message": message}))
+    else:
+        console.print(f"Error: {message}", markup=False, highlight=False, soft_wrap=True)
+    raise typer.Exit(2)
+
+
+def _check_worktree_flag_conflicts(
+    *,
+    include: Sequence[Path] | None,
+    all_worktrees: bool,
+    no_worktrees: bool,
+    cli: bool,
+    plan_json: bool,
+    json_output: bool,
+    target: str | None,
+    project: bool,
+) -> None:
+    """Refuse a worktree opt-in that conflicts with another flag: exit 2 (FR-008).
+
+    Runs before the ``--cli`` and outside-a-project guidance paths, so the
+    refusal does not depend on where the command is run.
+    """
+    if not (include or all_worktrees):
+        return
+    conflict = _WORKTREE_OPTIONS_WITH_CLI if cli else _WORKTREE_OPTIONS_CONFLICT if no_worktrees else None
+    if conflict is not None:
+        _refuse_worktree_selection(
+            conflict,
+            code="incompatible_flags",
+            plan_json=plan_json,
+            json_output=json_output,
+            project_path=Path.cwd(),
+            target=target,
+            project=project,
+            no_worktrees=no_worktrees,
+            requested=_requested_selection(include, all_worktrees),
+        )
+
+
+def _worktree_selection_from_options(
+    project_path: Path,
+    include: Sequence[Path] | None,
+    all_worktrees: bool,
+    no_worktrees: bool,
+    *,
+    plan_json: bool = False,
+    json_output: bool = False,
+    target: str | None = None,
+    project: bool = False,
+) -> WorktreeSelection:
+    """Build the operator's worktree selection, refusing a bad one before any write (FR-008).
+
+    A ``--include-worktree`` path that is not a direct child of ``.worktrees/``
+    (``UPGRADE_WORKTREE_NOT_FOUND``) exits 2; flag conflicts were already
+    refused by :func:`_check_worktree_flag_conflicts`. The default selects no
+    non-Mission worktree (FR-007).
+    """
+    refuse = functools.partial(
+        _refuse_worktree_selection,
+        plan_json=plan_json,
+        json_output=json_output,
+        project_path=project_path,
+        target=target,
+        project=project,
+        no_worktrees=no_worktrees,
+    )
+    if no_worktrees:
+        return WorktreeSelection.none()
+    if all_worktrees:
+        return WorktreeSelection.all()
+    if not include:
+        return WorktreeSelection.none()
+    try:
+        return WorktreeSelection.named_paths(validate_named(project_path, include))
+    except UnknownWorktreeError as exc:
+        refuse(str(exc), code=exc.code, requested=WorktreeSelection.named_paths(include))
+        raise  # unreachable: refuse() always raises typer.Exit
 
 
 def _build_no_migrations_outcome(
@@ -862,18 +1133,22 @@ def _build_no_migrations_outcome(
     target_version: str,
     dry_run: bool,
     no_worktrees: bool,
+    worktree_selection: WorktreeSelection | None = None,
 ) -> UpgradeOutcome:
     """T017/D-3: normalize the no-migrations branch into a synthetic
     ``UpgradeResult`` wrapped in an ``UpgradeOutcome`` — the SAME shape the
     finalizer consumes for the migrations-pending branch, so both branches
     converge on one tail (one finalizer call, one renderer, one exit code)."""
     _stamp_no_migrations_metadata(kittify_dir, target_version=target_version, dry_run=dry_run)
+    worktree_results: list[WorktreeRunResult] = []
     worktree_warnings, worktree_failures = _run_no_migrations_worktree_stamp(
         project_path,
         target_version=target_version,
         current_version=current_version,
         dry_run=dry_run,
         no_worktrees=no_worktrees,
+        worktree_selection=worktree_selection,
+        results_out=worktree_results,
     )
     result = UpgradeResult(
         success=True,
@@ -881,6 +1156,7 @@ def _build_no_migrations_outcome(
         to_version=target_version,
         dry_run=dry_run,
         warnings=worktree_warnings,
+        worktree_results=worktree_results,
     )
     return UpgradeOutcome(result=result, worktree_failures=worktree_failures, project_root=project_path)
 
@@ -1427,7 +1703,7 @@ def _finalizer_step_merge_driver_config(outcome: UpgradeOutcome, *, project_path
 
 _REASONS_THAT_KEEP_THE_MAIN_COMMIT = frozenset({UpgradeFailureReason.WORKTREE_FAILURE, UpgradeFailureReason.SURFACE_DRIFT})
 """Reasons that do not make the main checkout's own run a failure: a failed worktree gates only
-its own commit (``runner._commit_worktree_churn``), and drift held for consent is an upgrade that
+its own commit (``runner._commit_worktree_churn_reporting``), and drift held for consent is an upgrade that
 finished and commits the rest (FR-021)."""
 
 
@@ -1720,7 +1996,13 @@ def _emit_blocked_full_plan(
     code: int,
     diagnostic_code: str,
     message: str,
+    worktree_selection: WorktreeSelection | None = None,
 ) -> None:
+    """Print a blocked plan and exit ``code``.
+
+    ``worktree_selection`` (a refused opt-in, or the selection of the plan being
+    blocked) adds its ``WORKTREE_SELECTION`` diagnostic after the error (FR-010).
+    """
     payload = _empty_full_plan(
         project_path=project_path,
         target=target,
@@ -1738,9 +2020,19 @@ def _emit_blocked_full_plan(
         "valid": diagnostic_code != "invalid_target",
         "reason": message,
     }
-    payload["diagnostics"] = [{"code": diagnostic_code, "owner": None, "severity": "error", "message": message}]
+    diagnostics: list[dict[str, object]] = [{"code": diagnostic_code, "owner": None, "severity": "error", "message": message}]
+    if worktree_selection is not None:
+        diagnostics.append(_selection_diagnostic(worktree_selection, project_path))
+    payload["diagnostics"] = diagnostics
     print(json.dumps(payload, indent=2))
     raise typer.Exit(code)
+
+
+def _print_full_plan(payload: dict[str, object], worktree_diagnostics: Sequence[dict[str, object]]) -> None:
+    """Print ``payload`` with the worktree ``info`` diagnostics after its own (FR-010)."""
+    diagnostics = payload["diagnostics"]
+    payload["diagnostics"] = [*(diagnostics if isinstance(diagnostics, list) else []), *worktree_diagnostics]
+    print(json.dumps(payload, indent=2))
 
 
 def _state_json(state: FileState) -> dict[str, object]:
@@ -1759,6 +2051,7 @@ def _run_full_plan_json(
     project: bool,
     include_worktrees: bool,
     confirm: bool,
+    worktree_selection: WorktreeSelection | None = None,
 ) -> None:
     """Render the complete retained assessment. The document is never replayable."""
     from packaging.version import InvalidVersion, Version
@@ -1778,6 +2071,10 @@ def _run_full_plan_json(
         no_worktrees=not include_worktrees,
         confirm=confirm,
     )
+    selection = worktree_selection or WorktreeSelection.none()
+    # ``--no-worktrees`` excludes the worktree pass, so the plan reports no worktree.
+    dispositions = worktree_dispositions(project_path / WORKTREES_DIR, selection) if include_worktrees else []
+    worktree_diagnostics = _worktree_plan_diagnostics(selection, dispositions, project_path) if include_worktrees else []
     payload["compatibility"] = compatibility
     relation = "unknown"
     try:
@@ -1805,7 +2102,7 @@ def _run_full_plan_json(
                 "message": str(compatibility.get("rendered_human") or "Project metadata is corrupt"),
             }
         ]
-        print(json.dumps(payload, indent=2))
+        _print_full_plan(payload, worktree_diagnostics)
         raise typer.Exit(6)
     if schema_version is not None and not isinstance(schema_version, int):
         _emit_blocked_full_plan(
@@ -1817,6 +2114,7 @@ def _run_full_plan_json(
             code=6,
             diagnostic_code="project_corrupt",
             message="Project metadata schema version is corrupt",
+            worktree_selection=selection,
         )
     if isinstance(schema_version, int) and schema_version > MAX_SUPPORTED_SCHEMA:
         payload.update(decision="blocked", process_exit_code=5)
@@ -1828,12 +2126,12 @@ def _run_full_plan_json(
                 "message": f"Project schema {schema_version} exceeds supported schema {MAX_SUPPORTED_SCHEMA}",
             }
         ]
-        print(json.dumps(payload, indent=2))
+        _print_full_plan(payload, worktree_diagnostics)
         raise typer.Exit(5)
     if target_error:
         payload.update(decision="blocked", process_exit_code=2)
         payload["diagnostics"] = [{"code": "invalid_target", "owner": None, "severity": "error", "message": target_error}]
-        print(json.dumps(payload, indent=2))
+        _print_full_plan(payload, worktree_diagnostics)
         raise typer.Exit(2)
     from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
 
@@ -1843,7 +2141,7 @@ def _run_full_plan_json(
     except Exception as exc:  # noqa: BLE001 - assessment failure is contract data
         payload.update(decision="incomplete", process_exit_code=1)
         payload["diagnostics"] = [{"code": "assessment_failed", "owner": None, "severity": "error", "message": _preparation_error_text(exc)}]
-        print(json.dumps(payload, indent=2))
+        _print_full_plan(payload, worktree_diagnostics)
         raise typer.Exit(1) from None
 
     owners = prepared.owners
@@ -1896,10 +2194,10 @@ def _run_full_plan_json(
     payload["process_exit_code"] = 0 if prepared.complete else 1
     payload["commit_policy"] = {
         "project_enabled": should_auto_commit(project_path, dry_run=False),
-        "worktrees_enabled": include_worktrees,
+        "worktrees_enabled": any(item.action is DispositionAction.UPGRADE for item in dispositions),
         "mission_repair_included": False,
     }
-    print(json.dumps(payload, indent=2))
+    _print_full_plan(payload, worktree_diagnostics)
     raise typer.Exit(int(payload["process_exit_code"]))
 
 
@@ -1986,6 +2284,15 @@ def upgrade(
     plan_json: bool = typer.Option(False, "--plan-json", help="Output the complete preview plan as JSON"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed migration information"),
     no_worktrees: bool = typer.Option(False, "--no-worktrees", help="Skip upgrading worktrees"),
+    # Annotated, so a direct call of ``upgrade()`` (tests) gets plain defaults (#7173).
+    include_worktree: Annotated[
+        list[Path] | None,
+        typer.Option("--include-worktree", help="Upgrade and commit into this non-Mission worktree (repeatable)"),
+    ] = None,
+    all_worktrees: Annotated[
+        bool,
+        typer.Option("--all-worktrees", help="Upgrade and commit into every non-Mission worktree under .worktrees/"),
+    ] = False,
     # --- WP09 new flags (T034) ---
     cli: bool = typer.Option(False, "--cli", help="Restrict to CLI guidance only; works outside any project (FR-014)"),
     project: bool = typer.Option(False, "--project", help="Restrict to current-project compat + migrations (FR-015)"),
@@ -2020,7 +2327,10 @@ def upgrade(
 
     **Exit codes** (R-08):
       0  Success / ALLOW / ALLOW_WITH_NAG / a completed ``--dry-run`` preview
-      2  ``--cli --project`` flag conflict
+      2  ``--cli --project`` flag conflict; ``--no-worktrees`` or ``--cli``
+         combined with ``--include-worktree`` / ``--all-worktrees``; an
+         ``--include-worktree`` path that is not a worktree directly under
+         ``.worktrees/`` (UPGRADE_WORKTREE_NOT_FOUND)
       4  Project migration required (BLOCK_PROJECT_MIGRATION)
       5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable
       6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
@@ -2051,6 +2361,18 @@ def upgrade(
         agent_choice=agent_choice,
         agent_latest=agent_latest,
         json_output=json_output,
+    )
+
+    # #7173 (FR-008): a conflicting worktree opt-in is refused before any guidance path.
+    _check_worktree_flag_conflicts(
+        include=include_worktree,
+        all_worktrees=all_worktrees,
+        no_worktrees=no_worktrees,
+        cli=cli,
+        plan_json=plan_json,
+        json_output=json_output,
+        target=target,
+        project=project,
     )
 
     # T034 — mutual exclusion check
@@ -2096,6 +2418,19 @@ def upgrade(
         no_nag=no_nag,
     )
 
+    # #7173 (FR-007/FR-008): non-Mission worktrees are written only when opted in;
+    # a bad opt-in is refused here, before any write.
+    worktree_selection = _worktree_selection_from_options(
+        project_path,
+        include_worktree,
+        all_worktrees,
+        no_worktrees,
+        plan_json=plan_json,
+        json_output=json_output,
+        target=target,
+        project=project,
+    )
+
     if plan_json:
         _run_full_plan_json(
             project_path=project_path,
@@ -2103,6 +2438,7 @@ def upgrade(
             project=project,
             include_worktrees=not no_worktrees,
             confirm=False,
+            worktree_selection=worktree_selection,
         )
 
     # CHK037 / A-006 — Check if project is too new for this CLI.
@@ -2165,6 +2501,15 @@ def upgrade(
     version_for_migration = "0.0.0" if current_version == "unknown" else current_version
     migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
 
+    _preview_worktree_dispositions(
+        project_path,
+        worktree_selection,
+        no_worktrees=no_worktrees,
+        json_output=json_output,
+        dry_run=dry_run,
+        prompts=bool(migrations_needed) and not confirm,
+    )
+
     manual_review_paths: list[str] = []
     # #4275: every write of the version trio below (runner, no-migrations stamp, final
     # surface repair) happens inside one boundary that puts the pre-run stamp back when
@@ -2182,6 +2527,7 @@ def upgrade(
                 target_version=target_version,
                 dry_run=dry_run,
                 no_worktrees=no_worktrees,
+                worktree_selection=worktree_selection,
             )
         else:
             _show_migration_plan_and_confirm(
@@ -2205,6 +2551,7 @@ def upgrade(
                     force=confirm,  # pass the unified confirm flag
                     include_worktrees=not no_worktrees,
                     auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+                    worktree_selection=worktree_selection,
                 )
             except MigrationLedgerLockTimeoutError as exc:
                 # Another process holds the ledger lock: a refusal, not a crash (#6613).
@@ -2305,6 +2652,7 @@ def upgrade(
         )
         print(json.dumps(json_payload))
     else:
+        _report_worktree_dispositions(outcome, project_path=project_path, no_worktrees=no_worktrees, json_output=json_output, dry_run=dry_run)
         _render_text_report(
             outcome,
             manual_review_paths=manual_review_paths,

@@ -12,6 +12,7 @@ from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = pytest.mark.fast
 
@@ -134,7 +135,7 @@ def test_upgrade_creates_worktree_metadata_when_only_kitty_specs_exists(
         lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
     )
 
-    result = runner.upgrade("9.9.9", include_worktrees=True)
+    result = runner.upgrade("9.9.9", include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
     assert result.success is True
     worktree_metadata_path = worktree / ".kittify" / "metadata.yaml"
@@ -164,7 +165,7 @@ def test_worktree_upgrade_stamps_schema_version_after_metadata_save(
         lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
     )
 
-    result = runner.upgrade("9.9.9", include_worktrees=True)
+    result = runner.upgrade("9.9.9", include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
     assert result.success is True
     main_metadata = yaml.safe_load(
@@ -201,7 +202,7 @@ def test_no_migrations_stamps_existing_worktree_schema_version(
         lambda _from, _to, project_path=None: [],  # noqa: ARG005
     )
 
-    result = runner.upgrade("1.0.0", include_worktrees=True)
+    result = runner.upgrade("1.0.0", include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
     assert result.success is True
     main_metadata = yaml.safe_load(
@@ -327,7 +328,7 @@ def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
             "specify_cli.upgrade.runner.MigrationRegistry.get_applicable",
             lambda _from, _to, project_path=None: [migration],  # noqa: ARG005
         )
-        runner.upgrade("9.9.9", include_worktrees=True)
+        runner.upgrade("9.9.9", include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
     _run()
     wt_kittify = worktree / ".kittify"

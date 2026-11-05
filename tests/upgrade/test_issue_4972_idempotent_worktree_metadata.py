@@ -33,6 +33,7 @@ import yaml
 
 from specify_cli.migration.schema_version import CURRENT_SCHEMA_CAPABILITIES, REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 #: A non-integrating worktree branch prefix: upgrade still aligns and commits there.
 NON_INTEGRATING_PREFIX = "wip/"
@@ -168,7 +169,7 @@ def test_bookkeeping_only_worktree_bump_aligns_to_main_stamp_not_fresh_now(
     _init_repo(root)
     wt = _add_lagging_worktree(root, "m-lane-a", f"{NON_INTEGRATING_PREFIX}m-lane-a")
 
-    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     assert result["errors"] == []
 
@@ -204,12 +205,12 @@ def test_repeat_upgrade_is_a_true_no_op_once_worktree_has_caught_up(
     wt = _add_lagging_worktree(root, "m-lane-b", f"{NON_INTEGRATING_PREFIX}m-lane-b")
 
     runner = MigrationRunner(root)
-    first = runner._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    first = runner._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     assert first["errors"] == []
 
     head_after_first = _git_out(wt, "rev-parse", "HEAD")
 
-    second = runner._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    second = runner._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     assert second["errors"] == []
 
     assert _git_out(wt, "rev-parse", "HEAD") == head_after_first, (
@@ -239,7 +240,7 @@ def test_sibling_worktrees_share_one_fallback_timestamp_when_main_is_unstamped(
     wt_a = _add_lagging_worktree(root, "m-lane-c", f"{NON_INTEGRATING_PREFIX}m-lane-c")
     wt_b = _add_lagging_worktree(root, "m-lane-d", f"{NON_INTEGRATING_PREFIX}m-lane-d")
 
-    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     assert result["errors"] == []
 
     wt_a_data = _load_metadata_yaml(wt_a / ".kittify")
@@ -268,7 +269,7 @@ def test_two_worktrees_aligned_to_stamped_main_are_byte_identical(
     wt_a = _add_lagging_worktree(root, "m-lane-e", f"{NON_INTEGRATING_PREFIX}m-lane-e")
     wt_b = _add_lagging_worktree(root, "m-lane-f", f"{NON_INTEGRATING_PREFIX}m-lane-f")
 
-    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True)
+    result = MigrationRunner(root)._upgrade_worktrees(_TARGET_VERSION, [], dry_run=False, auto_commit=True, worktree_selection=WorktreeSelection.all())
     assert result["errors"] == []
 
     # Compared against each OTHER, not against main's own file: main's
