@@ -1,0 +1,32 @@
+{
+  "accept_commit": "0254c788cf25c6a3a6f9c432307396394f856b03",
+  "acceptance_history": [
+    {
+      "accept_commit": "0254c788cf25c6a3a6f9c432307396394f856b03",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T15:52:09.800467+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f0a4c56788219cf0af19675f088b7b14591aee9e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T15:52:09.800467+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f0a4c56788219cf0af19675f088b7b14591aee9e",
+  "created_at": "2026-11-05T14:57:53.248055+00:00",
+  "flattened": false,
+  "friendly_name": "cas landed branch delete",
+  "mid8": "01M6P3ER",
+  "mission_id": "01M6P3ERAJT9K02TBD1KD8HE0N",
+  "mission_number": null,
+  "mission_slug": "cas-landed-branch-delete-01M6P3ER",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances cas landed branch delete on issue-7212-cas-landed-branch-delete so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "cas landed branch delete",
+  "slug": "cas-landed-branch-delete-01M6P3ER",
+  "source_description": "Issue #7212: doctor workspaces --prune deletes a branch with a non-compare-and-swap delete after a separate tip check.",
+  "status_phase": "1",
+  "target_branch": "issue-7212-cas-landed-branch-delete",
+  "topology": "single_branch",
+  "vcs": "git"
+}

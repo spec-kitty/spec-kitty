@@ -1,0 +1,59 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M6P6FPPN04DV79XBZX1VQ634",
+  "materialized_at": "2026-11-05T15:50:49.813903+00:00",
+  "mission_number": "",
+  "mission_slug": "cas-landed-branch-delete-01M6P3ER",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M6P6FPPN04DV79XBZX1VQ634",
+      "last_transition_at": "2026-11-05T15:50:49.813903+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: guard CAS, prune binding, gate pin, docs",
+        "Review passed. Anti-pattern checklist: dead code PASS, synthetic-fixture PASS (red run proved the tests fail without the fix), silent-empty-return PASS, FR coverage PASS, frozen surface PASS (ref_advance.py untouched), locked decisions PASS. Reviewer guidance verified: the red test moves the ref inside the guarded delete after the prune's read; the CAS old value is verdict.tip; the gate pin has a planted unbound caller and a bound twin.",
+        "- 2026-11-05T16:01:56Z – reviewer-renata – shell_pid=1515156 – Aggregate review: out-of-map edit, one line — src/specify_cli/git/ref_advance.py::delete_branch_ref now deletes with 'update-ref --no-deref -d' so a symbolic branch cannot take its target (a checked-out primary) with it; the pre-fix 'git branch -D' path did not dereference. Justification: the CAS primitive is the wrong side of the dereference, so the fix belongs in the primitive for every caller."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261105",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1515156,
+      "shell_pid_created_at": "1793892958.09",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#7212"
+      ]
+    }
+  }
+}

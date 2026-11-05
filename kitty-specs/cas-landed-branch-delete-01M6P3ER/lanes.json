@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "cas-landed-branch-delete-01M6P3ER",
+  "mission_id": "01M6P3ERAJT9K02TBD1KD8HE0N",
+  "mission_branch": "issue-7212-cas-landed-branch-delete",
+  "target_branch": "issue-7212-cas-landed-branch-delete",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7212.fixed.md",
+        "docs/development/how-to/pr-landing.md",
+        "src/specify_cli/git/destructive_guard.py",
+        "src/specify_cli/workspace/landed_worktrees.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/specify_cli/git/test_destructive_guard_landed.py",
+        "tests/specify_cli/workspace/test_landed_worktrees.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-05T15:01:13.810475+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "54fd1a1955afb9edef4f365fd5883704f848d81f"
+}

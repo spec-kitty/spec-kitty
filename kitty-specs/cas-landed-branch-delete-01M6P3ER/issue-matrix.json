@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3926": {
+      "evidence_ref": "Follow-up: context: the checked-out-branch protection delete_branch_ref already keeps; reused as-is, no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5570": {
+      "evidence_ref": "Follow-up: context: the prior compare-and-swap branch delete this reuse follows; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7173": {
+      "evidence_ref": "Follow-up: context: the landed-prune feature this issue was found on (PR #7196 / issue #7173); no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7196": {
+      "evidence_ref": "Follow-up: context: the base branch this Mission is stacked on (PR for #7173); merged by the operator, not here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7212": {
+      "evidence_ref": "c4d6d8a + tests/specify_cli/workspace/test_landed_worktrees.py::test_a_branch_moved_inside_the_delete_is_kept",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
