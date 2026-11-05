@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T16:28:29.321144+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f8fe607574967086ea37c86fc854064c2b5172bc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T16:28:29.321144+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f8fe607574967086ea37c86fc854064c2b5172bc",
   "coordination_branch": "kitty/mission-issue-7209-skip-lanes-planning-commit-01M6P3JR",
   "created_at": "2026-11-05T15:00:04.939052+00:00",
   "flattened": false,
