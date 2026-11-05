@@ -1145,6 +1145,10 @@ def _json_document_carried_by(coord_content: bytes, target_content: bytes | None
         return False
     if not isinstance(coord_document, dict) or not isinstance(target_document, dict):
         return False
+    # An EMPTY coordination document asserts nothing, so it can never be evidence that its content is
+    # carried -- and `{}` is a subset of every document, which would make this rule vacuously true.
+    if not coord_document:
+        return False
     return _json_value_carried_by(coord_document, target_document)
 
 
