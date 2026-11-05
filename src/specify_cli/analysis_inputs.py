@@ -21,6 +21,7 @@ from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.drg import load_pack_registry
 from charter.pack_paths import PackRootNotFound, built_in_root
 from kernel.charter_pack_paths import project_pack_root
+from kernel.pack_tiers import pin_filename
 from kernel.paths import get_package_asset_root
 
 
@@ -209,7 +210,7 @@ def _registry_pack_roots(repo_root: Path) -> dict[str, Path]:
     root = repo_root.absolute()
     try:
         packs = load_pack_registry(root).packs
-    except (OSError, ValueError):  # unreadable or schema-invalid config: no root to trust
+    except (OSError, ValueError):  # defensive: today's lenient loader returns an empty registry
         return {}
     candidates: dict[str, Path] = {}
     for pack in packs:
@@ -261,9 +262,9 @@ class PackPinState(NamedTuple):
     transaction must not refuse it as an input with no committed state.
     ``refused_pins`` are the sibling lockfiles that exist on disk but could not
     establish committed state (untracked, dirty, or a symlink), so a refusal can
-    name the cause rather than a list of pack files that do match the pin on disk.
+    also name that cause beside any uncommitted pack files.
 
-    Both are repo-relative POSIX roots, never a boolean verdict: a caller
+    The tuples contain repo-relative POSIX roots and pin paths, never a boolean verdict: a caller
     subtracting ``verified_roots`` cannot degrade the rule into "ignored paths
     are clean", because every other untracked or ignored material input keeps
     refusing exactly as before.
@@ -282,32 +283,36 @@ def pack_pin_state(repo_root: Path) -> PackPinState:
     pin -- ``commit``, ``subtree``, ``tree_digest`` and ``snapshot_sha256`` --
     not a blob in this repository.
 
-    Fail closed, and never raise: a missing pin, a pin that is not committed
-    (untracked or dirty, so the on-disk pin is not the committed one), a
-    symlinked pin, a pin whose ``subtree`` names a different tree, an
-    unverifiable digest (which includes a symlink anywhere inside the tree), or an
-    unreadable or unparseable ``pack.yaml`` all yield "not verified". The check is offline and read-only -- local files plus the
-    local index, in one pass.
+    Pack/pin defects fail closed: a missing, dirty, untracked or symlinked pin,
+    a non-mirroring ``subtree``, unverifiable digests, an in-tree symlink, or an
+    unreadable/unparseable ``pack.yaml`` yields no verified root. Git probe failures
+    propagate to the transaction's fail-closed exception handler. Its whole-index
+    guard also rejects unsupported index flags before any report write.
+
+    This deliberately supports the sibling pin of the resolved root and a subtree
+    matching that repo-relative root, including the documented ``make sync-packs``
+    layout. It does not infer a pin location from a registry alias or upstream path.
+    The check is offline/read-only; it proves equality to committed pin digests,
+    not the existence or contents of a remote commit.
     """
-    from charter.offering.packs.pack_pin import load_pack_pin, verify_pack_pin
+    from charter.packs import PackSyncError, PackTreeStatus, check_pack, load_pack_pin
 
     root = repo_root.absolute()
     candidates = _registry_pack_roots(root)
     if not candidates:
         return PackPinState()
-    # The pin of a fetched tree is its sibling lockfile: ``packs/internal`` ->
-    # ``packs/internal.source.yaml``. Both git listings run once, over all of them.
-    pin_paths = tuple(f"{relative}.source.yaml" for relative in sorted(candidates))
-    tracked, dirty = _pin_states(root, pin_paths)
+    # Preserve the sibling-root binding; the filename spelling has one kernel owner.
+    pin_paths = {relative: (Path(relative).parent / pin_filename(Path(relative).name)).as_posix() for relative in sorted(candidates)}
+    tracked, dirty = _pin_states(root, tuple(pin_paths.values()))
     verified: list[str] = []
     refused: list[str] = []
     for relative in sorted(candidates):
-        pin_relative = f"{relative}.source.yaml"
+        pin_relative = pin_paths[relative]
         # Committed authority only: a dirty pin is not the pin the tree was fetched
         # against, and a symlinked pin carries bytes from outside this repository.
         # A symlinked *tree* needs no check here: ``effective_root`` resolves, so a
         # root whose real path escapes the repository never becomes a candidate at
-        # all, and a symlink inside the tree fails the digest verification below.
+        # all. The canonical offline check below explicitly refuses in-tree links.
         if pin_relative not in tracked or pin_relative in dirty or _contains_symlink(root, pin_relative):
             # Only a pin that exists is worth naming: a *missing* lockfile means the
             # tree is not pin-managed at all, and pointing at a path that is not there
@@ -317,9 +322,9 @@ def pack_pin_state(repo_root: Path) -> PackPinState:
             continue
         try:
             pin = load_pack_pin(root / pin_relative)
-            if pin.subtree != relative or not verify_pack_pin(pin, candidates[relative]):
+            if pin.subtree != relative or check_pack(pin, candidates[relative]) is not PackTreeStatus.OK:
                 continue
-        except (OSError, ValueError, YAMLError):
+        except (OSError, ValueError, YAMLError, PackSyncError):
             # PackPinError / pydantic ValidationError (both ValueError), an
             # unreadable file, or a pack.yaml that does not parse: not verified.
             continue
