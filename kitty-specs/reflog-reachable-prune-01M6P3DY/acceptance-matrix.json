@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/workspace/test_landed_worktrees.py::test_a_reflog_only_commit_whose_patch_is_on_the_primary_is_not_recorded",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-05T16:21:07.496178+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
