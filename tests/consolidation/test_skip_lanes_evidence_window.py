@@ -397,14 +397,14 @@ def test_merged_planning_does_not_widen_the_window_past_unrelated_work(tmp_path:
 
 def test_unreadable_parent_probe_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An execution error while reading the introducing commit's parent is ``None``, not a raise."""
-    from specify_cli.consolidation import entry_preflight
+    from specify_cli.lanes import planning_base
 
     fixture = _build_direct_on_target(tmp_path)
 
     def _explode(*_args: object, **_kwargs: object) -> list[str]:
         raise OSError("git could not be executed")
 
-    monkeypatch.setattr(entry_preflight, "commit_parents", _explode)
+    monkeypatch.setattr(planning_base, "commit_parents", _explode)
 
     manifest = _synthesized_manifest(fixture)
 
