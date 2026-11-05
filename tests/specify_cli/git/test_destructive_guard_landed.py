@@ -373,6 +373,19 @@ def test_landed_intent_maps_a_compare_and_swap_refusal_to_the_moved_tip_code(tmp
     assert moved and _git(root, "rev-parse", "squashed").strip() == moved[0]
 
 
+def test_landed_intent_never_deletes_through_a_symbolic_branch(tmp_path: Path) -> None:
+    """A branch that is a symref must not take its target (e.g. a checked-out primary) with it."""
+    root = _repo(tmp_path)
+    tip = _git(root, "rev-parse", "main").strip()
+    _git(root, "branch", "squashed", "main")
+    _git(root, "symbolic-ref", "refs/heads/squashed", "refs/heads/main")
+
+    assert guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) is None
+
+    assert _git(root, "for-each-ref", "refs/heads/squashed") == ""
+    assert _git(root, "rev-parse", "main").strip() == tip, "the symref's target must survive"
+
+
 def test_landed_intent_compare_and_swap_deletes_the_branch_at_the_approved_tip(tmp_path: Path) -> None:
     """Positive control for the two refusals above: the same fixture deletes when the ref did not move."""
     root = _repo(tmp_path)

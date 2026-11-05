@@ -763,10 +763,12 @@ def _delete_branch_cas(repo_root: Path, branch: str, expected_tip: str, env: dic
     """Delete ``refs/heads/<branch>`` only while it still holds ``expected_tip`` (#7212).
 
     Delegates to :func:`ref_advance.delete_branch_ref`, the one compare-and-swap
-    branch delete in the tree (#5570): ``git update-ref -d <ref> <expected>``,
-    plus the checked-out-branch protection ``git branch -D`` gave. Its refusals
-    become this module's typed refusals so no untyped git error escapes for an
-    expected race.
+    branch delete in the tree (#5570): ``git update-ref --no-deref -d <ref>
+    <expected>``, plus the checked-out-branch protection ``git branch -D`` gave.
+    It deletes the ref it names and never a symbolic ref's target, so a branch
+    made a symref cannot take a checked-out primary branch with it (#7212). Its
+    refusals become this module's typed refusals so no untyped git error escapes
+    for an expected race.
     """
     try:
         ref_advance.delete_branch_ref(repo_root, branch, expected_tip, env=env)
@@ -788,6 +790,13 @@ def _delete_branch_cas(repo_root: Path, branch: str, expected_tip: str, env: dic
             error_code=BRANCH_DELETE_REFUSED_BY_GIT,
             current_branch=branch,
             remediation=f"git refused to delete {branch!r}: {exc}. Nothing was deleted.",
+        ) from exc
+    except ref_advance.RefAdvanceError as exc:
+        # The primitive's own worktree enumeration failed before any delete: nothing was deleted.
+        raise DestructiveOpRefused(
+            error_code=BRANCH_DELETE_REFUSED_BY_GIT,
+            current_branch=branch,
+            remediation=f"Could not read the worktrees that check {branch!r} out; nothing was deleted: {exc}",
         ) from exc
 
 
