@@ -738,7 +738,8 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
     if result.notes:
         console.print("\n[bold]Notes[/bold]")
         for note in result.notes:
-            console.print(f"  - {note}")
+            # Notes embed scanned Git paths, not Rich markup.
+            console.print(f"  - {note}", markup=False)
 
 
 def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
