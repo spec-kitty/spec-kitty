@@ -489,7 +489,9 @@ def test_ignored_files_the_removal_deletes_are_shown(repo: Path) -> None:
 
 def test_unproven_only_for_the_process_probe_prints_the_manual_commands(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fold G: everything else is proven; tell the operator how to remove it by hand."""
-    path, tip = _landed_worktree(repo)
+    landed, tip = _landed_worktree(repo)
+    path = repo / ".worktrees" / "my lane"
+    _git(repo, "worktree", "move", str(landed), str(path))
 
     def missing(_paths: Sequence[Path]) -> ProcessProbeResult:
         return ProcessProbeResult(available=False, busy=frozenset(), detail="/proc is not available", uninspected=0)
@@ -501,11 +503,15 @@ def test_unproven_only_for_the_process_probe_prints_the_manual_commands(repo: Pa
     assert code == 0, out
     assert "PROCESS_PROOF_UNAVAILABLE" in out
     assert "only after checking nothing runs in it; content is on origin/main:" in out
-    assert f"git worktree remove {path.resolve()}" in out
     assert "--force" not in out
-    keep, delete = f"git update-ref refs/spec-kitty/discarded/{_LANDED} {tip}", f"git branch -D {_LANDED}"
-    assert keep in out and delete in out and out.index(keep) < out.index(delete), "the tip is kept before the branch goes"
     assert _registered(repo, path)
+    commands = [line.strip() for line in out.splitlines() if line.strip().startswith("git ")]
+    keep, delete = f"git update-ref refs/spec-kitty/discarded/{_LANDED} {tip}", f"git branch -D {_LANDED}"
+    assert commands[1:] == [keep, delete], "the tip is kept before the branch goes"
+    for command in commands:  # pasted into a shell, in order, they work on a path with a space
+        _git(repo, *shlex.split(command)[1:])
+    assert not _registered(repo, path) and not path.exists() and not _has_branch(repo, _LANDED)
+    assert _git(repo, "rev-parse", f"refs/spec-kitty/discarded/{_LANDED}").strip() == tip
 
 
 def test_other_unproven_reasons_print_no_manual_commands(repo: Path) -> None:
