@@ -166,18 +166,22 @@ class TestMergeIncludesPlanningLane:
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
         manifest = _make_manifest_with_planning_and_code(slug)
-        # #5417: code lanes need their created branches (#5338 claim-time
-        # refusal); lane-planning is exempt and resolves to the target.
-        create_lane_branches(tmp_path, manifest)
         # #6715: the evidence axis reads a recorded planning commit, each work package's declared
         # ownership and its lane's committed change; this layer's subject is the saved ``wp_order``,
         # so it states them rather than tripping the evidence refusal.
-        manifest.planning_commit_sha = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
         for wp_id in ("WP01", "WP02", "WP03", "WP04"):
             _write_wp_file(feature_dir, wp_id)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "declare ownership")
+        manifest.planning_commit_sha = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+        # #5417: code lanes need their created branches (#5338 claim-time
+        # refusal); lane-planning is exempt and resolves to the target.
+        create_lane_branches(tmp_path, manifest)
+        # The planning work package's deliverable lands on the target after the pin, which is the
+        # evidence window its lane-planning approval is judged on.
         (feature_dir / "research.md").write_text("# planning output\n", encoding="utf-8")
         _git(tmp_path, "add", "-A")
-        _git(tmp_path, "commit", "-m", "declare ownership and the planning deliverable")
+        _git(tmp_path, "commit", "-m", "add the planning deliverable")
         _git(tmp_path, "checkout", "-q", f"kitty/mission-{slug}-lane-a")
         (tmp_path / "src").mkdir(parents=True, exist_ok=True)
         (tmp_path / "src" / "lane_a.py").write_text("VALUE = 1\n", encoding="utf-8")
