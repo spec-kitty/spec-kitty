@@ -233,27 +233,6 @@ def _refresh_stale_coord_worktrees(
     return outcomes
 
 
-def _inside_work_tree(path: Path) -> bool:
-    """``True`` when *path* is inside a git work tree.
-
-    A ``.git`` entry at *path* answers without running git; otherwise (a
-    project root inside a larger repository) ``git rev-parse
-    --is-inside-work-tree`` decides, ``False`` when git cannot answer.
-    """
-    if (path / ".git").exists():
-        return True
-    try:
-        probe = subprocess.run(
-            ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except OSError:
-        return False
-    return probe.returncode == 0 and probe.stdout.strip() == "true"
-
-
 def run_workspaces(
     repo_root: Path,
     fix: bool,
@@ -273,7 +252,9 @@ def run_workspaces(
     own) gets the worktree section. ``healthy`` in the JSON payload follows
     the exit code, so a worktree refusal makes it ``false``.
     """
-    if not _inside_work_tree(repo_root):
+    from specify_cli.core.git_ops import is_git_repo
+
+    if not is_git_repo(repo_root):
         if fix:
             _emit_workspace_husk_fix(repo_root, json_output)
             return

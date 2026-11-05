@@ -540,16 +540,3 @@ def test_prune_help_names_what_removal_deletes() -> None:
     assert result.exit_code == 0
     assert "ignored files (e.g. .venv/, .env) are deleted with the worktree" in result.stdout
     assert "Linux only" in result.stdout
-
-
-def test_inside_work_tree_is_false_when_git_cannot_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.cli.commands import _workspace_husk_doctor as husk_doctor
-
-    def no_git(*_a: object, **_k: object) -> None:
-        raise OSError("git not found")
-
-    monkeypatch.setattr(husk_doctor.subprocess, "run", no_git)
-
-    assert husk_doctor._inside_work_tree(tmp_path) is False
-    (tmp_path / ".git").mkdir()
-    assert husk_doctor._inside_work_tree(tmp_path) is True, "a .git entry answers without git"
