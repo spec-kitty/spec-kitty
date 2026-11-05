@@ -491,9 +491,9 @@ def test_create_root_reserves_the_lane_worktree_directory_name(tmp_path: Path) -
     ``<slug>-lane-<id>`` is the allocator's directory grammar. At create time no
     Mission is bound, so shape is the only signal this seam has; it refuses
     rather than guessing whether a Mission backs the name, and the refusal
-    message tells the operator to pass a differently named owned checkout. This
-    is this seam's policy, not a reservation some other component already
-    guarantees.
+    message names the reserved lane-worktree shape and tells the operator to
+    rename or relocate the checkout. This is this seam's policy, not a
+    reservation some other component already guarantees.
     """
     r_root, _p_root = _owned_pair(tmp_path)
     reserved = r_root / ".worktrees" / "customer-lane-a"
@@ -502,6 +502,7 @@ def test_create_root_reserves_the_lane_worktree_directory_name(tmp_path: Path) -
     with pytest.raises(ActionContextError) as excinfo:
         resolve_owned_create_root(r_root, reserved)
     assert excinfo.value.code == "OWNED_CHECKOUT_IS_MISSION_WORKTREE"
+    assert "reserved lane-worktree shape" in str(excinfo.value)
     # Positive control: MOVE the very same checkout out of the reserved name, so
     # the only variable left is the directory name the guard reads.
     renamed = r_root / ".worktrees" / "customer-owned"

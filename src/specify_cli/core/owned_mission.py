@@ -71,8 +71,11 @@ _REPOSITORY_ROOT_REFUSAL = "--owned-checkout names the repository root checkout;
 _MISSION_WORKTREE_REFUSAL = (
     "--owned-checkout names a worktree already registered to this mission (coordination worktree or lane worktree); pass a linked owned checkout instead."
 )
-_CREATE_MISSION_WORKTREE_REFUSAL = (
-    "--owned-checkout names a worktree registered to an existing mission (coordination worktree or lane worktree); pass a linked owned checkout instead."
+_CREATE_MISSION_WORKTREE_REFUSAL = "--owned-checkout names a coordination worktree registered to an existing mission; pass a linked owned checkout instead."
+_CREATE_RESERVED_LANE_NAME_REFUSAL = (
+    "--owned-checkout names a checkout whose directory name has the reserved lane-worktree shape "
+    "(<slug>-lane-<letters>, e.g. my-feature-lane-a) used by mission lane worktrees; rename or relocate it "
+    "(for example with `git worktree move`) or pass another linked owned checkout."
 )
 
 
@@ -296,12 +299,20 @@ def _require_not_create_mission_worktree(checkout: Path, repository_root: Path) 
     refuses through :func:`_classify_registered_worktree`.
 
     **Reserved names.** The lane leg recognises the lane-worktree directory
-    grammar, so ``<slug>-lane-<id>`` is reserved BY THIS CREATE CLAIM: a linked
-    checkout a user happens to name that way is refused even when no Mission of
-    that name exists. This is a policy of the create seam, not a property some
-    other component already guarantees -- at create time no Mission is bound, so
-    shape is the only signal available, and refusing is the safe direction (the
-    message tells the operator to pass a differently named owned checkout).
+    grammar, so any name ending ``-lane-<letters>`` (``<slug>-lane-<id>``) is
+    reserved BY THIS CREATE CLAIM: a linked checkout a user happens to name that
+    way is refused even when no Mission of that name exists. This is a policy
+    of the create seam, not a property some other component already guarantees
+    -- at create time no Mission is bound, so shape is the only signal
+    available, and refusing is the safe direction. The lane-leg message says so
+    and tells the operator to rename or relocate the checkout (for example
+    ``git worktree move``) or pass another linked checkout.
+
+    The startup consult (``_owned_checkout.startup_project_checkout``) runs this
+    guard for existing-Mission ``--owned-checkout`` commands too, so a
+    pre-existing owned checkout with a reserved lane-shaped name now makes
+    startup fall back to the repository root, while the command itself (via
+    :func:`resolve_owned_mission`) still accepts it.
 
     **Known limit.** The allocator always composes
     ``.worktrees/<slug>-<lane_id>``
@@ -323,7 +334,7 @@ def _require_not_create_mission_worktree(checkout: Path, repository_root: Path) 
     if topology is WorktreeTopology.COORD_WORKTREE:
         raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _CREATE_MISSION_WORKTREE_REFUSAL)
     if topology is WorktreeTopology.LANE_WORKTREE and parse_lane_worktree_dir(checkout.name) is not None:
-        raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _CREATE_MISSION_WORKTREE_REFUSAL)
+        raise ActionContextError(OWNED_CHECKOUT_IS_MISSION_WORKTREE, _CREATE_RESERVED_LANE_NAME_REFUSAL)
 
 
 def _resolve_mission_dir_best_effort(root: Path, handle: str | None) -> Path | None:
