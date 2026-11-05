@@ -25,7 +25,7 @@ Removed .worktrees/land-7086 (branch land-7086 at 1a2b3c4d5e6f)
 
 The `tip kept at` line appears when no local branch or tag reaches the tip (remote-tracking refs do not count). A detached worktree's tip is kept at `refs/spec-kitty/discarded/detached/<sha>` (amended at closeout, #7173 squad).
 
-`recreate:` is `git branch <branch> <tip>` when the branch was deleted (or was already gone), `git worktree add <path> <branch>` when the branch was kept (a `branch kept:` line names why, e.g. `BRANCH_MOVED`, `BRANCH_IN_OTHER_WORKTREE`, or `BRANCH_IS_PRIMARY`: the local primary branch is never deleted, and that keep alone does not make the exit code 1), and `git worktree add --detach <path> <tip>` for a detached worktree (amended at landing, #7173).
+`recreate:` is `git branch <branch> <tip>` when the branch was deleted (or was already gone), `git worktree add <path> <branch>` when the branch was kept (a `branch kept:` line names why, e.g. `BRANCH_MOVED` or `BRANCH_IS_PRIMARY`: the local primary branch is never deleted, and that keep alone does not make the exit code 1), and `git worktree add --detach <path> <tip>` for a detached worktree and for a branch kept because another worktree has it checked out (`BRANCH_IN_OTHER_WORKTREE`: git refuses a second checkout of it) (amended at landing, #7173).
 
 When `git worktree remove` fails part-way after unregistering the worktree (a file it cannot delete), the outcome is `removed: true` with refusal `WORKTREE_PARTIALLY_REMOVED`: the branch is kept, the text output adds `partly removed: WORKTREE_PARTIALLY_REMOVED` and points to `spec-kitty doctor workspaces --fix` for the leftover directory, and the exit code is 1 (amended at landing, #7173).
 

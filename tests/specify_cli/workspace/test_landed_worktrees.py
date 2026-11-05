@@ -857,7 +857,7 @@ def test_absorption_unsupported_is_unproven(repo: Path, tmp_path: Path, monkeypa
 
 def test_a_branch_checked_out_in_another_worktree_is_kept(repo: Path, tmp_path: Path) -> None:
     """Fold I: the worktree goes, the branch stays while another (locked) worktree has it checked out."""
-    worktree, _ = _land_by_rebase(repo, "land-x")
+    worktree, tip = _land_by_rebase(repo, "land-x")
     second = repo.parent / "wt-second"
     _git(repo, "worktree", "add", "-q", "--force", str(second), "land-x")
     _git(repo, "worktree", "lock", str(second))
@@ -866,8 +866,9 @@ def test_a_branch_checked_out_in_another_worktree_is_kept(repo: Path, tmp_path: 
 
     assert outcome.removed and not outcome.branch_deleted
     assert outcome.refusal == Reason.BRANCH_IN_OTHER_WORKTREE
-    assert outcome.recreate == f"git worktree add {outcome.path} land-x"
     assert not worktree.exists() and second.exists() and _has_branch(repo, "land-x")
+    _git(repo, *shlex.split(outcome.recreate)[1:])  # git refuses a second checkout of land-x: the printed command must not need one
+    assert _rev(worktree, "HEAD") == tip
 
 
 def test_a_stale_origin_ref_cannot_lose_a_rewritten_commit(repo: Path, tmp_path: Path) -> None:
