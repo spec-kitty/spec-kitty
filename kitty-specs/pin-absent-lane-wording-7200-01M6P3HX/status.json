@@ -1,0 +1,53 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6P541KB2S7TQCXMD5N43QDC",
+  "materialized_at": "2026-11-05T15:26:59.179828+00:00",
+  "mission_number": "250",
+  "mission_slug": "pin-absent-lane-wording-7200-01M6P3HX",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6P541KB2S7TQCXMD5N43QDC",
+      "last_transition_at": "2026-11-05T15:26:59.179828+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Absence wording pinned; mutation red proof recorded; focused module 3 passed",
+        "Independent reviewer-renata APPROVE: absence sentence pinned, mutation proof reproduced in memory, no src diff"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "4a1bd1cbcb",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 907908,
+      "shell_pid_created_at": "1793891006.3",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}
