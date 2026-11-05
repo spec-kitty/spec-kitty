@@ -57,7 +57,7 @@ Reason codes: `UNCOMMITTED_CHANGES`, `CONTENT_NOT_ON_PRIMARY`, `PROCESS_RUNNING`
 | removed | bool | |
 | branch_deleted | bool | false for detached, or a branch checked out elsewhere |
 | kept_ref | str \| None | `refs/spec-kitty/discarded/<branch>` (or `<branch>@<short-sha>` when an earlier, different tip holds that name) when a branch tip no local branch or tag reaches was recorded; `refs/spec-kitty/discarded/detached/<sha>` for such a detached tip (amended at closeout, #7173 squad: remote-tracking refs do not count) |
-| recreate | str | `git branch <b> <sha>` when the branch was deleted, `git worktree add <path> <b>` when the branch was kept, or `git worktree add --detach <path> <sha>`; paths are shell-quoted (amended at landing, PR #7196) |
+| recreate | str | `git branch <b> <sha>` when the branch was deleted, `git worktree add <path> <b>` when the branch was kept, `git worktree add --detach <path> <sha>` when the branch is checked out in another worktree (`BRANCH_IN_OTHER_WORKTREE`) or the worktree was detached; paths are shell-quoted (amended at landing, PR #7196) |
 | refusal | str \| None | guard refusal code when the guard refused; `WORKTREE_PARTIALLY_REMOVED` when git removed part of the worktree and unregistered it (then `removed` is true and the branch is kept); `BRANCH_IS_PRIMARY` when the branch is the primary branch and is kept (amended at landing, PR #7196) |
 
 ## WorktreeSelection / WorktreeDisposition (upgrade)
