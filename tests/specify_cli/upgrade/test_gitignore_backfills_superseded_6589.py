@@ -40,6 +40,7 @@ from specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands import Resto
 from specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json import NormalizeStatusJsonMigration
 from specify_cli.upgrade.migrations.m_3_1_2_globalize_commands import GlobalizeCommandsMigration
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import AgentsSkillsGitignoreBackfillMigration
+from specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers import GateArtifactMergeDriverMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import NarrowAgentGitignoreMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
@@ -55,7 +56,8 @@ NARROW = NarrowAgentGitignoreMigration.migration_id
 TARGET = "4.0.0rc8"
 
 #: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills, the #6669 residue-aware
-#: pairs, the #6547 pre-globalize command writers and the #6954 command-globalization predecessor).
+#: pairs, the #6547 pre-globalize command writers, the #6954 command-globalization predecessor and the
+#: #7217 stale issue-matrix driver row).
 SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
     cls.migration_id: cls
     for cls in (
@@ -69,6 +71,7 @@ SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
         EnforceCommandFileStateMigration,
         RestorePromptCommandsMigration302,
         GlobalizeCommandsMigration,
+        GateArtifactMergeDriverMigration,
     )
 }
 
