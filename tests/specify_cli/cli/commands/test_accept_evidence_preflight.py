@@ -22,6 +22,7 @@ import pytest
 
 from specify_cli.cli.commands import accept as accept_module
 from specify_cli.consolidation.canceled_attestation import AttestationError
+from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.consolidation.wp_evidence import EvidenceReport
 from specify_cli.lanes.persistence import CorruptLanesError
 from specify_cli.status import StoreError
@@ -45,6 +46,8 @@ class Evidence:
     report_error: Exception | None = None
     lanes: object | None = field(default_factory=object)
     lanes_error: Exception | None = None
+    status_dir: Path | None = None
+    status_dir_error: Exception | None = None
     plan_error: Exception | None = None
     planned: list[tuple[tuple[str, ...], str | None]] = field(default_factory=list)
     recorded: list[dict[str, Any]] = field(default_factory=list)
@@ -53,6 +56,12 @@ class Evidence:
         if self.lanes_error is not None:
             raise self.lanes_error
         return self.lanes
+
+    def resolve_status_dir(self, _run: object) -> Path:
+        if self.status_dir_error is not None:
+            raise self.status_dir_error
+        assert self.status_dir is not None
+        return self.status_dir
 
     def mission_report(self, *_args: object, **_kwargs: object) -> EvidenceReport:
         self.harness.events.append("evidence")
@@ -91,11 +100,11 @@ def evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Evidence:
     ):
         monkeypatch.setattr(accept_module, name, value)
     _patch_owned_entry(monkeypatch, h)
-    ev = Evidence(harness=h)
+    ev = Evidence(harness=h, status_dir=mission_dir)
     monkeypatch.setattr(accept_module, "read_lanes_json", ev.read_lanes)
     monkeypatch.setattr(accept_module, "mission_evidence_report", ev.mission_report)
     monkeypatch.setattr(accept_module, "acceptably_canceled_wp_ids", lambda _repo, _slug, **_kw: set())
-    monkeypatch.setattr(accept_module, "_evidence_status_dir", lambda _run: mission_dir)
+    monkeypatch.setattr(accept_module, "_evidence_status_dir", ev.resolve_status_dir)
     monkeypatch.setattr(accept_module, "plan_no_implementation_attestations", ev.plan)
     monkeypatch.setattr(accept_module, "record_no_implementation_attestation", ev.record)
     monkeypatch.setattr(accept_module, "_attestation_primary_dir", lambda _run: mission_dir)
@@ -199,6 +208,80 @@ def test_a_corrupt_lanes_manifest_refuses_window_uncomputable(evidence: Evidence
     assert payload["error_code"] == "EVIDENCE_WINDOW_UNCOMPUTABLE"
     assert payload["error_codes"] == ["EVIDENCE_WINDOW_UNCOMPUTABLE"]
     assert payload["error"].startswith("EVIDENCE_WINDOW_UNCOMPUTABLE: ")
+    assert evidence.harness.calls == []
+
+
+def _unmaterialized(tmp_root: Path) -> CoordinationWorktreeUnmaterialized:
+    return CoordinationWorktreeUnmaterialized(
+        repo_root=tmp_root,
+        mission_slug=_SLUG,
+        mid8="01KYHP67",
+        coordination_branch="kitty/mission-x-01KYHP67",
+        coord_candidate=tmp_root / ".worktrees" / "x" / "kitty-specs" / _SLUG,
+        primary_candidate=tmp_root / "kitty-specs" / _SLUG,
+    )
+
+
+# #7222 / #7223 (operator ruling 2026-11-05): when the evidence check cannot even be computed,
+# --diagnose exits 0 and leaves the blocker to the readiness report, with a visible skip note;
+# without --diagnose the run refuses with exit 1 and a typed code, never a raw traceback.
+
+
+def test_diagnose_skips_the_evidence_check_on_a_corrupt_lanes_manifest(evidence: Evidence) -> None:
+    evidence.lanes_error = CorruptLanesError("bad json")
+
+    result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
+
+    payload = json.loads(result.output)
+    assert result.exit_code == 0, result.output
+    assert payload["diagnose"] is True
+    assert "error_code" not in payload, "no computed evidence verdict: the readiness report owns the blocker"
+    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
+    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
+    assert skipped[0][1].startswith("implementation_evidence skipped: ")
+    assert "bad json" in skipped[0][1]
+    assert evidence.harness.summary.blocked_checks == []
+    assert evidence.harness.events == ["origin_gate", "collect"]
+    assert evidence.harness.calls == []
+
+
+def test_diagnose_skips_the_evidence_check_on_an_unmaterialized_coordination_worktree(evidence: Evidence) -> None:
+    evidence.status_dir_error = _unmaterialized(evidence.harness.root)
+
+    result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["diagnose"] is True
+    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
+    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
+    assert "COORDINATION_WORKTREE_UNMATERIALIZED" in skipped[0][1]
+    assert "evidence" not in evidence.harness.events, "the verdict is never judged on a substitute surface"
+    assert evidence.harness.calls == []
+
+
+def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence) -> None:
+    evidence.status_dir_error = _unmaterialized(evidence.harness.root)
+
+    result = evidence.harness.invoke("--mission", _SLUG, "--diagnose", json_output=False)
+
+    assert result.exit_code == 0, result.output
+    assert "implementation_evidence skipped: " in _flat(result.output)
+
+
+@pytest.mark.parametrize("extra", [(), ("--no-commit",)])
+def test_an_unmaterialized_coordination_worktree_refuses_with_a_typed_code(evidence: Evidence, extra: tuple[str, ...]) -> None:
+    exc = _unmaterialized(evidence.harness.root)
+    evidence.status_dir_error = exc
+
+    result = evidence.harness.invoke("--mission", _SLUG, *extra)
+
+    payload = json.loads(result.output)
+    assert result.exit_code == 1, result.output
+    assert payload["error_code"] == "COORDINATION_WORKTREE_UNMATERIALIZED"
+    assert payload["error_codes"] == ["COORDINATION_WORKTREE_UNMATERIALIZED"]
+    assert payload["next_step"] == exc.next_step
+    assert payload["error"].startswith("COORDINATION_WORKTREE_UNMATERIALIZED: ")
+    assert "evidence" not in evidence.harness.events
     assert evidence.harness.calls == []
 
 
