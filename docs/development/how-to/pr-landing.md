@@ -732,11 +732,14 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   worktree; restore it with
   `git branch <name> refs/spec-kitty/discarded/reflog/<sha>`.
 
-  Two things are deliberately not recorded: a commit whose patch is already on
-  `origin/<primary>` (the pre-rebase half of a rebase landing, whose content is
-  not lost) and a commit that another ref still reaches. A merge commit is
-  always recorded when it is in that position, because its own resolution is
-  carried by no patch. The `--json` payload names the refs in the new
+  Two things are deliberately not recorded: a commit that another ref still
+  reaches, and one the prune can **prove** is already on `origin/<primary>`.
+  "Prove" is narrow: every commit `git cherry` reports for it reads
+  patch-equivalent, no merge sits between it and the primary, and the check
+  itself succeeded and was not empty. That proof is what keeps a rebase landing
+  from adding a ref per superseded commit. Anything it cannot prove is
+  recorded, so a merge commit in that position always is: no patch carries a
+  merge's own resolution. The `--json` payload names the refs in the
   `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
   prune removes nothing and reports it, the same as a failed `tip kept at`
   record.

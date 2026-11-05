@@ -48,6 +48,7 @@ work_packages:
       - "docs/development/how-to/pr-landing.md"
       - "docs/api/cli-commands.md"
       - "docs/changelog/unreleased/**"
+      - "src/specify_cli/cli/commands/doctor.py"
     requirement_refs:
       - FR-006
       - NFR-003
