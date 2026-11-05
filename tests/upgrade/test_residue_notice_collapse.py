@@ -243,7 +243,7 @@ def test_json_payload_shows_the_collapsed_list(tmp_path: Path) -> None:
     try:
         _register_stubs(main_paths=[".worktrees/wt1/kitty-specs/x"], worktree_paths=["kitty-specs/x"])
         with contextlib.chdir(root):
-            result = CliRunner().invoke(_cli_app, ["--target", _TARGET_VERSION, "--yes", "--json"], catch_exceptions=False)
+            result = CliRunner().invoke(_cli_app, ["--target", _TARGET_VERSION, "--yes", "--json", "--all-worktrees"], catch_exceptions=False)
         lines = [line for line in result.output.strip().splitlines() if line.strip()]
         payload: dict[str, Any] = json.loads(lines[-1])
         assert len(_residue_lines(payload["warnings"])) == 1, payload["warnings"]
