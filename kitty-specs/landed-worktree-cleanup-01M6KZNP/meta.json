@@ -1,0 +1,35 @@
+{
+  "accept_commit": "8f52dd24ae2da096bfc90604ee001e61458af28f",
+  "acceptance_history": [
+    {
+      "accept_commit": "8f52dd24ae2da096bfc90604ee001e61458af28f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T08:29:18.214525+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "1edd82c03ebd8573d70d8ef4f6785c6e72d8bce1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T08:29:18.214525+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "1edd82c03ebd8573d70d8ef4f6785c6e72d8bce1",
+  "baseline_merge_commit": "d2aea404028dfa2e45552082462162d87819c540",
+  "created_at": "2026-11-04T19:13:18.404155+00:00",
+  "flattened": true,
+  "friendly_name": "Landed worktree cleanup and upgrade worktree scope",
+  "merged_at": "2026-11-05T08:33:25.893854+00:00",
+  "merged_commit": "de3241f7a78671e154fad1d0b6af8a5f1b08547a",
+  "mid8": "01M6KZNP",
+  "mission_id": "01M6KZNPGEVQH9VPKAEZD2T94V",
+  "mission_number": 250,
+  "mission_slug": "landed-worktree-cleanup-01M6KZNP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Landing worktrees and their local branches pile up after their PRs merge because no step removes them; one clone held 48 stale worktrees using about 36 GB. Upgrade then writes and commits into every one of them, including open PR branches. This Mission gives operators a provable, offline prune surface and makes upgrade leave non-Mission worktrees alone unless named (#7173).",
+  "purpose_tldr": "Report and safely prune worktrees whose work has landed, and stop upgrade committing into non-Mission worktrees by default.",
+  "slug": "landed-worktree-cleanup-01M6KZNP",
+  "status_phase": "1",
+  "target_branch": "issue-7173-landed-worktree-cleanup",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-04T23:48:39.410184+00:00"
+}
