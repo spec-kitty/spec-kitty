@@ -1,1 +1,0 @@
-- **Pin move-task's absent-lane sentence for a missing lane with a sibling** (#7200). A test-only guard now fails if "the lane branch … does not exist in this checkout" is softened to "is unavailable" on the sibling-lane path, preserving #7120's absence-versus-unreadability distinction.
