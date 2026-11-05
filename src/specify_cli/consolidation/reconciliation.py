@@ -1140,11 +1140,12 @@ class MergeOutcomeVerifier:
     def _unattributable_in(self, refs: Sequence[str], claim: ApprovedWpCommitSet) -> list[tuple[str, str]]:
         """The closed-world window scan, over every commit *refs* reach (ONE authority).
 
-        :meth:`_unattributable_content` scans the landed target; the ``--dry-run``
-        forecast (#6771) scans the refs a landing WOULD introduce (the mission branch
-        and the target) so the refusal is predictable before any ref moves. Both run
-        this same per-commit filter, so the forecast and the real run cannot disagree
-        about what is attributable.
+        :meth:`_unattributable_content` scans the landed target under merge / rebase; the
+        ``--dry-run`` forecast (#6771) scans the refs a merge / rebase landing WOULD
+        introduce (the mission branch, its lanes and the target) so the refusal is
+        predictable before any ref moves. Both run this same per-commit filter. A squash
+        run never runs it (:meth:`_verify_squash_content` attributes blobs instead), so
+        the forecast routes a squash through :meth:`forecast_content_verdict` (#7244).
         """
         if not claim.enforce_closed_world or claim.excluded_window_base is None:
             return []
@@ -1164,6 +1165,28 @@ class MergeOutcomeVerifier:
                     continue  # a declared, verified external dependency (#6771) — predates the window
                 unattributable[sha] = pid
         return list(unattributable.items())
+
+    def forecast_content_verdict(self, landing_refs: Sequence[str], claim: ApprovedWpCommitSet, *, squashed_tree: str | None) -> VerifyResult:
+        """The content verdict the real run's strategy would reach, judged before the landing (#7244).
+
+        The ``--dry-run`` forecast's ONE entry into this verifier, so the preview runs the
+        content check the real run runs, never a second implementation of it:
+
+        * *squashed_tree* given (a squash whose clean squash the forecast staged): the
+          squash-sound blob attribution :meth:`_verify_squash_content` over that tree, under
+          the claim the real squash gate verifies (``verify_reachability=False``);
+        * otherwise (merge / rebase, or no squash could be previewed): the per-commit
+          closed-world scan :meth:`_unattributable_in` over *landing_refs*.
+
+        A git probe error during the per-commit scan propagates as :class:`GitProbeError`
+        (the forecast renders it); the squash check REFUSEs on one itself.
+        """
+        if squashed_tree is not None:
+            return _with_attribution_hint(self._verify_squash_content(squashed_tree, replace(claim, verify_reachability=False)), claim)
+        unattributable = self._unattributable_in(landing_refs, claim)
+        if not unattributable:
+            return VerifyResult.passed()
+        return _with_attribution_hint(VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable))), claim)
 
     def _verify_squash_content(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
         """Squash-sound content verdict via closed-world BLOB attribution (#5013 WS1).
