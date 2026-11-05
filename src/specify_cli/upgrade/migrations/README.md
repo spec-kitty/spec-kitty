@@ -61,7 +61,7 @@ class MyFollowUpMigration(MergeDriverSeedingMigration):
     migration_id = "3.2.6_my_followup"
     # The migrations whose writes this migration's detect() reads. The dry run reports this
     # migration applied once a declared predecessor is applied in the same run.
-    sequenced_after = ("3.2.6_gate_artifact_merge_drivers",)
+    sequenced_after = ("3.2.7_some_earlier_seeding_migration",)
 ```
 
 A migration already shipped in a release must not be edited (DIRECTIVE_044: its `content_hash`
@@ -81,6 +81,9 @@ Rules:
   the current tree` instead of claiming the project is already in its target state, and the
   real run still decides for itself.
 - A declared id that is not selected, or not registered, changes nothing.
+- **Retire a declaration with its writer.** A declaration names a predecessor that applies in
+  the same run; once that migration is superseded (a recorded no-op) the declaration can never
+  fire, so remove it rather than leave dead metadata (#7217).
 
 ## Chain Integrity Gate
 

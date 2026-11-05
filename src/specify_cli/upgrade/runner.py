@@ -46,11 +46,11 @@ logger = logging.getLogger(__name__)
 #: ``supersession.SUPERSEDED_MIGRATIONS``). Maps a migration id to the ids whose
 #: writes its ``detect()`` reads. New migrations use the ``sequenced_after`` ClassVar.
 #:
-#: ``3.2.6_gate_artifact_merge_drivers`` declares the same config key with its own
-#: (filled-side) name, rewriting the row-aware name the repoint's ``detect()`` reads.
-SEQUENCED_AFTER: Mapping[str, tuple[str, ...]] = {
-    "3.2.6_issue_matrix_driver_repoint": ("3.2.6_gate_artifact_merge_drivers",),
-}
+#: The table is empty today: its one entry declared the gate-artifact seeding migration
+#: as the predecessor of ``3.2.6_issue_matrix_driver_repoint``, and #7217 superseded that
+#: migration (its retired ``issue-matrix.md`` row was re-applied on every clone), so the
+#: declaration could never fire. Retire a declaration with the writer it names.
+SEQUENCED_AFTER: Mapping[str, tuple[str, ...]] = {}
 
 
 def declared_predecessors(migration: BaseMigration) -> tuple[str, ...]:

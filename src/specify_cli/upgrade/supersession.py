@@ -53,6 +53,12 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     # successor reads the project's stamp first and leaves the shipped bytes
     # frozen (#6954).
     "3.1.2_globalize_commands": "4.0.0rc8_stamp_globalize_commands",
+    # It seeded ``kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix``, a row whose
+    # artifact no canonical path writes any more (WP05, C-008) and whose mapped driver merges
+    # the ``.json`` rows array. Being clone-local, it was re-selected and re-applied on every
+    # fresh clone, re-appending the retired row to a committed ``.gitattributes`` (#7174,
+    # #7217); the successor keeps both ``.json`` gate-artifact drivers and removes the row.
+    "3.2.6_gate_artifact_merge_drivers": "4.0.0rc8_retire_issue_matrix_md_row",
 }
 
 #: Class attributes the substitute carries over from the shipped class.
