@@ -1,0 +1,33 @@
+{
+  "accept_commit": "71f34a9d16bab9753f73ddf733147c1cd921eb82",
+  "acceptance_history": [
+    {
+      "accept_commit": "71f34a9d16bab9753f73ddf733147c1cd921eb82",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T15:26:02.986667+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "2a7ec79b7417b3fdc01d49b0ad6bfd135bff73ed"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T15:26:02.986667+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "2a7ec79b7417b3fdc01d49b0ad6bfd135bff73ed",
+  "baseline_merge_commit": "b4d1e918e232f327b46de5df2b4563348e3bdec2",
+  "created_at": "2026-11-05T14:59:37.087638+00:00",
+  "flattened": false,
+  "friendly_name": "pin absent lane wording 7200",
+  "merged_at": "2026-11-05T15:27:13.156976+00:00",
+  "merged_commit": "36d5eaac4a48a930070e8230ce954f43caca231a",
+  "mid8": "01M6P3HX",
+  "mission_id": "01M6P3HXNK8JR1BCGJ9MC8876M",
+  "mission_number": 250,
+  "mission_slug": "pin-absent-lane-wording-7200-01M6P3HX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances pin absent lane wording 7200 on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "pin absent lane wording 7200",
+  "slug": "pin-absent-lane-wording-7200-01M6P3HX",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
