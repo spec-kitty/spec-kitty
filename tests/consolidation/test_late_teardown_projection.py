@@ -114,7 +114,7 @@ class _RefusedRun:
     def projection_commits(self) -> int:
         """How many late-projection commits the target received (never more than one per resume)."""
         log = _git(self.mission.repo, "log", "--format=%s", self.mission.target_branch)
-        return sum(1 for line in log.splitlines() if "project coordination commits that landed during teardown" in line)
+        return sum(1 for line in log.splitlines() if "project coordination commits that landed after the merge captured the coordination tip" in line)
 
     def commit_review_cycle(self) -> None:
         """Commit A: the refusal's own instruction ("commit them on the coordination branch")."""

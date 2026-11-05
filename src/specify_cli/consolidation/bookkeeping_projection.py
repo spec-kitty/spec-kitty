@@ -1020,10 +1020,12 @@ def project_late_gate_matrix_commits(
 ) -> tuple[Path, ...]:
     """Project the gate-matrix commits that landed in the late window (#6791).
 
-    The late window ``checkpoint_sha..coord_ref`` starts at the merge's PRE-mutation
-    coordination snapshot, so it reaches back to the START of the merge: it holds every
-    coordination commit made since then, including the ones the merge itself carried to
-    the target. A gate matrix there is newer than the checkpoint but not necessarily newer
+    The late window ``checkpoint_sha..coord_ref`` starts at the coordination tip the merge
+    captured. On a ``--resume`` that is the PRE-mutation coordination snapshot, so the window
+    reaches back to the START of the merge and holds every coordination commit made since
+    then, including the ones the merge itself carried to the target; on a first run it is the
+    post-projection tip (``coord_tip_after_projection``, #6871). A gate matrix there is newer
+    than the checkpoint but not necessarily newer
     than the target's accept-time fill -- unlike the mid-merge window the general selector
     excludes them for, where the coord ref can only hold a stale placeholder. That is why
     every matrix in it is proved evidence-preserving here (:func:`_assert_projection_preserves_evidence`)
@@ -1095,11 +1097,12 @@ def assert_late_window_landed(
     stage owns them and runs after this projection. ``meta.json`` and every other
     PRIMARY-partition artifact are not coordination records and are the target's own.
 
-    The window starts at the merge's PRE-mutation coordination snapshot, so "the late
-    window" is everything the coordination branch changed SINCE THE MERGE BEGAN -- not
-    only what landed after the landing was verified. A record the window deletes therefore
-    counts here too, and an ordinary resume that contains such a deletion refuses where it
-    used to exit 0 and drop the deletion with the branch.
+    The window starts at the coordination tip the merge captured: on a ``--resume`` the
+    PRE-mutation coordination snapshot, so "the late window" is everything the coordination
+    branch changed SINCE THE MERGE BEGAN; on a first run the post-projection tip
+    (``coord_tip_after_projection``, #6871). A record the window deletes therefore counts here
+    too, and an ordinary resume that contains such a deletion refuses where it used to exit 0
+    and drop the deletion with the branch.
 
     Raises:
         LateProjectionRefused: at least one coordination record in the window is not landed.
@@ -1136,7 +1139,8 @@ def assert_late_window_landed(
         return
     shown = ", ".join(unlanded[:20]) + (f" (and {len(unlanded) - 20} more)" if len(unlanded) > 20 else "")
     raise LateProjectionRefused(
-        f"{len(unlanded)} coordination record(s) the coordination branch changed since the merge began are not landed on the target: {shown}",
+        f"{len(unlanded)} coordination record(s) the coordination branch changed after the merge captured the coordination tip "
+        f"are not landed on the target: {shown}",
         kind=LateProjectionRefusalKind.RECORD_NOT_LANDED,
     )
 
