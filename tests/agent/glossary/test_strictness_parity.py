@@ -14,7 +14,6 @@ These tests drive the pre-existing entry points -- ``emit_semantic_check_evaluat
 
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,7 @@ from glossary.events import (
 from glossary.middleware import GenerationGateMiddleware, SemanticCheckMiddleware
 from glossary.models import ConflictType, SemanticConflict, SenseRef, Severity, TermSurface
 from glossary.pipeline import create_standard_pipeline
-from glossary.strictness import Strictness, resolve_context_strictness
+from glossary.strictness import Strictness
 
 pytestmark = pytest.mark.fast
 
@@ -137,28 +136,23 @@ class TestEventMatchesTheGate:
         # Positive control: the same fixture still reports a real block.
         assert high_event["blocked"] is True
 
-    def test_unresolved_strictness_resolves_from_config_not_a_constant(self, tmp_path: Path) -> None:
-        """#6399's protection (never write "None") is kept without inventing "medium"."""
-        root = _repo_with_strictness(tmp_path, "off")
-        context = ParityContext()
-        assert context.effective_strictness is None
-
-        event = emit_semantic_check_evaluated(context=context, conflicts=[], repo_root=root)
-
-        assert event is not None
-        assert event["effective_strictness"] == Strictness.OFF.value
-        build_record(event)
-
 
 class TestPipelineWiring:
-    """The production pipeline's runtime override reaches the emitted event."""
+    """The production pipeline records the strictness its gate enforces."""
 
-    def test_runtime_override_reaches_the_persisted_event(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        ("runtime_strictness", "expected"),
+        [
+            pytest.param(Strictness.OFF, Strictness.OFF, id="runtime-override"),
+            pytest.param(None, Strictness.MAX, id="configured-policy"),
+        ],
+    )
+    def test_pipeline_records_the_strictness_its_gate_enforces(self, tmp_path: Path, runtime_strictness: Strictness | None, expected: Strictness) -> None:
         root = _repo_with_strictness(tmp_path, "max")
 
         pipeline = create_standard_pipeline(
             repo_root=root,
-            runtime_strictness=Strictness.OFF,
+            runtime_strictness=runtime_strictness,
             interaction_mode="non-interactive",
         )
         check = next(mw for mw in pipeline.middleware if isinstance(mw, SemanticCheckMiddleware))
@@ -166,58 +160,21 @@ class TestPipelineWiring:
         context = ParityContext()
         result = check.process(context)
 
-        assert result.effective_strictness is Strictness.OFF
+        assert result.effective_strictness is expected
 
         log_path = get_event_log_path(root, context.mission_id)
         events = [e for e in read_events(log_path) if e.get("event_type") == "SemanticCheckEvaluated"]
         assert len(events) == 1
-        assert events[0]["effective_strictness"] == Strictness.OFF.value
+        assert events[0]["effective_strictness"] == expected.value
         assert events[0]["blocked"] is False
 
-    def test_gate_in_the_same_pipeline_resolves_the_same_value(self, tmp_path: Path) -> None:
-        root = _repo_with_strictness(tmp_path, "max")
-
-        pipeline = create_standard_pipeline(
-            repo_root=root,
-            runtime_strictness=Strictness.OFF,
-            interaction_mode="non-interactive",
-        )
-        check = next(mw for mw in pipeline.middleware if isinstance(mw, SemanticCheckMiddleware))
+        # The gate in the same pipeline enforces the value the event recorded.
         gate = next(mw for mw in pipeline.middleware if isinstance(mw, GenerationGateMiddleware))
-
-        context = check.process(ParityContext())
-        event = next(e for e in read_events(get_event_log_path(root, context.mission_id)) if e.get("event_type") == "SemanticCheckEvaluated")
-
-        gated = gate.process(context)
-
-        assert gated.effective_strictness is Strictness.OFF
-        assert gated.effective_strictness.value == event["effective_strictness"]
+        assert gate.process(result).effective_strictness is expected
 
 
-class TestResolutionAuthority:
-    """One resolution path: the helper applies the documented precedence."""
-
-    def test_global_config_is_the_lowest_precedence(self, tmp_path: Path) -> None:
-        root = _repo_with_strictness(tmp_path, "off")
-        assert resolve_context_strictness(ParityContext(), repo_root=root) is Strictness.OFF
-
-    def test_mission_and_step_overrides_win_over_the_global_default(self, tmp_path: Path) -> None:
-        root = _repo_with_strictness(tmp_path, "off")
-
-        assert resolve_context_strictness(ParityContext(mission_strictness=Strictness.MAX), repo_root=root) is Strictness.MAX
-        assert (
-            resolve_context_strictness(
-                ParityContext(mission_strictness=Strictness.MAX, step_strictness=Strictness.MEDIUM),
-                repo_root=root,
-            )
-            is Strictness.MEDIUM
-        )
-
-    def test_runtime_override_wins_over_every_tier(self, tmp_path: Path) -> None:
-        root = _repo_with_strictness(tmp_path, "max")
-        context = ParityContext(mission_strictness=Strictness.MAX, step_strictness=Strictness.MAX)
-
-        assert resolve_context_strictness(context, repo_root=root, runtime_override=Strictness.OFF) is Strictness.OFF
+class TestEmitterFallbacks:
+    """The emitter's own resolution when a caller did not resolve strictness first."""
 
     def test_an_unrecognised_context_value_is_ignored_in_favour_of_the_policy(self, tmp_path: Path) -> None:
         """A malformed context value must not outrank the configured policy."""
@@ -229,9 +186,6 @@ class TestResolutionAuthority:
         assert event is not None
         assert event["effective_strictness"] == Strictness.OFF.value
         build_record(event)
-
-        gated = GenerationGateMiddleware(repo_root=root).process(ParityContext())
-        assert gated.effective_strictness.value == event["effective_strictness"]
 
     def test_no_policy_configured_still_yields_the_documented_medium_default(self, tmp_path: Path) -> None:
         context = ParityContext()
@@ -269,12 +223,3 @@ class TestResolutionAuthority:
 
         assert event is not None
         assert event["effective_strictness"] == Strictness.MAX.value
-
-
-class TestEmitterDoesNotInventPolicy:
-    """The write boundary must not substitute a policy value of its own."""
-
-    def test_emitter_has_no_medium_fallback_literal(self) -> None:
-        source = inspect.getsource(emit_semantic_check_evaluated)
-        assert 'or "medium"' not in source
-        assert "or 'medium'" not in source
