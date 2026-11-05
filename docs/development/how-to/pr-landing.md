@@ -698,8 +698,10 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
 - Branch: `git branch <branch> <sha>`, then
   `git worktree add .worktrees/pr-<N>-landing <branch>`.
 - Branch kept (the report prints a `branch kept` line, for example because the
-  branch moved or is checked out elsewhere): the recreate command is
+  branch moved or is the primary branch): the recreate command is
   `git worktree add <path> <branch>`.
+- Branch checked out in another worktree: git refuses a second checkout, so
+  the recreate command is `git worktree add --detach <path> <sha>`.
 - Detached worktree: `git worktree add --detach <path> <sha>`.
 - When no local branch or tag reaches the tip (remote-tracking refs do not
   count), the tip is also kept under `refs/spec-kitty/discarded/`: at
