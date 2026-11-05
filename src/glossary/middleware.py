@@ -327,9 +327,7 @@ class SemanticCheckMiddleware:
             emit_semantic_check_evaluated(
                 context=context,
                 conflicts=conflicts,
-                effective_strictness=getattr(context, "effective_strictness", None),
                 repo_root=self.repo_root,
-                runtime_override=self.runtime_override,
             )
         except Exception as exc:
             import logging
