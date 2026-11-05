@@ -46,7 +46,7 @@
     },
     {
       "criterion_id": "FR-005",
-      "description": "The #6955 deferral pin flips deliberately (exclusion entries -> positive pin, with the reason in place) and the contract ratchet stays merge-order independent (subset-of-contract, no exact set)",
+      "description": "The #6955 deferral pin flips deliberately (exclusion entries -> positive pin, with the reason in place) and the contract ratchet holds an exact local set, each member proven against the installed contract in both directions",
       "proof_type": "automated_test",
       "evidence": "tests/status/test_forced_rewind_requires_review_ref.py::test_force_elsewhere_is_unchanged / ::test_local_edge_set_equals_the_contract_members_it_claims",
       "pass_fail": "pass",
