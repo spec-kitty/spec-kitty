@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M6NRYCVRZM76B4SM9YF79V9P",
+  "completed_at": "2026-11-05T12:31:38.299704+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "PR #7126 rebased on ef5f74b9dd; 10 landing commits; targeted 391 passed, status module 2634 passed/5 skipped; review squad + test vetting findings fixed"
+}
