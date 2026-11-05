@@ -376,31 +376,47 @@ def _stop_rebase_at_start(worktree: Path) -> None:
     assert subprocess.run(["git", "symbolic-ref", "-q", "HEAD"], cwd=worktree, check=False).returncode != 0
 
 
-@pytest.mark.parametrize(
-    ("branch", "rebasing", "expected"),
-    [
-        (_MISSION_LANE, False, (Verdict.MISSION_OWNED, Reason.MISSION_LANE)),
-        (_MISSION_LANE, True, (Verdict.MISSION_OWNED, Reason.MISSION_LANE)),
-        ("land-x", True, (Verdict.NOT_LANDED, Reason.OPERATION_IN_PROGRESS)),
-    ],
-    ids=["mission-lane", "mission-lane-mid-rebase", "plain-branch-mid-rebase"],
-)
-def test_a_mission_lane_is_report_only_even_when_absorbed(repo: Path, tmp_path: Path, branch: str, rebasing: bool, expected: tuple[Verdict, Reason]) -> None:
-    """A rebase stopped mid-way detaches HEAD under .worktrees/; the lane and its rebase state must survive."""
+def _absorbed_lane(repo: Path, branch: str, *, commits: int = 1) -> Path:
+    """A worktree under .worktrees/ whose commits were fast-forwarded onto ``main`` and pushed."""
     worktree = repo / ".worktrees" / "lane"
     _git(repo, "worktree", "add", "-q", "-b", branch, str(worktree), "main")
-    _commit(worktree, "lane.txt", "lane\n")
+    for index in range(commits):
+        _commit(worktree, f"lane-{index}.txt", f"lane {index}\n")
     _git(repo, "merge", "-q", "--ff-only", branch)
     _git(repo, "push", "-q", "origin", "main")
     _git(repo, "fetch", "-q", "origin")
+    return worktree
+
+
+@pytest.mark.parametrize("rebasing", [False, True], ids=["mission-lane", "mission-lane-mid-rebase"])
+def test_a_mission_lane_is_report_only_even_when_absorbed(repo: Path, tmp_path: Path, rebasing: bool) -> None:
+    """A rebase stopped mid-way detaches HEAD; ``head-name`` still makes the lane the Mission's."""
+    worktree = _absorbed_lane(repo, _MISSION_LANE)
     if rebasing:
         _stop_rebase_at_start(worktree)
 
     verdict = _by_path(assess_worktrees(repo, current_dir=repo, probe=_idle_probe(tmp_path)), worktree)
 
-    assert (verdict.verdict, verdict.reason) == expected
+    assert (verdict.verdict, verdict.reason) == (Verdict.MISSION_OWNED, Reason.MISSION_LANE)
     assert prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path)) == []
-    assert worktree.exists() and _has_branch(repo, branch)
+    assert worktree.exists() and _has_branch(repo, _MISSION_LANE)
+
+
+@pytest.mark.parametrize("operation", ["rebase", "bisect"])
+def test_a_worktree_with_an_operation_in_progress_is_kept(repo: Path, tmp_path: Path, operation: str) -> None:
+    """Detached and clean mid-operation, otherwise landed: the operation's state lives only in the worktree's git dir."""
+    worktree = _absorbed_lane(repo, "land-x", commits=3)
+    if operation == "rebase":
+        _stop_rebase_at_start(worktree)
+    else:
+        _git(worktree, "bisect", "start", "HEAD", "HEAD~3")
+        assert subprocess.run(["git", "symbolic-ref", "-q", "HEAD"], cwd=worktree, check=False).returncode != 0
+
+    verdict = _by_path(assess_worktrees(repo, current_dir=repo, probe=_idle_probe(tmp_path)), worktree)
+
+    assert (verdict.verdict, verdict.reason) == (Verdict.NOT_LANDED, Reason.OPERATION_IN_PROGRESS)
+    assert prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path)) == []
+    assert worktree.exists() and _has_branch(repo, "land-x")
 
 
 def test_without_origin_everything_is_unproven(tmp_path: Path) -> None:
@@ -766,16 +782,21 @@ def test_a_detached_tip_that_cannot_be_kept_keeps_the_worktree(repo: Path, tmp_p
     assert worktree.exists() and _registered(repo, worktree)
 
 
-@pytest.mark.parametrize("moved_by", ["created-only", "fast-forward-merge"])
+@pytest.mark.parametrize("moved_by", ["created-only", "fast-forward-merge", "rebase"])
 def test_a_branch_with_no_own_commits_is_report_only(repo: Path, tmp_path: Path, moved_by: str) -> None:
-    """Fold E: a branch at a main commit was never worked on (made, or only fast-forwarded to main); do not delete it."""
+    """Fold E: a branch at a main commit was never worked on (made, or only moved onto main); do not delete it."""
     worktree = _worktree(repo, "idle")
-    if moved_by == "fast-forward-merge":
+    if moved_by != "created-only":
         _commit(repo, "later.txt", "later\n")
         _git(repo, "push", "-q", "origin", "main")
         _git(worktree, "fetch", "-q", "origin")
-        _git(worktree, "merge", "-q", "--ff-only", "origin/main")
+        if moved_by == "rebase":
+            _git(worktree, "rebase", "-q", "origin/main")
+        else:
+            _git(worktree, "merge", "-q", "--ff-only", "origin/main")
         assert _rev(worktree, "HEAD") == _rev(repo, "main")
+        newest = _git(repo, "reflog", "show", "--format=%gs", "refs/heads/idle").splitlines()[0]
+        assert newest.startswith({"rebase": "rebase (finish)", "fast-forward-merge": "merge origin/main: Fast-forward"}[moved_by]), newest
 
     verdict = _by_path(assess_worktrees(repo, current_dir=repo, probe=_idle_probe(tmp_path)), worktree)
 
@@ -869,6 +890,21 @@ def test_a_branch_checked_out_in_another_worktree_is_kept(repo: Path, tmp_path: 
     assert not worktree.exists() and second.exists() and _has_branch(repo, "land-x")
     _git(repo, *shlex.split(outcome.recreate)[1:])  # git refuses a second checkout of land-x: the printed command must not need one
     assert _rev(worktree, "HEAD") == tip
+
+
+def test_a_worktree_on_the_primary_branch_is_removed_and_the_branch_kept(repo: Path, tmp_path: Path) -> None:
+    """The local primary branch is never deleted; the outcome says so and the recreate command puts the worktree back on it."""
+    _git(repo, "switch", "-q", "-c", "side")
+    worktree = repo / ".worktrees" / "primary"
+    _git(repo, "worktree", "add", "-q", str(worktree), "main")
+    tip = _rev(repo, "main")
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert (outcome.removed, outcome.branch_deleted, outcome.refusal) == (True, False, landed_worktrees.BRANCH_IS_PRIMARY)
+    assert not worktree.exists() and _rev(repo, "main") == tip
+    _git(repo, *shlex.split(outcome.recreate)[1:])
+    assert _git(worktree, "branch", "--show-current").strip() == "main"
 
 
 def test_a_stale_origin_ref_cannot_lose_a_rewritten_commit(repo: Path, tmp_path: Path) -> None:

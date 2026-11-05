@@ -80,17 +80,19 @@ def test_the_probing_process_itself_is_ignored(tmp_path: Path, worktrees: tuple[
     assert result.busy == frozenset()
 
 
-def test_another_users_process_is_not_considered(tmp_path: Path, worktrees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    """Neither its cwd nor an unreadable cwd of it counts (U1): it is skipped, not counted as uninspected."""
+@pytest.mark.parametrize("cwd_readable", [True, False], ids=["readable-cwd", "unreadable-cwd"])
+def test_another_users_process_is_not_considered(tmp_path: Path, worktrees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, cwd_readable: bool) -> None:
+    """U1: another user's process is skipped whether its cwd is readable (not busy) or not (not counted as uninspected)."""
     first, _ = worktrees
     proc = tmp_path / "proc"
     _proc(proc, 101, first)
     monkeypatch.setattr(process_probe, "_current_uid", lambda: os.stat(proc / "101").st_uid + 1)
+    if not cwd_readable:
 
-    def denied(link: Path) -> str:
-        raise PermissionError(13, "Permission denied", str(link))
+        def denied(link: Path) -> str:
+            raise PermissionError(13, "Permission denied", str(link))
 
-    monkeypatch.setattr(process_probe, "_read_cwd", denied)
+        monkeypatch.setattr(process_probe, "_read_cwd", denied)
 
     result = processes_with_cwd_under([first], proc_root=proc)
 
