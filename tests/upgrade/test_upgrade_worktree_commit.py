@@ -278,7 +278,7 @@ def test_genuine_worktree_migration_never_runs_in_an_integrating_worktree(tmp_pa
         MigrationRegistry.clear()
 
     runs = result.pop("worktree_results")
-    assert {r.path.name: r.outcome.value for r in runs} == {"m-lane-x": "skipped_mission", "m-control": "upgraded_committed"}
+    assert {r.disposition.path.name: r.outcome.value for r in runs} == {"m-lane-x": "skipped_mission", "m-control": "upgraded_committed"}
     assert result == {"warnings": [], "errors": [], "worktree_failures": []}
     assert detected.count(lane) == 0, "integrating worktree must not be probed"
     assert detected.count(control) > 0, "non-integrating control must still be probed"
@@ -302,7 +302,7 @@ def test_no_migrations_stamp_pass_leaves_integrating_worktree_untouched(tmp_path
     result = MigrationRunner(root).upgrade_worktrees_only("3.2.9", auto_commit=True, worktree_selection=WorktreeSelection.all())
 
     runs = result.pop("worktree_results")
-    assert {r.path.name: r.outcome.value for r in runs} == {"m-lane-y": "skipped_mission", "m-control": "upgraded_committed"}
+    assert {r.disposition.path.name: r.outcome.value for r in runs} == {"m-lane-y": "skipped_mission", "m-control": "upgraded_committed"}
     assert result == {"warnings": [], "errors": [], "worktree_failures": []}
     assert _snapshot(lane) == lane_before
     assert _git_out(control, "rev-parse", "HEAD") != control_head

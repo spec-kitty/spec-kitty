@@ -422,20 +422,14 @@ def test_worktree_dispositions_follow_the_selection(tmp_path: Path) -> None:
     assert worktree_dispositions(repo / "absent", WorktreeSelection.all()) == []
 
 
-def test_selection_and_disposition_json(tmp_path: Path) -> None:
-    from specify_cli.upgrade.worktree_selection import (
-        DispositionAction,
-        WorktreeDisposition,
-        WorktreeSelection,
-    )
+def test_selection_json(tmp_path: Path) -> None:
+    from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
     assert WorktreeSelection.none().to_json() == {"mode": "none", "named": []}
     assert WorktreeSelection.all().to_json() == {"mode": "all", "named": []}
     named = WorktreeSelection.named_paths([tmp_path / "b", tmp_path / "a"])
     assert named.to_json() == {"mode": "named", "named": [str(tmp_path / "b"), str(tmp_path / "a")]}
     assert named.to_json(relative_to=tmp_path) == {"mode": "named", "named": ["b", "a"]}
-    disposition = WorktreeDisposition(path=tmp_path / ".worktrees" / "x", branch="wip/x", action=DispositionAction.UPGRADE)
-    assert disposition.to_json(relative_to=tmp_path) == {"path": ".worktrees/x", "branch": "wip/x", "action": "upgrade"}
 
 
 def test_validate_named_accepts_relative_and_absolute_children(tmp_path: Path) -> None:

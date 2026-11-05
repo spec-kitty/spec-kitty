@@ -898,7 +898,7 @@ def _run_no_migrations_worktree_stamp(
 
 def _worktree_head(disposition: WorktreeDisposition, project_path: Path) -> tuple[str, str]:
     """``("  <rel> (<branch>): ", rel)`` for one ``Worktrees:`` line."""
-    rel = str(disposition.to_json(relative_to=project_path)["path"])
+    rel = disposition.display_path(relative_to=project_path)
     label = (disposition.branch or "detached") if disposition.git_worktree else "not a git worktree"
     return f"  {rel} ({label}): ", rel
 
