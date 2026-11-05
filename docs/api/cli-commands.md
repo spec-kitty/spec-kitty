@@ -2866,22 +2866,35 @@ _Project health diagnostics; a bare invocation runs the default check set_
 ```
  Usage: spec-kitty doctor workspaces [OPTIONS]
 
- Report .worktrees/ husk directories (entries lacking a .git entry).
+ Report .worktrees/ husk directories and worktrees whose work has landed.
 
  A husk is not a usable git worktree: git commands run inside it fall
  through to the primary repository (#1833). Workspace resolution refuses
  husks with a structured error; this check is the recovery path.
 
+ After the husk report, every registered worktree gets a verdict: landed
+ (its commits are on the local origin/<primary> and nothing uncommitted or
+ running is in it), not landed, unproven, or Mission-owned (#7173).
+
  Examples:
      spec-kitty doctor workspaces
      spec-kitty doctor workspaces --fix
+     spec-kitty doctor workspaces --prune
      spec-kitty doctor workspaces --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix             Remove husks that are NOT registered in `git worktree      │
-│                   list` (registered worktrees are never removed)             │
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
+│ --fix              Remove husks that are NOT registered in `git worktree     │
+│                    list` (registered worktrees are never removed)            │
+│ --prune            Remove only worktrees proven landed into the local        │
+│                    origin/<primary> (nothing is fetched: run `git fetch`     │
+│                    first to see recent merges), then their branches. Never   │
+│                    uses --force; prints a recreate command for each removal. │
+│                    Mission worktrees are only reported. Untracked ignored    │
+│                    files (e.g. .venv/, .env) are deleted with the worktree.  │
+│                    Removal is Linux only (it needs /proc to prove nothing    │
+│                    runs in a worktree).                                      │
+│ --json             Machine-readable JSON output                              │
+│ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -6422,7 +6435,10 @@ _Tracker synchronization commands_
 
  **Exit codes** (R-08):
    0  Success / ALLOW / ALLOW_WITH_NAG / a completed ``--dry-run`` preview
-   2  ``--cli --project`` flag conflict
+   2  ``--cli --project`` flag conflict; ``--no-worktrees`` or ``--cli``
+      combined with ``--include-worktree`` / ``--all-worktrees``; an
+      ``--include-worktree`` path that is not a worktree directly under
+      ``.worktrees/`` (UPGRADE_WORKTREE_NOT_FOUND)
    4  Project migration required (BLOCK_PROJECT_MIGRATION)
    5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable
    6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
@@ -6441,24 +6457,28 @@ _Tracker synchronization commands_
      spec-kitty upgrade --dry-run --json  # Machine-readable plan
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                      Preview changes without applying              │
-│ --force                        Skip confirmation prompts                     │
-│ --target                <str>  Target version (defaults to current CLI       │
-│                                version)                                      │
-│ --json                         Output results as JSON                        │
-│ --plan-json                    Output the complete preview plan as JSON      │
-│ --verbose       -v             Show detailed migration information           │
-│ --no-worktrees                 Skip upgrading worktrees                      │
-│ --cli                          Restrict to CLI guidance only; works outside  │
-│                                any project (FR-014)                          │
-│ --project                      Restrict to current-project compat +          │
-│                                migrations (FR-015)                           │
-│ --yes           -y             Non-interactive confirmation; alias for       │
-│                                --force (FR-017). Upgrade never runs the      │
-│                                mission-state repair; use `spec-kitty doctor  │
-│                                mission-state --fix`.                         │
-│ --no-nag                       Suppress upgrade-nag output explicitly        │
-│ --help                         Show this message and exit.                   │
+│ --dry-run                           Preview changes without applying         │
+│ --force                             Skip confirmation prompts                │
+│ --target                    <str>   Target version (defaults to current CLI  │
+│                                     version)                                 │
+│ --json                              Output results as JSON                   │
+│ --plan-json                         Output the complete preview plan as JSON │
+│ --verbose           -v              Show detailed migration information      │
+│ --no-worktrees                      Skip upgrading worktrees                 │
+│ --include-worktree          <path>  Upgrade and commit into this non-Mission │
+│                                     worktree (repeatable)                    │
+│ --all-worktrees                     Upgrade and commit into every            │
+│                                     non-Mission worktree under .worktrees/   │
+│ --cli                               Restrict to CLI guidance only; works     │
+│                                     outside any project (FR-014)             │
+│ --project                           Restrict to current-project compat +     │
+│                                     migrations (FR-015)                      │
+│ --yes               -y              Non-interactive confirmation; alias for  │
+│                                     --force (FR-017). Upgrade never runs the │
+│                                     mission-state repair; use `spec-kitty    │
+│                                     doctor mission-state --fix`.             │
+│ --no-nag                            Suppress upgrade-nag output explicitly   │
+│ --help                              Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
