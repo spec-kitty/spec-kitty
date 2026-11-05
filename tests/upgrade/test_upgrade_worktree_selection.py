@@ -25,14 +25,16 @@ from typing import Any
 
 import pytest
 
-from specify_cli.cli.commands.upgrade import _run_line
+from specify_cli.cli.commands.upgrade import _preview_line, _run_line
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner, _worktree_outcome
 from specify_cli.upgrade.worktree_selection import (
     DispositionAction,
     UnknownWorktreeError,
+    WorktreeDisposition,
     WorktreeOutcome,
+    WorktreeRunResult,
     WorktreeSelection,
     validate_named,
     worktree_dispositions,
@@ -561,13 +563,10 @@ def test_failed_worktree_migration_is_reported_as_failed(tmp_path: Path) -> None
     assert _head(worktree) == head_before
 
 
-def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path) -> None:
     """Migrations are pending but none runs on worktrees: the selected worktree is
     untouched, and the pass reports it as nothing written (runner level: the CLI
-    re-discovers the real migrations, several of which do run on worktrees).
-    With no migration pending and the version moving, the worktree pass does not
-    run: the preview and the post-run block still name the selected worktree as not written."""
-
+    re-discovers the real migrations, several of which do run on worktrees)."""
     root, worktree = _stub_project(tmp_path)
     before = _state(worktree)
 
@@ -593,6 +592,12 @@ def test_no_worktree_migrations_reports_nothing_written(tmp_path: Path, monkeypa
     assert _state(worktree) == before
     assert _run_line(run, root, auto_commit=True) == "  .worktrees/wip-f (wip/f): selected, nothing to upgrade (nothing written)"
 
+
+def test_no_migrations_version_bump_names_selected_worktree_not_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No migration pending and the version moving: the worktree pass does not run, so the
+    preview and the post-run block name the selected worktree as not written."""
+    root, worktree = _stub_project(tmp_path)
+    before = _state(worktree)
     monkeypatch.setattr(MigrationRegistry, "get_applicable", classmethod(lambda cls, *a, **k: []))
     args = ["--target", _TARGET_VERSION, "--yes", "--include-worktree", ".worktrees/wip-f"]
     preview = _invoke_upgrade([*args, "--dry-run"], cwd=root)
@@ -631,3 +636,29 @@ def test_worktree_outcome_truth_table() -> None:
     assert _worktree_outcome(failed=False, wrote=True, committed=True) is WorktreeOutcome.UPGRADED_COMMITTED
     assert _worktree_outcome(failed=False, wrote=True, committed=False) is WorktreeOutcome.UPGRADED_NOT_COMMITTED
     assert _worktree_outcome(failed=False, wrote=False, committed=False) is WorktreeOutcome.NOTHING_TO_UPGRADE
+
+
+_SELECTED = WorktreeDisposition(path=Path("/repo/.worktrees/a"), branch="wip/a", action=DispositionAction.UPGRADE)
+
+
+@pytest.mark.parametrize(
+    ("outcome", "auto_commit", "pass_runs", "expected"),
+    [
+        # Preview (no outcome yet): the future tense.
+        (None, True, True, "will be upgraded and committed"),
+        (None, False, True, "will be upgraded, not committed (auto-commit off)"),
+        (None, True, False, "selected, nothing to upgrade (nothing will be written)"),
+        # Post-run: what the run did.
+        (WorktreeOutcome.UPGRADED_COMMITTED, True, True, "upgraded and committed"),
+        (WorktreeOutcome.UPGRADED_NOT_COMMITTED, False, True, "upgraded, not committed (auto-commit off)"),
+        (WorktreeOutcome.UPGRADED_NOT_COMMITTED, True, True, "upgraded, not committed (see warnings)"),
+    ],
+    ids=["preview-commit", "preview-auto-commit-off", "preview-pass-skipped", "run-committed", "run-auto-commit-off", "run-see-warnings"],
+)
+def test_selected_worktree_line_names_the_commit_outcome(outcome: WorktreeOutcome | None, auto_commit: bool, pass_runs: bool, expected: str) -> None:
+    root = Path("/repo")
+    if outcome is None:
+        line = _preview_line(_SELECTED, root, auto_commit=auto_commit, pass_runs=pass_runs)
+    else:
+        line = _run_line(WorktreeRunResult(disposition=_SELECTED, outcome=outcome), root, auto_commit=auto_commit)
+    assert line == f"  .worktrees/a (wip/a): {expected}"
