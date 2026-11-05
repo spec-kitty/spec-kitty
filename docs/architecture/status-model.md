@@ -406,11 +406,15 @@ passed `--force` (the reopen is still not a rejected verdict and mints no reject
 cycle). `force-override` is a marker, not a path: no reader resolves it to an artifact, and
 the implementer projection reads it as an operator rewind, never as a reviewer verdict.
 
-The derivation is one rule in one place: `status/transition_pipeline.py::prepare_transition`,
-the single validation/event-build authority every status door goes through. It fills an
-**absent** pointer only, so a caller's `--review-ref` is recorded unchanged and a pointer
-that disagrees with `review_result.reference` is still refused by the consistency guard; a
-blank or non-string structured reference is not a pointer.
+The generic doors (`agent status emit`, `orchestrator-api`, the batch and coordination
+shells) get the derivation from `status/transition_pipeline.py::prepare_transition`, the
+validation/event-build function they all go through; `move-task` keeps its own copy in
+`build_transition_plan`, because its force decision needs the pointer before the request
+exists. The derivation applies to every exit that carries a structured review result, not
+only this edge, and it fills an **absent** pointer only: a caller's `--review-ref` is
+recorded unchanged, a pointer that disagrees with `review_result.reference` is refused by
+the consistency guard on an unforced move (a forced move skips that guard, as before), and
+a blank or non-string structured reference is not a pointer.
 
 The edge set (`REVIEW_REF_REQUIRED_EDGES`) holds the edges whose persisted events the
 shared `spec_kitty_events` contract gates on `review_ref`: `for_review -> in_progress`
