@@ -94,6 +94,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.git import GitCommandError, decode_path, run_git
+from kernel.paths import is_windows
 from kernel.git.listing import ignored_entries, index_entries
 from specify_cli.git.worktree_listing import WorktreeEntry, worktree_entries
 from specify_cli.coordination.coherence import NothingIsResidue
@@ -618,7 +619,7 @@ def _reassess(repo_root: Path, path: Path, ctx: _Context) -> WorktreeVerdict | N
 
 def shell_command(*args: str) -> str:
     """``args`` as one copy-pasteable command line for this platform's shell (POSIX quoting, or ``cmd.exe`` rules on Windows)."""
-    if os.name == "nt":
+    if is_windows():
         return subprocess.list2cmdline(args)
     return shlex.join(args)
 
