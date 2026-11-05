@@ -730,3 +730,24 @@ class TestWireReviewRefDerivation:
                 _request(feature_dir=feature_dir, to_lane="in_progress", review_result=verdict, force=True, reason="operator rewind"),
                 Lane.IN_REVIEW,
             )
+
+    def test_the_derivation_reads_no_io(self, feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """NFR-002: the derivation is a field read, never a file/pin/git lookup.
+
+        The module-level AST scan forbids ``open``/``run`` but not ``Path.read_text``, so a
+        derivation that resolved the reference as a file would pass every other test here.
+        """
+        import subprocess
+
+        def _no_io(*args: object, **kwargs: object) -> None:
+            raise AssertionError("the review_ref derivation performed I/O")
+
+        monkeypatch.setattr(Path, "read_text", _no_io)
+        monkeypatch.setattr(Path, "read_bytes", _no_io)
+        monkeypatch.setattr(Path, "open", _no_io)
+        monkeypatch.setattr(subprocess, "run", _no_io)
+
+        prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, to_lane="in_progress", review_result=_REWIND_VERDICT), Lane.IN_REVIEW)
+
+        assert prepared.event is not None
+        assert prepared.event.review_ref == "review-cycle://WP01/7"
