@@ -115,6 +115,7 @@ def _write_status_events(feature_dir: Path, manifest: MagicMock, wp_to_lane: dic
     events: list[str] = []
     for index, (wp_id, to_lane) in enumerate(wp_to_lane.items()):
         # #6715/#5668: an implementer's claim and an independent approval stamped at the lane tip.
+        # The stamp keeps the seeded log realistic only: this mocked run never reaches the approval bound.
         lane_head = _run(["git", "-C", str(repo), "rev-parse", lane_created_branch(manifest, lane_of[wp_id])]).stdout.strip()
         approved: dict[str, object] = {
             "event_id": f"01HXYZAPPR0000000000000{index:03d}",
