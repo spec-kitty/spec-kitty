@@ -610,9 +610,11 @@ spec-kitty doctor workspaces --prune
   (for example `origin/main`) and never fetches. The primary branch comes from
   `origin/HEAD`, or from a branch named `main`, `master` or `develop`; when it
   cannot be told, every worktree is unproven (set it with
-  `git remote set-head origin <branch>`). The check does not read `upstream`.
-  If your `origin` is a fork, fetch the canonical repository into
-  `origin/<primary>` first, or expect "not landed".
+  `git remote set-head origin <branch>`). The check assumes `origin` is the
+  canonical repository, as in a maintainer clone of `spec-kitty/spec-kitty`.
+  It does not read `upstream`. In a clone where `origin` is a fork, every
+  landing worktree stays "not landed"; remove those by hand (see
+  [Known gaps](#known-gaps)). Remote selection is tracked in #7214.
 - **`spec-kitty doctor workspaces`** writes nothing. It gives every registered
   worktree a verdict with a reason: landed, not landed, unproven, or
   Mission-owned. "Landed" means the worktree's commits are on
@@ -629,6 +631,9 @@ spec-kitty doctor workspaces --prune
 
 - a worktree with uncommitted changes or untracked files, including edits
   hidden by `git update-index --assume-unchanged` or `--skip-worktree`;
+- a worktree with a rebase, merge, cherry-pick, revert or bisect in progress
+  (`OPERATION_IN_PROGRESS`; a Mission lane mid-rebase is reported as
+  Mission-owned);
 - a worktree with a nested repository (a `.git`, `.hg`, `.jj` or `.svn`
   entry, or a bare or renamed git directory) under an ignored path;
 - a locked worktree;
@@ -640,7 +645,8 @@ spec-kitty doctor workspaces --prune
 Some worktrees are kept and reported for you to decide:
 
 - **No commits of its own** (`NO_OWN_COMMITS`). The branch tip is on
-  `origin/<primary>`, but its reflog shows no commit made on it. Remove it by
+  `origin/<primary>`, but its reflog shows no commit made on it. A pull, a
+  fast-forward merge or a rebase is not a commit of its own. Remove it by
   hand if you are done with it. A branch with no reflog at all is unproven
   (`REFLOG_MISSING`).
 - **Detached worktrees outside `.worktrees/`** (`DETACHED_OUTSIDE_WORKTREES`)
@@ -650,23 +656,26 @@ Some worktrees are kept and reported for you to decide:
 ### Known gaps
 
 - **Linux only.** On macOS and Windows, running processes cannot be checked.
-  Every candidate is then reported as unproven, and `--prune` removes nothing.
-  For a worktree unproven only for that reason, the report prints the hand
-  commands. Run them only after you have checked that nothing runs in the
-  worktree and its content is on `origin/<primary>`:
-  `git worktree remove <path>` (never `--force`), then `git branch -d <branch>`.
-  After a rebase or squash merge, `-d` refuses; use `git branch -D <branch>`.
+  Every candidate is then reported as unproven, and `--prune` removes nothing
+  (#7216). For a worktree unproven only for that reason, the report prints the
+  hand commands, with paths quoted for your shell. Run them only after you have
+  checked that nothing runs in the worktree and its content is on
+  `origin/<primary>`: `git worktree remove <path>` (never `--force`), then
+  `git update-ref refs/spec-kitty/discarded/<branch> <sha>` to keep the tip,
+  then `git branch -D <branch>`.
 - **git 2.38 or newer for rebase and squash merges.** Older git cannot prove
   them, so such a worktree is reported as unproven and kept.
 - Processes of other users are not detected. Nor are your own processes whose
   working directory cannot be read; the command prints how many it could not
   inspect. Close editors and shells in the worktree first.
 - Ignored files (for example `.venv/`, or an ignored `.env`) are deleted with
-  the worktree. The report lists them first. Any rebase or merge in progress
-  there is deleted too.
+  the worktree. The report lists them first.
 - A stale `origin/<primary>` usually only hides a merge. It can also vouch for
   content that was later rewritten off the remote's primary branch. That is
   why `--prune` keeps any tip that no local branch or tag reaches (see below).
+- Commits that only the worktree's HEAD reflog or the branch reflog still
+  reach (for example a commit made while detached and then left) lose that
+  record with the removal (#7211).
 
 ### A merge that happens after the session ends
 
@@ -688,6 +697,9 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
 
 - Branch: `git branch <branch> <sha>`, then
   `git worktree add .worktrees/pr-<N>-landing <branch>`.
+- Branch kept (the report prints a `branch kept` line, for example because the
+  branch moved or is checked out elsewhere): the recreate command is
+  `git worktree add <path> <branch>`.
 - Detached worktree: `git worktree add --detach <path> <sha>`.
 - When no local branch or tag reaches the tip (remote-tracking refs do not
   count), the tip is also kept under `refs/spec-kitty/discarded/`: at
@@ -696,6 +708,10 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   `refs/spec-kitty/discarded/detached/<sha>` for a detached worktree. Use the
   ref printed on the `tip kept at` line:
   `git branch <branch> <ref printed on the tip kept at line>`.
+- **Partly removed.** When git deleted part of a worktree and then failed (for
+  example on a read-only directory under `.venv/`), the report prints a
+  `partly removed` line, keeps the branch and exits 1. Run
+  `spec-kitty doctor workspaces --fix` to clear the leftover directory.
 
 ### `upgrade` leaves landing worktrees alone
 

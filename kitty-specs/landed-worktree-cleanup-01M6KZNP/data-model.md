@@ -28,7 +28,7 @@ The first entry is the main worktree.
 | ignored_paths | list[str] | at most five ignored path names a removal deletes (for example `.venv/`, `.env`), sorted |
 | ignored_count | int | all ignored paths a removal deletes; `0` unless the local-state step found the worktree otherwise clean |
 
-Reason codes: `UNCOMMITTED_CHANGES`, `CONTENT_NOT_ON_PRIMARY`, `PROCESS_RUNNING`, `LOCKED`, `PRUNABLE`, `MISSION_LANE`, `PRIMARY_REF_MISSING`, `PRIMARY_UNRESOLVED`, `NESTED_REPOSITORY`, `NO_OWN_COMMITS`, `REFLOG_MISSING`, `DETACHED_OUTSIDE_WORKTREES`, `PROCESS_PROOF_UNAVAILABLE`, `ABSORPTION_UNSUPPORTED`, `MAIN_WORKTREE`, `CURRENT_WORKTREE`, `BRANCH_IN_OTHER_WORKTREE`, `LANDED`. (Amended at closeout, #7173 squad: `PRIMARY_UNRESOLVED`, `NESTED_REPOSITORY`, `NO_OWN_COMMITS`, `REFLOG_MISSING`, `DETACHED_OUTSIDE_WORKTREES`, `detail`, `ignored_paths`, `ignored_count`.)
+Reason codes: `UNCOMMITTED_CHANGES`, `CONTENT_NOT_ON_PRIMARY`, `PROCESS_RUNNING`, `LOCKED`, `PRUNABLE`, `MISSION_LANE`, `PRIMARY_REF_MISSING`, `PRIMARY_UNRESOLVED`, `NESTED_REPOSITORY`, `NO_OWN_COMMITS`, `REFLOG_MISSING`, `DETACHED_OUTSIDE_WORKTREES`, `PROCESS_PROOF_UNAVAILABLE`, `ABSORPTION_UNSUPPORTED`, `MAIN_WORKTREE`, `CURRENT_WORKTREE`, `BRANCH_IN_OTHER_WORKTREE`, `OPERATION_IN_PROGRESS`, `LANDED`. (Amended at closeout, #7173 squad: `PRIMARY_UNRESOLVED`, `NESTED_REPOSITORY`, `NO_OWN_COMMITS`, `REFLOG_MISSING`, `DETACHED_OUTSIDE_WORKTREES`, `detail`, `ignored_paths`, `ignored_count`. Amended at landing, PR #7196: `OPERATION_IN_PROGRESS`.)
 
 ### Verdict rule (ordered, first match wins)
 
@@ -40,10 +40,10 @@ Reason codes: `UNCOMMITTED_CHANGES`, `CONTENT_NOT_ON_PRIMARY`, `PROCESS_RUNNING`
 4. detached and outside `<repo>/.worktrees/` → `excluded` (`DETACHED_OUTSIDE_WORKTREES`; spec-kitty's own scratch checkouts)
 5. branch is a Mission branch → `mission_owned` (`MISSION_LANE`)
 6. locked → `not_landed` (`LOCKED`)
-7. local state → `not_landed`: dirty by the guard's predicate (tracked or untracked, `NothingIsResidue`), an index entry flagged `assume-unchanged` / `skip-worktree`, or a status that cannot be read (`UNCOMMITTED_CHANGES`); an ignored path holding a repository store (`.git`, `.hg`, `.jj`, `.svn`, or a bare or renamed git dir) (`NESTED_REPOSITORY`). Other ignored paths are recorded in `ignored_paths` / `ignored_count`.
+7. local state → a git operation in progress (`rebase-merge`, `rebase-apply`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD` or `BISECT_LOG` in the worktree's git dir) → `not_landed` (`OPERATION_IN_PROGRESS`), or `mission_owned` (`MISSION_LANE`) when the rebase's `head-name` is a Mission branch (amended at landing, PR #7196); otherwise `not_landed`: dirty by the guard's predicate (tracked or untracked, `NothingIsResidue`), an index entry flagged `assume-unchanged` / `skip-worktree`, or a status that cannot be read (`UNCOMMITTED_CHANGES`); an ignored path holding a repository store (`.git`, `.hg`, `.jj`, `.svn`, or a bare or renamed git dir) (`NESTED_REPOSITORY`). Other ignored paths are recorded in `ignored_paths` / `ignored_count`.
 8. primary branch not resolved from `origin/HEAD` or a common name (`main`, `master`, `develop`) → `unproven` (`PRIMARY_UNRESOLVED`); `origin/<primary>` missing → `unproven` (`PRIMARY_REF_MISSING`); no HEAD → `not_landed` (`CONTENT_NOT_ON_PRIMARY`)
 9. tip not absorbed into `origin/<primary>` → `not_landed` (`CONTENT_NOT_ON_PRIMARY`); `AbsorptionUnsupported` → `unproven` (`ABSORPTION_UNSUPPORTED`)
-10. a branch whose tip is an ancestor of `origin/<primary>` and whose reflog records no commit → `not_landed` (`NO_OWN_COMMITS`, remove by hand); no reflog → `unproven` (`REFLOG_MISSING`)
+10. a branch whose tip is an ancestor of `origin/<primary>` and whose reflog records no commit of its own → `not_landed` (`NO_OWN_COMMITS`, remove by hand); a fast-forward merge or a rebase is not an own commit (amended at landing, PR #7196); no reflog → `unproven` (`REFLOG_MISSING`)
 11. process proof unavailable → `unproven` (`PROCESS_PROOF_UNAVAILABLE`); a process cwd inside → `not_landed` (`PROCESS_RUNNING`)
 12. otherwise → `landed` (`LANDED`)
 
@@ -57,8 +57,8 @@ Reason codes: `UNCOMMITTED_CHANGES`, `CONTENT_NOT_ON_PRIMARY`, `PROCESS_RUNNING`
 | removed | bool | |
 | branch_deleted | bool | false for detached, or a branch checked out elsewhere |
 | kept_ref | str \| None | `refs/spec-kitty/discarded/<branch>` (or `<branch>@<short-sha>` when an earlier, different tip holds that name) when a branch tip no local branch or tag reaches was recorded; `refs/spec-kitty/discarded/detached/<sha>` for such a detached tip (amended at closeout, #7173 squad: remote-tracking refs do not count) |
-| recreate | str | `git branch <b> <sha>` or `git worktree add --detach <path> <sha>` |
-| refusal | str \| None | guard refusal code when the guard refused |
+| recreate | str | `git branch <b> <sha>` when the branch was deleted, `git worktree add <path> <b>` when the branch was kept, or `git worktree add --detach <path> <sha>`; paths are shell-quoted (amended at landing, PR #7196) |
+| refusal | str \| None | guard refusal code when the guard refused; `WORKTREE_PARTIALLY_REMOVED` when git removed part of the worktree and unregistered it (then `removed` is true and the branch is kept); `BRANCH_IS_PRIMARY` when the branch is the primary branch and is kept (amended at landing, PR #7196) |
 
 ## WorktreeSelection / WorktreeDisposition (upgrade)
 
