@@ -623,7 +623,9 @@ spec-kitty doctor workspaces --prune
   lists the ignored files a removal would delete, such as `.venv/` or `.env`.
 - **`--prune`** removes only the landed worktrees, then their local branches.
   It never uses `--force`. It checks each worktree again right before it
-  removes it.
+  removes it. Before it removes anything it reads the worktree's `HEAD` reflog
+  and the branch reflog, and records every commit that only those still reached
+  (see [Restore a removed worktree](#restore-a-removed-worktree)).
 
 `--fix` is unchanged: it still removes only unregistered husks.
 
@@ -715,6 +717,29 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   example on a read-only directory under `.venv/`), the report prints a
   `partly removed` line, keeps the branch and exits 1. Run
   `spec-kitty doctor workspaces --fix` to clear the leftover directory.
+- A commit that only a destroyed reflog still reached gets its own line and its
+  own ref:
+
+  ```text
+    reflog-only commit kept at refs/spec-kitty/discarded/reflog/<sha>
+  ```
+
+  `git worktree remove` deletes the worktree `HEAD` reflog and
+  `git branch -D` deletes the branch reflog, so a commit made while the worktree
+  was detached, or one dropped with `git reset --hard`, would otherwise be
+  reachable from nothing and could be collected by `git gc`. The prune records
+  it under `refs/spec-kitty/discarded/reflog/<sha>` **before** it removes the
+  worktree; restore it with
+  `git branch <name> refs/spec-kitty/discarded/reflog/<sha>`.
+
+  Two things are deliberately not recorded: a commit whose patch is already on
+  `origin/<primary>` (the pre-rebase half of a rebase landing, whose content is
+  not lost) and a commit that another ref still reaches. A merge commit is
+  always recorded when it is in that position, because its own resolution is
+  carried by no patch. The `--json` payload names the refs in the new
+  `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
+  prune removes nothing and reports it, the same as a failed `tip kept at`
+  record.
 
 ### `upgrade` leaves landing worktrees alone
 
