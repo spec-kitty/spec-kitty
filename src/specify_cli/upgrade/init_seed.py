@@ -52,12 +52,14 @@ def merge_attribute_seed_lines() -> tuple[str, ...]:
     """Every ``.gitattributes`` merge-driver line ``init`` writes: the lines an upgrade seeds (#6416).
 
     The union of the canonical driver registry and the ``drivers`` of every
-    registered merge-driver seeding migration, registry order first. A
-    historical migration may still seed a line the registry has since moved
-    away from (``3.2.6_gate_artifact_merge_drivers`` keeps the inert
-    ``issue-matrix.md`` mapping, DIRECTIVE_044 forbids editing it); writing that
-    line at init keeps the first ``upgrade`` on a just-initialized project from
-    committing it.
+    registered merge-driver seeding migration, registry order first. A *live*
+    seeding migration may still declare a line the registry has not caught up
+    with; writing that line at init keeps the first ``upgrade`` on a
+    just-initialized project from committing it. A line the registry has
+    deliberately retired is not written here because its writer is superseded,
+    not because this function knows about it: ``3.2.6_gate_artifact_merge_drivers``
+    seeded the inert ``issue-matrix.md`` mapping and is a recorded no-op now
+    (DIRECTIVE_044 forbids editing it; #7217 supersedes it).
     """
     from specify_cli.lanes.consolidation import merge_driver_attribute_lines
 
