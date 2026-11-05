@@ -23,7 +23,9 @@ mock) and drive ``_spec_artifact_dirty_paths`` /
 ``_commit_residual_acceptance_artifacts`` directly — the same function-level
 seam ``test_accept_clean_tree.py``'s
 ``test_residual_acceptance_commit_is_scoped_to_mission_paths`` already pins
-for the PRIMARY-only case.
+for the PRIMARY-only case. The reporting case below instead drives the real
+``accept`` command through a minimal Typer/CliRunner app to observe both output
+lanes at their command boundary.
 
 Identity is production-shaped: a full 26-char Crockford ULID and the
 canonical on-disk ``<slug>-<mid8>`` layout (NFR-002/NFR-005), matching
@@ -35,9 +37,12 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
+import typer
+from typer.testing import CliRunner
+
+from specify_cli.acceptance import AcceptanceResult, AcceptanceSummary
 
 from specify_cli.acceptance.matrix import (
     AcceptanceMatrix,
@@ -47,13 +52,14 @@ from specify_cli.acceptance.matrix import (
 )
 from kernel.git import GitPath, StatusEntry
 from specify_cli.acceptance import _filter_coordination_residue
+from specify_cli.cli.commands import accept as accept_module
 from specify_cli.cli.commands.accept import (
     _commit_residual_acceptance_artifacts,
     _nonartifact_residual_paths,
-    _note_deferred_residuals,
     _residual_commit_files,
     _run_residual_acceptance_commit,
     _spec_artifact_dirty_paths,
+    accept,
 )
 from specify_cli.task_utils import TaskCliError
 from specify_cli.coordination.commit_outcome import COORD_RECORD_IN_ROOT_CHECKOUT, commit_outcome_payload
@@ -73,6 +79,10 @@ _HANDLE = f"{_SLUG}-{_MID8}"
 # (``kitty/mission-<handle>``, see ``coord_reconstruct_branch``) so the two
 # branches never collide when both are created in the same fixture.
 _TARGET_BRANCH = f"feat/{_HANDLE}"
+
+_runner = CliRunner()
+_accept_app = typer.Typer()
+_accept_app.command()(accept)
 
 
 def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -931,35 +941,144 @@ def test_nonartifact_residual_paths_uses_the_one_classifier() -> None:
     ]
 
 
-def test_deferred_residual_note_reports_the_keep_local_log(tmp_path: Path) -> None:
-    """#7091: the deferral is reported on the acceptance result, never silent.
+def _accept_summary(repo_root: Path, feature_dir: Path) -> AcceptanceSummary:
+    """A real ready summary at the orthogonal readiness-collection boundary."""
+    return AcceptanceSummary(
+        feature=_HANDLE,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        tasks_dir=feature_dir / "tasks",
+        branch=_TARGET_BRANCH,
+        worktree_root=repo_root,
+        primary_repo_root=repo_root,
+        lanes={"approved": ["WP01"]},
+        work_packages=[],
+        metadata_issues=[],
+        activity_issues=[],
+        unchecked_tasks=[],
+        needs_clarification=[],
+        missing_artifacts=[],
+        optional_missing=[],
+        git_dirty=[],
+        path_violations=[],
+        warnings=[],
+    )
 
-    Paired control at the end: an empty deferral adds no note.
+
+def _accept_result(summary: AcceptanceSummary) -> AcceptanceResult:
+    """Fresh recording result per invocation; notes must not accumulate."""
+    return AcceptanceResult(
+        summary=summary,
+        mode="local",
+        accepted_at="2026-11-05T00:00:00+00:00",
+        accepted_by="tester",
+        parent_commit=None,
+        accept_commit=None,
+        commit_created=False,
+        instructions=[],
+        cleanup_instructions=[],
+    )
+
+
+def test_deferred_residual_note_reports_the_keep_local_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7091: report deferred copies through the real command's text/JSON lanes.
+
+    Stub only ownership adoption, remote freshness, readiness collection,
+    acceptance recording and birth cutover. Dirty scanning, classification,
+    routing, residual commit, post-accept steps and both renderers stay real.
+    Closing-tag syntax exposes a crash; opening-tag syntax exposes silent path
+    corruption. The clean control exercises the same command boundary.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
-    _primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root)
+    primary_feature_dir, coord_feature_dir = _build_coord_mission(repo_root)
     coord_root = coord_feature_dir.parent.parent
 
+    event_log = f"kitty-specs/{_HANDLE}/mission-events.jsonl"
+    rich_closing_path = f"kitty-specs/{_HANDLE}/scratch/[/red].md"
+    rich_bold_path = f"kitty-specs/{_HANDLE}/scratch/[bold].md"
+    deferred_paths = [event_log, rich_closing_path, rich_bold_path]
+
+    # Track the baselines: the dirty scan deliberately excludes untracked files.
     (coord_feature_dir / "mission-events.jsonl").write_text('{"event": "MissionCreated"}\n', encoding="utf-8")
+    rich_closing_file = coord_feature_dir / "scratch" / "[" / "red].md"
+    rich_closing_file.parent.mkdir(parents=True)
+    rich_closing_file.write_text("closing-tag fixture\n", encoding="utf-8")
+    rich_bold_file = coord_feature_dir / "scratch" / "[bold].md"
+    rich_bold_file.write_text("bold fixture\n", encoding="utf-8")
     _git(coord_root, "add", "-A")
-    _git(coord_root, "commit", "-q", "-m", "coord event-log baseline")
+    _git(coord_root, "commit", "-q", "-m", "coord deferred-path baseline")
+
     (coord_feature_dir / "mission-events.jsonl").write_text(
         '{"event": "MissionCreated"}\n{"event": "MissionNextInvoked"}\n',
         encoding="utf-8",
     )
+    rich_closing_file.write_text("closing-tag fixture\nv2\n", encoding="utf-8")
+    rich_bold_file.write_text("bold fixture\nv2\n", encoding="utf-8")
+    # A real committable artifact keeps the coordination commit leg active.
+    write_acceptance_matrix(
+        coord_feature_dir,
+        AcceptanceMatrix(
+            mission_slug=_HANDLE,
+            criteria=[],
+            negative_invariants=[
+                NegativeInvariant(
+                    invariant_id="NI1",
+                    description="legacy symbol must be absent",
+                    verification_method="grep_absence",
+                    verification_command="ZZZ_PATTERN_THAT_NEVER_MATCHES_ZZZ",
+                    result="confirmed_absent",
+                )
+            ],
+        ),
+    )
+    primary_head_before = _head_sha(repo_root)
+    coord_head_before = _head_sha(coord_root)
 
-    run = SimpleNamespace(repo_root=repo_root, mission_slug=_HANDLE, owned=None)
-    result = SimpleNamespace(notes=[])
-    _note_deferred_residuals(run, SimpleNamespace(result=result))
+    monkeypatch.chdir(repo_root)
+    # The five orthogonal boundaries above, not the residual/reporting seams.
+    monkeypatch.setattr(accept_module, "resolve_owned_or_adopt", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(accept_module, "run_origin_gate", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        accept_module,
+        "_collect_summary_or_exit",
+        lambda _run, **_kwargs: _accept_summary(repo_root, primary_feature_dir),
+    )
+    monkeypatch.setattr(accept_module, "perform_acceptance", lambda summary, **_kwargs: _accept_result(summary))
+    monkeypatch.setattr(accept_module, "_stamp_birth_cutover_for_accept", lambda *_args, **_kwargs: None)
 
-    assert len(result.notes) == 1
-    assert f"kitty-specs/{_HANDLE}/mission-events.jsonl" in result.notes[0]
-    assert "#5669" in result.notes[0]
+    human = _runner.invoke(_accept_app, ["--mission", _HANDLE, "--mode", "local"])
+    assert human.exit_code == 0, f"{human.output}\n{human.exception!r}"
+    for path in deferred_paths:
+        assert path in human.output, f"the deferred path {path!r} is not reported literally"
+    assert "#5669" in human.output and "#7091" in human.output
+    assert "PRIMARY" in human.output
 
-    # Paired control: nothing deferred -> no note.
+    # Matrix committed on coordination, but none of the deferred modifications did.
+    assert _head_sha(repo_root) == primary_head_before
+    assert _head_sha(coord_root) != coord_head_before
+    for path, baseline in (
+        (event_log, '{"event": "MissionCreated"}\n'),
+        (rich_closing_path, "closing-tag fixture\n"),
+        (rich_bold_path, "bold fixture\n"),
+    ):
+        assert _git(coord_root, "show", f"HEAD:{path}").stdout == baseline, f"{path} must not be committed by acceptance cleanup"
+        assert path in _porcelain(coord_root), f"{path} must stay dirty where it lives"
+    assert f"kitty-specs/{_HANDLE}/acceptance-matrix.json" not in _porcelain(coord_root)
+
+    json_result = _runner.invoke(_accept_app, ["--mission", _HANDLE, "--mode", "local", "--json"])
+    assert json_result.exit_code == 0, f"{json_result.output}\n{json_result.exception!r}"
+    notes = json.loads(json_result.stdout)["notes"]
+    deferral_notes = [note for note in notes if "#7091" in note]
+    assert len(deferral_notes) == 1, notes
+    note = deferral_notes[0]
+    for path in deferred_paths:
+        assert path in note  # Raw paths, not Rich-escaped data.
+    assert "#5669" in note and "PRIMARY" in note
+
+    # Same-boundary control: no deferral note once these copies are committed.
     _git(coord_root, "add", "-A")
-    _git(coord_root, "commit", "-q", "-m", "coord event-log clean again")
-    clean_result = SimpleNamespace(notes=[])
-    _note_deferred_residuals(run, SimpleNamespace(result=clean_result))
-    assert clean_result.notes == []
+    _git(coord_root, "commit", "-q", "-m", "deferred copies committed")
+    control = _runner.invoke(_accept_app, ["--mission", _HANDLE, "--mode", "local", "--json"])
+    assert control.exit_code == 0, f"{control.output}\n{control.exception!r}"
+    assert not any("#7091" in note for note in json.loads(control.stdout)["notes"])
