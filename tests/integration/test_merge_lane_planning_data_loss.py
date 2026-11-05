@@ -32,7 +32,7 @@ import contextlib
 import json
 import shutil
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from kernel.clock import now_utc_iso
 from kernel.git import StatusEntry
 from pathlib import Path
@@ -95,7 +95,7 @@ def _make_manifest_with_planning_and_code(slug: str) -> MagicMock:
     return manifest
 
 
-def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str], *, lane_head: str | None = None) -> None:
+def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str], *, lane_head: str | None = None, planning_wp_ids: Collection[str] = ()) -> None:
     """Seed every ``wp_ids`` entry as ``done`` directly on the event log (#4764/T007).
 
     ``_assert_mission_terminal_ready`` reads ``status.events.jsonl``/``reduce``
@@ -135,8 +135,8 @@ def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str], *
                 "from_lane": "in_review",
                 "to_lane": "approved",
             }
-            if lane_head is not None:
-                # #5668: the stamp names the lane commit review approved.
+            if lane_head is not None and wp_id not in planning_wp_ids:
+                # #5668: the stamp names the lane commit review approved; a planning lane is never stamped.
                 approved["policy_metadata"] = {"lane_head": lane_head}
             for history in [*implementer_claim_events(approved), approved]:
                 handle.write(json.dumps(history, sort_keys=True) + "\n")
@@ -188,7 +188,8 @@ class TestMergeIncludesPlanningLane:
         _git(tmp_path, "add", "-A")
         _git(tmp_path, "commit", "-m", "feat: lane-a implementation")
         _git(tmp_path, "checkout", "-q", "main")
-        _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"], lane_head=_git(tmp_path, "rev-parse", f"kitty/mission-{slug}-lane-a").stdout.strip())
+        lane_tip = _git(tmp_path, "rev-parse", f"kitty/mission-{slug}-lane-a").stdout.strip()
+        _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"], lane_head=lane_tip, planning_wp_ids=["WP04"])
 
         captured_states: list[list[str]] = []
 
