@@ -35,6 +35,7 @@ __all__ = [
     "changed_entries",
     "changed_paths",
     "commit_paths",
+    "ignored_entries",
     "index_entries",
     "is_tracked",
     "log_paths",
@@ -52,6 +53,8 @@ _UNTRACKED_MODES: frozenset[str] = frozenset({"no", "normal", "all"})
 _BINARY_COUNT: str = "-"
 # Porcelain v1 unmerged codes (git-status(1), "Short Format").
 _CONFLICT_CODES: frozenset[str] = frozenset({"DD", "AU", "UD", "UA", "DU", "AA", "UU"})
+# The status code of an ignored path.
+_IGNORED_XY: str = "!!"
 # Status letters whose record is followed by a second (source) path.
 _TWO_PATH_LETTERS: frozenset[str] = frozenset({"R", "C"})
 # Keep diff/log/show paths repository-relative even under a user's
@@ -96,7 +99,7 @@ class StatusEntry:
 
     @property
     def is_ignored(self) -> bool:
-        return self.xy == "!!"
+        return self.xy == _IGNORED_XY
 
     @property
     def is_conflicted(self) -> bool:
@@ -468,6 +471,22 @@ def index_entries(
     """Index records (mode, object id, stage, path; plus the ``ls-files -v`` tag when *tags*)."""
     args = ["ls-files", "--full-name", "-v", "--stage", "-z"] if tags else ["ls-files", "--full-name", "--stage", "-z"]
     return parse_index_z(_git(cwd, args, pathspecs, glob=glob, env=env, timeout=timeout), tags=tags)
+
+
+def ignored_entries(cwd: Path, *, env: Env = None, timeout: float | None = None) -> tuple[StatusEntry, ...]:
+    """Ignored, untracked paths under *cwd*, each wholly ignored directory collapsed to one ``!!`` entry.
+
+    Each entry reads like a ``status --ignored`` one (``xy == "!!"``,
+    ``is_directory`` for a collapsed directory), but the listing comes from
+    ``ls-files --others --ignored --exclude-standard --directory``: ``status``
+    leaves out an ignored directory whose only content is a nested ``.git``.
+    """
+    args = ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"]
+    entries: list[StatusEntry] = []
+    for record in _records(_git(cwd, args, (), env=env, timeout=timeout)):
+        path, is_directory = _path(record)
+        entries.append(StatusEntry(xy=_IGNORED_XY, path=path, is_directory=is_directory))
+    return tuple(entries)
 
 
 def is_tracked(cwd: Path, path: str, *, env: Env = None, timeout: float | None = None) -> bool:

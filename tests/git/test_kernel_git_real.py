@@ -28,6 +28,7 @@ from kernel.git import (
     tree_entry,
     tree_paths,
 )
+from kernel.git.listing import ignored_entries
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -168,3 +169,19 @@ def test_queries_fail_closed_outside_a_repository(tmp_path: Path) -> None:
         is_tracked(outside, "x")
     with pytest.raises(GitCommandError):
         tree_paths(outside, "HEAD")
+
+
+def test_ignored_entries_collapse_directories_and_keep_a_nested_repository(repo: Path) -> None:
+    _write(repo, "src/local data/a.txt")
+    _write(repo, "src/store/local.txt")
+    _write(repo, "untracked.txt")
+    nested = repo / "src" / "local data" / "inner"
+    nested.mkdir()
+    _git(nested, "init", "-q")
+
+    entries = ignored_entries(repo)
+
+    assert [(entry.xy, entry.path, entry.is_directory) for entry in entries] == [
+        ("!!", P("src/local data"), True),
+        ("!!", P("src/store/local.txt"), False),
+    ]

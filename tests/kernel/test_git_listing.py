@@ -311,6 +311,18 @@ def test_tree_entries_batches_literal_pathspecs(tmp_path: Path) -> None:
         assert listing.tree_entries(tmp_path, "HEAD", pathspecs=("nope",)) == ()
 
 
+def test_ignored_entries_argv_and_directory_marker(tmp_path: Path) -> None:
+    with _stub(b".venv/\x00a b.log\x00") as run:
+        entries = listing.ignored_entries(tmp_path, env={"E": "1"}, timeout=3.0)
+    assert _argv(run) == ("ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z", "--")
+    assert run.call_args.kwargs == {"env": {"E": "1"}, "timeout": 3.0}
+    assert entries == (
+        StatusEntry(xy="!!", path=P(".venv"), is_directory=True),
+        StatusEntry(xy="!!", path=P("a b.log")),
+    )
+    assert all(entry.is_ignored for entry in entries)
+
+
 def test_index_entries_with_tags_argv(tmp_path: Path) -> None:
     with _stub(b"H 100644 587be6b4c3f93f93c489c0111bba5596147a26cb 0\tx\x00") as run:
         (entry,) = listing.index_entries(tmp_path, tags=True)
