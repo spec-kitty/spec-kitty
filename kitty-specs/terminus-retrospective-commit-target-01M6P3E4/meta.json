@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-11-05T14:57:32.616668+00:00",
+  "flattened": false,
+  "friendly_name": "terminus retrospective commit target",
+  "mid8": "01M6P3E4",
+  "mission_id": "01M6P3E46H9C4SES0ZXSBZ88NG",
+  "mission_number": null,
+  "mission_slug": "terminus-retrospective-commit-target-01M6P3E4",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances terminus retrospective commit target on issue-7201-terminus-retrospective-target so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "terminus retrospective commit target",
+  "slug": "terminus-retrospective-commit-target-01M6P3E4",
+  "target_branch": "issue-7201-terminus-retrospective-target",
+  "topology": "lanes"
+}
