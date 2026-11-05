@@ -14,9 +14,8 @@
   "accepted_by": "exedev",
   "accepted_from_commit": "b305a68e36cf63f50cc09514b7ac5c5b453e49bc",
   "baseline_merge_commit": "2a50eb109ae60673260c4ba8d5a834d23bf26508",
-  "coordination_branch": "kitty/mission-corpus-advisory-budget-01M6P49E",
   "created_at": "2026-11-05T15:12:27.672245+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Corpus advisory suite budget you can defend",
   "merged_at": "2026-11-05T16:02:02.381784+00:00",
   "merged_commit": "8f6ee1af5453637306c9d62e426e96a2338462eb",
@@ -31,7 +30,6 @@
   "slug": "corpus-advisory-budget-01M6P49E",
   "status_phase": "1",
   "target_branch": "issue-7206-corpus-advisory-budget",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-11-05T15:17:09.506318+00:00"
 }
