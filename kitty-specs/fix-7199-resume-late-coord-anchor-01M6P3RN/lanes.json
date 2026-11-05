@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "fix-7199-resume-late-coord-anchor-01M6P3RN",
+  "mission_id": "01M6P3RNTXRNRB5EDJCW7TCVG6",
+  "mission_branch": "kitty/mission-fix-7199-resume-late-coord-anchor-01M6P3RN",
+  "target_branch": "issue-7199-resume-late-coord-anchor",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "tests/coordination/test_projection_teardown.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/**",
+        "docs/guides/how-to/recovery/recover-from-interrupted-merge.md",
+        "tests/consolidation/test_late_teardown_projection.py"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-05T15:06:33.423047+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "c4297cb40c665f2f473175fb494c8d6775e01f41"
+}
