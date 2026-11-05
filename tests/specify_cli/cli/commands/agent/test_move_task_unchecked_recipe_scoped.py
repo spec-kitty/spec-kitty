@@ -32,6 +32,7 @@ def test_refusal_recipes_preserve_available_mission_context(mission_slug: str | 
     recipes = [shlex.split(line) for line in refusal.error.splitlines() if line.strip().startswith("spec-kitty agent tasks mark-status ")]
     assert recipes
     for argv in recipes:
+        assert argv[argv.index("--wp") + 1] == "WP02"
         if mission_slug is None:
             assert "--mission" not in argv
             assert "None" not in argv
