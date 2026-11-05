@@ -201,6 +201,7 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _add_planning_commit_to_validation_report as _add_planning_commit_to_validation_report,
     _commit_planning_pin_refresh as _commit_planning_pin_refresh,
     _commit_planning_pin_refresh_locked as _commit_planning_pin_refresh_locked,
+    _derive_missing_pin as _derive_missing_pin,
     _drift_is_finalize_bookkeeping_only as _drift_is_finalize_bookkeeping_only,
     _execution_has_begun as _execution_has_begun,
     _finalize_bookkeeping_commit_message as _finalize_bookkeeping_commit_message,
