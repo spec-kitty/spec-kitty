@@ -5,6 +5,7 @@ dependencies:
 - WP01
 requirement_refs:
 - FR-003
+- SC-004
 - C-001
 - C-002
 planning_base_branch: issue-7209-skip-lanes-planning-commit

@@ -6,6 +6,9 @@ requirement_refs:
 - FR-001
 - FR-002
 - FR-004
+- SC-001
+- SC-002
+- SC-003
 - NFR-001
 - NFR-002
 - NFR-003
