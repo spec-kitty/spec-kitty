@@ -599,11 +599,14 @@ def build_older_version_lanes_project(
     (mission.feature_dir / "tasks").mkdir(parents=True)
     _write_meta(mission, topology)
     manifest = _build_manifest(mission, wps, depends_on_lanes or {})
+    # #6715: an older-version (>= 3.2.6) Mission already records the planning commit its lanes
+    # are cut from and the surface each work package owns; the evidence axis reads both.
+    manifest.planning_commit_sha = _harness.git_rev(mission.repo, "HEAD")
     write_lanes_json(mission.feature_dir, manifest)
     events: list[dict[str, object]] = []
     for wp_id in wps:
         (mission.feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nsubtasks: []\n---\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
             encoding="utf-8",
         )
         events.extend(status_event(mission, wp_id, frm, to) for frm, to in _APPROVE_CHAIN)
