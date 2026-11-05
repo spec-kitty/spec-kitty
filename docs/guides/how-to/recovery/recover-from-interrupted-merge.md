@@ -164,12 +164,15 @@ What to do depends on the refusal, and each one names its own repair:
   `status.json` from the union. Do **not** copy the coordination file over the
   target's log: that would drop the events the target already holds.
 - **A file the target authors for itself (for example `meta.json`) that the
-  target's copy does not carry:** land the change on the target yourself (`git
-  checkout <coordination-branch> -- <path>` in the target checkout, then commit
-  it), or revert the coordination commit that made it. A consolidation never
-  projects these files — the merge writes its own mission number, baseline stamp
-  and marker onto the target — so copying them is the operator's call, not the
-  tool's.
+  target's copy does not carry:** merge your intended change into the target's
+  own copy **by hand** and commit it, or revert the coordination commit that made
+  it. Do **not** check the coordination file out over the target's: that replaces
+  the mission number, baseline stamp and marker the target owns — the exact
+  overwrite a consolidation refuses to perform — with the stale coordination
+  bytes. A consolidation never projects these files, so the merge is the
+  operator's call. Committing on the target yourself moves it off the verified
+  landing, so the next resume may stop at the branch-move guard, whose message
+  prints the command that releases the move and clears the record.
 
 Then run `spec-kitty consolidate --resume` again.
 

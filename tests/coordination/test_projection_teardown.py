@@ -1394,3 +1394,124 @@ def test_a_status_json_only_window_tears_down(tmp_path: Path) -> None:
     phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "a derived snapshot is not a record to prove"
+
+
+# ---------------------------------------------------------------------------
+# #7198 review -- the delta rule's edges, at the assertion seam
+# ---------------------------------------------------------------------------
+
+
+def _assert_window(repo: Path, coord: str, base: str) -> None:
+    from specify_cli.consolidation.bookkeeping_projection import assert_late_window_landed
+
+    assert_late_window_landed(
+        main_repo=repo,
+        mission_slug=SLUG,
+        coord_ref=coord,
+        checkpoint_sha=base,
+        target_feature_dir=_mission_dir(repo),
+        target_ref="main",
+    )
+
+
+def _seeded_meta_fixture(
+    tmp_path: Path,
+    checkpoint_meta: dict[str, object],
+    coord_meta: dict[str, object],
+    target_meta: dict[str, object],
+) -> tuple[Path, str, str]:
+    """Repo whose meta.json is *checkpoint_meta* at the window base, *coord_meta* on the branch and
+    *target_meta* on the target -- so the assertion sees exactly the checkpoint -> branch delta."""
+    repo = _init_repo(tmp_path)
+    rel = f"kitty-specs/{SLUG}/meta.json"
+    _commit_path_on_main(repo, rel, json.dumps(checkpoint_meta) + "\n", "checkpoint metadata")
+    coord = _make_coord_branch(repo)
+    base = _rev(repo, coord)
+    _commit_path_on_main(repo, rel, json.dumps(target_meta) + "\n", "the target's own copy")
+    _append_coord_commit(repo, coord, rel, json.dumps(coord_meta) + "\n", "the window's change")
+    return repo, coord, base
+
+
+def test_json_delta_refuses_a_boolean_that_changed_type(tmp_path: Path) -> None:
+    """#7198 review: ``True == 1`` in Python, so a type change must not read as carried."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused
+
+    repo, coord, base = _seeded_meta_fixture(
+        tmp_path,
+        {"flag": False},
+        {"flag": True},
+        {"flag": 1},
+    )
+
+    with pytest.raises(LateProjectionRefused, match="meta.json"):
+        _assert_window(repo, coord, base)
+
+
+def test_json_delta_carries_a_nested_addition_on_the_target(tmp_path: Path) -> None:
+    """A nested key the window added is carried when the target's nested object holds it."""
+    repo, coord, base = _seeded_meta_fixture(
+        tmp_path,
+        {"nested": {"a": 1}},
+        {"nested": {"a": 1, "b": 2}},
+        {"nested": {"a": 1, "b": 2, "c": 3}},
+    )
+
+    _assert_window(repo, coord, base)  # no refusal
+
+
+def test_json_delta_refuses_a_list_element_the_target_does_not_have(tmp_path: Path) -> None:
+    """Arrays compare whole: a changed element is not carried by a different array."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused
+
+    repo, coord, base = _seeded_meta_fixture(
+        tmp_path,
+        {"list": [1, 2]},
+        {"list": [1, 2, 3]},
+        {"list": [1, 2, 4]},
+    )
+
+    with pytest.raises(LateProjectionRefused, match="meta.json"):
+        _assert_window(repo, coord, base)
+
+
+def test_a_fully_landed_rename_passes(tmp_path: Path) -> None:
+    """#7198 review: with renames enumerated as delete + add, a rename applied on BOTH sides still passes."""
+    repo = _init_repo(tmp_path)
+    old_rel = f"kitty-specs/{SLUG}/traces/old.md"
+    new_rel = f"kitty-specs/{SLUG}/traces/new.md"
+    body = "the record\n"
+    _commit_path_on_main(repo, old_rel, body, "the record exists on the target")
+    coord = _make_coord_branch(repo)
+    base = _rev(repo, coord)
+    _git(repo, "rm", "-q", old_rel)
+    _commit_path_on_main(repo, new_rel, body, "the target applied the rename")
+    _delete_coord_path(repo, coord, old_rel, "the coordination branch renamed the record")
+    _append_coord_commit(repo, coord, new_rel, body, "the coordination branch renamed the record")
+
+    _assert_window(repo, coord, base)  # no refusal: both halves match
+
+
+def test_a_snapshot_that_is_not_the_logs_reduction_is_not_exempt(tmp_path: Path) -> None:
+    """#7198 review: ``status.json`` is exempt only while it IS the reduction of the committed log."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused
+
+    repo = _init_repo(tmp_path)
+    rel = f"kitty-specs/{SLUG}/status.json"
+    coord = _make_coord_branch(repo)
+    base = _rev(repo, coord)
+    # The target's committed snapshot is the bootstrap one, which does not reduce from its log, so the
+    # coordination-side snapshot change is a record the target does not carry.
+    _append_coord_commit(repo, coord, rel, '{"work_packages": {"WP01": "approved"}}\n', "a snapshot the target does not hold")
+
+    with pytest.raises(LateProjectionRefused, match="status.json"):
+        _assert_window(repo, coord, base)
+
+
+def test_a_failed_blob_read_is_never_a_verdict(tmp_path: Path) -> None:
+    """#7198 review: a git failure must surface as an error, not as two equal ``None`` blobs."""
+    from kernel.git import GitCommandError
+
+    repo, coord, _base = _seeded_meta_fixture(tmp_path, {"a": 1}, {"a": 2}, {"a": 2})
+
+    with pytest.raises(GitCommandError):
+        _assert_window(repo, coord, "0" * 40)
