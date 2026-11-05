@@ -12,13 +12,12 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 from typing import cast
+from uuid import uuid4
 
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from kernel.git import GitPath, IndexEntry, commit_paths, index_entries, status_entries, tracked_paths
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
-
 from specify_cli.analysis_inputs import collect_material_inputs, pack_pin_state
 from specify_cli.analysis_report import (
     ANALYSIS_REPORT_FILENAME,
@@ -294,9 +293,10 @@ def _dirty_material_inputs(
     in the index. The last one is the only source that can be satisfied by
     committed authority the repository does not hold itself: a fetched pack tree
     is gitignored because its commit is pinned in ``packs/<name>.source.yaml``
-    (``make sync-packs``), so a tree that pin content-verifies is clean by
-    construction (#7128). Only those verified roots are subtracted; every other
-    untracked or ignored material input keeps refusing exactly as before.
+    (``make sync-packs``), so a tree matching its committed pin's digests has
+    content-addressed state (#7128). Only the untracked-material set is reduced;
+    status-visible dirt, including ordinary non-ignored untracked files, is never
+    reduced. Every other untracked or ignored material input keeps refusing.
     """
     material_paths = {entry["path"] for entry in inputs.values()}
     relevant = _dirty_paths(repo_root) & (material_paths | {relative})
@@ -307,8 +307,8 @@ def _dirty_material_inputs(
         pins = pack_pin_state(repo_root)
         untracked_material = {path for path in untracked_material if not _under_any(path, pins.verified_roots)}
         # An uncommitted or symlinked pin is *why* a fetched tree could not be
-        # verified: name it, so the operator fixes the cause rather than a list of
-        # pack files that do match the pin on disk.
+        # verified: also name it beside the uncommitted material. A refused pin
+        # can be a trust-refusal cause even when its own Git status is clean.
         relevant.update(pins.refused_pins)
     relevant.update(untracked_material)
     return relevant
