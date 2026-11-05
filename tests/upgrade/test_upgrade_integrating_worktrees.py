@@ -110,7 +110,7 @@ def test_upgrade_leaves_integrating_worktrees_untouched(tmp_path: Path, topology
 def test_integrating_rule_on_one_fixture(tmp_path: Path) -> None:
     """The exact rule (squad fold): lane, coordination and detached are integrating;
     an unrelated branch and a plain directory without ``.git`` are not."""
-    from specify_cli.upgrade.worktree_selection import is_integrating_worktree
+    from specify_cli.upgrade.worktree_selection import DispositionAction, WorktreeSelection, worktree_dispositions
 
     project = build_older_version_lanes_project(tmp_path, topology="lanes_with_coord", lanes=1)
     control = project.extra_worktree(branch=NON_INTEGRATING_BRANCH)
@@ -119,11 +119,12 @@ def test_integrating_rule_on_one_fixture(tmp_path: Path) -> None:
     (plain / ".kittify").mkdir(parents=True)
 
     assert project.coord_worktree is not None
-    assert is_integrating_worktree(project.lane_worktrees["lane-a"]) is True
-    assert is_integrating_worktree(project.coord_worktree) is True
-    assert is_integrating_worktree(detached) is True
-    assert is_integrating_worktree(control) is False
-    assert is_integrating_worktree(plain) is False
+    actions = {d.path.name: d.action for d in worktree_dispositions(project.repo / ".worktrees", WorktreeSelection.none())}
+    assert actions[project.lane_worktrees["lane-a"].name] is DispositionAction.SKIP_MISSION
+    assert actions[project.coord_worktree.name] is DispositionAction.SKIP_MISSION
+    assert actions[detached.name] is DispositionAction.SKIP_MISSION
+    assert actions[control.name] is DispositionAction.SKIP_NOT_SELECTED
+    assert actions[plain.name] is DispositionAction.SKIP_NOT_SELECTED
 
 
 @pytest.mark.parametrize("flag", ["--dry-run", "--no-worktrees"])
