@@ -51,7 +51,7 @@ from specify_cli.cli.commands import accept as accept_module
 from specify_cli.cli.commands.agent.acceptance_verdict import acceptance_verdict
 from specify_cli.status.locking import FeatureStatusLockTimeoutError
 from specify_cli.task_utils import LANES
-from tests.lane_test_utils import commit_lane_implementation, derive_mission_id, write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, commit_reviewed_wp01, derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.test_acceptance_regressions import _create_test_feature
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.integration]
@@ -125,7 +125,9 @@ def _seed_fixture(
         check=True,
         capture_output=True,
     )
-    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")  # #6715 evidence window
+    # #6715: the review follows the implementation it approves, stamped at the lane tip.
+    lane_tip = commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+    commit_reviewed_wp01(repo_root, feature_dir, lane_head=lane_tip)
     monkeypatch.chdir(repo_root)
     return repo_root, feature_dir
 
@@ -460,6 +462,7 @@ class TestStampGuardFR010Branches:
             check=True,
             capture_output=True,
         )
+        commit_reviewed_wp01(repo_root, feature_dir, lane_head=None)  # a planning lane is never stamped
 
         result = _run_accept(repo_root, mission_slug, monkeypatch)
 

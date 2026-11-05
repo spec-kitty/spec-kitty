@@ -26,7 +26,6 @@ from pathlib import Path
 import pytest
 import typer
 
-from kernel.clock import now_utc_iso
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
@@ -37,11 +36,7 @@ from specify_cli.acceptance.matrix import (
 from specify_cli.cli.commands.accept import accept
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.models import InnerStateChanged, Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.reducer import materialize
-from specify_cli.status.store import append_annotations_atomic_verified
-from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import commit_lane_implementation
+from tests.lane_test_utils import commit_lane_implementation, commit_reviewed_wp01
 from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -119,42 +114,6 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
         "# WP01\nDone.\n"
     )
 
-    # #6715: an implementer's claim, an approval by a different identity, then done.
-    hops = [
-        (Lane.PLANNED, Lane.CLAIMED, "test-agent", False),
-        (Lane.CLAIMED, Lane.APPROVED, "test-reviewer", True),
-        (Lane.APPROVED, Lane.DONE, "test-agent", True),
-    ]
-    for idx, (from_lane, to_lane, actor, force) in enumerate(hops):
-        seed_status_event(
-            feature_dir,
-            StatusEvent(
-                event_id=f"01JZZZZZZZZZZZZZZZZZZZZZA{idx}",
-                mission_slug=_SLUG,
-                wp_id="WP01",
-                from_lane=from_lane,
-                to_lane=to_lane,
-                at=f"2026-01-01T00:0{idx}:00+00:00",
-                actor=actor,
-                force=force,
-                execution_mode="direct_repo",
-                reason="Test setup: implemented and independently reviewed",
-            ),
-        )
-    append_annotations_atomic_verified(
-        feature_dir,
-        [
-            InnerStateChanged(
-                event_id="01JZZZZZZZZZZZZZZZZZZZZZZY",
-                wp_id="WP01",
-                at=now_utc_iso(),
-                actor="test-agent",
-                delta=WPInnerStateDelta(agent="test-agent"),
-            )
-        ],
-    )
-    materialize(feature_dir)
-
     write_lanes_json(
         feature_dir,
         LanesManifest(
@@ -207,9 +166,11 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "init")
-    # #6715: record the planning commit and the lane's implementation, as a real Mission has them.
+    # #6715: the order a real Mission records: the planning commit, the lane's implementation,
+    # then the review of that implementation, stamped at the lane tip.
     pin_planning_commit(repo_root, feature_dir, commit_message="record planning commit")
-    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+    lane_tip = commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+    commit_reviewed_wp01(repo_root, feature_dir, lane_head=lane_tip)
     _git(repo_root, "checkout", "-b", _MISSION_BRANCH)
     return feature_dir
 

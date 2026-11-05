@@ -32,10 +32,9 @@ from kernel.clock import now_utc_iso
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import commit_lane_implementation
+from tests.lane_test_utils import commit_lane_implementation, commit_reviewed_wp01
 from tests.terminus.conftest import pin_planning_commit
 
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -208,7 +207,6 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
         NegativeInvariant,
         write_acceptance_matrix,
     )
-    from specify_cli.status.reducer import materialize
 
     _git(repo_root, "init", ".")
     _git(repo_root, "config", "user.email", "test@example.com")
@@ -258,62 +256,6 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
         "# WP01\nDone.\n"
     )
 
-    # A real planned -> claimed leg event-sources ``agent`` into the resolved
-    # snapshot (the reducer's claim exception extracts agent/shell_pid from THIS
-    # transition's ``policy_metadata`` sidecar, FR-004). Skipping straight to
-    # done, as before the #2816 event-sourced cutover, left the strict-accept
-    # "missing agent in canonical runtime state" gate permanently red here.
-    seed_status_event(
-        feature_dir,
-        StatusEvent(
-            event_id="01TESTACCEPTNOCOMMITCLI0000",
-            mission_slug=_CLI_SLUG,
-            wp_id="WP01",
-            from_lane=Lane.PLANNED,
-            to_lane=Lane.CLAIMED,
-            at="2026-01-01T00:00:00+00:00",
-            actor="test-agent",
-            force=False,
-            execution_mode="direct_repo",
-            policy_metadata=build_claim_policy_metadata(
-                shell_pid=12345,
-                shell_pid_created_at="2026-01-01T00:00:00+00:00",
-                agent="test-agent",
-            ),
-        ),
-    )
-    seed_status_event(
-        feature_dir,
-        StatusEvent(
-            event_id="01TESTACCEPTNOCOMMITCLI0001",
-            mission_slug=_CLI_SLUG,
-            wp_id="WP01",
-            from_lane=Lane.CLAIMED,
-            to_lane=Lane.APPROVED,
-            at="2026-01-01T00:01:00+00:00",
-            actor="test-reviewer",
-            force=True,
-            execution_mode="direct_repo",
-            reason="Test setup: approved by a non-implementer (#6715)",
-        ),
-    )
-    seed_status_event(
-        feature_dir,
-        StatusEvent(
-            event_id="01TESTACCEPTNOCOMMITCLI0002",
-            mission_slug=_CLI_SLUG,
-            wp_id="WP01",
-            from_lane=Lane.APPROVED,
-            to_lane=Lane.DONE,
-            at=now_utc_iso(),
-            actor="test-agent",
-            force=True,
-            execution_mode="direct_repo",
-            reason="Test setup: approved work package lands as done",
-        ),
-    )
-    materialize(feature_dir)
-
     write_lanes_json(
         feature_dir,
         LanesManifest(
@@ -362,9 +304,12 @@ def _create_acceptready_lane_feature(repo_root: Path) -> Path:
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "init")
-    # #6715: record the planning commit and the lane's implementation, as a real Mission has them.
+    # #6715: the order a real Mission records: the planning commit, the lane's implementation,
+    # then the review of that implementation, stamped at the lane tip. The claim hop event-sources
+    # ``agent`` into the resolved snapshot (FR-004), which strict accept requires (#2816).
     pin_planning_commit(repo_root, feature_dir, commit_message="record planning commit")
-    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+    lane_tip = commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")
+    commit_reviewed_wp01(repo_root, feature_dir, lane_head=lane_tip)
     _git(repo_root, "checkout", "-b", _CLI_MISSION_BRANCH)
     return feature_dir
 

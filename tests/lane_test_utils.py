@@ -207,3 +207,58 @@ def commit_lane_implementation(repo_root: Path, feature_dir: Path, *, lane_id: s
     tip = git("commit-tree", tree, "-p", parent, "-m", f"feat: implement {path}")
     git("update-ref", f"refs/heads/{branch}", tip)
     return tip
+
+
+def commit_reviewed_wp01(
+    repo_root: Path,
+    feature_dir: Path,
+    *,
+    lane_head: str | None,
+    to_lane: str = "done",
+    implementer: str = "test-agent",
+    reviewer: str = "test-reviewer",
+) -> None:
+    """#6715: record WP01's implementer claim chain and independent approval, then commit them.
+
+    Call it once the work under review is committed, so the approval follows that work in history
+    as it does on a real Mission: pass the code lane's tip as *lane_head* (the approval stamp,
+    ``policy_metadata.lane_head``), or ``None`` for a planning lane, which is never stamped.
+    *to_lane* is ``approved``, or ``done`` to add the landing hop after the approval.
+    """
+    from specify_cli.status.emit import build_claim_policy_metadata
+    from specify_cli.status.models import StatusEvent
+    from specify_cli.status.reducer import materialize
+    from tests._support.status_seed import seed_status_events
+    from tests.terminus.conftest import implementer_claim_events
+
+    approved: dict[str, Any] = {
+        "event_id": "01HXYZAPPR0000000000000001",
+        "mission_slug": feature_dir.name,
+        "wp_id": "WP01",
+        "from_lane": "in_review",
+        "to_lane": "approved",
+        "at": "2026-01-01T00:01:00+00:00",
+        "actor": reviewer,
+        "force": False,
+        "execution_mode": "direct_repo",
+        "policy_metadata": None if lane_head is None else {"lane_head": lane_head},
+    }
+    claim, *hops = implementer_claim_events(approved, actor=implementer)
+    claim["policy_metadata"] = build_claim_policy_metadata(shell_pid=12345, shell_pid_created_at=str(claim["at"]), agent=implementer)
+    history: list[dict[str, Any]] = [claim, *hops, approved]
+    if to_lane == "done":
+        history.append(
+            {
+                **approved,
+                "event_id": "01HXYZD0NE0000000000000001",
+                "from_lane": "approved",
+                "to_lane": "done",
+                "at": "2026-01-01T00:02:00+00:00",
+                "actor": "merge",
+                "policy_metadata": None,
+            }
+        )
+    seed_status_events(feature_dir, [StatusEvent.from_dict(event) for event in history])
+    materialize(feature_dir)
+    subprocess.run(["git", "-C", str(repo_root), "add", "--", str(feature_dir.relative_to(repo_root))], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "chore: record the review of WP01"], check=True, capture_output=True)
