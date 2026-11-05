@@ -29,6 +29,9 @@
       "last_event_id": "01M6P5ETE8RTXC11VZ43EYY2R5",
       "last_transition_at": "2026-11-05T15:32:52.296815+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: red-first CLI proof, both reflog paths, rebase non-churn, refusal"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 881235,

@@ -22,6 +22,9 @@ requirement_refs:
 planning_base_branch: issue-7211-reflog-reachable-prune
 merge_target_branch: issue-7211-reflog-reachable-prune
 branch_strategy: Planning artifacts for this mission were generated on issue-7211-reflog-reachable-prune. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7211-reflog-reachable-prune unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-reflog-reachable-prune-01M6P3DY
+base_commit: 264dbe17bbc9e8379647af5eb6332170980739b3
+created_at: '2026-11-05T15:00:25.874602+00:00'
 subtasks:
 - T001
 - T002

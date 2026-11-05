@@ -11,5 +11,7 @@
   "purpose_tldr": "reflog reachable prune",
   "slug": "reflog-reachable-prune-01M6P3DY",
   "target_branch": "issue-7211-reflog-reachable-prune",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-05T15:00:22.688811+00:00"
 }
