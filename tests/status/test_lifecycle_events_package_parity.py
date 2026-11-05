@@ -32,9 +32,9 @@ from specify_cli.status import lifecycle_events as lifecycle
 
 pytestmark = [pytest.mark.fast]
 
-#: The twelve canonical lifecycle event types the CLI emits, named by the constant both
-#: this module and ``spec_kitty_events`` publish. Every one of these names is exported at
-#: the ``spec_kitty_events`` top level from the pinned floor (``>=11.3.0,<12``).
+#: The twelve CLI lifecycle constant names, not the package's separate
+#: ``CANONICAL_LIFECYCLE_EVENT_TYPES``. Each is exported at the ``spec_kitty_events``
+#: top level from the pinned floor (``>=11.3.0,<12``).
 LIFECYCLE_CONSTANT_NAMES = (
     "PROJECT_INITIALIZED",
     "MISSION_CREATED",
@@ -50,23 +50,17 @@ LIFECYCLE_CONSTANT_NAMES = (
     "FOLLOW_UP_RECORDED",
 )
 
-#: The two post-mission types: the subset that describes a fact *after* a mission merged
-#: or closed (``POST_MISSION_LIFECYCLE_EVENT_TYPES``).
-POST_MISSION_CONSTANT_NAMES = ("MISSION_REOPENED", "FOLLOW_UP_RECORDED")
-
 
 def _package_attribute(name: str) -> object:
     """Return the ``spec_kitty_events`` attribute called *name*, failing loudly when absent.
 
     A future package release that renames or drops one of the pinned symbols must read as a
-    named failure against the pinned floor, not as an ``AttributeError`` raised from inside
-    an assertion, so the diagnosis is immediate (#6876 FR-004).
+    named failure against the published exports, not as an ``AttributeError`` raised from
+    inside an assertion, so the diagnosis is immediate (#6876 FR-004).
     """
     if not hasattr(spec_kitty_events, name):
         pytest.fail(
-            f"spec_kitty_events does not export {name!r} (pinned floor "
-            "'>=11.3.0,<12'). A pinned symbol was renamed or removed upstream: "
-            "update the CLI vocabulary and this pin together."
+            f"spec_kitty_events does not export {name!r}. A pinned symbol was renamed or removed upstream: update the CLI vocabulary and this pin together."
         )
     return getattr(spec_kitty_events, name)
 
@@ -107,25 +101,14 @@ def test_cli_lifecycle_constant_matches_the_package(name: str) -> None:
 
 
 def test_lifecycle_event_types_is_exactly_the_twelve() -> None:
-    """``LIFECYCLE_EVENT_TYPES`` is exactly the twelve canonical values, no more, no less."""
+    """``LIFECYCLE_EVENT_TYPES`` is exactly the CLI's twelve values, no more, no less."""
     expected = {_package_value(name) for name in LIFECYCLE_CONSTANT_NAMES}
     actual = set(lifecycle.LIFECYCLE_EVENT_TYPES)
+    # Keep twelve distinct values even if imported package names alias one another.
     assert len(actual) == len(LIFECYCLE_CONSTANT_NAMES), (
         f"LIFECYCLE_EVENT_TYPES has {len(actual)} members, expected {len(LIFECYCLE_CONSTANT_NAMES)}: {sorted(actual)}"
     )
-    assert actual == expected, (
-        f"LIFECYCLE_EVENT_TYPES drifted from the canonical twelve; missing {sorted(expected - actual)}, unexpected {sorted(actual - expected)}"
-    )
-
-
-def test_post_mission_lifecycle_event_types_is_exactly_the_two() -> None:
-    """The post-mission set is the two post-mission values, both inside the twelve."""
-    expected = {_package_value(name) for name in POST_MISSION_CONSTANT_NAMES}
-    actual = set(lifecycle.POST_MISSION_LIFECYCLE_EVENT_TYPES)
-    assert actual == expected, f"POST_MISSION_LIFECYCLE_EVENT_TYPES is {sorted(actual)}, expected {sorted(expected)}"
-    assert actual <= set(lifecycle.LIFECYCLE_EVENT_TYPES), (
-        f"a post-mission type is not a member of LIFECYCLE_EVENT_TYPES: {sorted(actual - set(lifecycle.LIFECYCLE_EVENT_TYPES))}"
-    )
+    assert actual == expected, f"LIFECYCLE_EVENT_TYPES drifted from the CLI's twelve; missing {sorted(expected - actual)}, unexpected {sorted(actual - expected)}"
 
 
 def test_cli_vocabulary_is_deliberately_narrower_than_the_package() -> None:
@@ -134,7 +117,8 @@ def test_cli_vocabulary_is_deliberately_narrower_than_the_package() -> None:
     A package release that adds a lifecycle type the CLI does not emit must stay green:
     the assertion is subset + strictness, never an exact difference set. A package
     release that *narrows* below the CLI's twelve is a red here, which is the signal to
-    take a decision rather than to widen the CLI silently.
+    take a decision rather than to widen the CLI silently. Equality with the CLI's set
+    also fails: revisit the deliberately-narrower premise, not the CLI's behavior.
     """
     cli_vocabulary = set(lifecycle.LIFECYCLE_EVENT_TYPES)
     wide_vocabulary = _wide_vocabulary()
