@@ -122,6 +122,7 @@ __all__ = [
     "WORKTREE_REMOVE_FAILED",
     "ProbeFn",
     "PruneOutcome",
+    "Reason",
     "Verdict",
     "WorktreeAssessment",
     "WorktreeVerdict",
