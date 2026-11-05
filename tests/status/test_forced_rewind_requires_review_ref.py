@@ -213,29 +213,30 @@ def test_whitespace_only_review_ref_is_treated_as_absent(repo_in_review: Path) -
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(params=["approved"])
-def repo_in_gated_lane(request: pytest.FixtureRequest, tmp_path: Path) -> tuple[Path, str]:
-    """A mission whose WP01 sits in ``approved``, driven through ``emit``.
-
-    ``in_review`` is the contract's third gated edge but needs its own fix first
-    (#7080); its door behaviour is pinned by ``test_force_elsewhere_is_unchanged``.
-    """
+def _repo_at(tmp_path: Path, lane: str) -> Path:
+    """A mission whose WP01 sits in *lane*, driven through the real ``emit`` command."""
     repo = tmp_path / "repo"
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     feature_dir.mkdir(parents=True)
     (repo / ".kittify").mkdir()
-    lane = str(request.param)
     with (
         patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo),
         patch("specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG),
     ):
         _advance_to(feature_dir, lane)
-    return repo, lane
+    return repo
+
+
+@pytest.fixture(params=["in_review", "approved"])
+def repo_in_gated_lane(request: pytest.FixtureRequest, tmp_path: Path) -> tuple[Path, str]:
+    """A mission whose WP01 sits in a gated lane past ``for_review`` (#6955, #7080)."""
+    lane = str(request.param)
+    return _repo_at(tmp_path, lane), lane
 
 
 @pytest.mark.regression
 def test_pointerless_gated_rewind_is_refused_before_append(repo_in_gated_lane: tuple[Path, str]) -> None:
-    """#6955: no ``review_ref`` on ``approved -> in_progress`` ⇒ refused, no bytes written."""
+    """#6955/#7080: no ``review_ref`` on a gated ``-> in_progress`` rewind ⇒ refused, no bytes written."""
     repo, lane = repo_in_gated_lane
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     log_path = feature_dir / "status.events.jsonl"
@@ -667,10 +668,6 @@ def test_local_edge_set_equals_the_contract_members_it_claims() -> None:
         )
         assert validate_transition(_wire_payload(from_lane, to_lane, force=True, review_ref="force-override")).valid is True
 
-    # The former carve-out is closed, not merely pinned: the same edge that #6955 left
-    # out is now a local member AND a wire requirement, proven in both directions above.
-    assert validate_transition(_wire_payload("in_review", "in_progress", force=True, review_ref=None)).valid is False
-
 
 def test_the_contract_is_the_released_pin_not_a_local_patch() -> None:
     """`FR-009`: the fix conforms the payload; it never edits or re-pins the dependency."""
@@ -727,7 +724,7 @@ def test_the_planner_reads_no_io_on_the_gated_family(old_lane: str, monkeypatch:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("from_lane", ["approved"])
+@pytest.mark.parametrize("from_lane", ["in_review", "approved"])
 def test_force_cannot_override_the_requirement_on_the_added_edges(from_lane: str) -> None:
     """The family's requirement is force-insurmountable on the two added edges."""
     from specify_cli.status.wp_state import wp_state_for
@@ -740,7 +737,7 @@ def test_force_cannot_override_the_requirement_on_the_added_edges(from_lane: str
     assert "--review-ref" in error
 
 
-@pytest.mark.parametrize("from_lane", ["approved"])
+@pytest.mark.parametrize("from_lane", ["in_review", "approved"])
 @pytest.mark.parametrize(
     ("review_ref", "accepted"),
     [("force-override", True), ("review-cycle://WP01/1", True), ("   ", False), (None, False)],
@@ -753,7 +750,7 @@ def test_the_added_edges_follow_the_same_pointer_rule(from_lane: str, review_ref
     assert ok is accepted, f"{from_lane} with review_ref={review_ref!r}: {error}"
 
 
-@pytest.mark.parametrize("from_lane", ["approved"])
+@pytest.mark.parametrize("from_lane", ["in_review", "approved"])
 def test_migration_actor_is_exempt_on_the_added_edges(from_lane: str) -> None:
     """A reconstruction actor restates history; the writer admits it (#5446 precedent)."""
     from specify_cli.status.wp_state import wp_state_for
@@ -761,7 +758,7 @@ def test_migration_actor_is_exempt_on_the_added_edges(from_lane: str) -> None:
     assert wp_state_for(from_lane).check_transition(_in_progress(), _ctx(actor="migration:backfill")) == (True, None)
 
 
-@pytest.mark.parametrize("from_lane", ["approved"])
+@pytest.mark.parametrize("from_lane", ["in_review", "approved"])
 def test_auditor_reports_a_pointerless_family_row(from_lane: str) -> None:
     """`FR-002`: the auditor reads the same set, so the stored row is reported."""
     from specify_cli.status.validate import validate_event_schema
@@ -790,45 +787,16 @@ def test_auditor_reports_a_pointerless_family_row(from_lane: str) -> None:
 #
 # Its evidence is a STRUCTURED review result, which the status emit path never
 # turned into a ``review_ref`` (#6955 deferred the edge for exactly this reason).
-# These tests therefore come in the order the fix has to happen: the recorded
-# pointer first, the gate second, and a pointerless request still refused.
+# The pointerless refusal is covered by the gated-lane fixture above; these pin
+# that the structured reference becomes the recorded, wire-valid pointer.
 # ---------------------------------------------------------------------------
 
 _REVIEW_RESULT_JSON = json.dumps({"reviewer": "reviewer-renata", "verdict": "changes_requested", "reference": "review-cycle://WP01/7"})
 
 
-def _seed_to(feature_dir: Path, lanes: tuple[str, ...]) -> None:
-    """Walk a seeded WP through *lanes* via the real ``emit`` command."""
-    from tests.status.conftest import seed_wp_to_planned
-
-    seed_wp_to_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
-    hop_extras = {
-        "claimed": [],
-        "in_progress": [],
-        "for_review": ["--subtasks-complete", "--implementation-evidence-present"],
-        "in_review": [],
-    }
-    for lane in lanes:
-        result = runner.invoke(
-            app,
-            ["emit", "WP01", "--to", lane, "--actor", "codex", "--mission", _MISSION_SLUG, "--json", *hop_extras[lane]],
-        )
-        assert result.exit_code == 0, f"seed hop to {lane} failed: {result.stdout}"
-
-
 @pytest.fixture
 def repo_in_in_review(tmp_path: Path) -> Path:
-    """A mission whose WP01 sits in ``in_review``, driven through ``agent status emit``."""
-    repo = tmp_path / "repo"
-    feature_dir = repo / "kitty-specs" / _MISSION_SLUG
-    feature_dir.mkdir(parents=True)
-    (repo / ".kittify").mkdir()
-    with (
-        patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo),
-        patch("specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG),
-    ):
-        _seed_to(feature_dir, ("claimed", "in_progress", "for_review", "in_review"))
-    return repo
+    return _repo_at(tmp_path, "in_review")
 
 
 def _assert_wire_valid(row: dict) -> None:
@@ -856,218 +824,32 @@ def _assert_wire_valid(row: dict) -> None:
 
 
 @pytest.mark.regression
-def test_pointerless_in_review_rewind_is_refused_before_append(repo_in_in_review: Path) -> None:
-    """#7080: no pointer and no structured reference ⇒ refused, nothing written.
-
-    Before the fix the forced arm was admitted (force bypasses the review-result
-    guard) and appended a row the wire contract rejects.
-    """
-    feature_dir = repo_in_in_review / "kitty-specs" / _MISSION_SLUG
-    log_path = feature_dir / "status.events.jsonl"
-    snapshot_path = feature_dir / "status.json"
-    log_before, snapshot_before = _digest(log_path), _digest(snapshot_path)
-    rows_before = len(_rows(feature_dir))
-
-    result = _forced_rewind(repo_in_in_review)
-
-    assert result.exit_code != 0, f"the pointerless in_review rewind was accepted: {result.stdout}"
-    assert _digest(log_path) == log_before, "the refused rewind appended to status.events.jsonl"
-    assert _digest(snapshot_path) == snapshot_before, "the refused rewind rematerialized status.json"
-    assert len(_rows(feature_dir)) == rows_before
-    error = json.loads(result.stdout)["error"]
-    assert "review_ref" in error, error
-    assert "--review-ref" in error, "the refusal must name the flag that supplies the pointer"
-
-
-@pytest.mark.regression
-def test_structured_review_result_threads_the_pointer_onto_the_wire(repo_in_in_review: Path) -> None:
+@pytest.mark.parametrize("force", [True, False], ids=["forced", "review-loop"])
+def test_structured_review_result_threads_the_pointer_onto_the_wire(repo_in_in_review: Path, force: bool) -> None:
     """#7080: the recorded row cites the structured review's reference and validates.
 
-    Before the fix the same request appended ``review_ref: null`` and the payload was
-    wire-invalid even though the caller had supplied a reference in structured form.
+    Before the fix the forced request appended ``review_ref: null`` -- wire-invalid
+    even though the caller had supplied a reference in structured form. The unforced
+    arm is the ordinary review loop (the legitimate write #6955 was protecting): the
+    reviewer rejects and the structured result is the only evidence.
     """
     feature_dir = repo_in_in_review / "kitty-specs" / _MISSION_SLUG
     before = len(_rows(feature_dir))
 
-    result = _forced_rewind(repo_in_in_review, "--review-result-json", _REVIEW_RESULT_JSON)
+    if force:
+        result = _forced_rewind(repo_in_in_review, "--review-result-json", _REVIEW_RESULT_JSON)
+    else:
+        result = _invoke(
+            repo_in_in_review,
+            ["emit", "WP01", "--to", "in_progress", "--actor", "codex", "--mission", _MISSION_SLUG, "--review-result-json", _REVIEW_RESULT_JSON, "--json"],
+        )
 
     assert result.exit_code == 0, result.stdout
     rows = _rows(feature_dir)
     assert len(rows) == before + 1
     appended = _lane_rows(rows)[-1]
     assert (appended["from_lane"], appended["to_lane"]) == ("in_review", "in_progress")
+    assert appended["force"] is force
     assert appended["review_ref"] == "review-cycle://WP01/7", appended
     _assert_wire_valid(appended)
     _assert_validate_clean(repo_in_in_review)
-
-
-@pytest.mark.regression
-def test_unforced_structured_review_rewind_threads_the_pointer(repo_in_in_review: Path) -> None:
-    """The ordinary review loop is unforced: it must record the pointer too.
-
-    This is the legitimate write #6955 was protecting: the reviewer rejects, no
-    ``--force`` is involved, and the structured result is the only evidence.
-    """
-    feature_dir = repo_in_in_review / "kitty-specs" / _MISSION_SLUG
-    before = len(_rows(feature_dir))
-
-    result = _invoke(
-        repo_in_in_review,
-        [
-            "emit",
-            "WP01",
-            "--to",
-            "in_progress",
-            "--actor",
-            "codex",
-            "--mission",
-            _MISSION_SLUG,
-            "--review-result-json",
-            _REVIEW_RESULT_JSON,
-            "--json",
-        ],
-    )
-
-    assert result.exit_code == 0, result.stdout
-    rows = _rows(feature_dir)
-    assert len(rows) == before + 1
-    appended = _lane_rows(rows)[-1]
-    assert appended["force"] is False
-    assert appended["review_ref"] == "review-cycle://WP01/7", appended
-    _assert_wire_valid(appended)
-    _assert_validate_clean(repo_in_in_review)
-
-
-@pytest.mark.regression
-def test_an_explicit_review_ref_is_recorded_unchanged(repo_in_in_review: Path) -> None:
-    """The derivation fills an ABSENT pointer only: a caller's pointer wins.
-
-    Positive control for the derivation, on the same fixture: the recorded
-    ``review_ref`` is the caller's, not the structured reference.
-    """
-    feature_dir = repo_in_in_review / "kitty-specs" / _MISSION_SLUG
-    before = len(_rows(feature_dir))
-
-    result = _invoke(
-        repo_in_in_review,
-        [
-            "emit",
-            "WP01",
-            "--to",
-            "in_progress",
-            "--actor",
-            "codex",
-            "--mission",
-            _MISSION_SLUG,
-            "--review-ref",
-            "review-cycle://WP01/7",
-            "--review-result-json",
-            _REVIEW_RESULT_JSON,
-            "--json",
-        ],
-    )
-
-    assert result.exit_code == 0, result.stdout
-    rows = _rows(feature_dir)
-    assert len(rows) == before + 1
-    appended = _lane_rows(rows)[-1]
-    assert appended["review_ref"] == "review-cycle://WP01/7", appended
-    _assert_wire_valid(appended)
-
-
-@pytest.mark.regression
-def test_the_existing_consistency_refusal_is_untouched(repo_in_in_review: Path) -> None:
-    """An explicit pointer that disagrees with the structured reference is still refused.
-
-    This is the pre-existing ``review_ref must match review_result.reference`` arm (the
-    unforced review-loop path, where guards run). The derivation must not route around
-    it by substituting one for the other.
-    """
-    feature_dir = repo_in_in_review / "kitty-specs" / _MISSION_SLUG
-    log_path = feature_dir / "status.events.jsonl"
-    digest_before = _digest(log_path)
-    rows_before = len(_rows(feature_dir))
-
-    result = _invoke(
-        repo_in_in_review,
-        [
-            "emit",
-            "WP01",
-            "--to",
-            "in_progress",
-            "--actor",
-            "codex",
-            "--mission",
-            _MISSION_SLUG,
-            "--review-ref",
-            "feedback://someone-elses-pointer",
-            "--review-result-json",
-            _REVIEW_RESULT_JSON,
-            "--json",
-        ],
-    )
-
-    assert result.exit_code != 0, f"a mismatched explicit pointer was accepted: {result.stdout}"
-    assert _digest(log_path) == digest_before
-    assert len(_rows(feature_dir)) == rows_before
-
-
-@pytest.mark.regression
-def test_auditor_reports_a_pointerless_in_review_row() -> None:
-    """#7080: an already-stored pointerless row is reported, and its twin is clean."""
-    from specify_cli.status.validate import validate_event_schema
-
-    event = {
-        "event_id": "01M68J63NCYKK6X90EG8HYNE6K",
-        "mission_slug": _MISSION_SLUG,
-        "wp_id": "WP01",
-        "from_lane": "in_review",
-        "to_lane": "in_progress",
-        "at": "2026-10-31T08:00:00+00:00",
-        "actor": "codex",
-        "force": True,
-        "reason": "operator rewind",
-        "execution_mode": "worktree",
-        "review_ref": None,
-    }
-
-    assert validate_event_schema(event) == ["Event 01M68J63NCYKK6X90EG8HYNE6K: in_review->in_progress without review_ref"]
-    assert validate_event_schema({**event, "review_ref": "review-cycle://WP01/7"}) == []
-
-
-def test_every_local_edge_is_a_real_requirement_of_the_pinned_contract() -> None:
-    """Ratchet (#7080, inheriting #6955's pin): membership must be a contract fact.
-
-    Two directions on the SAME payload: without a pointer the pinned contract rejects
-    it, with one it accepts it. A local member the contract does not gate (or a
-    contract-gated edge missing here) is a divergence, so the local set must be a
-    subset of the contract's gated family while still covering this mission's edge.
-
-    Deliberately NOT an exact-set assertion: ``approved -> in_progress`` is owned by
-    #6955 / PR #7102, and an exact set here would make this pin and that one falsify
-    each other in one of the two merge orders (#6955's deferral pin asked for the same
-    care in the other direction).
-    """
-    from spec_kitty_events.status import ExecutionMode, Lane, StatusTransitionPayload, _REVIEW_REF_GATED_REWINDS, validate_transition
-
-    from specify_cli.status.wp_state import REVIEW_REF_REQUIRED_EDGES
-
-    def payload(from_lane: Lane, review_ref: str | None) -> StatusTransitionPayload:
-        return StatusTransitionPayload(
-            mission_slug=_MISSION_SLUG,
-            wp_id="WP01",
-            from_lane=from_lane,
-            to_lane=Lane.IN_PROGRESS,
-            actor="codex",
-            force=True,
-            reason="rewind",
-            execution_mode=ExecutionMode.WORKTREE,
-            review_ref=review_ref,
-            evidence=None,
-        )
-
-    assert (Lane.IN_REVIEW, Lane.IN_PROGRESS) in REVIEW_REF_REQUIRED_EDGES, "the reported edge is not gated"
-    assert REVIEW_REF_REQUIRED_EDGES <= _REVIEW_REF_GATED_REWINDS, "a local member is not a contract requirement"
-    for from_lane, to_lane in sorted(REVIEW_REF_REQUIRED_EDGES):
-        assert validate_transition(payload(from_lane, None)).valid is False, f"{from_lane.value} -> {to_lane.value} is not wire-gated"
-        assert validate_transition(payload(from_lane, "review-cycle://WP01/7")).valid is True
