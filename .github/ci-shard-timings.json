@@ -48,8 +48,8 @@
         "tests/ci"
       ],
       "selection": "not performance and not stress",
-      "unique_tests_measured": 2962,
-      "node_ids_measured": 2962,
+      "unique_tests_measured": 2961,
+      "node_ids_measured": 2961,
       "exit_code": 1,
       "tests_failed": 12,
       "producer": "scripts/ci/capture_shard_timings.py"
@@ -349,7 +349,7 @@
     "status": 91.969,
     "unit": 8.365,
     "upgrade": 722.548,
-    "ci": 301.502,
+    "ci": 301.5,
     "auth": 16.41,
     "dossier": 1.294
   },
@@ -372,7 +372,7 @@
     "status": 2509,
     "unit": 635,
     "upgrade": 1601,
-    "ci": 2962,
+    "ci": 2961,
     "auth": 638,
     "dossier": 402
   },
@@ -37996,7 +37996,6 @@
       0.0018,
       0.0017,
       0.0017,
-      0.0018,
       0.0017,
       0.2925,
       0.038,
@@ -43145,7 +43144,6 @@
       "tests/ci/test_workflows_sync_packs.py::test_non_commands_are_not_flagged[pipx inject spec-kitty-cli pytest pytest-cov]": 0.0018,
       "tests/ci/test_workflows_sync_packs.py::test_non_commands_are_not_flagged[pip install pytest]": 0.0017,
       "tests/ci/test_workflows_sync_packs.py::test_non_commands_are_not_flagged[echo pytest-output.txt]": 0.0017,
-      "tests/ci/test_workflows_sync_packs.py::test_non_commands_are_not_flagged[uv run --frozen --no-sync python contracts/tools/no_pytest_scan.py]": 0.0018,
       "tests/ci/test_workflows_sync_packs.py::test_non_commands_are_not_flagged[git grep -l '@pytest.mark.windows_ci' -- tests]": 0.0017,
       "tests/ci/test_xdist_worker_policy.py::test_battery_class_commands_use_the_registry_worker_count": 0.2925,
       "tests/ci/test_xdist_worker_policy.py::test_the_registry_worker_count_is_four": 0.038,
