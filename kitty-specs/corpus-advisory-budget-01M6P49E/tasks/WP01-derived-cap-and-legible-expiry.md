@@ -25,6 +25,9 @@ requirement_refs:
 planning_base_branch: issue-7206-corpus-advisory-budget
 merge_target_branch: issue-7206-corpus-advisory-budget
 branch_strategy: Planning artifacts for this mission were generated on issue-7206-corpus-advisory-budget. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7206-corpus-advisory-budget unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-corpus-advisory-budget-01M6P49E
+base_commit: 09bf6ee65f21dd34fba025abf328844446029a28
+created_at: '2026-11-05T15:17:20.262914+00:00'
 subtasks:
 - T001
 - T002
