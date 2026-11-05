@@ -163,6 +163,13 @@ What to do depends on the refusal, and each one names its own repair:
   the coordination worktree) or append them to the target's log and rematerialize
   `status.json` from the union. Do **not** copy the coordination file over the
   target's log: that would drop the events the target already holds.
+- **A status log that cannot be reconciled:** `status.events.jsonl` on the
+  coordination branch either does not parse as events, or carries an event id with
+  different bytes than the target's log — the pair the merge's own event union
+  refuses. Repair it **on the coordination branch**: revert the commit that
+  corrupted or forked it, or rewrite the event so the two sides agree, then run
+  `spec-kitty consolidate --resume` again. Checking the same bytes out into the
+  coordination worktree cannot help: they are the bytes the union already refused.
 - **A file the target authors for itself (for example `meta.json`) that the
   target's copy does not carry:** merge your intended change into the target's
   own copy **by hand** and commit it, or revert the coordination commit that made

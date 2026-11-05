@@ -1492,26 +1492,53 @@ def test_a_fully_landed_rename_passes(tmp_path: Path) -> None:
 
 
 def test_a_snapshot_that_is_not_the_logs_reduction_is_not_exempt(tmp_path: Path) -> None:
-    """#7198 review: ``status.json`` is exempt only while it IS the reduction of the committed log."""
+    """#7198 review: ``status.json`` is exempt only while it IS the reduction of the committed log.
+
+    The target's log is VALID and reduces successfully, but the target's committed snapshot disagrees with
+    that reduction -- so the snapshot is not derived, and the coordination-side copy is a record the target
+    does not carry. (An unreadable log would prove the same thing for a different reason; this fixture
+    keeps the reduction path exercised.)
+    """
     from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused
 
     repo = _init_repo(tmp_path)
-    rel = f"kitty-specs/{SLUG}/status.json"
+    log_rel = f"kitty-specs/{SLUG}/status.events.jsonl"
+    snapshot_rel = f"kitty-specs/{SLUG}/status.json"
+    approved = _late_event("01M380R6EVENTWP01000000000048", "approved")
+    _commit_path_on_main(repo, log_rel, json.dumps(approved) + "\n", "a VALID committed log")
+    from specify_cli.status import materialize_to_json, read_events_from_text, reduce
+
+    target_snapshot = json.loads((_mission_dir(repo) / "status.json").read_text(encoding="utf-8"))
+    reduction = materialize_to_json(reduce(read_events_from_text(_mission_dir(repo), json.dumps(approved) + "\n")))
+    assert json.loads(reduction) != target_snapshot, "fixture invalid: the target snapshot is the reduction after all"
     coord = _make_coord_branch(repo)
     base = _rev(repo, coord)
-    # The target's committed snapshot is the bootstrap one, which does not reduce from its log, so the
-    # coordination-side snapshot change is a record the target does not carry.
-    _append_coord_commit(repo, coord, rel, '{"work_packages": {"WP01": "approved"}}\n', "a snapshot the target does not hold")
+    _append_coord_commit(repo, coord, snapshot_rel, '{"work_packages": {"WP01": "approved"}}\n', "a snapshot the target does not hold")
 
     with pytest.raises(LateProjectionRefused, match="status.json"):
         _assert_window(repo, coord, base)
 
 
 def test_a_failed_blob_read_is_never_a_verdict(tmp_path: Path) -> None:
-    """#7198 review: a git failure must surface as an error, not as two equal ``None`` blobs."""
+    """#7198 review: a git failure must surface as an error, not as two equal ``None`` blobs.
+
+    The refs are VALID, so the window enumerates and the read is actually reached; ``blob_at`` is then made
+    to fail, which is the case a result-collapsing reader would have turned into ``None == None`` -- a
+    "landed" verdict. The full teardown path must keep the triple and report the read error instead.
+    """
     from kernel.git import GitCommandError
+    from specify_cli.consolidation import bookkeeping_projection
 
-    repo, coord, _base = _seeded_meta_fixture(tmp_path, {"a": 1}, {"a": 2}, {"a": 2})
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
+    assert late != tip, "fixture invalid: the window must not be empty"
+    failure = GitCommandError(argv=("git", "cat-file", "blob"), cwd=run.main_repo, returncode=128, stderr="fatal: unable to read object")
 
-    with pytest.raises(GitCommandError):
-        _assert_window(repo, coord, "0" * 40)
+    with patch.object(bookkeeping_projection, "blob_at", side_effect=failure), pytest.raises(run_state.CoordinationTeardownError) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    message = " ".join(str(caught.value).split())
+    assert "late window's blobs could not be read" in message
+    assert "unable to read object" in message, "the git error is reported, not swallowed"
+    assert run.coord_tip_after_projection == tip, "a failed read proves nothing, so nothing is approved"
+    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the triple is kept"
