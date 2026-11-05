@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mission_slug": "issue-7209-skip-lanes-planning-commit-01M6P3JR",
+  "mission_id": "01M6P3JRZVRW3KKQ5V87KBQ41V",
+  "mission_branch": "kitty/mission-issue-7209-skip-lanes-planning-commit-01M6P3JR",
+  "target_branch": "issue-7209-skip-lanes-planning-commit",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "tests/consolidation/test_skip_lanes_evidence_window.py",
+        "tests/specify_cli/cli/commands/test_issue_2745_merge_skip_lanes.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/wp_evidence.py",
+        "tests/consolidation/test_evidence_window_refusal_text.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7209-skip-lanes-evidence-window.fixed.md",
+        "docs/guides/how-to/missions/merge-mission.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-05T15:04:49.720288+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "3a1e38f0d1159b148989447cb34ff76ccb7bebff"
+}
