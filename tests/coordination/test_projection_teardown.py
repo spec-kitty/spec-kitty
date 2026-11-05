@@ -741,7 +741,7 @@ def test_first_run_projects_the_late_window_as_one_commit(tmp_path: Path) -> Non
     phase_teardown._teardown_coordination_triple(run)  # clean run: nothing landed late
 
     clean_log = _git(run.main_repo, "log", "--format=%s", f"{clean_tip}..main").stdout
-    assert "project coordination commits that landed during teardown" not in clean_log, "a clean first run must not invent a projection commit"
+    assert "project coordination commits that landed after the merge captured the coordination tip" not in clean_log, "a clean first run must not commit"
 
     (tmp_path / "second").mkdir()
     run, worktree, _tip = _first_run_with_coord_worktree(tmp_path / "second")
@@ -752,7 +752,7 @@ def test_first_run_projects_the_late_window_as_one_commit(tmp_path: Path) -> Non
     phase_teardown._teardown_coordination_triple(run)
 
     log = _git(run.main_repo, "log", "--format=%s", f"{before}..main").stdout
-    assert log.count("project coordination commits that landed during teardown") == 1, log
+    assert log.count("project coordination commits that landed after the merge captured the coordination tip") == 1, log
 
 
 def test_first_run_whose_coordination_branch_is_already_gone_reads_no_window(tmp_path: Path) -> None:
