@@ -11951,11 +11951,8 @@ pages:
   - path: "docs/development/reference/lock-interop-spike.md"
     title: "Lock-interop spike (#6193)"
     divio_type: "reference"
-    abstract: "Verdict and CI evidence of the #6193 spike: which Java lock excludes the CLI's event-log lock on Linux, macOS and Windows, and whether mixed appends pass both readers."
-    anchors:
-    - {slug: "what-was-tested", text: "What was tested", level: 2}
-    - {slug: "evidence", text: "Evidence", level: 2}
-    - {slug: "what-the-write-service-needs-follow-ups-not-done-here", text: "What the write service needs (follow-ups, not done here)", level: 2}
+    abstract: "Pointer: the #6193 lock-interop spike report moved to spec-kitty-events with the services it verifies."
+    anchors: []
   - path: "docs/development/reference/optional-lamport-clock-consumers.md"
     title: "Consumers of the optional Lamport clock"
     divio_type: "reference"
@@ -13188,6 +13185,7 @@ pages:
     - {slug: "target-branch", text: "Target Branch", level: 2}
     - {slug: "cleanup-options", text: "Cleanup Options", level: 2}
     - {slug: "mission-retention-policy", text: "Mission Retention Policy", level: 3}
+    - {slug: "complete-a-direct-on-target-mission-skip-lanes", text: "Complete a Direct-on-Target Mission (`--skip-lanes`)", level: 2}
     - {slug: "publish-the-result", text: "Publish the Result", level: 2}
     - {slug: "after-merge", text: "After Merge", level: 2}
     - {slug: "command-reference", text: "Command Reference", level: 2}
