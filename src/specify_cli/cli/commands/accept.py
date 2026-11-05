@@ -1211,13 +1211,33 @@ def _attestation_primary_dir(run: _AcceptRun) -> Path:
     return primary_dir
 
 
+def _uncomputable_evidence(exc: Exception) -> tuple[str, str, dict[str, object]]:
+    """``(error code, message, extra JSON)`` of an evidence check that cannot be computed (#7222, #7223).
+
+    A corrupt ``lanes.json`` is ``EVIDENCE_WINDOW_UNCOMPUTABLE``; a coordination worktree that
+    was never materialized keeps its own code and recovery ``next_step``. The verdict is never
+    judged on a substitute surface (the primary checkout) instead (#4959).
+    """
+    if isinstance(exc, CorruptLanesError):
+        code = EVIDENCE_WINDOW_UNCOMPUTABLE
+        return code, f"{code}: the implementation-evidence window cannot be computed ({exc}).", {}
+    code = str(getattr(exc, "error_code", EVIDENCE_WINDOW_UNCOMPUTABLE))
+    next_step = getattr(exc, "next_step", None)
+    return code, f"{code}: the implementation evidence cannot be read ({exc}).", ({"next_step": next_step} if next_step else {})
+
+
+def _fail_uncomputable_evidence(run: _AcceptRun, exc: Exception) -> NoReturn:
+    """Refuse (exit 1) with the typed code of an evidence check that cannot be computed."""
+    code, message, extra = _uncomputable_evidence(exc)
+    _fail(run.json_output, message, extra_json={"error_code": code, "error_codes": [code], **extra})
+
+
 def _evidence_lanes_manifest(run: _AcceptRun) -> LanesManifest | None:
     """``lanes.json`` (PRIMARY partition); ``None`` when absent; a corrupt manifest refuses (exit 1)."""
     try:
         return read_lanes_json(run.mission_dir)
     except CorruptLanesError as exc:
-        message = f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window cannot be computed ({exc})."
-        _fail(run.json_output, message, extra_json={"error_code": EVIDENCE_WINDOW_UNCOMPUTABLE, "error_codes": [EVIDENCE_WINDOW_UNCOMPUTABLE]})
+        _fail_uncomputable_evidence(run, exc)
 
 
 def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, ...], reason: str, *, landed_commit: str | None = None) -> None:
@@ -1234,9 +1254,15 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
     manifest = _evidence_lanes_manifest(run)
     if manifest is None:
         _fail(run.json_output, f"{ATTEST_NO_IMPLEMENTATION_FLAG} needs the Mission's lanes.json (run finalize-tasks first). Nothing was recorded.")
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
+    try:
+        status_dir = _evidence_status_dir(run)
+    except CoordinationWorktreeUnmaterialized as exc:
+        _fail_uncomputable_evidence(run, exc)
     try:
         plan = plan_no_implementation_attestations(
-            _evidence_status_dir(run),
+            status_dir,
             manifest,
             wp_ids,
             reason,
@@ -1262,7 +1288,24 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
         typer.echo(f"Operator attestation recorded for {wp_id} (no implementation owed) by {actor}: {reason}", err=True)
 
 
-def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, landed_commit: str | None = None) -> EvidenceReport | None:
+#: The ``--diagnose`` blocked/skipped-check name of the evidence preflight (#6715).
+_EVIDENCE_CHECK = "implementation_evidence"
+
+
+@dataclass(frozen=True)
+class _EvidencePreflight:
+    """What the evidence preflight left for the readiness report.
+
+    *report* is a computed refusal ``--diagnose`` folds in as a blocked check (exit 1);
+    *skipped* is the skip note of a check that could not be computed (#7222, #7223), which
+    ``--diagnose`` adds to the skipped checks and leaves the blocker to the readiness report.
+    """
+
+    report: EvidenceReport | None = None
+    skipped: AcceptanceCheckDiagnostic | None = None
+
+
+def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, landed_commit: str | None = None) -> _EvidencePreflight:
     """Refuse (exit 1) an approved work package with no implementation evidence or no independent review (#6715).
 
     The shared predicate consolidate and orchestrator-api read
@@ -1270,8 +1313,12 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
     whatever ``--lenient`` says and however the work package was approved (``move-task --force``
     included). It runs before the acceptance summary is collected, so a refusal writes nothing;
     ``--no-commit`` and ``--diagnose`` report it the same way. No ``lanes.json`` leaves the
-    acceptance readiness check in charge (it refuses on its own); a corrupt one or an unreadable
-    status surface refuses here. The ``--json`` envelope carries ``error_code`` (the first code)
+    acceptance readiness check in charge (it refuses on its own); an unreadable status log
+    refuses here. A check that cannot be computed (a corrupt ``lanes.json``, a coordination
+    worktree that was never materialized) refuses with its typed code (``EVIDENCE_WINDOW_UNCOMPUTABLE``,
+    ``COORDINATION_WORKTREE_UNMATERIALIZED``); under *report_only* it is skipped instead and the
+    readiness report, which blocks on the same root cause, owns the blocker (#7222, #7223,
+    operator ruling 2026-11-05). The ``--json`` envelope carries ``error_code`` (the first code)
     and ``error_codes`` (every code), like the origin-freshness refusal. With *report_only*
     (``--diagnose``) the refused report is returned instead, so the diagnosis can show it as a
     blocked check beside the rest of the readiness report (:func:`_report_evidence_diagnosis`).
@@ -1281,10 +1328,12 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
     validated ``run.owned`` fact selects ownership/topology authority in that predicate
     without falling back to an unvalidated primary copy (#7099).
     """
-    manifest = _evidence_lanes_manifest(run)
-    if manifest is None:
-        return None
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
     try:
+        manifest = read_lanes_json(run.mission_dir)
+        if manifest is None:
+            return _EvidencePreflight()
         report = mission_evidence_report(
             run.repo_root,
             _evidence_status_dir(run),
@@ -1293,18 +1342,19 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, land
             landed_commit=landed_commit,
             owned=run.owned,
         )
+    except (CorruptLanesError, CoordinationWorktreeUnmaterialized) as exc:
+        if not report_only:
+            _fail_uncomputable_evidence(run, exc)
+        _code, message, _extra = _uncomputable_evidence(exc)
+        return _EvidencePreflight(skipped=AcceptanceCheckDiagnostic(check=_EVIDENCE_CHECK, detail=f"{_EVIDENCE_CHECK} skipped: {message}"))
     except (StoreError, OSError) as exc:
         _fail(run.json_output, f"The Mission could not be checked for implementation evidence ({exc}); nothing was accepted.")
     if report.refusal is None:
-        return None
+        return _EvidencePreflight()
     if report_only:
-        return report
+        return _EvidencePreflight(report=report)
     codes = report.codes
     _fail(run.json_output, report.refusal, extra_json={"error_code": codes[0] if codes else None, "error_codes": codes})
-
-
-#: The ``--diagnose`` blocked-check name of the evidence refusal (#6715).
-_EVIDENCE_CHECK = "implementation_evidence"
 
 
 def _report_evidence_diagnosis(run: _AcceptRun, summary: AcceptanceSummary, report: EvidenceReport) -> NoReturn:
@@ -1762,10 +1812,12 @@ def accept(
     # the attestation planner are judged on, and the one verification actually proved.
     landed_commit = pr_merge.evidence.pr_merge_commit if pr_merge is not None else None
     _record_no_implementation_attestations(run, attested, reason, landed_commit=landed_commit)
-    evidence_refusal = _refuse_unevidenced_work(run, report_only=diagnose, landed_commit=landed_commit)
+    evidence = _refuse_unevidenced_work(run, report_only=diagnose, landed_commit=landed_commit)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
-    if evidence_refusal is not None:
-        _report_evidence_diagnosis(run, summary, evidence_refusal)
+    if evidence.skipped is not None:
+        summary.skipped_checks.append(evidence.skipped)
+    if evidence.report is not None:
+        _report_evidence_diagnosis(run, summary, evidence.report)
     _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)
     outcome = _perform_and_finalize(run, summary, actor=actor, tests=test, pr_merge=pr_merge)
     result = _raise_on_finalize_errors(run, outcome)
