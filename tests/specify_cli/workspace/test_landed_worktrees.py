@@ -21,6 +21,7 @@ import pytest
 
 from specify_cli.git.destructive_guard import (
     DESTRUCTIVE_OP_ONLY_COPY,
+    WORKTREE_PARTIALLY_REMOVED,
     WORKTREE_REMOVE_REFUSED_BY_GIT,
     DestructiveOpRefused,
     RemoveResult,
@@ -261,6 +262,33 @@ def test_an_ignored_virtualenv_alone_does_not_block(repo: Path, tmp_path: Path) 
 
     assert outcome.removed
     assert not worktree.exists()
+
+
+@pytest.fixture
+def undeletable_dir() -> Iterator[list[Path]]:
+    """Directories made read-only by a test; their permissions are restored on teardown."""
+    locked: list[Path] = []
+    yield locked
+    for path in locked:
+        if path.exists():
+            path.chmod(0o755)
+
+
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="needs POSIX permissions that bind (not root)")
+def test_a_partly_removed_worktree_is_reported_removed_and_keeps_its_branch(repo: Path, tmp_path: Path, undeletable_dir: list[Path]) -> None:
+    """git unregisters the worktree, then fails on a file it cannot delete: a husk is left, the branch stays."""
+    worktree, tip = _land_by_rebase(repo, "land-x")
+    locked = worktree / ".venv" / "locked"
+    locked.mkdir(parents=True)
+    (locked / "pinned.bin").write_bytes(b"\0")
+    locked.chmod(0o500)
+    undeletable_dir.append(locked)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert (outcome.removed, outcome.branch_deleted, outcome.refusal) == (True, False, WORKTREE_PARTIALLY_REMOVED)
+    assert not _registered(repo, worktree) and (locked / "pinned.bin").exists()
+    assert _rev(repo, "land-x") == tip
 
 
 def test_an_unpushed_commit_is_not_landed(repo: Path, tmp_path: Path) -> None:
