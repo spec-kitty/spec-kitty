@@ -28,6 +28,7 @@ from charter.activation.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
+from tests._factories.charters.charter_yaml import SOUND_CHARTER_YAML as _SOUND_CHARTER_YAML
 
 
 pytestmark = [pytest.mark.unit]
@@ -138,11 +139,12 @@ class TestActivationIsFlatAtRoot:
         activation writer itself writes, which is how the model drifted from
         the authority.
         """
+        dynamic_activation: dict[str, Any] = {field_name: ["some-id"]}
         charter = CharterYaml(
             governance=_governance(),
             directives=_directives(),
             catalog=_catalog(),
-            **{field_name: ["some-id"]},
+            **dynamic_activation,
         )
         assert getattr(charter, field_name) == ["some-id"]
 
@@ -161,12 +163,13 @@ class TestActivationIsFlatAtRoot:
     def test_rejects_unknown_activated_key(self) -> None:
         """Accepting the authority must not degrade into accepting anything
         ``activated_*``: an undeclared key is still refused."""
+        dynamic_activation: dict[str, Any] = {"activated_not_a_kind": ["x"]}
         with pytest.raises(ValidationError):
             CharterYaml(
                 governance=_governance(),
                 directives=_directives(),
                 catalog=_catalog(),
-                **{"activated_not_a_kind": ["x"]},
+                **dynamic_activation,
             )
 
     def test_activation_field_defaults_to_none_absent_key_fallback(self) -> None:
@@ -234,25 +237,8 @@ class TestCharterYamlOverridesAndSchemaVersion:
     def test_charter_yaml_is_frozen(self) -> None:
         charter = CharterYaml(governance=_governance(), directives=_directives(), catalog=_catalog())
         with pytest.raises(ValidationError):
-            charter.schema_version = "9.9.9"  # type: ignore[misc]
+            charter.schema_version = "9.9.9"
 
-
-#: A sound ``charter.yaml`` body — everything ``CharterYaml`` requires, and no
-#: activation key (the state a freshly generated charter is in).
-_SOUND_CHARTER_YAML = """\
-schema_version: '2.0.0'
-governance: {}
-directives:
-  directives: []
-catalog:
-  mission: software-dev
-  template_set: software-dev-default
-  languages: []
-  references: []
-metadata:
-  generated_at: '2026-01-01T00:00:00Z'
-  bundle_schema_version: 2
-"""
 
 #: An UNMIGRATED project's ``config.yaml``: the ``charter:`` pointer plus one
 #: legacy activation key, which is what makes the ledger resolver answer
@@ -313,66 +299,6 @@ class TestWriterAndModelAgreeOnActivationKeys:
         assert getattr(charter, key) == ["some-id"]
 
 
-# ---------------------------------------------------------------------------
-# #6855 -- the deny side: a ``deactivated_<kind>`` key is NOT charter.yaml content
-# ---------------------------------------------------------------------------
-
-#: One deny-list key, named literally on purpose: the derived-vocabulary pin lives in
-#: ``tests/charter/test_activation_vocabulary_setequal.py`` (WP02). Here the point is
-#: the MESSAGE a caller sees for a concrete legacy document.
-_DENY_KEY = "deactivated_tactics"
-
-#: The activation ledger the refusal must name (the key's only legal home).
-_LEDGER_PATH = ".kittify/charter/activation.yaml"
-
-
-def _sound_mapping() -> dict[str, Any]:
-    """``_SOUND_CHARTER_YAML`` as a mapping: everything the model requires, no activation key."""
-    return {
-        "schema_version": "2.0.0",
-        "governance": {},
-        "directives": {"directives": []},
-        "catalog": {
-            "mission": "software-dev",
-            "template_set": "software-dev-default",
-            "languages": [],
-            "references": [],
-        },
-        "metadata": {"generated_at": "2026-01-01T00:00:00Z", "bundle_schema_version": 2},
-    }
-
-
-class TestDenyKeysAreNotCharterYamlContent:
-    """#6855: the deny side is activation-ledger content, refused by design.
-
-    ADR 2026-10-19-1 Decision 1 (C-003) says ``deactivated_*`` keys never appear on
-    ``charter.yaml`` or ``config.yaml``; doctor reports a hand-written one as the
-    ``LEGACY_DENY_KEY`` error and the ledger migration refuses it. The model therefore
-    keeps refusing the document -- and now says which contract it is enforcing instead
-    of the bare pydantic ``extra_forbidden`` message.
-    """
-
-    def test_deny_key_is_refused_with_the_ledger_contract(self) -> None:
-        with pytest.raises(ValidationError) as excinfo:
-            CharterYaml.model_validate({**_sound_mapping(), _DENY_KEY: ["x"]})
-
-        message = str(excinfo.value)
-        # Two stable facts, not the full prose (the wording may be refined later).
-        assert _LEDGER_PATH in message, "the refusal must name the activation ledger, the key's only legal home"
-        assert "never applied" in message, "the refusal must say the deny key was never applied where it sits"
-
-    def test_same_document_without_the_deny_key_validates(self) -> None:
-        """Positive control: the refusal above is the deny key's doing, not the fixture's."""
-        charter = CharterYaml.model_validate(_sound_mapping())
-
-        assert charter.activated_tactics is None
-        dumped = charter.model_dump(mode="json")
-        assert not any(name.startswith("deactivated_") for name in dumped), "no deny key may be declared, or it would be emitted into every charter"
-
-    def test_an_empty_deny_list_is_refused_too(self) -> None:
-        """Absent, ``[]`` and a non-empty list are all "not a charter.yaml shape"."""
-        with pytest.raises(ValidationError):
-            CharterYaml.model_validate({**_sound_mapping(), "deactivated_directives": []})
-
-    def test_deny_key_is_not_a_declared_field(self) -> None:
-        assert "deactivated_directives" not in CharterYaml.model_fields
+# The historical #6855 model-only deny cases are superseded by the derived
+# refusal/no-field guards in test_activation_vocabulary_setequal.py. The real
+# dump/revalidation roundtrip above continues to guard serialized deny keys.
