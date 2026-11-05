@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 import specify_cli.status.doctor_husks as doctor_husks
+from kernel.git import GitCommandError
+from specify_cli.git.worktree_listing import WorktreeEntry
 
 pytestmark = pytest.mark.fast
 
@@ -46,15 +47,10 @@ def test_scan_reports_registered_unregistered_and_ignores_valid_entries(
     (valid / ".git").write_text("gitdir: ../real\n", encoding="utf-8")
     (worktrees / "not-a-dir").write_text("ignore me\n", encoding="utf-8")
 
-    def fake_run(cmd: list[str], *args: Any, **kwargs: Any) -> SimpleNamespace:
-        assert cmd == ["git", "worktree", "list", "--porcelain"]
-        return SimpleNamespace(
-            returncode=0,
-            stdout=f"worktree {registered}\nbranch refs/heads/test\n",
-            stderr="",
-        )
+    def listed(cwd: Path, **_kwargs: Any) -> tuple[WorktreeEntry, ...]:
+        return (WorktreeEntry(path=registered, head=None, branch="test", detached=False, bare=False, locked=False, prunable=False),)
 
-    monkeypatch.setattr(doctor_husks.subprocess, "run", fake_run)
+    monkeypatch.setattr(doctor_husks, "worktree_entries", listed)
 
     report = doctor_husks.scan_workspace_husks(tmp_path)
 
@@ -77,15 +73,10 @@ def test_scan_marks_registration_unknown_when_git_inventory_fails(
     worktrees = _worktrees(tmp_path)
     (worktrees / "husk").mkdir()
 
-    def fake_run(cmd: list[str], *args: Any, **kwargs: Any) -> SimpleNamespace:
-        assert cmd == ["git", "worktree", "list", "--porcelain"]
-        return SimpleNamespace(
-            returncode=128,
-            stdout="",
-            stderr="fatal: broken worktree metadata\n",
-        )
+    def broken(cwd: Path, **_kwargs: Any) -> tuple[WorktreeEntry, ...]:
+        raise GitCommandError(argv=("worktree", "list", "--porcelain"), cwd=cwd, returncode=128, stderr="fatal: broken worktree metadata\n")
 
-    monkeypatch.setattr(doctor_husks.subprocess, "run", fake_run)
+    monkeypatch.setattr(doctor_husks, "worktree_entries", broken)
 
     report = doctor_husks.scan_workspace_husks(tmp_path)
 

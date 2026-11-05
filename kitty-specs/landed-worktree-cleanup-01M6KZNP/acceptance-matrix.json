@@ -1,0 +1,129 @@
+{
+  "mission_slug": "landed-worktree-cleanup-01M6KZNP",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/workspace/test_landed_worktrees.py; tests/specify_cli/cli/commands/test_doctor_workspaces_prune.py (WP03/WP04 approved, 276+349 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:12.614645+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_landed_worktrees.py rebase-merged (SHA rewritten), squash-merged, no-origin, unpushed cases; remote-contact gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:18.269024+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_landed_worktrees.py safety matrix + test_destructive_guard_landed.py (no --force argv spy, locked refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:23.756162+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_destructive_guard_landed.py recreate via git branch <b> <tip>; test_doctor_workspaces_prune.py recreate/kept-ref lines",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:28.909886+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_process_probe.py + test_landed_worktrees.py running sleep process kept; unreadable processes skipped and counted (ruling)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:33.889296+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_workspace_husk_doctor.py + test_workspace_husk_resolution_1833.py unchanged and green; --fix alone never prunes (test_doctor_workspaces_prune.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:38.785450+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_worktree_selection.py default writes no non-Mission worktree (red-first on base)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:44.128752+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_worktree_selection.py --include-worktree, --all-worktrees, unknown path/symlink escape exit 2 before writes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:49.353444+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_worktree_selection.py preview and post-run dispositions from real per-worktree results",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:54.600631+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_upgrade_worktree_selection.py + test_upgrade_cli_contract.py plan-json selection/dispositions vs schema 288f354f",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:28:59.231574+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/development/how-to/pr-landing.md section 12 (WP06 approved after cycle 2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:29:03.788134+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_workspaces_prune.py --json worktrees/pruned/uninspected_processes keys",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-05T08:29:08.728380+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

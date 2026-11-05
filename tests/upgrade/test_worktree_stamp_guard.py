@@ -47,6 +47,7 @@ from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult, 
 from specify_cli.upgrade.outcome import UpgradeFailureReason, UpgradeOutcome
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -178,7 +179,7 @@ def test_failed_worktree_migration_does_not_advance_schema_version(tmp_path: Pat
     try:
         _register_stub_migration("test_t024_stub_failing", succeeds=False)
 
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
         # Sanity: the stub really ran (and failed) inside the worktree, not
         # skipped -- else this whole test would be vacuous (the #3334 trap).
@@ -203,7 +204,7 @@ def test_successful_worktree_migration_still_advances_schema_version(tmp_path: P
     try:
         _register_stub_migration("test_t024_stub_succeeding", succeeds=True)
 
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True, worktree_selection=WorktreeSelection.all())
         assert result.worktree_failures == []
 
         assert _wt_schema_version(wt / ".kittify") == REQUIRED_SCHEMA_VERSION
@@ -223,7 +224,7 @@ def test_failed_worktree_migration_is_surfaced_in_worktree_failures(tmp_path: Pa
     try:
         _register_stub_migration("test_t025_stub_failing", succeeds=False)
 
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
         assert result.worktree_failures, "fatal worktree failure must be surfaced structurally (FR-012)"
         assert any("lane-c" in f for f in result.worktree_failures)
@@ -260,7 +261,7 @@ def test_non_fatal_cannot_apply_note_does_not_populate_worktree_failures(tmp_pat
     try:
         MigrationRegistry.register(_CannotApplyMigration)
 
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True, worktree_selection=WorktreeSelection.all())
 
         assert result.worktree_failures == []
         assert any("Cannot apply" in w for w in result.warnings)
@@ -314,7 +315,7 @@ def test_worktree_migration_that_raises_is_a_fatal_worktree_failure(tmp_path: Pa
     try:
         MigrationRegistry.register(_RaisingMigration)
 
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, dry_run=False, include_worktrees=True, worktree_selection=WorktreeSelection.all())
         outcome = UpgradeOutcome(result=result, worktree_failures=list(result.worktree_failures), had_migrations=True)
 
         assert result.success, "the main checkout's own migration must succeed in this repro"
@@ -411,6 +412,7 @@ def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(tmp_path: 
         target_version: str,  # noqa: ARG001
         dry_run: bool = False,  # noqa: ARG001
         auto_commit: bool = False,  # noqa: ARG001
+        **_selection: object,
     ) -> dict[str, Any]:
         return {
             "warnings": [],
@@ -449,8 +451,9 @@ def test_migrations_pending_worktree_failure_not_duplicated_in_json_errors(
     try:
         _register_stub_migration("test_no_dup_stub_failing", succeeds=False)
 
+        # lane-e is a non-Mission worktree: opted in explicitly (#7173).
         result = _invoke_upgrade(
-            ["--target", _TARGET_VERSION, "--yes", "--json"],
+            ["--target", _TARGET_VERSION, "--yes", "--json", "--all-worktrees"],
             cwd=root,
         )
 

@@ -448,25 +448,44 @@ def workspaces(
         bool,
         typer.Option("--fix", help="Remove husks that are NOT registered in `git worktree list` (registered worktrees are never removed)"),
     ] = False,
+    prune: Annotated[
+        bool,
+        typer.Option(
+            "--prune",
+            help=(
+                "Remove only worktrees proven landed into the local origin/<primary> "
+                "(nothing is fetched: run `git fetch` first to see recent merges), "
+                "then their branches. Never uses --force; prints a recreate command "
+                "for each removal. Mission worktrees are only reported. "
+                "Untracked ignored files (e.g. .venv/, .env) are deleted with the worktree. "
+                "Removal is Linux only (it needs /proc to prove nothing runs in a worktree)."
+            ),
+        ),
+    ] = False,
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
 ) -> None:
-    """Report .worktrees/ husk directories (entries lacking a .git entry).
+    """Report .worktrees/ husk directories and worktrees whose work has landed.
 
     A husk is not a usable git worktree: git commands run inside it fall
     through to the primary repository (#1833). Workspace resolution refuses
     husks with a structured error; this check is the recovery path.
 
+    After the husk report, every registered worktree gets a verdict: landed
+    (its commits are on the local origin/<primary> and nothing uncommitted or
+    running is in it), not landed, unproven, or Mission-owned (#7173).
+
     Examples:
         spec-kitty doctor workspaces
         spec-kitty doctor workspaces --fix
+        spec-kitty doctor workspaces --prune
         spec-kitty doctor workspaces --json
     """
     repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
-    run_workspaces(repo_root, fix, json_output)
+    run_workspaces(repo_root, fix, json_output, prune=prune, current_dir=Path.cwd())
 
 
 @app.command(name="identity")

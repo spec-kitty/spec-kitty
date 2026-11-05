@@ -3507,6 +3507,7 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-11-05-7173-non-mission-worktrees-are-opt-in", text: "Amendment 2026-11-05 (#7173): non-Mission worktrees are opt-in", level: 2}
   - path: "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md"
     title: "ADR: the approval stamp bounds what consolidate treats as approved work"
     divio_type: "none"
@@ -11740,7 +11741,7 @@ pages:
   - path: "docs/development/how-to/pr-landing.md"
     title: "Landing Contributor PRs: The Maintainer Runbook"
     divio_type: "how-to"
-    abstract: "The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off."
+    abstract: "The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first checks, push, hand-off and post-merge cleanup."
     anchors:
     - {slug: "the-workflow-at-a-glance", text: "The workflow at a glance", level: 2}
     - {slug: "before-you-claim-check-the-pr-is-handed-off-and-worth-landing", text: "Before you claim: check the PR is handed off and worth landing", level: 2}
@@ -11761,7 +11762,13 @@ pages:
     - {slug: "9-push-discipline", text: "9. Push discipline", level: 2}
     - {slug: "10-post-the-remediation-summary", text: "10. Post the remediation summary", level: 2}
     - {slug: "11-hand-off-the-operator-merges", text: "11. Hand-off — the operator merges", level: 2}
-    - {slug: "12-follow-up-hygiene", text: "12. Follow-up hygiene", level: 2}
+    - {slug: "12-after-the-merge-remove-the-landing-worktree", text: "12. After the merge: remove the landing worktree", level: 2}
+    - {slug: "what-prune-never-removes", text: "What `--prune` never removes", level: 3}
+    - {slug: "known-gaps", text: "Known gaps", level: 3}
+    - {slug: "a-merge-that-happens-after-the-session-ends", text: "A merge that happens after the session ends", level: 3}
+    - {slug: "restore-a-removed-worktree", text: "Restore a removed worktree", level: 3}
+    - {slug: "upgrade-leaves-landing-worktrees-alone", text: "`upgrade` leaves landing worktrees alone", level: 3}
+    - {slug: "13-follow-up-hygiene", text: "13. Follow-up hygiene", level: 2}
     - {slug: "pausing-a-pr-s-ci-pr-pause-ci", text: "Pausing a PR's CI (`pr:pause-ci`)", level: 2}
     - {slug: "gotchas", text: "Gotchas", level: 2}
     - {slug: "pr-body-contract", text: "PR-body contract", level: 2}
@@ -12465,6 +12472,7 @@ pages:
     - {slug: "when-does-each-mode-make-sense", text: "When Does Each Mode Make Sense?", level: 3}
     - {slug: "configuring-strictness", text: "Configuring Strictness", level: 3}
     - {slug: "precedence-chain", text: "Precedence Chain", level: 3}
+    - {slug: "what-the-event-log-records", text: "What the Event Log Records", level: 3}
     - {slug: "editing-seed-files", text: "Editing Seed Files", level: 2}
     - {slug: "seed-file-location", text: "Seed File Location", level: 3}
     - {slug: "yaml-schema", text: "YAML Schema", level: 3}
@@ -13310,6 +13318,7 @@ pages:
     - {slug: "exit-code-75-the-landing-stands-the-cleanup-did-not-finish", text: "Exit code 75: the landing stands, the cleanup did not finish", level: 3}
     - {slug: "the-lane-workspace-contexts-are-committed-on-teardown", text: "The lane workspace contexts are committed on teardown", level: 3}
     - {slug: "what-a-resume-lands-from-the-coordination-branch", text: "What a resume lands from the coordination branch", level: 3}
+    - {slug: "what-a-first-run-lands-before-it-tears-down", text: "What a first run lands before it tears down", level: 3}
     - {slug: "aborting-a-consolidation", text: "Aborting a Consolidation", level: 2}
     - {slug: "the-consolidation-state-file", text: "The consolidation state file", level: 2}
     - {slug: "consolidation-strategy-selection", text: "Consolidation Strategy Selection", level: 2}

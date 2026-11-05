@@ -22,6 +22,7 @@ from specify_cli.context.mission_resolver import residue_notice
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner, _append_warnings
+from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -180,7 +181,7 @@ def test_runner_collapses_main_walk_of_worktree_with_worktree_own_run(tmp_path: 
     _init_repo(root)
     try:
         _register_stubs(main_paths=[".worktrees/wt1/kitty-specs/x"], worktree_paths=["kitty-specs/x"])
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, include_worktrees=True, worktree_selection=WorktreeSelection.all())
         residue = _residue_lines(result.warnings)
         assert len(residue) == 1, result.warnings
         assert ".worktrees/wt1/kitty-specs/x" in residue[0]
@@ -195,7 +196,7 @@ def test_runner_keeps_same_slug_in_two_checkouts_as_two_lines(tmp_path: Path) ->
     _init_repo(root)
     try:
         _register_stubs(main_paths=["kitty-specs/x"], worktree_paths=["kitty-specs/x"])
-        result = MigrationRunner(root).upgrade(_TARGET_VERSION, include_worktrees=True)
+        result = MigrationRunner(root).upgrade(_TARGET_VERSION, include_worktrees=True, worktree_selection=WorktreeSelection.all())
         residue = _residue_lines(result.warnings)
         assert len(residue) == 2, result.warnings
         assert sum(1 for w in residue if w.startswith("Worktree wt1: ")) == 1
@@ -242,7 +243,7 @@ def test_json_payload_shows_the_collapsed_list(tmp_path: Path) -> None:
     try:
         _register_stubs(main_paths=[".worktrees/wt1/kitty-specs/x"], worktree_paths=["kitty-specs/x"])
         with contextlib.chdir(root):
-            result = CliRunner().invoke(_cli_app, ["--target", _TARGET_VERSION, "--yes", "--json"], catch_exceptions=False)
+            result = CliRunner().invoke(_cli_app, ["--target", _TARGET_VERSION, "--yes", "--json", "--all-worktrees"], catch_exceptions=False)
         lines = [line for line in result.output.strip().splitlines() if line.strip()]
         payload: dict[str, Any] = json.loads(lines[-1])
         assert len(_residue_lines(payload["warnings"])) == 1, payload["warnings"]

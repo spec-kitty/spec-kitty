@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-11-05'
 related:
 - context/governance
 - context/identity
@@ -302,7 +302,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | A linked git worktree whose checked-out branch is a `kitty/mission-…` mission, lane or coordination branch, as recognized by the branch-naming authority (`parse_mission_slug_from_branch`), or whose branch cannot be read (a detached HEAD counts, to fail safe). Its branch will later be integrated into another branch of the same Mission. `spec-kitty upgrade`, run from the repository root checkout, skips integrating worktrees: it writes, stamps and commits nothing in them (`_is_integrating_worktree`, `src/specify_cli/upgrade/runner.py`; ADR [2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)). |
+| **Definition** | A linked git worktree whose checked-out branch is a `kitty/mission-…` mission, lane or coordination branch, as recognized by the branch-naming authority (`parse_mission_slug_from_branch`), or whose branch cannot be read (a detached HEAD counts, to fail safe). Its branch will later be integrated into another branch of the same Mission. `spec-kitty upgrade`, run from the repository root checkout, skips integrating worktrees: it writes, stamps and commits nothing in them. Since #7173 it also skips every other worktree under `.worktrees/` unless that worktree is named with `--include-worktree` or `--all-worktrees` (`is_integrating_worktree`, `src/specify_cli/upgrade/worktree_selection.py`; ADR [2026-10-04-4](../adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md)). |
 | **Context** | Execution |
 | **Status** | candidate |
 | **Applicable to** | `4.x` |

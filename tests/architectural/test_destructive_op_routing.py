@@ -32,7 +32,11 @@ either routed through the one guard (``git/destructive_guard.py``) or it fails.
    cache or just-created checkouts (:data:`_TOOL_OWNED_PERMITTED`).
 4. **Named-intent pin.** ``guarded_branch_delete(..., operator_intent=...)``,
    which skips the unique-commit check, is passed only by
-   ``missions/_create.py::_delete_branch`` (``--force-recreate``).
+   ``missions/_create.py::_delete_branch`` (``--force-recreate``),
+   ``cli/commands/mission_type.py::_discard_own_mission_branch``
+   (``mission close --discard``) and
+   ``workspace/landed_worktrees.py::_delete_landed_branch`` (the
+   landed-worktree prune, ``LANDED_INTENT``, #7173).
 5. **Spelling-independent gates.** No ``"--hard"`` string constant anywhere outside the guard modules, and no
    ``shell=True`` call whose command string holds a destructive git fragment.
 6. **Non-vacuity.** Every needle detects a planted literal through the SAME
@@ -611,6 +615,7 @@ _OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset(
     {
         ("src/specify_cli/missions/_create.py", "_delete_branch"),
         ("src/specify_cli/cli/commands/mission_type.py", "_discard_own_mission_branch"),
+        ("src/specify_cli/workspace/landed_worktrees.py", "_delete_landed_branch"),
     }
 )
 _GUARDED_BRANCH_DELETE = "guarded_branch_delete"

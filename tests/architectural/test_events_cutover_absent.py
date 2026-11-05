@@ -8,7 +8,9 @@ assets from the shared cache. This gate keeps the copies gone:
 * ``contracts/`` holds only the five core-owned client fixtures;
 * no CI, build, packaging or script file names a removed path by its repository-root spelling. A path below an unpacked
   extra (``"$(... --extras-path read-service:contract_tools)/contracts/tools/..."``) is the pinned asset, not a copy, so
-  the scan anchors on root spellings, as the oracle's own gate does (``tests/contract/test_mission_status_payloads.py``).
+  the scan anchors on root spellings, as the oracle's own gate does (``tests/contract/test_mission_status_payloads.py``);
+* no parametrized test case does either: its text is part of the test's node id, the recapture writes every node id into
+  ``.github/ci-shard-timings.json``, and that file is scanned, so such a case would only go red on the bot's next proposal (#7172).
 
 It replaces the freeze gate (``test_events_import_frozen.py``, ADR D-9) on the always-on ``architectural-fast`` roster.
 Non-vacuity: the scanner is run on planted text, positive and negative.
@@ -16,6 +18,7 @@ Non-vacuity: the scanner is run on planted text, positive and negative.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -62,8 +65,28 @@ def _scanned_files(root: Path) -> list[Path]:
     return sorted(files)
 
 
+def _parametrized_case_references(text: str) -> set[str]:
+    """Removed paths named by a literal in a ``parametrize`` / ``fixture`` call: what a node id would carry.
+
+    A computed case (a module constant, a concatenation) is not seen; prose elsewhere in the file does not count.
+    """
+    if not leftover_references(text):
+        return set()
+    references: set[str] = set()
+    for call in ast.walk(ast.parse(text)):
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr in {"parametrize", "fixture"}:
+            for node in ast.walk(call):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    references.update(leftover_references(node.value))
+    return references
+
+
 def leftovers_under(root: Path) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
+    for path in sorted((root / "tests").rglob("*.py")):
+        references = _parametrized_case_references(path.read_text(encoding="utf-8", errors="replace"))
+        if references:
+            found[str(path.relative_to(root))] = sorted(references)
     for path in _scanned_files(root):
         try:
             text = path.read_text(encoding="utf-8")
@@ -142,7 +165,12 @@ def test_a_planted_file_in_a_scanned_place_is_reported(tmp_path: Path) -> None:
     (tmp_path / ".github" / "workflows" / "ci.yml").write_text("run: python " + _ROOT + "/tools/x.py\n", encoding="utf-8")
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts" / "clean.py").write_text("print('fine')\n", encoding="utf-8")
-    assert leftovers_under(tmp_path) == {".github/workflows/ci.yml": [_ROOT + "/tools"]}
+    (tmp_path / "tests" / "ci").mkdir(parents=True)
+    planted_case = 'import pytest\n\n@pytest.mark.parametrize("run", ["python ' + _ROOT + '/mission-status/x.py"])\ndef test_x(run): ...\n'
+    (tmp_path / "tests" / "ci" / "test_planted.py").write_text(planted_case, encoding="utf-8")
+    prose_only = '"""Nothing runs ' + _ROOT + '/tools any more."""\n\ndef test_y(): assert "' + _ROOT + '/tools" not in ""\n'
+    (tmp_path / "tests" / "ci" / "test_prose.py").write_text(prose_only, encoding="utf-8")
+    assert leftovers_under(tmp_path) == {".github/workflows/ci.yml": [_ROOT + "/tools"], "tests/ci/test_planted.py": [_ROOT + "/mission-status"]}
 
 
 def test_the_replacement_pin_loads() -> None:

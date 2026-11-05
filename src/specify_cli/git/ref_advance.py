@@ -1028,6 +1028,19 @@ def _require_bookkeeping_ref(ref: str) -> None:
         )
 
 
+def bookkeeping_ref_write_args(ref: str, sha: str, *, create_only: bool = False) -> list[str]:
+    """The git arguments :func:`write_bookkeeping_ref` runs (after ``git``).
+
+    Also what a caller prints when it hands the same write to the operator, so
+    the printed command and the one run here never drift apart.
+
+    Raises:
+        BookkeepingRefError: *ref* is not under ``refs/spec-kitty/``.
+    """
+    _require_bookkeeping_ref(ref)
+    return ["update-ref", ref, sha, ""] if create_only else ["update-ref", ref, sha]
+
+
 def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: bool = False) -> bool:
     """Point the bookkeeping ref *ref* at *sha*; return ``True`` on success.
 
@@ -1041,9 +1054,7 @@ def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: b
         BookkeepingRefError: *ref* is not under ``refs/spec-kitty/`` -- a
             branch or any other namespace must never be moved through here.
     """
-    _require_bookkeeping_ref(ref)
-    args = ["update-ref", ref, sha, ""] if create_only else ["update-ref", ref, sha]
-    return _run_git(repo_root, args).returncode == 0
+    return _run_git(repo_root, bookkeeping_ref_write_args(ref, sha, create_only=create_only)).returncode == 0
 
 
 def delete_bookkeeping_ref(repo_root: Path, ref: str) -> bool:

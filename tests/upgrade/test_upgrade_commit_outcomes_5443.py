@@ -218,7 +218,8 @@ def test_upgraded_worktree_follows_main_rules(tmp_path: Path, case: str) -> None
     tip0 = git(project, env, "rev-parse", "lane-a").stdout.strip()
     head0 = head(project, env)
 
-    result = run_upgrade(project, env)
+    # The worktree is not a Mission worktree: opt it in explicitly (#7173).
+    result = run_upgrade(project, env, "--all-worktrees")
     output = flat(result.stdout + result.stderr)
 
     tip = git(project, env, "rev-parse", "lane-a").stdout.strip()
@@ -249,7 +250,8 @@ def test_worktree_migration_error_commits_nothing_and_reports_reason(tmp_path: P
     tip0 = git(project, env, "rev-parse", "lane-a").stdout.strip()
     head0 = head(project, env)
 
-    result = run_upgrade(project, env)
+    # The worktree is not a Mission worktree: opt it in explicitly (#7173).
+    result = run_upgrade(project, env, "--all-worktrees")
     output = flat(result.stdout + result.stderr)
 
     assert "Cannot safely detect" in output, "the symlinked ignore file must make a worktree migration raise"
