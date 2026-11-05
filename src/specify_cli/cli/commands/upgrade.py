@@ -102,6 +102,7 @@ from specify_cli.upgrade.worktree_selection import (
     WorktreeRunResult,
     WorktreeSelection,
     validate_named,
+    initial_results,
     worktree_dispositions,
 )
 
@@ -863,9 +864,15 @@ def _run_no_migrations_worktree_stamp(
     only the worktrees ``worktree_selection`` opts in are written (#7173).
     Returns ``(warnings, worktree_failures)`` for the caller to fold into the
     synthesized outcome (FR-012); what the pass did per worktree is appended
-    to ``results_out`` when given (FR-009).
+    to ``results_out`` when given (FR-009). When the versions differ the pass
+    does not run, so every selected worktree reports nothing to upgrade.
     """
-    if no_worktrees or current_version != target_version:
+    if no_worktrees:
+        return [], []
+    if current_version != target_version:
+        if results_out is not None:
+            selection = worktree_selection or WorktreeSelection.none()
+            results_out.extend(initial_results(worktree_dispositions(project_path / WORKTREES_DIR, selection)).values())
         return [], []
 
     from specify_cli.upgrade.runner import MigrationRunner
@@ -904,11 +911,13 @@ def _skip_text(disposition: WorktreeDisposition, rel: str) -> str:
     return f"skipped, not selected (use --include-worktree {rel} or --all-worktrees)"
 
 
-def _preview_line(disposition: WorktreeDisposition, project_path: Path, *, auto_commit: bool) -> str:
+def _preview_line(disposition: WorktreeDisposition, project_path: Path, *, auto_commit: bool, pass_runs: bool) -> str:
     """One preview line: the selection, in the future tense (FR-009)."""
     head, rel = _worktree_head(disposition, project_path)
     if disposition.action is not DispositionAction.UPGRADE:
         return head + _skip_text(disposition, rel)
+    if not pass_runs:
+        return head + "selected, nothing to upgrade (nothing will be written)"
     return head + ("will be upgraded and committed" if auto_commit else "will be upgraded, not committed (auto-commit off)")
 
 
@@ -981,17 +990,19 @@ def _preview_worktree_dispositions(
     json_output: bool,
     dry_run: bool,
     prompts: bool,
+    pass_runs: bool,
 ) -> None:
     """Print the ``Worktrees:`` block before anything is written (FR-009).
 
     Shown for a ``--dry-run`` preview and before the confirm prompt, so the
-    operator sees where upgrade writes before agreeing. Reads only.
+    operator sees where upgrade writes before agreeing. Reads only. ``pass_runs``
+    is False when the worktree pass will not run, so a selected worktree is not written.
     """
     if json_output or not (dry_run or prompts):
         return
     auto_commit = should_auto_commit_for_worktree(project_path, dry_run=False)
     dispositions = worktree_dispositions(project_path / WORKTREES_DIR, selection)
-    _print_worktree_block([_preview_line(d, project_path, auto_commit=auto_commit) for d in dispositions], no_worktrees=no_worktrees)
+    _print_worktree_block([_preview_line(d, project_path, auto_commit=auto_commit, pass_runs=pass_runs) for d in dispositions], no_worktrees=no_worktrees)
 
 
 def _report_worktree_dispositions(outcome: UpgradeOutcome, *, project_path: Path, no_worktrees: bool, json_output: bool, dry_run: bool) -> None:
@@ -2508,6 +2519,7 @@ def upgrade(
         json_output=json_output,
         dry_run=dry_run,
         prompts=bool(migrations_needed) and not confirm,
+        pass_runs=bool(migrations_needed) or current_version == target_version,
     )
 
     manual_review_paths: list[str] = []
