@@ -107,9 +107,9 @@ these things about that pipeline are worth knowing before you read a red check:
   the `cli`, `status` and `consolidation` module rows in `ci-modules.yml` are now
   their only homes.
 - **That advisory lane's budget is derived, not picked** ([#7206](https://github.com/spec-kitty/spec-kitty/issues/7206)).
-  Over 55 advisory-job runs the suite's p95 was 20.3 min against the retired 20-minute
-  cap — 102 % of it — and four runs were killed at the budget with no failing test, so an
-  unrelated PR read red. A PR run is mostly fixed cost: the whole `tests/` tree is collected
+  Over 55 advisory-job runs the job's p95 was 20.3 min against the retired 20-minute cap —
+  102 % of it — and four runs were killed at the budget with no failing test, so an unrelated
+  PR read red. A PR run is mostly fixed cost: the whole `tests/` tree is collected
   in every worker (1 624 corpus items come from 103 of 4 429 modules, ~8 min), the
   content-addressed wall-clock policy scan has no cache on PR runs by design (~3.5 min), and
   execution is ~6.3 min. Both fixed costs are architectural, so the cap is not bought with
