@@ -30,7 +30,11 @@ standing in it. The verdict rule (``data-model.md``, first match wins):
    ``--separate-git-dir`` target: history of its own) ->
    ``NESTED_REPOSITORY``. Other ignored files such as ``.venv/`` do not count,
    but the removal deletes them, so they are listed on the verdict
-   (``ignored_paths`` / ``ignored_count``).
+   (``ignored_paths`` / ``ignored_count``). Before those: a rebase, merge,
+   cherry-pick, revert or bisect in progress (its state lives only in the
+   worktree's git dir) -> ``OPERATION_IN_PROGRESS``, except a rebase whose
+   ``head-name`` is a Mission branch -> ``mission_owned`` (a rebasing lane is
+   detached, so step 5 cannot see its branch).
 8. the primary branch was not resolved from ``origin/HEAD`` or a common name
    (main, master, develop) -> ``unproven`` (``PRIMARY_UNRESOLVED``);
    ``refs/remotes/origin/<primary>`` missing -> ``unproven``
@@ -163,6 +167,7 @@ class Reason(StrEnum):
     MAIN_WORKTREE = "MAIN_WORKTREE"
     CURRENT_WORKTREE = "CURRENT_WORKTREE"
     BRANCH_IN_OTHER_WORKTREE = "BRANCH_IN_OTHER_WORKTREE"
+    OPERATION_IN_PROGRESS = "OPERATION_IN_PROGRESS"
     LANDED = "LANDED"
 
 
@@ -411,9 +416,50 @@ def _holds_repository(path: Path) -> bool:
     return False
 
 
+_OPERATION_MARKERS = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG")
+"""Git-dir entries that mark a rebase, merge, cherry-pick, revert or bisect in progress."""
+
+_REBASE_HEAD_NAMES = ("rebase-merge/head-name", "rebase-apply/head-name")
+"""The branch a rebase in progress will move when it finishes (``refs/heads/<b>``)."""
+
+
+def _git_paths(worktree: Path, names: Sequence[str]) -> list[Path]:
+    """``git rev-parse --git-path`` for each of ``names``, resolved against ``worktree``."""
+    args = [arg for name in names for arg in ("--git-path", name)]
+    listed = run_git(worktree, "rev-parse", *args)
+    return [worktree / line for line in decode_path(listed.stdout).splitlines()]
+
+
+def _rebased_branch(worktree: Path) -> str | None:
+    """The branch a rebase in progress in ``worktree`` belongs to, or ``None``."""
+    for head_name in _git_paths(worktree, _REBASE_HEAD_NAMES):
+        if head_name.is_file():
+            ref = head_name.read_text(encoding="utf-8").strip()
+            return ref.removeprefix("refs/heads/") if ref.startswith("refs/heads/") else None
+    return None
+
+
+def _operation_in_progress(entry: WorktreeEntry) -> WorktreeVerdict | None:
+    """A rebase/merge/cherry-pick/revert/bisect in progress: its state lives only in this worktree's git dir.
+
+    A rebasing Mission lane is detached mid-rebase; its ``head-name`` still
+    names the Mission branch, so it stays the Mission's.
+    """
+    active = [marker for marker in _git_paths(entry.path, _OPERATION_MARKERS) if os.path.lexists(marker)]
+    if not active:
+        return None
+    rebased = _rebased_branch(entry.path)
+    if rebased is not None and parse_mission_slug_from_branch(rebased) is not None:
+        return _verdict(entry, Verdict.MISSION_OWNED, Reason.MISSION_LANE, f"a Mission branch ({rebased}) mid-rebase; consolidate owns its worktree")
+    return _verdict(entry, Verdict.NOT_LANDED, Reason.OPERATION_IN_PROGRESS, f"a git operation is in progress: {_shown([marker.name for marker in active])}")
+
+
 def _local_state(entry: WorktreeEntry) -> WorktreeVerdict | tuple[str, ...]:
     """Step 7: a verdict for local state the removal would destroy, or the ignored paths it deletes."""
     try:
+        in_progress = _operation_in_progress(entry)
+        if in_progress is not None:
+            return in_progress
         assert_worktree_clean(entry.path, context=NothingIsResidue(), treat_untracked_as_dirty=True)
         flagged = _flagged_index_paths(entry.path)
         ignored = _ignored_paths(entry.path)
