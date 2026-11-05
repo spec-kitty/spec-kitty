@@ -3,9 +3,9 @@
 The end-to-end proof lives in
 ``tests/specify_cli/cli/commands/agent/test_analysis_report_transaction.py``. This
 module covers the branches that fixture cannot cheaply reach: an unverifiable or
-misnamed pin, a missing pin, a pack root outside the repository, and the
-component-wise prefix scoping that keeps a sibling tree from inheriting the
-exemption.
+misnamed pin, a missing pin, and a pack root outside the repository.
+The component-wise sibling-prefix vectors are guarded through the real CLI
+in the end-to-end module above, superseding this module's retired private-helper case.
 """
 
 from __future__ import annotations
