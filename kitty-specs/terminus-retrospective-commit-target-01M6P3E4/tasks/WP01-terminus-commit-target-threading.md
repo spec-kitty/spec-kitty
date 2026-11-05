@@ -23,6 +23,9 @@ requirement_refs:
 planning_base_branch: issue-7201-terminus-retrospective-target
 merge_target_branch: issue-7201-terminus-retrospective-target
 branch_strategy: Planning artifacts for this mission were generated on issue-7201-terminus-retrospective-target. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7201-terminus-retrospective-target unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-terminus-retrospective-commit-target-01M6P3E4
+base_commit: afd873ddb3f99a137d8155568cc9201ef5b891ba
+created_at: '2026-11-05T15:02:19.313356+00:00'
 subtasks:
 - T001
 - T002

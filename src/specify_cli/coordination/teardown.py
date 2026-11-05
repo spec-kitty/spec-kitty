@@ -248,6 +248,8 @@ def _persist_retrospective(
     repo_root: Path,
     mission_slug: str,
     provenance_kind: ProvenanceKind = "runtime_post_completion",
+    *,
+    destination_ref: str | None = None,
 ) -> str | None:
     """Persist any pending retrospective to its durable PRIMARY home.
 
@@ -265,6 +267,11 @@ def _persist_retrospective(
     the persist machinery surfaces here instead of being masked by the destroy
     handler.
 
+    ``destination_ref`` is the branch the caller's run actually landed on (the
+    consolidation run's resolved merge target, ``mission close --target``). It is
+    forwarded verbatim to the terminus, which commits the retrospective there; ``None``
+    keeps placement resolution from the mission's ``meta.json`` target (#7201).
+
     Returns the SHA of the bookkeeping commit the persist made, or ``None`` when it made none.
     """
     from specify_cli.post_merge.retrospective_terminus import (  # noqa: PLC0415
@@ -275,6 +282,7 @@ def _persist_retrospective(
         mission_slug=mission_slug,
         repo_root=repo_root,
         provenance_kind=provenance_kind,
+        destination_ref=destination_ref,
     )
 
 
@@ -323,6 +331,7 @@ def teardown_coordination_topology(
     check_ledger: bool = True,
     on_persist_commit: Callable[[str], None] | None = None,
     follow_up_command: str = RESUME_COMMAND,
+    destination_ref: str | None = None,
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
@@ -375,6 +384,10 @@ def teardown_coordination_topology(
         follow_up_command: The command a refusal tells the operator to re-run once the kept
             files are committed or moved (``consolidate --resume`` by default, ``consolidate
             --abort`` for the abort path).
+        destination_ref: The branch the caller's run landed on, forwarded to the persist
+            leg so the retrospective bookkeeping commit targets it instead of the possibly
+            stale ``meta.json`` target (#7201). ``None`` (the default) keeps placement
+            resolution, so every caller that does not know a resolved target is unchanged.
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
@@ -410,7 +423,7 @@ def teardown_coordination_topology(
 
     if persist:
         # OUTSIDE the destroy swallow — persist-before-destroy (FR-005).
-        persisted_sha = _persist_retrospective(repo_root, mission_slug, provenance_kind)
+        persisted_sha = _persist_retrospective(repo_root, mission_slug, provenance_kind, destination_ref=destination_ref)
         if on_persist_commit is not None and isinstance(persisted_sha, str):
             # Hand the caller the exact commit the persist made (#5570), so it never has to
             # re-read the destination tip and mistake a concurrent foreign commit for ours.

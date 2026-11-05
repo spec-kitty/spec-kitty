@@ -2,77 +2,77 @@
   "mission_slug": "terminus-retrospective-commit-target-01M6P3E4",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "The terminus retrospective bookkeeping commit lands on the caller-supplied resolved landing branch, not the stale meta.json target.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_resolved_destination_commits_onto_the_landing_branch",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:28.508580+00:00",
+      "notes": "Proof: tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_resolved_destination_commits_onto_the_landing_branch"
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "A consolidate run that resolved --target <branch> commits both terminus artifacts on <branch> from both of its terminus call sites, with no manual step.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/consolidation/test_retrospective_target_wiring_7201.py::test_teardown_leg_threads_the_resolved_merge_target",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:34.231432+00:00",
+      "notes": "Proof: tests/consolidation/test_retrospective_target_wiring_7201.py::test_teardown_leg_threads_the_resolved_merge_target + ::test_post_merge_call_site_threads_the_resolved_target"
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "The coordination-teardown persist leg forwards the resolved target to the terminus entry point.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/consolidation/test_retrospective_target_wiring_7201.py::test_persist_seam_forwards_the_destination_to_the_terminus",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:39.396416+00:00",
+      "notes": "Proof: tests/consolidation/test_retrospective_target_wiring_7201.py::test_persist_seam_forwards_the_destination_to_the_terminus"
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "`mission close --target <branch>` forwards the destination on both the close and the --discard legs, keeping runtime_abandoned provenance and today's behaviour when omitted.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/cli/commands/test_mission_close_target.py::test_close_target_reaches_the_persist_leg",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:45.496779+00:00",
+      "notes": "Proof: tests/specify_cli/cli/commands/test_mission_close_target.py::test_close_target_reaches_the_persist_leg + ::test_discard_target_reaches_the_persist_leg + ::test_discard_steps_forward_the_target_to_the_persist_leg"
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "The refusal warning prints an executable recovery command that carries the target the terminus was given.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_refusal_warning_prints_an_aimable_recovery_command",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:49.852982+00:00",
+      "notes": "Proof: tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_refusal_warning_prints_an_aimable_recovery_command"
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "safe_commit's HEAD/destination refusal and the terminus's warn-and-return-None fail-open policy are unchanged.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_without_a_resolved_destination_the_guard_still_refuses",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:54.977129+00:00",
+      "notes": "Proof: tests/specify_cli/post_merge/test_retrospective_commit_target.py::test_without_a_resolved_destination_the_guard_still_refuses; diff touches no safe_commit/commit_guard line"
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "An omitted destination keeps today's placement resolution for both the teardown seam and `mission close`.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/consolidation/test_retrospective_target_wiring_7201.py::test_persist_seam_defaults_the_destination_to_none",
+      "pass_fail": "pass",
+      "verified_by": "pi-claude",
+      "verified_at": "2026-11-05T16:04:58.884253+00:00",
+      "notes": "Proof: tests/consolidation/test_retrospective_target_wiring_7201.py::test_persist_seam_defaults_the_destination_to_none + tests/specify_cli/cli/commands/test_mission_close_target.py::test_close_without_target_preserves_placement_resolution"
     }
   ],
   "negative_invariants": []
