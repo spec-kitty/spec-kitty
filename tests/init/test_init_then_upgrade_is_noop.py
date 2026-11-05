@@ -5,6 +5,10 @@ lines but not the inert ``issue-matrix.md`` line that the historical
 ``3.2.6_gate_artifact_merge_drivers`` migration still seeds, and the upgrade's
 schema stamp rewrote init's ``last_upgraded_at:`` as ``last_upgraded_at: null``.
 The first upgrade then auto-committed both files.
+
+#7217 retired that inert line instead of propagating it: the historical migration
+is superseded, so ``init`` no longer writes the retired row and the first upgrade
+stays a no-op without carrying an orphan mapping into every new project.
 """
 
 from __future__ import annotations
@@ -61,8 +65,12 @@ def test_upgrade_after_init_makes_no_commit_and_no_tracked_change(tmp_path: Path
     assert (project / ".kittify" / "metadata.yaml").read_bytes() == metadata_before
 
 
-def test_init_writes_the_legacy_issue_matrix_line_an_upgrade_seeds(tmp_path: Path) -> None:
+def test_init_writes_the_canonical_rows_and_not_the_retired_issue_matrix_line(tmp_path: Path) -> None:
+    """#7217: the retired row is not seeded at init; the live gate-artifact rows still are."""
     project = _committed_init_project(tmp_path)
     written = (project / ".gitattributes").read_text(encoding="utf-8").splitlines()
 
-    assert "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix" in written
+    assert "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix" not in written
+    # Same-fixture positive control: the probe sees the live rows this file must carry.
+    assert "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix" in written
+    assert "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix" in written

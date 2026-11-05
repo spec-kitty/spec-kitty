@@ -18,10 +18,13 @@ These tests pin the one sequencing decision that closes that gap
   current tree;
 * a real run's verdicts do not change, and a dry run still writes nothing.
 
-The reported pair is the real ``3.2.6_gate_artifact_merge_drivers`` →
-``3.2.6_issue_matrix_driver_repoint`` relationship: the gate migration rewrites
-``merge.spec-kitty-issue-matrix.name`` to its own value, which is precisely the write
-the repoint migration's ``detect()`` reads.
+The reported pair was the real ``3.2.6_gate_artifact_merge_drivers`` →
+``3.2.6_issue_matrix_driver_repoint`` relationship (the gate migration rewrote
+``merge.spec-kitty-issue-matrix.name`` to its own value, the write the repoint migration's
+``detect()`` reads). #7217 superseded the gate migration -- its retired
+``issue-matrix.md`` row was re-applied on every fresh clone -- so the pair no longer exists
+and its ``SEQUENCED_AFTER`` declaration is gone. These tests pin the *mechanism*, so the same
+shape now rides the synthetic ``_WritesMarker`` → ``_DeclaredReadsMarker`` pair below.
 """
 
 from __future__ import annotations
@@ -36,12 +39,6 @@ from charter.hasher import hash_content
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
 from specify_cli.upgrade.ledger import MigrationLedger, build_record
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
-from specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers import (
-    GateArtifactMergeDriverMigration,
-)
-from specify_cli.upgrade.migrations.m_3_2_6_issue_matrix_driver_repoint import (
-    IssueMatrixDriverRepointMigration,
-)
 from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -49,25 +46,12 @@ from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult, declared_
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-_TARGET = "3.2.6rc1"
-_GATE = "3.2.6_gate_artifact_merge_drivers"
-_REPOINT = "3.2.6_issue_matrix_driver_repoint"
-
-#: The tracked .gitattributes lines ``init`` seeds, so the pair is pending for its
-#: *config* half only (the gate migration declares the filled-side driver name).
-_SEEDED_ATTRIBUTES = (
-    "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix",
-    "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix",
-    "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix",
-)
-
-#: The clone-local state ``init`` seeds: the *row-aware* driver name, so the gate
-#: migration's detect() is True (it declares the *filled-side* name) while the
-#: repoint migration's detect() is False (it wants the row-aware name).
-_SEEDED_CONFIG = {
-    "merge.spec-kitty-issue-matrix.name": "Spec Kitty issue matrix row-aware merge",
-    "merge.spec-kitty-issue-matrix.driver": "spec-kitty merge-driver-issue-matrix %O %A %B",
-}
+_TARGET = "4.0.0rc8"
+#: The pair's ``target_version``: the installed package version, so the CLI command's DEFAULT
+#: target includes it and the operator-facing witness needs no ``--target`` flag.
+_PAIR_TARGET_VERSION = _TARGET
+_PREDECESSOR = "9.9.9_writes_marker"
+_DEPENDENT = "9.9.9_reads_marker"
 
 
 # --------------------------------------------------------------------------- #
@@ -88,24 +72,21 @@ def _write_metadata(project: Path, version: str) -> None:
     )
 
 
-def _project(path: Path, *, version: str = "3.2.5", config: dict[str, str] | None = None) -> Path:
-    """A git project carrying the clone-local state a fresh ``init`` seeds."""
+def _project(path: Path, *, version: str = "3.2.5") -> Path:
+    """A git project at *version*, with no state a migration could mistake for its own."""
     path.mkdir(parents=True, exist_ok=True)
     _git("init", "-q", "-b", "main", cwd=path)
-    for key, value in (config if config is not None else _SEEDED_CONFIG).items():
-        _git("config", "--local", key, value, cwd=path)
     _write_metadata(path, version)
-    (path / ".gitattributes").write_text("\n".join(_SEEDED_ATTRIBUTES) + "\n", encoding="utf-8")
     return path
 
 
 def _pair_project(tmp_path: Path, name: str = "project") -> Path:
-    """The reported pair's state: the gate migration pending, the repoint pending-but-undetected."""
+    """The reported pair's shape: the predecessor pending, the dependent pending-but-undetected."""
     project = _project(tmp_path / name)
-    gate, repoint = GateArtifactMergeDriverMigration(), IssueMatrixDriverRepointMigration()
+    predecessor, dependent = _WritesMarker(), _DeclaredReadsMarker()
     # Preconditions, asserted so fixture drift fails loudly instead of passing vacuously.
-    assert gate.detect(project) is True, "gate migration must be pending (its .gitattributes lines are absent)"
-    assert repoint.detect(project) is False, "repoint migration must be undetected on the pre-run tree"
+    assert predecessor.detect(project) is True, "the predecessor must be pending (its marker is absent)"
+    assert dependent.detect(project) is False, "the dependent must be undetected on the pre-run tree"
     return project
 
 
@@ -153,7 +134,7 @@ class _WritesMarker(BaseMigration):
 
     migration_id = "9.9.9_writes_marker"
     description = "Write the marker file a later migration detects"
-    target_version = "9.9.9"
+    target_version = _TARGET
 
     def detect(self, project_path: Path) -> bool:
         return not (Path(project_path) / "marker.txt").exists()
@@ -172,7 +153,7 @@ class _ReadsMarker(BaseMigration):
 
     migration_id = "9.9.9_reads_marker"
     description = "Rewrites the marker file a predecessor writes"
-    target_version = "9.9.9"
+    target_version = _TARGET
     sequenced_after: tuple[str, ...] = ()
 
     def detect(self, project_path: Path) -> bool:
@@ -208,14 +189,14 @@ def test_the_dry_run_lists_the_migration_the_real_run_applies(tmp_path: Path) ->
     original = _pair_project(tmp_path)
     dry_project = _copy(original, tmp_path / "dry")
     real_project = _copy(original, tmp_path / "real")
-    _only(GateArtifactMergeDriverMigration, IssueMatrixDriverRepointMigration)
+    _only(_WritesMarker, _DeclaredReadsMarker)
 
     dry = _run(dry_project, dry_run=True)
     real = _run(real_project, dry_run=False)
 
     assert dry.success is True, dry.errors
     assert real.success is True, real.errors
-    assert real.migrations_applied == [_GATE, _REPOINT], real.migrations_skipped
+    assert real.migrations_applied == [_PREDECESSOR, _DEPENDENT], real.migrations_skipped
     assert dry.migrations_applied == real.migrations_applied
     assert dry.migrations_skipped == real.migrations_skipped == []
 
@@ -223,16 +204,16 @@ def test_the_dry_run_lists_the_migration_the_real_run_applies(tmp_path: Path) ->
 def test_the_predicted_verdict_names_the_predecessor(tmp_path: Path) -> None:
     """A predicted verdict is tellable from a direct detection: it says what it follows."""
     project = _pair_project(tmp_path)
-    _only(GateArtifactMergeDriverMigration, IssueMatrixDriverRepointMigration)
+    _only(_WritesMarker, _DeclaredReadsMarker)
 
     result = _run(project, dry_run=True)
 
-    predicted = result.migration_results[_REPOINT]
+    predicted = result.migration_results[_DEPENDENT]
     assert predicted.success is True
-    assert predicted.changes_made == [f"dry-run: would apply after {_GATE}"]
+    assert predicted.changes_made == [f"dry-run: would apply after {_PREDECESSOR}"]
     # The provenance is data, not prose: the surfaces that render a verdict read this.
-    assert predicted.predicted_after == (_GATE,)
-    assert result.migration_results[_GATE].predicted_after == (), "a directly detected verdict is never marked predicted"
+    assert predicted.predicted_after == (_PREDECESSOR,)
+    assert result.migration_results[_PREDECESSOR].predicted_after == (), "a directly detected verdict is never marked predicted"
 
 
 def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
@@ -240,7 +221,7 @@ def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
     original = _pair_project(tmp_path)
     dry_project = _copy(original, tmp_path / "dry")
     real_project = _copy(original, tmp_path / "real")
-    _only(GateArtifactMergeDriverMigration, IssueMatrixDriverRepointMigration)
+    _only(_WritesMarker, _DeclaredReadsMarker)
 
     before = _tree_digest(dry_project)
     ledger_before = {
@@ -252,7 +233,7 @@ def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
     assert _tree_digest(dry_project) == before
     assert MigrationLedger(dry_project).read_tracked() == ledger_before["tracked"]
     assert MigrationLedger(dry_project).read_clone_local() == ledger_before["clone_local"]
-    assert _local_config(dry_project, "merge.spec-kitty-issue-matrix.name") == _SEEDED_CONFIG["merge.spec-kitty-issue-matrix.name"]
+    assert not (dry_project / "marker.txt").exists(), "the dry run must not run the predecessor's apply()"
 
     real_before = _tree_digest(real_project)
     _run(real_project, dry_run=False)
@@ -267,10 +248,10 @@ def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_an_undeclared_ordering_pair_words_its_skip_by_run_mode(tmp_path: Path, dry_run: bool) -> None:
     """A dry-run skip claims only the current tree (C-002: a real run keeps its target-state wording)."""
-    project = _project(tmp_path / "project", version="9.9.8")
+    project = _project(tmp_path / "project", version="3.2.5")
     _only(*((_WritesMarker, _ReadsMarker) if dry_run else (_ReadsMarker,)))
 
-    result = MigrationRunner(project).upgrade("9.9.9", dry_run=dry_run, include_worktrees=False)
+    result = MigrationRunner(project).upgrade(_TARGET, dry_run=dry_run, include_worktrees=False)
 
     assert result.migrations_skipped == [_ReadsMarker.migration_id]
     assert any(("not needed on the current tree" if dry_run else "not needed (project already in target state)") in w for w in result.warnings), result.warnings
@@ -279,10 +260,10 @@ def test_an_undeclared_ordering_pair_words_its_skip_by_run_mode(tmp_path: Path, 
 
 def test_an_undeclared_dependent_stays_skipped_when_nothing_re_selects_it(tmp_path: Path) -> None:
     """The wording is not a blanket "would apply": with no applied predecessor the skip stands."""
-    project = _project(tmp_path / "project", version="9.9.8")
+    project = _project(tmp_path / "project", version="3.2.5")
     _only(_ReadsMarker)
 
-    result = MigrationRunner(project).upgrade("9.9.9", dry_run=True, include_worktrees=False)
+    result = MigrationRunner(project).upgrade(_TARGET, dry_run=True, include_worktrees=False)
 
     assert result.migrations_skipped == [_ReadsMarker.migration_id]
     assert any("not needed on the current tree" in warning for warning in result.warnings), result.warnings
@@ -290,13 +271,13 @@ def test_an_undeclared_dependent_stays_skipped_when_nothing_re_selects_it(tmp_pa
 
 def test_a_declared_dependent_of_an_applied_predecessor_is_predicted(tmp_path: Path) -> None:
     """The declared synthetic pair behaves like the reported one."""
-    original = _project(tmp_path / "original", version="9.9.8")
+    original = _project(tmp_path / "original", version="3.2.5")
     dry_project = _copy(original, tmp_path / "dry")
     real_project = _copy(original, tmp_path / "real")
     _only(_WritesMarker, _DeclaredReadsMarker)
 
-    dry = MigrationRunner(dry_project).upgrade("9.9.9", dry_run=True, include_worktrees=False)
-    real = MigrationRunner(real_project).upgrade("9.9.9", dry_run=False, include_worktrees=False)
+    dry = MigrationRunner(dry_project).upgrade(_TARGET, dry_run=True, include_worktrees=False)
+    real = MigrationRunner(real_project).upgrade(_TARGET, dry_run=False, include_worktrees=False)
 
     assert dry.migrations_applied == [_WritesMarker.migration_id, _DeclaredReadsMarker.migration_id]
     assert dry.migrations_applied == real.migrations_applied
@@ -305,10 +286,10 @@ def test_a_declared_dependent_of_an_applied_predecessor_is_predicted(tmp_path: P
 
 def test_a_prediction_honours_can_apply(tmp_path: Path) -> None:
     """A dependent this project refuses stays skipped, with its own reason."""
-    project = _project(tmp_path / "project", version="9.9.8")
+    project = _project(tmp_path / "project", version="3.2.5")
     _only(_WritesMarker, _RefusingReadsMarker)
 
-    result = MigrationRunner(project).upgrade("9.9.9", dry_run=True, include_worktrees=False)
+    result = MigrationRunner(project).upgrade(_TARGET, dry_run=True, include_worktrees=False)
 
     assert result.migrations_applied == [_WritesMarker.migration_id]
     assert result.migrations_skipped == [_RefusingReadsMarker.migration_id]
@@ -317,11 +298,11 @@ def test_a_prediction_honours_can_apply(tmp_path: Path) -> None:
 
 def test_a_settled_predecessor_predicts_nothing(tmp_path: Path) -> None:
     """A predecessor outside this run's selection cannot change the tree, so it predicts nothing."""
-    project = _project(tmp_path / "project", version="9.9.8")
+    project = _project(tmp_path / "project", version="3.2.5")
     MigrationLedger(project).append(build_record(_WritesMarker(), "success"))
     _only(_WritesMarker, _DeclaredReadsMarker)
 
-    result = MigrationRunner(project).upgrade("9.9.9", dry_run=True, include_worktrees=False)
+    result = MigrationRunner(project).upgrade(_TARGET, dry_run=True, include_worktrees=False)
 
     assert _WritesMarker.migration_id not in result.migrations_applied
     assert result.migrations_skipped == [_DeclaredReadsMarker.migration_id]
@@ -339,6 +320,17 @@ def _declarations() -> list[tuple[str, tuple[str, ...]]]:
     return [(migration.migration_id, declared_predecessors(migration)) for migration in MigrationRegistry.get_all() if declared_predecessors(migration)]
 
 
+def test_the_retired_issue_matrix_pair_leaves_no_declaration() -> None:
+    """#7217: a declaration whose predecessor is superseded can never fire.
+
+    ``3.2.6_issue_matrix_driver_repoint`` declared ``3.2.6_gate_artifact_merge_drivers``; the gate
+    migration is now a recorded no-op, so the declaration was retired with its writer. This pin
+    keeps it from coming back, and tells the next author to re-anchor the audit below when a real
+    declaration lands.
+    """
+    assert _declarations() == [], "a shipped declaration landed: re-anchor the reported-pair proof"
+
+
 def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
     """A typo, a rename, or a later-ordered predecessor would silently disable the prediction.
 
@@ -349,8 +341,9 @@ def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
     """
     order = {migration_id: position for position, migration_id in enumerate(load_order_manifest())}
     registered = {migration.migration_id for migration in MigrationRegistry.get_all()}
+    # No shipped migration declares a predecessor today (#7217 retired the only pair); the loop
+    # still enforces the invariant for the first one that does.
     declarations = _declarations()
-    assert declarations, "the reported pair must keep its declaration, or the audit is vacuous"
 
     for declarer, predecessors in declarations:
         for predecessor in predecessors:
