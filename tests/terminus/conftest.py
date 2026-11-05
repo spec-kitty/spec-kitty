@@ -139,13 +139,14 @@ def pin_planning_commit(repo: Path, feature_dir: Path, ref: str = "HEAD", *, com
 
     manifest = read_lanes_json(feature_dir)
     assert manifest is not None, f"no lanes.json under {feature_dir}"
-    manifest.planning_commit_sha = git_rev(repo, ref)
-    assert manifest.planning_commit_sha, f"{ref} does not resolve in {repo}"
+    pin: str = git_rev(repo, ref)
+    assert pin, f"{ref} does not resolve in {repo}"
+    manifest.planning_commit_sha = pin
     write_lanes_json(feature_dir, manifest)
     if commit_message is not None:
         _git(repo, "add", "--", str((feature_dir / "lanes.json").relative_to(repo)))
         _git(repo, "commit", "-qm", commit_message)
-    return manifest.planning_commit_sha
+    return pin
 
 
 def implementer_claim_events(approved_event: Mapping[str, object], *, actor: str = "implementer-ivan") -> list[dict[str, object]]:
