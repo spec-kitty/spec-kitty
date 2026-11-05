@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "mission_slug": "landed-worktree-cleanup-01M6KZNP",
+  "mission_id": "01M6KZNPGEVQH9VPKAEZD2T94V",
+  "mission_branch": "kitty/mission-landed-worktree-cleanup-01M6KZNP",
+  "target_branch": "issue-7173-landed-worktree-cleanup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/git/listing.py",
+        "src/specify_cli/status/doctor_husks.py",
+        "tests/kernel/git/test_worktree_listing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/destructive_guard.py",
+        "tests/specify_cli/git/test_destructive_guard_landed.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/upgrade/runner.py",
+        "src/specify_cli/upgrade/worktree_selection.py",
+        "tests/upgrade/test_exclude_worktrees_migration.py",
+        "tests/upgrade/test_issue_4972_idempotent_worktree_metadata.py",
+        "tests/upgrade/test_upgrade_integrating_worktrees.py",
+        "tests/upgrade/test_upgrade_worktree_commit.py",
+        "tests/upgrade/test_upgrade_worktree_selection.py",
+        "tests/upgrade/test_worktree_stamp_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/workspace/landed_worktrees.py",
+        "src/specify_cli/workspace/process_probe.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/specify_cli/workspace/test_landed_worktrees.py",
+        "tests/specify_cli/workspace/test_process_probe.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_landed_worktree_doctor.py",
+        "src/specify_cli/cli/commands/_workspace_husk_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_workspaces_prune.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/unreleased/7173.*.md",
+        "docs/development/how-to/pr-landing.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-04T23:47:49.028487+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP06"
+  ],
+  "planning_commit_sha": "b9ceb05aa0b2d781ea4be04a05b6a8f49c5de6ff"
+}
