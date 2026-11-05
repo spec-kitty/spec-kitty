@@ -139,7 +139,7 @@ This WP is stacked on the unmerged PR #7196 head; `main` does not have this modu
 
 **Files**: `src/specify_cli/git/destructive_guard.py` (+~25 lines).
 
-**Validation**: `tests/specify_cli/git/test_destructive_guard_landed.py` gains a test that the ref is created, that a second call is a no-op, and that a failed write raises `DESTRUCTIVE_OP_ONLY_COPY`. (That file is outside `owned_files`; if ownership forbids editing it, put the guard test in `tests/specify_cli/workspace/test_landed_worktrees.py` instead, through `prune_landed`.)
+**Validation**: `tests/specify_cli/workspace/test_landed_worktrees.py` gains a test that the ref is created, that a second call is a no-op, and that a failed write raises `DESTRUCTIVE_OP_ONLY_COPY`. Do not edit `tests/specify_cli/git/test_destructive_guard_landed.py`: it is outside this WP's `owned_files`, so exercise the helper through `prune_landed` and the workspace suite instead.
 
 ## Subtask T005: Wire the keep step into `_prune_one` before anything is destroyed
 
