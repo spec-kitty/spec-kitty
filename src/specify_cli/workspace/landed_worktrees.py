@@ -42,7 +42,8 @@ standing in it. The verdict rule (``data-model.md``, first match wins):
    ``merge-tree --write-tree`` no-op; covers merge, rebase and squash
    landings) -> ``not_landed``; ``AbsorptionUnsupported`` -> ``unproven``
 10. a branch whose tip is an ancestor of ``origin/<primary>`` and whose
-    reflog records no commit (only creation, reset, pull... entries) ->
+    reflog records no commit (only creation, reset, pull, fast-forward merge,
+    rebase... entries) ->
     ``not_landed`` (``NO_OWN_COMMITS``): nobody worked on it, so the prune
     does not decide for the operator that it is done. A branch with no
     reflog at all -> ``unproven`` (``REFLOG_MISSING``). An expired reflog
@@ -501,12 +502,21 @@ def _absorption(entry: WorktreeEntry, ctx: _Context) -> WorktreeVerdict | None:
     return None
 
 
-_OWN_COMMIT_ACTIONS = ("commit", "cherry-pick", "merge", "rebase")
+_OWN_COMMIT_ACTIONS = ("commit", "cherry-pick", "merge")
 """Reflog subject (``%gs``) prefixes that record a commit made on the branch.
 
-``commit``, ``commit (amend)``, ``commit (merge)``, ``cherry-pick``, ``merge``
-and ``rebase (finish)`` count; ``branch: Created from``, ``reset`` and
-``pull`` do not."""
+``commit``, ``commit (amend)``, ``commit (merge)``, ``cherry-pick`` and a
+``merge`` that made a merge commit count. ``branch: Created from``,
+``reset``, ``pull``, a fast-forward ``merge ...: Fast-forward`` and
+``rebase (finish)`` do not: they move the branch onto commits made elsewhere
+(a rebase's own picks are recorded on ``HEAD``, not on the branch). Erring
+this way only keeps more worktrees report-only."""
+
+_FAST_FORWARD_SUFFIX = ": Fast-forward"
+
+
+def _records_own_commit(subject: str) -> bool:
+    return subject.startswith(_OWN_COMMIT_ACTIONS) and not (subject.startswith("merge") and subject.endswith(_FAST_FORWARD_SUFFIX))
 
 
 def _is_ancestor(repo_root: Path, tip: str, ref: str) -> bool:
@@ -538,7 +548,7 @@ def _own_commits(entry: WorktreeEntry, ctx: _Context) -> WorktreeVerdict | None:
     subjects = _reflog_subjects(ctx.repo_root, entry.branch)
     if subjects is None:
         return _verdict(entry, Verdict.UNPROVEN, Reason.REFLOG_MISSING, f"branch {entry.branch} has no reflog; whether commits were made on it cannot be told")
-    if not any(subject.startswith(_OWN_COMMIT_ACTIONS) for subject in subjects):
+    if not any(_records_own_commit(subject) for subject in subjects):
         return _verdict(entry, Verdict.NOT_LANDED, Reason.NO_OWN_COMMITS, "no commits were made on this branch; remove it by hand if you are done with it")
     return None
 
