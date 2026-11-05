@@ -487,7 +487,7 @@ def test_ignored_files_the_removal_deletes_are_shown(repo: Path) -> None:
 
 def test_unproven_only_for_the_process_probe_prints_the_manual_commands(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fold G: everything else is proven; tell the operator how to remove it by hand."""
-    path, _ = _landed_worktree(repo)
+    path, tip = _landed_worktree(repo)
 
     def missing(_paths: Sequence[Path]) -> ProcessProbeResult:
         return ProcessProbeResult(available=False, busy=frozenset(), detail="/proc is not available", uninspected=0)
@@ -501,7 +501,8 @@ def test_unproven_only_for_the_process_probe_prints_the_manual_commands(repo: Pa
     assert "only after checking nothing runs in it; content is on origin/main:" in out
     assert f"git worktree remove {path.resolve()}" in out
     assert "--force" not in out
-    assert f"git branch -D {_LANDED}" in out
+    keep, delete = f"git update-ref refs/spec-kitty/discarded/{_LANDED} {tip}", f"git branch -D {_LANDED}"
+    assert keep in out and delete in out and out.index(keep) < out.index(delete), "the tip is kept before the branch goes"
     assert _registered(repo, path)
 
 

@@ -97,8 +97,13 @@ def _ignored_line(verdict: WorktreeVerdict) -> str | None:
     return f"will also delete ignored: {', '.join(verdict.ignored_paths)}{suffix}"
 
 
-def _manual_commands(verdict: WorktreeVerdict, primary: str) -> list[str]:
-    """The hand removal for a worktree unproven only because running processes cannot be checked (else ``[]``)."""
+def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) -> list[str]:
+    """The hand removal for a worktree unproven only because running processes cannot be checked (else ``[]``).
+
+    Like the prune (``LANDED_INTENT``), the branch tip is kept under
+    ``refs/spec-kitty/discarded/<branch>`` before the branch is deleted.
+    """
+    from specify_cli.git.destructive_guard import discarded_ref
     from specify_cli.workspace.landed_worktrees import Reason, shell_command
 
     if verdict.reason is not Reason.PROCESS_PROOF_UNAVAILABLE:
@@ -108,6 +113,8 @@ def _manual_commands(verdict: WorktreeVerdict, primary: str) -> list[str]:
         f"{_INDENT}{shell_command('git', 'worktree', 'remove', str(verdict.path.resolve(strict=False)))}",
     ]
     if verdict.branch is not None:
+        if verdict.tip is not None:
+            lines.append(f"{_INDENT}{shell_command('git', 'update-ref', discarded_ref(repo_root, verdict.branch, verdict.tip), verdict.tip)}")
         lines.append(f"{_INDENT}{shell_command('git', 'branch', '-D', verdict.branch)}")
     return lines
 
@@ -124,7 +131,7 @@ def _render_verdict(verdict: WorktreeVerdict, repo_root: Path, primary: str, *, 
     extra = _ignored_line(verdict)
     if extra is not None:
         _print(f"{_INDENT * 2}{escape(extra)}")
-    for manual in _manual_commands(verdict, primary):
+    for manual in _manual_commands(verdict, repo_root, primary):
         _print(f"{_INDENT * 2}{escape(manual)}")
     if verdict.removable and not prune:
         _print(f"{_INDENT * 2}remove with: {PRUNE_COMMAND}")
