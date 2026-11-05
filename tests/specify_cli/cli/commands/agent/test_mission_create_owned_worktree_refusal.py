@@ -9,9 +9,10 @@ These tests drive the real `agent mission create` entry point on real git
 repositories (``tmp_path`` + ``git`` subprocesses), the house pattern of
 ``tests/specify_cli/cli/commands/agent/test_mission_create_phases.py``.
 
-Every refusal is paired, on the same fixture family, with the positive control that
-proves the refusal did not simply make the seam reject everything (spec FR-005,
-tactic ``acceptance-criteria-non-vacuity``).
+Every refusal is paired with a positive control that proves the refusal did not
+simply make the seam reject everything (spec FR-005, tactic
+``acceptance-criteria-non-vacuity``); the ordinary linked owned checkout's admission
+is the golden ``default_owned_checkout`` cell of ``test_mission_create_golden_cli.py``.
 """
 
 from __future__ import annotations
@@ -103,7 +104,7 @@ def _coord_worktree(repo_root: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# T001 — a registered coordination worktree is refused, with the positive control
+# T001 — a registered coordination worktree is refused
 # ---------------------------------------------------------------------------
 
 
@@ -126,70 +127,18 @@ def test_create_refuses_a_registered_coordination_worktree(tmp_path: Path, monke
     assert _scaffolded(repo_root) == []
 
 
-def test_create_admits_an_ordinary_linked_owned_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Same fixture family as the refusal above: the seam still admits a real owned checkout."""
-    repo_root = _repo(tmp_path)
-    _coord_worktree(repo_root)
-    owned = tmp_path / "owned"
-    git(repo_root, "worktree", "add", "-q", "-b", "codex/owned", str(owned))
-
-    result = _invoke_create(repo_root, owned, monkeypatch)
-
-    assert result.exit_code == 0, result.output
-    assert len(_scaffolded(owned)) == 1
-
-
 # ---------------------------------------------------------------------------
 # T002 — a registered lane worktree is refused, with the carrier-contract control
 # ---------------------------------------------------------------------------
 
 
 def _register_lane_worktree(repo_root: Path, mission_slug: str) -> Path:
-    """Write a one-lane manifest and register the lane worktree it predicts."""
-    from specify_cli.lanes.models import ExecutionLane, LanesManifest
-    from specify_cli.lanes.persistence import write_lanes_json
-    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+    """Register the lane worktree the allocator predicts for *mission_slug*'s ``lane-a``.
 
-    mission_dir = repo_root / "kitty-specs" / mission_slug
-    mission_dir.mkdir(parents=True, exist_ok=True)
-    (mission_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_id": "01M6GRFM0000000000000000AB",
-                "mission_slug": mission_slug,
-                "slug": mission_slug,
-                "mission_type": "software-dev",
-                "topology": "lanes",
-                "target_branch": "work",
-                "flattened": False,
-            }
-        ),
-        encoding="utf-8",
-    )
-    write_lanes_json(
-        mission_dir,
-        LanesManifest(
-            version=1,
-            mission_slug=mission_slug,
-            mission_id="01M6GRFM0000000000000000AB",
-            mission_branch=f"kitty/mission-{mission_slug}",
-            target_branch="work",
-            lanes=[
-                ExecutionLane(
-                    lane_id="lane-a",
-                    wp_ids=("WP01",),
-                    write_scope=(),
-                    predicted_surfaces=(),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
-            computed_at="2026-11-03T00:00:00Z",
-            computed_from="test",
-        ),
-    )
-    git(repo_root, "add", ".")
-    git(repo_root, "commit", "-qm", "lane manifest")
+    Composed through ``predict_lane_worktree`` so allocator/parser naming drift
+    still reds the refusal below; the guard reads only the registry and the name.
+    """
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     lane_path, lane_branch = predict_lane_worktree(repo_root, mission_slug, "lane-a")
     git(repo_root, "worktree", "add", "-q", "-b", lane_branch, str(lane_path))
@@ -199,6 +148,7 @@ def _register_lane_worktree(repo_root: Path, mission_slug: str) -> Path:
 def test_create_refuses_a_registered_lane_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = _repo(tmp_path)
     lane_path = _register_lane_worktree(repo_root, "existing-mission")
+    head_before = git(lane_path, "rev-parse", "HEAD")
 
     result = _invoke_create(repo_root, lane_path, monkeypatch)
 
@@ -206,6 +156,8 @@ def test_create_refuses_a_registered_lane_worktree(tmp_path: Path, monkeypatch: 
     payload = _last_payload(result.output)
     assert payload["error"]["code"] == "OWNED_CHECKOUT_IS_MISSION_WORKTREE"  # type: ignore[index]
     assert _scaffolded(lane_path) == []
+    assert git(lane_path, "status", "--porcelain") == ""
+    assert git(lane_path, "rev-parse", "HEAD") == head_before
 
 
 def test_create_admits_a_worktrees_housed_checkout_whose_name_is_not_a_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,7 +165,6 @@ def test_create_admits_a_worktrees_housed_checkout_whose_name_is_not_a_lane(tmp_
     registered non-coord ``.worktrees`` checkout, so a lane leg keyed on the
     classification alone would refuse a legitimate owned checkout."""
     repo_root = _repo(tmp_path)
-    _register_lane_worktree(repo_root, "existing-mission")
     owned = repo_root / ".worktrees" / "owned-under-worktrees"
     git(repo_root, "worktree", "add", "-q", "-b", "codex/owned-under-worktrees", str(owned))
 

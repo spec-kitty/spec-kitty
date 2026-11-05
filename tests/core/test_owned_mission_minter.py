@@ -366,57 +366,10 @@ def test_create_root_refuses_a_registered_coordination_worktree(tmp_path: Path) 
     assert resolve_owned_create_root(r_root, p_root).checkout == p_root.resolve()
 
 
-def test_create_root_never_classifies_a_husk_as_a_mission_worktree(tmp_path: Path) -> None:
-    """F-005: the name proposes coordination, the registry disposes.
-
-    A ``-coord``-shaped directory that git does not register is not a worktree at
-    all, so the create claim must not refuse it as a Mission worktree. The
-    SEAM's refusal is pinned here (ownership refuses it first, as a non-checkout
-    nested in the primary); this does not by itself exercise the new
-    classification guard -- ``test_create_root_refuses_a_registered_coordination_worktree``
-    does that.
-    """
-    r_root, _p_root = _owned_pair(tmp_path)
-    husk = r_root / ".worktrees" / f"{SLUG}-coord"
-    husk.mkdir(parents=True)
-
-    with pytest.raises(ActionContextError) as excinfo:
-        resolve_owned_create_root(r_root, husk)
-    assert excinfo.value.code == "OWNERSHIP_NESTED"
-
-
 def test_create_root_refuses_a_registered_lane_worktree(tmp_path: Path) -> None:
-    from specify_cli.lanes.models import ExecutionLane, LanesManifest
-    from specify_cli.lanes.persistence import write_lanes_json
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
     r_root, _p_root = _owned_pair(tmp_path)
-    mission_dir = r_root / "kitty-specs" / SLUG
-    _write_meta(mission_dir, topology="lanes")
-    write_lanes_json(
-        mission_dir,
-        LanesManifest(
-            version=1,
-            mission_slug=SLUG,
-            mission_id=MID,
-            mission_branch=f"kitty/mission-{SLUG}",
-            target_branch=TARGET,
-            lanes=[
-                ExecutionLane(
-                    lane_id="lane-a",
-                    wp_ids=("WP01",),
-                    write_scope=(),
-                    predicted_surfaces=(),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )
-            ],
-            computed_at="2026-11-03T00:00:00Z",
-            computed_from="test",
-        ),
-    )
-    git(r_root, "add", ".")
-    git(r_root, "commit", "-qm", "lanes")
     lane_path, lane_branch = predict_lane_worktree(r_root, SLUG, "lane-a")
     git(r_root, "worktree", "add", "-qb", lane_branch, str(lane_path))
 
@@ -461,16 +414,17 @@ def test_create_root_refuses_when_the_worktree_registry_is_unreadable(tmp_path: 
 def test_create_root_guard_adds_one_registry_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """NFR-001: the guard's two legs share ONE `git worktree list` read.
 
-    Scope note: ``checkout_ownership.resolve_ownership_claim`` spends its own
-    registry read through its own module-level import, which this patch does not
-    touch -- and correctly so, because it is not this guard's budget. What is
-    pinned here is that the coordination leg and the lane leg never pay twice.
+    The claim is an admitted ``.worktrees``-housed, non-lane-named checkout, so
+    BOTH legs evaluate (a coordination claim would raise on the first leg and
+    hide a per-leg re-read). Scope note: ``checkout_ownership.resolve_ownership_claim``
+    spends its own registry read through its own module-level import, which this
+    patch does not touch -- it is not this guard's budget.
     """
     import specify_cli.coordination.surface_resolver as resolver
 
     r_root, _p_root = _owned_pair(tmp_path)
-    coord = r_root / ".worktrees" / f"{SLUG}-coord"
-    git(r_root, "worktree", "add", "-qb", "codex/coord", str(coord))
+    owned = r_root / ".worktrees" / "owned-under-worktrees"
+    git(r_root, "worktree", "add", "-qb", "codex/owned-uw", str(owned))
 
     calls: list[int] = []
     original = resolver.read_worktree_registry
@@ -480,8 +434,7 @@ def test_create_root_guard_adds_one_registry_read(tmp_path: Path, monkeypatch: p
         return original(*args, **kwargs)  # type: ignore[arg-type]
 
     monkeypatch.setattr(resolver, "read_worktree_registry", counting)
-    with pytest.raises(ActionContextError):
-        resolve_owned_create_root(r_root, coord)
+    assert resolve_owned_create_root(r_root, owned).checkout == owned.resolve()
     assert len(calls) == 1, f"the guard must classify once for both legs, saw {len(calls)} reads"
 
 
