@@ -412,9 +412,8 @@ class CharterYaml(BaseModel):
     state to be repaired by hand, not a supported shape; this model refuses it
     by design through :meth:`_refuse_deny_keys`, with a message naming the
     ledger and the remedy. Do not "complete" the vocabulary by declaring these
-    fields: they would advertise an unsupported authoring key. The constraint
-    comes from ADR C-003, not a claim that a ``None`` default is always emitted:
-    the two charter writers serialize with ``exclude_none=True``.
+    fields: they would advertise an unsupported authoring key. This prohibition
+    comes from ADR C-003, independently of any serializer's treatment of ``None``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
