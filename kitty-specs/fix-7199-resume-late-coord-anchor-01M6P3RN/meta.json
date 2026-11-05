@@ -12,5 +12,7 @@
   "purpose_tldr": "fix 7199 resume late coord anchor",
   "slug": "fix-7199-resume-late-coord-anchor-01M6P3RN",
   "target_branch": "issue-7199-resume-late-coord-anchor",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-05T15:07:33.499903+00:00"
 }

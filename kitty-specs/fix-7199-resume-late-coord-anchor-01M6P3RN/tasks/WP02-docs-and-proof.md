@@ -66,17 +66,17 @@ the shape `check_changelog_style` accepts.
 
 ## Subtasks
 
-### T006 — Strengthen the real-CLI resume proof where it is observable
+### T006 — Re-run the real-CLI resume proof and record it
 
-In `test_resume_projects_a_verdict_recorded_after_the_teardown_refusal` (or a sibling case in the
-same file, not a new module), add the assertion the change makes meaningful: the resume that
-lands the window leaves **exactly one** projection commit on the target (the helper
-`_RefusedRun.projection_commits()` already counts them) and the target's matrix equals the
-coordination copy byte for byte. If the existing case already asserts part of that, extend it
-rather than duplicating.
+The real-CLI resume case (`test_resume_projects_a_verdict_recorded_after_the_teardown_refusal`) is
+the end-to-end positive control: a real refusal, real operator commits and a real
+`consolidate --resume` to exit 0 with exactly one projection commit and no branch left. **Run it on
+the consolidated head and record the result; do not add a duplicate assertion.**
 
-Do not assert anything the real CLI cannot produce deterministically (the anchor advance itself
-needs a commit landing inside the run's own capture→teardown window; WP01 covers it in-process).
+It cannot own the fix's own reproduction: the anchor advance needs a commit landing inside the
+run's own capture→teardown window, which a subprocess CLI test cannot order deterministically (see
+`traces/design-decisions.md` D3). WP01's in-process cases own that. Adding the same
+`projection_commits() == 1` assertion a second time would be churn, not coverage.
 
 ### T007 — Guide wording
 

@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: issue-7199-resume-late-coord-anchor
 merge_target_branch: issue-7199-resume-late-coord-anchor
 branch_strategy: Planning artifacts for this mission were generated on issue-7199-resume-late-coord-anchor. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7199-resume-late-coord-anchor unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-fix-7199-resume-late-coord-anchor-01M6P3RN
+base_commit: 1317b6135f0df10ccd3f811813560273dde682a5
+created_at: '2026-11-05T15:07:43.864071+00:00'
 subtasks:
 - T001
 - T002

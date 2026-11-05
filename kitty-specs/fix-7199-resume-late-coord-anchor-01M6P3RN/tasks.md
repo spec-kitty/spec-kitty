@@ -75,8 +75,9 @@ tests/consolidation/test_late_teardown_projection.py -q -p no:randomly -k resume
 
 ### Included Subtasks
 
-T006 Strengthen the real-CLI resume test in `tests/consolidation/test_late_teardown_projection.py`
-so the two-run shape it already drives also pins that no projection commit is duplicated (WP02)
+T006 Re-run the real-CLI resume control (`test_resume_projects_a_verdict_recorded_after_the_teardown_refusal`)
+on the consolidated head and record the result; it cannot order the concurrency window the fix
+addresses, so no duplicate assertion is added (see `traces/design-decisions.md` D3) (WP02)
 T007 Update the recovery guide's first-run section so it states the approved tip advances on
 either run kind once the window is proven (WP02)
 T008 Add `docs/changelog/unreleased/<pr>.fixed.md` in the fragment shape (WP02)
@@ -140,6 +141,6 @@ T008 Add `docs/changelog/unreleased/<pr>.fixed.md` in the fragment shape (WP02)
 | T003 | Drop the run-kind guard, keep the CAS | WP01 | No |
 | T004 | Docstring and field-comment corrections | WP01 | No |
 | T005 | Existing resume/first-run/refusal sweep | WP01 | No |
-| T006 | Real-CLI resume test strengthened | WP02 | Yes |
+| T006 | Real-CLI resume control re-run and recorded | WP02 | Yes |
 | T007 | Recovery guide wording | WP02 | Yes |
 | T008 | Changelog fragment | WP02 | Yes |
