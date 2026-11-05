@@ -4,9 +4,9 @@
 - **Origin flow:** `plan`
 - **Step id:** `plan.approach`
 - **Input key:** `approach`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-11-05T15:13:53.673634+00:00`
-- **Resolved:** `2026-11-05T15:13:53.730212+00:00`
+- **Resolved:** `2026-11-05T15:16:29.401522+00:00`
 - **Opened by:** `22272470+Ivan-Melck@users.noreply.github.com`
 - **Other answer:** `false`
 
@@ -20,13 +20,13 @@ _(none)_
 
 ## Final answer
 
-_(none)_
+Derive the cap from the measured worst case with the repository's existing #5378 headroom formula, record the derivation on the job, extend the guard that already owns the formula to this job, and make a budget expiry legible as INCOMPLETE/advisory via a step budget below the job cap plus a notice step. Reject the path/matrix shard: two live guards pin tree-wide corpus reach and a single pytest invocation. See plan.md Summary and IC-01..IC-04.
 
 ## Rationale
 
-owner deferred during plan interview
+_(none)_
 
 ## Change log
 
 - `2026-11-05T15:13:53.673634+00:00` — opened
-- `2026-11-05T15:13:53.730212+00:00` — deferred
+- `2026-11-05T15:16:29.401522+00:00` — resolved (final_answer="Derive the cap from the measured worst case with the repository's existing #5378 headroom formula, record the derivation on the job, extend the guard that already owns the formula to this job, and make a budget expiry legible as INCOMPLETE/advisory via a step budget below the job cap plus a notice step. Reject the path/matrix shard: two live guards pin tree-wide corpus reach and a single pytest invocation. See plan.md Summary and IC-01..IC-04.")

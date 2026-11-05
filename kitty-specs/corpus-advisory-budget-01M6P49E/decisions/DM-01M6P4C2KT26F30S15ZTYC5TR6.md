@@ -4,9 +4,9 @@
 - **Origin flow:** `plan`
 - **Step id:** `plan.risks`
 - **Input key:** `risks`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-11-05T15:13:53.786655+00:00`
-- **Resolved:** `2026-11-05T15:13:53.847398+00:00`
+- **Resolved:** `2026-11-05T15:16:32.209396+00:00`
 - **Opened by:** `22272470+Ivan-Melck@users.noreply.github.com`
 - **Other answer:** `false`
 
@@ -20,13 +20,13 @@ _(none)_
 
 ## Final answer
 
-_(none)_
+Known risks: the cap guard's block parser is indentation- and neighbour-sensitive (headroom line must sit directly above the job-level timeout-minutes); a step budget at or above the job cap is dead config; the recorded max can drift from reality (the 75% rule forces a cap bump when it grows); editing the suite step could accidentally change the selection (the recorded diff is the check). See plan.md IC-01..IC-03 Risks and WP01 Risks & Mitigations.
 
 ## Rationale
 
-owner deferred during plan interview
+_(none)_
 
 ## Change log
 
 - `2026-11-05T15:13:53.786655+00:00` — opened
-- `2026-11-05T15:13:53.847398+00:00` — deferred
+- `2026-11-05T15:16:32.209396+00:00` — resolved (final_answer="Known risks: the cap guard's block parser is indentation- and neighbour-sensitive (headroom line must sit directly above the job-level timeout-minutes); a step budget at or above the job cap is dead config; the recorded max can drift from reality (the 75% rule forces a cap bump when it grows); editing the suite step could accidentally change the selection (the recorded diff is the check). See plan.md IC-01..IC-03 Risks and WP01 Risks & Mitigations.")
