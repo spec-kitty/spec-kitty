@@ -1,7 +1,7 @@
 {
-  "event_count": 157,
-  "last_event_id": "01M6S1GKADKNZ8NX26YP6NWHMX",
-  "materialized_at": "2026-11-06T18:21:39.524969+00:00",
+  "event_count": 159,
+  "last_event_id": "01M6S1K1HZS0S6R7EA573T1T1E",
+  "materialized_at": "2026-11-06T18:22:59.637652+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 1,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -461,11 +461,20 @@
       }
     },
     "WP14": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::python-pedro",
+      "agent_profile": "python-pedro",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6R204DR7V0H5GDAZYPBHF71",
-      "last_transition_at": "2026-11-06T09:10:54.136888+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M6S1K1HZS0S6R7EA573T1T1E",
+      "last_transition_at": "2026-11-06T18:22:59.637652+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 13943,
+      "shell_pid_created_at": "1793989374.14"
     },
     "WP15": {
       "actor": "claude",
