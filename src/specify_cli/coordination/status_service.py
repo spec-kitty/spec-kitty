@@ -264,6 +264,24 @@ def _run_cat_file_batch(repo_root: Path, request: bytes, *, ref: str, path: str)
     return result.stdout
 
 
+def ref_exists(repo_root: Path, ref: str) -> bool:
+    """True when *ref* names an object in *repo_root* (``rev-parse --verify``; no object read).
+
+    The one home of the declared ref-missing arm (FR-004) that a status read door
+    checks before :func:`read_status_ref`: a ref that does not resolve, and a
+    *repo_root* that is not a git repository, both answer ``False``. A ref that
+    exists but names an object the repository lacks answers ``True``, so its read
+    still raises :class:`StatusSurfaceRefUnreadable` (never read as genesis).
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", "--end-of-options", ref],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def read_status_ref(repo_root: Path, ref: str, path: str) -> RefRead:
     """Read *path* at *ref* with ONE ``git cat-file --batch`` subprocess (NFR-001).
 
@@ -492,5 +510,6 @@ __all__ = [
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
     "read_event_stream_log",
+    "ref_exists",
     "wp_lane_actor_from_events",
 ]
