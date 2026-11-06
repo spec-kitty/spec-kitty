@@ -317,7 +317,9 @@ def append_event_stream_log(
 def _validate_write_contract(contract: EventLogWriteContract) -> None:
     """Mirrors :func:`_validate_read_labels` for the write contracts (WP06).
 
-    ``LEGACY_LANE_APPEND`` stays unguarded, exactly as today.
+    Both :class:`EventLogWriteTarget` members are guarded: a
+    ``PRIMARY_CHECKOUT_APPEND`` must not target a coordination worktree path,
+    and a ``COORDINATION_TRANSACTION_APPEND`` must target one.
     """
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
         primary_read_targets_coord_worktree,
