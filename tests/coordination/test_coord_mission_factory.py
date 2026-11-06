@@ -126,28 +126,6 @@ def test_make_coord_mission_unknown_via_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# M1 -- topology=None (WP06's real default path: no --topology, product-resolved)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-@pytest.mark.git_repo
-def test_make_coord_mission_cli_pr_bound_no_topology_resolves_to_coord(tmp_path: Path) -> None:
-    """WP06 US1.4's real default path: pr-bound, protected primary, NO --topology."""
-    coord = make_coord_mission(tmp_path, None, via="cli_pr_bound", protected_primary=True)
-
-    assert coord.topology is MissionTopology.COORD
-
-
-@pytest.mark.integration
-@pytest.mark.git_repo
-@pytest.mark.parametrize("via", ["core", "cli_topology"])
-def test_make_coord_mission_topology_none_rejected_for_non_pr_bound_via(tmp_path: Path, via: Literal["core", "cli_topology"]) -> None:
-    with pytest.raises(ValueError, match="topology=None"):
-        make_coord_mission(tmp_path, None, via=via)
-
-
-# ---------------------------------------------------------------------------
 # M2 -- protected_primary protects the Primary Branch (main), consistently
 # ---------------------------------------------------------------------------
 

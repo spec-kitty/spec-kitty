@@ -305,6 +305,12 @@ class ConsolidationState:
     # reason. Absent or malformed -> ``{}``.
     released_refs: dict[str, str] = field(default_factory=dict)
     release_reasons: dict[str, str] = field(default_factory=dict)
+    # S5 FR-035 (#7280): set, and saved, right before the first lane leg of the cleanup that
+    # follows a verified landing. A ``--resume`` after a kill inside that cleanup then goes
+    # straight back to cleanup (``run_state.landing_verified_for_resume``) instead of re-running
+    # the gate against lane branches it already deleted. Additive, read with a default; the
+    # record is cleared at the end of the run, so it is never carried across ``--abort``.
+    cleanup_started: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -331,6 +337,8 @@ class ConsolidationState:
             filtered["unsettled_refs"] = _unsettled_or_all(filtered["unsettled_refs"])
         if "advance_intents" in filtered:
             filtered["advance_intents"] = _intent_chains_or_empty(filtered["advance_intents"])
+        if "cleanup_started" in filtered:
+            filtered["cleanup_started"] = filtered["cleanup_started"] is True  # never truthiness-coerced
         return cls(**filtered)
 
     @property

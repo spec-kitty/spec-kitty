@@ -8,7 +8,7 @@ app by ``commands.py``.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NoReturn
@@ -24,6 +24,7 @@ import typer
 
 from mission_runtime import placement_seam
 from specify_cli.consolidation.entry_preflight import merge_record_may_exist
+from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
 from specify_cli.consolidation.origin_gate import origin_lane_branches
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.git.destructive_guard import DestructiveOpRefused
@@ -388,69 +389,52 @@ def _delete_mission_branch_at(main_repo_root: Path, lanes_manifest: LanesManifes
         logging.getLogger(__name__).warning("Mission branch %s was not deleted: %s", branch, exc)
 
 
+def _lane_tips(main_repo_root: Path, lanes_manifest: LanesManifest) -> dict[str, str]:
+    """``branch -> tip`` of every code lane, read before any lane is consolidated (the validated tips)."""
+    from specify_cli.consolidation.lane_cleanup import plan_lane_cleanup
+
+    tips: dict[str, str] = {}
+    for item in plan_lane_cleanup(lanes_manifest, repo_root=main_repo_root):
+        tip = _branch_tip_sha(main_repo_root, item.branch) if item.branch else None
+        if item.branch and tip:
+            tips[item.branch] = tip
+    return tips
+
+
 def _apply_lane_merge_cleanup(
     main_repo_root: Path,
-    mission_slug: str,
     lanes_manifest: LanesManifest,
     *,
     retention: RetentionDecision,
     mission_branch_deletable: bool,
-) -> None:
-    """Worktree removal + lane/mission branch deletion, gated on the RESOLVED
-    retention decision (#3131 T010) — extracted from ``_execute_lane_merge``
-    to stay under the complexity ceiling; not a passthrough (see there)."""
+    lane_tips: Mapping[str, str] | None = None,
+) -> LaneCleanupReport:
+    """Mission branch first, then the lane legs through the shared lane-cleanup module (S5, FR-031).
+
+    Gated on the RESOLVED retention decision (#3131 T010). The mission branch is deleted as a
+    compare-and-swap at the tip read here (#5570); a refusal raises
+    :class:`MergeTeardownRefused` before any lane is touched, so the lanes stay as evidence.
+    After that the lane legs never raise: a lane the remover cannot remove after the landing is
+    reported in ``data.lane_cleanup`` (contract 1.24.0) and the envelope stays a success.
+    NOTE: unlike the executor's ``_teardown_coordination_triple``, this path does NOT flatten the
+    ``coordination_branch`` marker or remove the coord worktree (pre-existing orchestrator-api
+    limitation, tracked separately).
+    """
+    from specify_cli.consolidation import lane_cleanup
     from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
-    from specify_cli.git.destructive_guard import guarded_branch_delete, guarded_worktree_remove
-    from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
-    from specify_cli.lanes.compute import is_planning_lane
 
-    # #5570: the mission branch is deleted as a compare-and-swap at the tip read
-    # HERE, before the worktree/lane-branch legs below open a window for a commit
-    # to land on it. No teardown gate runs on this path, so the cleanup's own start
-    # is the earliest approval point.
-    mission_branch_tip = _branch_tip_sha(main_repo_root, lanes_manifest.mission_branch) if mission_branch_deletable else None
-
-    if retention.remove_worktree:
-        for lane in lanes_manifest.lanes:
-            # Lane naming is keyed on the creation input alone (WP07,
-            # FR-002/PD-1); no Mission identity is passed here.
-            wt_path = worktree_path(main_repo_root, mission_slug, lane_id=lane.lane_id)
-            if wt_path.exists():
-                # #4753 C-003: ``retention.remove_worktree`` is the upstream
-                # decision of WHETHER to remove at all (already resolved
-                # above, and already honors the operator's
-                # --keep-worktree/retain_worktrees policy); the guard's own
-                # ``retain`` is a DIFFERENT axis (dirty-worktree handling) and
-                # always stays False here (review ADVISORY-3) so a dirty lane
-                # worktree refuses instead of being force-removed.
-                guarded_worktree_remove(
-                    wt_path,
-                    retain=False,
-                    context=residue_context_or_strictest(main_repo_root, mission_slug, CheckoutRole.LANE),
-                )
-
-    # LANE branches stay keyed to the plain resolved ``delete_branch`` (no
-    # topology coupling — only the mission/coordination branch is coupled).
-    if retention.delete_branch:
-        for lane in lanes_manifest.lanes:
-            if is_planning_lane(lane):
-                continue
-            lane_branch = code_lane_branch_name(mission_slug, lane.lane_id)
-            try:
-                # The path never snapshots lane tips, so only a commit another ref reaches may go (FR-009).
-                guarded_branch_delete(main_repo_root, lane_branch, creation_base=None)
-            except (DestructiveOpRefused, RuntimeError):  # kept: best-effort cleanup never fails a landed consolidation
-                logger.warning("Lane branch %s was kept: it holds commits no other ref reaches, or git refused the delete", lane_branch)
-
-    # MISSION/coordination branch: the DELETION GATE is topology-aware (#3131
-    # T008/T010 — see ``_resolve_lane_merge_retention``), so a retaining coord
-    # mission's branch is never deleted here. NOTE: unlike the executor's
-    # ``_teardown_coordination_triple``, this path does NOT flatten the
-    # ``coordination_branch`` marker or remove the coord worktree — full coord
-    # teardown is the executor/CLI path's job (pre-existing orchestrator-api
-    # limitation, tracked separately).
     if mission_branch_deletable:
-        _delete_mission_branch_at(main_repo_root, lanes_manifest, mission_branch_tip)
+        _delete_mission_branch_at(main_repo_root, lanes_manifest, _branch_tip_sha(main_repo_root, lanes_manifest.mission_branch))
+
+    items = lane_cleanup.plan_lane_cleanup(lanes_manifest, repo_root=main_repo_root, expected_tips=lane_tips)
+    context = residue_context_or_strictest(main_repo_root, lanes_manifest.mission_slug, CheckoutRole.LANE)
+    target = lanes_manifest.target_branch
+    landing = lane_cleanup.LocalTargetAtPass(target_ref=target, passed_sha=_branch_tip_sha(main_repo_root, target) or "")
+    retention_legs = lane_cleanup.LaneRetention(remove_worktree=retention.remove_worktree, delete_branch=retention.delete_branch)
+    report = lane_cleanup.apply(items, lane_cleanup.MainTodayRemover(main_repo_root, context=context), landing=landing, retention=retention_legs)
+    for kept in report.kept:
+        logger.warning("Lane %s was kept (%s): %s", kept.item.lane_id, kept.code, kept.remedy)
+    return report
 
 
 def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
@@ -611,8 +595,8 @@ def _execute_lane_merge(
     push: bool,
     delete_branch: bool | None,
     remove_worktree: bool | None,
-) -> None:
-    """Execute the lane-based merge flow without emitting console prose."""
+) -> LaneCleanupReport:
+    """Execute the lane-based merge flow without emitting console prose; return the lane outcomes."""
     from specify_cli.cli.commands.consolidate import _mark_wp_merged_done
     from specify_cli.core.git_ops import has_remote, run_command
     from specify_cli.lanes.compute import is_planning_artifact_only, lane_fully_canceled
@@ -650,7 +634,7 @@ def _execute_lane_merge(
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
         )
-        return
+        return LaneCleanupReport(results=())  # a planning-only Mission has no code lane to clean up
 
     # #3131 C-007/T010: resolve once, before any gate/merge work, so the
     # cleanup gates below never delete unconditionally.
@@ -683,6 +667,8 @@ def _execute_lane_merge(
         raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
 
     _refuse_post_approval_lane_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
+    # S5: the lane tips the checks above validated; cleanup judges each lane branch against them.
+    lane_tips = _lane_tips(main_repo_root, lanes_manifest)
 
     # #4796: hoist the shared refuse-before-destroy preflight to PRE-mutation, at
     # parity with the CLI path (``executor.py`` runs
@@ -741,12 +727,12 @@ def _execute_lane_merge(
 
     # #3131 T010: gated on the RESOLVED decision, not the raw (possibly unset)
     # caller args — a retaining mission's branches/worktree survive.
-    _apply_lane_merge_cleanup(
+    return _apply_lane_merge_cleanup(
         main_repo_root,
-        mission_slug,
         lanes_manifest,
         retention=retention,
         mission_branch_deletable=mission_branch_deletable,
+        lane_tips=lane_tips,
     )
 
 
@@ -1017,7 +1003,7 @@ def consolidate_mission(
         # policy governs — this CLI has no --delete-branch/--remove-worktree
         # flags of its own, so hardcoding True/True here silently bypassed a
         # retaining mission's policy every time (the exact NFR-003 gap).
-        _execute_lane_merge(
+        lane_cleanup_report = _execute_lane_merge(
             main_repo_root,
             mission_dir,
             mission,
@@ -1054,6 +1040,8 @@ def consolidate_mission(
         "target_branch": preflight.target_branch,
         "strategy": strategy,
         "worktree_removed": False,
+        # contract 1.24.0 (S5, FR-039a): one object per code lane, removed / kept / retained_by_policy.
+        "lane_cleanup": lane_cleanup_report.to_json(main_repo_root),
     }
     if origin.warnings:
         data["origin_warnings"] = origin.warnings

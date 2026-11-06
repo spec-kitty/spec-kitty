@@ -189,7 +189,15 @@ from kernel.clock import now_utc_iso
 # it is now refused with the new code, and no attestation lifts it. A new ``error_code`` value on
 # existing verbs and a changed code on previously-refused calls, so a minor bump; no field is
 # removed or renamed.
-CONTRACT_VERSION = "1.23.0"
+# 1.24.0 (Mission lane-worktree-model-hardening, one bump for three additive fields):
+# ``consolidate-mission`` success ``data`` gains ``lane_cleanup`` (one object per code lane:
+# ``removed`` / ``kept`` / ``retained_by_policy`` with code, remedy, command and recreate hint,
+# S5 #7280); a lane the cleanup cannot remove after the landing is reported there and no longer
+# fails the envelope or fills ``teardown_error_code`` (coordination-only now). ``specify`` gains
+# ``topology_source`` / ``topology_provisional`` and ``tasks`` gains ``topology_decision``
+# (provisional topology settled at the first finalize). Additive fields plus a previously-failing
+# call that now succeeds, so a minor bump; no field or ``error_code`` is removed or renamed.
+CONTRACT_VERSION = "1.24.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

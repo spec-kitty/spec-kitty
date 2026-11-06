@@ -64,7 +64,6 @@ from specify_cli.coordination.commit_outcome import (
 __all__ = [
     "RouteToCoord",
     "Refuse",
-    "coord_topology_reachable",
     "resolve_surface_authority",
 ]
 
@@ -152,36 +151,6 @@ class SurfaceVerdict:
     surface: Surface
     ref: str
     non_committable: NonCommittable = None
-
-
-# ---------------------------------------------------------------------------
-# Rule 5 (create-time topology reachability) — WP-A consumer: mission_create
-# ---------------------------------------------------------------------------
-
-
-def coord_topology_reachable(pr_bound: bool, primary_protected: bool, current_is_primary: bool) -> bool:
-    """Coordination routing is reachable iff ``pr_bound and (primary_protected or current_is_primary)``.
-
-    The create-time predicate (contract §1): a mission mints a coordination
-    topology only when coordination routing is actually reachable (INV-2 topology
-    honesty) — never as pure overhead on an unprotected topic branch.
-
-    This is a pure boolean; the caller resolves the inputs. ``primary_protected``
-    is the protection of the **primary target branch**
-    (``ProtectionPolicy.resolve(repo_root).is_protected(primary_target)``), NOT the
-    current checkout. It is the predicate WP02 inserts into the ``pr_bound`` arm of
-    ``mission_create._resolve_default_topology_phase`` (the ``None``-guard and the
-    non-pr-bound ``current == primary → COORD`` arms are preserved by the caller).
-
-    Args:
-        pr_bound: Whether the mission was created ``--pr-bound``.
-        primary_protected: Protection of the primary TARGET branch.
-        current_is_primary: Whether the current checkout IS the primary target.
-
-    Returns:
-        ``True`` iff coordination routing is reachable.
-    """
-    return pr_bound and (primary_protected or current_is_primary)
 
 
 # ---------------------------------------------------------------------------
