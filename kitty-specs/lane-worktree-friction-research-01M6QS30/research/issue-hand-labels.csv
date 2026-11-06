@@ -1,0 +1,171 @@
+number,cause_code,model,severity
+7135,NL:CI/tests,none,wasted-time
+3532,NL:status model (non-surface),none,n/a
+3883,NL:other,none,wasted-time
+4097,NL:charter/doctrine,none,n/a
+4812,NL:other(hosted/status-api),none,n/a
+3271,SD,coord,forced-override
+6673,NL:upgrade (non-worktree),none,wrong-verdict
+5153,WL,worktree,wasted-time
+5482,NL:CI/tests,none,n/a
+4962,NL:charter/doctrine,none,data-loss
+3283,NL:CI/tests,none,wasted-time
+3386,NL:charter/doctrine,none,wrong-verdict
+3959,DP,worktree,wasted-time
+4722,NL:CLI UX,none,wasted-time
+4943,NL:status model (non-surface),none,wrong-verdict
+4118,NL:CI/tests,none,wrong-verdict
+4334,NL:CI/tests,none,n/a
+5080,WL,worktree,wasted-time
+6429,CT,coord,wrong-verdict
+5218,NL:charter/doctrine,none,n/a
+3237,NL:other(hosted/status-api),none,wasted-time
+4858,NL:other,none,data-loss
+5931,CT,coord,wasted-time
+3260,NL:CI/tests,none,n/a
+3784,CT,coord,wasted-time
+6411,NL:status model (non-surface),none,n/a
+5917,NL:CI/tests,none,n/a
+5819,NL:status model (non-surface),none,data-loss
+5970,NL:other,none,data-loss
+4791,NL:other(hosted/status-api),none,n/a
+4600,NL:CLI UX,none,wasted-time
+3715,NL:other(hosted/status-api),none,wasted-time
+5318,CT,coord,wrong-verdict
+5550,WC,single_branch,wrong-verdict
+6207,NL:CI/tests,none,wasted-time
+5631,NL:other(hosted/status-api),none,n/a
+4229,NL:CI/tests,none,wasted-time
+5529,NL:other(hosted/status-api),none,n/a
+3892,NL:other(hosted/status-api),none,n/a
+6361,NL:upgrade (non-worktree),none,n/a
+4968,NL:other,none,data-loss
+4361,NL:CI/tests,none,n/a
+5446,NL:status model (non-surface),none,wrong-verdict
+5651,CT,coord,wrong-verdict
+4654,NL:CI/tests,none,wrong-verdict
+5707,WC,single_branch,wrong-verdict
+4787,NL:CI/tests,none,wasted-time
+5111,CT,coord,wasted-time
+3594,NL:review,none,wasted-time
+4673,NL:status model (non-surface),none,wasted-time
+3438,NL:CI/tests,none,wasted-time
+5704,WC,single_branch,wasted-time
+6270,NL:CI/tests,none,wrong-verdict
+6706,NL:CI/tests,none,wasted-time
+3578,NL:status model (non-surface),none,n/a
+7216,WL,worktree,wasted-time
+4125,NL:other(hosted/status-api),none,wasted-time
+4518,NL:other,none,wasted-time
+5301,NL:CI/tests,none,wasted-time
+6773,NL:CI/tests,none,wasted-time
+5613,CG,coord,wrong-verdict
+3951,NL:CLI UX,none,wasted-time
+5779,NL:charter/doctrine,none,wrong-verdict
+4984,NL:charter/doctrine,none,wrong-verdict
+4780,NL:CLI UX,none,wasted-time
+6082,CT,coord,wrong-verdict
+3347,NL:upgrade (non-worktree),none,n/a
+5467,NL:other,none,data-loss
+3500,NL:charter/doctrine,none,n/a
+3816,NL:charter/doctrine,none,wrong-verdict
+5347,NL:CI/tests,none,n/a
+5716,NL:CI/tests,none,wasted-time
+6521,NL:charter/doctrine,none,n/a
+3384,NL:charter/doctrine,none,wrong-verdict
+3685,NL:charter/doctrine,none,wasted-time
+6551,NL:upgrade (non-worktree),none,wrong-verdict
+5784,CT,coord,forced-override
+4621,NL:other(hosted/status-api),none,n/a
+5087,NL:CLI UX,none,wasted-time
+3309,NL:other(hosted/status-api),none,n/a
+5804,SD,coord,wrong-verdict
+5933,CT,coord,wrong-verdict
+4965,NL:other,none,data-loss
+5248,SD,coord,wasted-time
+6414,NL:status model (non-surface),none,n/a
+5294,NL:CLI UX,none,wrong-verdict
+5250,NL:CI/tests,none,n/a
+6171,NL:CI/tests,none,wasted-time
+3385,NL:charter/doctrine,none,wrong-verdict
+5682,NL:other,none,wrong-verdict
+4486,NL:CI/tests,none,wasted-time
+3915,SD,coord,wrong-verdict
+6628,NL:CLI UX,none,wasted-time
+4899,NL:review,none,wrong-verdict
+4983,NL:other,none,n/a
+5794,NL:status model (non-surface),none,wasted-time
+5292,NL:other,none,n/a
+5302,NL:CI/tests,none,wrong-verdict
+3416,NL:charter/doctrine,none,n/a
+6029,NL:CI/tests,none,wasted-time
+5703,WL,lane-branch,wrong-verdict
+5411,HC,worktree,wrong-verdict
+6001,WC,single_branch,n/a
+5340,NL:status model (non-surface),none,n/a
+3937,WL,lane-branch,wasted-time
+7186,NL:CI/tests,none,n/a
+5332,CT,coord,wrong-verdict
+4836,NL:charter/doctrine,none,n/a
+5298,NL:other,none,forced-override
+3771,NL:upgrade (non-worktree),none,wasted-time
+3439,SD,coord,wrong-verdict
+7110,NL:CI/tests,none,wasted-time
+5313,NL:CI/tests,none,wasted-time
+5720,CG,lane-branch,wrong-verdict
+5457,UF,worktree,wrong-verdict
+5758,CG,lane-branch,wrong-verdict
+6312,NL:other,none,wrong-verdict
+5812,NL:upgrade (non-worktree),none,wrong-verdict
+5673,WC,single_branch,wrong-verdict
+7187,NL:CI/tests,none,wasted-time
+5479,SD,coord,wrong-verdict
+5506,NL:CI/tests,none,wasted-time
+4130,NL:other,none,n/a
+4827,WL,lane-branch,wasted-time
+6442,NL:charter/doctrine,none,n/a
+4890,NL:status model (non-surface),none,wrong-verdict
+5877,WC,single_branch,wasted-time
+5875,NL:other,none,n/a
+5484,NL:other,none,wasted-time
+6871,CT,coord,data-loss
+5010,NL:CI/tests,none,wasted-time
+5337,CG,lane-branch,n/a
+6485,NL:CI/tests,none,n/a
+3519,NL:other,none,wrong-verdict
+6589,NL:upgrade (non-worktree),none,wrong-verdict
+5624,NL:CI/tests,none,wasted-time
+7214,WL,worktree,wrong-verdict
+5110,CT,coord,wasted-time
+4101,NL:charter/doctrine,none,wasted-time
+4043,NL:charter/doctrine,none,n/a
+3884,NL:other,none,wrong-verdict
+5329,CG,lane-branch,wrong-verdict
+3976,NL:other,none,n/a
+3233,NL:other(hosted/status-api),none,wasted-time
+6954,NL:upgrade (non-worktree),none,wrong-verdict
+5343,NL:other,none,n/a
+5100,WC,single_branch,wrong-verdict
+7080,NL:status model (non-surface),none,wrong-verdict
+5000,NL:CI/tests,none,wasted-time
+3993,NL:CI/tests,none,n/a
+4779,NL:other,none,data-loss
+5227,NL:review,none,n/a
+6247,NL:upgrade (non-worktree),none,data-loss
+4124,NL:other,none,wasted-time
+5728,NL:CI/tests,none,wasted-time
+7113,NL:CI/tests,none,n/a
+3485,NL:other(hosted/status-api),none,wrong-verdict
+5392,NL:other,none,data-loss
+4266,NL:other(hosted/status-api),none,n/a
+6917,NL:charter/doctrine,none,n/a
+6438,NL:status model (non-surface),none,n/a
+3866,NL:other,none,n/a
+6584,NL:CI/tests,none,wasted-time
+5043,NL:CI/tests,none,n/a
+6218,NL:charter/doctrine,none,n/a
+3946,WL,worktree,wasted-time
+6603,NL:status model (non-surface),none,n/a
+5888,NL:CI/tests,none,wasted-time
+4430,NL:CI/tests,none,wrong-verdict
+3307,NL:status model (non-surface),none,wrong-verdict

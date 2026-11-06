@@ -1,0 +1,1306 @@
+number,merged,title,cause_code,model,additions,deletions
+2239,2026-08-24,Make version output easy to copy,NONLANE,none,817,17
+2719,2026-09-15,feat: doctrine org init from local/git template,NONLANE,none,5426,49
+3015,2026-08-28,fix(charter): make preflight remediations able to clear their own checks (#2831),NONLANE,none,7727,72
+3135,2026-08-10,fix(#3108): refuse tracker egress unless both consent channels permit,NONLANE,none,21696,94
+3209,2026-08-08,refactor(sync): retire the dead queue-backed event drain and unblind its cone,NONLANE,none,6549,5718
+3225,2026-08-06,feat(doctrine): rehome & complete The Magnificent 7 writing-comms doctrine set (supersedes #2918),NONLANE,none,5332,8598
+3242,2026-08-09,Add mission artifacts for supply-chain security checks layer,NONLANE,none,4067,16
+3245,2026-08-08,feat(verdict-seam): write-side unification to single event authority (mission 191),NONLANE,none,14497,1750
+3246,2026-08-07,"feat(resolution): unify PACKS_ROOT resolution + charter activation authority (#2657, #3210)",NONLANE,none,7375,650
+3248,2026-08-07,docs: single-source the docs SEO gate and close its 97.6% coverage hole (#1652),NONLANE,none,8834,551
+3249,2026-08-07,"docs(auth): scope D-5 to the hosted-SaaS opt-in gate, not every domain literal",NONLANE,none,12,3
+3252,2026-08-09,fix(sync): end the SaaS tracker sleep-count CI flakes + add a repo-wide patch-seam gate (#3136),NONLANE,none,19022,51
+3257,2026-08-08,test: restore charter/packs provisioning in fixtures regressed by PACKS_ROOT unification,NONLANE,none,39,1
+3258,2026-08-08,docs: add when-to-use Spec-Kitty modes guide (landing of #3238),NONLANE,none,256,171
+3263,2026-08-08,feat(charter): activate writing-comms & diagramming doctrine set (repo charter only),NONLANE,none,418,129
+3267,2026-08-09,Verdict-seam boundary hardening (follow-on to #3245),NONLANE,none,3637,268
+3268,2026-08-09,docs: harden three docs quality gates (#3253; folds #3264),NONLANE,none,2632,47
+3269,2026-08-09,fix(commit): failing git commit must not be reported as an empty changeset,NONLANE,none,262,7
+3274,2026-08-09,test(docs): declare pytestmark on test_guards.py (green main after #3268),NONLANE,none,2,0
+3276,2026-08-10,docs(guides): Mission Kitty splashes for four guide pages,NONLANE,none,216,46
+3285,2026-08-12,test: assertively sanitize low-signal suite cruft,NONLANE,none,325595,62715
+3293,2026-08-14,Per-project sync consent ledgers — CLI half (WP01–WP10),NONLANE,none,73283,26759
+3294,2026-08-10,fix(#3168): tracker sync publish on a local binding fails cleanly instead of a traceback,NONLANE,none,50,1
+3295,2026-08-10,"Non-destructive charter synthesize + boundary self-heal (#3270, folds #2777/#3052/#3292)",NONLANE,none,9683,393
+3297,2026-08-10,fix(auth): point SaaS URL guidance to hosted app,NONLANE,none,22,4
+3301,2026-08-10,fix(doctrine): slug-hub directive normalization + regression-gate reliability (bulk red follow-ons),NONLANE,none,400,40
+3302,2026-08-10,fix(#3287): source the tracker-egress refusal reason from the single enforcing authority,NONLANE,none,2768,490
+3304,2026-08-10,docs: converge documentation onto a single sanctioned Common Docs root,NONLANE,none,16784,13480
+3305,2026-08-10,feat(kernel): make kernel.clock the single door to wall-clock time (repo-wide gate),NONLANE,none,5337,1355
+3308,2026-08-10,fix(sonar): remediate open BUG + BLOCKER findings (real bug + false-positive triage + test integrity),NONLANE,none,1754,111
+3312,2026-08-10,"fix(ci): scope blocking gates to the PR's own changes (#3008, #3147)",NONLANE,none,3406,449
+3313,2026-08-10,"Restore honest CI signal: retire #2782, unbreak two main reds, quiet the pre-review gate (#3260)",NONLANE,none,229,267
+3314,2026-08-11,Restore #2804 driver-unit gate (row-union) + clear doctrine Sonar backlog (#3232),NONLANE,none,3606,690
+3317,2026-08-12,Clear charter + sync Sonar backlog (80 findings incl. a ReDoS BLOCKER),NONLANE,none,7262,1454
+3319,2026-08-11,Close epic #3259: meta.json fail-closed read routing (#3228/#3229/#3230/#3240),NONLANE,none,4007,159
+3321,2026-08-11,feat(doctrine): public API surface + charter facades + ratchet (#3179),NONLANE,none,5570,171
+3324,2026-08-12,docs(plans): SaaS & doctrine-charter domain throughlines + docs/plans curation,NONLANE,none,1127,192
+3326,2026-08-12,docs: Mission Kitty splash for install guide + getting-started caption,NONLANE,none,14,2
+3327,2026-08-11,"docs(pr-landing): fold squad MINOR/NOTE findings by default, file only as the exception",NONLANE,none,22,7
+3331,2026-08-12,docs: Mission Kitty splashes for multi-agent and orchestrator tutorials,NONLANE,none,14,2
+3333,2026-08-12,docs: Mission Kitty splashes for charter and Claude Code tutorials,NONLANE,none,35,3
+3341,2026-08-12,docs: Vague 2 — #3276 Mission Kitty hero remediation (decorative regen),NONLANE,none,8,3
+3342,2026-08-12,feat(drg): action-only reachability companion guard + wire residual orphans (closes #3009 #1923),NONLANE,none,2696,95
+3344,2026-08-12,"Fix LICENSE copyright holder to Spec Kitty, Inc.",NONLANE,none,1,1
+3346,2026-08-13,fix: isolate explicit owned-checkout mission state,WC,single_branch,10306,140
+3349,2026-08-12,ci(docs-pages): fix Pages deploy — add src to PYTHONPATH so kernel.clock import resolves,NONLANE,none,9,0
+3350,2026-08-12,docs: fix stale README guide paths after IA reorg,NONLANE,none,151,144
+3351,2026-08-13,test(home-pin-guard): census-backed SPEC_KITTY_HOME pin guard (#3121),NONLANE,none,25389,88
+3353,2026-08-12,Mission planning (spec+plan): docs/plans Tier 3 closeout [Scope A],NONLANE,none,504,0
+3354,2026-08-12,Mission planning (spec+plan): doctrine schema diagrams + PlantUML rendering [Scope B],NONLANE,none,403,0
+3355,2026-08-12,"docs(code-quality): code-quality plan, 3.2.x posture refresh, vision signal",NONLANE,none,409,3
+3357,2026-08-12,fix(charter): raise governance BUDGET_DEFAULT 32k→40k (regression from 3bcdda344),NONLANE,none,22,5
+3359,2026-08-12,"Release 3.2.6rc1: internal Release Candidate (prerelease, not official)",NONLANE,none,125,38
+3360,2026-08-12,fix(release): exclude dormant wheel-scaffolding from doctrine-count gate,NONLANE,none,7,1
+3361,2026-08-12,fix(release): pin hatchling build backend to 1.31.0 (Metadata-Version 2.4),NONLANE,none,7,1
+3364,2026-08-12,chore(release): open 3.2.6rc2 candidate cycle (post-rc1 version bump),NONLANE,none,6,6
+3365,2026-08-12,test(regression): red-first P0 reproductions for #3231 #3307 #3311 #3320 #3334,NONLANE,none,556,0
+3367,2026-08-13,Doctrine schema diagrams + local PlantUML rendering [Scope B],NONLANE,none,4265,33
+3368,2026-08-13,"docs/plans Tier 3 Closeout: durable marker, retire sweep, domains/ migration [Scope A]",NONLANE,none,3750,522
+3375,2026-08-13,fix: four P0 read/write-consistency defects (#3320 #3231 #3334 #3311),NONLANE,none,3817,445
+3377,2026-08-14,fix(doctrine): finish researcher-robbie rename in prose fields,NONLANE,none,49,6
+3378,2026-08-14,docs(architecture): declarative transition gates + nested mission subtree — design ADRs + diagrams,NONLANE,none,1095,7
+3379,2026-08-15,feat(intake): optional v1 handoff packet overlay for structured briefs,NONLANE,none,1267,24
+3380,2026-08-13,fix(sync): fail-closed ingress scope — no drift to the credentials team (#738),NONLANE,none,60,4
+3383,2026-08-14,"Upgrade/migration atomicity & recoverability (epic #3347): recovery, atomicity, honest reporting",NONLANE,none,3416,98
+3399,2026-08-14,fix(charter): scan the flat org-pack layout in _org_scan_dirs,NONLANE,none,6790,15
+3402,2026-08-17,"fix(runtime): explicit mission-family guard registry, no silent software-dev fall-through",NONLANE,none,9635,50
+3403,2026-08-18,fix(doctrine): surface org-pack authoring failures that pass validation silently,NONLANE,none,9473,29
+3408,2026-08-16,"fix(auth): login resolves server via config, not env-only (#3406 FR-005)",NONLANE,none,67,12
+3411,2026-08-15,fix(sync): detect dead sync server endpoint and surface repoint remediation (#3406 FR-003),NONLANE,none,107,1
+3413,2026-08-19,fix(dossier): make expected-artifacts manifests reliable and fail loudly on schema violations,NONLANE,none,12654,84
+3414,2026-08-16,fix(sync): doctor never reports healthy while server probe is failing (#3406 FR-002),NONLANE,none,118,2
+3415,2026-08-15,fix(sync): import-history tolerates retired WP frontmatter fields (#3406 FR-011),NONLANE,none,156,3
+3423,2026-08-14,docs(architecture): accord mission-gates status note with ADR-1 (Accepted) vs the Proposed gate ADRs,NONLANE,none,8,3
+3424,2026-08-14,feat(doctrine): resolve org and project mission types through a layered roster seam,NONLANE,none,12434,531
+3428,2026-08-18,feat(requirements): block specs whose bare-prose requirements go uncounted,NONLANE,none,11028,66
+3437,2026-08-15,fix(#3371 P0): coord write-path integrity — partition-correct commits + fail-closed checkout identity,SD,coord,5490,353
+3442,2026-08-15,fix(bulk-edit): coerce set_change_mode feature_dir str→Path (#3436),NONLANE,none,34,3
+3444,2026-08-15,fix(#3307 P0): emit review-rejection edges force=True to conform to shared events contract,NONLANE,none,250,75
+3453,2026-08-15,Self-documenting repo: migrate agent-memory gap-fillers into gates/docs/runbooks (#3448),NONLANE,none,3104,47
+3455,2026-08-16,"fix: role-aware review-claim gate — allow cross-profile review (folds #2960 write-side, #2861 guard)",NONLANE,none,1010,91
+3459,2026-08-15,Modular per-package CI (kernel/doctrine/packs reusable workflows → Sonar) + spec-kitty regen (#3447),NONLANE,none,3005,56865
+3467,2026-08-15,"fix: coord/primary partition-authority residuals — reworked (supersedes #3456) (#2160, #2720)",SD,coord,6546,306
+3479,2026-08-15,Self-documenting repo (Bucket 2): migrate workflow/CI/status mechanics into canonical homes (#3464),NONLANE,none,3555,19
+3480,2026-08-16,"docs(plans): disposition + sequencing for two roadmap blind spots (retrospect surface, consumer-repo layout)",NONLANE,none,824,0
+3482,2026-08-18,fix(finalize-tasks): propagate --target-branch override to every target_branch consumer,NONLANE,none,1867,15
+3484,2026-08-16,fix(sync): correct stale `sync enable` consent guidance to `sync opt-in`,NONLANE,none,1,1
+3492,2026-08-16,chore: add cursor to agent config + record drg-reachability op evidence,NONLANE,none,10,0
+3497,2026-08-16,fix(sync): legacy→journal capture cutover — kill #3425 silent-capture (+ #3391/#2846/#3476),NONLANE,none,6015,299
+3499,2026-08-16,feat(doctrine): internal org-tier doctrine pack + pack-ownership ADRs,NONLANE,none,701,17
+3506,2026-08-18,"feat(operator-config): portable provenance, .kitty.env loader, and opt-in rc channel",NONLANE,none,9736,432
+3507,2026-08-16,Pack-metadata manifest unification (#2467 slice; closes #3500–#3503),NONLANE,none,5703,19
+3510,2026-08-16,fix(#3121/#3509): green the SPEC_KITTY_HOME census + R1b tombstone subsystem + provable-class convergence,NONLANE,none,2529,186
+3515,2026-08-17,Fix: spec-kitty next/implement hard-block on missing or legacy charter,NONLANE,none,2311,68
+3520,2026-08-17,fix(doctrine): thread org-tier resolution into the five doctrine consumers that never had it,NONLANE,none,6768,59
+3524,2026-08-18,fix(resolver): wire the org doctrine tier into template resolution and FSM discovery,NONLANE,none,6721,144
+3528,2026-08-19,feat(doctrine): add compact visual communication skill,NONLANE,none,1219,1
+3534,2026-08-19,"fix(charter): thread the org-pack chain into cascade activation, the context JSON path, and dossier rebaseline",NONLANE,none,5535,31
+3537,2026-08-18,"fix(retrospect): report the generator diagnosis, not the wrong schema's errors",NONLANE,none,178,9
+3538,2026-08-18,fix(test-friction): golden-count gate stops taxing honest cardinality asserts (+ CT7 ratchet-key ban),NONLANE,none,560,53
+3554,2026-08-18,fix(review): print a rejection feedback path move-task will accept,NONLANE,none,97,7
+3556,2026-08-18,"fix(coordination): base lane kitty-specs guard on the planning branch + reconcile the two kitty-specs guards (#3271, #2274, #2980)",NL:lane-alloc,lane-branch,478,67
+3557,2026-08-22,research: evaluate Docling Graph for kitty-specs,NONLANE,none,32703,1
+3558,2026-08-18,fix(architectural): frozen-baseline toll reduction — drain genuine-toll gates (#2853),NONLANE,none,3105,250
+3561,2026-08-18,"fix(finalize): planning_artifact WPs can own kitty-specs/ deliverables (#3222, #2643)",NONLANE,none,2282,1
+3565,2026-08-19,fix(mission-state): clear SNAPSHOT_DRIFT blockers (canonical doctor repair),NONLANE,none,2373,1290
+3566,2026-08-19,test(architectural): machine-readable source_module provenance for the dead-symbol allowlist (#3552),NONLANE,none,2863,612
+3567,2026-08-19,fix: worktree/clone-aware root resolution + review-verdict CLI parity,HC,worktree,6652,119
+3570,2026-08-19,refactor(sync): Wave-4 degod — decompose cli/commands/sync.py into ports + cores + shells (#1797),NONLANE,none,13569,3264
+3576,2026-08-19,docs(charter): re-point stale #3091 deferral to live follow-up #3575,NONLANE,none,6,4
+3584,2026-08-19,docs: charter-resolution program — brief + M1/M2 specs + M3-M6 seeds (planning only),NONLANE,none,1078,0
+3587,2026-08-19,"DRG Read-Path Bridge: org drg/fragment.yaml edges drive charter cascade (#3572, #3573)",NONLANE,none,2918,125
+3588,2026-08-19,"fix(doctrine,charter): single-authority resolution parity for org/project doctrine (M1) [#3490 #3426 #2981]",NONLANE,none,3593,229
+3591,2026-08-19,"fix(doctrine,charter): emit project-tier agent_profile as a cascade-reachable DRG node",NONLANE,none,1749,50
+3592,2026-08-20,M4: Deliver loaded doctrine to the dispatched agent (#3489 #3176 #3389 #3488),NONLANE,none,3192,138
+3593,2026-08-20,"feat(doctrine): operating-procedures validate → triage → data-drive (M3, #2994 #3352 #3488)",NONLANE,none,2272,95
+3600,2026-08-20,"M5: Kind-Complete Cascade + Orphan Wiring (#2829, #3009 residual)",NONLANE,none,2874,121
+3601,2026-08-20,"fix: triage quick-wins — unrunnable command strings, swallowed guard warning, missions-root convergence, sync env retirement (#3577, #3580, #3575, #3569)",NONLANE,none,303,128
+3602,2026-08-20,chore(ignore): ignore per-repo .kittify/.kitty.env operator env file,NONLANE,none,5,0
+3603,2026-08-20,ci: complete pr:skip-ci coverage (drift-detector shim + docs-build-pr guard),NONLANE,none,21,1
+3606,2026-08-20,docs(investigations): root-cause investigation for processing & charter friction bugs,NONLANE,none,383,0
+3607,2026-08-21,rc3: light specs for the 9-mission fail-loud friction burndown (+ program plan),NONLANE,none,2631,0
+3609,2026-08-20,"docs(changelog): cut 3.2.6rc2 (date heading, open rc3 cycle)",NONLANE,none,8,3
+3610,2026-08-21,fix(release): drop premature rc3 changelog heading (unblocks v3.2.6rc2 publish),NONLANE,none,0,5
+3613,2026-08-21,chore(version): open 3.2.6rc3 dev cycle (post-rc2),NONLANE,none,8,3
+3614,2026-08-21,"feat(migrate): backfill-mission-type migration + census gate (M0, rc3 program gate)",NONLANE,none,2968,156
+3616,2026-08-21,fix(implement): honor explicit --base in lane allocation; fail loud (#3571),NL:lane-alloc,lane-branch,3306,315
+3617,2026-08-21,"fix(charter): gate on the declared entity, not a coarse hardcoded set (M3 — #3596/#3598/#3599/#3597/#3407)",NONLANE,none,4670,376
+3618,2026-08-21,fix(implement): detect lane reuse structurally so a divergent --base records provenance (#3571 follow-up),NL:lane-alloc,lane-branch,114,23
+3623,2026-08-21,M7 — ExecutionMode / enum consolidation (retire dead enum + rename → WorkProductKind),NONLANE,none,2391,244
+3626,2026-08-21,fix(sync): restore hosted event-sync delivery — negotiated admission gate + preflight contract (#3564),NONLANE,none,1479,35
+3628,2026-08-22,fix(doctrine): project type-wide governance + procedure rationale into the DRG; bind emit↔delivery (M2 — #3604/#3605/#3488),NONLANE,none,3236,79
+3649,2026-08-22,M5 — Canonical mission-type reader; retire legacy `mission` resolution (rc3 #3598),NONLANE,none,2863,188
+3655,2026-08-22,"M4: operator-signal / fail-loud sweep — 6 silent sites + internal directive (#3578, #3548, #3517, #3412, #2991, #3590, FR-009)",NONLANE,none,1379,33
+3657,2026-08-22,"fix(review): baseline↔head scope-source symmetry + declared-command capture semantics (#3611, #3612)",NONLANE,none,738,49
+3658,2026-08-22,"fix+docs(doctrine): M3 hardening — WP-iteration guard, governance-scope fail-loud, DRG projection docs (#3627, #3629, #3633)",NONLANE,none,503,6
+3659,2026-08-22,fix: consolidate reviewed community PRs (#3630–#3646) onto current main,NONLANE,none,3091,504
+3660,2026-08-22,fix(specify): create mission before discovery,NONLANE,none,2608,981
+3661,2026-08-22,M8: Lane-allocation single-seam — recurrence prevention for #3571 (#3460/#3462/#3536),NL:lane-alloc,lane-branch,5699,72
+3662,2026-08-22,feat(ci): weekly flake-report workflow + draft/ready CI mode,NONLANE,none,7658,177
+3664,2026-08-28,"Mission retire-doctrine-term-01M0JMK9 — planning mission complete (ADR, inventory, methodology, stacked plan, verification, reviews)",NONLANE,none,7670,0
+3666,2026-08-25,fix: preserve planning branch for legacy PR-bound missions,NONLANE,none,505,42
+3667,2026-08-22,"fix: consolidate vetted community runtime, dashboard, and doctrine fixes",NONLANE,none,3087,194
+3668,2026-08-22,fix(ci-flake-report): drop unsupported gh run list JSON fields,NONLANE,none,9,2
+3669,2026-08-22,fix(performance): guard compare step against set -e defeating exit-code tolerance,NONLANE,none,9,2
+3672,2026-08-24,refactor(dossier): adopt canonical spec-kitty-events types and delegate payload validation,NONLANE,none,10119,283
+3675,2026-08-22,docs(charter): correct standing-order count in CLAUDE.md to nine,NONLANE,none,4,1
+3679,2026-08-23,fix(upgrade): harden the upgrade command — canonical writer + commit-decision + scoped-consent seams (#3651 #3654 #3653 +5),NONLANE,none,4477,512
+3681,2026-08-23,"fix(mission): scaffold, ownership and lane defects fail loudly instead of silently succeeding",NL:lane-alloc,lane-branch,8566,47
+3686,2026-08-24,fix(upgrade): commit root files the run wrote (drop depth-based root filter) + fix porcelain rename parsing (#2491 follow-up),NONLANE,none,726,262
+3690,2026-08-24,"fix(dossier): widen positional-call guard, trim CLI re-exports, unbreak analyze commitlint",NONLANE,none,9429,53
+3691,2026-08-24,fix: preserve caller worktree context in agent resolver,HC,worktree,463,19
+3693,2026-08-26,"fix(doctrine): close the declared-but-inert DRG silent-drop family (#3608, #3629, #3530)",NONLANE,none,9209,2596
+3696,2026-08-23,fix: reject cyclic execution-lane graphs during finalization,NL:lane-alloc,lane-branch,3829,17
+3697,2026-08-24,fix: make pre-review gate observable and budget-aware,NONLANE,none,6842,159
+3706,2026-08-24,fix(setup-plan): keep local verification authoritative,NONLANE,none,10891,650
+3707,2026-08-24,fix(doctrine): thread pack_context through the mission-type projection seam,NONLANE,none,6242,28
+3708,2026-08-24,fix(charter): anchor org-tier expected-artifacts.yaml at missions/<type>/,NONLANE,none,6538,25
+3709,2026-08-24,docs(charter): mandate closing-keyword issue linkage,NONLANE,none,5,0
+3710,2026-08-24,"fix(init,upgrade): gitignore the .worktrees/ execution-worktrees root (#3689)",WL,worktree,845,27
+3711,2026-08-28,fix(charter): report kind-filtered nodes instead of silently dropping them from cascade,NONLANE,none,8528,29
+3712,2026-08-28,fix: make concurrent review verdict saves durable,NONLANE,none,15262,566
+3713,2026-08-25,fix: exclude canceled work packages from execution lanes,NL:lane-alloc,lane-branch,4138,93
+3717,2026-08-27,fix(charter): refuse activation of a mission type with an empty action sequence,NONLANE,none,5507,11
+3725,2026-08-25,fix(sync): a preflight is not a delivery (#3722),NONLANE,none,220,17
+3729,2026-08-27,fix(runtime): let custom mission families gate on their own expected-artifacts manifest,NONLANE,none,8932,52
+3733,2026-08-26,"fix(charter): make project-local directives additive, not replacing (#3728)",NONLANE,none,602,56
+3762,2026-08-26,"fix(doctrine): degrade org fragments per-pack, not whole-chain (follow-up to #3693)",NONLANE,none,330,26
+3764,2026-08-27,"fix: 3.2.6 P0 reliability triad (#3282, #3579, #3281)",NONLANE,none,3089,71
+3765,2026-08-27,test(sync): bounded-wait + pragma-ordering regression for project-store lock (#3625),NONLANE,none,126,0
+3766,2026-08-27,fix(sync): guard the sync share retry and make teardown deterministic (#3699),NONLANE,none,151,27
+3767,2026-08-27,feat(auth): surface team slug so sync share is usable (#3731),NONLANE,none,435,10
+3768,2026-08-27,fix(sync): resolve a specify_cli-capable interpreter before daemon spawn (#3624),NONLANE,none,343,10
+3769,2026-08-27,"fix(diagnostics): derive auth/sync status from evidence, never claim green while broken (#3723)",NONLANE,none,1045,54
+3774,2026-08-28,"fix(mission): honest terminal state for canceled work packages (#2945, #3590)",NONLANE,none,6860,108
+3776,2026-08-28,test(agent): repair 5 stale mission-create tests unmasked by #3673 (restore integration-tests-agent green),NONLANE,none,46,7
+3778,2026-08-28,test(agent): decouple mission-command tests from the ambient checkout branch (#3776 follow-up),NONLANE,none,53,0
+3782,2026-08-28,fix(cli): survive typer 0.27.2 dropping Abort/Exit from typer._click.exceptions (restore main green),NONLANE,none,101,8
+3783,2026-08-28,"fix(accept): honest path-convention remediation — surface --lenient, dedupe contracts double-report (#3730, #3085)",NONLANE,none,10165,42
+3790,2026-08-29,"fix(accept): project path-convention override — accept non-src layouts honestly (#3016, folds #3785 + #2330 Item 1)",NONLANE,none,3542,23
+3791,2026-08-29,feat(charter): retire-doctrine-term M1 — flip Charter+glossary authority to charter (#3664 #3732),NONLANE,none,3525,173
+3792,2026-08-29,fix(next): charter-freshness cache + retire the blocking NFR-003 latency gate (#3787),NONLANE,none,2664,204
+3796,2026-08-29,ci(protect-main): accept rebase-merged PR commits via PR association,NONLANE,none,68,4
+3797,2026-08-29,test(acceptance): make 4 accept path-convention tests hermetic (#3016 residual),NONLANE,none,28,0
+3800,2026-08-29,feat(charter): retire-doctrine-term M2 — relocate doctrine package to charter/offering (#3664),NONLANE,none,5387,3704
+3804,2026-08-30,feat(sync): deactivate the legacy sync surface by default (#3799),NONLANE,none,9741,391
+3806,2026-08-30,"feat(governance): deliver decision-documentation at the review gate, capture it there (#3685, #3682)",NONLANE,none,3404,50
+3807,2026-08-30,feat(charter): retire-doctrine-term M2b — physical offering<->activation two-module split (#3664),NONLANE,none,3886,3348
+3817,2026-08-31,docs(architecture): profile-load reliability findings + design (epic #3809),NONLANE,none,402,0
+3823,2026-08-31,"feat(charter): tidy-charter-cutover-surface enabler — activate squad lenses, stale-path gate, consistency dedup, synthesis gitignore (#3820)",NONLANE,none,3152,99
+3825,2026-09-02,"fix(next): resolve state from committed authority — no restart of merged missions, no stall on operator-cancel (#2947, #3780)",SD,none,2980,30
+3826,2026-09-02,fix(merge): honor mission branch/worktree retention policy (fail-closed) — #3131,WL,worktree,4078,137
+3828,2026-09-03,"fix(charter): unify expected-artifacts.yaml loading + close org-tier fail-loud gap (#3770, #3412)",NONLANE,none,5087,638
+3836,2026-09-03,"fix(mission-types): custom mission types are second-class citizens (#3830, #3832, partial #3831)",NONLANE,none,9496,117
+3842,2026-09-03,feat(charter): add `charter list --json` and close the non-mapping config.yaml crash class,NONLANE,none,918,96
+3845,2026-09-03,feat(dispatch): add `--dry-run` route-only mode and fix the SK-08 keyword misroute,NONLANE,none,7516,81
+3846,2026-09-03,test(sonar): clear new-code reliability asserts flagged on main,NONLANE,none,12,7
+3848,2026-09-03,"perf(runtime): read expected-artifacts.yaml once per gather, not twice (#3847)",NONLANE,none,309,67
+3850,2026-09-03,"fix(upgrade): upgrade & install surface durability (#3771, #2265, #2316)",NONLANE,none,550,3
+3851,2026-09-03,"fix: commit-boundary & commit-router integrity on protected-primary + coord-topology (#2739, #3784, #2693, #3716)",SD,coord,1974,123
+3854,2026-09-03,fix(ci): unbreak mypy in lint-feedback (stale src/doctrine target) + clear repo-wide ruff nits,NONLANE,none,12,9
+3855,2026-09-03,feat(orchestrator-api): add design-phase verbs with host-CLI lifecycle parity,NONLANE,none,21792,246
+3856,2026-09-03,"fix(charter): command honesty — directive selector, interview round-trip, lint diagnostic (#3816 #2940 #3435)",NONLANE,none,413,17
+3857,2026-09-03,docs(3.2.6): record release DAG discharged + fix dangling doctrine→charter related-edge,NONLANE,none,54,5
+3858,2026-09-04,feat(events): add `spec-kitty events tail` with truncation-safe resumable tailing,NONLANE,none,12380,0
+3863,2026-09-03,fix: support explicit owned-checkout across the single-branch mission lifecycle (supersedes #3843),WC,single_branch,5870,304
+3868,2026-09-04,"fix(coord): authoritative commit-surface for coord-topology missions (#2533, #2300; epic #2160)",SD,coord,3431,104
+3869,2026-09-03,fix(core): keep status orchestration out of the CLI cold-import path (#1461 regressed by #3843),NONLANE,none,98,2
+3870,2026-09-03,release: cut 3.2.6,NONLANE,none,240,6
+3871,2026-09-04,"fix(charter): resolve activation from `activated_*`, closing the SPDD/REASONS split-brain",NONLANE,none,13147,388
+3872,2026-09-04,chore(release): open 3.2.7rc1 development cycle,NONLANE,none,40,8
+3873,2026-09-04,docs(orientation): refresh the stale AGENTS.md orientation stamp,NONLANE,none,3,3
+3875,2026-09-04,docs(roadmap): re-anchor 3.2.x plans to current milestone taxonomy + add 4.0.0 goal declaration,NONLANE,none,445,7
+3876,2026-09-04,chore(charter): mirror selected_* authoring to the activated_* authority,NONLANE,none,235,7
+3877,2026-09-04,docs(internal-pack): branded-document + project-evolution-postmortem doctrine,NONLANE,none,760,7
+3881,2026-09-05,convergence: promote final EXPERIMENTAL CLI tree,NONLANE,none,36,59
+3885,2026-09-07,docs: post-convergence living-doc alignment,NONLANE,none,343,285
+3888,2026-09-06,"Post-convergence Tier-3: governance, SSOT & runtime-boundary enforcement",NONLANE,none,1949,1219
+3898,2026-09-06,chore(docs): retire codemap debris + accept RuntimeEventEmitter disposition ADR,NONLANE,none,352,211
+3899,2026-09-06,"chore: post-convergence quick-wins (dead scripts, dead dep, broken symlink, CODEOWNERS, stale CI prose)",NONLANE,none,22,1265
+3904,2026-09-07,"Proto-missions: fsm-write-path-integrity + dead-port-disposition (core-loop hardening, spec-level)",NONLANE,none,1408,0
+3916,2026-09-06,docs: register ADR 2026-09-06-1 in the index + retire dead-CI-job marker prose,NONLANE,none,15,14
+3921,2026-09-07,mission(dead-port-disposition): consolidate the RuntimeEventEmitter seam and fix the two decision-log bypasses (ADR 2026-09-06-2),NONLANE,none,4340,199
+3922,2026-09-07,[#3976] Proto-missions: fsm-write-path-integrity + dead-port-disposition,NONLANE,none,20657,7544
+3923,2026-09-07,"fix: upgrade preview safety and mission-state recovery (#3900–#3903, #3920)",NONLANE,none,37851,3401
+3973,2026-09-15,feat: add LLxprt Code agent support,NONLANE,none,510,57
+3974,2026-09-07,docs(issue-tracker): document the full label taxonomy,NONLANE,none,98,2
+3981,2026-09-07,fix(runtime): re-gate per-WP implement completion for coord-topology missions,SD,coord,8758,16
+3982,2026-09-07,[#3980] docs(context): Team Kitty is Zeitgeist — surface the hosted model for agents,NONLANE,none,228,3
+3983,2026-09-07,fix(runtime): guard the emitter registry and factory dispatch; correct three artifacts #3921 left contradicting the tree,NONLANE,none,319,24
+3984,2026-09-09,"[#1621] mission(team-kitty-launch-defaults): specify, plan, and task the Team Kitty launch defaults",NONLANE,none,4353,0
+3989,2026-09-07,ci(release): retire the SaaS consumer comparison (#3979),NONLANE,none,30,1084
+3991,2026-09-09,ci(release): drop the private-git-dependency token step,NONLANE,none,0,11
+3995,2026-09-08,feat(ci): reinstate CI pipeline + SonarCloud as lean modular artifact-sharing workflows,NONLANE,none,39277,470
+3999,2026-09-07,docs(mission): close out upgrade preview health mission,NONLANE,none,2510,547
+4006,2026-09-09,[#2635] route retrospective console output through the canonical CliConsole seam,NONLANE,none,84,13
+4008,2026-09-09,[#3162] Route the pending-batch-a meta.json readers onto load_meta_fail_closed,NONLANE,none,557,126
+4013,2026-09-09,[#3993] ci: reinstate SonarCloud (coverage + new-code quality gate),NONLANE,none,532,15
+4016,2026-09-09,[#3794] Bound typer <0.28 and dedup the typer._click exception shim,NONLANE,none,58,34
+4019,2026-09-09,"[#3980] Team Kitty launch defaults: hosted sync on by default, packaged team.spec-kitty.ai target, retired opt-outs",NONLANE,none,5621,532
+4021,2026-09-08,fix(tool-surface): replace Priivacy-ai org references after move to spec-kitty org,NONLANE,none,26,22
+4024,2026-09-09,[#2607] repo-relative parametrize ids for tasks-prompt ownership tests,NONLANE,none,13,3
+4025,2026-09-09,"[#2879] orchestrator-api: unsafe --mission returns INVALID_MISSION JSON envelope, never a traceback",NONLANE,none,142,0
+4026,2026-09-09,[#2815] Guard the test suite against repo-root status.* writes,NONLANE,none,423,0
+4028,2026-09-09,[#3369] Narrow composite_key docstring drift claim to what the lookup guarantees,NONLANE,none,148,29
+4029,2026-09-09,"[#3212] key backfill-runtime-state Flipped/Skipped counters on the flip outcome, not seeded_count",NONLANE,none,348,18
+4030,2026-09-09,[#3221] finalize-tasks --validate-only reports tasks.md staleness instead of silently skipping,NONLANE,none,364,8
+4049,2026-09-11,fix(packs): drop the unsupported --role flag from every step-contract bootstrap (#4031),NONLANE,none,150,22
+4051,2026-09-08,"hotfix(3.2.6.1): orphan scaffold, unborn HEAD, and the first-run tutorial (#4035, #4033, #3988)",NONLANE,none,2125,1810
+4052,2026-09-09,"[#3687] retrospective generator: count approved-lane rewinds as rework, never helped+not_helpful for one WP",NONLANE,none,264,9
+4054,2026-09-09,[#3719] mypy: follow protection_policy in narrow strict checks instead of returning Any,NONLANE,none,14,1
+4055,2026-09-09,[#3562] gate cross-category duplicate SymbolKey allowlist entries,NONLANE,none,121,10
+4056,2026-09-09,[#3559] consolidate occurrence_map.yaml literal tree-wide + record lane-hygiene base-ref asymmetry,NONLANE,none,26,2
+4059,2026-09-15,[#3726] Model declared-platform path semantics in uv-tool remediation test fixtures,NONLANE,none,82,45
+4061,2026-09-09,[#3793] Retrospective generator: T037 ingestors and arbiter-override count assert only checked content,NONLANE,none,534,27
+4062,2026-09-09,[#3795] documentation mission task-prompt-template carries the ownership fields and REQUIRED profile-load block,NONLANE,none,140,3
+4064,2026-09-09,[#3844] specify prompt's spec-commit example names the mission,NONLANE,none,93,4
+4068,2026-09-09,[#4066] Bind coverage to tested commits and bridge Actions verdicts to the factory,NONLANE,none,3009,193
+4076,2026-09-09,[#3852] Serialize skill manifest paths with portable separators,NONLANE,none,21,6
+4079,2026-09-09,[#3934] State the kitty-specs owned_files rule in the tasks prompt and WP template,NONLANE,none,85,6
+4080,2026-09-09,[#3948] Fix plan/analyze prompt drift: setup-payload claim and wrong charter path,NONLANE,none,3,3
+4081,2026-09-09,[#3865] extract owned-mode mark-status recovery into _reconstruct_applied_events,NONLANE,none,380,45
+4082,2026-09-09,fix(upgrade): recover missing authority and disclose supporting repairs,NONLANE,none,1198,132
+4084,2026-09-08,[#4083] Forward-port reviewed first-run recovery hotfix to main,NONLANE,none,1776,681
+4095,2026-09-09,[#3964] Close wave 2 of post-convergence doc path alignment and gate dead src/ literals in live docs,NONLANE,none,597,137
+4099,2026-09-09,[#3952] Document the ruff format --check gate in CLAUDE.md,NONLANE,none,3,0
+4104,2026-09-09,"[#4103 #4098 #4102 #4097 #4100 #4101] Project-layer doctrine ingestion: glossary step, charter parity, promote path, cascade, resynthesize",NONLANE,none,2536,364
+4107,2026-09-09,fix(ci): authorize automatic PR verdict comments and explain API refusals,NONLANE,none,138,5
+4112,2026-09-09,Release 3.2.6.2,NONLANE,none,30,53
+4127,2026-09-09,[#3173] Windows: path-based confined write fallback for coordination artifacts,NL:windows-coord-write,coord,312,5
+4128,2026-09-09,[#4114] Route activated project-layer agent profiles through the dispatch router,NONLANE,none,250,23
+4129,2026-09-09,[#4124] Self-heal corrupt .pyc bytecode at CLI startup instead of crashing,NONLANE,none,1039,26
+4132,2026-09-09,[#4115] fall back by role when a built-in mission step default profile is deactivated,NONLANE,none,808,26
+4136,2026-09-11,"[#4125] dashboard: spawn the detached server via python -m, with a log file and readiness probe",NONLANE,none,348,24
+4137,2026-09-09,[#4120] fix: union-merge stale-lane-base event-log add/add; --profile resolves local charter profiles,SD,lane-branch,670,86
+4140,2026-09-09,[#4119] Surface main-push CI failures through fleet P0 intake,NONLANE,none,450,3
+4142,2026-09-09,[#4118] Reuse reports from shard executions retained by CI reruns,NONLANE,none,389,37
+4147,2026-09-10,"fix(windows): harden the install path, dashboard spawn, and startup for Windows (#4124, #4125; #3173 siblings)",NONLANE,none,2028,579
+4148,2026-09-09,"[#4135] finalize-tasks: treat empty frontmatter dependencies: [] as a serialization artifact, not TIER-2 authority",NONLANE,none,313,16
+4149,2026-09-09,[#4123] Render actionable git-init advice when charter resolution fails on non-git projects,NONLANE,none,370,3
+4153,2026-09-09,[#4146] install merge-driver git config at init time,HT,lane-branch,103,3
+4157,2026-09-09,[#4141] --refresh-planning-commit: advance the frozen planning_commit_sha after a mid-execution planning amendment,NONLANE,none,811,60
+4171,2026-09-09,[#4166] init: drop obsolete global-skill phase importing removed _sync_global_skill,NONLANE,none,192,22
+4172,2026-09-09,fix(ci): import datetime via the kernel.clock single door (FR-012(a)),NONLANE,none,34,1
+4173,2026-09-10,feat(skills): pressure-test glossary domain models (supersedes #3835),NONLANE,none,466,4
+4174,2026-09-10,fix(runtime): end ensure_runtime cold-start race (#4017) + timing-guard sweep (#4015),NONLANE,none,7697,1003
+4177,2026-09-09,Release 3.2.7,NONLANE,none,4703,326
+4183,2026-09-10,[#4181] Windows: open confined-write fallback tempfile with O_BINARY,NONLANE,none,255,1
+4189,2026-09-10,[#4187] Validate org DRG fragments through the runtime loader,NONLANE,none,230,61
+4190,2026-09-10,[#4186] Infer org-pack DRG nodes from artifact files,NONLANE,none,250,16
+4191,2026-09-15,Require a compiler typecheck separate from the test runner (DIRECTIVE_030),NONLANE,none,38,5
+4194,2026-09-11,[#4185] Resolve org directive identities across charter activation and delivery,NONLANE,none,909,446
+4197,2026-09-10,[#4121] Forward-port the 3.2.6.2 hotfix batch (project-layer doctrine/charter fixes) to main,NONLANE,none,2430,165
+4201,2026-09-10,[#4200] attribute org-pack validation faults to their real source file,NONLANE,none,708,52
+4209,2026-09-11,[#4207] ci: move worktree-concurrency saturation to the nightly lane and re-ceil the router shard timeouts,DP,worktree,35,2
+4224,2026-09-15,[#4216] Deliver unseen peer moments with verified own-session filtering,NONLANE,none,1811,190
+4225,2026-09-15,[#4217] Align publisher sessions with SaaS lease revocation,NONLANE,none,859,79
+4234,2026-09-14,[#4238] docs(agent-fleet): document the SkyKitty agent fleet and the ready-for-squad label,NONLANE,none,335,145
+4241,2026-09-14,fix(charter): harden directive resolution — unresolvable-token diagnostic + scan memoization (#4239 #4240),NONLANE,none,1625,33
+4245,2026-09-14,fix(#3937): blocked-WP recovery — alloc failure leaves planned; honest transition refusal,NONLANE,none,1162,142
+4246,2026-09-15,fix(doctor): honor --json on the not-in-project path across the doctor family (#4242),NONLANE,none,231,119
+4249,2026-09-17,Close live review findings and enforce artifact containment,NONLANE,none,526,51
+4256,2026-09-13,Release 4.0.0rc1 for PyPI qualification,NONLANE,none,42,17
+4257,2026-09-15,feat(dashboard): mark discarded missions instead of listing them as live (#704),NONLANE,none,311,3
+4260,2026-09-13,[#4258] Remove retired Team Kitty hostname from CLI references,NONLANE,none,53,36
+4262,2026-09-13,[#4259] Migrate retired hosted target and fix explicit canonical URL override precedence,NONLANE,none,1163,36
+4263,2026-09-13,[#4233] tracker discover: render SaaS non-2xx as a clean CLI error with structured codes,NONLANE,none,466,18
+4271,2026-09-15,[#3929] Publish the six runtime moments from the emitter seam,NONLANE,none,1000,32
+4274,2026-09-14,[#4214] Publish Started lifecycle moments without the local-only artifact_path,NONLANE,none,151,10
+4276,2026-09-14,[#3474] backfill mid8 from mission_id in meta.json at mission create,NONLANE,none,40,1
+4278,2026-09-15,[#4231] Record PR merge evidence as the post-merge review baseline,NONLANE,none,4152,446
+4281,2026-09-14,[#3514] Restore charter path-literal shrink-only enforcement,NONLANE,none,120,8
+4282,2026-09-14,[#3834] tests: make review-cycle assertions newline- and path-separator-robust on Windows,NONLANE,none,22,4
+4283,2026-09-14,[#3928] classify the decisions/ ledger as a COORD-partition kind,SD,coord,122,1
+4286,2026-09-15,"[#3994] org-move URL sweep phase 1: deploy gate, issue template, AGENTS.md refs, pyproject comment",NONLANE,none,8,8
+4291,2026-09-14,[#3941] finalize-tasks normalizes string-form dependencies frontmatter,NONLANE,none,232,1
+4293,2026-09-14,[#2715] Follow-up (#2712): refresh runtime migration-hint + stale graph.yaml docstrings post-sharding (DD-13),NONLANE,none,194,151
+4294,2026-09-14,[#2878] Convert unsafe --mission slug ValueError to clean typed errors on next/research,NONLANE,none,169,6
+4296,2026-09-14,[#3427] Single-authority CL-005 mission-type roster path layout,NONLANE,none,224,14
+4306,2026-09-14,[#3277] Non-interactive machine authentication for hosted sync,NONLANE,none,1398,9
+4307,2026-09-14,Release 4.0.0rc2 for PyPI qualification,NONLANE,none,210,179
+4310,2026-09-14,[#4309] docs(fleet): document the label-driven fleet workflow,NONLANE,none,103,4
+4313,2026-09-14,chore(release): open the 4.0.0rc3 development cycle,NONLANE,none,9,3
+4321,2026-09-14,[#3867] test(coord-lifecycle): regression guard for the coord lane-lifecycle surface-authority class,SD,coord,652,0
+4323,2026-09-14,docs(adr): adjudicate the census-floor re-pin ratchets per gate (#4315),NONLANE,none,487,0
+4325,2026-09-14,ci(sonar): align SonarCloud project identity to the spec-kitty org,NONLANE,none,29,27
+4326,2026-09-15,[#4314] Document opening the next development cycle right after a release tag,NONLANE,none,79,16
+4328,2026-09-14,docs(plans): 4.0.0 milestone roadmap + re-anchor 3.2.x addendum (active cycle),NONLANE,none,387,4
+4329,2026-09-14,fix(sonar): clear S5863 tautological assertions + S2871 locale-unsafe sort (#4305),NONLANE,none,16,12
+4333,2026-09-17,feat(zeitgeist): answer status from the relay's own live record (#4215 slice 1),NONLANE,none,698,46
+4338,2026-09-14,fix(mission-create): abandonment-aware idempotency guard + --allow-duplicate escape hatch (#4033),NONLANE,none,1411,2
+4341,2026-09-15,[#4330] issue-matrix approve gate: name the actual artifact and surface the per-row rule,NONLANE,none,163,61
+4344,2026-09-14,[#4343] Regenerate packs/built-in manifest (red main),NONLANE,none,2,2
+4348,2026-09-14,"fix(merge): post-merge partition integrity — squash target-newer clobber (#3942) + retrospect/doctor surface divergence (#4090, #4091)",SD,coord,3726,205
+4353,2026-09-15,[#4268] Live Work harness capture + whole-mission lifecycle live frames,NONLANE,none,6349,538
+4354,2026-09-14,"[#4346] main red repair: docs band violation, stale pack-manifest regen, dead ruff-format exclude",NONLANE,none,3,4
+4355,2026-09-14,ci(security): harden PR-validated GitHub Actions workflows per SonarCloud (#4342),NONLANE,none,1579,33
+4359,2026-09-14,[#4315] Adjudicate the census-floor re-pin ratchets per gate,NONLANE,none,844,3096
+4370,2026-09-14,ci(security): harden release-critical GitHub Actions workflows (#4352),NONLANE,none,99,21
+4372,2026-09-17,[#4214] Demonstrate SpecifyStarted accepted on a managed relay and decodable for Team Kitty,NONLANE,none,330,1
+4375,2026-09-14,docs(tests): reconcile stale golden-count references after the gate's retirement (#4315),NONLANE,none,14,12
+4377,2026-09-15,docs(tutorials): stop the onboarding path asking for a second specify (#3988),NONLANE,none,32,16
+4378,2026-09-15,fix(merge): tear the coord worktree down before deleting its branch (#3926),CT,coord,236,12
+4379,2026-09-15,[#4369] Claim tests/test_dashboard in the dashboard module shard; guard test-directory coverage,NONLANE,none,613,230
+4382,2026-09-14,"[#4334] Reuse CI Modules coverage for the per-PR Sonar report, and fix the coverage breadth it exposed",NONLANE,none,31711,13065
+4383,2026-09-14,chore(ci): drop the ruff-format exclude entry #4334 orphaned (#4365),NONLANE,none,0,1
+4385,2026-09-15,fix(charter): resolve stem-authored directive selections (#3908),NONLANE,none,143,7
+4390,2026-09-17,feat(next): a blocked decision names where each guard looked (#3883),NONLANE,none,564,105
+4393,2026-09-20,[#4365] archive-freeze: fork-clone port base for the freeze gate + always-on CI job,NONLANE,none,222,29
+4394,2026-09-14,chore(op): reconcile kitty-ops tracking (48 records) + correct two stale ci-aggregate comments,NONLANE,none,111,4
+4398,2026-09-15,[#4367] resolve four suite-invocation indirection forms in the _gate_coverage gate model,NONLANE,none,698,239
+4399,2026-09-16,fix(charter): first activation preserves what was effective (#4253),NONLANE,none,480,54
+4405,2026-09-15,[#4392] Restore candidate CI guards and fail-closed write placement,NONLANE,none,96,144
+4406,2026-09-16,fix(accept): check build paths against the tree being accepted (#4254),NONLANE,none,427,5
+4412,2026-09-15,[#4407] reconcile pinning inventory with the post-#4315 tree,NONLANE,none,0,0
+4415,2026-09-15,"[#4397] doctor ops --close-stale: record closures on an append-only spine, keep kitty-ops archive byte-frozen",NONLANE,none,553,41
+4417,2026-09-15,perf(cli): keep jsonschema's format checkers out of CLI startup (#4409),NONLANE,none,150,8
+4422,2026-09-15,[saas#1960] Make routes admission guidance account-scoped,NONLANE,none,34,13
+4427,2026-09-15,fix(init): diagnose missing command skills on initialized clones,NONLANE,none,482,66
+4428,2026-09-15,[#4386] ci: claim tests/ci in a ci module row + matching router filter group,NONLANE,none,638,22
+4431,2026-09-15,[#4429] ci: re-base module-tests shard timeout ceiling on observed charter durations,NONLANE,none,10,1
+4435,2026-09-15,ci: diff-scope the module-test matrix via the single gate-selection authority (#4434),NONLANE,none,749,55
+4438,2026-09-15,[#4287] reword AGENTS.md upstream deferred-item intro for post-org-move reality,NONLANE,none,1,1
+4443,2026-09-15,[#4297] Name public PROJECT_MISSION_TYPES_RELATIVE in WP01 docstring,NONLANE,none,1,1
+4444,2026-09-15,[#4403] consolidate the coord DELETED -> CoordinationBranchDeleted build+raise policy into one factory,CT,coord,230,13
+4445,2026-09-15,[#4131] test: invoke doctor-skills startup-ordering test through CliRunner,NONLANE,none,27,3
+4446,2026-09-16,[#4202] lanes/auto_rebase: gate git add/rm --sparse on sparse checkout,NL:auto-rebase,lane-branch,298,9
+4448,2026-09-16,[#4312] docs(fleet): correct claim and fix-lane semantics,NONLANE,none,15,9
+4449,2026-09-16,[#4270] tracker: formatted _BINDING_ERROR_CODES; dedupe dashboard hint on user_action_required failures,NONLANE,none,135,15
+4450,2026-09-15,[#4289] test(status): pin the non-volatile lifecycle early return via its own debug line,NONLANE,none,7,1
+4453,2026-09-15,[#4447] fix(docs): restore freshness gate on main,NONLANE,none,19,6
+4457,2026-09-18,[#4424] fix(doctor): keep stale-op closure sweeps linear,NONLANE,none,88,3
+4458,2026-09-15,[#4442] Repair missing command skills on initialized clones,NONLANE,none,113,22
+4463,2026-09-17,[#4007] ruff-format tests/retrospective/test_summary_cli.py and drop its format-exclude ratchet entry,NONLANE,none,8,23
+4464,2026-09-17,docs(status): refresh Zeitgeist printability guard rationale,NONLANE,none,24,14
+4465,2026-09-16,fix(auth): reach machine network remediation,NONLANE,none,34,4
+4468,2026-09-16,"ci: name the shard that actually failed, so one red shard stops looking like forty (#4420)",NONLANE,none,876,237
+4469,2026-09-15,fix(cli): preserve unrelated resolver ValueErrors,NONLANE,none,111,23
+4470,2026-09-15,ci(packs): delete vestigial ignored-path filters,NONLANE,none,1,31
+4471,2026-09-15,fix(charter): make compact diagnostics checkout-honest,NONLANE,none,36,2
+4473,2026-09-15,[#4168] docs(release): describe tokenless dependency flow,NONLANE,none,2,2
+4477,2026-09-15,[#4476] test(invocation): align project routing contract,NONLANE,none,17,14
+4478,2026-09-15,[#4423] fix(invocation): share spine idempotency guard,NONLANE,none,44,23
+4480,2026-09-15,[#4038] squad MINORs — PR #4028 (narrow composite_key docstring drift claim),NONLANE,none,3,3
+4481,2026-09-16,[#4159] fix(init): keep merge-driver config best-effort,HT,lane-branch,101,2
+4484,2026-09-15,docs(release): finalize the 4.0.0rc3 changelog section (#4482),NONLANE,none,5,4
+4491,2026-09-16,[#4078] State kitty-specs ownership rules in staged tasks prompts,NONLANE,none,29,43
+4492,2026-09-15,[#4057] [squad] MINOR findings for PR #4052 (retrospective generator approved-lane rewinds),NONLANE,none,1,10
+4493,2026-09-15,[#4486] test(windows): expose concurrent venv worker outcomes,NONLANE,none,3,1
+4495,2026-09-15,[#4460] fix(ci): ignore skipped literal matrix placeholder,NONLANE,none,39,1
+4496,2026-09-16,[#4151] Remove dead aggregate attempt fixture endpoint,NONLANE,none,1,3
+4497,2026-09-15,"[#4065] retrospective generator squad MINORs: count-conditional recurring-use clause, truthful no-verdict fallback",NONLANE,none,137,3
+4500,2026-09-15,[#4092] Document skills-manifest backslash invariant and revert add_entry reformat churn,NONLANE,none,31,2
+4501,2026-09-15,"[#4050] doctor coordination --fix --mission <slug> backfills topology repo-wide, ignoring the mission scope",NL:coord-doctor,coord,41,1
+4508,2026-09-15,ci: bump actions/checkout to v5 (Node 24) to clear the Node 20 deprecation,NONLANE,none,37,37
+4509,2026-09-15,"fix(cli): stop the coord-teardown ULID doubling and literal Rich markup, guard the class (#4163, #4507)",CT,coord,395,7
+4512,2026-09-15,[#4421] [squad] MINOR findings on PR #4417 (cli startup jsonschema deferral),NONLANE,none,126,27
+4515,2026-09-15,"fix(ci): CI pipeline honesty — actionable fixes (#4360-B, #4454, #4208, #4212)",NONLANE,none,2662,336
+4529,2026-09-16,[#4130] spec-kitty doctor check: validate installed package bytecode cache (detect truncated .pyc before it bites),NONLANE,none,1024,359
+4534,2026-09-15,docs(adr): main-tip verdict topology cluster ADR (#4437),NONLANE,none,422,0
+4538,2026-09-15,[#4537] fix(ci): skip coverage consumers for empty selections,NONLANE,none,49,11
+4541,2026-09-16,"fix(ci): per-SHA main concurrency + fleet-verdict fan-out cap (Stage 1: #4347, #4371)",NONLANE,none,1273,6
+4546,2026-09-15,[#4288] Refresh stale pinning-rule inventory (red-main fix),NONLANE,none,6,6
+4547,2026-09-15,[#3233] Explain refresh credential and client failures safely,NONLANE,none,95,5
+4548,2026-09-16,[#3178] Bind collaboration destinations to repository admission,NONLANE,none,306,34
+4550,2026-09-16,[#3279] Explain device-grant 401 rejection without exposing server text,NONLANE,none,133,3
+4558,2026-09-16,[#4269] Live Work authored publish/reply/read: one shared CLI + MCP service,NONLANE,none,1992,135
+4561,2026-09-19,docs(glossary): refresh repo_slug example to spec-kitty/spec-kitty,NONLANE,none,4,4
+4564,2026-09-16,"[#4433] (draft, salvaged) issue-4433-init-vibe-skill-path",NONLANE,none,224,39
+4571,2026-09-16,[#4557] Parse 409 replay retry_after defensively,NONLANE,none,173,4
+4575,2026-09-16,[#3786] Thread injected CheckoutIdentity from setup-plan / finalize-tasks entrypoints,NONLANE,none,151,56
+4578,2026-09-16,[#3243] Number the advertised review-feedback path by the writer's max+1 authority,NONLANE,none,390,28
+4580,2026-09-16,[#3849] Close the builder-started read race in the killed-builder reclaim test,NONLANE,none,21,2
+4581,2026-09-16,[#3940] move-task 'behind target' check counts kitty-specs-only commits as divergence,NONLANE,none,332,13
+4583,2026-09-16,[#3961] Finish the mission-DSL v1 retirement in shipped copies and docs,NONLANE,none,167,919
+4584,2026-09-16,[#3946] Refresh reused lane workspace context current_wp on every claim path,HC,worktree,560,137
+4585,2026-09-16,[#3938] implement on a user-claimed in_progress WP resumes and regenerates the prompt,NONLANE,none,131,20
+4587,2026-09-16,"[#3951] agent verdict-command nesting, decision list, approve-gate remedy",NONLANE,none,445,18
+4591,2026-09-16,"[#3772] (draft, salvaged) issue-3772-cascade-dedup",NONLANE,none,199,146
+4592,2026-09-16,[#3833] read dry-run retention off the PRIMARY_METADATA surface + soften 'pure resolver' wording,NONLANE,none,123,12
+4595,2026-09-16,[#3829] next/committed-authority: robustness follow-ups from the #3825 landing squad,NONLANE,none,531,204
+4596,2026-09-16,fix(ci): provenance-aware source-eligibility for CI Aggregate (Stage 2: #4360-A),NONLANE,none,2002,12
+4602,2026-09-16,[#3861] Replace substring heuristic in _classify_specify_create_error with a structured delegate error,NONLANE,none,295,61
+4603,2026-09-16,[#3862] Hoist the owned single_branch invariant to one enum-based predicate; pin the vestigial owned repo_root,WC,single_branch,307,8
+4604,2026-09-16,[#3866] owned_mission: eliminate per-resolve full-tree scan + TransitionRequest re-derivation,DP,single_branch,334,15
+4605,2026-09-16,"[#3957] Stale-assertion analyzer: suppress noise literals, collapse repeat findings, surface skipped message-content checks",NONLANE,none,456,46
+4628,2026-09-16,"[#4609] (draft, salvaged) issue-4609-migrate-all-command-files",NONLANE,none,239,5
+4629,2026-09-16,[#3971] De-duplicate ambient charter-preflight warnings — show once with scope and remedy,NONLANE,none,376,6
+4630,2026-09-16,[#4607] auth doctor --server: failed server check is an F-008 finding and exits 1,NONLANE,none,172,16
+4633,2026-09-16,[#4608] Report the refused scaffold commit truthfully in create output,NONLANE,none,49,2
+4635,2026-09-16,[#3953] Accept-and-ignore --mission on mission-agnostic subcommands,NONLANE,none,454,3
+4641,2026-09-16,[#4499] test(bootstrap): drain venv worker outcomes before asserting,NONLANE,none,60,6
+4644,2026-09-16,fix(ci): drop stale ruff-format exclude entry that reds main (#4491 regression),NONLANE,none,0,1
+4647,2026-09-16,[#4554] Match device-grant 401 fallback wording to what the message carries,NONLANE,none,89,1
+4649,2026-09-16,"[#4549] (draft, salvaged) issue-4549-squad-minors-4224",NONLANE,none,447,29
+4650,2026-09-16,[#4544] Fold squad MINOR findings on #4501: positive topology pin + CHANGELOG entry,NONLANE,none,12,0
+4651,2026-09-16,"[#4562] (draft, salvaged) issue-4562-retire-priivacy-ai-references",NONLANE,none,302,174
+4655,2026-09-16,[#4572] Quiet the agent-profile catalog-miss wall; reconcile render with profile list,NONLANE,none,438,2
+4660,2026-09-16,fix(ci): infra-error terminal-cancel verdict + stale-running sweep (Stage 3: #4430),NONLANE,none,1867,7
+4661,2026-09-16,fix(corpus): re-snapshot a stale status.json that reds the teamspace-blocker witness on main,NONLANE,none,36,5
+4663,2026-09-17,docs(mission): cli-boundary-robustness planning dossier (impl in #4674),NONLANE,none,4125,0
+4667,2026-09-16,[#4640] Refresh stale pinning-rule inventory and declare ci-stale-running-sweep.yml (red main),NONLANE,none,68,31
+4674,2026-09-17,"[#4600] Harden CLI configuration, JSON boundaries and command defaults",NONLANE,none,7311,988
+4684,2026-09-17,docs(tracker): key domain labels to the Modularity SSOT code domains,NONLANE,none,80,14
+4685,2026-09-17,fix(deps): bump transitive pip to 26.2.1 (CVE-2026-13346),NONLANE,none,3,3
+4686,2026-09-17,"[#4636] Fast-tier help walk: invoke leaf --help directly, skip root callback chain",NONLANE,none,35,3
+4687,2026-09-17,[#4671] Reconcile research/plan mission integration tests with current mission schema,NONLANE,none,375,250
+4689,2026-09-17,"fix(cli): source-aware move-task --to planned refusal (F-51, #3937)",NONLANE,none,1667,8
+4690,2026-09-17,fix(audit): don't block TeamSpace readiness on a completed mission's frozen snapshot drift,NONLANE,none,212,19
+4691,2026-09-17,Rename built-in minutes agent to minutes-mahad and make delivery chat-first,NONLANE,none,990,272
+4694,2026-09-17,[#4693] Stop RC2 skill inventory rescan on warm CLI commands,NONLANE,none,58,2
+4698,2026-09-17,fix(status): bound review_ref at the WPStatusChanged wire projection (#3954),NONLANE,none,1481,28
+4701,2026-09-17,docs(changelog): fold minutes-mahad rename into [4.0.0rc3] ahead of the v4.0.0rc3 tag,NONLANE,none,1,6
+4702,2026-09-17,chore(release): open the 4.0.0rc4 development cycle,NONLANE,none,9,3
+4709,2026-09-18,fix(windows): make 4.0.0rc usable on Windows — self-held-lock read + cross-OS family (#4703),NONLANE,none,794,22
+4710,2026-09-18,Fix explicit upgrade version queries in piped output,NONLANE,none,59,36
+4711,2026-09-18,Skip yanked releases in prerelease version checks,NONLANE,none,55,14
+4712,2026-09-18,Read session project slug from identity config,NONLANE,none,44,3
+4713,2026-09-18,Refresh session upgrade health by release channel,NONLANE,none,99,11
+4715,2026-09-18,"fix(completion): regenerate stale manifest + always-on freshness gate (#4479, #4374)",NONLANE,none,77,5
+4716,2026-09-18,"[#4215] zeitgeist activity --person/--project, watch --seed, and the folded #4335 MINORs",NONLANE,none,1610,116
+4717,2026-09-18,"fix: reconcile coord/lane actor-identity representation (#4665, #4670, #4673, #3029)",SD,coord,3805,30
+4728,2026-09-18,"fix(runtime): cross-OS primitive unification — one lock, safe-delete & OS-detection owner each (root of #4703) (#4714)",NONLANE,none,8066,2101
+4734,2026-09-19,CI: decide the fate of the out-of-matrix test directories (#4374),NONLANE,none,11528,4653
+4736,2026-09-19,"fix: consistent mission-handle resolution across CLI commands (#4631, #4682)",NONLANE,none,4296,94
+4741,2026-09-19,fix(doctor): exit 2 on a bare `spec-kitty doctor` instead of reading as a passing check,NONLANE,none,54,8
+4742,2026-09-19,fix(agent): default `tasks status --mission` to the sole active mission,NONLANE,none,194,8
+4743,2026-09-19,fix(charter): report `charter sync` as an explicit no-op instead of a failure,NONLANE,none,107,81
+4744,2026-09-19,fix(upgrade): point `upgrade --help` at the install-and-upgrade guide's real path,NONLANE,none,299,232
+4749,2026-09-19,chore(deps): bump transitive anyio 4.13.0 → 4.15.1 to clear CVE-2026-63374 + CVE-2026-64847 (#4747),NONLANE,none,39,15
+4750,2026-09-19,"feat(packs): add Drupal Dries, a Drupal-specialist agent profile (supersedes #4396)",NONLANE,none,9160,14
+4751,2026-09-19,fix: corrupt per-mission state files fail closed instead of crashing (#4642),NONLANE,none,2209,29
+4770,2026-09-19,chore(config): adopt canonical charter_packs key in .kittify/config.yaml,NONLANE,none,2,2
+4771,2026-09-20,"fix(cli): say slash commands run inside the coding agent, not the shell",NONLANE,none,30,16
+4772,2026-09-19,fix(routes): match the no-origin remedy to its diagnosis,NONLANE,none,33,3
+4774,2026-09-19,Canonical guarded-read + CLI error-presentation seam — close the uncaught-error-surface class (umbrella #2899),NONLANE,none,9034,225
+4784,2026-09-20,feat(charter): DIRECTIVE_052 — Prefer Durable Fixes (root-cause-first diagnostic directive),NONLANE,none,245,39
+4788,2026-09-20,fix(merge): guard destructive git ops in merge/abort lifecycle (#4752 #4753 #4754),CT,lane-branch,5601,23
+4789,2026-09-20,fix(terminus-safety): gate-then-mutate-with-rollback across merge/accept/close (#4764 #4765 #4474 #2745),CT,lane-branch,7433,221
+4790,2026-09-20,fix(charter): keep catalog.references coherent on activate + worktree-safe writes (#4785),HC,worktree,4216,660
+4795,2026-09-20,"docs: maintainer doctrine — P0 rubric, built-in/internal pack tier, CI-gate mechanics, memory-curation procedure",NONLANE,none,715,6
+4798,2026-09-20,fix(next): label query-mode preflight failure consumer=next (#4731),NONLANE,none,70,6
+4799,2026-09-20,"[#4761] auth status/whoami/doctor: surface unsafe-permissions storage refusal instead of ""Not authenticated""",NONLANE,none,477,22
+4800,2026-09-20,fix(doctor): repair legacy change_mode + honest mission-state reporting (#4778 #4780 #4779),NONLANE,none,2834,249
+4801,2026-09-20,[#4327] review_ref pointer-only; drop the note fallbacks and the #3954 interim wire bound,NONLANE,none,424,251
+4803,2026-09-20,[#3821] quiet-skip the pre-review gate in consumer repos that never declared it,NONLANE,none,285,36
+4805,2026-09-20,fix(cli): upgrade --yes is fully non-interactive and exits honestly (#4775),NONLANE,none,556,116
+4806,2026-09-20,"fix(tool-surface): honest repair projection — refresh every stale surface, converge in one run (#4782 #4776 #4777 #4134)",NONLANE,none,2189,22
+4813,2026-09-20,fix(canonical-state): converge & recover the mission-state wedge; derive implementer attribution (#4758 #4786),NONLANE,none,4619,254
+4814,2026-09-20,[#4549] Delete MomentRateGate + drop the consumer_identity process_only path (Child D),NONLANE,none,17,134
+4816,2026-09-20,fix(corpus): repair committed merge-conflict corruption in drupal-dries status.json,NONLANE,none,88,47
+4820,2026-09-21,fix(#3469): honest issue-matrix approval gate (not-applicable verdict + single-source classification) + move-task ergonomics,NONLANE,none,4067,101
+4821,2026-09-21,fix(mission-types): org-aware mission-type loader — org/override custom types resolve as themselves (#3831 #4088),NONLANE,none,3013,50
+4823,2026-09-21,"fix(local-write-safety): symlink-safe locks, atomic decision index, non-destructive init, 0600 credentials (#4756 #4757 #4759 #4811 #4812 #4760 #4721)",NONLANE,none,7511,859
+4826,2026-09-21,doctrine+docs: verify data-equivalence before convergence; full-mission-driving field report (refs #4821),NONLANE,none,216,7
+4829,2026-09-21,[#4825] drop IssueReference 3-of-5-field __eq__/__hash__ override,NONLANE,none,131,31
+4830,2026-09-21,fix(auth): route token refresh/revoke/rehydrate/ws to the session issuer; fence get_saas_base_url (#4755),NONLANE,none,4884,192
+4841,2026-09-21,"docs: correct stale ""dispatch routing excludes the project layer"" claim (#4840)",NONLANE,none,38,27
+4846,2026-09-21,[#4843] refresh stale pinning_rule_inventory.json line drift,NONLANE,none,2,2
+4850,2026-09-21,[#4842] CI: down-route proven prose-only .py diffs off the code test matrix,NONLANE,none,3591,28
+4852,2026-09-21,"fix(charter): canonical doctrine artifact slug convention (#4832, #4833; refs #4834)",NONLANE,none,2811,71
+4853,2026-09-21,fix(finalize): re-pin an orphaned planning_commit_sha after a mid-mission rebase (#4827),NONLANE,none,2941,114
+4869,2026-09-21,docs(release): finalize the 4.0.0rc4 changelog section for the cut (#4725),NONLANE,none,21,6
+4871,2026-09-21,chore(release): open the 4.0.0rc5 development cycle,NONLANE,none,9,3
+4875,2026-09-22,fix(merge): keep no-state abort non-destructive (#4863),CT,lane-branch,402,161
+4876,2026-09-22,fix: keep refused lifecycle migration retryable,NONLANE,none,188,47
+4877,2026-09-22,fix: preserve mission reopen completion proof until audit,NONLANE,none,161,36
+4879,2026-09-22,fix: unify advancing next dependency selection,NONLANE,none,83,13
+4881,2026-09-22,fix(#4858 #4868 #4884): verdict-matrix RMW preservation — locked re-read + atomic write; coord-aware issue migration,SD,coord,4025,108
+4886,2026-09-22,"fix(init,upgrade): prove ownership before deleting operator content in mutating flows (#4859 #4861 #4862)",NONLANE,none,7346,462
+4904,2026-09-22,[#4880] fix(merge-driver): fail closed on acceptance/issue-matrix field conflict,HT,lane-branch,2130,127
+4912,2026-09-22,[#4838] Include project profiles in Charter context without org packs,NONLANE,none,90,149
+4918,2026-09-22,"fix(#4910): intake overwrite gate keys on the brief, not the provenance sidecar",NONLANE,none,80,14
+4929,2026-09-22,fix(#4917): compose specializes_from lineage in the dispatch-capsule profile funnel,NONLANE,none,215,3
+4932,2026-09-23,fix(ci): absorb transient Actions-evidence races across the three reconcile jobs,NONLANE,none,9278,80
+4936,2026-09-23,fix(preservation): mutating flows must never silently destroy user content (epic #4915),NONLANE,none,5747,920
+4938,2026-09-23,"fix: harden three exit-0 silent-data-loss defects (#4908 charter recompile, #4897 mission-state repair, #4894 traces merge driver)",NONLANE,none,2883,144
+4942,2026-09-23,fix(merge): fail closed on target source conflicts,CG,lane-branch,2708,192
+4947,2026-09-23,fix: host-safe Windows upgrade — close follow_symlinks crash class + suppress phantom mode divergence (#4923 #4927),NONLANE,none,2018,25
+4948,2026-09-23,ci(nightly): split perf/e2e/stress into independent jobs and restore charter shard-timing weighting,NONLANE,none,16987,4155
+4950,2026-09-23,fix(doctor): guard coordination repair branch identity,NL:coord-doctor,coord,3043,38
+4952,2026-09-23,fix(ci): make the nightly interpreter-matrix leg actually run on 3.13 (#4866),NONLANE,none,10735,11
+4953,2026-09-23,fix(preservation): stop init/research/intake silently destroying operator-authored files (#4931 #4926 #4921),NONLANE,none,3109,165
+4976,2026-09-23,fix(#4901): non-vacuous overwrite ownership-routing census,NONLANE,none,621,0
+4987,2026-09-23,fix(ci): wait_for_artifacts crashes CI Aggregate on main (ModuleNotFoundError on direct invocation),NONLANE,none,46,5
+4992,2026-09-23,"perf(cli): bring the charter-epic golden path back under its 120s budget (#4213, #4211)",NONLANE,none,15495,139
+4994,2026-09-23,test(guards): non-vacuity hardening of six deferred arch/perf test-guards (#4036 #4105 #4210 #4388 #4408 #4536),NONLANE,none,1614,28
+4995,2026-09-27,fix(charter): make concurrent mission-template resolution thread-safe,NONLANE,none,14542,4362
+5006,2026-09-23,fix: preserve-by-default mission-state --fix + two adjacent silent-write hardenings (#4993),NONLANE,none,2814,261
+5008,2026-09-24,"fix: mission-state repair keeps a durable, operator-visible audit trail (#4928)",NONLANE,none,2339,37
+5012,2026-09-24,fix(merge): terminus/merge-coord integrity — reconciliation gate + CAS + fail-closed teardown (Epic #5001),CG,coord,11767,367
+5016,2026-09-25,fix(upgrade): idempotent upgrade no longer wedges in-flight coord missions via divergent worktree metadata (#4972),UF,coord,1657,46
+5017,2026-09-26,feat(analysis): preserve unrelated work in report-only analysis transactions,NONLANE,none,2081,159
+5019,2026-09-25,"fix: coord reads fail closed — an unmaterialised coordination worktree no longer clobbers or hides real mission files (#4959, #4966)",SD,coord,3622,196
+5020,2026-09-24,"fix(merge): terminus integrity follow-ups — default-squash content axis, resume strategy/SHA, surface-write (Epic #5001)",CG,lane-branch,4871,276
+5027,2026-09-25,"fix(runtime): advancing next consults the coord-aware task-board authority (#4980, #4975)",SD,coord,2256,20
+5029,2026-09-25,fix(accept): fail closed when lanes.json is absent (#4891),NL:lanes-manifest,lane-branch,1452,76
+5031,2026-09-26,fix(merge): recover a behind-own-HEAD primary on --resume + adjudicate the MERGE no-op (#4997),CT,lane-branch,1394,91
+5032,2026-09-25,fix(deps): adopt spec-kitty-events 10.4.0 to close the concurrent-rejection reducer bug (#4990),NONLANE,none,525,142
+5033,2026-09-25,"test(accept): de-quarantine 3 now-green accept-CLI tests (#171, follow-up #5030)",NONLANE,none,0,3
+5035,2026-09-26,"fix(implement): fail-closed on destroyed lanes + coord-branch WP-file hygiene (#4889, #4905)",HT,lane-branch,3938,43
+5039,2026-09-26,"fix: resolve target-branch tip via refs/heads (one canonical tip-capture authority) + reclaim tasks-lifecycle squad MINORs (#4857, #4593, #4152)",NONLANE,none,1489,73
+5040,2026-09-26,"fix(merge): terminus reconciliation attribution — squash deletions (#5022), mixed-lane exclusion (#5018), resume tolerance (#5021)",CG,lane-branch,3052,88
+5042,2026-09-26,CI Coverage Honesty: make a green main/nightly mean the tests actually ran (#5034),NONLANE,none,16815,14109
+5050,2026-09-26,"fix(preservation): migrate + charter-fetch must not silently destroy user-authored files (#4961, #4960, #4989)",NONLANE,none,2753,101
+5054,2026-09-26,test(merge): in-process coverage for #4997 behind-HEAD recovery (fix diff-cover red-main),CT,lane-branch,349,0
+5055,2026-09-26,fix(merge): driver-replay attribution for the squash projection proof (#5038),CG,lane-branch,1975,125
+5056,2026-09-26,docs: repoint #4990 residual-tracking references to #4941,NONLANE,none,13,9
+5057,2026-09-26,fix(tests): remove Windows-crashing POSIX-only hazards from contract/architecture gates,NONLANE,none,6,5
+5066,2026-09-26,ci: pin workflow runners to ubuntu-24.04 ahead of ubuntu-latest→26 migration,NONLANE,none,70,70
+5102,2026-09-26,docs(reports): tracer-file friction recon across 70 missions + issue-coverage and triage record,NONLANE,none,4750,0
+5121,2026-09-26,docs(reports): clear the docs-freshness red-main on the tracer-friction-recon report (#5120),NONLANE,none,463,0
+5123,2026-09-26,fix(runtime): concurrent startup no longer crashes on a fresh home — torn-read escalation to the serialization point (#3998),NONLANE,none,3554,87
+5124,2026-09-26,fix(merge): merge-resolution-aware squash attribution for clean disjoint-hunk product paths (#5051-adjacent),CG,lane-branch,1027,16
+5127,2026-09-26,fix(ci): restore CI Fleet Verdict identify by guarding fleet_verdict's repo-root import,NONLANE,none,863,1
+5133,2026-09-26,feat(doctrine): criterion delivery labels + acceptance-criteria-non-vacuity review tactic (#5061),NONLANE,none,9386,5138
+5136,2026-09-26,docs(skills): drop retired saas-sync floor from mission-review Gate 3,NONLANE,none,5096,4149
+5137,2026-09-27,fix(coord): probe the remote before flattening a coordination mission (#4979),CT,coord,3273,43
+5141,2026-09-26,"[#5135] meta.json read authority: account the bake site, route the 0.13.x migration reads, fail census scanners closed",NONLANE,none,345,145
+5161,2026-09-27,test(review): fix stale non-gating fixture in post-merge issue-matrix test,NONLANE,none,206,6
+5164,2026-09-27,"[#5104] Key architectural allowlists by content, not line; retire gates that checked nothing",NONLANE,none,22482,11095
+5165,2026-09-27,feat(doctrine): warn agents against bypassing canonical surfaces on an unmeasured size assumption,NONLANE,none,11866,11
+5166,2026-09-27,"fix(lanes,merge): one lane-naming authority keyed on creation input; materialize coord worktree before decision writes (#5108, #5113)",WL,worktree,15047,1592
+5167,2026-09-27,[#5138] One home for the load_meta census; fail every tests/ scanner closed (#5139); route tests/architectural changes to the battery (#5168),NONLANE,none,1067,849
+5170,2026-09-27,[#4962] Stop migrate charter-encoding & accept --normalize-encoding silently corrupting a legacy charter/spec with a wrong code page,NONLANE,none,6058,4309
+5173,2026-09-27,"[#5160] Tooling-friction remediation: fresh-env derived-state & partition fixes (#4873, #4955, #5113)",SD,coord,2228,31
+5174,2026-09-27,[#4971] Make hosted drain and ledger projection opt-in; stop shipping the Team Kitty endpoint,NONLANE,none,19171,1418
+5176,2026-09-27,doctrine(internal): no full runs of heavy test suites during mission work,NONLANE,none,138,8
+5177,2026-09-27,"fix(review): rejection feedback survives to the implementer's regenerated prompt (#4899, #5024)",NONLANE,none,4517,991
+5190,2026-09-27,docs(friction): record per-PR shard-timings recapture friction,NONLANE,none,13,2
+5191,2026-09-27,docs: engine-side alignment review against the Kitty Shared Architecture,NONLANE,none,226,1
+5192,2026-09-27,docs(adr): propose pack skills for sharing agent commands through charter packs,NONLANE,none,344,0
+5195,2026-09-27,test(contract): pin spec-kitty-events 10.4.0 envelope snapshot,NONLANE,none,160,0
+5216,2026-09-27,ci(nightly): run the out-of-matrix tests/specify_cli trees every night,NONLANE,none,141,14
+5217,2026-09-27,"fix(doctrine): real CLI commands, mission_specific iteration mode, Mission not feature (#5204, #5205, #5206)",NONLANE,none,712,365
+5222,2026-09-27,"fix(issue-matrix): read verdicts from the coordination partition; merge enforces terminal verdicts (#5171, #4943)",SD,coord,6709,361
+5223,2026-09-28,fix(doctrine): move in-house doctrine out of the built-in pack (#5203),NONLANE,none,1129,536
+5224,2026-09-27,[#3080] feat(consolidate)!: rename lane-consolidation `merge`→`consolidate`,NL:rename,lane-branch,5747,2795
+5226,2026-09-28,fix(architectural): guard against committed git conflict markers; repair archived 025 WP01 (#4957),NONLANE,none,8577,5
+5240,2026-09-27,ci(tests): make shard-timings count drift non-blocking per PR (#5189 interim),NONLANE,none,66,8
+5241,2026-09-27,docs(adr): amend and accept pack-trust ADRs 2026-08-13-2/-4/-6; tracker taxonomy additions,NONLANE,none,411,199
+5242,2026-09-27,fix(agent): keep review feedback and verdicts visible when the project sits inside another git checkout (#5180),NONLANE,none,1576,129
+5245,2026-09-27,"Merge-seam relocation, test-isolation sweep & model-slot verdict (#5119 #5118 #5117)",NL:refactor,lane-branch,16235,5508
+5247,2026-09-27,test(release): fix the two stale release-shard tests red on main,NONLANE,none,67,17
+5249,2026-09-28,"[#4974] Accept fails closed on a stale, pending or failing acceptance matrix",NONLANE,none,5276,454
+5252,2026-09-28,[#3189] Refuse symlink loops the same way on Python 3.11 to 3.14,NONLANE,none,3881,41
+5256,2026-09-28,[#5253] Make template-set provenance portable and fail closed,NONLANE,none,1332,102
+5259,2026-09-28,[#5255] Resolve WP prompts from canonical task placement,NONLANE,none,490,75
+5261,2026-09-28,test(orchestrator-api): pin the mission_dir key in the design-verb success payloads,NONLANE,none,3,0
+5262,2026-09-28,[#5146] Repoint stale references to the deleted resolution-authority gate test,NONLANE,none,34,19
+5263,2026-09-28,[#4951] Split the nightly Python 3.13 leg into six shards that really run on 3.13,NONLANE,none,11612,11796
+5266,2026-09-28,Ship the Op-vs-Mission choice as built-in doctrine (DIRECTIVE_053),NONLANE,none,303,6
+5271,2026-09-28,ci(shard-timings): charter count drift warns per PR; a scheduled job recaptures and keeps strict mode (#5189),NONLANE,none,21689,7259
+5272,2026-09-28,[#5254] Make the software-dev discovery step executable and scaffold research templates via the canonical resolver,NONLANE,none,2939,449
+5274,2026-09-28,feat: executive-debrief tooling + internal doctrine (WTF-happened one-pagers),NONLANE,none,1543,0
+5278,2026-09-28,[#5276] Gate nightly P0 escalation on main; retune consistency-check budget (#5049),NONLANE,none,331,45
+5285,2026-09-28,[#5111] consolidate: a failed gate no longer wedges the re-run; --dry-run fails closed; nightly integration green,CG,lane-branch,1989,145
+5290,2026-09-28,[#5258] Fix doctor --fix remote-only loop and DIRECTIVE_052 orphan; clear the specify_cli out-of-matrix nightly reds,NONLANE,none,3173,227
+5305,2026-09-28,[#4919 #4900 #4933 #4940 #4998 #4964] Six commands no longer exit 0 while losing or mis-recording your data,NONLANE,none,10581,519
+5306,2026-09-28,fix: allow untracked legacy event log during coord WP claim,SD,coord,290,3
+5308,2026-09-29,"docs(tracker): add domain:decisions, domain:acceptance, domain:contracts to the domain table",NONLANE,none,4,1
+5309,2026-09-29,fix(review): scope the move-task dirty-tree guard to the moving work package,NONLANE,none,7655,27
+5314,2026-09-28,test(doctor): refresh decisions --help golden for the #4919 reword (red-main fix),NONLANE,none,13,5
+5315,2026-09-28,test(consolidation): stub mission-number bake in merge fixtures for #4900 target-tree write (red-main fix),CG,lane-branch,57,7
+5316,2026-09-29,[#5196] Review rework needs no --force and is never recorded as an arbiter override,NONLANE,none,3919,168
+5324,2026-09-29,"[#5219] Give every squad, testing, docs, scope and supply-chain doctrine rule one owner",NONLANE,none,15038,3550
+5352,2026-09-29,fix(landing): red-main fixes for nightly 36517786727 (7 reds),NONLANE,none,65,14
+5355,2026-09-29,Reject weak pytest oracles at lint time and teach the test-desiderata doctrine to detect left,NONLANE,none,402,31
+5358,2026-09-29,Add a test-suite quality assessment procedure and static triage scanner to the internal pack,NONLANE,none,984,4
+5359,2026-09-29,[#5046] consolidate no longer ships a canceled WP's code from a mixed lane,CG,lane-branch,12547,340
+5360,2026-09-29,fix(charter): give the research task prompt the ownership contract and profile-load block,NONLANE,none,33,6
+5361,2026-09-29,[#5353] Make the guard and gate tests fail when the product breaks,NONLANE,none,1690,2877
+5366,2026-09-29,fix(finalize): make planning refresh atomic and fail closed (#5328),NONLANE,none,3033,129
+5368,2026-09-29,[#5270] --artifact keeps URLs intact instead of mangling https://,NONLANE,none,123,1
+5383,2026-09-29,[#5283] Tech-agnostic fallback: non-Python projects get an honest review and neutral charter context,NONLANE,none,7588,291
+5386,2026-09-29,[#5367] Un-red the nightly: drop inert supply-chain toolguide refs and give capped legs measured timeout headroom,NONLANE,none,1184,40
+5391,2026-09-29,"[#2991] One requirement-ID grammar: authored refs kept, every rejected ref explained (#3519, #2066)",NONLANE,none,20625,824
+5394,2026-09-29,"[#5378] ci(module-tests): per-PR charter shard headroom — 58m measured cap, 7 shards, recaptured timings",NONLANE,none,6300,5833
+5398,2026-09-30,[#5100] single_branch runs in the repository root checkout; deleted lanes no longer lose work,WC,single_branch,24338,1039
+5404,2026-09-29,"fix(internal-pack): test-quality-scan precision — fake-short-ulid, line-number-pin, provenance across renames (#5402)",NONLANE,none,194,19
+5405,2026-09-29,"[#5338] Consolidation claim, rollback and teardown integrity: refuse before mutating, restore every moved branch via one CAS authority",CT,lane-branch,7766,151
+5407,2026-09-29,test(consolidation): consolidation tests fail when their guards are removed; stale-finding grades shown again (#5353),CG,lane-branch,472,206
+5408,2026-09-30,[#5377] agent action implement resumes the implementer after an in_review → in_progress rejection,NONLANE,none,1258,15
+5416,2026-09-30,"test(charter): tests/charter test-quality pass (#5353 slice 2), plus two charter root and action-token fixes",NONLANE,none,2212,501
+5420,2026-09-30,docs(changelog): rewrite the 4.0.0rc5 Unreleased section for CLI users,NONLANE,none,566,533
+5421,2026-09-30,[#4965] mission run refuses to retype an existing mission of another type,NONLANE,none,183,9
+5422,2026-09-30,docs(landing): record #5189 charter shard-timings + archive-freeze landing gotchas,NONLANE,none,28,1
+5423,2026-09-30,"docs: re-anchor development, plans and architecture docs on the 4.x cycle",NONLANE,none,2419,1520
+5424,2026-09-30,"[#5387, #5388] Route setup-plan gate and retrospective FR coverage through the requirement-ID grammar",NONLANE,none,285,125
+5425,2026-09-30,[#5417] Create real lane branches in consolidation test fixtures,CG,lane-branch,54,1
+5427,2026-09-30,[#5353] Require fold-or-keep for issue-named tests; act on the 2026-09-30 test review,NONLANE,none,1793,2108
+5429,2026-09-30,[#5257] Keep scoped references through charter generation and report unresolved ones,NONLANE,none,14068,234
+5430,2026-09-30,"[#5353] tests/cli tests fail when the CLI breaks, not when their mocks change; retrospect auto-commit failures are no longer silent",NONLANE,none,1966,1291
+5433,2026-09-30,Dead-code review of src/ plus three gate fixes,NONLANE,none,2904,115
+5436,2026-09-30,docs: archive retired maintainer pages and drop 3.x-anchored names (#5428),NONLANE,none,10154,10629
+5438,2026-09-30,"[#5426] Docs lint: codespell and a changelog Unreleased style guard, blocking in CI",NONLANE,none,6984,100
+5444,2026-10-01,[#5385] Roll back every post-mutation consolidate exit through one authority; refuse protected targets up front,CT,lane-branch,4373,1245
+5445,2026-09-30,[#3449] Owned checkout is one validated fact: lifecycle commands read and write only there,WC,single_branch,48273,5677
+5454,2026-09-30,ci: run nightly and main-branch automation only on spec-kitty/spec-kitty,NONLANE,none,308,52
+5462,2026-09-30,Delete the decision-free dead code from the 2026-09-30 review,NONLANE,none,404,9519
+5463,2026-09-30,test(glossary): fix WP02 path-token-only red-main on evolved docs,NONLANE,none,9,2
+5469,2026-10-01,docs: guide per-file ruff format invocations to --force-exclude,NONLANE,none,13,2
+5477,2026-09-30,docs(plans): add the 4.x executive overview; fix branded-PDF contrast and margins (#5428),NONLANE,none,142,7
+5478,2026-10-01,[#3143] One per-test timeout authority in pytest.ini,NONLANE,none,184,18
+5485,2026-10-01,[#3931] Lane cleanup remedy is file-scoped from merge-base (no data loss),WL,worktree,514,7
+5486,2026-09-30,test(audit): exempt dated docs/reports snapshots from the agent-profiles guard (#5474),NONLANE,none,170,55
+5487,2026-10-01,"[#5390] Locked, repo-relative run index (fix copied/moved run cursor + concurrent index loss)",NONLANE,none,1735,78
+5489,2026-09-30,ci: bump setup-uv to v10.0.1 to clear the Node.js 20 deprecation,NONLANE,none,24,24
+5491,2026-09-30,test: exempt docs/archive/ from the main-branch-workflow terminology scan (#5488),NONLANE,none,14,1
+5492,2026-10-01,[#5409] Doctrine artifact-kind vocabulary from one authority (anti-patterns activatable),NONLANE,none,595,434
+5495,2026-10-01,"[#5353] Slice-3 follow-ups: retrospect commit routing and --proposal-id, plus four test-guard rewrites",NONLANE,none,2700,1244
+5503,2026-10-01,"[#5346] Unmask green-but-skipped tests, replace brittle pins with invariants, and key the dead-symbol allowlist by (module, name)",NONLANE,none,26110,7553
+5504,2026-10-01,"[#5392, #5400] Consolidate and git guards read paths as data through kernel.git",NL:refactor,lane-branch,11539,2054
+5509,2026-10-01,"test: fix three nightly reds (#5505, #5506, #5507)",NONLANE,none,12,10
+5521,2026-10-01,"ci(nightly): file nightly reds with type Bug, from:ci, milestone and #5106 parent (#5517)",NONLANE,none,616,24
+5522,2026-10-01,"test(cli): guard retrospect create against staged-index sweep and protected-main commits (#5479, #5442)",NONLANE,none,180,0
+5525,2026-10-01,[#5428] Take hosted collaboration off the 4.x critical path; propose the mission status read API,NONLANE,none,475,95
+5537,2026-10-01,[#5513] Commit router commits a coordination-dirty status log instead of reporting it unchanged,SD,coord,312,1
+5541,2026-10-01,[#5440] Keep a coordination mission's status log off the target branch,SD,coord,2066,253
+5545,2026-10-01,[#5530] Remove the bundled dashboard,NONLANE,none,1197,23894
+5547,2026-10-01,perf(charter): parse shipped doctrine once per change (#5526),NONLANE,none,14745,13474
+5551,2026-10-01,"[#2267] Report a documented review rejection once, as a review loop",NONLANE,none,1398,107
+5560,2026-10-01,"[#5510] Faster, honest CI: partitioned architectural battery, nightly backstop, no duplicate runs, skip-if-green",NONLANE,none,29221,1566
+5563,2026-10-02,Release 4.0.0rc5,NONLANE,none,3,5
+5564,2026-10-02,Post-rc5: open 4.0.0rc6 cycle + add release skip_nightly waiver,NONLANE,none,52,3
+5565,2026-10-02,Fix: publish-pypi skipped on a waiver-skipped nightly-gate,NONLANE,none,7,0
+5566,2026-10-03,feat(contracts): mission status contract foundation and workflow skeleton (1/6),NONLANE,none,20956,16
+5580,2026-10-03,[#5440] Keep a coordination mission's records in one place from create,SD,coord,55527,4188
+5581,2026-10-04,test(contracts): mission status contract reality check over every committed Mission (5/6),NONLANE,none,3630,12
+5582,2026-10-04,docs(contracts): mission status contract documentation and close-out record (6/6),NONLANE,none,3245,34
+5585,2026-10-03,[#5584] Nightly runs skipped integration tests and names the failures,NONLANE,none,1162,20
+5586,2026-10-03,[#5567] Split the orchestrator-api sentence that keeps the nightly terminology guard red,NONLANE,none,4,2
+5587,2026-10-03,[#5569] Changelog: note that four rc5 consolidate fixes do not fully hold,CG,lane-branch,8,0
+5588,2026-10-03,"[#5528] Amend the Mission Status Read API ADR: Java read service, CLI behind one read seam",NONLANE,none,63,1
+5589,2026-10-03,fix(ci): re-derive the pinning inventory after the coord single-home landing,SD,coord,15,0
+5590,2026-10-03,[#5535] type the scratch-gate transform with a TypedDict,NONLANE,none,22,2
+5591,2026-10-03,"feat(contracts): mission status contract content — project, overview, detail, work package (2/6)",NONLANE,none,4676,1
+5593,2026-10-03,"fix: upgrade, doctor and implement drift false alarms (#5574, #5575, #5576)",NONLANE,none,3111,60
+5594,2026-10-03,feat(contracts): mission status contract content and hygiene checks (3/6),NONLANE,none,10450,18
+5596,2026-10-03,"docs(install): get Windows Python from python.org, never the Microsoft Store",NONLANE,none,52,20
+5598,2026-10-03,fix(docs): restore a clean docs freshness gate after the coord single-home landing,SD,coord,267,236
+5599,2026-10-03,fix(implement): bound the planning-file object-id probe with a timeout (#5593 follow-up),NONLANE,none,82,1
+5600,2026-10-03,docs(architecture): define staged charter service strangler,NONLANE,none,1990,19
+5605,2026-10-03,fix(consolidation): close the four rc5 consolidate regressions (#5569 #5571 #5570 #5572),CG,coord,5987,229
+5606,2026-10-03,"feat(contracts): mission status contract lint, breaking-change and release tooling (4/6)",NONLANE,none,12491,106
+5615,2026-10-04,chore(workspace): untrack 14 legacy per-WP workspace records,NONLANE,none,0,168
+5616,2026-10-04,feat(migrate): backfill missing WP status events so snapshots match WP files (#5579),NONLANE,none,7072,132
+5617,2026-10-04,"test: repair the nightly shard-3, out-of-matrix and performance e2e reds",NONLANE,none,1905,36
+5633,2026-10-04,"fix(consolidate): harden consolidate against dropped content, lost status events and resume lag (#5613)",CG,coord,6841,2174
+5636,2026-10-04,docs(contracts): mission status contract documentation and close-out record (6/6),NONLANE,none,3379,48
+5639,2026-10-04,"[#5613] Nightly-only p0_repro lane for open-P0 reproductions, cloud-session-dispatch procedure, cloud session setup script",NONLANE,none,792,189
+5646,2026-10-04,[#5610] Green the stress and integration-slice nightlies; restore the vibe pointer recovery,NONLANE,none,1724,39
+5650,2026-10-04,[#2026] Decompose the consolidation executor along its phases; bake cluster to mission_number; ConsolidateOptions,NL:refactor,lane-branch,9317,6133
+5656,2026-10-04,[#5618] Regression-slice test cleanup (#5618–#5622),NONLANE,none,7457,4069
+5659,2026-10-04,[#5459] single_branch agent claim + status commits; repeated -m; gate-mechanics doc,WC,single_branch,2428,1493
+5661,2026-10-04,[#5665] Extract the move-task transition-gate family into its own module (first slice of #5629),NONLANE,none,1377,1244
+5662,2026-10-04,[#5641] finalize-tasks: a failed run leaves the status surface as it found it,SD,none,2064,157
+5664,2026-10-04,[#5628] Split orchestrator_api/commands.py into per-concern modules,NONLANE,none,4888,3999
+5678,2026-10-04,[#5552] Squash consolidate stops refusing plan outputs; accept honours a no-contracts waiver,CG,lane-branch,2690,67
+5679,2026-10-04,[#5627] Split mission_finalize.py into finalize-tasks phase modules,NONLANE,none,6678,4510
+5688,2026-10-04,"[#5559] Collect the test universe before the tests, and put every CI module on measured shard timings",NONLANE,none,36636,26855
+5690,2026-10-04,[#5317] Charter command tests pass from a linked worktree; a tripwire stops the leak recurring,HC,worktree,3412,293
+5693,2026-10-04,[#5654 #5186] Make the history-db denial and TestOrdering tests bite; drop dead _atomic_write,NONLANE,none,578,99
+5694,2026-10-05,[#5193] Pack skills: charter-activatable skill kind projected into project skill roots (slices 0+1),NONLANE,none,8670,325
+5695,2026-10-04,[#5629] Split move-task emission and recovery into seam modules; extend patch-liveness gate,NONLANE,none,3799,1908
+5696,2026-10-04,[#5550] single_branch: a mission writing to another branch no longer occupies the write checkout,WC,single_branch,1739,56
+5709,2026-10-05,[#4925] upgrade reports one outcome: a non-zero exit always says why and never prints a success line,NONLANE,none,5060,1039
+5717,2026-10-05,[#5457] Upgrade writes project-global state once; missions upgraded mid-flight land,UF,worktree,7626,91
+5718,2026-10-05,[#5573] Re-finalize never moves a started work package to another lane,NL:lane-alloc,lane-branch,8584,133
+5724,2026-10-05,[#5668] consolidate refuses lane commits made after approval,CG,lane-branch,9811,256
+5727,2026-10-05,"[#5634] Split core/mission_creation.py into a façade, effect leaves and pure decision cores",NONLANE,none,27643,2952
+5729,2026-10-05,[#5728] Re-pin two frozen doctor JSON key sets for the additive pack-skill keys,NONLANE,none,5,1
+5730,2026-10-05,chore(ci): automated shard-timings recapture,NONLANE,none,21561,21361
+5742,2026-10-05,[#5708] Reword the repeated -m help so the commit-recipe gate stops flagging it,NONLANE,none,5,4
+5743,2026-10-05,"docs(reporting): debriefs are handed over, never committed to a product repo",NONLANE,none,40,0
+5766,2026-10-05,"[#5761] Ship tool-surface drift, integrating worktree and target-owned bookkeeping in the built-in glossary",NONLANE,none,1182,2
+5768,2026-10-05,feat(contracts): Mission Status work-package detail and artifact reads (#5625),NONLANE,none,28177,91
+5771,2026-10-05,"[#5611] Nightly green: bare-slug consolidate, runner-relative performance tests, per-PR recipe gate",CG,lane-branch,13375,582
+5772,2026-10-05,[#5635] Decompose spec-kitty implement into ordered phases and seams; fix silent claim exit and --no-auto-commit chaining,NONLANE,none,18785,4921
+5773,2026-10-05,ci(setup-uv): pin every setup-uv to v10.0.1 (drop Node 20 deprecation),NONLANE,none,3,3
+5774,2026-10-05,fix(deps): bump pyjwt 2.13.0→2.15.1 and urllib3 2.7.0→2.8.0 (security),NONLANE,none,7,6
+5775,2026-10-05,fix(security): guard git probes against option injection (Sonar S6350 #76/#78/#79; S2083 #56),NONLANE,none,129,6
+5785,2026-10-05,[#5767] Org packs ship their own replaceable-builtins sanction; doctor doctrine honours it,NONLANE,none,6138,298
+5787,2026-10-05,test(perf): enlarge the two planted-work controls and split their bands (#5753),NONLANE,none,155,37
+5789,2026-10-05,test: restore stale consolidation fixtures + single_branch e2e precondition after the 2026-10-05 landing,CG,single_branch,41,5
+5790,2026-10-05,test: restore the NFR-001 canceled-content benchmark after the #5720 approval-bound landing,CG,lane-branch,35,14
+5792,2026-10-05,"[#5686] consolidate: anchor every rollback and --abort on the persisted record (#5686, #5666, #5788)",CT,lane-branch,7653,576
+5793,2026-10-05,test: fix lane_base_honoring mid8 case mismatch exposed by the #5651 bare-slug alias,NL:lane-naming,lane-branch,6,2
+5798,2026-10-06,"fix(next): dispatch the review of a for_review WP a planned WP depends on (#5669, #5310)",NONLANE,none,2231,3
+5799,2026-10-06,docs(reporting): add the long-form debrief layout to the executive-debrief doctrine,NONLANE,none,362,77
+5800,2026-10-06,chore(ci): automated shard-timings recapture,NONLANE,none,13094,12205
+5802,2026-10-06,feat(packs): share the maintainer commands as kitty-* pack skills in the internal pack,NONLANE,none,1753,570
+5803,2026-10-06,test(glossary): runner-relative within-run ratio replaces the flaky absolute 10-iteration perf budget (#5419),NONLANE,none,69,16
+5805,2026-10-06,docs(development): how to set up a Claude Code cloud session,NONLANE,none,185,0
+5806,2026-10-06,docs(plans): re-synthesize the 4.0.0 roadmap against the GA milestone,NONLANE,none,397,377
+5808,2026-10-06,"[#4275, #5801] Upgrade works without .claude/, restores its stamp on failure; doctor reports and installs missing pack skills",NONLANE,none,3168,161
+5809,2026-10-06,[#5715] Drain the last cli.console import from the lanes seam,NL:refactor,lane-branch,95,74
+5810,2026-10-06,[#5638] Rollback resyncs the kept coordination checkout to its tip,CT,coord,289,41
+5813,2026-10-06,"[#5704] Protected single_branch create: a mint refusal leaves no scaffold, and a re-run refuses MISSION_ALREADY_EXISTS",WC,single_branch,432,134
+5816,2026-10-06,chore(charter): declare Java and activate the Java Jenny doctrine set,NONLANE,none,103,125
+5821,2026-10-06,"[#5829] Retire the Team Kitty surfaces: hide hosted CLI entries unless drain is on, retire spk-team-* skills",NONLANE,none,596,1787
+5822,2026-10-06,[#2561] Retire the runtime_bridge compat-delegate layer,NONLANE,none,4896,1619
+5827,2026-10-06,"[#5538, #4836] Derive the last kind-vocabulary mirrors; move operator surfaces off the deprecated doctrine tier",NONLANE,none,1394,337
+5832,2026-10-06,[#5831] Define Governed AI Delivery in the glossary,NONLANE,none,36,11
+5834,2026-10-06,[#2560] Split the runtime_bridge read path and decision mapping into their own seams,NONLANE,none,6007,2813
+5837,2026-10-07,[#5460] meta.json merge driver honours the merge base so a teammate's git pull keeps a mission discard,HT,lane-branch,2313,58
+5840,2026-10-06,ci(router): give the corpus-blocking job a 20-minute budget (#5838),NONLANE,none,6,1
+5844,2026-10-07,[#2562] Composition-backed advances record the same RACI and audit-significance evidence as the engine,NONLANE,none,3748,960
+5845,2026-10-07,"[#5780] Second clones check origin before consolidate, accept and review trust local evidence",NL:origin-freshness,lane-branch,10938,329
+5848,2026-10-07,[#5835] In-flight Missions no longer fail the cutover guard before accept,NONLANE,none,2359,58
+5849,2026-10-07,[#5189] chore(ci): automated shard-timings recapture,NONLANE,none,17549,16704
+5851,2026-10-07,[#5846] Complete governed mission planning through orchestrator-api,NONLANE,none,4904,175
+5852,2026-10-07,[#5835] Record the cutover-guard Mission's tracer notes on the canonical traces surface,NONLANE,none,59,0
+5856,2026-10-07,"fix(upgrade): upgrade never rewrites Mission history; residue dirs are not Missions (#5811, #5812)",NONLANE,none,3940,953
+5870,2026-10-07,fix(migration): backfill-runtime-state re-materializes status.json; repair drifted snapshot (#5862),NONLANE,none,72,5
+5873,2026-10-07,"[#5443] spec-kitty upgrade commits only what it wrote, honours hooks, and commits nothing after a failure",NONLANE,none,1764,283
+5876,2026-10-07,[#5446] A WP leaves review or approval only through a recorded verdict or an operator force with a note,NONLANE,none,4120,198
+5881,2026-10-08,"feat(contract): Mission Status project health, drift findings and Ops invocation reads (#5776)",NONLANE,none,30673,116
+5890,2026-10-08,[#5819] Concurrent writers to a Mission's files never lose or steal a write,NONLANE,none,8166,372
+5895,2026-10-08,[#5894] Retry a sibling worktree entry caught mid-add instead of refusing it,WL,worktree,146,7
+5896,2026-10-08,"[#5443] Automatic commits record only what they wrote: claim, metadata, bake, safe-commit paths, merge conclusions and a commit-scope gate",NL:commit-scope,lane-branch,11719,662
+5897,2026-10-08,chore(ci): automated shard-timings recapture,NONLANE,none,14114,13800
+5898,2026-10-08,[#5299] Qualify fleet script paths in contributor docs,NONLANE,none,16,4
+5899,2026-10-08,[#5864] CI router: audit Mission state on every kitty-specs/ change,NONLANE,none,185,0
+5900,2026-10-08,[#3072] Align mission tracer entry guidance with retro parser,NONLANE,none,43,15
+5901,2026-10-08,[#3433] Detect work-package prompt and event-log drift in status doctor,NONLANE,none,142,2
+5907,2026-10-13,[#3546] Validate native research planning requirements,NONLANE,none,492,124
+5908,2026-10-08,[#3909] Return actionable prompts for composed runtime steps,NONLANE,none,168,215
+5910,2026-10-08,[#5906] Remove leftover changelog conflict markers and fail the guard on them,NONLANE,none,94,3
+5911,2026-10-08,[#3958] Configure this repo pre-review test command,NONLANE,none,19,15
+5912,2026-10-08,[#5888] Nightly is green again for the test seams that drifted with origin freshness,NONLANE,none,759,32
+5913,2026-10-08,[#5096] Fail loudly on foreign lane imports and remove fixed venv assumptions,HC,worktree,93,34
+5914,2026-10-08,[#3272] Fold coord status events before mission flatten,SD,coord,152,10
+5915,2026-10-08,[#3688] Preserve consolidation review baseline on resume,CT,lane-branch,48,0
+5916,2026-10-08,[#2570] Refuse unrelated status log edits during lane allocation,SD,lane-branch,18,9
+5919,2026-10-08,[#5918] Run the corpus wall-clock bounds nightly only,NONLANE,none,50,10
+5920,2026-10-08,Release 4.0.0rc6,NONLANE,none,4,4
+5921,2026-10-08,chore(release): open 4.0.0rc7 development cycle,NONLANE,none,18,5
+5922,2026-10-08,[#5079] Suppress concern coverage warnings without plan ICs,NONLANE,none,24,16
+5926,2026-10-08,[#5925] Keep the decision runtime lock out of owned `next` commits,NONLANE,none,880,161
+5940,2026-10-09,[#5854] Serialise concurrent next advance on one run (also closes #5682),NONLANE,none,3460,103
+5943,2026-10-09,[#5872] Make test_non_interactive_via_helper_level hermetic against the interactivity escape hatches,NONLANE,none,9,0
+5945,2026-10-13,Allow staged tasks outlines to advance before tasks.md finalization,NONLANE,none,141,88
+5946,2026-10-09,fix(coordination): refuse a coordination worktree checked out on the wrong branch (#2908),WC,coord,219,50
+5949,2026-10-09,fix(charter): stop manifest version churn on unchanged synthesis,NONLANE,none,84,9
+5950,2026-10-13,[#3930] Surface decision log commit refusal in next JSON,NONLANE,none,114,11
+5951,2026-10-13,fix: share coordination and identity meta keys with audit registry (#3461),NL:coord-meta,coord,141,59
+5952,2026-10-09,docs(how-to): clone-safe way to run cloud Step 2 from the env setup script,NONLANE,none,27,12
+5953,2026-10-13,Scope mark-status by WP and support skipped subtasks,NONLANE,none,455,82
+5954,2026-10-12,[#3788] Clarify shared skill delivery in init and pin upgrade parity,NONLANE,none,30,12
+5955,2026-10-09,chore(ci): automated shard-timings recapture,NONLANE,none,22180,21652
+5957,2026-10-13,[#3215] Bind Shadow Clone activation to the current worktree,HC,worktree,358,38
+5958,2026-10-09,fix(review): run the lane pre-review gate in the lane's own environment (#2803),HC,worktree,93,16
+5962,2026-10-09,[#3732] Charter pack cutover: rename the doctrine pack vocabulary to charter (no compat layer),NONLANE,none,63624,18886
+5963,2026-10-09,[#5883] Every Mission-file writer takes the lock; the runtime never cuts a log it cannot prove is its own,NONLANE,none,16457,2858
+5979,2026-10-09,chore(upgrade): record the charter pack cutover on this repository,NONLANE,none,95,6
+5980,2026-10-09,[#5833] Validate authored canonical org-fragment endpoints,NONLANE,none,1190,132
+5984,2026-10-10,[#5928] Re-pin coord review receipt to honest [ok] (green the reds),SD,coord,794,5
+5986,2026-10-10,[#2334] Retire the markdown WP Activity Log in favour of the status event log,NONLANE,none,836,366
+5996,2026-10-10,"[#5824] Charter kind/tier vocabulary closeout: single-authority gates, retire ArtifactKind.core, pack-tier authority",NONLANE,none,3243,425
+5997,2026-10-10,[#3129] ADR: a scoped workspace handle layers onto the coordination/primary partition (Option B),NL:design-adr,coord,177,0
+5998,2026-10-10,chore(ci): automated shard-timings recapture,NONLANE,none,18441,17870
+6000,2026-10-10,fix: restore nightly suites to green after the next coord + charter reworks (#5987–#5991),SD,coord,2596,59
+6002,2026-10-10,fix: thread the validated OwnedCheckout through owned single-branch lifecycle commands (#5874),WC,single_branch,4213,358
+6004,2026-10-10,fix(charter): positional charter activate works with typer's vendored click,NONLANE,none,554,308
+6005,2026-10-10,fix(charter): resolve --include and activate across the full org-pack chain (#5779),NONLANE,none,226,39
+6008,2026-10-10,[#5739] Remove dead _INSCOPE_FILES mirror in test_feature_alias_scope.py,NONLANE,none,3,30
+6011,2026-10-10,[#6009] Prune dead charter.parser + charter.activation.template_resolver (Cat-7 burn-down),NONLANE,none,49,1024
+6013,2026-10-10,fix(charter): one org-pack chain authority — every surface reads the same ordered pack chain (#6006),NONLANE,none,3732,365
+6014,2026-10-10,docs(runtime): drop dangling CharterTemplateResolver mention left by #6011,NONLANE,none,2,2
+6016,2026-10-10,fix(charter): carry the #6013 post-merge landing folds (#6015),NONLANE,none,49,10
+6017,2026-10-10,"fix(charter): wire orphaned directives, activate deep-module-design, track project artifacts",NONLANE,none,2071,11
+6020,2026-10-11,"fix(consolidate): destructive ops never delete the only copy (#5965, #5966)",CT,worktree,9563,1320
+6021,2026-10-11,feat(charter): tree-wide org-pack chain authority + decision-surface fail-closed (#6012),NONLANE,none,1725,72
+6022,2026-10-11,"test: fix two stale tests on main exposed by #6020 (runtime org-root spy, charter cascade ratchet)",NONLANE,none,28,28
+6031,2026-10-11,chore(ci): automated shard-timings recapture,NONLANE,none,21772,21646
+6033,2026-10-11,"[#5977] Neutralize generic ""feature"" wording in software-dev plan/specify step prompts",NONLANE,none,32,28
+6034,2026-10-11,[#5976] Rename host error code FEATURE_CONTEXT_UNRESOLVED → MISSION_CONTEXT_UNRESOLVED,NONLANE,none,375,107
+6035,2026-10-11,test(coverage): cover the _gitlink_dangles edge branches,NONLANE,none,42,0
+6037,2026-10-11,[#6030] Green the P0 nightly shards (#6024–#6030): re-pin three stale/thread-unsafe tests,NONLANE,none,128,29
+6038,2026-10-11,[#5968] Merge/consolidate content integrity: no unapproved content lands; review survives interruption & multi-clone,CG,lane-branch,802,13
+6039,2026-10-11,fix(deps): adopt spec-kitty-events 10.4.2 — status-diary reducer fixed end-to-end (#5967),NONLANE,none,168,15
+6040,2026-10-11,"[#6036] Fix merge-target test drift: drop orphaned resume_recovery.run_command patch target, un-quarantine",CG,lane-branch,9,20
+6043,2026-10-11,[#6042] Add a CoordState.EMPTY coord-worktree row to the implement placement suite,SD,coord,39,0
+6044,2026-10-11,test(charter): drop atime from the pack-manager refusal unchanged-check,NONLANE,none,12,1
+6045,2026-10-11,docs(adr): amend open-packs re-vendor ADR with #3504 grounding decisions,NONLANE,none,62,0
+6047,2026-10-11,"fix(merge): post-merge done-check orders target lanes by (at, event_id), not physical line order (#5354)",SD,lane-branch,75,4
+6049,2026-10-11,docs(adr): a Charter Pack declares its level in pack.yaml,NONLANE,none,140,0
+6052,2026-10-11,test(migration): align backfill tests with events 10.4.2 reducer reality (greens latent main regression),NONLANE,none,38,78
+6054,2026-10-11,[#6053] ADR: acceptance testing and BDD support,NONLANE,none,90,0
+6056,2026-10-11,[#5924] Report corrupt or unreadable status history in doctor,NONLANE,none,3893,60
+6057,2026-10-11,[#6055] Codify the semi-auto delivery standing orders and kitty-semi-auto skill (internal pack),NONLANE,none,351,4
+6060,2026-10-12,"feat(charter): declare pack_level in pack.yaml + core vendoring tooling (#6048, #6046)",NONLANE,none,5529,279
+6063,2026-10-11,"[#6058 #6066] Unblock Mission PRs: tolerate runtime-slot snapshot drift, fix the lanes self-heal test seed",NL:lane-alloc,lane-branch,141,20
+6064,2026-10-11,[#5964] Governed ops never destroy or mis-report user content (#5964 #5434 #4796),NONLANE,none,2542,314
+6067,2026-10-12,"feat: nightly acceptance scenarios for the CLI on Linux, macOS and Windows (#6053)",NONLANE,none,5609,44
+6068,2026-10-12,[#6062] implement returns promptly; baseline capture no longer takes the pre-review-gate lock,NONLANE,none,637,64
+6070,2026-10-12,fix(retrospective): record a repository-relative record_path (#5868),NONLANE,none,1090,13
+6075,2026-10-12,test(nightly): refresh two fixtures stale after the #6048 pack.yaml fold,NONLANE,none,4,2
+6077,2026-10-12,fix(gitignore): track the project Charter Pack's pack.yaml,NONLANE,none,45,7
+6078,2026-10-12,test(nightly): seed legal lane chains so 4 integration fixtures survive the reducer's contiguity rule (#6071),NONLANE,none,148,61
+6079,2026-10-12,chore(ci): automated shard-timings recapture,NONLANE,none,22118,21784
+6080,2026-10-12,test(nightly): xfail the bare-approval verdict pin broken by spec-kitty-events 10.4.2 (#6084),NONLANE,none,18,0
+6081,2026-10-12,test(nightly): refresh 4 consolidation-cluster fixtures stale after guard/reducer rework (#6071),CG,lane-branch,58,9
+6085,2026-10-12,"fix(mission): let mission close --discard delete the Mission's own branch, showing and keeping what it deletes (#6071)",NONLANE,none,345,40
+6086,2026-10-12,fix(landing): import timedelta through kernel.clock in test_two_partition_preview,NONLANE,none,1,1
+6087,2026-10-12,[#6058] The mission-state audit always reports its blockers and runs whenever its verdict can change,NONLANE,none,1217,58
+6088,2026-10-12,fix(deps): adopt spec-kitty-events 10.4.4 so a backfilled rejection is not overridden (#6084),NONLANE,none,16,30
+6089,2026-10-12,docs(testing): explain how to view the Allure report locally,NONLANE,none,31,1
+6091,2026-10-12,fix(acceptance-jvm): clear the read-only flag before deleting on Windows,NONLANE,none,5,0
+6092,2026-10-12,[#6058] Claim-slot drift is a blocking SNAPSHOT_DRIFT again now that spec-kitty-events 10.4.4 keeps attribution,NONLANE,none,236,45
+6094,2026-10-12,test(contract): pin spec-kitty-events 10.4.4 envelope snapshot,NONLANE,none,160,0
+6102,2026-10-13,refactor(acceptance-jvm): split ScenarioWorld into four collaborators (#6097),NONLANE,none,462,304
+6103,2026-10-12,[#6096] Anchor Gate D's dead-path docs regex so a nested src/ tail is not over-matched,NONLANE,none,1160,8
+6104,2026-10-12,[#6095] Remove the dead #2985 compatibility-repair machinery,NONLANE,none,1064,430
+6105,2026-10-13,[#5903] Guard safe_commit against pre-commit-hook-staged paths,NONLANE,none,1636,8
+6106,2026-10-13,[#6090] Derive the mission-state audit's CI trigger list from the modules it executes,NONLANE,none,1470,27
+6107,2026-10-12,[#6071] Fix consolidation / done-bookkeeping regressions red under events 10.4.4,CG,lane-branch,851,114
+6108,2026-10-13,[governance] Realign 4.x governance to the October direction,NONLANE,none,1005,179
+6109,2026-10-13,[#5828] Remove the charter sync no-op compatibility command,NONLANE,none,863,676
+6110,2026-10-13,fix(upgrade): track charter-pack pack.yaml across the cutover (#6076),NONLANE,none,532,0
+6113,2026-10-13,[#702] Regenerate drifted DERIVED Codex command-skill projections on upgrade/sync/init,NONLANE,none,984,68
+6114,2026-10-13,[#5882] Owned research placement: thread the owned checkout through research (+ top-level plan forwarding),NONLANE,none,1508,18
+6115,2026-10-13,[#5879] Enforce the API-authored stale-content refusal on native completion,NONLANE,none,1435,77
+6118,2026-10-13,[#5843] Skip unsupported native-config entries in plugin bundles,NONLANE,none,31,1
+6119,2026-10-13,fix: reject invalid custom mission dependencies before run start,NONLANE,none,142,8
+6120,2026-10-13,[#5410] Materialize coordination worktree during implement recovery,WL,coord,31,8
+6121,2026-10-13,Validate tasks-outline requirements from wps.yaml,NONLANE,none,89,0
+6122,2026-10-13,[#5672] Preserve indented rules in WP frontmatter block scalars,NONLANE,none,35,2
+6123,2026-10-13,docs(changelog): rewrite the 4.0.0rc7 section for consumers,NONLANE,none,76,114
+6124,2026-10-13,[#5439] Preserve consolidation cleanup choices across resume,WL,worktree,119,1
+6126,2026-10-13,fix: refuse charter pack fetch when configured URL changes,NONLANE,none,35,2
+6127,2026-10-13,[#3214] Infer valid ownership surfaces for mixed paths and literal files,NONLANE,none,31,23
+6129,2026-10-13,[#6128] Bake code-grounding + discovery squads into semi-auto/cloud-dispatch doctrine,NONLANE,none,40,6
+6130,2026-10-13,chore(ci): automated shard-timings recapture,NONLANE,none,12658,12509
+6131,2026-10-13,[#6125] CI router selects charter + dossier for mission-manifest edits,NONLANE,none,1605,6
+6132,2026-10-13,[#6133] docs(architecture): the acceptance scenario contract and ADR 2026-10-13-1,NONLANE,none,331,0
+6139,2026-10-13,[#6138] Restore the charter-pack cutover contract in the rc7 changelog,NONLANE,none,11,8
+6141,2026-10-13,docs(agents): say '4.x cycle' in the orientation block instead of a pinned version,NONLANE,none,1,1
+6144,2026-10-13,fix(landing): index the acceptance scenario contract docs and allowlist its module-relative src path,NONLANE,none,26,0
+6145,2026-10-13,"[#5529] add the Gradle scaffold, supply chain, CI workflow and Mission record (1/5)",NONLANE,none,25776,14
+6146,2026-10-14,"[#5529] add the framework-free domain, projection, application layer and ArchUnit rules (2/5)",NONLANE,none,13224,5
+6147,2026-10-14,"[#5529] add the Python oracle goldens, filesystem adapter and golden suite (3/5)",NONLANE,none,11600,151
+6148,2026-10-14,"[#5529] add the HTTP adapter, SSE change stream and Host/Origin guard (4/5)",NONLANE,none,7985,126
+6149,2026-10-14,"[#5529] add native smoke replay, performance gates, nightly compare, release job and docs (5/5)",NONLANE,none,7181,119
+6151,2026-10-13,fix(migration): verdict backfill refreshes an existing status.json after appending (#5869),NONLANE,none,404,40
+6154,2026-10-13,fix(landing): align the dossier completeness test with the tasks_outline manifest gate,NONLANE,none,4,2
+6157,2026-10-13,fix(landing): mark the research prompt's owned-checkout example as owned-only,NONLANE,none,1,0
+6158,2026-10-13,[#6142] Declaration-first repo_root/branch resolution entry (Increment 1),NONLANE,none,2531,4
+6160,2026-10-13,"[#6155] Command-skill regeneration follow-ups: name regenerated paths, runtime state-contract gate, prune retired drift",NONLANE,none,2109,42
+6162,2026-10-13,fix(landing): let the plan delegation test's fake accept owned_checkout,NONLANE,none,3,1
+6163,2026-10-13,[#6133] Acceptance scenarios: per-PR contract check and versioned nightly evidence,NONLANE,none,4805,62
+6165,2026-10-13,Set repo-wide CODEOWNERS with hosted-integration ownership,NONLANE,none,29,0
+6167,2026-10-13,"chore(landing): close out the codex-skills-drift Mission status (WP01 done, #702 fixed)",NONLANE,none,76,10
+6168,2026-10-13,fix(toml): refuse rewriting a present-but-unparseable config instead of wiping it (#5451),NONLANE,none,133,22
+6169,2026-10-13,test(archive-freeze): stop S5779 swallowing suffix-row asserts (refs #4697),NONLANE,none,8,5
+6174,2026-10-13,[#6172] CI routing: fan mission pack content and lifecycle.py out to their consumer test modules,NONLANE,none,201,1
+6177,2026-10-13,"docs(adr): the event ledger is the publication seam, default-on, with local retention",NONLANE,none,261,0
+6179,2026-10-13,fix(landing): regenerate the docs index row for ADR 2026-10-13-1,NONLANE,none,1,1
+6181,2026-10-13,docs(landing): name the two sync-named env vars that still gate the moment path,NONLANE,none,1,1
+6184,2026-10-13,[#6183] Gate docs retrieval-index freshness on docs-only changes,NONLANE,none,71,0
+6187,2026-10-13,"[#6186] AGENTS.md: point charter-extraction direction at epic #6099, not closed #645",NONLANE,none,2,2
+6190,2026-10-14,ci(routing): derived consumer census gates unrouted CI fan-out (#6173),NONLANE,none,3741,27
+6200,2026-10-13,[#6188] Split charter module entry-point seams (offering + activation),NONLANE,none,1425,27
+6202,2026-10-13,fix(landing): regenerate the docs index row for ADR 2026-09-29-1,NONLANE,none,1,1
+6204,2026-10-14,ci(router): run install and tests as separate steps in three shards (#6191),NONLANE,none,1632,6
+6205,2026-10-14,fix(status): adopt spec-kitty-events 10.4.6 — migrated WPs no longer read in progress from a verdict seed (#6061),NONLANE,none,370,32
+6206,2026-10-14,"refactor(core)!: remove the frozen hosted, sync and drain surfaces from open-core (#6164)",NONLANE,none,4702,110946
+6217,2026-10-14,docs(adr): event-native core with one canonical event writer (ADR 2026-10-14-1),NONLANE,none,238,3
+6227,2026-10-14,fix(landing): restore the native test floor to the three native tests,NONLANE,none,3,3
+6231,2026-10-14,"[#6213] AGENTS.md: the status path and the consolidation gate reduce by wall clock, not Lamport",NONLANE,none,2,2
+6237,2026-10-14,"fix(tasks): recognize issue refs ending in : ! ? or wrapped in markdown, and wrapped same-repo URLs (#6069, #6239)",NONLANE,none,208,8
+6245,2026-10-14,[#6240 #6238] Restore green main: re-pin two stale test premises and route uv.lock to the upgrade shards,NONLANE,none,1430,11
+6246,2026-10-15,[#6209] Re-pin three stale integration-suite tests (mission-state / upgrade / drive),NONLANE,none,57,16
+6248,2026-10-15,[#6235] Decide agent-profile drift in line-ending-normalized terms (Windows autocrlf),NONLANE,none,192,9
+6249,2026-10-15,[#6222] orchestrator-api answer-decision warnings parity + re-pin stale runtime-bridge tasks-guard tests,NONLANE,none,150,28
+6250,2026-10-15,[#6242] Re-pin charter-pack-cutover gitignore tests and isolate the init console seam (#6224),NONLANE,none,125,3
+6251,2026-10-15,[#6221] CI routing: fan out cli/commands to their test-owning modules + mission-state audit determinism,NONLANE,none,360,19
+6252,2026-10-15,[#6247] Preserve user-authored custom commands during spec-kitty upgrade,NONLANE,none,314,29
+6253,2026-10-15,chore(ci): automated shard-timings recapture,NONLANE,none,20189,21658
+6254,2026-10-15,[#5932] red-first p0_repro: consolidate ships rejected-then-canceled dependency content,CG,lane-branch,284,0
+6255,2026-10-15,[#5814] red-first p0_repro: orchestrator-api consolidate-mission lands fully-canceled lane content,CG,lane-branch,65,0
+6256,2026-10-15,[#5939] red-first p0_repro: single_branch consolidate lands auto-walked unimplemented WPs,CG,single_branch,184,0
+6258,2026-10-15,[#6023] red-first p0_repro: owned acceptance-verdict fails MISSION_NOT_FOUND,NONLANE,none,104,0
+6259,2026-10-15,[#6228] red-first p0_repro: Windows atomic_write read-only overwrite (+ Windows p0-repro lane wiring),NONLANE,none,190,1
+6261,2026-10-15,[#4941] honour a rejection recorded after a clock-ahead approval,NONLANE,none,790,51
+6263,2026-10-15,"[#6262] Shared Package Boundary: events/tracker are consumed from PyPI, not git-rev pins",NONLANE,none,1,1
+6266,2026-10-16,QA shared ownership of acceptance scenarios; absorb integration/e2e coverage through a checked ledger (#6101),NONLANE,none,4362,3650
+6269,2026-10-15,"fix(status): migration seeds never outrank the real implementer (#6093, #6257)",NONLANE,none,424,27
+6272,2026-10-15,Release 4.0.0rc7,NONLANE,none,7,4
+6274,2026-10-16,fix(migration): doctor mission-state --fix holds the Mission lock across read-to-replace (#5974),NONLANE,none,1108,198
+6275,2026-10-15,chore(release): open 4.0.0rc8 development cycle,NONLANE,none,7,7
+6279,2026-10-16,fix(finalize): keep WP-file dependencies that wps.yaml leaves out (#5448),NONLANE,none,321,8
+6280,2026-10-16,"fix(policy): fail-closed, case-tolerant policy modes (#5754)",NONLANE,none,218,15
+6281,2026-10-16,fix(migrate): never overwrite an existing .kittify/overrides/ file (#5450),NONLANE,none,672,15
+6282,2026-10-16,fix(migration): LEGACY_CHARTER_STATE refusal honors --json (#6232),NONLANE,none,281,10
+6283,2026-10-16,fix(invocation): refuse unstorable evidence before the Op closes (#5397),NONLANE,none,353,14
+6284,2026-10-16,chore(ci): automated shard-timings recapture,NONLANE,none,9977,9466
+6290,2026-10-16,[#6099] ADR + roadmap: charter offering extracts first as the GA leg; activation rework post-GA,NONLANE,none,217,21
+6291,2026-10-16,fix(test): FR-017 changelog gate reads the cutover release section (#6289),NONLANE,none,40,5
+6292,2026-10-16,fix(lanes): single_branch claim accepts next's own bookkeeping (#5930),WC,single_branch,320,4
+6294,2026-10-16,"fix(decisions): finish an interrupted decision resolve, defer or cancel on retry (#5681)",NONLANE,none,1135,152
+6296,2026-10-16,fix(skills): bound migration-backup path under Windows MAX_PATH (#6295),NONLANE,none,196,1
+6297,2026-10-16,test(scenarios): black-box acceptance scenarios for spec-kitty upgrade,NONLANE,none,69,0
+6301,2026-10-16,fix(skills): bound migration-backup path under Windows MAX_PATH (#6295),NONLANE,none,163,197
+6303,2026-10-16,fix(move-task): refuse an unforced exit from done before anything is recorded (#5447),NONLANE,none,487,13
+6304,2026-10-16,fix(atomic): overwrite read-only destinations under atomic_write (#6228),NONLANE,none,227,190
+6305,2026-10-16,fix(consolidation): land approved work whose canceled dependency never started (#5937),CG,lane-branch,661,56
+6307,2026-10-16,test(scenarios): gate the two upgrade convergence scenarios (untag @defect:6228),NONLANE,none,12,7
+6308,2026-10-16,fix(orchestrator-api): skip a fully-canceled lane in consolidate-mission (#5814),CG,lane-branch,55,30
+6310,2026-10-17,fix(consolidation): content-level supersession of canceled dependency content (#5932),CG,lane-branch,295,59
+6314,2026-10-17,[#6286] Charter-offering scenario-extraction procedure + feature/scenario styleguide (internal pack),NONLANE,none,317,0
+6317,2026-10-17,fix(custom-mission): activated custom types resolve their lifecycle + get the analysis gate (#4983 slice 1),NONLANE,none,1187,7
+6318,2026-10-17,chore(ci): automated shard-timings recapture,NONLANE,none,21144,21008
+6319,2026-10-17,fix: one meaning for an unclassified mission artifact kind (#5697),NONLANE,none,2441,65
+6322,2026-10-17,[#6023] owned-checkout acceptance: record verdicts and recognize the minted mission branch,WC,single_branch,232,41
+6324,2026-10-17,fix(consolidate): fail-closed single_branch backstop for autowalked unimplemented WPs (#5939),CG,single_branch,917,189
+6326,2026-10-17,fix(charter): governed error on duplicate runtime-shape step ids + pin charter↔runtime parity asymmetries (#6323),NONLANE,none,86,4
+6329,2026-10-17,[#6286] charter-offering consumer-outcome BDD scenario suite,NONLANE,none,819,2
+6332,2026-10-17,fix(custom-mission): capability contract — custom types get the WP-advance + substantive-spec gates (#6315),NONLANE,none,1740,54
+6334,2026-10-17,fix(charter): un-wedge the charter shard — org-layer parity (#6333) + org-pack activation coherence (#6338),NONLANE,none,90,22
+6340,2026-10-17,[#6325] wire cloud sessions to a Java 25 toolchain for acceptance-jvm,NONLANE,none,57,0
+6341,2026-10-17,test(scenarios): draft charter-activation BDD feature set (@wip),NONLANE,none,201,0
+6343,2026-10-17,test(charter): scenario PR-CHARTER-GOVERNANCE-003 + hermetic org-pack coherence guard,NONLANE,none,93,3
+6344,2026-10-17,"refactor(consolidate): fold #6324 review nits — dedup single_branch meta read, document residuals",CG,single_branch,93,5
+6345,2026-10-17,fix(cli): reject --mission on non-mission-scoped migrate commands (#5294),NONLANE,none,1080,6
+6346,2026-10-17,fix(mypy): clear no-any-return on the #6332 substantive-spec probe,NONLANE,none,9,1
+6348,2026-10-17,test(scenarios): charter-activation pack-provisioning + default-governance-profile (@wip),NONLANE,none,284,0
+6350,2026-10-17,fix(upgrade): clone-local migrations stranded by the tracked ledger (#6233),NONLANE,none,653,8
+6352,2026-10-17,"design(upgrade): explicit migration ledger — ADR + acceptance (#5230, epic #2933)",NONLANE,none,494,0
+6355,2026-10-17,fix(upgrade): reselection gate probes clone-local detect() fail-closed,NONLANE,none,110,1
+6363,2026-10-18,feat(charter): pin + vendor + drift-gate the built-in pack (ADR 2026-08-16-2 Option B) (#3504),NONLANE,none,3341,119
+6368,2026-10-18,fix(cli): thread owned-checkout carrier through three secondary surfaces (#6321),WC,single_branch,68,8
+6371,2026-10-18,fix(cli): owned issue-verdict authority — thread owned fact through the write-target gate (#6320),WC,single_branch,1868,49
+6373,2026-10-18,"ci(battery): make timing-table drift a nightly-strict gate, not a per-PR blocker",NONLANE,none,170,105
+6375,2026-10-18,chore(ci): automated shard-timings recapture,NONLANE,none,7688,7403
+6376,2026-10-18,chore(ci): refresh stale pinning-rule inventory line numbers,NONLANE,none,5,5
+6377,2026-10-18,"ci(pinning): make inventory re-derivation drift a nightly-strict gate, not a per-PR blocker",NONLANE,none,89,23
+6378,2026-10-18,fix(charter): auto-heal + write-side re-stamp for synthesized_drg stale on fresh checkout (#6366),NONLANE,none,2467,6
+6379,2026-10-18,feat(charter): bump built-in pin to open-packs e1c7e62 — vendor plan step contracts (supersedes #6372),NONLANE,none,261,17
+6381,2026-10-18,fix(make): honor an existing .venv in test-fast (#3950),NONLANE,none,20,1
+6382,2026-10-18,chore(spec-kitty): register issue-matrix merge driver on upgrade to 4.0.0rc8,HT,lane-branch,3,3
+6383,2026-10-18,test(architectural): baseline plan step-contract kitty-specs residue (red-main fix),NONLANE,none,6,0
+6384,2026-10-18,fix(gitattributes): drop retired issue-matrix.md merge-driver registration (red-main fix),HT,lane-branch,0,1
+6387,2026-10-18,"feat(upgrade): explicit migration ledger replaces metadata applied-state (#2933, #5230)",NONLANE,none,7879,605
+6389,2026-10-18,test(scenarios): stage S7 installation QA scenarios as WIP,NONLANE,none,98,1
+6391,2026-10-18,[#6369] Name the failing scenarios in the acceptance-bdd nightly P0,NONLANE,none,179,6
+6392,2026-10-18,[QA #801] Propose charter-activation contracts and binding dispositions,NONLANE,none,605,164
+6393,2026-10-18,[#6365] Scheduled recapture also refreshes the battery timing table from nightly junit,NONLANE,none,965,20
+6394,2026-10-18,[#6367] Non-git status-lock fallback never mints the .kittify project marker,NONLANE,none,112,25
+6395,2026-10-18,[#6388] Let a built-in plan mission advance past specify,NONLANE,none,1718,132
+6396,2026-10-18,[#6219] Retire the remaining hosted-surface doc pages after #6164,NONLANE,none,53,718
+6397,2026-10-18,[#6366] Pin allow_heal=True in the next-preflight call assertion (red on main),NONLANE,none,1,0
+6398,2026-10-18,[#6370] Align the single_branch e2e fixture and move-task refusal with the #5939 gate,CG,single_branch,1125,11
+6401,2026-10-18,[#957] Mission Status service serves a Mission's artifacts; removed-dashboard route inventory (#5533),NONLANE,none,13363,16
+6419,2026-10-18,"[#6369] Mark four never-run gating scenarios @wip, each with a tracked defect",NONLANE,none,21,7
+6425,2026-10-19,"[#6399] Consume spec-kitty-events 11.0.0: glossary writes through the ledger contract, local-only set retired",NONLANE,none,826,892
+6426,2026-10-19,[#6410] Skip the Op-record auto-commit where kitty-ops is untracked or ignored,NONLANE,none,2186,79
+6427,2026-10-19,[#6422] Mission Status artifact reads deny by default by name,NONLANE,none,1160,78
+6440,2026-10-19,"[#6404] Charter governance resolution: synthesized tactics, declared ids, org selections, narrow activation, root-first stack detection",NONLANE,none,13506,714
+6441,2026-10-19,chore(ci): automated shard-timings recapture,NONLANE,none,9980,9884
+6452,2026-10-19,[#6099] Align core records with the spec-kitty-charter decisions of 2026-10-19,NONLANE,none,332,47
+6467,2026-10-19,[#6465] Later-declared org pack wins for every DRG URN (spec-kitty-charter #87),NONLANE,none,551,87
+6483,2026-10-19,feat(packs): source built-in and internal packs from spec-kitty-open-packs at a pinned commit (#6451),NONLANE,none,7337,53242
+6484,2026-10-19,[#6325] Put the pinned Gradle on PATH for cloud sessions that have a Java 25,NONLANE,none,35,16
+6486,2026-10-19,[#5428] Archive the remaining 4.x re-anchor docs leftovers,NONLANE,none,582,520
+6489,2026-10-19,[#6480] Re-key the CI consumer census to the pack pin and drop the dead packs/built-in router globs,NONLANE,none,235,100
+6490,2026-10-19,[#6481] One kernel helper for per-user cache and state directories,NONLANE,none,258,22
+6491,2026-10-19,[#6482] Retitle ADR 2026-08-16-2 for the pin-and-fetch amendment,NONLANE,none,25,13
+6495,2026-10-19,[#6478] Restore GitHub's upstream copyright notice in LICENSE,NONLANE,none,4,2
+6502,2026-10-19,test(charter): deep ROI pass over the large tests/charter suites (#6485),NONLANE,none,4269,3394
+6503,2026-10-19,docs(tracker): prune the label taxonomy and stop writing retired kind labels,NONLANE,none,144,111
+6504,2026-10-20,[#6503] Charter: drop fleet-era collaboration claims now the agent fleet is off,NONLANE,none,19,11
+6505,2026-10-20,"[#5428] Default the ADR authority path to docs/adr/, not the closed 3.x era",NONLANE,none,21,14
+6507,2026-10-20,"[#4695] Rank all audit Severity comparisons, chain dossier manifest specs, and adjudicate the remaining Sonar S8495/S3516 findings",NONLANE,none,158,23
+6508,2026-10-20,[#4697] Gate S5779: no assert caught by its own AssertionError handler,NONLANE,none,153,0
+6509,2026-10-20,[#2972] Convert the last deferred S8997 test sites and retire the deferred class,NONLANE,none,26,50
+6511,2026-10-20,"[#6442] Charter synthesis graph and languages: reach-only styleguides, project-intent directive, one language authority",NONLANE,none,9871,857
+6515,2026-10-20,[#2972] Drain the ruff PT012 baseline: one statement per pytest.raises block,NONLANE,none,282,219
+6537,2026-10-20,[#6503] Pin the internal pack to open-packs af1c370 so the label clean-up doctrine ships,NONLANE,none,3,3
+6538,2026-10-20,chore(ci): automated shard-timings recapture,NONLANE,none,8082,7928
+6544,2026-10-20,"[#6325] Put the cloud session's JDK 25 bin on PATH, not just JAVA_HOME",NONLANE,none,3,2
+6545,2026-10-20,[#5777] doctor charter-packs: report permitted org overrides on the collisions line,NONLANE,none,186,2
+6546,2026-10-20,"[#6539] Charter follow-ups tidy-up: migration repo requirement, interview language write order, LANGUAGE_TOKENS seam",NONLANE,none,3870,195
+6554,2026-10-20,[#6432] Stop assuming packs/built-in is tracked in the warmup and CRLF tests,NONLANE,none,62,13
+6555,2026-10-21,[#6415] charter synthesize fails closed on an unsound charter.yaml,NONLANE,none,444,38
+6558,2026-10-21,[#6553] Scan the synced pack trees on disk in three guards,NONLANE,none,102,5
+6559,2026-10-21,[#6517] Resolve an exact Mission directory name without walking every meta.json,NONLANE,none,330,34
+6561,2026-10-21,[#6431] First ledger-era upgrade no longer replays a project's older setup steps,NONLANE,none,646,83
+6566,2026-10-21,chore(ci): automated shard-timings recapture,NONLANE,none,22804,22138
+6567,2026-10-21,[#6496] Persist charter deactivation in the activation ledger,NONLANE,none,28030,1636
+6569,2026-10-21,fix(bulk-edit): stop the review gate blocking work packages on files they created,NONLANE,none,1107,38
+6571,2026-10-21,"[#6570] Stop the merge-command ratchet flagging ""merges"" as an invocation",NONLANE,none,13,6
+6572,2026-10-21,[#6475] Spec-conformant command skill names and Antigravity skills delivery (#6470),NONLANE,none,13844,948
+6573,2026-10-21,Activate the artifacts the internal pack requires in this repository,NONLANE,none,66,3
+6574,2026-10-21,[#4304][#4696] Keep meta.json branch names out of git option position; make four quadratic parsers linear,NONLANE,none,388,44
+6575,2026-10-22,[#6416] The first upgrade after init commits nothing; fix the specify-cli out-of-matrix nightly reds,NONLANE,none,208,85
+6576,2026-10-22,[#6386] Refuse a committed or unreadable review lock before the review claim,NONLANE,none,866,16
+6585,2026-10-22,[#6477] Dispatch implementer and reviewer agents with their sandbox and approvals on,NONLANE,none,370,64
+6586,2026-10-22,[#6473] A read-only home folder warns instead of stopping the CLI,NONLANE,none,475,5
+6587,2026-10-22,[#6468] Move first-party links and schema $ids off the unregistered spec-kitty.dev,NONLANE,none,276,22
+6591,2026-10-22,[#6309] Judge canceled content line by line so a partial rework no longer ships rejected work,CG,lane-branch,1639,182
+6592,2026-10-22,"[#6580] Fix the activation-ledger nightly reds (pack-skill lifecycle, empty ledger write, doctor no-packs pin)",NONLANE,none,38,16
+6593,2026-10-22,[#6581] Make the charter lifecycle gate tests exercise the gate again,NONLANE,none,75,42
+6594,2026-10-22,[#6474] Ignore only Spec Kitty's own files in agent folders; an empty agent list means no agents (#6494),NONLANE,none,2059,193
+6597,2026-10-22,chore(ci): automated shard-timings recapture,NONLANE,none,14647,14455
+6598,2026-10-22,[#6584] Resolve the CLI version on first use so --help skips the package-metadata scan,NONLANE,none,226,38
+6599,2026-10-22,docs(architecture): map core's event-log writers and readers against the event ADRs,NONLANE,none,442,10
+6600,2026-10-22,"[#6596] Seed pack-skill test fixtures through the activation ledger, not legacy config.yaml",NONLANE,none,138,60
+6601,2026-10-22,[#6582] Run the charter-pack cutover right after its prerequisites and fix three more nightly upgrade reds,NONLANE,none,323,60
+6615,2026-10-22,[#6608] docs(adr): the Java write service is the canonical event writer,NONLANE,none,364,12
+6616,2026-10-22,[#2216] Point moved charter issues at spec-kitty-charter in the plan docs,NONLANE,none,15,6
+6617,2026-10-22,[#5865] test(upgrade): pin the teamspace-blocker witness on a frozen corpus,NONLANE,none,60,12
+6618,2026-10-22,[#4956] test(architectural): empty the archive-freeze sanctioned-corrections carve-out,NONLANE,none,49,199
+6619,2026-10-22,"[#6614, #6607] Delete dead event write doors and the private events import; transport-neutral produce seam",NONLANE,none,6599,2247
+6620,2026-11-01,[#4292] Clear the three mypy --strict no-any-return errors in the agent profile repository,NONLANE,none,54,2
+6622,2026-10-23,[#5015] Give every lifted architectural gate one home shared with its source,NONLANE,none,2621,2868
+6623,2026-10-23,[#5691] Make the read-only writer and migration tests bite as root,NONLANE,none,33,36
+6624,2026-10-23,"[#5691] Inject denials at the seam instead of skipping as root (core, kernel, doctor)",NONLANE,none,290,127
+6625,2026-10-23,"[#5691] Deny the #3194 stat at the seam instead of a 0o000 vault (cli, doctor, audit, init, migrate)",NONLANE,none,54,151
+6626,2026-10-23,[#5691] Fail on new root-vacuous denial tests,NONLANE,none,619,4
+6634,2026-10-23,chore(ci): automated shard-timings recapture,NONLANE,none,24473,23902
+6635,2026-10-23,[#5280] Repair stale documentation/research templates on upgrade and freeze their fork sources,NONLANE,none,1106,25
+6636,2026-10-23,Name the entity in package metadata and add a NOTICE for bundled code,NONLANE,none,42,3
+6639,2026-10-24,chore(ci): automated shard-timings recapture,NONLANE,none,13893,13778
+6643,2026-10-24,[#5015] Move the legacy-mission fixture into tests/_support,NONLANE,none,75,59
+6644,2026-10-24,[#6641] Deny the deferred charter/DRG reads at the seam instead of chmod,NONLANE,none,48,72
+6645,2026-10-24,[#6637] Route upgrade under the mission_pack_content fan-out,NONLANE,none,12,4
+6647,2026-10-24,[#6638] Import httpx and charset_normalizer on first use so --help stays inside its start-up budget,NONLANE,none,131,4
+6655,2026-10-25,[#5746] Fail spec-kitty upgrade when a worktree migration cannot be detected or applied,UF,worktree,101,14
+6656,2026-10-25,chore(ci): automated shard-timings recapture,NONLANE,none,271,270
+6657,2026-10-25,[#6627] Red-first p0_repro: upgrade mints a Mission identity into residue kitty-specs/ dirs,NONLANE,none,88,0
+6658,2026-10-25,[#6563] Re-pin three stale gitignore/ledger tests and gate pack-skill fixtures per-PR,NONLANE,none,343,6
+6659,2026-10-25,"[#6630, #6628] A review verdict keeps the reviewer's profile; record-analysis ignores the decisions lock",NONLANE,none,367,7
+6662,2026-10-25,[#6627] Upgrade migrations leave residue kitty-specs/ dirs alone (no fabricated Mission identity),NONLANE,none,470,11
+6663,2026-10-25,"[#6605] Run every spec_kitty_events consumer on a lock bump, per PR and nightly against the newest allowed release",NONLANE,none,775,42
+6664,2026-10-25,[#6564] Write Op records in the invoking checkout and refuse before writing,NONLANE,none,945,44
+6665,2026-10-25,[#6589] Supersede the 3.2.5 and 3.2.6rc3 gitignore backfills so a later upgrade cannot undo rc8's narrowing,NONLANE,none,340,62
+6671,2026-10-25,[#6605] Landing review fixes for the events lock-bump CI,NONLANE,none,46,11
+6672,2026-10-25,[#6669] Red-first p0_repro: upgrade fabricates a Mission identity into tasks/ or event-log residue,NONLANE,none,112,0
+6674,2026-10-25,[#6660] Shrink the pack-skill fixture ledger gate,NONLANE,none,82,268
+6677,2026-10-25,[#6192] Extract the domain-model and event-log libraries from the Mission status read service,NONLANE,none,688,14
+6678,2026-10-25,"[#6629] Upgrade keeps an absent activation key absent, so charter synthesize and implement keep working",NONLANE,none,2646,21
+6679,2026-10-26,Charter v1.6.0: align charter direction and hosted surfaces with recorded ADRs,NONLANE,none,23,15
+6680,2026-10-26,[#6669] Leave leftover kitty-specs folders untouched on upgrade; report fabricated identities (#6668),NONLANE,none,7655,147
+6681,2026-10-26,[#6603][#6606] Lock every unlocked event-log append and gate every event-log writer,NONLANE,none,5558,525
+6687,2026-10-26,chore(ci): automated shard-timings recapture,NONLANE,none,13432,13324
+6690,2026-10-26,[#6683] Expect the upgrade promotion to leave an absent activation key absent,NONLANE,none,30,1
+6691,2026-10-26,[#6682] Keep an owned mission's Op records out of the repository root checkout,NONLANE,none,123,5
+6694,2026-10-27,[#6682] Let dispatch and profile-invocation complete keep owned work's Op records in the owned checkout,NONLANE,none,326,27
+6695,2026-10-27,[#6454] Fail closed when the synthesis manifest is unreadable,NONLANE,none,269,7
+6696,2026-10-26,[#6652] Record the approval --review-feedback-file content; quote the replay reviewer (#6654),NONLANE,none,432,29
+6698,2026-10-27,[#6417] charter list shows org-required ids in force under an absent allow list,NONLANE,none,304,18
+6702,2026-10-27,[#6649] safe-commit commits a lone named ignored file instead of reporting a no-op success,NONLANE,none,130,1
+6704,2026-10-27,[#6653] Done judges every issue-matrix row; the terminality PASS says what it judged,NONLANE,none,2722,72
+6705,2026-10-27,[#6651] Keep the benign-dirty-files note off stdout under move-task --json,NONLANE,none,195,6
+6707,2026-10-27,Repair execution and acceptance for opted-in plan missions,NONLANE,none,626,95
+6708,2026-10-27,chore(ci): automated shard-timings recapture,NONLANE,none,13887,13816
+6710,2026-10-27,[#6682] Let invocations list show the Op records kept in an owned checkout,NONLANE,none,74,12
+6713,2026-10-27,[#6697] Fix two charter_pack_cutover acceptance tests that go red without a product defect,NONLANE,none,33,8
+6714,2026-10-27,[#6711] One authority for the done issue-matrix verdict; real coord-worktree and move-task tests (#6712),SD,coord,203,50
+6716,2026-10-29,[#6193] Lock-interop spike: Python/Java event-log lock and append evidence on three OSes,NONLANE,none,1294,3
+6717,2026-10-27,"[#6706] Take the glossary ledger lock once per batch, not once per event",NONLANE,none,309,16
+6718,2026-10-28,[#6193] Java port of the glossary torn-tail repair and the ledger lock,NONLANE,none,1405,16
+6720,2026-10-28,[#6313][#6588] Fail closed on an unreadable carrier spine; guard the policy audit reader,NONLANE,none,274,32
+6725,2026-10-27,[#5466] events tail reads the Mission's resolved status surface,SD,coord,314,28
+6726,2026-10-27,[#6402] Contract lint enum-case accepts the pack tier built-in,NONLANE,none,202,2
+6729,2026-10-29,[#6675] Mission Write API: CLI to write-service protocol contract (contracts/mission-write),NONLANE,none,6856,21
+6730,2026-10-28,"[#6460] Type charter context JSON diagnostics as {code, message}",NONLANE,none,2473,115
+6737,2026-10-29,"[#6453] Serialize charter synthesis writes, make the unreadable-record warning actionable, keep legacy edges a full run did not regenerate",NONLANE,none,3369,27
+6738,2026-10-29,chore(ci): automated shard-timings recapture,NONLANE,none,13488,13403
+6740,2026-10-29,[#6610] Local event-log retention: per-surface cleanup policy and doctor event-logs,NONLANE,none,5917,18
+6744,2026-10-29,[#6445] Adopt the spec-kitty-events decision-significance models and lock events 11.3.0,NONLANE,none,2168,271
+6747,2026-10-29,[#6746] Bound complete baseline and candidate review tests with project budgets,NONLANE,none,818,37
+6748,2026-10-29,[#6457] charter activate says what it wrote; skill freeze warning; one stored activation spelling,NONLANE,none,5339,514
+6756,2026-10-29,[#6418] doctor charter-packs reports org pack paths that escape the pack,NONLANE,none,2855,9
+6762,2026-10-29,[#4848] One opening per decision; duplicated decision logs read again,NONLANE,none,3044,177
+6769,2026-10-29,chore(ci): automated shard-timings recapture,NONLANE,none,12325,12296
+6774,2026-10-29,[#6400] One structured status actor on agent and operator writes; lanes derived from spec_kitty_events,NONLANE,none,5654,186
+6775,2026-10-29,[#5875] Mission walkers share one residue rule: spec.md-only folders are no longer listed as Missions,NONLANE,none,3926,224
+6776,2026-10-29,[#6557] Typed charter status refusal; --json for charter activate/deactivate; activation block in status,NONLANE,none,6176,701
+6778,2026-10-29,[#6510] Re-synthesis after activation no longer collides with the project's own directive,NONLANE,none,3431,34
+6779,2026-10-29,[#6354] Owned legacy issue-matrix migration and one C2 owned-checkout refusal shape,NONLANE,none,5153,460
+6781,2026-10-29,[#6715] Refuse hollow or self-approved work packages on every topology,CG,lane-branch,8432,507
+6782,2026-10-30,[#6117] The events domain's Java services move to spec-kitty-events; freeze services/ in core,NONLANE,none,675,9
+6783,2026-10-30,[#6610] Route the two new spec_kitty_events importers in the reducer-lock census (red on main),NONLANE,none,8,0
+6789,2026-10-30,chore(ci): automated shard-timings recapture,NONLANE,none,10668,10178
+6790,2026-10-31,"[#6590] Pinned service binaries: pin, verify, fetch and fail-closed launch of the events services",NONLANE,none,13393,41
+6793,2026-11-02,[#6735] Skip a non-mapping sidecar instead of crashing the repository load,NONLANE,none,1909,16
+6794,2026-11-02,[#6755] Harden the compact agent-string parser: blank/whitespace segments and >4 segments,NONLANE,none,1454,10
+6796,2026-11-02,"[#6759] Glossary: disambiguate ""residue"" into its three live code senses",NONLANE,none,1481,4
+6797,2026-11-02,[#6760] sync doctor identity migration page to the live CLI contract,NONLANE,none,1872,38
+6802,2026-10-31,[#6798] Track the legacy mission fixtures so next discovery sees them,NONLANE,none,24,4
+6803,2026-11-02,[#6633] Name project.path_conventions and the mission override in accept's path-convention failure,NONLANE,none,1888,14
+6804,2026-11-01,[#6761] grep_absence is binary-safe and never records blank evidence,NONLANE,none,1538,1
+6805,2026-11-02,[#6650] agent action implement refreshes a reused lane's workspace context,HC,worktree,1750,7
+6808,2026-11-02,[#6631] charter synthesize's commit reminder names the whole write surface,NONLANE,none,2261,123
+6809,2026-11-02,fix(move-task): refuse --review-feedback-file on edges that write no review cycle (#6699),NONLANE,none,2053,6
+6810,2026-11-03,[#6612] release prep reads WP acceptance from the canonical lane authority,SD,none,2235,60
+6811,2026-11-02,[#6642] Pair pure sink relocations in the untrusted-path audit with a fail-closed --fix,NONLANE,none,2751,40
+6812,2026-11-02,[#6611] events tail follows every canonical ledger; --json becomes a real opt-in,NONLANE,none,3728,149
+6813,2026-10-31,[#6801] Record the planning commit and an independent review in the birth-cutover fixture,NONLANE,none,1203,6
+6815,2026-11-02,[#6772] Converge the malformed charter_packs refusal code on both charter verbs,NONLANE,none,2296,25
+6818,2026-11-01,"[#6732] Chain single-authority gate: count subscript collectors, exempt name-keyed dict comprehensions",NONLANE,none,1473,10
+6819,2026-11-03,[#6604] Correct the surviving 'Lamport-ordered status path' claims and guard them,NONLANE,none,2457,16
+6820,2026-11-02,[#6757] audit: judge prefix collisions on selectable Missions only,NONLANE,none,2383,71
+6821,2026-11-03,"[#6661] doctor ops sweeps Op records in every checkout, not only the root",HC,worktree,2263,14
+6824,2026-11-02,"[#6742] charter activate names an already-in-force reference as in force, not 'not activated'",NONLANE,none,2206,39
+6826,2026-11-02,[#6727] One kernel helper for anchor-keyed lock paths,NONLANE,none,2335,26
+6832,2026-11-01,[#6632] A review rejection retires its own feedback draft instead of blocking the next move,NONLANE,none,2946,14
+6842,2026-10-31,[#6613] Lock the migration ledger's read-modify-write and record the structural reselection,NONLANE,none,2216,19
+6843,2026-11-01,[#6673] upgrade never re-mints a Mission identity git already holds,NONLANE,none,3290,20
+6846,2026-11-02,"[#6845] Preserve owned Mission authority through startup, context and transitions",WC,single_branch,4436,363
+6848,2026-10-31,[#6724] charter synthesize: a companion tactic's scope is the project's stack,NONLANE,none,2027,61
+6849,2026-11-01,[#6689] backfill-runtime-state converges on a slug-identified legacy Mission,NONLANE,none,2736,19
+6850,2026-10-31,[#6556] CharterYaml accepts every activation key the writer writes,NONLANE,none,1985,16
+6853,2026-11-01,"[#6771] consolidate lands a lane's merged dependency branch when it is declared, and --dry-run predicts it",CG,lane-branch,3534,60
+6857,2026-10-31,[#6791] consolidate --resume lands the verdict commit it used to drop,CT,coord,3287,10
+6860,2026-11-01,[#6780] accept --mode pr: judge a pruned lane branch's evidence against the verified landing commit,CG,lane-branch,3091,132
+6861,2026-11-01,"[#6753] report a fresh coord lane cut from a base behind the target, and accept --base on the agent path",NL:lane-alloc,coord,2821,0
+6862,2026-11-01,[#6686] Promote org-pack interview selections on upgrade,NONLANE,none,2616,101
+6864,2026-11-01,[#6722] Every system-written status event records the structured actor with role system,NONLANE,none,4423,74
+6867,2026-10-31,[#6770] consolidate re-run re-baselines the record instead of inheriting a failed attempt's target tip,CT,lane-branch,3127,26
+6869,2026-11-01,[#6688] Retry a residue-safe successor whose predecessor never settled,NONLANE,none,2422,47
+6870,2026-11-01,[#6750] lane auto-commit takes exact file paths and reports a landed commit,NL:commit-scope,lane-branch,2256,17
+6872,2026-11-01,"[#6765] Serialize decision writes on the event log, not the ledger directory",NONLANE,none,2694,26
+6874,2026-10-31,chore(ci): automated shard-timings recapture,NONLANE,none,9856,9544
+6875,2026-10-31,[#6685] a first charter interview or activate leaves an absent activation key absent,NONLANE,none,2336,216
+6878,2026-11-01,[#6579] decision records render an ASCII change log so validate-encoding passes,NONLANE,none,1144,6
+6881,2026-11-01,[#6562] define the activation ledger and the current active charter in the glossary,NONLANE,none,1301,8
+6885,2026-11-01,[#6552] upgrade: --dry-run reports the migration the real run applies,NONLANE,none,2666,5
+6886,2026-11-01,[#6463] make mark-status attribute a subtask to the one work package that owns it,NONLANE,none,2292,38
+6887,2026-11-03,[#6741] Resolve mission step-contract activation tokens to the node the DRG ships,NONLANE,none,2985,42
+6888,2026-11-02,"[#6844] a managed lane is classified from its own Mission record, not the root branch",HC,worktree,2213,59
+6889,2026-11-01,[#6565] The project-intent rename now carries a deny entry with it,NONLANE,none,2270,36
+6890,2026-11-02,[#6501] A legacy agent list no longer means every agent folder,NONLANE,none,1718,64
+6892,2026-11-01,[#6547] upgrade keeps the per-project command files 3.1.2 retired retired,NONLANE,none,2288,3
+6893,2026-11-01,[#6449] Build the dry-run WPStatusChanged payload through StatusTransitionPayload,NONLANE,none,2533,22
+6894,2026-11-03,[#6493] Report a plugin-owned project as set up instead of broken,NONLANE,none,2293,34
+6895,2026-11-02,[#6464] consolidate refuses a --target override onto a protected branch,CG,lane-branch,2255,7
+6896,2026-11-03,"[#6488] One platformdirs authority for per-user cache, state and config locations",NONLANE,none,3296,218
+6897,2026-11-01,[#6514] Reject an invalid forced status rewind before it is appended,NONLANE,none,3030,15
+6901,2026-11-01,[#6891] doctor stops claiming health over a legacy project it never checked,NONLANE,none,2172,16
+6902,2026-11-02,[#6362] Reconcile the migration-ledger ADR's visibility wording with the shipped migrate ledger command,NONLANE,none,1807,17
+6905,2026-11-03,[#6347] migrate: real --mission scoping for the three corpus-walking commands,NONLANE,none,2694,144
+6906,2026-11-02,[#6414] Audit the optional Lamport clock consumers and stop the migration claiming a clock,NONLANE,none,2361,5
+6907,2026-11-02,"[#6513] DRG orphan residual gets a live record and a guard, ceiling unchanged at 25",NONLANE,none,1934,97
+6908,2026-11-02,[#6336] Run the charter shard for activation-store and internal-pack edits,NONLANE,none,2541,4
+6913,2026-11-02,[#6578] the contract version has one source of truth in the orchestrator-api tests,NONLANE,none,2102,6
+6919,2026-11-01,[#6385] retrospect synthesize plans generator-shape proposals and names what it cannot plan,NONLANE,none,4159,45
+6921,2026-11-02,"[#6745] Audit special-case workarounds: method, ledger, and two removed",NONLANE,none,2402,177
+6924,2026-11-02,"[#6450] consolidate commits the tombstones it makes, and accept/the done gate stop misleading you",CG,lane-branch,2795,31
+6925,2026-11-01,"[#6100] ADR: the docsite is built with doc-kitty, with every legacy URL redirected",NONLANE,none,1143,0
+6945,2026-11-01,"[#6433] charter activate/deactivate --cascade starts from the artifact you named, however you spelled it",NONLANE,none,2905,233
+6946,2026-11-02,"[#6551] upgrade: read the project stamp, not the operator's home, when deciding centralized runtime",NONLANE,none,2222,8
+6949,2026-11-01,[#6904] Optional companion services wheel (spec-kitty-services) fills the service_binaries slot,NONLANE,none,4984,10
+6952,2026-11-01,[#6506] charter activate/deactivate: cut the write path's redundant document round trips,NONLANE,none,4280,43
+6961,2026-11-01,ci: a pr:pause-ci label pauses a PR's CI and blocks its merge,NONLANE,none,227,33
+6963,2026-11-01,docs: pull the safety cord — unclog a deadlocked Actions queue,NONLANE,none,148,1
+6964,2026-11-01,fix(ci): wrap the pause-label skip policy line that reds ruff on main,NONLANE,none,1,1
+6965,2026-11-01,fix(ci): two architectural-lane regressions from the pr:pause-ci workflow,NONLANE,none,10,3
+6967,2026-11-01,fix(test): the dry-run preflight stub manifest carries the mission_id the forecast reads,NONLANE,none,1,0
+6988,2026-11-01,"Changelog entries become per-PR fragments, so PRs stop conflicting on CHANGELOG.md",NONLANE,none,1258,53
+6991,2026-11-01,fix(release): the fragment assembler reads today through kernel.clock,NONLANE,none,2,2
+6992,2026-11-01,main can land through GitHub's merge queue: required checks run on merge_group,NONLANE,none,333,15
+6993,2026-11-01,Docs PRs stop conflicting on the generated docs index: a bot regenerates it on main,NONLANE,none,2249,380
+6995,2026-11-01,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,31,1
+6996,2026-11-01,[#6994] CI routing selects every architectural gate whose scan scope a PR touches,NONLANE,none,1061,42
+7002,2026-11-01,"Record the closed dispatch Ops of the landing-throughput PRs (#6988, #6992, #6993)",NONLANE,none,12,0
+7004,2026-11-01,[#6915] Cut core over to the pinned events read service and verify service pins at release,NONLANE,none,7123,103722
+7005,2026-11-01,[#6328] Key the review-readiness implementation-commit prerequisite on the code_producing capability,NONLANE,none,3697,13
+7006,2026-11-01,[#7003] Write each Op lifecycle record to its own file so two PRs never conflict on the lifecycle log,NONLANE,none,855,123
+7007,2026-11-01,"[#6926] Ship only the root README and CHANGELOG in the sdist, and keep site/ out",NONLANE,none,1286,6
+7008,2026-11-01,[#6435] Store one activation spelling at the effective-set seam,NONLANE,none,2258,23
+7009,2026-11-01,[#6719] Take the synthesis lock for the activation writes,NONLANE,none,2172,41
+7010,2026-11-01,[#6476] Make the plugin bundle wrapper's uvx fallback run the CLI,NONLANE,none,2299,94
+7012,2026-11-01,Record the closed dispatch Ops of #6996 and #7006,NONLANE,none,7,0
+7014,2026-11-01,[#6927] Standing URL baseline and moves ledger; one index file per docs folder,NONLANE,none,5304,729
+7016,2026-11-02,[#7000] Fail CI when an architectural gate reads a repository path nobody declared,NONLANE,none,2272,5
+7017,2026-11-01,[#6929] Migrate docs/ frontmatter to doc-kitty's shapes so the real tree builds,NONLANE,none,7054,1686
+7018,2026-11-02,[#6969] Bare spec-kitty doctor runs the default read-only checks and exits 0/1,NONLANE,none,1889,37
+7020,2026-11-02,[#6998] Disposition the pr:pause-ci pin and refresh the derived pinning inventory,NONLANE,none,1489,69
+7021,2026-11-02,"[#6684] Report an activation list a released default preset wrote, and record the no-reset ruling",NONLANE,none,1451,5
+7023,2026-11-02,[#6234] upgrade --dry-run heads its migration list with what it would apply,NONLANE,none,2076,11
+7024,2026-11-03,[#6910] Call the write service under the contract's /api/v1 prefix,NONLANE,none,1612,25
+7027,2026-11-02,[#6970] Route documentation requests and make dispatch refusals actionable,NONLANE,none,3457,239
+7028,2026-11-02,[#6909] Name spec-kitty-charter's service-v* line and verify pin provenance,NONLANE,none,2788,58
+7029,2026-11-02,"[#6278] implement accepts a Mission's human slug, one answer on every command",NONLANE,none,2130,13
+7032,2026-11-02,[#6260] Bind the @wip event-traceability acceptance scenario and gate it,NONLANE,none,1947,10
+7033,2026-11-02,[#6311] pin the live fresh compact-actor implement claim with an end-to-end guard,NONLANE,none,1649,0
+7034,2026-11-02,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,61,67
+7036,2026-11-02,[#6997] Register SAFE_COMMIT_DIRECTORY_ARGUMENT and clear the two contract-guard reds,NONLANE,none,2443,11
+7037,2026-11-02,[#7001] A scope-only heavy leg stops collecting a universe no selected gate reads,NONLANE,none,2434,17
+7041,2026-11-02,[#6968] charter context advertises only sections the active charter resolves,NONLANE,none,1867,52
+7042,2026-11-02,[#6990] dispatch --brief returns the governance payload by reference,NONLANE,none,2607,14
+7043,2026-11-02,[#6273] Stage plugin bundles with their target-native renderings and report failed repairs,NONLANE,none,2372,33
+7045,2026-11-02,[#6277] charter synthesize --json reports POSIX paths on every OS,NONLANE,none,2262,19
+7046,2026-11-02,[#6330] Thread the run directory into the wp_driven fact and make the capability fallbacks observable,NONLANE,none,1957,21
+7047,2026-11-01,[#7019] Removing pr:pause-ci restarts CI on the PR head; other label events are no-ops,NONLANE,none,722,67
+7048,2026-11-02,[#6948] Companion wheel tags are checked against the OS floor of the binaries they carry,NONLANE,none,3410,41
+7050,2026-11-02,"[#6917] the board reads only the profiles it names, and profile lineage is lazy again",NONLANE,none,3331,144
+7051,2026-11-02,[#6999] Prose-only PRs run the architectural gates that read prose,NONLANE,none,2361,37
+7053,2026-11-02,[#6267] Add charter org add / remove to register an org Charter Pack,NONLANE,none,3434,13
+7054,2026-11-02,fix(docs): give the lifecycle-records ADR doc-kitty's frontmatter (main is red),NONLANE,none,2,0
+7058,2026-11-02,[#7022] Keep test-fast green when the temp root sits inside a git repo; project detection honors GIT_CEILING_DIRECTORIES,NONLANE,none,464,117
+7063,2026-11-02,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,1,0
+7064,2026-11-02,chore(ci): automated shard-timings recapture,NONLANE,none,19589,18708
+7066,2026-11-02,"[#6930] Docsite scaffold, pinned doc-kitty and the docs-site PR build job",NONLANE,none,8856,5
+7067,2026-11-02,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,132,2
+7068,2026-11-02,ci(lifecycle): keep the legacy lifecycle.jsonl frozen in pull requests,NONLANE,none,147,0
+7069,2026-11-02,test(charter): the activation JSON refusal snapshot ignores the synthesis lock file,NONLANE,none,10,1
+7070,2026-11-02,test(charter): pin the deactivate cascade hint #6873 added to the text golden,NONLANE,none,2,1
+7071,2026-11-03,[#4113] Keep Git auto-maintenance out of upgrade snapshot fixtures,NONLANE,none,3,0
+7072,2026-11-02,[#6766] Remove the dead read-side decisions service._mission_dir,NONLANE,none,1699,73
+7074,2026-11-03,[#7030] stop the dry-run golden reading the isolated home,NONLANE,none,1152,3
+7075,2026-11-03,[#7055] Make the placement test fixture a real git repo,NONLANE,none,1491,13
+7079,2026-11-02,"[#7038] Re-pin two stale nightly-only test pins (activation-field set, owned= spy)",NONLANE,none,14,4
+7083,2026-11-04,[#7011] Never auto-classify the issue a Mission exists to fix as context-only,NONLANE,none,2604,26
+7086,2026-11-03,[#7052] Give the universe-collecting gate a per-test budget derived from the collection ceiling,NONLANE,none,348,3
+7088,2026-11-03,[#6879] a status/** diff runs the runtime-home path-literal guard per PR,NONLANE,none,1495,0
+7089,2026-11-03,"[#6865] make the pre-review regression gate runnable: accept the pinned scope, budget the whole-command shape, name the scope in refusals",NONLANE,none,2590,36
+7090,2026-11-04,[#6957] the migrate group-flag acceptance module owns its git-discovery ceiling,NONLANE,none,1564,0
+7092,2026-11-03,[#6898] Lane adoption has one public allocator seam instead of private-name re-entry,NL:lane-alloc,lane-branch,2257,61
+7095,2026-11-03,[#6966] Root the corpus reality check at the repository's primary worktree,HC,worktree,1445,1
+7096,2026-11-03,[#5716] Give full-corpus recovery its measured test-local timeout,NONLANE,none,1003,0
+7097,2026-11-03,[#7044] charter generate/interview report POSIX paths on every OS,NONLANE,none,1869,8
+7098,2026-11-03,[#7078] Reduce repeated CI work and preserve truthful verification,NONLANE,none,5265,772
+7100,2026-11-03,[#7057] Re-pin the move-task evidence fixtures,NONLANE,none,1360,2
+7102,2026-11-03,[#6955] A forced approved reopen records a wire-valid status event,NONLANE,none,2700,42
+7103,2026-11-03,[#7099] Keep owned authority in acceptance implementation evidence,NONLANE,none,282,27
+7104,2026-11-02,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,2,1
+7105,2026-11-03,[#7148] Refresh discovery for shipped CI-performance docs and headings,NONLANE,none,18,0
+7107,2026-11-03,chore(ci): automated shard-timings recapture,NONLANE,none,21483,20938
+7109,2026-11-03,"fix(ci): un-bury the nightly reds (service extras, Gradle pin check path, Sonar gate)",NONLANE,none,199,1
+7119,2026-11-05,[#7091] Accept ready coordination Missions without failing on keep-local residuals,SD,coord,1955,10
+7124,2026-11-05,[#6871] consolidate: a first run lands the coordination commit it never received,CT,coord,1616,47
+7126,2026-11-05,[#7080] A review rewind from in_review records a wire-valid status event,NONLANE,none,2040,75
+7127,2026-11-05,[#7106] Claiming a work package no longer stales the recorded analysis,NONLANE,none,2462,35
+7129,2026-11-03,[#7081] tracer-append writes into the checkout that owns the Mission,NONLANE,none,1898,73
+7130,2026-11-05,[#7108] subtask completion recipes name their work package,NONLANE,none,2438,80
+7132,2026-11-05,[#7065] record the gate's resolved strictness in semantic-check events,NONLANE,none,1816,39
+7134,2026-11-05,[#6876] Pin the CLI lifecycle vocabulary to spec_kitty_events,NONLANE,none,1368,0
+7137,2026-11-05,[#6855] Refuse a legacy charter.yaml deny key with the ledger contract,NONLANE,none,2209,23
+7138,2026-11-05,[#7189] Keep core's tasks README ASCII without rewriting authored input,NONLANE,none,2486,73
+7139,2026-11-04,[#7113] Remove the SonarCloud new-code reliability BLOCKERs at source,NONLANE,none,1368,3
+7140,2026-11-04,[#6859] Restore the accept pin's real positive control,NONLANE,none,1733,20
+7142,2026-11-05,[#7128] Record report-only analysis over verified ignored pack inputs,NONLANE,none,2549,37
+7143,2026-11-05,[#6956] Refuse a Mission worktree at the owned-checkout create claim,WC,single_branch,2374,28
+7146,2026-11-05,[#7191] Absent lane-window refusals offer only history-backed recovery,CG,lane-branch,1704,24
+7154,2026-11-03,"chore(docs): regenerate the docs retrieval index, page inventory and ADR era tables",NONLANE,none,1,0
+7156,2026-11-04,[#7170] Guard six static layer-import pairs and retire hosted architecture guidance,NONLANE,none,311,86
+7160,2026-11-03,fix(7149): refuse an unreadable ownership declaration as OWNERSHIP_UNRESOLVED,NONLANE,none,2710,59
+7164,2026-11-04,[#7165] Publish shipped owned-tracer and ownership-verdict retrieval anchors,NONLANE,none,2,0
+7169,2026-11-05,chore(ci): automated shard-timings recapture,NONLANE,none,73393,34783
+7174,2026-11-04,chore(upgrade): adopt the migration ledger on this repository,NONLANE,none,211,432
+7184,2026-11-04,[#7188] Make shipped historical and issue-matrix headings discoverable,NONLANE,none,3,1
+7196,2026-11-05,[#7173] Report and prune landed worktrees; upgrade stops committing into non-Mission worktrees,WL,worktree,9113,334
+7208,2026-11-05,[#7225] Index the glossary-event and first-run merge-recovery headings,NONLANE,none,2,0
+7221,2026-11-05,[#7175] Re-seed the fixtures that predate the #6715 evidence and review gates,NONLANE,none,462,263
+7230,2026-11-05,[#7246] Restore docs search anchors for landing cleanup and worktree opt-in,NONLANE,none,9,2
+7236,2026-11-05,[#7167] Remove compromised emSign trust from locked installs,NONLANE,none,5,4
+7238,2026-11-05,[#7209] consolidate --skip-lanes records an evidence window it can judge,CG,lane-branch,2770,7
+7243,2026-11-05,[#6608] Point the lock-interop spike report at spec-kitty-events,NONLANE,none,8,75
+7252,2026-11-05,[#7260] Align docs retrieval with the moved spike and direct-on-target guidance,NONLANE,none,3,5
+7254,2026-11-05,[#7172] Remove the contracts/tools timings row that keeps main red,NONLANE,none,34,9
