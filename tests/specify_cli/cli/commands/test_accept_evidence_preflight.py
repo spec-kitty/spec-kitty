@@ -315,14 +315,28 @@ def test_diagnose_skips_the_evidence_check_on_an_unmaterialized_coordination_wor
     assert evidence.harness.calls == []
 
 
-def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence) -> None:
-    evidence.status_dir_error = _unmaterialized(evidence.harness.root)
+def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence, monkeypatch: pytest.MonkeyPatch) -> None:
+    from rich.console import Console
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    malformed_dir = evidence.harness.root / "repo[/red]"
+    malformed_dir.mkdir(parents=True)
+    manifest_path = malformed_dir / "lanes.json"
+    manifest_path.write_text("{not-json", encoding="utf-8")
+    with pytest.raises(CorruptLanesError) as caught:
+        read_lanes_json(malformed_dir)
+    evidence.lanes_error = caught.value
     evidence.harness.summary = _ready_planning_summary(evidence.harness.root)
+    # Keep the real renderer, but prevent terminal wrapping from splitting a long temp path.
+    monkeypatch.setattr(accept_module, "console", Console(width=4096, highlight=False))
 
     result = evidence.harness.invoke("--mission", _SLUG, "--diagnose", json_output=False)
 
     assert result.exit_code == 0, result.output
-    assert "implementation_evidence skipped: " in _flat(result.output)
+    output = _flat(result.output)
+    assert "implementation_evidence skipped: EVIDENCE_WINDOW_UNCOMPUTABLE: " in output
+    assert str(caught.value) in output, "the complete real parser reason/path must remain literal"
+    assert manifest_path.read_text(encoding="utf-8") == "{not-json"
 
 
 @pytest.mark.parametrize("extra", [(), ("--no-commit",)])

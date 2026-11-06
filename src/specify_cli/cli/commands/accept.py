@@ -743,23 +743,25 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
 
 
 def _print_acceptance_diagnosis(summary: AcceptanceSummary) -> None:
+    from rich.markup import escape
+
     failed_checks = summary.failed_checks()
     if failed_checks:
         console.print("\n[bold red]Failed checks[/bold red]")
         for item in failed_checks:
-            console.print(f"[red]- {item.check}[/red]: {item.detail}")
+            console.print(f"[red]- {item.check}[/red]: {escape(item.detail)}")
     else:
         console.print("\n[green]No failed acceptance checks detected.[/green]")
 
     if summary.skipped_checks:
         console.print("\n[bold yellow]Skipped checks[/bold yellow]")
         for item in summary.skipped_checks:
-            console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
+            console.print(f"[yellow]- {item.check}[/yellow]: {escape(item.detail)}")
 
     if summary.blocked_checks:
         console.print("\n[bold yellow]Blocked checks[/bold yellow]")
         for item in summary.blocked_checks:
-            console.print(f"[yellow]- {item.check}[/yellow]: {item.detail}")
+            console.print(f"[yellow]- {item.check}[/yellow]: {escape(item.detail)}")
 
     _print_acceptance_warnings(summary)
 
