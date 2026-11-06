@@ -890,7 +890,7 @@ def _run_real_merge(
         # would send the operator away from a stranded coord worktree/branch.
         # #5570/#5613: a branch that moved after landing reports its own exit code
         # (``exc.exit_code``, 75); every other teardown refusal stays 1.
-        console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
+        console.print(f"[red]Error:[/red] coordination teardown incomplete: {escape(str(exc))}")
         raise typer.Exit(exc.exit_code) from exc
     except CoordTeardownKeptOnlyCopy as exc:
         # #5965: the landing is done and verified (teardown runs after the rollback door, so nothing

@@ -911,28 +911,57 @@ def test_the_window_is_read_at_the_tip_it_was_opened_on(tmp_path: Path, is_resum
 
 
 @pytest.mark.parametrize("is_resume", [False, True], ids=["first-run", "resume"])
-def test_a_window_in_a_directory_the_proof_does_not_judge_never_advances_the_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, is_resume: bool) -> None:
-    """#7265 squad / #7271: the composed ``<slug>-<mid8>`` directory is the Mission's own but not judged.
+def test_a_late_commit_in_the_composed_directory_is_refused_not_lost(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, is_resume: bool) -> None:
+    """#7271: the composed ``<slug>-<mid8>`` directory is the Mission's own, so the proof judges it.
 
-    A bare-slug coordination Mission keeps its coordination directory under the composed name (#5651). The
-    proof diffs only ``kitty-specs/<slug>/`` and the outside-directory check skips the composed one, so a
-    branch-only commit there is neither projected nor proved. It must not become the approved tip on either
-    run kind: the gate's compare-and-swap refuses and the branch keeps the commit.
+    A bare-slug coordination Mission keeps its coordination directory under the composed name (#5651). Not
+    advancing the tip protected nothing: a short-circuited resume's gate falls back to the live checkpoint, so
+    the branch went with the commit at exit 0.
     """
-    from specify_cli.coordination.teardown import ProjectionTeardownAbort
+    from specify_cli.consolidation.run_state import CoordinationTeardownError
 
     composed = f"{SLUG}-composed"
     monkeypatch.setattr(phase_teardown, "mission_dir_aliases", lambda _repo, slug: frozenset({slug, composed}))
-    run, worktree, tip = (_resume_with_coord_worktree if is_resume else _first_run_with_coord_worktree)(tmp_path)
-    rel = f"kitty-specs/{composed}/status.events.jsonl"
-    late = _commit_in_coord_worktree(worktree, rel, json.dumps(_late_event("01M380R6EVENTWP01000000000047", "done")) + "\n", "late emit")
+    run, worktree, _tip = (_resume_with_coord_worktree if is_resume else _first_run_with_coord_worktree)(tmp_path)
+    if is_resume:
+        run.coord_tip_after_projection = None
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{composed}/notes/late.md", "late\n", "late note in the composed directory")
 
-    with pytest.raises(ProjectionTeardownAbort) as caught:
+    with pytest.raises(CoordinationTeardownError, match="notes/late.md"):
         phase_teardown._teardown_coordination_triple(run)
 
-    assert "compare-and-swap failed" in str(caught.value), "the gate refuses the tip nobody proved"
-    assert run.coord_tip_after_projection == tip, "a window the proof did not judge never advances the approved tip"
-    assert _rev(run.main_repo, run.lanes_manifest.mission_branch) == late, "the branch keeps the unjudged commit"
+    assert _rev(run.main_repo, run.lanes_manifest.mission_branch) == late, "the branch keeps the commit"
+
+
+def test_a_composed_directory_change_already_on_the_target_tears_down(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control for #7271: the composed path maps to the target's copy, so landed bytes pass."""
+    composed = f"{SLUG}-composed"
+    monkeypatch.setattr(phase_teardown, "mission_dir_aliases", lambda _repo, slug: frozenset({slug, composed}))
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    target_file = run.main_repo / "kitty-specs" / SLUG / "notes" / "late.md"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("late\n", encoding="utf-8")
+    _git(run.main_repo, "add", "-A")
+    _git(run.main_repo, "commit", "-qm", "land the note")
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{composed}/notes/late.md", "late\n", "late note in the composed directory")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert run.coord_tip_after_projection == late
+    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch)
+
+
+def test_an_event_log_the_union_cannot_read_is_refused_with_its_remedy(tmp_path: Path) -> None:
+    """A malformed line committed in the worktree is a refusal the operator can act on, not a traceback."""
+    from specify_cli.consolidation.run_state import CoordinationTeardownError
+
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/status.events.jsonl", "{not json\n", "torn event log")
+
+    with pytest.raises(CoordinationTeardownError, match="cannot be merged"):
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert _rev(run.main_repo, run.lanes_manifest.mission_branch) == late
 
 
 def test_a_short_circuited_resume_approves_the_tip_its_window_proved(tmp_path: Path) -> None:
@@ -952,14 +981,6 @@ def test_a_short_circuited_resume_approves_the_tip_its_window_proved(tmp_path: P
     assert run.coord_tip_after_projection == late, "the proven tip is the approved one"
     assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch)
     assert _git(run.main_repo, "show", f"main:{rel}").stdout == "late\n"
-
-
-def test_unjudged_paths_are_empty_without_another_mission_directory(tmp_path: Path) -> None:
-    """Control for #7271: a Mission with one directory has nothing unjudged, so the advance is not gated."""
-    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
-    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
-
-    assert phase_teardown._unjudged_mission_dir_paths(run, tip, late) == []
 
 
 def test_first_run_refuses_rather_than_skips_a_window_it_cannot_read(tmp_path: Path) -> None:

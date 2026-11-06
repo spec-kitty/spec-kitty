@@ -316,7 +316,7 @@ class _MergeRunState:
     # committed on the target (#6871 first run, #7199 resume) -- so the field reads
     # "the tip whose coordination records the assertion proved", which is exactly
     # what the gate and the branch delete compare-and-swap against. The advance is
-    # itself a compare-and-swap: it happens only while the live ref still equals the
+    # a guarded read: it happens only while the live ref still equals the
     # tip the window assertion covered. ``None`` on a non-coord mission (no coord tip
     # to anchor).
     coord_tip_after_projection: str | None = None
