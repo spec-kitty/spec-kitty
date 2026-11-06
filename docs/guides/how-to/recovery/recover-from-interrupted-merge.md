@@ -158,11 +158,14 @@ What to do depends on the refusal, and each one names its own repair:
   both branches.
 - **A status event that is not in the target's log:** the resume folds the
   coordination **worktree's** working-tree `status.events.jsonl`, not the
-  coordination branch's commits, so make that copy hold the events (`git
-  checkout <coordination-branch> -- kitty-specs/<slug>/status.events.jsonl` in
-  the coordination worktree) or append them to the target's log and rematerialize
+  coordination branch's commits, so add the missing events to that copy. Save a
+  copy of the file first, then append each line of `git show
+  <coordination-branch>:<the log the refusal names>` whose `event_id` it does not
+  already hold, and keep every line it has. Do **not** check the branch file out
+  over it: the working-tree log can hold events nobody has committed yet. You can
+  instead append the events to the target's log the same way and rematerialize
   `status.json` from the union. Do **not** copy the coordination file over the
-  target's log: that would drop the events the target already holds.
+  target's log either: that would drop the events the target already holds.
 - **A status log that cannot be reconciled:** `status.events.jsonl` on the
   coordination branch either does not parse as events, or carries an event id with
   different bytes than the target's log — the pair the merge's own event union
@@ -255,6 +258,12 @@ commit that lands on the coordination branch while the teardown runs is not in
 that window: it is not projected, the approved tip does not move to it, and the
 teardown refuses at the projection teardown gate with the branch kept. Run
 `spec-kitty consolidate --resume` again and the next window carries it.
+
+A Mission whose coordination directory is named `<slug>-<mid8>` (a bare-slug
+Mission) is the exception for now: the proof does not judge that directory yet
+(#7271). A run whose window changes it keeps the coordination tip it captured, so
+the teardown refuses at the projection teardown gate with the branch kept. Land
+the late change on the target yourself, then follow the gate's refusal.
 
 This closes the window where a verification or status write made *between* the
 gate and the teardown was refused after a landing that was already complete,

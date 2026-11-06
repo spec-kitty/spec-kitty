@@ -910,6 +910,58 @@ def test_the_window_is_read_at_the_tip_it_was_opened_on(tmp_path: Path, is_resum
     assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the foreign commit"
 
 
+@pytest.mark.parametrize("is_resume", [False, True], ids=["first-run", "resume"])
+def test_a_window_in_a_directory_the_proof_does_not_judge_never_advances_the_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, is_resume: bool) -> None:
+    """#7265 squad / #7271: the composed ``<slug>-<mid8>`` directory is the Mission's own but not judged.
+
+    A bare-slug coordination Mission keeps its coordination directory under the composed name (#5651). The
+    proof diffs only ``kitty-specs/<slug>/`` and the outside-directory check skips the composed one, so a
+    branch-only commit there is neither projected nor proved. It must not become the approved tip on either
+    run kind: the gate's compare-and-swap refuses and the branch keeps the commit.
+    """
+    from specify_cli.coordination.teardown import ProjectionTeardownAbort
+
+    composed = f"{SLUG}-composed"
+    monkeypatch.setattr(phase_teardown, "mission_dir_aliases", lambda _repo, slug: frozenset({slug, composed}))
+    run, worktree, tip = (_resume_with_coord_worktree if is_resume else _first_run_with_coord_worktree)(tmp_path)
+    rel = f"kitty-specs/{composed}/status.events.jsonl"
+    late = _commit_in_coord_worktree(worktree, rel, json.dumps(_late_event("01M380R6EVENTWP01000000000047", "done")) + "\n", "late emit")
+
+    with pytest.raises(ProjectionTeardownAbort) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert "compare-and-swap failed" in str(caught.value), "the gate refuses the tip nobody proved"
+    assert run.coord_tip_after_projection == tip, "a window the proof did not judge never advances the approved tip"
+    assert _rev(run.main_repo, run.lanes_manifest.mission_branch) == late, "the branch keeps the unjudged commit"
+
+
+def test_a_short_circuited_resume_approves_the_tip_its_window_proved(tmp_path: Path) -> None:
+    """#7199 / #5021 shape: a resume whose reconciliation had already passed never captures an anchor.
+
+    ``coord_tip_after_projection`` is ``None`` there, and the gate falls back to the claim-time checkpoint.
+    The advance needs no previous value: once the window from ``pre_mutation_coord_sha`` is proven, the
+    proven tip becomes the approved one and teardown finishes.
+    """
+    run, worktree, _tip = _resume_with_coord_worktree(tmp_path)
+    run.coord_tip_after_projection = None
+    rel = f"kitty-specs/{SLUG}/traces/late.md"
+    late = _commit_in_coord_worktree(worktree, rel, "late\n", "late verdict")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert run.coord_tip_after_projection == late, "the proven tip is the approved one"
+    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch)
+    assert _git(run.main_repo, "show", f"main:{rel}").stdout == "late\n"
+
+
+def test_unjudged_paths_are_empty_without_another_mission_directory(tmp_path: Path) -> None:
+    """Control for #7271: a Mission with one directory has nothing unjudged, so the advance is not gated."""
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
+
+    assert phase_teardown._unjudged_mission_dir_paths(run, tip, late) == []
+
+
 def test_first_run_refuses_rather_than_skips_a_window_it_cannot_read(tmp_path: Path) -> None:
     """#6871 review: an UNREADABLE coordination ref is not an absent one.
 
@@ -1270,9 +1322,9 @@ def test_first_run_refuses_a_status_event_the_union_could_not_see(tmp_path: Path
 def test_the_status_event_repair_clears_its_own_refusal(tmp_path: Path) -> None:
     """#7198 review: the remedy must actually clear the refusal, not repeat it.
 
-    The printed repair for a missing event is to make the COORDINATION WORKTREE's copy hold the branch's
-    log (that is what the union folds). Doing exactly that and re-running must land the event and finish
-    the teardown -- proving the instruction and the machinery agree.
+    The printed repair for a missing event is to ADD the branch's missing events to the COORDINATION
+    WORKTREE's working-tree copy (that is what the union folds), keeping every line it already holds.
+    Doing exactly that and re-running must land the event and finish the teardown -- proving the instruction and the machinery agree.
     """
     run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
     branch = run.lanes_manifest.mission_branch
@@ -1284,12 +1336,20 @@ def test_the_status_event_repair_clears_its_own_refusal(tmp_path: Path) -> None:
     with pytest.raises(run_state.CoordinationTeardownError):
         phase_teardown._teardown_coordination_triple(run)
 
-    # The printed repair, verbatim: in the coordination worktree, check the branch's log out.
-    _git(worktree, "checkout", branch, "--", rel)
+    # The printed repair: APPEND the branch's missing lines to the working-tree log, keeping every line it
+    # holds -- including one nobody committed yet, which a checkout of the branch file would have dropped.
+    working_log = worktree / rel
+    uncommitted = _late_event("01M380R6EVENTWP01000000000046", "for_review")
+    working_log.write_text(working_log.read_text(encoding="utf-8") + json.dumps(uncommitted) + "\n", encoding="utf-8")
+    held = working_log.read_text(encoding="utf-8").splitlines()
+    held_ids = {json.loads(line)["event_id"] for line in held if line.strip()}
+    missing = [line for line in _git(run.main_repo, "show", f"{branch}:{rel}").stdout.splitlines() if line.strip() and json.loads(line)["event_id"] not in held_ids]
+    working_log.write_text("\n".join([*held, *missing]) + "\n", encoding="utf-8")
     phase_teardown._teardown_coordination_triple(run)
 
     assert not _branch_exists(run.main_repo, branch), "the repaired window lands and tears down"
     assert "01M380R6EVENTWP01000000000045" in _git(run.main_repo, "show", f"main:{rel}").stdout
+    assert "01M380R6EVENTWP01000000000046" in _git(run.main_repo, "show", f"main:{rel}").stdout, "the uncommitted event survives the repair"
 
 
 def test_first_run_lands_when_the_target_log_is_a_superset(tmp_path: Path) -> None:
