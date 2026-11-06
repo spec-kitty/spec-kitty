@@ -237,6 +237,9 @@
       "last_event_id": "01M6S1GKADKNZ8NX26YP6NWHMX",
       "last_transition_at": "2026-11-06T18:21:39.524969+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-06T18:26:26Z – claude::python-pedro – shell_pid=12194 – Blocked (stopped per orchestrator instruction): the empty-allowlist single-door gate needs ~53 legacy status read sites in ~35 files migrated (32 read_dir(STATUS_STATE), 8 resolve_status_surface, 2 resolve_status_surface_with_anchor, 5 read_event_log/stream, 5 private resolvers) plus 31 status.events.jsonl joins classified, and downstream Path-typed APIs (get_wp_lane 52, has_event_log 26, WorkPackage.status_dir 20, reconstruct_wp_view 15). Not achievable in one WP; no code committed, no allowlist. Census returned to orchestrator."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 12194,
