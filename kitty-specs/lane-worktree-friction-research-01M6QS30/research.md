@@ -50,7 +50,13 @@ python3 -c "import json,glob,collections;c=collections.Counter();[c.update([m.ge
 Output on 2026-11-06: `single_branch` 176, `lanes` 74, `coord` 53, `lanes_with_coord` 5,
 none 132.
 
-## Open questions
+## Operator rulings (2026-11-06)
+
+The operator ruled on all seven questions (stijn-dejongh, relayed by the dispatcher session).
+See report section 5.4 for the rulings and section 5.5 for the proposed slices, which are not
+yet filed.
+
+## Open questions (as put to the operator)
 
 Each question is for the operator; the report lists them in section 5.3.
 

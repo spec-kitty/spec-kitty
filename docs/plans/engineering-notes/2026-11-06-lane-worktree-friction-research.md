@@ -31,8 +31,9 @@ coordination topology and the consolidation transaction around it. Recommended d
 3. **Write coordination status through the Java write service without a coordination worktree.**
 4. **Make lane checkouts short-lived.**
 
-Changing the default topology to `single_branch` is your call: it would reverse the binding
-decision on #5100. Do not drop lanes.
+The operator ruled on the decisions on 2026-11-06 (section 5.4). Two rulings go further than
+this note recommends. The default topology becomes size-based, which reverses #5100. Short-lived
+lane checkouts start now, in parallel with the tighten slice. Do not drop lanes.
 
 Research mission: `kitty-specs/lane-worktree-friction-research-01M6QS30/`. Every number below
 comes from an evidence file there, and each file records the commands that reproduce it.
@@ -563,6 +564,53 @@ Phase 0's #7264 ADR is the parallel priority for the data-loss cases (#4753, #47
    merge-commit proof?
 7. **Destructive operations.** Adopt the #7264 proof-obligation ADR as the single authority for
    prune, lane teardown and consolidation cleanup?
+
+### 5.4 Operator rulings (2026-11-06)
+
+These rulings are stijn-dejongh's of 2026-11-06. The dispatcher session relayed them into the
+research session; they are recorded here as received.
+
+| # | Decision | Ruling |
+|---|---|---|
+| 1 | Default topology (#5100) | **Reverse explicit-only.** The default is chosen by Mission size: `single_branch` when the finalized tasks have at most 2 WPs, or when lane computation yields a single lane; lanes otherwise. An explicit `--topology` always wins. |
+| 2 | Coordination branch | **Keep** it as the lifecycle home for coordination topologies. |
+| 3 | Lane status copies | **Approved:** lane branches stop carrying `status.events.jsonl`. |
+| 4 | Status by plumbing | **Approved:** write the ADR set for the Java write service writing coordination status without a coordination worktree. This follows migration step 4 (ADR `2026-10-22-1` D-6). |
+| 5 | Short-lived checkouts | **Approved, start now:** amend ADR `2026-04-03-1` for short-lived per-command lane checkouts, where releasing a checkout commits or refuses. This runs in parallel with the tighten slice. The for_review gate must move onto the lane branch. |
+| 6 | Cleanup after landing | **Both `accept` and prune, without waiting for the PR merge,** which is asynchronous. Worktree and branch cleanup is the final step of the consolidation phase, under the destructive-operation proofs. `doctor workspaces --prune` stays the proof-based backstop for anything left. |
+| 7 | Destructive operations | **Adopted:** the #7264 proof list is the single authority for every destructive git operation (prune, lane teardown, consolidation cleanup), enforced through `git/destructive_guard.py`. |
+
+What the rulings change in this note:
+
+- **Recommendation order.** Ruling 5 moves (b) up beside (a). Ruling 1 replaces "(c) only as an
+  operator decision" with a size-based default.
+- **Design point for the ruling 1 ADR.** Topology is chosen at `mission create`, before any WP
+  exists. The size rule therefore has to apply at `finalize-tasks`, either by deciding there or by
+  re-stamping a provisional topology. The re-stamp must not strand a coordination branch or a
+  lane allocation made in between.
+- **Risks that grow with ruling 1.** More Missions become `single_branch`, so more of them are
+  neither stamped nor approval-bounded (section 4.2). Per-WP approval windows should land with
+  the size-based default, or before it. #5550 and #5676 (the shared write checkout as a lock
+  across Missions) matter more as well.
+- **Effect of ruling 6.** Cleanup moves out of "after the PR merge" and into consolidation.
+  Section 3.3's no-owner gap closes for Missions that consolidate through the CLI. The prune
+  remains for checkouts that never reach that step.
+
+### 5.5 Proposed slices (for the operator to approve; none filed or started)
+
+| Slice | Ruling | Content | Depends on |
+|---|---|---|---|
+| S1. One status read contract | (a) | One read contract per topology: read from a ref only where the write commits in the same unit of work. Collapse the wrappers onto `resolve_status_surface_with_anchor`. Add an empty-allowlist call-site gate. Finish #6884. | none |
+| S2. For_review gate on the lane branch | 5 | Count lane commits with `git rev-list <base>..refs/heads/<lane>` instead of `HEAD` in the lane checkout (`lanes/for_review_gate.py:280`, `lanes/_git.py`). Exit: the gate passes with the lane checkout absent. | none |
+| S3. ADR `2026-04-03-1` amendment: short-lived lane checkouts | 5 | Lease per command, release commits or refuses. Explicit lane-tip record points for temporary detached worktrees (the hook exits on a detached HEAD, `policy/lane_tip_recorder.py:67`). Re-entry without the crash-recovery route. Harness cwd across turns. Review worktree and fast-forward. Migration of existing lane worktrees. | S2 for the implementation, not the ADR |
+| S4. Destructive-operation authority | 7 | Accept the #7264 ADR. Enforce it through `git/destructive_guard.py`. Land #7239, #7237 and #7240 under it, in that order. | none |
+| S5. Cleanup as the final consolidation step | 6 | Worktree and branch teardown becomes the last consolidation step, also on the `accept --mode pr` route, without waiting for the PR merge. `doctor workspaces --prune` is the backstop. | S4 |
+| S6. Lane branches without status copies | 3 | Sparse exclusion or a tree filter at lane cut for `lanes` as well as coordination topologies (`coordination/workspace.py:416`). A migration for existing lane branches. Retire the lane auto-rebase merger for the file once no lane carries it. | S1 |
+| S7. Size-based default topology | 1 | ADR reversing #5100: the size rule, its home (`finalize-tasks`, decide or re-stamp), the explicit `--topology` override, the `specify` help text, docs and tests. | per-WP approval windows for `single_branch` (S8) |
+| S8. `single_branch` approval bound | 1 (risk) | Per-WP approval windows on a shared write branch (the #5046 machinery) or an amendment to ADR `2026-10-04-5`. | none |
+| S9. Coordination status without a coordination worktree: the ADR set | 2, 4 | The ADRs D-6 requires: committed-ledger publication (ADR `2026-10-13-2` D-2), the read API pull (ADR `2026-10-01-2` D-6), event-log merge semantics (ADR `2026-02-09-3`), and the gates' reliance on ancestry and `lane_head`. Also covers the `events tail` cursor. Delivered after write-service migration step 4. | write-service step 4 |
+| S10. Late-window design pass | (a), phase 0 | The #7265 design pass, then #7228 absorbing #7226. | none |
+| S11. Doctrine upstream | (a) | In `spec-kitty-open-packs` and the command skills: a status-surface rule, one worktree vocabulary, current `consolidate` wording, cleanup and recovery guidance for `DESTROYED_LANE` and `LANE_WORK_TIP_UNKNOWN`. | S1, S3 |
 
 ## 6. Limitations
 
