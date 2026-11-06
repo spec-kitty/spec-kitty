@@ -16,9 +16,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.mission_metadata import TrackedMeta, read_tracked_meta
+from kernel.git_anchor import GitAnchor
+from specify_cli.mission_metadata import TrackedMeta, UnreadableReason, read_tracked_meta
 
-#: The one repair command every variant ends with.
+#: File-restore command for notices whose tracked-state diagnostics support it.
 _RESTORE = "git checkout -- {path}"
 
 #: Stable codes of a refusal, printed in its notice and carried in ``BackfillResult.reason``.
@@ -28,6 +29,51 @@ CODE_STAGED_DIFFERS = "TRACKED_META_STAGED_DIFFERS"
 _LEAD_ABSENT = "is missing from the working tree"
 _LEAD_NO_IDENTITY = "has lost its mission_id"
 
+#: What actually repairs each reason git could not answer (#7131). Each one says the tracked state
+#: is *unknown* (git never established that the path is tracked), names the repair class, and rules
+#: out the restore remedy: `git checkout -- <path>` fails for the same reason the read failed.
+_UNREADABLE_TAIL: dict[UnreadableReason, str] = {
+    "ownership": (
+        "git reports an ownership-trust refusal for this checkout, so whether it is tracked here is "
+        "unknown and no identity was minted — trusting the repository is an explicit operator decision, scoped to "
+        "this checkout only (name that exact path in `safe.directory`, never `*`), and no file restore can "
+        "succeed until git answers"
+    ),
+    "repository": (
+        "git cannot identify a repository here (an unreadable or garbled `.git` marker, or a `GIT_DIR`/"
+        "`GIT_WORK_TREE` naming elsewhere), so whether it is tracked is unknown and no identity was minted — "
+        "repair the repository layout or environment first (`git status` in the checkout reports the cause), "
+        "because no file restore can succeed until git answers"
+    ),
+    "objects": (
+        "git could not read the committed content for it from this repository (for example, a missing or corrupt "
+        "object, an unreadable ref, or an incomplete clone), so whether it is tracked is unknown and no identity "
+        "was minted — check repository and object-store access first (`git fsck` can help diagnose the failure), "
+        "because no file restore can succeed until git answers"
+    ),
+}
+
+#: The tail for a git that could not be started while a repository sits above the folder (#7262).
+_GIT_NOT_RUN_TAIL = (
+    "git could not be started here (it is not installed, or this folder cannot be its working directory) while "
+    "`{anchor}` is a repository above it, so whether it is tracked is unknown and no identity was minted — make git "
+    "runnable here, then re-run"
+)
+
+#: The tail for a `.git` the classifier could not rule out (#7262). It names that `.git` and both real repairs,
+#: and never tells the operator to delete it blindly: a repository that lost its `HEAD` still holds history.
+_ANCHOR_TAIL = (
+    "`{anchor}` is {why}: this check can neither confirm it as a repository nor rule it out as harmless residue, so whether it is "
+    "tracked is unknown and no identity was minted — if it is a repository, repair it (for example restore its "
+    "`HEAD`); if it is leftover residue that holds nothing you need, remove it; then re-run"
+)
+
+#: The tail for an explicit git redirect in the environment (#7262): the names on disk cannot rule out the store it selects.
+_REDIRECT_TAIL = (
+    "{why} and git could not answer, so whether it is tracked is unknown and no identity was minted — if that override "
+    "is unintended, correct or unset it for this command; otherwise repair the repository it selects, then re-run"
+)
+
 
 @dataclass(frozen=True)
 class MissingTrackedMeta:
@@ -35,8 +81,10 @@ class MissingTrackedMeta:
 
     ``refuse`` is True when the seam must not repair the folder: git knows the path but
     the content cannot be used, so any ``meta.json`` written for it would be a fabricated
-    identity (#6673). ``notice`` is the single operator-facing line for both cases. ``code`` is
-    the refusal's stable code (``None`` for a usable copy), also printed at the end of the notice.
+    identity (#6673). ``notice`` is the single operator-facing line for both cases: the
+    reason git could not produce a copy, and the repair that actually applies (#7131).
+    ``code`` is the refusal's stable code (``None`` for a usable copy), also printed at the
+    end of the notice.
     """
 
     notice: str
@@ -58,14 +106,16 @@ def classify_missing_tracked_meta(feature_dir: Path, repo_root: Path) -> Missing
 
     Returns:
         ``MissingTrackedMeta(notice, refuse=True)`` when git knows the path but its
-        content cannot be read, or ``refuse=False`` when git holds a usable copy that the
-        seam is about to rebuild the file from.
+        content cannot be read, or when git could not answer for the repository at all
+        (#7131) — the notice then names the repair class instead of a file restore — or
+        ``refuse=False`` when git holds a usable copy that the seam is about to rebuild
+        the file from.
     """
     if (feature_dir / "meta.json").exists():
         return None
     tracked: TrackedMeta = read_tracked_meta(feature_dir)
     if tracked.unavailable:
-        return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_ABSENT)
+        return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_ABSENT, repo_root)
     if tracked.meta is None:
         return None
     return MissingTrackedMeta(_restore_notice(_display_path(feature_dir, repo_root)), refuse=False)
@@ -83,13 +133,13 @@ def tracked_meta_refusal(feature_dir: Path, repo_root: Path, tracked: TrackedMet
     """
     if not tracked.unavailable:
         return None
-    return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_NO_IDENTITY)
+    return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_NO_IDENTITY, repo_root)
 
 
-def _refusal(path: str, tracked: TrackedMeta, lead: str) -> MissingTrackedMeta:
+def _refusal(path: str, tracked: TrackedMeta, lead: str, repo_root: Path) -> MissingTrackedMeta:
     """The coded refusal for a tracked copy git cannot give back."""
     code = CODE_STAGED_DIFFERS if tracked.staged_differs else CODE_UNAVAILABLE
-    return MissingTrackedMeta(f"{_refusal_notice(path, tracked, lead)} [{code}]", refuse=True, code=code)
+    return MissingTrackedMeta(f"{_refusal_notice(path, tracked, lead, repo_root)} [{code}]", refuse=True, code=code)
 
 
 def _restore_notice(path: str) -> str:
@@ -100,8 +150,17 @@ def _restore_notice(path: str) -> str:
     )
 
 
-def _refusal_notice(path: str, tracked: TrackedMeta, lead: str) -> str:
+def _refusal_notice(path: str, tracked: TrackedMeta, lead: str, repo_root: Path) -> str:
     """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
+    if tracked.unreadable_reason == "anchor" and tracked.anchor is not None:
+        return f"{path}: meta.json {lead} and {_anchor_tail(tracked.anchor, repo_root)}"
+    if tracked.unreadable_reason == "git-not-run" and tracked.anchor is not None and tracked.anchor.path is not None:
+        return f"{path}: meta.json {lead} and {_GIT_NOT_RUN_TAIL.format(anchor=_shown(tracked.anchor.path, repo_root))}"
+    if tracked.unreadable_reason is not None:
+        # Git never answered, so the subject is not "tracked meta.json": whether the path is
+        # tracked is exactly what could not be established (#7131).
+        tail = _UNREADABLE_TAIL.get(tracked.unreadable_reason, _UNREADABLE_TAIL["repository"])
+        return f"{path}: meta.json {lead} and {tail}"
     if tracked.staged_differs:
         return (
             f"{path}: meta.json {lead} and the index copy differs from the committed one (a staged edit); "
@@ -121,6 +180,21 @@ def _refusal_notice(path: str, tracked: TrackedMeta, lead: str) -> str:
             f"then restore it with `{_RESTORE.format(path=path)}`"
         )
     return f"{path}: tracked meta.json {lead} and git could not produce its content; no identity was minted — restore it with `{_RESTORE.format(path=path)}`"
+
+
+def _anchor_tail(anchor: GitAnchor, repo_root: Path) -> str:
+    """The repair tail for a `.git` the classifier could not rule out, naming that `.git` (#7262)."""
+    if anchor.path is None:
+        return _REDIRECT_TAIL.format(why=anchor.reason)
+    return _ANCHOR_TAIL.format(anchor=_shown(anchor.path, repo_root), why=anchor.reason)
+
+
+def _shown(path: Path, repo_root: Path) -> str:
+    """*path* relative to *repo_root* (POSIX), or absolute when it is not below it."""
+    try:
+        return path.relative_to(repo_root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _display_path(feature_dir: Path, repo_root: Path) -> str:

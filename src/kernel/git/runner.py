@@ -6,6 +6,9 @@ themselves — they ask :mod:`kernel.git.listing` by intent — and destructive
 commands (``reset --hard``, ``update-ref``, ``worktree remove``) stay at their
 guarded call sites in ``specify_cli`` (C-007).
 
+:func:`refuses_ownership` identifies git's refusal diagnosis without deciding
+whether a checkout should be trusted or changing its configuration.
+
 Paths git prints are decoded exactly one way, :func:`decode_path`: UTF-8 with
 ``surrogateescape``. That is lossless (undecodable bytes round-trip to the
 filesystem through ``os.fsencode`` on POSIX) and matches git for Windows, which
@@ -19,7 +22,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-__all__ = ["GitCommandError", "GitResult", "decode_path", "run_git"]
+__all__ = ["GitCommandError", "GitResult", "decode_path", "refuses_ownership", "run_git"]
 
 # Returncode reported when git could not be executed at all (missing binary,
 # unreadable working directory, timeout).
@@ -33,6 +36,22 @@ class GitResult:
     returncode: int
     stdout: bytes
     stderr: bytes
+
+
+def refuses_ownership(stderr: str) -> bool:
+    """Whether git's refusal is its ownership-trust refusal, not a missing repository.
+
+    Match git's modern or legacy diagnosis line, or its explicit exception hint
+    (whose command stays stable across translated diagnostics). Words inside an
+    echoed non-repository path are not an ownership diagnosis. This is a classifier,
+    never permission to widen trust: trusting a checkout is the operator's decision.
+    """
+    prefixes = (
+        "fatal: detected dubious ownership in repository at ",
+        "fatal: unsafe repository (",
+        "git config --global --add safe.directory ",
+    )
+    return any(line.strip().lower().startswith(prefixes) for line in stderr.splitlines())
 
 
 class GitCommandError(RuntimeError):

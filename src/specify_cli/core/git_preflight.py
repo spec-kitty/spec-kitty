@@ -7,6 +7,7 @@ from pathlib import Path
 import shlex
 import subprocess
 
+from kernel.git import refuses_ownership
 from specify_cli.core.errors import StructuredError
 
 __all__ = [
@@ -146,11 +147,6 @@ def _run_git(repo_root: Path, args: list[str], timeout: int = 15) -> _GitCommand
         )
 
 
-def _is_dubious_ownership(stderr: str) -> bool:
-    text = stderr.lower()
-    return "dubious ownership" in text or "safe.directory" in text
-
-
 def _safe_directory_command(repo_root: Path) -> str:
     return f"git config --global --add safe.directory {shlex.quote(str(repo_root))}"
 
@@ -174,7 +170,7 @@ def run_git_preflight(
 
     repo_check = _run_git(root, ["rev-parse", "--is-inside-work-tree"])
     if repo_check.returncode != 0 or repo_check.stdout.strip().lower() != "true":
-        if _is_dubious_ownership(repo_check.stderr):
+        if refuses_ownership(repo_check.stderr):
             result.errors.append(
                 GitPreflightIssue(
                     code="UNTRUSTED_REPOSITORY",
@@ -200,7 +196,7 @@ def run_git_preflight(
     if check_worktree_list:
         worktree_check = _run_git(root, ["worktree", "list", "--porcelain"])
         if worktree_check.returncode != 0:
-            if _is_dubious_ownership(worktree_check.stderr):
+            if refuses_ownership(worktree_check.stderr):
                 result.errors.append(
                     GitPreflightIssue(
                         code="UNTRUSTED_REPOSITORY",

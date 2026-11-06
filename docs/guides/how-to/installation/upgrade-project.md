@@ -2,7 +2,7 @@
 title: Upgrade an existing Spec Kitty project
 description: Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps.
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-06'
 type: how-to
 related:
 - guides/how-to/installation/install-and-upgrade
@@ -129,6 +129,8 @@ kitty-specs/<slug>/meta.json: tracked meta.json is missing from the working tree
 ```
 
 Run the printed `git checkout -- <path>` and upgrade again. A `meta.json` git holds only in the index (staged, never committed) is reported the same way, with a note to commit it: its content is your working copy, not history's identity.
+
+A Mission folder outside any git checkout gets its identity normally, even when a `.git` sits above it, as long as that `.git` is empty or holds only `hooks/` and `spec-kitty-locks/` (leftovers, not a repository). When Git cannot answer and the `.git` above is a repository, or is neither a repository nor such leftovers (a lost or dangling `HEAD`, other contents, an entry that cannot be read), the upgrade refuses with `TRACKED_META_UNAVAILABLE` and names that `.git`. No `git checkout --` is offered then, because it fails for the same reason. Repair the repository (for example restore its `HEAD`), or, if it is leftover residue holding nothing you need, remove it; then upgrade again. The same refusal applies while `GIT_DIR`, `GIT_INDEX_FILE` or another Git redirect is set: correct or unset it if it is unintended, otherwise repair the repository it selects.
 
 ## Exit codes
 
