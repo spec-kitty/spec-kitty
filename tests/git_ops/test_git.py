@@ -150,8 +150,8 @@ def _add_worktree(repo, path, branch):
 class TestWorkspaceOperations:
     """Tests for workspace (worktree) operations."""
 
-    def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
-        """create_workspace should support branching from a base branch."""
+    def test_raw_git_worktree_add_with_base_branch(self, git_repo, git_vcs):
+        """A raw `git worktree add -b` can branch from a named base branch."""
         # First, get the current branch name (main or master)
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
