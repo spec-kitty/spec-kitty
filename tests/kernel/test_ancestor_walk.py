@@ -90,7 +90,8 @@ def test_a_ceiling_outside_the_start_path_has_no_effect(tmp_path: Path, monkeypa
     assert list(iter_ancestors(start)) == [start, *start.parents]
 
 
-def test_a_symlinked_ceiling_still_matches_the_resolved_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("looping_child", [False, True], ids=["healthy", "looping-child"])
+def test_a_symlinked_ceiling_still_matches_the_resolved_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, looping_child: bool) -> None:
     real = (tmp_path / "real").resolve()
     (real / "work").mkdir(parents=True)
     link = tmp_path / "link"
@@ -98,9 +99,20 @@ def test_a_symlinked_ceiling_still_matches_the_resolved_walk(tmp_path: Path, mon
         link.symlink_to(real, target_is_directory=True)
     except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
         pytest.skip("platform cannot create directory symlinks")
+    start = link / "work"
+    if looping_child:
+        # A real symlink loop: the start cannot be resolved, so the walk falls back to its
+        # lexical path, where the ceiling is reachable only through the alias.
+        (real / "work" / "loop").symlink_to(Path("loop"))
+        start = start / "loop" / "deep"
     _ceiling_env(monkeypatch, link)
 
-    assert list(iter_ancestors(link / "work"))[-1] == real
+    walked = list(iter_ancestors(start))
+
+    assert walked[-1] == (link if looping_child else real), "the walk ends at its one ceiling identity"
+    if looping_child:
+        (tmp_path / "above-ceiling").write_text("x", encoding="utf-8")
+        assert find_ancestor(start, lambda candidate: (candidate / "above-ceiling").exists()) is None
 
 
 def test_the_ceiling_is_read_on_every_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
