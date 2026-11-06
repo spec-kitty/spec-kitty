@@ -203,7 +203,7 @@ def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
     from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
     from specify_cli.status.read_surface import checkout_holding_branch
 
-    holder = checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
+    holder: Path | None = checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
     if holder is None or holder.resolve() == repo_root.resolve():
         return repo_root
     if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
