@@ -22,3 +22,4 @@
   - delete the third landed-reader copy in `phase_advance.py:264` unless WP07 does;
   - delete or rename the remaining old enum-member docstrings.
 - **[2026-11-06][review WP13] Closeout item:** the out-of-matrix `tests/specify_cli/cli/commands` directory shows failures that reviewers attributed to xdist or the base without serial confirmation (charter-cascade, doctrine-asset, `test_activate_only_6408`, the merge-golden `--dependency-ref`, and others). Before the PR, run that directory on the consolidated branch and on origin/main and classify each red (CLAUDE.md test policy; out-of-matrix category 6).
+- **[2026-11-06][implement WP10 cycle 2] Closeout item:** add `LANE_STATUS_NOT_EXCLUDED`, `LANE_STATUS_AUTHORED`, `STATUS_WRITE_TARGETS_LANE_CHECKOUT`, `status_surface_on_ref` and `status_surface_unavailable` to `contracts/error-codes.yaml` (planning artifact; WP18/closeout).

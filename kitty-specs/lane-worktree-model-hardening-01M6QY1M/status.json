@@ -308,9 +308,9 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -318,7 +318,8 @@
       "last_transition_at": "2026-11-06T18:19:34.580778+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate)."
+        "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate).",
+        "Review cycle 1 acknowledged; all four blockers fixed red-first (7768dad42c tests, dd69dadef6 fix, 962ba8662e allowlist). B1: FR-041 registry check moved out of the git-free _validate_write_contract into BookkeepingTransaction._resolve_write_contract (NFR-002 holds; 6 coordination tests green); a husk refuses pre-write with structured BookkeepingCommitFailed naming 'spec-kitty doctor workspaces --fix'; genuinely-legacy Missions keep their lane write target (3 legacy tests that cycle 1 also broke are green). B2: can_apply refuses while any lane is refused/mid-operation, so the runner skips unrecorded and retries next upgrade (runner-level tests); doctor sparse-checkout reports LANE_STATUS_NOT_EXCLUDED with remedy and --fix applies safe exclusions. B3: LANE_STATUS_AUTHORED counts only the lane's own non-merge commits not reachable from coordination/target/Mission branch; 0 findings on this repo; lanes-Mission regression test. B4: outcomes compared by value; passes in both orders with test_auto_discovery. N3 fixed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
