@@ -143,6 +143,7 @@ def _build_mission(repo: Path) -> Path:
                 "mission_slug": MISSION_SLUG,
                 "mission_id": MISSION_ID,
                 "mid8": MID8,
+                "mission_type": "software-dev",
                 "coordination_branch": COORD_BRANCH,
                 "target_branch": "main",
             }

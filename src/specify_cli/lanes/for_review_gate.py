@@ -18,9 +18,11 @@ modules plus the lower ``mission_runtime`` / ``core`` layers -- never
 ``orchestrator_api`` or a ``status`` aggregate.
 
 **Topology-aware, both directions.** The verdict is decided on *commit state*
-(``git rev-list <base>..HEAD`` inside the lane worktree), not on a
-clone-vs-primary topology guess: a checkout with satisfied commits PASSES and a
-checkout with unsatisfied commits FAILS, identically on every surface.
+(``git rev-list <base>..refs/heads/<lane>`` from the repository root), not on a
+clone-vs-primary topology guess and not on whether a lane checkout exists: a
+lane branch with satisfied commits PASSES and one with unsatisfied commits
+FAILS, identically on every surface (S2 / #7278). A missing branch ref refuses
+with its own ``LANE_BRANCH_MISSING`` reason.
 """
 
 from __future__ import annotations
@@ -34,7 +36,18 @@ from kernel.git import GitCommandError, log_paths
 if TYPE_CHECKING:
     from .models import ExecutionLane, LanesManifest
 
-__all__ = ["GateDecision", "evaluate_for_review_gate", "resolve_lane_base_ref"]
+__all__ = [
+    "LANE_BRANCH_MISSING",
+    "LANE_NO_COMMIT_BEYOND_BASE",
+    "GateDecision",
+    "evaluate_for_review_gate",
+    "resolve_lane_base_ref",
+]
+
+LANE_BRANCH_MISSING = "LANE_BRANCH_MISSING"
+LANE_NO_COMMIT_BEYOND_BASE = "LANE_NO_COMMIT_BEYOND_BASE"
+_CANNOT_MOVE = "{wp_id} cannot move to for_review: "
+_FORCE_HINT = "or pass --force if there is genuinely nothing to commit."
 
 
 @dataclass(frozen=True)
@@ -52,6 +65,7 @@ class GateDecision:
     lane_id: str | None = None
     lane_branch: str | None = None
     base_ref: str | None = None
+    reason_code: str | None = None
 
 
 def resolve_lane_base_ref(main_repo_root: Path, mission_slug: str, manifest: object) -> str:
@@ -235,6 +249,13 @@ def _evaluate_repo_root_lane_gate(
     )
 
 
+def _code_lane_identity(manifest: LanesManifest, lane: ExecutionLane) -> tuple[str, str]:
+    """``(lane_id, created branch)`` of a code lane, from the creation input alone."""
+    from .compute import lane_created_branch
+
+    return lane.lane_id, lane_created_branch(manifest, lane.lane_id)
+
+
 def evaluate_for_review_gate(
     main_repo_root: Path,
     mission_slug: str,
@@ -263,36 +284,37 @@ def evaluate_for_review_gate(
         # Legacy / non-lane arm => guard exempt: no lane branch to check commits on.
         return GateDecision(passed=True)
     manifest, lane = resolved
-    lane_id = lane.lane_id
 
     from .compute import is_planning_lane
 
     if is_planning_lane(lane):
-        return _evaluate_repo_root_lane_gate(main_repo_root, mission_slug, wp_id, lane_id, manifest.target_branch)
+        return _evaluate_repo_root_lane_gate(main_repo_root, mission_slug, wp_id, lane.lane_id, manifest.target_branch)
 
-    from .worktree_allocator import predict_lane_worktree
-
-    worktree, lane_branch = predict_lane_worktree(main_repo_root, mission_slug, lane_id)
+    lane_id, lane_branch = _code_lane_identity(manifest, lane)
     base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
 
-    from ._git import lane_has_commit_beyond_base
+    from ._git import lane_branch_has_commit_beyond_base
 
-    if worktree.exists() and lane_has_commit_beyond_base(worktree, base_ref):
-        return GateDecision(
-            passed=True,
-            lane_id=lane_id,
-            lane_branch=lane_branch,
-            base_ref=base_ref,
+    has_commit = lane_branch_has_commit_beyond_base(main_repo_root, base_ref, lane_branch)
+    if has_commit:
+        return GateDecision(passed=True, lane_id=lane_id, lane_branch=lane_branch, base_ref=base_ref)
+    if has_commit is None:
+        reason = (
+            _CANNOT_MOVE.format(wp_id=wp_id) + f"lane branch {lane_branch} does not exist. Restore it (see the lane-tip record: "
+            f"git branch {lane_branch} refs/spec-kitty/lane-tip/{lane_branch}) or re-run "
+            f"spec-kitty agent action implement {wp_id}."
         )
+        code = LANE_BRANCH_MISSING
+    else:
+        reason = (
+            _CANNOT_MOVE.format(wp_id=wp_id) + f"lane branch {lane_branch} has no commit beyond {base_ref}. Commit the WP's work on that lane branch, {_FORCE_HINT}"
+        )
+        code = LANE_NO_COMMIT_BEYOND_BASE
     return GateDecision(
         passed=False,
-        reason=(
-            f"{wp_id} cannot move to for_review: no implementation commit on lane "
-            f"{lane_id} ({lane_branch}) beyond {base_ref}. Commit the work in the "
-            "lane worktree first, or pass --force if there is genuinely nothing to "
-            "commit."
-        ),
+        reason=reason,
         lane_id=lane_id,
         lane_branch=lane_branch,
         base_ref=base_ref,
+        reason_code=code,
     )
