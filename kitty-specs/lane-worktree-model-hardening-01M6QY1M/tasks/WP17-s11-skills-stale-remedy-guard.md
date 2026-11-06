@@ -8,6 +8,7 @@ dependencies:
 - WP12
 - WP14
 - WP15
+- WP20
 requirement_refs:
 - FR-090
 - FR-091
@@ -91,7 +92,7 @@ S11 (#7285), the core-repository text that ships with this Mission's behaviour:
 ## Context & Constraints
 
 - Read: spec User Story 9, FR-090 to FR-093, Rule 8 ("Text follows behaviour"), C-001, C-002, C-007; `research.md` R-11; `upstream/doctrine-and-write-service-adr-map.md` (K1-K9 rows; it lists which skill gets which edit); tracer friction "S11 review (open-packs PR #128) found core follow-ups" (`spec-kitty context cleanup` clears every orphaned context; `DESTROYED_LANE` no-tip variant; `LANE_WORK_TIP_UNKNOWN` should suggest `--dry-run` first) - fold in only if small and only where behaviour exists.
-- **Text never ships before its behaviour (FR-093)**: before writing a sentence, confirm the behaviour is on the topic branch (the dependencies WP07, WP08, WP10, WP12, WP14, WP15 are approved). Sentences about WP16 behaviour (pr-mode cleanup, prune backstop for Mission lanes) are withheld unless WP16 has landed; if it lands later, it adds them.
+- **Text never ships before its behaviour (FR-093)**: before writing a sentence, confirm the behaviour is on the topic branch (the dependencies WP07, WP08, WP10, WP12, WP14, WP15, WP20 are approved). Sentences about WP16 behaviour (pr-mode cleanup, prune backstop for Mission lanes) are withheld unless WP16 has landed; if it lands later, it adds them.
 - C-002: do NOT edit `packs/built-in/`, `packs/internal/` or generated agent directories (`.claude/`, `.agents/` ...). Pack doctrine is WP18's patch. Core skills live in `src/charter/offering/skills/` (not in packs).
 - Editing `src/charter/offering/**` and prose: run `tests/architectural/test_no_legacy_terminology.py` before pushing (CLAUDE.md). Terminology: say `consolidate`; name senses of "primary"/"merge"/"routing"/"residue".
 - Internal code names (`LANE_BRANCH_MISSING`, `STATUS_WRITE_TARGETS_LANE_CHECKOUT`, ...) are final unless review renamed them (data-model §7): check the code before quoting them.

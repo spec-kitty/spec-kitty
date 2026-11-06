@@ -18,6 +18,7 @@ requirement_refs:
 - C-012
 - C-017
 - NFR-009
+- NFR-008
 planning_base_branch: issue-7276-lane-worktree-hardening
 merge_target_branch: issue-7276-lane-worktree-hardening
 branch_strategy: Planning artifacts for this mission were generated on issue-7276-lane-worktree-hardening. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7276-lane-worktree-hardening unless the human explicitly redirects the landing branch.
@@ -105,7 +106,7 @@ S5 (#7280), the seam (does NOT wait for #7275):
 ## Context & Constraints
 
 - Read: spec User Story 6, FR-030 to FR-039a, Edge Cases (`--abort` after partial cleanup, PR closed, coordination teardown refusal); `research.md` R-9; `data-model.md` §6 (exact types); `contracts/consolidate-cleanup-report.md`; `quickstart.md` §3; WP03's `upstream/adr-2026-11-06-1-amendment-draft.md` (vocabulary); CLAUDE.md "Consolidation & Preflight Patterns" (retention, rollback authority, `CoordMovedAfterLanding`).
-- Sources to extract from: `phase_teardown.py:~868-1031` and `orchestrator_api/consolidation.py:~391-447`. The main-today remover calls the current guarded primitives exactly as now (no new raw `git worktree remove`, `branch -D` or `--force`; C-004).
+- Sources to extract from: `phase_teardown.py:~868-1031` and `orchestrator_api/consolidation.py:~391-447`. The main-today remover calls the current guarded primitives exactly as now (no new raw `git worktree remove`, `branch -D` or `--force`; C-004 and its recorded interim exception, DM `01M6QY4B7P4T68TE7JE30FRJV6` s5-seam, until WP16 binds the port).
 - **#7274 (NOT merged, S10)** shares `phase_teardown.py` and `run_state.py`: rebase onto it when it lands; keep coordination teardown codes intact (exit 1 / 75).
 - **#7275 (NOT merged, S4)**: not needed here. The `LaneRemover` Protocol lets WP16 bind `guarded_landed_removal` later.
 - Contract version tests to update: `tests/specify_cli/orchestrator_api/test_contract_version.py`, `tests/contract/test_orchestrator_api.py` (out-of-map edits; record them).
@@ -183,6 +184,8 @@ uv run --frozen mypy --strict <touched src files>
 
 Never `make test-full` or a bare `tests/architectural/` sweep.
 
+**NFR-008 (Linux and Windows).** The kept-report path must pass on the Linux and Windows CI lanes: a lane that cannot be removed (for example a file held open on Windows) is kept and reported with exit 0, never retried with `--force`; remedies print `spec-kitty` commands with platform-neutral paths. NFR-008's "off Linux, never removed without a process proof" is delivered by the WP16 guard binding; the interim remover adds no new removal path (C-004 recorded interim exception). `test_dirtied_lane_after_preflight_kept_exit_0_record_cleared` must not rely on POSIX-only behaviour; reviewers check the Windows lane result on the PR (`ci-windows.yml`).
+
 ## Tracer files
 
 Return tracer lines in your completion summary (`- **[YYYY-MM-DD][implement WP15] ...**`, naming the trace file); the orchestrator appends them. Record whether FR-035's crash window was real.
@@ -190,7 +193,7 @@ Return tracer lines in your completion summary (`- **[YYYY-MM-DD][implement WP15
 ## Risks & Mitigations
 
 - Exit-code regressions for coordination teardown: dedicated test.
-- One bump only: whichever of WP13/WP14/WP15 lands first sets 1.24.0; no release ships 1.24.0 without all three.
+- One bump only: WP15 is the single owner of `CONTRACT_VERSION` 1.23.0 -> 1.24.0 and of the `docs/api/orchestrator-api.md` rows for every 1.24.0 field (its own `lane_cleanup` plus WP13's `topology_source` / `topology_provisional` and WP14's `topology_decision`, per `contracts/`). WP13 and WP14 depend on WP15 and only emit their fields; they do not edit `envelope.py` or the doc page (analysis F2). No release ships 1.24.0 without all three.
 
 ## Review Guidance
 

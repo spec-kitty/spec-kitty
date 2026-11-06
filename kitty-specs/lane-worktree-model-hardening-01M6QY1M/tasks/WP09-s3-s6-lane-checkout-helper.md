@@ -3,6 +3,7 @@ work_package_id: WP09
 title: S3/S6 - one lane-checkout helper; status exclusion on every lane checkout
 dependencies:
 - WP01
+- WP03
 - WP08
 requirement_refs:
 - FR-021

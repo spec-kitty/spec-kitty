@@ -5,11 +5,11 @@ description: "Work packages for Mission lane-worktree-model-hardening-01M6QY1M (
 # Work Packages: Lane and worktree model hardening
 
 **Inputs**: design documents in `kitty-specs/lane-worktree-model-hardening-01M6QY1M/` (spec.md, plan.md, research.md, data-model.md, contracts/, quickstart.md, decisions/)
-**Prerequisites**: plan.md (Implementation Concern Map IC-01 to IC-17), spec.md (FR/NFR/C/SC), the 19 resolved Decision Moments (`spec-kitty agent decision list --mission lane-worktree-model-hardening-01M6QY1M`).
+**Prerequisites**: plan.md (Implementation Concern Map IC-01 to IC-18), spec.md (FR/NFR/C/SC), the 19 resolved Decision Moments (`spec-kitty agent decision list --mission lane-worktree-model-hardening-01M6QY1M`).
 
 **Tests**: required. Charter C-011 (ATDD-first): every code work package commits its red-first acceptance tests BEFORE the implementation commit, through the pre-existing entry point (the real CLI or `orchestrator-api` verb) on real git fixtures. ADR work packages name confirmation tests instead.
 
-**Organization**: one work package per implementation concern (WP01 = IC-01 ... WP16 = IC-16). IC-17 is split in three: WP17 code (command skills, stale-lane CLI message, skill-text guard, CLAUDE.md), WP18 docs pages and changelog fragments (`code_change`, owns only `docs/`), WP19 the open-packs patch (planning artifact; the kitty-specs ownership ban keeps it out of code WPs, and the planning lane may not depend on code lanes).
+**Organization**: one work package per implementation concern (WP01 = IC-01 ... WP16 = IC-16). IC-17 is split in three: WP17 code (command skills, stale-lane CLI message, skill-text guard, CLAUDE.md), WP18 docs pages and changelog fragments (`code_change`, owns only `docs/`), WP19 the open-packs patch (planning artifact; the kitty-specs ownership ban keeps it out of code WPs, and the planning lane may not depend on code lanes). IC-18 (added after `/spec-kitty.analyze` finding E1) is WP20.
 
 **Branch contract**: planning base = merge target = `issue-7276-lane-worktree-hardening`. Execution lanes come from `lanes.json` after `finalize-tasks`; agents never pick a base branch.
 
@@ -24,11 +24,12 @@ description: "Work packages for Mission lane-worktree-model-hardening-01M6QY1M (
 
 | PR | What it is | Effect on this Mission |
 |----|------------|------------------------|
-| #6884 (`issue-6466-lane-status-shadow`, author Ivan-Melck) | lane root is never a status surface | NOT merged, conflicts, labelled taken-by-human. WP04 carries `_canonical_status_read_root` and its 9 tests forward as its FIRST commit with attribution, then builds on it. |
+| #6884 (`issue-6466-lane-status-shadow`, author Ivan-Melck) | lane root is never a status surface | NOT merged, conflicts, labelled taken-by-human. WP04 carries `_canonical_status_read_root` and its 9 tests forward as its FIRST commits with attribution: #6884's red-first test commit `942ff4aed9` alone first, then its fix `59bd93d6bd` and style `f404a0b240` (and optional `43f48eee8f`) as separate path-limited `-x` cherry-picks (charter C-011), then builds on it. |
 | #7255 (`issue-7210-finalize-derived-pin`) | finalize derived pin, ADR `2026-10-04-5` Amendment 2026-11-05 | NOT merged. WP02 appends its ADR `2026-10-04-5` amendment as a NEW dated section at the end of the file (a rebase conflicts only there). WP14 rebases its finalize phases after it. |
 | #7248 (`issue-7224-flat-fixture-single-branch`) | flat-fixture `single_branch` | NOT merged. WP11 rebases onto it once it lands and deliberately reverses its "single_branch is never stamped" fixture comment. |
 | #7274 (`issue-7198-late-window-one-pass`, S10) | late-window one pass | NOT merged. WP15 shares `phase_teardown.py` / `run_state.py`; rebase onto it when it lands. WP07 rebases if consolidation neighbours conflict. |
-| #7275 (`issue-7211-safe-landed-prune`, S4) | destructive guard + ADR `2026-11-06-1` | NOT merged. **WP16 is BLOCKED until #7275 merges into `main` and the topic branch is rebased.** WP16 is out of the first PR cut. WP15 does not wait (port only). |
+| #7275 (`issue-7211-safe-landed-prune`, S4) | destructive guard + ADR `2026-11-06-1` | NOT merged. **WP16 is BLOCKED until #7275 merges into `main` and the topic branch is rebased.** WP16 is out of the first PR cut. WP15 does not wait (port only). See the WP16 exit rule below. |
+| open-packs PR #128 | the S11 pack doctrine | Made ready and ungated by the operator, with the S11 doctrine already applied. **WP19 is canceled at implement time** with that rationale; this Mission does not bump the core pack pin; no WP depends on WP19. |
 
 ---
 
@@ -113,7 +114,7 @@ T016 Append the D-6 / step 4a amendment to `docs/adr/4.x/2026-10-22-1-...md`, th
 
 ### Included Subtasks
 
-T017 Carry #6884 forward as the FIRST commit (`git cherry-pick -x -n` of 942ff4aed9 + 59bd93d6bd + f404a0b240 test hunk; drop other-Mission kitty-specs and CHANGELOG.md; attribution trailers) (WP04)
+T017 Carry #6884 forward: commit 1 = its red-first test `942ff4aed984` ALONE (path-limited `-x` cherry-pick), then the fix `59bd93d6bd68` and style `f404a0b24030` (optional `43f48eee8f63`) as separate path-limited `-x` commits; drop other-Mission kitty-specs, CHANGELOG.md and body6466.md; `Co-authored-by: Ivan Melck` on each (WP04)
 T018 Tidy: rename the `_resolve_status_surface` alias in `implement_phases.py`, fix stale docstrings (WP04)
 T019 Characterization matrix `tests/status/test_status_read_matrix.py` pinned at today's values (WP04)
 T020 Red-first tests: lane-root, ref-reader typed error, absent-file empty, positive control, registry-unreadable fails closed (WP04)
@@ -123,7 +124,7 @@ T023 Quality gates and blast radius (WP04)
 
 ### Dependencies
 
-- None inside the Mission (carries #6884 itself).
+- Depends on WP01 (the ADR records the fail-closed registry and typed ref errors before the code; analysis F1). Carries #6884 itself.
 
 ---
 
@@ -235,7 +236,7 @@ T053 Quality gates and blast radius (WP09)
 
 ### Dependencies
 
-- Depends on WP01, WP08.
+- Depends on WP01, WP03 (the S3 amendment to ADR `2026-04-03-1` governs the helper; analysis F1), WP08.
 
 ---
 
@@ -326,12 +327,12 @@ T076 Tidy + bug fix: extract the protected-mint "switch the write checkout" core
 T077 [P] Tidy: pure `count_code_lanes(...)` in `lanes/compute_and_persist.py` (WP13)
 T078 [P] Tidy: `restamp_*` sibling of `flatten_coordination_metadata` in `mission_metadata.py`, ratchet-registered (WP13)
 T079 `meta_keys.py` keys; `_resolve_default_topology_phase` returns `(topology, source)`; default arm provisional (WP13)
-T080 `create --json` / `specify` / `orchestrator-api specify` provisional fields (contract 1.24.0 rows) (WP13)
+T080 `create --json` / `specify` / `orchestrator-api specify` provisional fields (emitted under WP15's 1.24.0 bump; doc rows are WP15's) (WP13)
 T081 Quality gates and blast radius (WP13)
 
 ### Dependencies
 
-- Depends on WP02. C-010: must not reach a release before WP12 and WP14.
+- Depends on WP02, WP15 (WP15 is the single owner of the 1.24.0 bump and documents these fields; WP13 only emits them, analysis F2). C-010: must not reach a release before WP12 and WP14.
 
 ---
 
@@ -344,7 +345,7 @@ T081 Quality gates and blast radius (WP13)
 
 ### Included Subtasks
 
-T082 First commit: `test_default_mission_primary_placement_topic_branch_pinned` + explicit-topology positive control (WP14)
+T082 First commit: `test_default_mission_primary_placement_topic_branch_pinned` + explicit-topology positive control (placement only; the consolidate landing leg is WP20) (WP14)
 T083 Red-first settlement scenario tests (2-WP, 3-lane protected/unprotected, root-checkout move, return-branch refusal, explicit wins, 5-WP-1-lane, re-finalize, legacy, canceled/planning counting) (WP14)
 T084 Red-first preview/report/refusal/fault-injection tests (validate-only, --json, orchestrator tasks, occupied/dirty, byte-identical restore) (WP14)
 T085 `_decide_topology_by_size` phase before the frozen preflight in `mission_finalize.py` (WP14)
@@ -356,7 +357,7 @@ T090 Quality gates and blast radius (WP14)
 
 ### Dependencies
 
-- Depends on WP06, WP12, WP13. External rebase point: #7255.
+- Depends on WP06, WP12, WP13, WP15 (1.24.0 owner; `topology_decision` doc row is WP15's, analysis F2). External rebase point: #7255.
 
 ---
 
@@ -367,7 +368,7 @@ T090 Quality gates and blast radius (WP14)
 **Goal**: one `consolidation/lane_cleanup.py` used by the executor, `orchestrator-api consolidate-mission` and `mission close --discard`; order coordination -> lanes -> record clear; kept lanes are reported with exit 0; contract 1.24.0.
 **Independent Test**: SC-005: a dirtied lane after a verified landing -> exit 0, one Kept entry, 0 consolidation records.
 **Prompt**: `tasks/WP15-s5-lane-cleanup-module.md`
-**Requirement Refs**: FR-030, FR-031, FR-032, FR-033, FR-034, FR-035, FR-039a, SC-005, SC-012, NFR-002, NFR-004, C-012, C-017
+**Requirement Refs**: FR-030, FR-031, FR-032, FR-033, FR-034, FR-035, FR-039a, SC-005, SC-012, NFR-002, NFR-004, NFR-008, C-012, C-017
 
 ### Included Subtasks
 
@@ -377,7 +378,7 @@ T093 Extract `consolidation/lane_cleanup.py` (pure `plan_lane_cleanup`, `apply`,
 T094 `phase_teardown.py` order: coordination triple, lane legs, record clear; `clear_tip` only after a confirmed delete (WP15)
 T095 `run_state.py` / `state.py` `cleanup_started` marker and PASS anchor over cleanup's own commits (only if T091 is red) (WP15)
 T096 `cli/commands/consolidate.py` Kept / Retained rendering; `executor.py` wiring (WP15)
-T097 `orchestrator_api/consolidation.py` on the module with per-lane outcomes; `envelope.py` CONTRACT_VERSION 1.24.0; `docs/api/orchestrator-api.md` (WP15)
+T097 `orchestrator_api/consolidation.py` on the module with per-lane outcomes; `envelope.py` CONTRACT_VERSION 1.24.0 (single owner); `docs/api/orchestrator-api.md` rows for `lane_cleanup` and WP13/WP14's topology fields (WP15)
 T098 `cli/commands/mission_type.py` `--discard` on the module (WP15)
 T099 Quality gates and blast radius (WP15)
 
@@ -391,10 +392,12 @@ T099 Quality gates and blast radius (WP15)
 
 **BLOCKED until #7275 merges into `main` and `issue-7276-lane-worktree-hardening` is rebased onto it. Out of the first PR cut.**
 
+**Exit rule (analysis C2)**: WP16 stays `planned`. If #7275 has not merged into `main` by the time every other WP is approved, WP16 is canceled with a recorded rationale, a new follow-up issue is opened for the S5 guard binding, and FR-036, FR-037, FR-039 and SC-006 are recorded deferred-with-followup (naming that issue) in `issue-matrix.json`. `accept` and `consolidate` proceed without it.
+
 **Goal**: bind `LaneRemover` to `guarded_landed_removal` with the O3-local landing proof; `accept --mode pr` removes absorbed lanes before the PR merges; `doctor workspaces --prune` treats consolidated Mission lanes as candidates.
 **Independent Test**: SC-006.
 **Prompt**: `tasks/WP16-s5-guard-binding-pr-mode-prune.md`
-**Requirement Refs**: FR-036, FR-037, FR-039, SC-006, C-004, NFR-008
+**Requirement Refs**: FR-036, FR-037, FR-039, SC-006, C-004, NFR-005, NFR-006, NFR-008
 
 ### Included Subtasks
 
@@ -403,12 +406,34 @@ T101 Red-first pr-mode, prune, guard tests (incl. probe unavailable keeps and re
 T102 O3-local landing proof variant in `git/destructive_guard.py` (coordinated with the #7275 owner) (WP16)
 T103 Bind `LaneRemover` to `guarded_landed_removal` (binding hunk in `lane_cleanup.py`) (WP16)
 T104 `acceptance/__init__.py` pr-mode cleanup step; remove raw `git worktree remove` / `git branch -d` advice (WP16)
-T105 `workspace/landed_worktrees.py` + `_landed_worktree_doctor.py` Mission-lane prune candidates; routing pins in `test_destructive_op_routing.py` (WP16)
+T105 `workspace/landed_worktrees.py` + `_landed_worktree_doctor.py` Mission-lane prune candidates (second run changes nothing, NFR-005); destructive-op routing pins in `test_destructive_op_routing.py` (<= 5 s, NFR-006) (WP16)
 T106 Quality gates, blast radius, changelog fragment (WP16)
 
 ### Dependencies
 
 - Depends on WP06, WP09, WP15. External BLOCK: #7275.
+
+---
+
+## Work Package WP20: S7 - consolidate lands a default Mission's PRIMARY artifacts from the topic branch (Priority: P1)
+
+**Goal**: for a `topology_source: default` Mission settled to `lanes_with_coord`, `consolidate` carries every PRIMARY-partition change on the topic branch (= coordination branch) to the target before the coordination teardown, through the extended mission-branch landing seam (one landing authority; rollback authority unchanged). Added after `/spec-kitty.analyze` finding E1 (plan IC-18).
+**Independent Test**: (a) a PRIMARY edit made on the topic branch after the last lane cut reaches the target; (b) nothing is lost on `--resume` or rollback; (c) control: explicit `--topology lanes_with_coord` consolidates as today.
+**Prompt**: `tasks/WP20-s7-consolidate-lands-topic-branch-primary.md`
+**Requirement Refs**: FR-055, FR-061, FR-062, SC-007, NFR-002
+
+### Included Subtasks
+
+T118 Characterize today's consolidate of a default `lanes_with_coord` Mission (which PRIMARY paths are lost, where) (WP20)
+T119 Red-first: post-last-cut PRIMARY edit reaches target; resume/rollback lose nothing; explicit-topology control; orchestrator parity; predicate unit tests (WP20)
+T120 Extend the landing predicate in `lanes/single_branch_landing.py` with the default-settled `lanes_with_coord` arm (recorded out-of-map, WP11-owned) (WP20)
+T121 PRIMARY projection leg in `bookkeeping_projection.py`; call in `phase_advance.py` (out-of-map, WP07-owned); land-before-teardown in `phase_teardown.py` (out-of-map, WP15-owned) (WP20)
+T122 Green the red tests; projection, late-teardown and rollback-authority pins stay green (WP20)
+T123 Quality gates and blast radius (WP20)
+
+### Dependencies
+
+- Depends on WP07 (`phase_advance.py` owner), WP14 (settlement; WP11 transitively, `single_branch_landing.py` owner), WP15 (`phase_teardown.py` owner, cleanup order). C-010: ships with WP13/WP14.
 
 ---
 
@@ -431,7 +456,7 @@ T111 Quality gates and blast radius (WP17)
 
 ### Dependencies
 
-- Depends on WP07, WP08, WP10, WP12, WP14, WP15.
+- Depends on WP07, WP08, WP10, WP12, WP14, WP15, WP20.
 
 ---
 
@@ -456,7 +481,9 @@ T116 Validation: changelog style/spelling, terminology guard, docs frontmatter (
 
 ---
 
-## Work Package WP19: S11 open-packs doctrine patch and hand-off (Priority: P3)
+## Work Package WP19: S11 open-packs doctrine patch and hand-off (Priority: P3) TO BE CANCELED
+
+**To be canceled at implement time**: the operator made open-packs PR #128 ready and ungated, and the S11 doctrine is already applied there. This Mission does not bump the core pack pin. The orchestrator cancels WP19 with that rationale when the implement loop reaches it; FR-092 and the pack half of SC-011 are recorded as delivered by open-packs PR #128 in the issue matrix. No WP depends on WP19.
 
 **Goal**: a patch against the pinned `spec-kitty-open-packs` tree plus hand-off steps (FR-092).
 **Independent Test**: SC-011 (pack half): `git apply --check` succeeds on the pinned tree.
@@ -480,21 +507,23 @@ T117 Validation: `git apply --check`, terminology guard (WP19)
 ## Dependency & Execution Summary
 
 ```
-WP01 ──┬──────────────► WP05 ─► WP06 ─► WP07 ─────────────┐
-WP04 ──┘                 │        │                         │
-WP08 ─► WP09 ◄─ WP01     │        └──────────► WP14 ◄─┐     │
-          │  └──► WP10 ◄─┘                    ▲       │     ├─► WP17 ─► WP18
-WP02 ─► WP11 ─► WP12 ────────────────────────┘(+WP13)│     │
-WP02 ─► WP13 ────────────────────────────────────────┘     │
-WP03 ─► WP15 ─► WP16 (BLOCKED on #7275; also WP06, WP09)    │
-WP08, WP10, WP12, WP14, WP15 ───────────────────────────────┘
-WP19 (planning lane, no deps; hand-off gated on WP07/08/10/12/14/15)
+WP01 ─► WP04 ─► WP05 ─► WP06 ─► WP07 ─────────────┬─► WP20 ─┐
+WP01 ───────────► WP05            │                  │         │
+WP08 ─► WP09 ◄─ WP01, WP03        └──► WP14 ─────────┤         ├─► WP17 ─► WP18
+          └──► WP10 ◄─ WP05             ▲            │         │
+WP02 ─► WP11 ─► WP12 ───────────────────┤            │         │
+WP02 ─► WP13 ───────────────────────────┤            │         │
+WP03 ─► WP15 ─► WP13, WP14 (1.24.0 owner) ───────────┘         │
+WP15 ─► WP16 (BLOCKED on #7275; also WP06, WP09; exit rule)    │
+WP07, WP08, WP10, WP12, WP14, WP15, WP20 ──────────────────────┘
+WP19 (planning lane, no deps; TO BE CANCELED: open-packs PR #128)
 ```
 
-- **Start immediately (no deps)**: WP01, WP02, WP03, WP04, WP08, WP19.
-- **Lane hints** (finalize-tasks computes the real lanes): S1 chain WP04 -> WP05 -> WP06 -> WP07; S2/S3/S6 chain WP08 -> WP09 -> WP10; S8/S7 chain WP11 -> WP12 -> WP14 with WP13 beside it; S5 chain WP15 (-> WP16 later); ADR WPs and WP19 are planning artifacts (planning lane).
+- **Start immediately (no deps)**: WP01, WP02, WP03, WP08 (WP19 has no deps but is canceled). WP04 starts once WP01 is approved.
+- **Lane hints** (finalize-tasks computes the real lanes): S1 chain WP04 -> WP05 -> WP06 -> WP07; S2/S3/S6 chain WP08 -> WP09 -> WP10; S8/S7 chain WP11 -> WP12 -> WP14 with WP13 beside it (both after WP15) -> WP20; S5 chain WP15 (-> WP16 later); ADR WPs and WP19 are planning artifacts (planning lane).
 - **Release coupling (C-010)**: WP13 and WP14 never reach a release without WP11 and WP12.
-- **First PR cut**: every WP except WP16. WP16 lands after #7275 in a follow-up or after a rebase.
+- **First PR cut**: every WP except WP16 (blocked; see its exit rule) and WP19 (canceled: open-packs PR #128). WP16 lands after #7275 after a rebase, or is canceled and deferred to a follow-up issue.
+- **Release coupling (C-010)** also holds for WP20: it ships with WP13 and WP14.
 - **MVP**: WP04 + WP05 (one read contract) carry the most value; every other slice relies on them.
 
 ### Shared-file sequencing (out-of-map hunks)
@@ -508,10 +537,13 @@ WP19 (planning lane, no deps; hand-off gated on WP07/08/10/12/14/15)
 | `src/specify_cli/cli/commands/implement_phases.py` | WP06 | WP04 (alias rename) | WP04 -> WP06 |
 | `src/specify_cli/coordination/surface_resolver.py` | WP05 | WP04 (normalization call) | WP04 -> WP05 |
 | `src/specify_cli/status/aggregate.py` | WP06 | WP04 (normalization call in `MissionStatus.load`) | WP04 -> WP06 |
-| `src/specify_cli/coordination/transaction.py` | WP10 | WP07 (`preflight_refusal` read) | different functions |
+| `src/specify_cli/coordination/transaction.py` | WP10 | WP07 (`preflight_refusal` read) | different functions on parallel lanes; both WPs record the hunk in their completion summaries (analysis F5) |
 | `src/specify_cli/workspace/landed_worktrees.py` | WP16 | WP09 (printed recreate command) | WP09 -> WP16 |
 | `src/specify_cli/consolidation/lane_cleanup.py` | WP15 | WP16 (binding) | WP15 -> WP16 |
-| `docs/api/orchestrator-api.md`, `orchestrator_api/envelope.py` | WP15 | WP13 / WP14 field rows | whichever lands first sets 1.24.0 |
+| `docs/api/orchestrator-api.md`, `orchestrator_api/envelope.py` | WP15 (single owner of the 1.24.0 bump and of every 1.24.0 field row) | none planned; a correction by WP13/WP14 is a recorded out-of-map edit | WP15 -> WP13 -> WP14 (dependencies; lanes stay acyclic, analysis F2) |
+| `src/specify_cli/lanes/single_branch_landing.py` | WP11 | WP20 (default `lanes_with_coord` landing arm) | WP11 -> WP12 -> WP14 -> WP20 |
+| `src/specify_cli/consolidation/phase_advance.py` | WP07 | WP20 (PRIMARY landing call) | WP07 -> WP20 |
+| `src/specify_cli/consolidation/phase_teardown.py` | WP15 | WP20 (land before coordination teardown) | WP15 -> WP20 |
 
 ---
 
@@ -530,7 +562,7 @@ WP19 (planning lane, no deps; hand-off gated on WP07/08/10/12/14/15)
 | FR-020 | WP03 |
 | FR-021, FR-022 | WP09 |
 | FR-030 to FR-035, FR-039a | WP15 |
-| FR-036, FR-037, FR-039 | WP16 |
+| FR-036, FR-037, FR-039 | WP16 (deferred-with-followup if #7275 is unmerged when all other WPs are approved) |
 | FR-038 | WP03 |
 | FR-040 | WP09 |
 | FR-041, FR-042, FR-044, FR-045 | WP10 |
@@ -538,16 +570,17 @@ WP19 (planning lane, no deps; hand-off gated on WP07/08/10/12/14/15)
 | FR-046 | WP01 |
 | FR-050 | WP02 |
 | FR-051, FR-052, FR-060 | WP13 |
-| FR-053 to FR-057 | WP14 |
+| FR-053 to FR-057 | WP14 (FR-055 consolidate leg: WP20) |
 | FR-058 | WP13, WP14 |
 | FR-059 | WP13, WP17, WP18 |
-| FR-061 | WP01, WP02, WP05, WP14 |
+| FR-061 | WP01, WP02, WP05, WP14, WP20 |
+| FR-062 | WP20 |
 | FR-070, FR-075 | WP11 |
 | FR-071 to FR-074, FR-076, FR-078 | WP12 |
 | FR-077 | WP02 |
 | FR-080 to FR-084 | WP03 |
 | FR-090, FR-091 | WP17 |
-| FR-092 | WP19 |
+| FR-092 | WP19 (to be canceled: delivered by open-packs PR #128) |
 | FR-093 | WP17, WP18, WP19 |
 
 ---
@@ -673,3 +706,9 @@ WP19 (planning lane, no deps; hand-off gated on WP07/08/10/12/14/15)
 | T115 | Hand-off note | WP19 | P3 | No |
 | T116 | Validation (docs/changelog) | WP18 | P3 | No |
 | T117 | Validation (patch) | WP19 | P3 | No |
+| T118 | Characterize default lanes_with_coord consolidate | WP20 | P1 | No |
+| T119 | Red-first PRIMARY landing tests | WP20 | P1 | No |
+| T120 | Landing predicate default arm | WP20 | P1 | No |
+| T121 | PRIMARY projection before teardown | WP20 | P1 | No |
+| T122 | Green tests, pins stay green | WP20 | P1 | No |
+| T123 | Quality gates (WP20) | WP20 | P1 | No |

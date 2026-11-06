@@ -1,7 +1,8 @@
 ---
 work_package_id: WP04
 title: 'S1 tidy-first, lane-root normalization (carrying #6884) and the typed ref reader'
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - FR-002
 - FR-004
@@ -83,8 +84,8 @@ Acceptance (spec User Story 1, scenarios 2 and 3): a `lanes` Mission whose lane 
 
 ## Context & Constraints
 
-- Read: charter; `spec.md` FR-001 to FR-007, Rules and Invariants 1; `research.md` R-1, R-2; `data-model.md` §2 (`RefRead`); `contracts/error-codes.yaml`; the WP01 ADR (`docs/adr/4.x/2026-11-06-2-one-status-read-contract.md`) if already written.
-- **#6884 is NOT merged** (branch `origin/issue-6466-lane-status-shadow`, author Ivan Melck `<22272470+Ivan-Melck@users.noreply.github.com>`, labelled taken-by-human, conflicts with `main`). This WP carries it forward as its FIRST commit (T017), then builds on it.
+- Read: charter; `spec.md` FR-001 to FR-007, Rules and Invariants 1; `research.md` R-1, R-2; `data-model.md` §2 (`RefRead`); `contracts/error-codes.yaml`; the WP01 ADR (`docs/adr/4.x/2026-11-06-2-one-status-read-contract.md`; WP04 depends on WP01, so it is approved before this WP starts and governs the fail-closed registry and the typed ref errors).
+- **#6884 is NOT merged** (branch `origin/issue-6466-lane-status-shadow`, author Ivan Melck `<22272470+Ivan-Melck@users.noreply.github.com>`, labelled taken-by-human, conflicts with `main`). This WP carries it forward as its FIRST commits (T017: #6884's red-first test commit alone, then its fix commits), then builds on it.
 - **Registry-unreadable decision**: #6884 kept the caller's root when the worktree registry is unreadable (fail open; its test `test_an_unreadable_worktree_registry_keeps_the_callers_root`). The plan and Rule 1 tighten that to **fail closed with a typed error** (research R-1, design-decisions trace). Flip that test deliberately in a separate red-first commit and say so in the commit message.
 - Shared files (sequenced out-of-map hunks; record each with a one-line rationale in your completion summary):
   - `src/specify_cli/cli/commands/implement_phases.py` (owned by WP06): the alias rename only.
@@ -104,30 +105,27 @@ Acceptance (spec User Story 1, scenarios 2 and 3): a `lanes` Mission whose lane 
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T017 - Carry #6884 forward as the first commit (with attribution)
+### Subtask T017 - Carry #6884 forward: its red-first test commit FIRST, then its fix commits (with attribution)
 
-- **Purpose**: keep the author's work and its 9 tests; avoid a second, divergent implementation.
+- **Purpose**: keep the author's work and its 9 tests, avoid a second, divergent implementation, and keep charter C-011 (ATDD-first): the failing test is its own commit BEFORE any implementation commit. Never squash the test and the fix together (no `cherry-pick -n` across both).
+- **Source commits** (verified on `origin/issue-6466-lane-status-shadow` 2026-11-06; author Ivan Melck `<22272470+Ivan-Melck@users.noreply.github.com>`):
+
+  | Order | Full SHA | Subject | Keep (path-limit to) | Drop |
+  |---|---|---|---|---|
+  | 1 (red-first test) | `942ff4aed984ea8d1436d2bd1f7af169336553be` | test(6466): red-first proof that a lane worktree root answers status reads from its fork-time copy | `tests/specify_cli/missions/test_lane_worktree_status_shadow.py` | `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG/**` |
+  | 2 (fix) | `59bd93d6bd68c2193bd48aaf3963305c51dde48a` | fix(6466): a lane worktree root is never a status surface | `src/specify_cli/missions/_read_path_resolver.py`, `tests/specify_cli/missions/test_lane_worktree_status_shadow.py` (fixture follow-up) | `docs/changelog/CHANGELOG.md`, `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG/**` |
+  | 3 (style) | `f404a0b2403037ad1fe5f0b5692c37bb8d7ba60e` | style(6466): format the new test module under the live ruff config | `tests/specify_cli/missions/test_lane_worktree_status_shadow.py` | `body6466.md` |
+  | 4 (spelling, optional) | `43f48eee8f6338f13efdd925fc54e4bbc6b5c7da` | docs(6466): US spelling in the changelog entry and the new docs | `src/specify_cli/missions/_read_path_resolver.py`, the test module | `docs/changelog/CHANGELOG.md`, `kitty-specs/.../data-model.md` |
+
+  Not carried: `b1d22f1124` (the other Mission's spec), `5b6f2a8c21` (its analysis/review/consolidation bookkeeping), `b950373e8b` (drops `body6466.md`, which is never carried).
 - **Steps**:
-  1. `git fetch origin issue-6466-lane-status-shadow` (shallow clones may need `--deepen`; see tracer friction about missing merge bases).
-  2. `git cherry-pick -x -n 942ff4aed9 59bd93d6bd f404a0b240` (red-first test, fix, test-module formatting).
-  3. Restore everything that is not ours to carry: `git restore --staged --worktree kitty-specs/lane-worktree-status-shadow-authority-01M68JFG docs/changelog/CHANGELOG.md body6466.md` (other Mission's files, the hand-edited CHANGELOG and a stray PR body; CLAUDE.md forbids editing CHANGELOG.md).
-  4. Keep only `src/specify_cli/missions/_read_path_resolver.py` (the `_canonical_status_read_root` helper, ~60 lines) and `tests/specify_cli/missions/test_lane_worktree_status_shadow.py` (9 tests).
-  5. Resolve conflicts against the current `_read_path_resolver.py` by hand.
-  6. Commit:
-     ```
-     fix(7277): carry #6884 forward - a lane worktree root is never a status surface
-
-     Carried forward from PR #6884 (issue-6466-lane-status-shadow) because that PR
-     conflicts with main. Path-limited: the other Mission's kitty-specs files and the
-     CHANGELOG.md hunk are dropped.
-
-     (cherry picked from commit 942ff4aed9...)
-     (cherry picked from commit 59bd93d6bd...)
-     (cherry picked from commit f404a0b240...)
-     Co-authored-by: Ivan Melck <22272470+Ivan-Melck@users.noreply.github.com>
-     ```
-     Use the full SHAs (`git rev-parse`).
-  7. Run the 9 tests: they must pass on this commit.
+  1. `git fetch origin issue-6466-lane-status-shadow` (shallow clones may need `--deepen`; see tracer friction about missing merge bases). Confirm the SHAs: `git log origin/issue-6466-lane-status-shadow -12 --oneline` and `git show --stat <sha>`.
+  2. **Commit 1 = the red-first test alone.** `git cherry-pick -x -n 942ff4aed984ea8d1436d2bd1f7af169336553be`; `git restore --staged --worktree kitty-specs/lane-worktree-status-shadow-authority-01M68JFG`; verify `git diff --cached --stat` lists only the test module; commit with the original subject, the `(cherry picked from commit 942ff4aed984...)` line and `Co-authored-by: Ivan Melck <22272470+Ivan-Melck@users.noreply.github.com>`. Run the module: its lane-root tests must be RED on this commit (record the counts).
+  3. **Commit 2 = the fix.** `git cherry-pick -x -n 59bd93d6bd68c2193bd48aaf3963305c51dde48a`; restore `docs/changelog/CHANGELOG.md` and `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG` (CLAUDE.md forbids editing CHANGELOG.md; the other Mission's files are not ours); resolve conflicts against the current `_read_path_resolver.py` by hand; commit as `fix(7277): carry #6884 forward - a lane worktree root is never a status surface` with a body that says it is carried from PR #6884 because that PR conflicts with `main`, is path-limited, and lists the dropped paths, then the `(cherry picked from commit 59bd93d6bd...)` line and the `Co-authored-by` trailer.
+  4. **Commit 3 (and 4) = style/spelling follow-ups**, each its own `-x` cherry-pick, path-limited as in the table (drop `body6466.md`, CHANGELOG.md and kitty-specs hunks), each with the `Co-authored-by` trailer. Commit 4 may be folded into commit 3 only if both touch the same kept paths and the message lists both `(cherry picked from commit ...)` lines.
+  5. Run the 9 tests: they must pass after commit 2 (and stay green after 3/4).
+  6. Verify the order with `git log --oneline` and `git show --stat` per commit: commit 1 touches only the test module; no commit touches `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG/`, `docs/changelog/CHANGELOG.md` or `body6466.md`.
+- **Then (C-011 for WP04's own behaviour)**: T018 tidy (behaviour-preserving) may follow, but T020's red-first tests are committed BEFORE any T021/T022 implementation commit.
 - **Notes**: if #6884 merges into `main` before you start, rebase the topic branch instead and skip this subtask (record it).
 
 ### Subtask T018 - Tidy (behaviour-preserving)
@@ -148,7 +146,8 @@ Commit these BEFORE T021/T022; each must be red on the planning base:
 
 - `test_lane_root_reads_write_checkout_state` (`tests/status/test_status_read_matrix.py`): lane copy `planned`, write checkout `in_progress`; three entry points (`resolve_status_surface_with_anchor`, `candidate_feature_dir_for_mission`, `MissionStatus.load`) called with the lane root each return the write checkout.
 - `test_repository_root_input_unchanged` (positive control, FR-002): a repository-root input returns unchanged on the same fixture.
-- `test_registry_unreadable_fails_closed`: replaces #6884's keep-the-root test (flip it in the same commit, explain why).
+- `test_registry_unreadable_fails_closed`: replaces #6884's keep-the-root test (flip it in the same commit, explain why: spec edge case "Registry unreadable", Rule 1, research R-1, the WP01 ADR item 4).
+- `test_registry_unreadable_repository_root_caller` (control, analysis F4): pins the decided behaviour for a repository-root caller when the registry cannot be read. Default per the WP01 ADR: fail closed for every caller (the helper cannot classify the root without the registry); if the ADR scopes fail-closed to non-root callers, pin that instead and say so in the commit message.
 - `tests/coordination/test_status_ref_reader.py`: `test_ref_reader_bad_ref_raises_typed_error` (deleted/corrupt ref -> `StatusSurfaceRefUnreadable`), `test_ref_reader_absent_file_reads_empty` (readable ref, no log file -> `[]`), `test_ref_reader_git_failure_raises` (monkeypatched git failure).
 
 ### Subtask T021 - One normalization helper, fail closed
@@ -206,7 +205,7 @@ Code WPs must not change Mission files from a lane worktree. Return tracer lines
 
 ## Review Guidance
 
-- First commit carries attribution trailers and nothing from `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG/`.
+- The first commit is #6884's red-first test ALONE (`942ff4aed9...`, `-x` provenance, `Co-authored-by: Ivan Melck`), red on its own; the fix commit(s) follow separately; nothing from `kitty-specs/lane-worktree-status-shadow-authority-01M68JFG/`, `docs/changelog/CHANGELOG.md` or `body6466.md`.
 - Red-first commits precede implementation commits (`git log --oneline`).
 - No lane path or nonexistent path can be returned; typed errors distinguish absent file vs bad ref.
 - mypy/ruff/format clean on touched files.

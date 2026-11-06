@@ -138,6 +138,8 @@ cd <workspace>
 uv run --frozen pytest tests/status/test_status_readers_cross_cwd_parity.py tests/specify_cli/cli/commands/agent/test_agent_status_materialize_read_only.py -q
 uv run --frozen pytest tests/status tests/specify_cli/status tests/mission_runtime tests/migration tests/retrospective tests/next tests/runtime -q -n auto --dist loadfile
 uv run --frozen pytest tests/specify_cli/cli/commands/agent -q -n auto --dist loadfile      # out-of-matrix (nightly-only in CI): must run here
+uv run --frozen pytest tests/specify_cli/cli/commands/test_accept_*.py tests/specify_cli/cli/commands/test_implement*.py tests/specify_cli/cli/commands/test_retrospect_doctor_surface_4090.py -q -n auto --dist loadfile   # out-of-matrix: accept.py, implement_claim.py, implement_phases.py, retrospect.py
+uv run --frozen pytest tests/cli/test_events_tail.py tests/cli/test_events_tail_status_surface.py tests/cli/test_events_tail_real_fixture.py tests/cli/commands/test_retrospect.py tests/cli/commands/test_retrospect_coord_autocommit.py tests/cli/commands/test_retrospect_update_persisted.py tests/cli/test_agent_retrospect_missing_record.py tests/cli/test_agent_retrospect_synthesize.py -q   # events.py, retrospect.py, agent_retrospect.py
 uv run --frozen pytest tests/architectural/test_no_read_side_bypass.py tests/architectural/test_layer_rules.py tests/architectural/test_cold_import_status_boundary.py -q
 make test-fast
 uv run --frozen ruff check <touched> && uv run --frozen ruff format --check --force-exclude <touched>

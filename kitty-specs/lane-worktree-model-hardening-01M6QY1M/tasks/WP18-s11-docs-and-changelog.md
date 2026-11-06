@@ -87,7 +87,7 @@ spec-kitty agent action implement WP18 --agent claude --mission lane-worktree-mo
 
 - FR-059 (docs half): `docs/context/topology.md`, `docs/architecture/execution-lanes.md` and `docs/architecture/git-worktrees.md` describe the size default (settled once at the first `finalize-tasks`), the Mission topic branch, that the coordination branch shares the Mission branch's name (`kitty/mission-<slug>-<mid8>`), lanes cut from the topic branch, lane checkouts without status files, the status read door, the for_review gate on the lane branch, and cleanup as the last consolidation step. Never "explicit-only" for the default.
 - One changelog fragment set per issue (#7277-#7285), in `docs/changelog/unreleased/` per its README (`<id>.<section>.md`, Before/After/What to do style, US spelling). #7280's pr-mode part is WP16's own fragment; do not describe pr-mode cleanup or the Mission-lane prune backstop here unless WP16 has landed.
-- The open-packs doctrine patch (FR-092) is WP19's (a planning-artifact WP in the planning lane); keep your wording consistent with it.
+- The open-packs doctrine (FR-092) is already applied in spec-kitty-open-packs PR #128 (ready, ungated); WP19 is canceled at implement time and this Mission does not bump the core pack pin. Keep your wording consistent with PR #128.
 
 ## Context & Constraints
 

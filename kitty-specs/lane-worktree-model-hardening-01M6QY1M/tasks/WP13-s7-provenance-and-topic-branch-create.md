@@ -3,6 +3,7 @@ work_package_id: WP13
 title: S7 tidy-first, provenance and topic-branch-only create
 dependencies:
 - WP02
+- WP15
 requirement_refs:
 - FR-051
 - FR-052
@@ -89,7 +90,7 @@ S7 (#7282), create half:
 - FR-058 (create half): `create --json` reports `topology: single_branch` with `topology_provisional: true`, plus `topology_source`.
 - FR-059 (help half): one shared `TOPOLOGY_HELP` constant for `mission_create.py:~866`, `lifecycle.py:~162`, `orchestrator_api/design_phase.py:~173`, describing the size default and the topic branch (never "explicit-only").
 - FR-060: `--commit-to-target` still requires explicit `--topology single_branch`.
-- `orchestrator-api specify` envelope gains `topology_source` / `topology_provisional` (contract 1.24.0, DM `01M6R0BJQ6Q1MV6492EH6HB66H`; WP15 owns the version bump).
+- `orchestrator-api specify` envelope gains `topology_source` / `topology_provisional` (contract 1.24.0, DM `01M6R0BJQ6Q1MV6492EH6HB66H`). WP15 is the single owner of the `CONTRACT_VERSION` bump and of the doc rows for these fields; this WP depends on WP15 and only emits the fields (analysis F2).
 - #5676 fixed: the extracted "switch the write checkout" core refuses `WRITE_CHECKOUT_OCCUPIED` / `WRITE_CHECKOUT_DIRTY`.
 - SC-007 create half.
 
@@ -99,7 +100,7 @@ S7 (#7282), create half:
 - **C-010**: this WP's create change must not reach a release before WP12 and WP14. It lands on the topic branch with them; do not cherry-pick it alone to `main`.
 - Provisional = `single_branch` representation (DM `01M6R0BDYC29D6XMDY72R22CP9`): it reuses the minted `single_branch` write routing (`single_branch_write_ref`), so specify/plan/tasks land on the topic branch with no new placement code.
 - R-6 risk: a second `create` run while the root checkout sits on another provisional Mission's topic branch must not record that topic branch as its target; target resolution resolves the primary branch instead (test below). If you think a refusal is better, raise it in review; do not add a code silently.
-- `docs/api/orchestrator-api.md` and `orchestrator_api/envelope.py` are owned by WP15; add your field rows to the doc only if WP15 has landed, otherwise list them in your summary for WP15/WP18.
+- `docs/api/orchestrator-api.md` and `orchestrator_api/envelope.py` are owned by WP15, which bumps 1.24.0 and documents `topology_source` / `topology_provisional` (WP15 T097). This WP depends on WP15 and does not edit either file; if a doc row needs a correction once the fields exist, make it as a recorded out-of-map edit (one-line rationale in the completion summary).
 - `restamp_*` sibling of `flatten_coordination_metadata` (`mission_metadata.py:1156`) must be ratchet-registered wherever `flatten_coordination_metadata` is (grep its registration).
 - C-011 red-first.
 
@@ -161,6 +162,7 @@ See Validation.
 cd <workspace>
 uv run --frozen pytest tests/specify_cli/cli/commands/agent/test_mission_create_provisional_topology.py tests/core/test_protected_mint_switch_occupancy.py tests/lanes/test_count_code_lanes.py -q
 uv run --frozen pytest tests/specify_cli/cli/commands/agent -q -n auto --dist loadfile -k "mission_create or create or specify"   # out-of-matrix dir
+uv run --frozen pytest tests/specify_cli/cli/commands/test_lifecycle_read_seam_migration.py tests/specify_cli/cli/commands/test_specify_json_nonascii.py tests/specify_cli/cli/commands/test_specify_scaffold_state.py -q   # out-of-matrix: lifecycle.py (specify)
 uv run --frozen pytest tests/core tests/mission_metadata tests/lanes tests/orchestrator_api tests/specify_cli/orchestrator_api tests/mission_runtime tests/git -q -n auto --dist loadfile
 uv run --frozen pytest tests/contract/test_orchestrator_api.py tests/architectural/test_layer_rules.py tests/architectural/test_no_legacy_terminology.py -q
 make test-fast

@@ -1,6 +1,6 @@
 ---
 work_package_id: WP19
-title: S11 open-packs doctrine patch and hand-off
+title: S11 open-packs doctrine patch and hand-off (TO BE CANCELED)
 dependencies: []
 requirement_refs:
 - FR-092
@@ -36,6 +36,9 @@ tracker_refs: []
 ---
 
 # Work Package Prompt: WP19 - S11 open-packs doctrine patch and hand-off
+
+> ## ⛔ TO BE CANCELED at implement time (do not implement)
+> The operator made open-packs PR #128 ready and ungated, and the S11 doctrine is already applied there. This Mission does not bump the core pack pin (`packs/built-in.source.yaml`). When the implement loop reaches WP19, the orchestrator cancels it: `spec-kitty agent tasks move-task WP19 --to canceled --force --note "S11 doctrine already applied in spec-kitty-open-packs PR #128 (ready, ungated); this Mission does not bump the core pack pin"`. FR-092 and the pack half of SC-011 are then recorded as delivered by open-packs PR #128 in the issue matrix. No other WP depends on WP19. The text below is kept for the record only.
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -87,7 +90,7 @@ It is a planning-artifact WP (every owned file is under `kitty-specs/`), so `fin
 
 ### Subtask T114 - Open-packs patch
 
-- In a temporary checkout of the pinned open-packs tree make the edits listed in the ADR map, row by row, each tagged in the patch's commit-message header (or the hand-off note) with the FR that delivers its behaviour. Then `git diff > <mission>/upstream/open-packs-doctrine.patch`. Paths are relative to the open-packs repository root (`packs/built-in/...`).
+- In a temporary checkout of the pinned open-packs tree make the pack edits listed in `upstream/doctrine-and-write-service-adr-map.md` (section "Part 1: pack doctrine (S11)": 31 edits over 17 files), row by row, each tagged in the patch's commit-message header (or the hand-off note) with the FR that delivers its behaviour. Then `git diff > <mission>/upstream/open-packs-doctrine.patch`. Paths are relative to the open-packs repository root (`packs/built-in/...`).
 - Glossary terms use the spec's Domain Language definitions verbatim where possible; name the sense of "primary", "merge", "routing" and "residue".
 - `lane-recovery` tactic: `DESTROYED_LANE` and `LANE_WORK_TIP_UNKNOWN` -> follow the command the CLI prints; stale lane -> `spec-kitty agent action implement <WP>`; never `cd .worktrees/` + `git merge`.
 

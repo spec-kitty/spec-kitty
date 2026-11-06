@@ -5,6 +5,7 @@ dependencies:
 - WP06
 - WP12
 - WP13
+- WP15
 requirement_refs:
 - FR-053
 - FR-054
@@ -95,8 +96,8 @@ S7 (#7282), settlement half. The first `finalize-tasks` of a provisional Mission
 - FR-055: `single_branch` = no git step. `lanes_with_coord` = (1) commit the Mission dir on the topic branch in the write checkout; (2) move the repository root checkout to `create_return_branch`; (3) re-stamp `meta.json` (`coordination_branch` = topic ref, `mission_branch` kept as PRIMARY, `topology: lanes_with_coord`, `topology_settled: true`, `topology_decision`); (4) materialize the coordination worktree on the topic branch (`CoordinationWorkspace.resolve()`); (5) write `lanes.json`. No planning commit on the target; no lane branches/checkouts (A-7). Every pre-settlement planning artifact and status event stays readable.
 - FR-056 / NFR-003: refuses `WRITE_CHECKOUT_OCCUPIED` / `WRITE_CHECKOUT_DIRTY` / `TOPOLOGY_SETTLEMENT_REFUSED`; any failure leaves the Mission provisional with `meta.json` byte-identical, branch tips unchanged, no coordination worktree, root checkout back on the topic branch.
 - FR-057: Missions with no `topology_source` are settled and never change.
-- FR-058: `--validate-only` previews the decision and writes nothing; `--json` reports `topology_decision` per `contracts/finalize-tasks-json.md`; `orchestrator-api tasks` passes it through (contract 1.24.0).
-- FR-061 (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`): a default Mission's PRIMARY reads/writes go to the topic branch before and after settlement; `consolidate` lands them on the target. Explicit `--topology` keeps PRIMARY on `target_branch`. `spec-kitty agent context resolve --json` (`mission_dir`) and `check-prerequisites --paths-only` return the PRIMARY-partition location after settlement too.
+- FR-058: `--validate-only` previews the decision and writes nothing; `--json` reports `topology_decision` per `contracts/finalize-tasks-json.md`; `orchestrator-api tasks` passes it through (contract 1.24.0; WP15 owns the bump and documents `topology_decision`, this WP depends on WP15 and does not edit `envelope.py` or `docs/api/orchestrator-api.md`, analysis F2).
+- FR-061 (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`): a default Mission's PRIMARY reads/writes go to the topic branch before and after settlement. The `consolidate` landing of those artifacts on the target is WP20 (FR-062, analysis E1), not this WP. Explicit `--topology` keeps PRIMARY on `target_branch`. `spec-kitty agent context resolve --json` (`mission_dir`) and `check-prerequisites --paths-only` return the PRIMARY-partition location after settlement too.
 - SC-007 finalize half; NFR-002 (no lost events across settlement).
 
 ## Context & Constraints
@@ -121,7 +122,7 @@ S7 (#7282), settlement half. The first `finalize-tasks` of a provisional Mission
 ### Subtask T082 - First commit: PRIMARY placement pin
 
 - `tests/integration/test_default_mission_primary_placement.py`:
-  - `test_default_mission_primary_placement_topic_branch_pinned`: a default Mission's spec/plan/tasks/WP files/`lanes.json`/`meta.json` are read and written on the topic branch before and after settlement (both outcomes), and `consolidate` lands them on the target.
+  - `test_default_mission_primary_placement_topic_branch_pinned`: a default Mission's spec/plan/tasks/WP files/`lanes.json`/`meta.json` are read and written on the topic branch before and after settlement (both outcomes). The `consolidate` landing leg is WP20's (FR-062); do not assert it here.
   - Positive control: explicit `--topology lanes_with_coord` keeps PRIMARY on `target_branch`.
   - `test_context_resolve_and_prerequisites_report_primary_location_after_settlement`: after a `lanes_with_coord` settlement (root checkout back on `create_return_branch`), `spec-kitty agent context resolve --action implement --mission <h> --json` `mission_dir` and `spec-kitty agent mission check-prerequisites --json --paths-only --mission <h>` return the PRIMARY-partition location (not the root checkout's copy).
 - Commit first (red where not yet implemented).

@@ -6,27 +6,6 @@
   "target_branch": "issue-7276-lane-worktree-hardening",
   "lanes": [
     {
-      "lane_id": "lane-a",
-      "wp_ids": [
-        "WP04"
-      ],
-      "write_scope": [
-        "src/runtime/next/committed_authority.py",
-        "src/specify_cli/coordination/status_service.py",
-        "src/specify_cli/missions/_read_path_resolver.py",
-        "tests/coordination/test_status_ref_reader.py",
-        "tests/specify_cli/missions/test_lane_worktree_status_shadow.py",
-        "tests/status/test_status_read_matrix.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "workspace"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
       "lane_id": "lane-e",
       "wp_ids": [
         "WP08"
@@ -77,24 +56,24 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-b",
+      "lane_id": "lane-a",
       "wp_ids": [
-        "WP05"
+        "WP04"
       ],
       "write_scope": [
-        "src/specify_cli/coordination/surface_resolver.py",
-        "src/specify_cli/status/read_surface.py",
-        "tests/specify_cli/cli/commands/agent/test_context_resolve_primary_partition.py",
-        "tests/status/test_read_surface_door.py"
+        "src/runtime/next/committed_authority.py",
+        "src/specify_cli/coordination/status_service.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/coordination/test_status_ref_reader.py",
+        "tests/specify_cli/missions/test_lane_worktree_status_shadow.py",
+        "tests/status/test_status_read_matrix.py"
       ],
       "predicted_surfaces": [
         "api",
         "artifact-rendering",
-        "legacy-cleanup",
         "workspace"
       ],
       "depends_on_lanes": [
-        "lane-a",
         "lane-planning"
       ],
       "parallel_group": 1
@@ -150,37 +129,6 @@
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-j",
-      "wp_ids": [
-        "WP13"
-      ],
-      "write_scope": [
-        "src/mission_runtime/context.py",
-        "src/specify_cli/cli/commands/agent/mission_create.py",
-        "src/specify_cli/cli/commands/lifecycle.py",
-        "src/specify_cli/core/mission_creation.py",
-        "src/specify_cli/core/mission_creation_meta.py",
-        "src/specify_cli/core/mission_creation_protected_mint.py",
-        "src/specify_cli/lanes/compute_and_persist.py",
-        "src/specify_cli/meta_keys.py",
-        "src/specify_cli/mission_metadata.py",
-        "src/specify_cli/orchestrator_api/design_phase.py",
-        "tests/core/test_protected_mint_switch_occupancy.py",
-        "tests/lanes/test_count_code_lanes.py",
-        "tests/specify_cli/cli/commands/agent/test_mission_create_provisional_topology.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup",
-        "workspace"
-      ],
-      "depends_on_lanes": [
-        "lane-planning"
-      ],
-      "parallel_group": 1
-    },
-    {
       "lane_id": "lane-l",
       "wp_ids": [
         "WP15"
@@ -210,6 +158,85 @@
         "lane-planning"
       ],
       "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/status/read_surface.py",
+        "tests/specify_cli/cli/commands/agent/test_context_resolve_primary_partition.py",
+        "tests/status/test_read_surface_door.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-planning"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/phase_gate.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/write_branch_bound.py",
+        "tests/consolidation/test_write_branch_bound.py",
+        "tests/integration/test_single_branch_approval_windows.py",
+        "tests/orchestrator_api/test_single_branch_bound_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "src/mission_runtime/context.py",
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/cli/commands/lifecycle.py",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/mission_creation_meta.py",
+        "src/specify_cli/core/mission_creation_protected_mint.py",
+        "src/specify_cli/lanes/compute_and_persist.py",
+        "src/specify_cli/meta_keys.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/orchestrator_api/design_phase.py",
+        "tests/core/test_protected_mint_switch_occupancy.py",
+        "tests/lanes/test_count_code_lanes.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create_provisional_topology.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-l",
+        "lane-planning"
+      ],
+      "parallel_group": 2
     },
     {
       "lane_id": "lane-c",
@@ -246,7 +273,7 @@
       "depends_on_lanes": [
         "lane-b"
       ],
-      "parallel_group": 2
+      "parallel_group": 3
     },
     {
       "lane_id": "lane-g",
@@ -273,31 +300,7 @@
         "lane-b",
         "lane-f"
       ],
-      "parallel_group": 2
-    },
-    {
-      "lane_id": "lane-i",
-      "wp_ids": [
-        "WP12"
-      ],
-      "write_scope": [
-        "src/specify_cli/consolidation/phase_gate.py",
-        "src/specify_cli/consolidation/reconciliation.py",
-        "src/specify_cli/consolidation/write_branch_bound.py",
-        "tests/consolidation/test_write_branch_bound.py",
-        "tests/integration/test_single_branch_approval_windows.py",
-        "tests/orchestrator_api/test_single_branch_bound_preflight.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering",
-        "legacy-cleanup",
-        "workspace"
-      ],
-      "depends_on_lanes": [
-        "lane-h"
-      ],
-      "parallel_group": 2
+      "parallel_group": 3
     },
     {
       "lane_id": "lane-d",
@@ -327,7 +330,7 @@
       "depends_on_lanes": [
         "lane-c"
       ],
-      "parallel_group": 3
+      "parallel_group": 4
     },
     {
       "lane_id": "lane-k",
@@ -354,9 +357,10 @@
       "depends_on_lanes": [
         "lane-c",
         "lane-i",
-        "lane-j"
+        "lane-j",
+        "lane-l"
       ],
-      "parallel_group": 3
+      "parallel_group": 4
     },
     {
       "lane_id": "lane-m",
@@ -385,7 +389,30 @@
         "lane-f",
         "lane-l"
       ],
-      "parallel_group": 3
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-p",
+      "wp_ids": [
+        "WP20"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/bookkeeping_projection.py",
+        "tests/consolidation/test_topic_branch_primary_landing.py",
+        "tests/integration/test_default_mission_consolidate_lands_primary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-k",
+        "lane-l"
+      ],
+      "parallel_group": 5
     },
     {
       "lane_id": "lane-n",
@@ -416,9 +443,10 @@
         "lane-g",
         "lane-i",
         "lane-k",
-        "lane-l"
+        "lane-l",
+        "lane-p"
       ],
-      "parallel_group": 4
+      "parallel_group": 6
     },
     {
       "lane_id": "lane-o",
@@ -451,10 +479,10 @@
       "depends_on_lanes": [
         "lane-n"
       ],
-      "parallel_group": 5
+      "parallel_group": 7
     }
   ],
-  "computed_at": "2026-11-06T09:11:02.380420+00:00",
+  "computed_at": "2026-11-06T09:25:54.633571+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP01",
@@ -462,5 +490,5 @@
     "WP03",
     "WP19"
   ],
-  "planning_commit_sha": "98d3ae3feae9678a4ddc5db47ca7f24dd9699703"
+  "planning_commit_sha": "55109efc2c35e82430bdcafb95d171e21c9403f4"
 }

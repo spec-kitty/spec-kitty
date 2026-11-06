@@ -12,6 +12,7 @@ requirement_refs:
 - SC-009
 - NFR-002
 - NFR-005
+- NFR-008
 - C-008
 - C-009
 - C-014
@@ -156,6 +157,8 @@ uv run --frozen mypy --strict <touched src files>
 ```
 
 Never `make test-full` or a bare `tests/architectural/` sweep.
+
+**NFR-008 (Linux and Windows).** The S6 exclusion and the lane-checkout migration must pass on the Linux and Windows CI lanes: use git's own sparse/exclude commands and `pathlib` paths, never shell globs, POSIX-only path separators or `chmod`-style assumptions; the migration test must not depend on symlinks or case-sensitive paths. Run the migration test locally on Linux; mark nothing `skipif(os.name == "nt")` without a recorded reason. Reviewers check the Windows lane result on the PR (`ci-windows.yml`).
 
 ## Tracer files
 
