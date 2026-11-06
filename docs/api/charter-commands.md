@@ -298,7 +298,7 @@ Selector forms:
 
 Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids, the synthesis lock (`CHARTER_SYNTHESIS_LOCK_HELD`) and legacy `applies` edges replaced on the artifacts it regenerates.
 
-A directive the project authored itself, for example `--topic directive:PROJECT_002`, has nothing to regenerate: the command reports that and exits 0, and you amend the directive by editing its file. A target that would write over a directive synthesis did not create, over an activated org directive or over shipped doctrine is refused, and so is a project agent profile that reuses a shipped `profile-id`.
+A directive the project authored itself has nothing to regenerate: the command reports that and exits 0, and you amend the directive by editing its file. A target with the id of a directive synthesis did not create, of an activated org directive or of shipped doctrine is refused, and so is a project agent profile that reuses a shipped `profile-id`.
 
 | Flag | Description | Default |
 | --- | --- | --- |

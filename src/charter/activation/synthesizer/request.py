@@ -147,9 +147,9 @@ class SynthesisRequest:
     adapter_hints: Mapping[str, str] | None = None
     evidence: EvidenceBundle | None = None
     #: The graph the FR-020 / EC-6 additive-only check runs against: the shipped DRG
-    #: (``charter.offering.drg.loader.load_built_in_graph``) plus every node of
-    #: ``drg_snapshot``, so a target that would overwrite shipped doctrine, an activated
-    #: org directive or a project directive synthesis does not own refuses (#6768).
+    #: (``charter.offering.drg.loader.load_built_in_graph``), every node of
+    #: ``drg_snapshot`` and every project directive synthesis did not create, so a target
+    #: that would overwrite one of them refuses (#6768).
     #: ``drg_snapshot`` keeps its own role: the reference universe a target's
     #: ``source_urns`` may name (EC-2) and the lower layer the validation gate resolves
     #: against. ``None`` means "use ``drg_snapshot``", the behaviour every pre-#6768

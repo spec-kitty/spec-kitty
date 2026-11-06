@@ -288,8 +288,8 @@ def emit_project_layer(
         targets: Ordered sequence of ``SynthesisTarget`` objects to emit.
         spec_kitty_version: Version string embedded in ``generated_by``.
         built_in_drg: The ``DRGGraph`` the additive-only checks read: on the CLI
-            paths, the shipped graph plus the activated directives synthesis does
-            not own (#6768).  **Not mutated.**
+            paths, the shipped graph plus the directives synthesis does not own
+            (#6768).  **Not mutated.**
         project_root: Project root for hand-authored profile/registered-
             artifact composition (see above).
         org_drg: The org-chain base graph (built-in + org merged, as returned

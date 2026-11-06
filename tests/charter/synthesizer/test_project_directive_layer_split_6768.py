@@ -196,9 +196,36 @@ def test_resynthesize_hand_authored_directive_reports_nothing_to_regenerate(proj
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert payload["result"] == "noop"
-    assert "Nothing to regenerate" in payload["diagnostic"]
+    assert "hand-written" in payload["diagnostic"]
     assert "regenerated" not in payload
     assert directive.read_bytes() == before
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_resynthesize_hand_authored_directive_needs_no_generated_inputs(project: Path) -> None:
+    """The no-op comes before the pipeline, so a missing input of another target cannot fail it."""
+    next((project / _GENERATED / "tactics").glob(f"*{_AUTHORED_COMPANION}*")).unlink()
+
+    result = _invoke("resynthesize", "--topic", _AUTHORED_URN, "--json")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["result"] == "noop"
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_resynthesize_reports_only_the_targets_it_generated(project: Path) -> None:
+    """A target of the topic the pipeline no longer produces is not reported as regenerated."""
+    assert _invoke("synthesize", "--json").exit_code == 0
+    provenance = project / ".kittify" / "charter" / "provenance"
+    sidecar = (provenance / f"tactic-{_AUTHORED_COMPANION}.yaml").read_text(encoding="utf-8")
+    (provenance / "tactic-how-we-apply-retired.yaml").write_text(sidecar.replace(_AUTHORED_COMPANION, "how-we-apply-retired"), encoding="utf-8")
+
+    result = _invoke("resynthesize", "--topic", "selected_directives", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["regenerated"] == [f"tactic:{_AUTHORED_COMPANION}"]
 
 
 @pytest.mark.integration

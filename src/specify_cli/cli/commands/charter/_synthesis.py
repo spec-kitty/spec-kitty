@@ -73,11 +73,11 @@ def _directive_synthesis_inputs(
     return selected, nodes
 
 
-def _additive_layer_snapshot(reference_nodes: Sequence[Mapping[str, str]]) -> dict[str, Any] | None:
-    """Return the layer the additive-only check reads: the shipped DRG plus *reference_nodes*.
+def _additive_layer_snapshot(protected_nodes: Sequence[Mapping[str, str]]) -> dict[str, Any] | None:
+    """Return the layer the additive-only check reads: the shipped DRG plus *protected_nodes*.
 
-    *reference_nodes* are the activated directives synthesis does not own, so a target
-    that would overwrite one still refuses, whichever layer it comes from (#6768).
+    *protected_nodes* are the directives synthesis does not own, so a target that would
+    overwrite one still refuses, whichever layer it comes from (#6768).
 
     A shipped graph that fails to load (``DRGLoadError``) returns ``None``, which every
     consumer reads as "use the reference snapshot". A missing built-in pack raises its
@@ -94,8 +94,26 @@ def _additive_layer_snapshot(reference_nodes: Sequence[Mapping[str, str]]) -> di
         return None
     dumped: dict[str, Any] = graph.model_dump(mode="json")
     shipped_urns = {node["urn"] for node in dumped["nodes"]}
-    dumped["nodes"].extend(dict(node) for node in reference_nodes if node["urn"] not in shipped_urns)
+    dumped["nodes"].extend({urn: dict(node) for node in protected_nodes if (urn := node["urn"]) not in shipped_urns}.values())
     return dumped
+
+
+def _unowned_project_directive_nodes(repo_root: Path) -> list[dict[str, str]]:
+    """The project pack's directives synthesis did not create, activated or not (#6768).
+
+    A directive need not be in an allow list to be overwritten: a first ``charter
+    activate`` leaves the key absent (#6685). Unreadable directive files or an unreadable
+    ownership record give no nodes: a run that never needed them must not refuse on them
+    (the rule ``synthesis_owned_directive_ids`` keeps for an absent or built-in-only list).
+    """
+    from charter.activation.api import ManifestIntegrityError, ProjectDirectiveScanError, project_directive_ids, synthesis_owned_directive_ids
+
+    try:
+        on_disk = project_directive_ids(repo_root)
+        unowned = on_disk - synthesis_owned_directive_ids(repo_root, on_disk, project_ids=on_disk)
+    except (ProjectDirectiveScanError, ManifestIntegrityError):
+        return []
+    return [{"urn": f"directive:{directive_id}", "kind": "directive"} for directive_id in sorted(unowned)]
 
 
 def _build_synthesis_request(
@@ -191,20 +209,19 @@ def _build_synthesis_request(
     # * ``drg_snapshot`` is the REFERENCE UNIVERSE: the activated directives synthesis
     #   does not own. EC-2 validates a target's ``source_urns`` against it, and the
     #   pre-write validation gate resolves the overlay's references against it.
-    # * ``additive_drg_snapshot`` is that universe plus the shipped DRG. The FR-020 /
-    #   EC-6 check refuses a target that would write over one of its nodes: a target
-    #   may not shadow shipped doctrine, an activated org directive or a project
-    #   directive synthesis did not create.
+    # * ``additive_drg_snapshot`` is that universe, the shipped DRG and every project
+    #   directive on disk synthesis did not create. The FR-020 / EC-6 check refuses a
+    #   target that would write over one of its nodes.
     #
-    # An activated project directive that no target writes is not a collision, because
-    # the check only reads target URNs. The bounded resynthesis path drops a topic
-    # target that nothing generates before it reaches the check.
+    # A project directive no target writes is not a collision, because the check only
+    # reads target URNs. The bounded resynthesis path drops a topic target that nothing
+    # generates before it reaches the check.
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
         "schema_version": "1",
     }
-    additive_drg_snapshot = _additive_layer_snapshot(drg_nodes)
+    additive_drg_snapshot = _additive_layer_snapshot([*drg_nodes, *_unowned_project_directive_nodes(repo_root)])
 
     # Internal placeholder target. ``synthesize()`` derives the actual
     # target list from the interview, so this token is never the artifact
