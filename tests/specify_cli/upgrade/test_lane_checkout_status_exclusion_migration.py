@@ -28,10 +28,12 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.upgrade.ledger import MigrationLedger
 from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.migrations.base import MigrationResult
 from specify_cli.upgrade.registry import migration_settled
 from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.migrations.m_4_0_0rc8_lane_checkout_status_exclusion import (
     MIGRATION_ID,
+    LaneCheckoutMigrationItem,
     LaneCheckoutStatusExclusionMigration,
     migrate_lane_checkouts,
 )
@@ -127,7 +129,7 @@ def _lane_append(repo: Path, event_id: str, lane: str = "lane-a") -> None:
         handle.write(_row(event_id) + "\n")
 
 
-def _only(repo: Path) -> object:
+def _only(repo: Path) -> LaneCheckoutMigrationItem:
     items = migrate_lane_checkouts(repo, dry_run=False)
     assert len(items) == 1, items
     return items[0]
@@ -266,14 +268,16 @@ def test_not_a_git_repository_is_not_applicable(tmp_path: Path) -> None:
     assert migration.apply(project).changes_made == []
 
 
-def _upgrade_once(repo: Path) -> tuple[object, str]:
+def _upgrade_once(repo: Path) -> tuple[MigrationResult, str]:
     """One pass of this migration through the production runner (ledger selection, detect, can_apply, apply, record)."""
     migration = LaneCheckoutStatusExclusionMigration()
-    return MigrationRunner(repo)._apply_migration(migration, ProjectMetadata.load(repo / ".kittify"), dry_run=False)
+    outcome: tuple[MigrationResult, str] = MigrationRunner(repo)._apply_migration(migration, ProjectMetadata.load(repo / ".kittify"), dry_run=False)
+    return outcome
 
 
 def _settled(repo: Path) -> bool:
-    return migration_settled(MigrationLedger(repo), LaneCheckoutStatusExclusionMigration())
+    settled: bool = migration_settled(MigrationLedger(repo), LaneCheckoutStatusExclusionMigration())
+    return settled
 
 
 def test_can_apply_refuses_while_a_lane_holds_lane_only_events(tmp_path: Path) -> None:

@@ -489,14 +489,16 @@ def _validate_write_contract(contract: EventLogWriteContract) -> None:
 
     Both :class:`EventLogWriteTarget` members are guarded: a
     ``PRIMARY_CHECKOUT_APPEND`` must not target a coordination worktree path,
-    and a ``COORDINATION_TRANSACTION_APPEND`` must target one. Neither may
-    target a registered lane checkout (FR-041), whatever its path shape.
+    and a ``COORDINATION_TRANSACTION_APPEND`` must target one.
+
+    NFR-002: zero git subprocess calls. The FR-041 registry check (a target
+    inside a registered lane checkout refuses) runs where the write already
+    pays for git: :class:`~specify_cli.coordination.transaction.BookkeepingTransaction`
+    resolves its write contract through :func:`refuse_status_write_into_lane_checkout`.
     """
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
         primary_read_targets_coord_worktree,
     )
-
-    refuse_status_write_into_lane_checkout(contract.feature_dir)
 
     owned = contract.owned if contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND else None
     targets_coord = primary_read_targets_coord_worktree(contract.feature_dir, owned=owned)

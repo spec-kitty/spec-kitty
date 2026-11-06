@@ -23,6 +23,13 @@ shape. Per worktree the outcome is exactly one of:
 * ``skipped_mid_operation`` -- a merge, rebase or cherry-pick is in progress;
 * ``already_excluded`` -- the exclusion is in place (a re-run is a no-op, NFR-005).
 
+A run that would leave a lane ``refused_lane_only_events`` or
+``skipped_mid_operation`` is refused by ``can_apply()``: the runner reports it
+as a skip, records nothing and selects the migration again on the next
+upgrade, so it never settles while a lane still lacks the exclusion. The
+``doctor sparse-checkout`` finding ``LANE_STATUS_NOT_EXCLUDED`` names every such
+lane with its remedy (:func:`lane_checkouts_lacking_exclusion`).
+
 The effect lives in each worktree's own git directory (the per-worktree sparse
 configuration), outside version control, so the migration is clone-local and
 its ``apply()`` is idempotent. Only git's own commands and ``pathlib`` paths are
@@ -42,6 +49,8 @@ from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 __all__ = [
     "LaneCheckoutStatusExclusionMigration",
+    "lane_checkouts_lacking_exclusion",
+    "lane_exclusion_remedy",
 ]
 
 MIGRATION_ID = "4.0.0rc8_lane_checkout_status_exclusion"
@@ -78,6 +87,39 @@ class LaneCheckoutMigrationItem:
     def render(self) -> str:
         line = f"{self.worktree} ({self.lane_id}): {self.outcome.value}"
         return f"{line} - {self.reason}" if self.reason else line
+
+
+_UPGRADE_REMEDY = "then run `spec-kitty upgrade`"
+
+
+def lane_exclusion_remedy(item: LaneCheckoutMigrationItem) -> str:
+    """What the operator does so the lane worktree of *item* gets the exclusion."""
+    if item.outcome == LaneCheckoutOutcome.REFUSED_LANE_ONLY_EVENTS:
+        return (
+            "record each transition the lane copy holds on the status surface (spec-kitty agent tasks move-task), "
+            f"discard the lane copy's change to the Mission's status.events.jsonl and status.json "
+            f"(git -C {item.worktree} checkout -- <file>), {_UPGRADE_REMEDY}"
+        )
+    if item.outcome == LaneCheckoutOutcome.SKIPPED_MID_OPERATION:
+        return f"finish or abort the merge, rebase or cherry-pick in {item.worktree}, {_UPGRADE_REMEDY}"
+    return "run `spec-kitty doctor sparse-checkout --fix` (or `spec-kitty upgrade`)"
+
+
+def lane_checkouts_lacking_exclusion(project_path: Path, *, fix: bool) -> tuple[LaneCheckoutMigrationItem, ...]:
+    """Every registered lane worktree that lacks the status-file exclusion (after applying it where safe when *fix*).
+
+    With *fix*, the exclusion is applied to every lane the migration would
+    change (``excluded`` / ``flagged_redundant``) and only the lanes it may not
+    touch are returned. Without, nothing is written and every lane not yet
+    excluded is returned.
+
+    Raises:
+        MigrationStateUnreadableError: the worktree registry cannot be read.
+    """
+    items = migrate_lane_checkouts(project_path, dry_run=not fix)
+    if fix:
+        return tuple(item for item in items if item.outcome in _UNMIGRATED_OUTCOMES)
+    return tuple(item for item in items if item.outcome != LaneCheckoutOutcome.ALREADY_EXCLUDED)
 
 
 def migrate_lane_checkouts(project_path: Path, *, dry_run: bool) -> tuple[LaneCheckoutMigrationItem, ...]:
@@ -268,10 +310,21 @@ class LaneCheckoutStatusExclusionMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """True when some existing lane worktree lacks the exclusion."""
-        return any(item.outcome is not LaneCheckoutOutcome.ALREADY_EXCLUDED for item in migrate_lane_checkouts(project_path, dry_run=True))
+        return bool(lane_checkouts_lacking_exclusion(project_path, fix=False))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        if self.detect(project_path):
+        """Refuse while any lane would be left unexcluded, so the run never settles the migration.
+
+        The runner reports the refusal as a skip, records nothing and selects
+        the migration again on the next upgrade: the upgrade does not fail, and
+        no lane waits unreported (``doctor sparse-checkout`` names it too).
+        """
+        lacking = lane_checkouts_lacking_exclusion(project_path, fix=False)
+        blocked = [item for item in lacking if item.outcome in _UNMIGRATED_OUTCOMES]
+        if blocked:
+            lanes = "; ".join(f"{item.render()}. Remedy: {lane_exclusion_remedy(item)}" for item in blocked)
+            return False, f"{lanes}. No lane worktree is excluded until every one can be; this migration runs again on the next upgrade"
+        if lacking:
             return True, ""
         return False, "every lane worktree already excludes the Mission status files (or there is none)"
 

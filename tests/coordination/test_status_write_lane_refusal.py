@@ -127,15 +127,15 @@ def test_registry_classifies_lane_checkouts_wherever_they_live(tmp_path: Path) -
 def test_transaction_write_into_coord_named_lane_checkout_refuses(tmp_path: Path) -> None:
     """The path says coordination worktree; the registry says lane checkout. The registry wins."""
     repo = _repo(tmp_path)
-    with pytest.raises(StatusContractError) as excinfo, _acquire(repo) as txn:
-        assert txn.worktree_root == CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
-        _git(txn.worktree_root, "switch", "-q", "-c", f"{_COORD_BRANCH}-lane-z")
-        before = _log_bytes(txn.feature_dir)
-        try:
-            txn.append_event(_event("01M6QY1MLANEWRITE000000001"))
-        finally:
-            assert _log_bytes(txn.feature_dir) == before, "a refused write never touches the lane copy"
+    txn = _acquire(repo)
+    assert txn.worktree_root == CoordinationWorkspace.worktree_path(repo, _SLUG, _MID8)
+    _git(txn.worktree_root, "switch", "-q", "-c", f"{_COORD_BRANCH}-lane-z")
+    before = _log_bytes(txn.feature_dir)
 
+    with pytest.raises(StatusContractError) as excinfo, txn:
+        txn.append_event(_event("01M6QY1MLANEWRITE000000001"))
+
+    assert _log_bytes(txn.feature_dir) == before, "a refused write never touches the lane copy"
     assert getattr(excinfo.value, "error_code", None) == _LANE_CODE
     assert f"{_COORD_BRANCH}-lane-z" in str(excinfo.value)
 

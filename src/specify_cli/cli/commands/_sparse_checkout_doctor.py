@@ -49,27 +49,44 @@ _FIX_HINT = "spec-kitty doctor sparse-checkout --fix"
 LANE_STATUS_AUTHORED = "LANE_STATUS_AUTHORED"
 """Doctor finding code (``contracts/error-codes.yaml``, FR-045)."""
 
+LANE_STATUS_NOT_EXCLUDED = "LANE_STATUS_NOT_EXCLUDED"
+"""Doctor finding code: a registered lane worktree still shows the Mission status files (FR-044)."""
+
 
 @dataclass(frozen=True)
 class LaneStatusAuthored:
-    """A live lane branch whose Mission status files differ from its merge-base (FR-045).
+    """A live lane branch carrying a lane-authored change to its Mission status files (FR-045).
 
-    ``merge_base`` is ``merge-base(lane, consolidation base)``, so coordination
-    bytes merged into the lane do not count: only a change the lane made itself.
+    ``commits`` are the lane's own non-merge commits that touch the status
+    files: reachable from the lane, from none of the branches the status bytes
+    come from (the coordination branch, the target branch, the Mission
+    branch). Status bytes merged into the lane from those branches do not
+    count, however far they moved on after the lane was cut.
     """
 
     lane_branch: str
     mission: str
     paths: tuple[str, ...]
-    merge_base: str
+    commits: tuple[str, ...]
     code: str = LANE_STATUS_AUTHORED
+
+
+@dataclass(frozen=True)
+class LaneStatusNotExcluded:
+    """A registered lane worktree without the status-file exclusion, and what to do about it."""
+
+    worktree: Path
+    lane_id: str
+    detail: str
+    remedy: str
+    code: str = LANE_STATUS_NOT_EXCLUDED
 
 
 def find_lane_status_authored(repo_root: Path) -> list[LaneStatusAuthored]:
     """Every live code-lane branch of every Mission carrying a lane-authored status change.
 
     The comparison covers the Mission's two status files only. A lane whose
-    branch is gone, or whose consolidation base resolves to no branch, is not
+    branch is gone, or none of whose status-surface branches resolves, is not
     a live lane this probe can judge and yields no finding.
     """
     from specify_cli.lanes.lane_checkout import mission_code_lanes
@@ -85,25 +102,43 @@ def find_lane_status_authored(repo_root: Path) -> list[LaneStatusAuthored]:
 def _probe_lane(repo_root: Path, lane: MissionCodeLane) -> LaneStatusAuthored | None:
     if not _branch_exists(repo_root, lane.branch):
         return None
-    base = _consolidation_base(repo_root, lane)
-    if base is None:
+    bases = _status_source_branches(repo_root, lane)
+    if not bases:
         return None
-    merge_base = _git_stdout(repo_root, "merge-base", lane.branch, base)
-    if not merge_base:
+    own_commits = (lane.branch, "--not", *bases, "--", *lane.status_paths)
+    commits = tuple(_git_stdout(repo_root, "log", "--no-merges", "--format=%H", *own_commits).split())
+    if not commits:
         return None
-    changed = set(_git_stdout(repo_root, "diff", "--name-only", merge_base, lane.branch, "--", *lane.status_paths).splitlines())
-    paths = tuple(path for path in lane.status_paths if path in changed)
-    if not paths:
-        return None
-    return LaneStatusAuthored(lane_branch=lane.branch, mission=lane.mission, paths=paths, merge_base=merge_base)
+    touched = set(_git_stdout(repo_root, "log", "--no-merges", "--format=", "--name-only", *own_commits).splitlines())
+    paths = tuple(path for path in lane.status_paths if path in touched)
+    return LaneStatusAuthored(lane_branch=lane.branch, mission=lane.mission, paths=paths, commits=commits)
 
 
-def _consolidation_base(repo_root: Path, lane: MissionCodeLane) -> str | None:
-    """The branch the lane's status bytes come from: coordination, else Mission, else target branch."""
-    for candidate in (lane.coordination_branch, lane.mission_branch, lane.target_branch):
-        if candidate and _branch_exists(repo_root, candidate):
-            return candidate
-    return None
+def _status_source_branches(repo_root: Path, lane: MissionCodeLane) -> tuple[str, ...]:
+    """The existing branches a lane's status bytes legitimately come from: coordination, target, Mission branch."""
+    candidates = (lane.coordination_branch, lane.target_branch, lane.mission_branch)
+    return tuple(dict.fromkeys(branch for branch in candidates if branch and _branch_exists(repo_root, branch)))
+
+
+def find_lanes_lacking_exclusion(repo_root: Path, *, fix: bool) -> list[LaneStatusNotExcluded]:
+    """Every registered lane worktree still lacking the status-file exclusion (FR-044).
+
+    With *fix*, the exclusion is first applied wherever the upgrade migration
+    would apply it (the same checks: a lane copy holding lane-only events, or
+    a lane mid-merge or mid-rebase, is left untouched and still reported).
+
+    Raises:
+        MigrationStateUnreadableError: the worktree registry cannot be read.
+    """
+    from specify_cli.upgrade.migrations.m_4_0_0rc8_lane_checkout_status_exclusion import (
+        lane_checkouts_lacking_exclusion,
+        lane_exclusion_remedy,
+    )
+
+    return [
+        LaneStatusNotExcluded(worktree=item.worktree, lane_id=item.lane_id, detail=item.render(), remedy=lane_exclusion_remedy(item))
+        for item in lane_checkouts_lacking_exclusion(repo_root, fix=fix)
+    ]
 
 
 def _branch_exists(repo_root: Path, branch: str) -> bool:
@@ -126,7 +161,7 @@ def _render_lane_status_authored(findings: Sequence[LaneStatusAuthored]) -> None
     console.print("[yellow]⚠ Lane branches carry lane-authored status changes[/yellow]", soft_wrap=True)
     for finding in findings:
         console.print(
-            f"  {finding.code}: {finding.lane_branch} (Mission {finding.mission}) changes {', '.join(finding.paths)} since merge-base {finding.merge_base}",
+            f"  {finding.code}: {finding.lane_branch} (Mission {finding.mission}) changes {', '.join(finding.paths)} in commits {', '.join(finding.commits)}",
             soft_wrap=True,
         )
     console.print(
@@ -135,6 +170,32 @@ def _render_lane_status_authored(findings: Sequence[LaneStatusAuthored]) -> None
         soft_wrap=True,
     )
     console.print()
+
+
+def _render_lanes_not_excluded(findings: Sequence[LaneStatusNotExcluded]) -> None:
+    """Print each ``LANE_STATUS_NOT_EXCLUDED`` finding with its remedy on grep-able lines."""
+    console.print("[yellow]⚠ Lane worktrees still show the Mission status files[/yellow]", soft_wrap=True)
+    for finding in findings:
+        console.print(f"  {finding.code}: {finding.detail}", soft_wrap=True)
+        console.print(f"    Remedy: {finding.remedy}", soft_wrap=True)
+    console.print()
+
+
+def _report_lane_findings(repo_root: Path, fix: bool) -> bool:
+    """Render the two lane findings (after the safe exclusion fix when *fix*); True when any remains."""
+    from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError
+
+    authored = find_lane_status_authored(repo_root)
+    if authored:
+        _render_lane_status_authored(authored)
+    try:
+        not_excluded = find_lanes_lacking_exclusion(repo_root, fix=fix)
+    except MigrationStateUnreadableError as exc:
+        console.print(f"[red]✗ Cannot read the worktree registry to check lane worktrees:[/red] {exc}", soft_wrap=True)
+        return True
+    if not_excluded:
+        _render_lanes_not_excluded(not_excluded)
+    return bool(authored or not_excluded)
 
 
 def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
@@ -292,12 +353,10 @@ def run_sparse_checkout(fix: bool) -> None:
 
     repo_root = _resolve_repo_root()
     report = scan_repo(repo_root)
-    authored = find_lane_status_authored(repo_root)
-    if authored:
-        _render_lane_status_authored(authored)
+    lane_findings = _report_lane_findings(repo_root, fix)
 
     if not report.any_blocking:
-        if authored and not fix:
+        if lane_findings:
             raise typer.Exit(1)
         _emit_clean_state(fix)
 
