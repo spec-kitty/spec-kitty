@@ -482,6 +482,16 @@ def test_o4_a_reflog_that_cannot_be_opened_removes_nothing(repo: Path, monkeypat
     assert worktree.exists()
 
 
+def test_o4_a_corrupt_branch_reflog_removes_nothing(repo: Path) -> None:
+    """Branch reflogs live in the common directory, not the worktree's own git directory."""
+    worktree, tip = _land(repo)
+    branch = _git(worktree, "symbolic-ref", "--short", "HEAD").strip()
+    (repo / ".git" / "logs" / "refs" / "heads" / branch).write_text("not a reflog\n", encoding="utf-8")
+
+    assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+    assert worktree.exists()
+
+
 def test_o4_a_corrupt_reflog_removes_nothing(repo: Path) -> None:
     """On a file it can't parse, ``git reflog show`` exits 0 and prints the current commit."""
     worktree, tip = _land(repo)
