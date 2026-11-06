@@ -452,6 +452,9 @@ def test_accept_diagnose_json_blocks_corrupt_lanes_json(feature_repo: Path, miss
     assert payload["ok"] is False
     assert any(item["check"] == "lanes_manifest" for item in payload["blocked_checks"])
     assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
+    evidence_skips = [item for item in payload["skipped_checks"] if item["check"] == "implementation_evidence"]
+    assert len(evidence_skips) == 1
+    assert evidence_skips[0]["detail"].startswith("implementation_evidence skipped: EVIDENCE_WINDOW_UNCOMPUTABLE: ")
     assert any("lanes.json" in item for item in payload["recommended_fix_order"])
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before_meta
     status = run(["git", "status", "--short"], cwd=feature_repo)
