@@ -15,8 +15,8 @@ Two REAL readers resolve that state differently:
 
 * ``retrospect create``'s completion check
   (:func:`retrospect._check_mission_completed` →
-  :func:`retrospect._canonical_events_path` →
-  :func:`coordination.surface_resolver.resolve_status_surface`) routes through
+  :func:`retrospect._canonical_status_events` →
+  :func:`status.read_surface.resolve_status_read`, WP06) routes through
   the primary-wins guard ``_primary_mission_is_completed`` →
   ``is_mission_merged`` → ``meta.get("merged_at")``. With ``merged_at`` ABSENT
   the guard is dormant, so the resolver falls to the ``.worktrees`` husk
@@ -55,14 +55,11 @@ from typer.testing import CliRunner
 from mission_runtime import MissionTopology
 from specify_cli.audit.engine import run_audit
 from specify_cli.audit.models import AuditOptions
-from specify_cli.cli.commands.retrospect import (
-    _canonical_events_path,
-    _check_mission_completed,
-)
+from specify_cli.cli.commands.retrospect import _check_mission_completed
 from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.coordination.surface_resolver import resolve_status_surface
+from specify_cli.status.read_surface import resolve_status_read
 from specify_cli.migration.mission_state import _anchor_repair_root
 from specify_cli.status import read_events
 from specify_cli.status import reduce as reduce_events
@@ -225,14 +222,15 @@ def test_retrospect_and_doctor_agree_on_merged_mission_wp_states(tmp_path: Path)
     )
     # ``_check_mission_completed`` is the exact predicate ``retrospect create``
     # gates on (non-empty ⇒ ``MISSION_NOT_COMPLETED``); it routes through
-    # ``_canonical_events_path`` → ``resolve_status_surface``.
+    # ``_canonical_status_events`` → ``resolve_status_read`` (the one read door, WP06).
     retrospect_open = _check_mission_completed(resolved, repo_root)
     retrospect_open_wps = sorted(w["wp_id"] for w in retrospect_open)
 
     # Diagnostic context for the RED (not load-bearing — the surface flips to
     # primary after the WP04 fix, so this is never a hard assertion).
-    retrospect_surface = _canonical_events_path(repo_root, _SLUG)
-    resolver_surface = resolve_status_surface(repo_root, _SLUG)
+    door_surface = resolve_status_read(repo_root, _SLUG)
+    retrospect_surface = door_surface.path or door_surface.ref
+    resolver_surface = door_surface.source.value
 
     # --- Load-bearing: the two REAL readers must agree ------------------------
     # RED on HEAD: retrospect reads the husk → 11 open; doctor reads primary →

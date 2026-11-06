@@ -219,7 +219,9 @@ def test_guard_blocks_on_the_shared_snapshot_resolver() -> None:
 
     source = inspect.getsource(tasks_shared._check_unchecked_subtasks)
     assert "authored_subtask_roster" in source
-    assert "unchecked_subtask_ids_from_snapshot" in source
+    # WP06: completion is reduced from the declared status source's event stream (the one
+    # status read door), the same snapshot semantics as ``unchecked_subtask_ids_from_snapshot``.
+    assert "unchecked_subtask_ids_from_event_stream" in source
     # The guard no longer parses tasks.md checkbox rows for its roster/completion.
     assert "iter_wp_section_subtask_rows" not in source
     assert 're.compile(r"^-' not in source

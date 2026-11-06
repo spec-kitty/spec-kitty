@@ -274,11 +274,13 @@ def test_coord_empty_resolves_primary_with_warning(
         ms = MissionStatus.load(repo_root=tmp_path, mission_slug=SLUG_WITH_MID8)
 
     assert ms.read_dir.resolve() == primary_dir.resolve()
-    assert any(
+    # ADR 2026-11-06-2 (Mission lane-worktree-model-hardening WP05): the loud warning is
+    # gone; this branch-without-log case is the read door's declared pre-seed fallback.
+    assert not any(
         r.name == "specify_cli.coordination.surface_resolver"
         and r.levelno == logging.WARNING
         for r in caplog.records
-    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+    )
 
 
 def test_unmaterialized_coord_create_window_resolves_primary(tmp_path: Path) -> None:

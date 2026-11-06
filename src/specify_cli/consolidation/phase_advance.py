@@ -23,12 +23,8 @@ if TYPE_CHECKING:
 from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
-    resolve_status_surface,
 )
 from specify_cli.core.git_ops import run_command
-from specify_cli.core.paths import (
-    MissionMetaReadError,
-)
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings), imported
@@ -249,37 +245,24 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
                 raise typer.Exit(1)
 
 
-def _primary_mission_is_merged(primary_dir: Path) -> bool:
-    """True when the PRIMARY Mission dir carries merge evidence (non-raising).
-
-    Same predicate ``resolve_status_surface`` applies before re-anchoring a
-    completed Mission on the repository root checkout: a corrupt or unreadable
-    ``meta.json`` reads as not-merged.
-    """
-    from specify_cli.status import StoreError, is_mission_merged
-
-    if not (primary_dir / "meta.json").is_file():
-        return False
-    try:
-        return bool(is_mission_merged(primary_dir))
-    except (StoreError, MissionMetaReadError):
-        return False
-
-
 def _completed_mission_projected_events_path(run: _MergeRunState) -> Path | None:
     """The completed-Mission ``--resume`` events path, or ``None`` when the Mission is not completed.
 
     The ONE sanctioned read of a status surface in this module (FR-008): after a
     landed consolidation the records are already projected onto the target, so a
     ``--resume`` re-entering a completed Mission keeps the PRIMARY answer
-    ``resolve_status_surface`` returns. This is a READ of projected records, not a
-    write location.
+    the status read door returns (``CONSOLIDATED_TARGET``). This is a READ of projected
+    records, not a write location. The landed signal is ``mission_runtime.mission_has_landed``.
     """
-    if not _primary_mission_is_merged(run.target_feature_dir):
+    from mission_runtime import mission_has_landed
+    from specify_cli.status.read_surface import resolve_status_read
+
+    if not mission_has_landed(run.target_feature_dir):
         return None
-    # Explicit annotation: under ``follow_imports = "skip"`` the cross-module
-    # return is seen as ``Any``; the function IS typed ``-> Path``.
-    projected: Path = resolve_status_surface(run.main_repo, run.mission_slug)
+    surface = resolve_status_read(run.main_repo, run.mission_slug)
+    if surface.path is None:
+        return None
+    projected: Path = surface.path / _STATUS_EVENTS_FILENAME
     return projected
 
 

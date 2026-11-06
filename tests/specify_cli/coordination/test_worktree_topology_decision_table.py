@@ -8,8 +8,9 @@ deleted coord branch carrying unmerged status is data loss, surfaced loudly.
 
 R2' (declared + coord root materialized-but-EMPTY) was updated by mission
 01KVN754 / WP04 to **Option B**: it no longer hard-fails — it resolves the
-PRIMARY checkout and emits a loud, actionable WARNING (ADR 2026-06-19-1 amended).
-coord-EMPTY = loud primary fallback; coord-DELETED = hard-fail. The two
+PRIMARY checkout. ADR 2026-11-06-2 (Mission lane-worktree-model-hardening WP05)
+replaced its loud WARNING with the read door's declared pre-seed fallback.
+coord-EMPTY = declared primary fallback; coord-DELETED = hard-fail. The two
 fail-closed states stay distinct.
 """
 from __future__ import annotations
@@ -121,16 +122,20 @@ def test_r2_declared_branch_exists_worktree_absent_composes(tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_r2prime_materialized_root_missing_dir_falls_back_to_primary_loudly(
+def test_r2prime_materialized_root_missing_dir_declares_pre_seed_fallback(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """R2' after ADR 2026-11-06-2 (Mission lane-worktree-model-hardening WP05).
+
+    The coordination branch holds no log for the Mission yet (pre-seed), so the read door
+    declares the write-checkout fallback on the surface (``fallback_reason``) instead of the
+    former loud log WARNING; the legacy projection still resolves the PRIMARY log.
+    """
+    from specify_cli.status.read_surface import StatusReadSource, resolve_status_read
+
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
     _git(repo_root, "branch", _COORD_BRANCH)
-    # WP08 (#2533): the loud warning is now the TRUE-POSITIVE case (a coord
-    # mission WITH lanes hitting an unexpected empty coord). A solo (no-lanes)
-    # ``MissionTopology.COORD`` mission stays quiet — see
-    # tests/coordination/test_surface_resolver_solo_coord_primary.py.
     feature_dir = _seed_primary_meta(
         repo_root, coordination_branch=_COORD_BRANCH, topology="lanes_with_coord"
     )
@@ -138,16 +143,16 @@ def test_r2prime_materialized_root_missing_dir_falls_back_to_primary_loudly(
     coord_root = repo_root / ".worktrees" / f"{_MISSION}-{_MID8}-coord"
     coord_root.mkdir(parents=True)
 
+    surface = resolve_status_read(repo_root, _MISSION)
     with caplog.at_level(logging.WARNING, logger="specify_cli.coordination.surface_resolver"):
         result = resolve_status_surface(repo_root, _MISSION)
 
-    # Option B: resolve the PRIMARY surface, do not hard-fail.
+    # Option B kept: resolve the PRIMARY surface, do not hard-fail.
     assert result == feature_dir / "status.events.jsonl"
-    # Loud + actionable: a WARNING names both recovery commands (NFR-003).
-    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert warnings, "coord-empty fallback must emit a loud WARNING"
-    message = "\n".join(r.getMessage() for r in warnings)
-    assert "repair" in message or "coordination_branch" in message
+    # The fallback is declared on the surface, not logged (FR-004).
+    assert surface.source is StatusReadSource.WRITE_CHECKOUT
+    assert surface.fallback_reason and "pre-seed" in surface.fallback_reason
+    assert not [r for r in caplog.records if r.levelno == logging.WARNING]
 
 
 # ---------------------------------------------------------------------------

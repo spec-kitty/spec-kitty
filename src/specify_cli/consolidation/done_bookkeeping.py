@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 import typer
 
 from specify_cli.cli.console import console
-from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.consolidation._constants import _STATUS_EVENTS_FILENAME, logger
@@ -28,11 +27,12 @@ from specify_cli.consolidation.git_probes import path_is_under_worktrees
 from specify_cli.consolidation.state import ConsolidationState, save_state
 from specify_cli.status import build_system_actor
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
-from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
+from mission_runtime import MissionArtifactKind, placement_seam
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
-    from specify_cli.status import DoneEvidence, EventStream, Lane
+    from specify_cli.status import DoneEvidence, EventStream, Lane, StatusEvent
+    from specify_cli.status.read_surface import StatusReadSurface
 
 # Lanes treated as "pre-approved" for the approved-replay emission.
 _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for_review"})
@@ -40,13 +40,11 @@ _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for
 _CANCELED_LANE_VALUE = "canceled"
 
 
-def _canceled_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
-    """The Mission dir that bears the status events: the owned placement when *owned*, else the coord surface."""
-    if owned is not None:
-        status_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
-        return status_dir
-    surface_dir: Path = resolve_status_surface(repo_root, mission_slug).parent
-    return surface_dir
+def _canceled_status_events(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> list[StatusEvent]:
+    """Lane transitions from the status read door (the owned checkout's own surface when *owned*)."""
+    from specify_cli.status.read_surface import read_status_events, resolve_status_read
+
+    return read_status_events(resolve_status_read(repo_root, mission_slug, owned=owned))
 
 
 def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> set[str]:
@@ -71,15 +69,16 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str, *, owned: Own
     and the downstream done-state assertions stay authoritative.
 
     With ``owned`` (``accept --owned-checkout``) the events are read from the owned checkout's
-    placement (``placement_seam(..., owned=owned)``) instead of the repository root, where an
+    surface (``resolve_status_read(..., owned=owned)``) instead of the repository root, where an
     owned-only Mission does not exist. ``None`` keeps the coordination-surface route unchanged.
     """
-    from specify_cli.status import read_events, reduce
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.status import reduce
     from specify_cli.status import StoreError
 
     try:
-        snapshot = reduce(read_events(_canceled_status_dir(repo_root, mission_slug, owned)))
-    except (FileNotFoundError, StoreError):
+        snapshot = reduce(_canceled_status_events(repo_root, mission_slug, owned))
+    except (FileNotFoundError, StoreError, StatusSurfaceRefUnreadable):
         # Fail-open: an unresolvable/absent/corrupt coord surface yields no
         # canceled WP to exclude. The downstream ``_assert_merged_wps_reached_done``
         # (and the review-artifact/evidence gates) remain the authoritative
@@ -459,56 +458,59 @@ def _mark_wp_merged_done(
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
 
 
+def _not_done_wps(surface: StatusReadSurface, wp_ids: list[str]) -> list[str]:
+    """``<wp>=<lane>`` for every WP of *wp_ids* not reduced to ``done`` on *surface*.
+
+    A WP with no event reads ``uninitialized`` (the unseeded sentinel), never ``done``.
+    """
+    from specify_cli.status import Lane, reduce, resolve_lane_alias
+    from specify_cli.status.read_surface import read_status_events
+
+    work_packages = reduce(read_status_events(surface)).work_packages
+    incomplete: list[str] = []
+    for wp_id in wp_ids:
+        state = work_packages.get(wp_id)
+        lane = Lane(resolve_lane_alias(str(state.get("lane", Lane.GENESIS)))) if state is not None else Lane.UNINITIALIZED
+        if lane != Lane.DONE:
+            incomplete.append(f"{wp_id}={lane.value}")
+    return incomplete
+
+
 def _assert_merged_wps_reached_done(
     repo_root: Path,
     mission_slug: str,
     wp_ids: list[str],
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
-    from specify_cli.status import (
-        CanonicalStatusNotFoundError,
-        Lane,
-        StoreError,
-        get_wp_lane,
-        resolve_lane_alias,
-    )
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.status import StoreError
+    from specify_cli.status.read_surface import read_status_text, resolve_status_read
 
-    # Resolve the canonical status surface so reads are on the same side as
+    # Read through the one status read door, so reads are on the same side as
     # the writes in _mark_wp_merged_done (fixes coordination-branch divergence).
-    surface_path = resolve_status_surface(repo_root, mission_slug)
-    feature_dir = surface_path.parent
+    surface = resolve_status_read(repo_root, mission_slug)
+    ref_label = f"{surface.ref}:{KITTY_SPECS_DIR}/{surface.mission_dir_name}/{_STATUS_EVENTS_FILENAME}"
+    surface_label = str(surface.path / _STATUS_EVENTS_FILENAME) if surface.path is not None else ref_label
 
     try:
-        incomplete: list[str] = []
-        for wp_id in wp_ids:
-            raw = get_wp_lane(feature_dir, wp_id)
-            # #2675/WP05: ``get_wp_lane`` always returns a real ``Lane`` member,
-            # so ``Lane(resolve_lane_alias(raw))`` can no longer raise
-            # ``ValueError`` here (the pre-WP05 unrecognized-sentinel fallback
-            # is now genuinely unreachable and has been removed rather than
-            # left as a dead handler). ``Lane.UNINITIALIZED`` (unseeded
-            # sentinel) still compares unequal to ``Lane.DONE`` below, so the
-            # not-done treatment is preserved via the explicit equality check.
-            lane = Lane(resolve_lane_alias(raw))
-            if lane != Lane.DONE:
-                incomplete.append(f"{wp_id}={lane.value}")
-    except CanonicalStatusNotFoundError as exc:
-        # The canonical event log is absent (e.g. a legacy mission that never ran
-        # finalize-tasks, or a surface that diverged from the mark-done writes).
-        # Code integration already succeeded; surface this as a deliberate,
-        # actionable validation failure rather than an uncaught crash.
-        console.print(
-            "[red]Error:[/red] Post-merge status validation could not run: "
-            f"no canonical event log at {surface_path}. Code was integrated, but "
-            "WP done-state cannot be confirmed. Run "
-            f"'spec-kitty agent mission finalize-tasks --mission {mission_slug}' "
-            "to bootstrap the event log, then re-run the merge."
-        )
-        raise typer.Exit(1) from exc
-    except StoreError as exc:
+        if read_status_text(surface) is None:
+            # The canonical event log is absent (e.g. a legacy mission that never ran
+            # finalize-tasks, or a surface that diverged from the mark-done writes).
+            # Code integration already succeeded; surface this as a deliberate,
+            # actionable validation failure rather than an uncaught crash.
+            console.print(
+                "[red]Error:[/red] Post-merge status validation could not run: "
+                f"no canonical event log at {surface_label}. Code was integrated, but "
+                "WP done-state cannot be confirmed. Run "
+                f"'spec-kitty agent mission finalize-tasks --mission {mission_slug}' "
+                "to bootstrap the event log, then re-run the merge."
+            )
+            raise typer.Exit(1)
+        incomplete = _not_done_wps(surface, wp_ids)
+    except (StoreError, StatusSurfaceRefUnreadable) as exc:
         console.print(
             "[red]Error:[/red] Post-merge status validation failed: "
-            f"could not read {surface_path} ({exc})"
+            f"could not read {surface_label} ({exc})"
         )
         raise typer.Exit(1) from exc
 
@@ -647,43 +649,30 @@ def _durable_coordination_lanes(
 ) -> dict[str, str] | None:
     """Current lane per WP among *candidate_wps* on the COMMITTED coord ref.
 
-    Returns ``None`` when the coordination ref cannot be resolved or carries no
-    committed events (a non-coord topology or a legacy mission) — the caller then
-    falls back to the transactional on-disk check. A WP with no committed event
-    maps to ``""``. Shared by :func:`_durable_done_wps_on_coordination_ref` and
+    Returns ``None`` when the coordination placement cannot be resolved, when the
+    coordination ref does not exist (a non-coord topology, a legacy mission, a
+    torn-down branch), when *repo_root* is not a git repository (no ref can exist
+    there; ``ref_names_object`` answers ``False``), or when the ref carries no committed
+    events — the caller then falls back to the transactional on-disk check. A ref
+    that exists but cannot be read raises ``StatusSurfaceRefUnreadable`` (FR-004):
+    it is never read as an empty history. Shared by :func:`_durable_done_wps_on_coordination_ref` and
     :func:`_reconcile_completed_wps_for_resume` so both read ONE durable authority.
     """
-    from specify_cli.coordination.status_service import (
-        EventLogReadContract,
-        read_event_log,
-        wp_lane_actor_from_events,
-    )
+    from specify_cli.coordination.status_service import wp_lane_actor_from_events
+    from specify_cli.status.read_surface import read_status_events, resolve_committed_status_read
 
     try:
-        coord_ref = resolve_placement_only(
-            repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
-        ).ref
-    except Exception:  # noqa: BLE001 — unresolvable placement: fall back to on-disk check
+        surface = resolve_committed_status_read(repo_root, mission_slug)
+    except Exception:  # noqa: BLE001 — unresolvable Mission: fall back to on-disk check
         return None
-
-    # The committed events live at ``kitty-specs/<slug>/status.events.jsonl`` on
-    # the coordination ref; the primary feature dir (name == slug, meta-bearing)
-    # is the correct ref-path anchor AND legacy-parse dir. Route through the
-    # canonical PRIMARY-partition resolver (FR-004): a WORK_PACKAGE_TASK read folds
-    # onto the topology-blind ``primary_feature_dir_for_mission`` (name == slug),
-    # so no raw ``KITTY_SPECS_DIR/<slug>`` bypass — and a stale ``-coord`` husk can
-    # never shadow the anchor.
-    read_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
-    events = read_event_log(
-        EventLogReadContract.coordination_branch_ref(
-            repo_root=repo_root,
-            destination_ref=coord_ref,
-            feature_dir=read_feature_dir,
-            parser_feature_dir=read_feature_dir,
-        )
-    )
+    if surface is None:
+        # Declared arm (FR-004): no coordination ref, or no repository, means no committed
+        # history to read; the caller takes the on-disk fallback. An existing ref that cannot
+        # be read still raises ``StatusSurfaceRefUnreadable`` below.
+        return None
+    # The door's explicit committed-ref entry reads ``kitty-specs/<mission>/status.events.jsonl``
+    # on the coordination ref, never the roll-backable worktree bytes.
+    events = read_status_events(surface)
     if not events:
         return None
     return {wp_id: str(wp_lane_actor_from_events(events, wp_id).lane or "") for wp_id in candidate_wps}

@@ -15,6 +15,7 @@ See ``kitty-specs/next-committed-state-authority-01M1CA8W/research.md`` and
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -351,7 +352,9 @@ class TestMissionTerminalVerdict:
         kittify = tmp_path / ".kittify"
         kittify.mkdir(parents=True)
         (kittify / "merge-state.json").write_text("{}", encoding="utf-8")
-        (tmp_path / ".git").mkdir()
+        # A real repository (the status read root normalization consults its worktree
+        # registry and fails closed on an unreadable one), with a stray MERGE_HEAD.
+        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, capture_output=True)
         (tmp_path / ".git" / "MERGE_HEAD").write_text("deadbeef\n", encoding="utf-8")
 
         with patch(
