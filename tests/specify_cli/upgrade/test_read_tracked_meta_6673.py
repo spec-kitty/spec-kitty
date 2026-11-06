@@ -528,10 +528,10 @@ def test_an_unknown_git_refuses_and_names_the_git_path_and_both_repairs(
     classified = classify_missing_tracked_meta(mission_dir, ancestor)
 
     assert (tracked.meta, tracked.unavailable, tracked.unreadable_reason) == (None, True, "anchor")
-    assert tracked.anchor is not None and tracked.anchor.path == (ancestor / ".git").resolve()
+    assert tracked.anchor is not None and tracked.anchor.path == ancestor.resolve() / ".git"
     assert classified is not None
     assert (classified.refuse, classified.code) == (True, "TRACKED_META_UNAVAILABLE")
-    assert "`.git` is " + why in classified.notice
+    assert ".git` is " + why in classified.notice
     assert "repair it" in classified.notice and "remove it" in classified.notice
     assert "git checkout --" not in classified.notice
     assert not (mission_dir / "meta.json").exists(), "a refusal must not write metadata"
@@ -556,8 +556,8 @@ def test_an_unreadable_git_stays_fail_closed(tmp_path: Path, monkeypatch: pytest
     else:
         real_scandir = os.scandir
 
-        def denied(path: str) -> Any:
-            if Path(path) == git_dir:
+        def denied(path: Any) -> Any:
+            if not isinstance(path, int) and Path(path) == git_dir:
                 raise PermissionError(13, "Permission denied")
             return real_scandir(path)
 
@@ -585,9 +585,7 @@ def test_an_explicit_git_redirect_refuses_and_names_the_variable(tmp_path: Path,
 
 
 @pytest.mark.parametrize("repository_above", [True, False], ids=["repository-above", "residue-only"])
-def test_a_git_that_cannot_be_run_refuses_only_under_a_repository(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, repository_above: bool
-) -> None:
+def test_a_git_that_cannot_be_run_refuses_only_under_a_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, repository_above: bool) -> None:
     """Operator ruling on #7262: git that cannot start is classified too; it no longer mints over a repository."""
     from kernel.git import GitCommandError
     from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta

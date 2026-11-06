@@ -199,7 +199,7 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         # #7131 / #7262: git could not answer, so no file restore is offered; a lost HEAD names the `.git`.
         assert "git checkout --" not in result.reason
         if tracked_state != "garbled-head":
-            assert "`.git` is " in result.reason and "repair it" in result.reason
+            assert ".git` is " in result.reason and "repair it" in result.reason
 
 
 def test_an_untracked_copy_without_identity_is_still_minted(tmp_path: Path) -> None:
