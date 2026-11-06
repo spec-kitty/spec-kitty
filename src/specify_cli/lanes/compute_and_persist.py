@@ -32,13 +32,15 @@ depending on either.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
 from mission_runtime import MissionTopology, assert_topology_matches_manifest
 
 from specify_cli.lanes.branch_naming import InvalidMissionIdentity
-from specify_cli.lanes.compute import LaneComputationError, compute_lanes, has_code_lanes
+from specify_cli.lanes.compute import LaneComputationError, compute_lanes, has_code_lanes, is_repo_root_lane
 from specify_cli.lanes.frozen_membership import assert_frozen_membership_honoured
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.ownership.validation import validate_glob_matches
 
@@ -46,12 +48,23 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
-    from specify_cli.lanes.models import LanesManifest
     from specify_cli.ownership.models import OwnershipManifest
     from specify_cli.ownership.validation import GlobValidationResult
     from specify_cli.status import WPMetadata
 
-__all__ = ["LaneGlobValidationError", "compute_and_write_lanes"]
+__all__ = ["LaneGlobValidationError", "compute_and_write_lanes", "count_code_lanes"]
+
+
+def count_code_lanes(manifest_or_lanes: LanesManifest | Iterable[ExecutionLane]) -> int:
+    """The number of code lanes: every lane except the repository-root ``lane-planning`` lane.
+
+    Pure. The size rule of S7 (#7282, ADR 2026-11-06-3 Decision 2) reads it: at most
+    one code lane settles a default Mission to ``single_branch``. The repo-root lane
+    test is :func:`~specify_cli.lanes.compute.is_repo_root_lane`, the one authority
+    :func:`~specify_cli.lanes.compute.has_code_lanes` also asks.
+    """
+    lanes = manifest_or_lanes.lanes if isinstance(manifest_or_lanes, LanesManifest) else manifest_or_lanes
+    return sum(1 for lane in lanes if not is_repo_root_lane(lane))
 
 
 class LaneGlobValidationError(Exception):

@@ -198,6 +198,19 @@ def _canonical_coord_mission_slug(
     return composed if composed_declares else mission_slug
 
 
+def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
+    """The non-lane checkout holding *destination_ref*, else *repo_root* (FR-061, N1)."""
+    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
+    from specify_cli.status.read_surface import checkout_holding_branch
+
+    holder: Path | None = checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
+    if holder is None or holder.resolve() == repo_root.resolve():
+        return repo_root
+    if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
+        return repo_root
+    return holder
+
+
 class _CoordWriteTarget(NamedTuple):
     """What the coordination arm takes from ``write_dir``'s ``WriteLocation``."""
 
@@ -817,7 +830,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # (``test_transaction_legacy_topology_routing`` asserts this arm
                 # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
                 # provenance check here.
-                worktree_root = repo_root
+                #
+                # FR-061 / WP05 obligation N1 (Mission lane-worktree-model-hardening WP14): a
+                # default Mission's write branch (its topic branch) may be held by a checkout
+                # other than the repository root; the status read door reads that holder, so
+                # the write lands there too (the same topic-holder locator).
+                worktree_root = _write_branch_holder(repo_root, effective_destination_ref)
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_refusal = _caller_ref_refusal(
