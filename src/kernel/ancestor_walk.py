@@ -41,7 +41,8 @@ identity over a copy git holds (#6673 NFR-002). A future change to match git exa
 be reviewed against that.
 
 A path that cannot be resolved (an unreadable component, or a symbolic-link loop, which
-Python 3.11 and 3.12 report as ``RuntimeError``) never escapes as an exception: a ceiling
+``kernel.resolution.resolve_rejecting_loops`` reports as ``OSError`` on every supported
+interpreter) never escapes as an exception: a ceiling
 entry is kept as written, and the start is walked as its absolute, unresolved path, which
 is what the hand-rolled walks did.
 
@@ -56,6 +57,8 @@ import os
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Final
+
+from kernel.resolution import resolve_rejecting_loops
 
 __all__ = [
     "find_ancestor",
@@ -85,10 +88,15 @@ def git_ceiling_dirs(environ: Mapping[str, str] | None = None) -> frozenset[Path
 
 
 def _resolved(path: Path) -> Path:
-    """*path* resolved, or its absolute form when it cannot be (see the module docstring)."""
+    """*path* resolved, or its absolute form when it cannot be (see the module docstring).
+
+    :func:`kernel.resolution.resolve_rejecting_loops` turns a symlink loop into ``OSError``
+    on every supported interpreter (#3189), so one ``except`` covers loops and unreadable
+    components alike.
+    """
     try:
-        return path.resolve()
-    except (OSError, RuntimeError):
+        return resolve_rejecting_loops(path)
+    except OSError:
         return path.absolute()
 
 
