@@ -325,7 +325,7 @@
       "wp": "WP14"
     },
     "#7283": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S8 single_branch approval windows: WP02 ADR, WP11, WP12",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -333,8 +333,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP12"
     },
     "#7284": {
       "evidence_ref": "<link or commit>",
