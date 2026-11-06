@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -49,8 +50,8 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _claim(base: str, **overrides: object) -> ApprovedWpCommitSet:
-    fields: dict[str, object] = {
+def _claim(base: str, **overrides: Any) -> ApprovedWpCommitSet:
+    fields: dict[str, Any] = {
         "approved": {"WP01": ("a" * 40,)},
         "manifest_wp_ids": frozenset({"WP01"}),
         "surface_resolved": True,
