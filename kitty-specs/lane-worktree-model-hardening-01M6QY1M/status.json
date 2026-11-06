@@ -84,7 +84,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -96,7 +96,8 @@
       "notes": [
         "C-1/C-2/C-3 ADRs (2026-11-06-4/5/6), S3 amendment on 2026-04-03-1, D-6 records + step 4a amendment on 2026-10-22-1 (SC-010 table), 2026-11-06-1 amendment draft for #7275; events ADR-0007/0008 cross-linked (PR #215). Terminology guard 98 passed; docs spelling/description checks clean.",
         "- 2026-11-06T10:08:20Z – unknown – Review cycle 1 addressed (9c6741a696): blocking O4/O6 fix in ADR 2026-04-03-1 amendment and C-1 D-9 step 4, Confirmation and drain test bullets cover reflog-only commits; nits: #215 is a pull request, D-9 step 2 names the migration's plain git commit. FR-084/C-003 spec drift flagged to orchestrator (spec not owned).",
-        "Cycle 2 (9c6741a696): O4 (with O6) applies to checkout release and coordination worktree drain; only O3 does not arise. D-9 step 2 drain commit named; #215 called a pull request."
+        "Cycle 2 (9c6741a696): O4 (with O6) applies to checkout release and coordination worktree drain; only O3 does not arise. D-9 step 2 drain commit named; #215 called a pull request.",
+        "Review passed (cycle 2): O4 (with O6) now applies to worktree-only removals in the S3 amendment of ADR 2026-04-03-1 and C-1 D-9 step 4 (only O3 excluded), Confirmation and drain-migration test bullets cover reflog-only commits under refs/spec-kitty/discarded/reflog/; #215 called a pull request; D-9 step 2 names the migration's plain git commit as the drain commit. Non-blocking nit: C-1 D-4 (a) says the D-9 drain commit removes the coordination branch's status.json, but D-9 step 2 describes that commit as only the log bytes and a clean worktree gets no drain commit; align when D-4 is settled."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
