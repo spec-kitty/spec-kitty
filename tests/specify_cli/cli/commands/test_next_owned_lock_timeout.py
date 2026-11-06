@@ -26,7 +26,7 @@ import typer
 from kernel.locks import machine_file_lock
 from mission_runtime import MissionTopology, OwnedCheckout
 from specify_cli.cli.commands import next_cmd
-from specify_cli.decisions.service import _decisions_lock_path
+from specify_cli.decisions.lock import lock_path as _decisions_lock_path
 
 pytestmark = pytest.mark.fast
 
@@ -101,7 +101,7 @@ def test_owned_next_lock_timeout_is_a_refusal(tmp_path: Path, monkeypatch: pytes
     """Red on the pre-fix tree: ``LockAcquireTimeout`` escaped with no document."""
     fact = _fact(tmp_path)
     lock = _materialize_lock(fact)
-    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with _hold(lock):
         raised, printed = _drive_dispatch(fact, monkeypatch, json_output=True)
@@ -123,7 +123,7 @@ def test_owned_next_lock_timeout_refusal_human_mode(tmp_path: Path, monkeypatch:
     """The same refusal in the other output mode: ``Error:`` + ``Next:`` on stderr."""
     fact = _fact(tmp_path)
     lock = _materialize_lock(fact)
-    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with _hold(lock):
         raised, printed = _drive_dispatch(fact, monkeypatch, json_output=False)
@@ -143,7 +143,7 @@ def test_owned_next_with_a_free_lock_still_commits_and_prints(tmp_path: Path, mo
     """Positive control on the SAME fixture: a free lock commits and prints."""
     fact = _fact(tmp_path)
     _materialize_lock(fact)
-    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
     committed: list[OwnedCheckout] = []
     monkeypatch.setattr(next_cmd, "_commit_owned_next_changeset", lambda owned, _lock: committed.append(owned))
 

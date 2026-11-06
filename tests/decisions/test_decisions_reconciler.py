@@ -28,6 +28,7 @@ from kernel.clock import now_utc
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
 from specify_cli.decisions import index_fold
+from specify_cli.decisions import lock as _lock_mod
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.index_fold import FoldError, fold_events
 from specify_cli.decisions.models import DecisionIndex, DecisionStatus, IndexEntry, OriginFlow
@@ -710,8 +711,10 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep(tmp_path: Path) -> No
     doctor_ledger_dir = _doctor_mod._ledger_dir(tmp_path, MISSION_SLUG)
     assert service_ledger_dir == doctor_ledger_dir, "service.py and _decisions_doctor.py disagree on the ledger dir -- lockstep invariant broken"
 
-    service_lock_path = _service_mod._decisions_lock_path(service_ledger_dir)
-    doctor_lock_path = _doctor_mod._decisions_lock_path(doctor_ledger_dir)
+    # #6763: one owner computes the sidecar path for both holders.
+    assert not hasattr(_doctor_mod, "_decisions_lock_path"), "the doctor must not keep a second decisions-lock path resolver"
+    service_lock_path = _lock_mod.lock_path(service_ledger_dir)
+    doctor_lock_path = _lock_mod.lock_path(doctor_ledger_dir)
     assert service_lock_path == doctor_lock_path, "service.py and _decisions_doctor.py disagree on the sidecar index.json.lock path"
 
     # And the ledger dir is genuinely PRIMARY-partition-resolved -- NOT the
@@ -779,8 +782,10 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
     assert service_ledger_dir == doctor_ledger_dir, "service.py and _decisions_doctor.py disagree on the ledger dir under coord topology"
 
-    service_lock_path = _service_mod._decisions_lock_path(service_ledger_dir)
-    doctor_lock_path = _doctor_mod._decisions_lock_path(doctor_ledger_dir)
+    # #6763: one owner computes the sidecar path for both holders.
+    assert not hasattr(_doctor_mod, "_decisions_lock_path"), "the doctor must not keep a second decisions-lock path resolver"
+    service_lock_path = _lock_mod.lock_path(service_ledger_dir)
+    doctor_lock_path = _lock_mod.lock_path(doctor_ledger_dir)
     assert service_lock_path == doctor_lock_path, "service.py and _decisions_doctor.py disagree on the sidecar lock path under coord topology"
 
     assert events_dir == coord_dir, "fixture sanity: the events dir must resolve the mocked COORD surface"
@@ -1019,7 +1024,7 @@ def test_doctor_and_repair_accept_identical_duplicate_openings(tmp_path: Path) -
 # refusal (code, exit 1, what to do next), never a raw LockAcquireTimeout
 # traceback. Both doctor acquisitions -- the `--repair` rebuild and the
 # coordination-only ledger copy -- share the ONE translation in
-# ``decisions/service.py::_decisions_lock``.
+# ``decisions/lock.py::decisions_lock``, the decisions lock's one owner.
 # ---------------------------------------------------------------------------
 
 
@@ -1081,9 +1086,9 @@ def test_repair_lock_timeout_is_a_structured_refusal(tmp_path: Path, monkeypatch
     from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
-    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    lock_path = _lock_mod.lock_path(mission_dir)
     before = _tree_bytes(mission_dir / "decisions")
-    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
 
     with _hold_decisions_lock(lock_path):
         exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
@@ -1104,7 +1109,7 @@ def test_repair_with_a_free_lock_still_rebuilds_the_index(tmp_path: Path, monkey
     from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
-    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
 
     exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
 
@@ -1125,9 +1130,9 @@ def test_repair_lock_timeout_refusal_human_mode(tmp_path: Path, monkeypatch: pyt
     from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
-    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    lock_path = _lock_mod.lock_path(mission_dir)
     before = _tree_bytes(mission_dir / "decisions")
-    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
 
     with _hold_decisions_lock(lock_path):
         exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True, json_output=False)
@@ -1161,9 +1166,9 @@ def test_coordination_only_ledger_copy_lock_timeout_is_the_seam_refusal(tmp_path
     from specify_cli.decisions.service import DecisionError
 
     mission_dir, _ = _diverged_mission(tmp_path)
-    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    lock_path = _lock_mod.lock_path(mission_dir)
     before = _tree_bytes(mission_dir / "decisions")
-    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
 
     with (
         patch.object(_doctor_mod._fork, "read_coordination_ledger_raw", return_value=({"decisions": []}, {})),

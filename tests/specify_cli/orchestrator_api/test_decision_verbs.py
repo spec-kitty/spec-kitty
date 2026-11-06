@@ -1058,7 +1058,7 @@ def test_terminal_verb_lock_timeout_returns_lock_timeout_envelope(tmp_path: Path
     decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
     lock_path = feature_dir / "decisions" / "index.json.lock"
     index_before = (feature_dir / "decisions" / "index.json").read_bytes()
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(repo):
         result = cast("Result", runner.invoke(app, _write_verb_args(verb, mission_slug, decision_id), catch_exceptions=True))

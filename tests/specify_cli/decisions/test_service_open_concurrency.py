@@ -270,7 +270,7 @@ def test_distinct_open_waits_without_bound_behind_open_held_on_status_lock(tmp_p
     from specify_cli.decisions import service
 
     _setup(tmp_path)
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.5)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.5)
     holder = _StatusLockHolder(tmp_path).start()
 
     a_in_emit = threading.Event()

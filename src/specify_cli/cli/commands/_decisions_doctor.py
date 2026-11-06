@@ -75,13 +75,9 @@ from spec_kitty_events.decisionpoint import (
 from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
-from specify_cli.decisions.models import DecisionErrorCode, DecisionIndex, IndexEntry
-from specify_cli.decisions.service import (
-    _LOCK_ACQUIRE_TIMEOUT_S,
-    DecisionError,
-    _decisions_lock,
-    _ledger_dir,
-)
+from specify_cli.decisions import lock as _lock
+from specify_cli.decisions.models import DecisionError, DecisionIndex, IndexEntry
+from specify_cli.decisions.service import _ledger_dir
 
 from ._doctor_shared import _json_error, console
 
@@ -90,7 +86,6 @@ __all__ = [
 ]
 
 _EVENTS_FILENAME = "status.events.jsonl"
-_LOCK_FILENAME = "index.json.lock"
 
 _DECISION_EVENT_TYPES = (DECISION_POINT_OPENED, DECISION_POINT_RESOLVED)
 
@@ -194,10 +189,6 @@ def _resolve_events_dir_for_doctor(repo_root: Path, mission_slug: str) -> Path:
 
 def _events_path(mission_dir: Path) -> Path:
     return mission_dir / _EVENTS_FILENAME
-
-
-def _decisions_lock_path(ledger_dir: Path) -> Path:
-    return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
 
 
 def _read_decision_events(events_path: Path) -> dict[str, list[dict]]:  # type: ignore[type-arg]
@@ -541,15 +532,14 @@ def _repair(
 
     ``events_dir`` (COORD) and ``ledger_dir`` (PRIMARY, #4966 AC-D2) are
     resolved separately by the caller; the lock is taken against
-    ``ledger_dir`` — the SAME dir ``decisions/service.py`` locks against.
+    ``ledger_dir`` — the SAME dir every holder of ``decisions/lock.py`` locks against.
 
     Returns ``(lossy_ids, malformed_ids)``: the decision_ids
     :func:`_rebuild_index_from_log` refused to rewrite (Fold A) and the
     decision_ids whose event group raised ``FoldError`` (Fold C), so the
     caller can report both conditions loudly instead of crashing.
     """
-    lock_path = _decisions_lock_path(ledger_dir)
-    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
+    with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         grouped = _read_decision_events(_events_path(events_dir))
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
@@ -576,8 +566,7 @@ def _copy_coordination_only_ledger(repo_root: Path, mission_slug: str, ledger_di
     from specify_cli.consolidation.drivers import union_decision_index
 
     index_document, dm_contents = _fork.read_coordination_ledger_raw(repo_root, mission_slug)
-    lock_path = _decisions_lock_path(ledger_dir)
-    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
+    with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         if index_document is not None:
             current_raw = _store.load_index(ledger_dir).model_dump(mode="json")
             merged_raw = union_decision_index(current_raw, index_document)
@@ -805,8 +794,8 @@ def run_decisions_reconciliation(
     #6763: a decisions-lock wait that times out is a REFUSAL, not a report.
     Both acquisitions (the ``--repair`` rebuild and the additive
     coordination-only ledger copy) go through
-    :func:`~specify_cli.decisions.service._decisions_lock`, whose timeout is a
-    ``DecisionError(LOCK_TIMEOUT)``. That error is rendered as this family's
+    :func:`specify_cli.decisions.lock.decisions_lock`, whose timeout is the
+    one decisions-lock refusal (``DecisionError(LOCK_TIMEOUT)``). That error is rendered as this family's
     C2 envelope (``{"ok": false, "error": {...}}`` under ``--json``, a Rich
     ``Error:`` line otherwise), the command exits 1, and nothing is written —
     the critical section never ran. Never a raw ``LockAcquireTimeout``
@@ -850,7 +839,7 @@ def run_decisions_reconciliation(
             # #6763: only the seam's lock timeout is this command's refusal;
             # any other DecisionError is not ours to reinterpret, so it keeps
             # propagating unchanged.
-            if exc.code is not DecisionErrorCode.LOCK_TIMEOUT:
+            if not _lock.is_lock_timeout(exc):
                 raise
             # The refusal lands BEFORE any report is emitted, so ``--json``
             # callers get exactly one C2 document and human callers exactly one

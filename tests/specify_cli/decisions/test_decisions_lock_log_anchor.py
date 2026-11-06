@@ -42,6 +42,7 @@ from kernel import event_log_append as _event_log_append
 from kernel.event_log_append import event_log_lock, event_log_lock_path
 from kernel.locks import machine_file_lock as _real_machine_file_lock
 from specify_cli.decisions import emit as _emit
+from specify_cli.decisions import lock as _lock
 from specify_cli.decisions import service as _service
 from specify_cli.decisions.models import OriginFlow
 from specify_cli.decisions.service import open_decision
@@ -97,7 +98,7 @@ def _record_lock_paths(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
         taken.append(Path(lock_path))
         return _real_machine_file_lock(lock_path, *args, **kwargs)
 
-    monkeypatch.setattr(_service, "machine_file_lock", _recording)
+    monkeypatch.setattr(_lock, "machine_file_lock", _recording)
     monkeypatch.setattr(_event_log_append, "machine_file_lock", _recording)
     return taken
 
@@ -325,14 +326,14 @@ def test_the_anchor_lock_is_taken_and_leaves_no_working_tree_residue(tmp_path: P
     )
 
     taken: list[Path] = []
-    original = _service.machine_file_lock
+    original = _lock.machine_file_lock
 
     def _recording(lock_path: Path, *args: Any, **kwargs: Any) -> Any:
         taken.append(Path(lock_path))
         return original(lock_path, *args, **kwargs)
 
     with pytest.MonkeyPatch.context() as m:
-        m.setattr(_service, "machine_file_lock", _recording)
+        m.setattr(_lock, "machine_file_lock", _recording)
         m.setattr(_event_log_append, "machine_file_lock", _recording)
         open_decision(
             root,

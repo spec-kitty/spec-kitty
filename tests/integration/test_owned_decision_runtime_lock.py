@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from mission_runtime import CommitTarget
 from specify_cli.cli.commands.decision import decision_app
 from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES, resolve_owned_mission
-from specify_cli.decisions.service import _decisions_lock_path
+from specify_cli.decisions.lock import lock_path as _decisions_lock_path
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
@@ -283,7 +283,7 @@ def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypat
 def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, monkeypatch, race):
     from contextlib import contextmanager
     import kernel.locks
-    from specify_cli.decisions import service as decisions_service
+    from specify_cli.decisions import lock as decisions_lock
 
     c = owned_checkouts
     lock = seed(c)
@@ -299,10 +299,10 @@ def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, m
                 git(c.owned_root, "add", "-f", str(lock))
             yield record
 
-    # #6763: the repair acquires through the decisions seam, so the seam's own
+    # #6763: the repair acquires through ``decisions/lock.py``, so that module's
     # binding is the patch point (kernel.locks' module attribute is no longer
     # consulted on this path). The race being injected is unchanged.
-    monkeypatch.setattr(decisions_service, "machine_file_lock", racing_lock)
+    monkeypatch.setattr(decisions_lock, "machine_file_lock", racing_lock)
     monkeypatch.setattr(kernel.locks, "machine_file_lock", racing_lock)
     result = invoke(c, monkeypatch)
     assert result.exit_code == 1
@@ -445,7 +445,7 @@ def test_repair_lock_timeout_is_the_structured_refusal(owned_checkouts, monkeypa
     lock = seed(c, "untracked")
     before = snapshot(c.owned_root)
     inode = lock.stat().st_ino
-    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with machine_file_lock(lock, blocking=True, timeout_s=5.0):
         result = invoke(c, monkeypatch)
@@ -479,7 +479,7 @@ def test_tracked_lock_contention_is_refused_at_the_preflight(owned_checkouts, mo
     lock = seed(c, "tracked")
     before = snapshot(c.owned_root)
     inode = lock.stat().st_ino
-    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with machine_file_lock(lock, blocking=True, timeout_s=5.0):
         result = invoke(c, monkeypatch)

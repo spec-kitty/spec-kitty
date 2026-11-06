@@ -1005,15 +1005,15 @@ def _runtime_lock_error_code(exc: Exception) -> str:
     """Map a repair failure to its stable machine-readable code.
 
     #6763: the lock acquire goes through
-    :func:`~specify_cli.decisions.service._decisions_lock`, so a timed-out wait
-    arrives as a ``DecisionError`` and carries its own code
-    (``DECISION_LOCK_TIMEOUT``) — the same code every other decisions command
+    :func:`specify_cli.decisions.lock.decisions_lock`, so a timed-out wait
+    arrives as the one decisions-lock refusal and keeps its own code
+    (``DECISION_LOCK_TIMEOUT``) -- the same code every other decisions command
     emits, never ``RUNTIME_LOCK_REPAIR_FAILED``.
     """
-    if isinstance(exc, DecisionError):
-        # ``DecisionError.code`` is a ``DecisionErrorCode``; the ``str()`` keeps
-        # this return typed under the repo's ``follow_imports = skip`` config.
-        return str(exc.code.value)
+    from specify_cli.decisions import lock as _decisions_lock
+
+    if _decisions_lock.is_lock_timeout(exc):
+        return DecisionErrorCode.LOCK_TIMEOUT.value
     if isinstance(exc, _RuntimeLockRaceError):
         return _RUNTIME_LOCK_RACE
     if isinstance(exc, ValueError):
@@ -1030,7 +1030,7 @@ def _echo_runtime_lock_failure(exc: Exception) -> NoReturn:
 def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, bool]:
     """Validate only the service-owned lock and its local ignore file."""
     from kernel.git import status_entries, tracked_paths
-    from specify_cli.decisions.service import _decisions_lock_path
+    from specify_cli.decisions.lock import lock_path as _decisions_lock_path
 
     from specify_cli.decisions.service import _runtime_lock_ignore_state
 
@@ -1050,8 +1050,8 @@ def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, boo
 def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, object]:
     """Untrack one exact service lock without unlinking its synchronization inode.
 
-    #6763: the acquire is :func:`~specify_cli.decisions.service._decisions_lock`,
-    the single decisions-lock timeout translation, so a busy lock raises
+    #6763: the acquire is :func:`specify_cli.decisions.lock.decisions_lock`,
+    the single owner of the decisions lock and its refusal, so a busy lock raises
     ``DecisionError(LOCK_TIMEOUT)`` (rendered by
     :func:`_echo_runtime_lock_failure` as ``DECISION_LOCK_TIMEOUT``) instead of
     the raw ``LockAcquireTimeout``. It stays AFTER the preflight and the
@@ -1060,7 +1060,7 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
     """
     from kernel.git import tracked_paths
     from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.decisions.service import _LOCK_ACQUIRE_TIMEOUT_S, _decisions_lock
+    from specify_cli.decisions import lock as _decisions_lock
     from specify_cli.git.commit_helpers import preflight_commit, safe_commit
     from specify_cli.decisions.service import _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore, _runtime_lock_ignore_state
 
@@ -1081,7 +1081,7 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
         return payload
     # All destinations have been validated before creating the owner lock.
     lock.parent.mkdir(parents=True, exist_ok=True)
-    with _decisions_lock(lock, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None):
+    with _decisions_lock.decisions_lock(lock, timeout_s=_decisions_lock.ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None):
         # The OS lock holder metadata itself changes the tracked lock bytes;
         # don't interpret that owned write as an operator modification.
         ignore, ignored_now = _runtime_lock_ignore_state(owned)
