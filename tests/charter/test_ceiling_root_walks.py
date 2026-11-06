@@ -111,7 +111,7 @@ def test_regen_repo_root_stops_at_the_ceiling(ambient_project: tuple[Path, Path]
 
 
 def test_regen_repo_root_finds_the_dev_checkout_below_the_ceiling(ambient_project: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    outer, work = ambient_project
+    _outer, work = ambient_project
     (work / regen._TEMPLATES_REL).mkdir(parents=True)
     (work / "tests" / "specify_cli").mkdir(parents=True)
     module_dir = work / "src" / "specify_cli" / "cli" / "commands"
@@ -120,4 +120,3 @@ def test_regen_repo_root_finds_the_dev_checkout_below_the_ceiling(ambient_projec
     monkeypatch.chdir(work)
 
     assert regen._repo_root() == work
-    assert regen._repo_root() != outer
