@@ -22,6 +22,15 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation import approved_bound
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.single_branch_landing import (
+    expected_consolidate_checkout,
+    is_single_branch_mission,
+    minted_branch_from_meta,
+    minted_write_branch,
+    write_branch_for,
+)
 from specify_cli.status.lane_head import LANE_HEAD_KEY, probe_lane_head
 
 pytestmark = [pytest.mark.git_repo]
@@ -166,6 +175,93 @@ def test_single_branch_probe_without_the_mission_branch_is_no_stamp_not_a_crash(
 
 
 # ---------------------------------------------------------------------------
+# The helpers the stamp and the bound share (T062, T063, T065)
+# ---------------------------------------------------------------------------
+
+
+def _manifest(slug: str, mission_branch: str) -> LanesManifest:
+    lane = ExecutionLane(lane_id="lane-planning", wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)
+    return LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=None,
+        mission_branch=mission_branch,
+        target_branch=_TARGET,
+        lanes=[lane],
+        computed_at="2026-11-06T00:00:00+00:00",
+        computed_from="test",
+    )
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("meta", "expected"),
+    [
+        ({"topology": "single_branch", "mission_branch": "kitty/mission-x"}, "kitty/mission-x"),
+        ({"topology": "single_branch"}, _TARGET),
+        ({"topology": "lanes", "mission_branch": "kitty/mission-x"}, _TARGET),
+        ({"mission_branch": "kitty/mission-x"}, _TARGET),
+    ],
+)
+def test_write_branch_for_is_the_stored_single_branch_rule(meta: dict[str, object], expected: str) -> None:
+    """``meta.json`` decides, over the STORED topology; the manifest's own ``mission_branch`` copy is never read."""
+    assert write_branch_for(_manifest("m", "kitty/stale-copy"), meta) == expected
+    assert minted_branch_from_meta(meta, _TARGET) == (None if expected == _TARGET else expected)
+
+
+@pytest.mark.fast
+def test_minted_write_branch_reads_meta_without_a_manifest(two_missions: Path) -> None:
+    (two_missions / "kitty-specs" / _SB_SLUG / "lanes.json").unlink()
+
+    assert minted_write_branch(two_missions, _SB_SLUG) == _SB_BRANCH
+    assert minted_write_branch(two_missions, _LANES_SLUG) is None
+    assert is_single_branch_mission(two_missions, _manifest(_SB_SLUG, _SB_BRANCH))
+    assert not is_single_branch_mission(two_missions, _manifest(_LANES_SLUG, _SB_BRANCH))
+
+
+@pytest.mark.fast
+def test_minted_write_branch_needs_a_recorded_target(two_missions: Path) -> None:
+    meta_path = two_missions / "kitty-specs" / _SB_SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["target_branch"]
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+
+    assert minted_write_branch(two_missions, _SB_SLUG) is None
+
+
+@pytest.mark.fast
+def test_expected_consolidate_checkout_names_the_minted_branch(two_missions: Path) -> None:
+    assert expected_consolidate_checkout(two_missions, _manifest(_SB_SLUG, _SB_BRANCH), _TARGET) == _SB_BRANCH
+    assert expected_consolidate_checkout(two_missions, _manifest(_LANES_SLUG, _SB_BRANCH), _TARGET) == _TARGET
+
+
+@pytest.mark.fast
+def test_single_branch_approval_is_bounded_and_a_lanes_planning_lane_is_not(two_missions: Path) -> None:
+    """T065: the warnings speak for a minted ``single_branch`` Mission, never for a ``lanes`` planning lane or an unknown Mission."""
+    assert approved_bound._approval_is_bounded(two_missions, _SB_SLUG, "WP01")
+    assert not approved_bound._approval_is_bounded(two_missions, _LANES_SLUG, "WP01")
+    assert not approved_bound._approval_is_bounded(two_missions / "missing", "no-such-mission", "WP01")
+
+
+@pytest.mark.fast
+def test_stamp_refusal_names_missing_then_off_branch_stamps(two_missions: Path) -> None:
+    """T063: the stamp half of ``check_lane`` -- every missing stamp together, else the first stamp the branch does not reach."""
+    on_branch = _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
+    _git(two_missions, "checkout", "-q", _TARGET)
+    off_branch = _commit(two_missions, "elsewhere.txt", "x\n", "off the Mission branch")
+
+    missing = approved_bound.stamp_refusal(two_missions, stamps={"WP01": None, "WP02": on_branch, "WP03": None}, lane_id="lane-planning", branch=_SB_BRANCH)
+    assert missing is not None
+    assert (missing.code, missing.wp_ids) == (approved_bound.BoundRefusalCode.APPROVAL_STAMP_MISSING, ("WP01", "WP03"))
+
+    off = approved_bound.stamp_refusal(two_missions, stamps={"WP01": on_branch, "WP02": off_branch}, lane_id="lane-planning", branch=_SB_BRANCH)
+    assert off is not None
+    assert (off.code, off.wp_ids, off.stamp) == (approved_bound.BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, ("WP02",), off_branch)
+
+    assert approved_bound.stamp_refusal(two_missions, stamps={"WP01": on_branch}, lane_id="lane-planning", branch=_SB_BRANCH) is None
+
+
+# ---------------------------------------------------------------------------
 # Through the real CLI
 # ---------------------------------------------------------------------------
 
@@ -254,7 +350,15 @@ def test_move_task_approved_records_lane_head_single_branch(tmp_path: Path) -> N
     assert approved, f"fixture: WP01 never reached approved; events={events}"
     metadata = approved[-1].get("policy_metadata") or {}
     assert isinstance(metadata, dict)
-    assert metadata.get(LANE_HEAD_KEY) == reviewed_head
+    stamp = metadata.get(LANE_HEAD_KEY)
+    assert isinstance(stamp, str) and stamp, f"the approval must carry the Mission branch head; metadata={metadata}"
+    # The stamp is the Mission branch head when the approval was persisted: the reviewed implementation
+    # plus only the approval's own auto-committed bookkeeping (the review-cycle record), never the target.
+    _git(repo, "merge-base", "--is-ancestor", reviewed_head, stamp)
+    _git(repo, "merge-base", "--is-ancestor", stamp, f"refs/heads/{mission_branch}")
+    after_review = _git(repo, "diff", "--name-only", reviewed_head, stamp).split()
+    assert all(path.startswith(f"kitty-specs/{slug}/") for path in after_review), after_review
+    assert stamp != _git(repo, "rev-parse", f"refs/heads/{_TARGET}")
     claimed = [event for event in events if event["to_lane"] in ("claimed", "in_progress")]
     assert claimed and all(isinstance(event.get("policy_metadata"), dict) and event["policy_metadata"].get(LANE_HEAD_KEY) for event in claimed), (
         f"every lifecycle transition is stamped, the claim included; events={claimed}"
