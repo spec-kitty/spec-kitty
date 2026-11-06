@@ -33,7 +33,9 @@ there; it is the reading #7022 shipped, and matching git exactly would change
 ``resolve_canonical_root``'s observable behaviour for every consumer. Relative entries
 are ignored (as git ignores them) and every absolute entry is resolved (git leaves
 entries after an empty entry unresolved). ``tests/kernel/test_ancestor_walk.py`` pins
-each of those choices.
+each of those choices. :func:`git_ceiling_dirs` can reproduce that second rule on request
+(``resolve_after_empty=False``) for the one caller that must not report absence from a
+boundary git would not have stopped at; every other caller keeps the resolved reading.
 
 Where the two readings disagree, the walk sees *more* than git (it examines the ceiling
 directory). For the Mission identity reader (``mission_metadata``), which asks this walk
@@ -75,8 +77,12 @@ __all__ = [
 GIT_CEILING_ENV: Final[str] = "GIT_CEILING_DIRECTORIES"
 
 
-def git_ceiling_dirs(environ: Mapping[str, str] | None = None) -> frozenset[Path]:
-    """The resolved absolute ``GIT_CEILING_DIRECTORIES`` entries, read per call.
+def git_ceiling_dirs(
+    environ: Mapping[str, str] | None = None,
+    *,
+    resolve_after_empty: bool = True,
+) -> frozenset[Path]:
+    """The absolute ``GIT_CEILING_DIRECTORIES`` entries, read per call.
 
     The single reading of the discovery ceiling. ``specify_cli.core.paths.
     git_ceiling_dirs`` delegates here and stays importable under its #7022 name.
@@ -84,12 +90,28 @@ def git_ceiling_dirs(environ: Mapping[str, str] | None = None) -> frozenset[Path
     Args:
         environ: The environment to read. Defaults to :data:`os.environ`; pass one
             explicitly only in tests or when a caller owns the child environment.
+        resolve_after_empty: Whether absolute entries listed *after* an empty entry are
+            resolved. Defaults to ``True``, the general root-walk reading: each absolute
+            entry compares physically with the resolved walk. ``False`` reproduces git's own
+            rule -- an empty entry ends the resolution, so the entries that follow are kept
+            as written -- for negative Git-context evidence, where a boundary stricter than
+            git's own search would claim an absence git never asserted.
 
     Returns:
-        The resolved absolute entries. Empty and relative entries are dropped.
+        The absolute entries. Empty and relative entries are dropped.
     """
     source = os.environ if environ is None else environ
-    return frozenset(_resolved(Path(part)) for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep) if part and Path(part).is_absolute())
+    resolved: set[Path] = set()
+    resolve = True
+    for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep):
+        if not part:
+            resolve = resolve and resolve_after_empty
+            continue
+        path = Path(part)
+        if not path.is_absolute():
+            continue
+        resolved.add(_resolved(path) if resolve else path)
+    return frozenset(resolved)
 
 
 def _resolved(path: Path) -> Path:
@@ -103,6 +125,22 @@ def _resolved(path: Path) -> Path:
         return resolve_rejecting_loops(path)
     except OSError:
         return path.absolute()
+
+
+def _is_a_ceiling_alias(candidate: Path, ceilings: frozenset[Path]) -> bool:
+    """Whether *candidate*'s real identity is one of *ceilings*.
+
+    Only consulted for a walk whose start could not be resolved: that candidate sequence is
+    lexical while the ceilings are resolved, so a ceiling reached through a symbolic-link
+    alias would never compare equal. An unresolvable candidate adds no stop; the original
+    lexical comparison still applies.
+    """
+    if not ceilings:
+        return False
+    try:
+        return resolve_rejecting_loops(candidate) in ceilings
+    except OSError:
+        return False
 
 
 def iter_ancestors(
@@ -134,22 +172,6 @@ def iter_ancestors(
     except OSError:
         resolved_start = raw_start.absolute()
         fell_back = True
-def _is_a_ceiling_alias(candidate: Path, ceilings: frozenset[Path]) -> bool:
-    """Whether *candidate*'s real identity is one of *ceilings*.
-
-    Only consulted for a walk whose start could not be resolved: that candidate sequence is
-    lexical while the ceilings are resolved, so a ceiling reached through a symbolic-link
-    alias would never compare equal. An unresolvable candidate adds no stop; the original
-    lexical comparison still applies.
-    """
-    if not ceilings:
-        return False
-    try:
-        return resolve_rejecting_loops(candidate) in ceilings
-    except OSError:
-        return False
-
-
     boundary = git_ceiling_dirs() if ceilings is None else ceilings
 
     for candidate in (resolved_start, *resolved_start.parents):
