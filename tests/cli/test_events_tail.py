@@ -554,13 +554,15 @@ def test_log_comes_from_the_resolved_status_surface(tmp_path: Path) -> None:
 
 def test_a_ref_sourced_status_surface_is_refused_never_tailed_as_empty(tmp_path: Path) -> None:
     """WP06: an empty or absent coordination worktree reads a ref; tail has no file to follow and refuses."""
+    from specify_cli.status.read_surface import StatusReadSource
+
     primary_dir = tmp_path / "primary" / MISSION_SLUG
     _write_events(primary_dir, [{"event_id": "stale-root-copy"}])
     ref = "refs/heads/kitty/mission-x"
 
     with (
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(primary_dir)),
-        patch.object(events_cli, "resolve_status_read", return_value=SimpleNamespace(path=None, ref=ref)),
+        patch.object(events_cli, "resolve_status_read", return_value=SimpleNamespace(path=None, ref=ref, source=StatusReadSource.COORD_BRANCH_REF)),
     ):
         result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
 
@@ -569,6 +571,8 @@ def test_a_ref_sourced_status_surface_is_refused_never_tailed_as_empty(tmp_path:
     payload = json.loads(result.stderr)
     assert payload["error"] == "status_surface_on_ref"
     assert ref in payload["detail"]
+    # The remedy gives the Mission a checkout (agent status materialize refuses a ref source too).
+    assert f"spec-kitty materialize --mission {MISSION_SLUG}" in payload["detail"]
 
 
 def _surface_failures(tmp_path: Path) -> list[Exception]:

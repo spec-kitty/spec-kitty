@@ -71,7 +71,7 @@ from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
 from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
 from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from specify_cli.core.paths import locate_project_root
-from specify_cli.status.read_surface import resolve_status_read
+from specify_cli.status.read_surface import ref_source_remedy, resolve_status_read
 from specify_cli.status import (
     EMPTY_DIGEST,
     ResumeRefused,
@@ -156,8 +156,8 @@ def _resolve_event_log_dir(repo_root: Path, resolved: ResolvedMission) -> Path:
     if surface.path is None:
         raise _refuse(
             "status_surface_on_ref",
-            f"the status of {resolved.mission_slug} lives on {surface.ref} and no checkout holds its log, so there is no file to tail; "
-            f"read it with 'spec-kitty agent status materialize --mission {resolved.mission_slug}'.",
+            f"the status of {resolved.mission_slug} lives on {surface.ref} and no checkout holds its log, so there is no file to tail. "
+            f"{ref_source_remedy(surface, resolved.mission_slug)}",
             1,
         )
     return surface.path

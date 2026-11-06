@@ -642,25 +642,26 @@ class MissionStatus:
         )
 
     def materialize(self, surface: StatusReadSurface | None = None) -> StatusSnapshot:
-        """Reduce the declared source and write ``status.json`` only into a writable source.
+        """Reduce the declared source and write ``status.json`` into its checkout, when it has one.
 
-        ``status.json`` is written (``status.reducer.materialize``) only when the surface is
-        the write dir: ``WRITE_CHECKOUT`` (the repository root checkout or owned checkout,
-        including the declared pre-seed fallback) or ``COORD_WORKTREE``. Every other source is
-        read only and materialize is a no-op write there (WP06 decision): ``COORD_BRANCH_REF``
-        and ``MISSION_BRANCH_REF`` have no path, and ``CONSOLIDATED_TARGET`` is the landed
-        target's copy, which a status read never rewrites. The reduced snapshot is returned
-        either way, so the caller reports the same state on every source. A caller that
-        already resolved *surface* passes it, so the source is read once (NFR-001).
+        ``status.json`` is written (``status.reducer.materialize``) into the surface's Mission
+        directory whenever the source is a checkout path: ``WRITE_CHECKOUT`` (the repository root
+        checkout or owned checkout, including the declared pre-seed fallback), ``COORD_WORKTREE``
+        and ``CONSOLIDATED_TARGET`` (a landed Mission, on every topology: the target's copy in the
+        repository root checkout). This is the explicit regenerate path, not a status read. The
+        pure ref sources (``COORD_BRANCH_REF``, ``MISSION_BRANCH_REF``) have no checkout, so
+        nothing is written and only the reduced snapshot is returned; a command that promises a
+        write refuses on them first (``agent status materialize``). A caller that already
+        resolved *surface* passes it, so the source is read once (NFR-001).
         """
         from specify_cli.status import materialize as write_status_json
-        from specify_cli.status.read_surface import StatusReadSource, materialize_status
+        from specify_cli.status.read_surface import materialize_status
 
         if surface is None:
             surface = self.status_read_surface()
         if surface is None:
             return write_status_json(self.read_dir)
-        if surface.path is not None and surface.source in (StatusReadSource.WRITE_CHECKOUT, StatusReadSource.COORD_WORKTREE):
+        if surface.path is not None:
             return write_status_json(surface.path)
         return materialize_status(surface)
 

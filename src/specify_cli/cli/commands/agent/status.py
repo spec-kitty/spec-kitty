@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -29,8 +29,15 @@ from specify_cli.status import normalize_wp_id, parse_review_result_json, refuse
 
 if TYPE_CHECKING:
     from specify_cli.status import MissionStatus
+    from specify_cli.status.read_surface import StatusReadSurface
 
 logger = logging.getLogger(__name__)
+
+#: A ref-sourced status surface (no checkout holds the log) refused by a command that needs a file.
+STATUS_SURFACE_ON_REF = "status_surface_on_ref"
+#: The read door failed closed (an unreadable coordination ref, a deleted coordination branch,
+#: a worktree on the wrong branch, an unreadable worktree registry).
+STATUS_SURFACE_UNAVAILABLE = "status_surface_unavailable"
 
 app = typer.Typer(
     name="status",
@@ -169,26 +176,51 @@ def _load_mission_status_for_command(
     return _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output), mission_slug, main_repo_root
 
 
+def _read_surface_or_refuse(ms: MissionStatus, json_output: bool) -> StatusReadSurface | None:
+    """The aggregate's declared status read source, or a structured refusal.
+
+    The door fails closed (an unreadable coordination ref is never read as an empty history,
+    FR-004); each failure becomes a ``status_surface_unavailable`` error, with a JSON envelope
+    under ``--json``, never an escaped exception.
+    """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    try:
+        return ms.status_read_surface()
+    except (StatusSurfaceRefUnreadable, StatusReadPathNotFound, CoordinationWorkspaceBranchMismatch, WorktreeRegistryUnavailable) as exc:
+        diagnostic = {"error": str(exc), "error_code": STATUS_SURFACE_UNAVAILABLE, "cause": getattr(exc, "error_code", type(exc).__name__)}
+        _output_error(json_output, str(exc), diagnostic=diagnostic)
+        raise typer.Exit(1) from exc
+
+
+def _refuse_ref_surface(ms: MissionStatus, surface: StatusReadSurface, json_output: bool, consequence: str) -> NoReturn:
+    """Refuse a ref-sourced surface for a command that needs a file, naming a remedy that gives it one."""
+    from specify_cli.status.read_surface import ref_source_remedy
+
+    remedy = ref_source_remedy(surface, ms.mission_slug)
+    message = f"status for {ms.mission_slug} lives on {surface.ref} ({surface.source.value}); no checkout holds its status.events.jsonl, so {consequence}. {remedy}"
+    diagnostic = {"error": message, "error_code": STATUS_SURFACE_ON_REF, "source": surface.source.value, "ref": surface.ref, "remedy": remedy}
+    _output_error(json_output, message, diagnostic=diagnostic)
+    raise typer.Exit(1)
+
+
 def _status_path_or_refuse(ms: MissionStatus, json_output: bool, command: str) -> Path:
     """The Mission directory a path-based status check reads, from the declared source.
 
     ``doctor``, ``lifecycle`` and ``validate`` inspect files on disk. On a ref-sourced
     surface (the coordination worktree is empty or absent, ADR 2026-11-06-2) no file holds
-    the authoritative log, so the command refuses and names the ref, rather than inspecting
-    the repository root checkout's stale copy.
+    the authoritative log, so the command refuses, names the ref and the remedy that gives the
+    Mission a checkout, rather than inspecting the repository root checkout's stale copy.
     """
-    surface = ms.status_read_surface()
+    surface = _read_surface_or_refuse(ms, json_output)
     if surface is None:
         return ms.read_dir
     if surface.path is not None:
         return surface.path
-    _output_error(
-        json_output,
-        f"status for {ms.mission_slug} lives on {surface.ref} ({surface.source.value}); no checkout holds the "
-        f"authoritative status.events.jsonl, so 'agent status {command}' cannot inspect it. Read it with "
-        f"'spec-kitty agent status materialize --mission {ms.mission_slug}', or check out the coordination worktree.",
-    )
-    raise typer.Exit(1)
+    _refuse_ref_surface(ms, surface, json_output, f"'agent status {command}' cannot inspect it")
 
 
 def _status_dir_for_command(
@@ -568,6 +600,12 @@ def materialize(
     reducer to produce a snapshot, writes status.json, and updates legacy
     compatibility views.
 
+    status.json is written into the checkout that holds the declared status
+    source (the write checkout, the coordination worktree, or for a landed
+    Mission the consolidated target). When no checkout holds it (the
+    coordination worktree is empty or absent, or no checkout holds the
+    Mission branch) the command refuses, writes nothing and names the remedy.
+
     Examples:
         spec-kitty agent status materialize
         spec-kitty agent status materialize --mission 034-my-feature
@@ -588,13 +626,15 @@ def materialize(
 
         # The declared read source (ADR 2026-11-06-2) and the write anchor, via the aggregate.
         ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
-        surface = ms.status_read_surface()
-        feature_dir = ms.read_dir if surface is None else surface.path
+        surface = _read_surface_or_refuse(ms, json_output)
+        if surface is not None and surface.path is None:
+            # A pure ref source has no checkout to write status.json into: refuse, never
+            # report a write that did not happen.
+            _refuse_ref_surface(ms, surface, json_output, "'agent status materialize' did not write status.json")
+        feature_dir = ms.read_dir if surface is None or surface.path is None else surface.path
 
-        # Check that the events file exists (a ref-sourced surface has no file; the door
-        # reads the committed log and an absent one is an empty history).
-        events_path = feature_dir / EVENTS_FILENAME if feature_dir is not None else None
-        if events_path is not None and not events_path.exists():
+        events_path = feature_dir / EVENTS_FILENAME
+        if not events_path.exists():
             _output_error(
                 json_output,
                 f"No event log found at {events_path}\n"
@@ -604,8 +644,8 @@ def materialize(
             raise typer.Exit(1)
 
         with feature_status_lock(main_repo_root, mission_lock_key(ms.read_dir, repo_root=main_repo_root)):
-            # Reduce the declared source; status.json is written only into a writable source
-            # (MissionStatus.materialize), never into a read-only path.
+            # Reduce the declared source and write status.json into its checkout
+            # (MissionStatus.materialize; a landed Mission's is the consolidated target's).
             snapshot = ms.materialize(surface)
 
         # Build output

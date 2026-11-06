@@ -52,6 +52,7 @@ __all__ = [
     "read_status_events",
     "read_status_stream",
     "read_status_text",
+    "ref_source_remedy",
     "resolve_primary_partition_dir",
     "resolve_status_read",
 ]
@@ -584,6 +585,22 @@ def read_status_stream(surface: StatusReadSurface) -> EventStream:
 def read_status_events(surface: StatusReadSurface) -> list[StatusEvent]:
     """Lane transitions from the surface's declared source (read only)."""
     return list(read_status_stream(surface).transitions)
+
+
+def ref_source_remedy(surface: StatusReadSurface, mission_slug: str) -> str:
+    """How an operator gives a ref-sourced status a checkout, for a command that needs a file.
+
+    ``COORD_BRANCH_REF``: ``spec-kitty materialize`` materializes the coordination worktree
+    (it adds an absent one and restores an empty one from the branch tip), after which the door
+    reads ``COORD_WORKTREE``. ``MISSION_BRANCH_REF``: no checkout holds the Mission topic
+    branch, so the operator checks it out. A path source needs no remedy (``ValueError``).
+    """
+    if surface.ref is None:
+        raise ValueError(f"{surface.source} reads a path; it needs no checkout remedy")
+    if surface.source is StatusReadSource.MISSION_BRANCH_REF:
+        branch = surface.ref.removeprefix(_HEADS_PREFIX)
+        return f"Check out the Mission branch with 'git switch {branch}' (or 'git worktree add <path> {branch}'), then re-run."
+    return f"Materialize the coordination worktree with 'spec-kitty materialize --mission {mission_slug}', then re-run."
 
 
 def materialize_status(surface: StatusReadSurface) -> StatusSnapshot:
