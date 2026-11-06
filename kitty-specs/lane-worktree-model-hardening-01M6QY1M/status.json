@@ -331,7 +331,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "S5: one lane-cleanup module (plan/apply/MainTodayRemover) shared by consolidate, orchestrator-api and mission close --discard; coord first then lanes then record; kept lanes reported with exit 0; retained_by_policy distinct; tip ref cleared only after confirmed delete; process proof (NFR-008); cleanup_started resume; contract 1.24.0 documented incl. WP13/WP14 topology fields.",
-        "Re-claimed with full implementer identity; code unchanged since 99ffeab125."
+        "Re-claimed with full implementer identity; code unchanged since 99ffeab125.",
+        "Review passed: one lane_cleanup module shared by executor/orchestrator-api/mission close --discard (no duplicate teardown, no new raw git ops); order coord->lanes->record; kept lanes reported exit 0; retained_by_policy distinct; clear_tip only after confirmed delete; probe-unavailable keeps (tested); 1.24.0 bump + docs + contract test done; red-first verified (6/6 red at 41d5d87dfe, module test ImportError). Non-blocking: (a) kill between coordination teardown and cleanup_started marker -> --resume refuses 'Missing mission branch' (no data loss, lanes intact; set the marker before coord teardown); (b) contract's consolidate --json lane_cleanup key not emitted, run.lane_cleanup stored but unread; (c) orchestrator LocalTargetAtPass.passed_sha is a live read, not a PASS anchor (WP16 binding); (d) claim_base.on_wp_terminal still clears a fully-canceled lane's tip while its branch exists (pre-existing, outside FR-034 cleanup scope)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
