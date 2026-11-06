@@ -491,7 +491,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "S7 settlement at first finalize with compensation; PRIMARY placement on topic branch; two strict-xfail residuals (handle discovery after settlement, N1 emit half)",
-        "Cycle 1: B1 Mission listing through the topic-holder locator; B2 write anchor/canonicalize/transaction on the topic holder; xfails lifted; locator uses load_meta_fail_closed; duplicate test dropped"
+        "Cycle 1: B1 Mission listing through the topic-holder locator; B2 write anchor/canonicalize/transaction on the topic holder; xfails lifted; locator uses load_meta_fail_closed; duplicate test dropped",
+        "Review passed (cycle 2): B1 fixed (_iter_mission_dirs yields topic-holder copy; real test, no xfail), B2 fixed (transaction write arm + read_surface PRIMARY anchor on topic holder; read-after-write test green). One holder probe (read_surface.topic_holder_mission_dir / checkout_holding_branch) shared by resolver, listing, root_resolver, transaction. Nits: transaction._write_branch_holder re-implements the lane-worktree exclusion; coord_worktree_mission_names hardcodes the '*-coord' glob instead of CoordinationWorkspace naming; read_surface.resolve_primary_partition_dir vs default_mission_topic_dir overlap. Tests: 3313 passed/3 skipped (lanes, mission_runtime, coordination, migration, context, workspace, placement integration), layer_rules 80, placement guards 19+18, orchestrator_api 15, dead symbols 37 serial."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
