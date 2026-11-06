@@ -376,9 +376,9 @@
     },
     "WP13": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -386,7 +386,8 @@
       "last_transition_at": "2026-11-06T16:16:40.086021+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0)."
+        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0).",
+        "Cycle 1 fixes: B1 dead-symbol gate green (coord_topology_reachable deleted; count_code_lanes/restamp allowlisted with WP14 exit; lane_cleanup __all__ trimmed), B2 create routes through switch_write_checkout (core/write_checkout_switch.py), B3 completion manifest regenerated, R1 target_replacement notice+JSON+help, R2 coord factory explicit topology only, nit dirty wording"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
