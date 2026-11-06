@@ -3530,6 +3530,7 @@ pages:
     - {slug: "amendment-2026-10-29-owned-file-evidence-and-review-independence-are-a-separate-axis-on-every-topology-6715", text: "Amendment 2026-10-29 — owned-file evidence and review independence are a separate axis on every topology (#6715)", level: 3}
     - {slug: "amendment-2026-10-31-a-pruned-lane-is-judged-on-the-pull-request-s-own-side-of-the-landing-merge-6780", text: "Amendment 2026-10-31 — a pruned lane is judged on the pull request's own side of the landing merge (#6780)", level: 3}
     - {slug: "amendment-2026-11-03-unresolved-ownership-is-its-own-verdict-not-a-missing-implementation-7149", text: "Amendment 2026-11-03 — unresolved ownership is its own verdict, not a missing implementation (#7149)", level: 3}
+    - {slug: "amendment-2026-11-05-a-base-derived-from-git-stands-in-for-a-planning-commit-finalize-never-recorded-7209-7210", text: "Amendment 2026-11-05 — a base derived from git stands in for a planning commit finalize never recorded (#7209, #7210)", level: 3}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -14893,6 +14894,36 @@ pages:
     - {slug: "regression-evidence-and-limitations", text: "Regression evidence and limitations", level: 2}
     - {slug: "owning-suite-fixture-corrections", text: "Owning-suite fixture corrections", level: 2}
     - {slug: "owner-resources-and-next-event", text: "Owner, resources and next event", level: 2}
+  - path: "docs/plans/engineering-notes/2026-11-06-lane-worktree-friction-research.md"
+    title: "Lane and worktree friction research"
+    divio_type: "none"
+    abstract: "How much recent friction the lane and worktree execution model causes, why, and which direction to take."
+    anchors:
+    - {slug: "1-sources-and-method", text: "1. Sources and method", level: 2}
+    - {slug: "2-cause-taxonomy-and-numbers", text: "2. Cause taxonomy and numbers", level: 2}
+    - {slug: "2-1-share-of-friction", text: "2.1 Share of friction", level: 3}
+    - {slug: "2-2-verdict-on-the-operator-s-observation", text: "2.2 Verdict on the operator's observation", level: 3}
+    - {slug: "2-3-where-the-operator-s-ruling-bites", text: "2.3 Where the operator's ruling bites", level: 3}
+    - {slug: "2-4-engineering-effort-spent", text: "2.4 Engineering effort spent", level: 3}
+    - {slug: "3-mechanisms", text: "3. Mechanisms", level: 2}
+    - {slug: "3-1-copies-of-shared-state-in-n-checkouts-read-from-a-working-tree", text: "3.1 Copies of shared state in N checkouts, read from a working tree", level: 3}
+    - {slug: "3-2-the-coordination-branch-is-a-second-home-that-must-be-projected-before-teardown", text: "3.2 The coordination branch is a second home that must be projected before teardown", level: 3}
+    - {slug: "3-3-checkouts-outlive-the-session-and-the-merge-and-removal-needs-ever-more-proofs", text: "3.3 Checkouts outlive the session and the merge, and removal needs ever more proofs", level: 3}
+    - {slug: "3-4-operations-fan-out-into-every-checkout", text: "3.4 Operations fan out into every checkout", level: 3}
+    - {slug: "3-5-anchors-and-records-outlive-the-attempt-that-wrote-them", text: "3.5 Anchors and records outlive the attempt that wrote them", level: 3}
+    - {slug: "3-6-each-topology-has-its-own-guard-copy-and-single-branch-has-its-own-locks", text: "3.6 Each topology has its own guard copy, and `single_branch` has its own locks", level: 3}
+    - {slug: "3-7-doctrine-does-not-tell-agents-where-status-lives", text: "3.7 Doctrine does not tell agents where status lives", level: 3}
+    - {slug: "3-8-the-structural-fact-attribution-and-approval-gates-read-refs-a-few-readers-still-need-checkouts", text: "3.8 The structural fact: attribution and approval gates read refs; a few readers still need checkouts", level: 3}
+    - {slug: "4-options", text: "4. Options", level: 2}
+    - {slug: "4-1-how-the-java-write-service-changes-the-picture", text: "4.1 How the Java write service changes the picture", level: 3}
+    - {slug: "4-2-options-compared", text: "4.2 Options compared", level: 3}
+    - {slug: "5-recommendation", text: "5. Recommendation", level: 2}
+    - {slug: "5-1-phased-path", text: "5.1 Phased path", level: 3}
+    - {slug: "5-2-first-slice", text: "5.2 First slice", level: 3}
+    - {slug: "5-3-decisions-the-operator-needs-to-make", text: "5.3 Decisions the operator needs to make", level: 3}
+    - {slug: "5-4-operator-rulings-2026-11-06", text: "5.4 Operator rulings (2026-11-06)", level: 3}
+    - {slug: "5-5-proposed-slices-for-the-operator-to-approve-none-filed-or-started", text: "5.5 Proposed slices (for the operator to approve; none filed or started)", level: 3}
+    - {slug: "6-limitations", text: "6. Limitations", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"
