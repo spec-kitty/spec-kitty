@@ -254,7 +254,7 @@ def test_crash_recovery_noncoord_lane_is_noop(git_repo: Path) -> None:
     """A recovered non-coord (legacy ``mission_branch``) lane stays a no-op.
 
     No ``coordination_branch`` in ``meta.json`` (the ``git_repo`` fixture has
-    no ``kitty-specs`` dir at all) → ``_register_sparse_checkout_if_coord``
+    no ``kitty-specs`` dir at all) → ``_register_lane_status_exclusion``
     must be a byte-identical no-op on recovery, exactly as it already is on
     the fresh-create path.
     """

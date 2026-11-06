@@ -1223,7 +1223,7 @@ def allocate_lane_worktree(
     #
     # #2514 (WP04): hoisted above the crash-recovery branch below so BOTH the
     # recovery path and the fresh-create path see the same two values without
-    # recomputing them twice — see ``_register_sparse_checkout_if_coord``.
+    # recomputing them twice — see ``_register_lane_status_exclusion``.
     coordination_branch = _read_coordination_branch(repo_root, mission_slug)
     # Route through the authoritative resolver (WP03 / FR-009, F-1). The
     # former raising ``mid8`` + try/except is replaced by resolve_mid8's
@@ -1252,7 +1252,7 @@ def allocate_lane_worktree(
         # #2514: re-register the sparse-checkout exclusion on recovery too —
         # a recovered coord-topology lane worktree must not re-leak
         # status.events.jsonl / status.json (Scenario 2).
-        _register_sparse_checkout_if_coord(
+        _register_lane_status_exclusion(
             worktree_path,
             mission_slug,
             coordination_branch,
@@ -1345,7 +1345,7 @@ def allocate_lane_worktree(
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
         # WP03 mints the coord branch only when mission_id is present.
-        _register_sparse_checkout_if_coord(
+        _register_lane_status_exclusion(
             worktree_path,
             mission_slug,
             coordination_branch,
@@ -1847,7 +1847,7 @@ def _merge_dependency_lane_tips(
                 raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
 
 
-def _register_sparse_checkout_if_coord(
+def _register_lane_status_exclusion(
     worktree_path: Path,
     mission_slug: str,
     coordination_branch: str | None,

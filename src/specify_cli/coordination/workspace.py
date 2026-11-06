@@ -382,10 +382,8 @@ class CoordinationWorkspace:
 # ---------------------------------------------------------------------------
 
 
-def lane_sparse_checkout_patterns(
-    mission_slug: str, mid8: str,
-) -> list[str]:
-    """Return the lane sparse-checkout patterns (one per line).
+def lane_status_exclusion_patterns(mission_dir_name: str) -> list[str]:
+    """Return the lane sparse-checkout patterns for one resolved Mission directory.
 
     The list is in non-cone mode format:
 
@@ -397,6 +395,25 @@ def lane_sparse_checkout_patterns(
     MUST call ``git sparse-checkout init --no-cone`` before applying
     these patterns.
 
+    ``mission_dir_name`` is the Mission's directory name under
+    ``kitty-specs/`` as already resolved by the caller (never re-derived
+    here).
+    """
+    return [
+        "/*",
+        f"!kitty-specs/{mission_dir_name}/status.events.jsonl",
+        f"!kitty-specs/{mission_dir_name}/status.json",
+    ]
+
+
+def lane_sparse_checkout_patterns(
+    mission_slug: str, mid8: str,
+) -> list[str]:
+    """Return the lane sparse-checkout patterns (one per line).
+
+    Wrapper over :func:`lane_status_exclusion_patterns` for callers that hold
+    a slug and a mid8 rather than the resolved Mission directory name.
+
     Argument semantics: ``mission_slug`` must be the **full directory
     name** under ``kitty-specs/`` for the mission. In post-WP03 missions
     that name already encodes the mid8 (e.g. ``demo-feature-01J6XW9K``),
@@ -405,18 +422,22 @@ def lane_sparse_checkout_patterns(
     package and is appended only when ``mission_slug`` does not already
     end with ``-<mid8>`` — protecting callers from double-suffixing.
     """
-    mission_dir = _compose_mission_dir(mission_slug, mid8)
-    return [
-        "/*",
-        f"!kitty-specs/{mission_dir}/status.events.jsonl",
-        f"!kitty-specs/{mission_dir}/status.json",
-    ]
+    return lane_status_exclusion_patterns(_compose_mission_dir(mission_slug, mid8))
 
 
 def register_lane_sparse_checkout(
     lane_path: Path, mission_slug: str, mid8: str,
 ) -> None:
-    """Configure a freshly-created lane worktree's sparse-checkout policy.
+    """Configure a lane worktree's sparse-checkout policy from a slug and a mid8.
+
+    Wrapper over :func:`register_lane_status_exclusion`; see
+    :func:`lane_sparse_checkout_patterns` for the argument semantics.
+    """
+    register_lane_status_exclusion(lane_path, _compose_mission_dir(mission_slug, mid8))
+
+
+def register_lane_status_exclusion(lane_path: Path, mission_dir_name: str) -> None:
+    """Configure a lane worktree's sparse-checkout policy for one Mission directory.
 
     Steps:
 
@@ -428,7 +449,7 @@ def register_lane_sparse_checkout(
        worktrees ``.git`` is a file, NOT a directory; the resolved path
        points into the per-worktree gitdir (typically under
        ``<repo>/.git/worktrees/<name>/info/sparse-checkout``).
-    3. Write the patterns from :func:`lane_sparse_checkout_patterns`.
+    3. Write the patterns from :func:`lane_status_exclusion_patterns`.
     4. ``git read-tree -mu HEAD`` — materialise the working tree against
        the new sparse-checkout rules so the excluded files actually
        disappear from disk.
@@ -457,7 +478,7 @@ def register_lane_sparse_checkout(
     sparse_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Step 3: write the patterns.
-    patterns = lane_sparse_checkout_patterns(mission_slug, mid8)
+    patterns = lane_status_exclusion_patterns(mission_dir_name)
     sparse_file.write_text("\n".join(patterns) + "\n")
 
     # Step 4: materialise the working tree.
