@@ -453,7 +453,7 @@ def workspaces(
         typer.Option(
             "--prune",
             help=(
-                "Remove only worktrees proven landed into the local origin/<primary> "
+                "Remove only worktrees proven landed into the local <remote>/<primary> "
                 "(nothing is fetched: run `git fetch` first to see recent merges), "
                 "then their branches. Never uses --force; prints a recreate command "
                 "for each removal. Mission worktrees are only reported. "
@@ -462,6 +462,18 @@ def workspaces(
             ),
         ),
     ] = False,
+    remote: Annotated[
+        str,
+        typer.Option(
+            "--remote",
+            help=(
+                "The remote whose tracking refs prove a landing (default: origin). "
+                "In a fork clone whose canonical repository is `upstream`, pass "
+                "`--remote upstream` after fetching it, or every landing worktree "
+                "reports not_landed (#7214). Nothing is fetched either way."
+            ),
+        ),
+    ] = "origin",
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Machine-readable JSON output"),
@@ -474,8 +486,9 @@ def workspaces(
     husks with a structured error; this check is the recovery path.
 
     After the husk report, every registered worktree gets a verdict: landed
-    (its commits are on the local origin/<primary> and nothing uncommitted or
-    running is in it), not landed, unproven, or Mission-owned (#7173).
+    (its commits are on the local <remote>/<primary> and nothing uncommitted or
+    running is in it), not landed, unproven, or Mission-owned (#7173). The
+    proving remote is `origin` unless `--remote` names another (#7214).
 
     With --prune, a commit that only the worktree HEAD reflog or the branch
     reflog still reached is recorded under
@@ -487,11 +500,12 @@ def workspaces(
         spec-kitty doctor workspaces
         spec-kitty doctor workspaces --fix
         spec-kitty doctor workspaces --prune
+        spec-kitty doctor workspaces --prune --remote upstream
         spec-kitty doctor workspaces --json
     """
     repo_root = _resolve_project_root_or_exit(json_output, exit_code=1)
 
-    run_workspaces(repo_root, fix, json_output, prune=prune, current_dir=Path.cwd())
+    run_workspaces(repo_root, fix, json_output, prune=prune, current_dir=Path.cwd(), remote=remote)
 
 
 @app.command(name="identity")

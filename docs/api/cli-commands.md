@@ -2883,8 +2883,9 @@ _Project health diagnostics; a bare invocation runs the default check set_
  husks with a structured error; this check is the recovery path.
 
  After the husk report, every registered worktree gets a verdict: landed
- (its commits are on the local origin/<primary> and nothing uncommitted or
- running is in it), not landed, unproven, or Mission-owned (#7173).
+ (its commits are on the local <remote>/<primary> and nothing uncommitted or
+ running is in it), not landed, unproven, or Mission-owned (#7173). The
+ proving remote is `origin` unless `--remote` names another (#7214).
 
  With --prune, a commit that only the worktree HEAD reflog or the branch
  reflog still reached is recorded under
@@ -2896,21 +2897,31 @@ _Project health diagnostics; a bare invocation runs the default check set_
      spec-kitty doctor workspaces
      spec-kitty doctor workspaces --fix
      spec-kitty doctor workspaces --prune
+     spec-kitty doctor workspaces --prune --remote upstream
      spec-kitty doctor workspaces --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix              Remove husks that are NOT registered in `git worktree     │
-│                    list` (registered worktrees are never removed)            │
-│ --prune            Remove only worktrees proven landed into the local        │
-│                    origin/<primary> (nothing is fetched: run `git fetch`     │
-│                    first to see recent merges), then their branches. Never   │
-│                    uses --force; prints a recreate command for each removal. │
-│                    Mission worktrees are only reported. Untracked ignored    │
-│                    files (e.g. .venv/, .env) are deleted with the worktree.  │
-│                    Removal is Linux only (it needs /proc to prove nothing    │
-│                    runs in a worktree).                                      │
-│ --json             Machine-readable JSON output                              │
-│ --help   -h        Show this message and exit.                               │
+│ --fix                    Remove husks that are NOT registered in `git        │
+│                          worktree list` (registered worktrees are never      │
+│                          removed)                                            │
+│ --prune                  Remove only worktrees proven landed into the local  │
+│                          <remote>/<primary> (nothing is fetched: run `git    │
+│                          fetch` first to see recent merges), then their      │
+│                          branches. Never uses --force; prints a recreate     │
+│                          command for each removal. Mission worktrees are     │
+│                          only reported. Untracked ignored files (e.g.        │
+│                          .venv/, .env) are deleted with the worktree.        │
+│                          Removal is Linux only (it needs /proc to prove      │
+│                          nothing runs in a worktree).                        │
+│ --remote          <str>  The remote whose tracking refs prove a landing      │
+│                          (default: origin). In a fork clone whose canonical  │
+│                          repository is `upstream`, pass `--remote upstream`  │
+│                          after fetching it, or every landing worktree        │
+│                          reports not_landed (#7214). Nothing is fetched      │
+│                          either way.                                         │
+│                          [default: origin]                                   │
+│ --json                   Machine-readable JSON output                        │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
