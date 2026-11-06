@@ -1,0 +1,42 @@
+# New and reused codes touched by this Mission. "surfaces" lists where an operator or integrator sees it.
+new:
+  - code: STATUS_SURFACE_REF_UNREADABLE
+    raised_as: StatusSurfaceRefUnreadable
+    fires: a status read sourced from a ref hits a missing or unreadable object or a git failure (an absent file on a readable ref is an empty history instead)
+    surfaces: [all status readers (non-zero exit)]
+    requirement: FR-004
+  - code: LANE_BRANCH_MISSING
+    kind: internal GateDecision.reason_code (text only on the orchestrator surface)
+    fires: in_progress -> for_review with refs/heads/<lane> absent
+    surfaces: [agent status emit, move-task, orchestrator-api transition (TRANSITION_REJECTED)]
+    requirement: FR-012
+  - code: LANE_NO_COMMIT_BEYOND_BASE
+    kind: internal name for the existing refusal
+    fires: lane branch has no commit beyond its base
+    surfaces: [agent status emit, move-task, orchestrator-api transition (TRANSITION_REJECTED)]
+    requirement: FR-010, FR-014
+  - code: STATUS_WRITE_TARGETS_LANE_CHECKOUT
+    fires: a status write whose target is inside a registry-classified lane checkout
+    surfaces: [status write seam, any command that writes status]
+    requirement: FR-041
+  - code: LANE_STATUS_AUTHORED
+    kind: doctor finding
+    fires: a live lane branch's status files differ from merge-base(lane, consolidation base)
+    surfaces: [spec-kitty doctor]
+    requirement: FR-045
+  - code: TOPOLOGY_SETTLEMENT_REFUSED
+    fires: first finalize cannot settle (precondition, create_return_branch missing or checked out elsewhere, coordination worktree not materializable, failed git step); compensated, root checkout back on the topic branch, Mission stays provisional
+    surfaces: [agent mission finalize-tasks (--json error_code)]
+    requirement: FR-056, NFR-003
+reused:
+  - {code: CoordinationBranchDeleted, fires: coordination branch gone (DEL), unchanged}
+  - {code: WRITE_CHECKOUT_OCCUPIED, fires: settlement or create switch needs an occupied write checkout, new call sites: [finalize-tasks, create]}
+  - {code: WRITE_CHECKOUT_DIRTY, fires: settlement or create switch needs a dirty write checkout, new call sites: [finalize-tasks, create]}
+  - {code: LANE_MOVED_AFTER_APPROVAL, fires: single_branch content commit outside every approved window or after the newest approval, new call sites: [consolidate claim and gate for single_branch]}
+  - {code: APPROVAL_STAMP_MISSING, fires: single_branch approved WP without a stamp (legacy), lifted_by: --attest-approved-reviewed}
+  - {code: APPROVAL_STAMP_NOT_ON_LANE, fires: single_branch Mission branch rewritten after approval}
+  - {code: PROTECTED_BRANCH_REFUSED, fires: unchanged}
+  - {codes: [MERGE_UNSAFE_WORKTREE_DIRTY, WORKTREE_REMOVE_REFUSED_BY_GIT, WORKTREE_PARTIALLY_REMOVED, BRANCH_HAS_UNIQUE_COMMITS], fires: lane cleanup kept (now reported, not raised)}
+  - {codes: [PROCESS_IN_WORKTREE, PROCESS_PROOF_UNAVAILABLE, WORKTREE_TIP_MOVED, BRANCH_TIP_MOVED, BRANCH_CHECKED_OUT, NOT_LANDED_ON_NAMED_REMOTE, BRANCH_IS_PRIMARY], fires: lane cleanup kept after the #7275 binding}
+unchanged_exits:
+  - {codes: [COORD_MOVED_AFTER_LANDING, PROJECTION_TEARDOWN_ABORTED, COORD_LATE_PROJECTION_REFUSED], owner: S10}
