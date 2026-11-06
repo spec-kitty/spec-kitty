@@ -169,7 +169,8 @@
       "notes": [
         "for_review gate reads refs/heads/<lane> from repo root; LANE_BRANCH_MISSING; move-task shares verdict with checkout absent",
         "Resubmitted with full implementer identity (identity correction only; no code change since bb6e44ba67).",
-        "Re-claimed with full implementer identity (identity correction); code unchanged since bb6e44ba67."
+        "Re-claimed with full implementer identity (identity correction); code unchanged since bb6e44ba67.",
+        "Review passed (reviewer-renata; verdict from the independent review before the identity correction): red-first verified; gate passes with the lane checkout absent; LANE_BRANCH_MISSING on a missing ref; envelope unchanged (C-012); no dirty check (C-006); move-task delegates to the shared gate; migration-actor failure pre-existing on base. Nits: vacuous dash-prefixed-ref test; stale module docstring L14-15; parity test bypasses the CLI."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
