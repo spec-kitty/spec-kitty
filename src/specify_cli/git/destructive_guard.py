@@ -994,7 +994,9 @@ def _reflog_shas(cwd: Path, rev: str, env: dict[str, str] | None) -> list[str]:
     """
     if _run_git(cwd, ["reflog", "exists", rev], env=env).returncode != 0:
         return []
-    log_path = cwd / _run_git(cwd, ["rev-parse", "--git-path", f"logs/{rev}"], env=env).stdout.strip()
+    # A worktree keeps its own HEAD reflog; branch reflogs live in the common directory.
+    git_dir = _run_git(cwd, ["rev-parse", "--git-dir" if rev == "HEAD" else "--git-common-dir"], env=env).stdout.strip()
+    log_path = cwd / git_dir / "logs" / rev
     try:
         content = log_path.read_bytes()
     except FileNotFoundError:
