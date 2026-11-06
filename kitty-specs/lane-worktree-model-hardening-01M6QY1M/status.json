@@ -157,7 +157,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -170,6 +170,7 @@
         "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-1.md",
         "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP05-s1-read-door-declared-sources/review-cycle-1.md",
@@ -177,15 +178,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 18771,
-      "shell_pid_created_at": "1793975573.18",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done",
-        "T028": "done",
-        "T029": "done"
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned"
       }
     },
     "WP06": {
