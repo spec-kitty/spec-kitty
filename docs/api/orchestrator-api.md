@@ -238,7 +238,8 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
     coordination-only.
   - `specify` gains `topology_source` (`explicit` \| `owned_checkout` \| `default`) and
     `topology_provisional` (`true` when no `--topology` was given: the topology is settled at the
-    first `tasks`).
+    first `tasks`) and `target_replacement` (`null`, or the implicit target replaced because it was
+    another Mission's branch).
   - `tasks` gains `topology_decision`, the finalize-tasks settlement record (`settled_this_run`,
     `topology_source`, `provisional_topology`, `settled_topology`, `rule`, `wp_count`,
     `code_lane_count`, `target_protected`, `preview`).
@@ -497,6 +498,7 @@ Response `data` (contract >= 1.24.0) also carries:
 |---|---|
 | `topology_source` | `explicit` (`--topology` given), `owned_checkout`, or `default` (no `--topology`). |
 | `topology_provisional` | `true` when no `--topology` was given: `topology` is provisional and is settled at the first `tasks` (see `topology_decision` there). `false` otherwise. |
+| `target_replacement` | `null`, or, when no `--topology` was given and the checked-out branch is another Mission's branch, the replacement the create made: `replaced_branch`, `owning_mission`, `target_branch` (the target chosen instead) and `remedy` (pass `--target-branch`). |
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_ALREADY_EXISTS` (the mission-creation delegate refused a duplicate —

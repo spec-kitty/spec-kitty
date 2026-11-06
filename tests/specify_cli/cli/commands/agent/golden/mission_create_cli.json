@@ -102,6 +102,7 @@
           "type": "str"
         },
         "target_branch": "main",
+        "target_replacement": null,
         "topology": "coord",
         "topology_provisional": false,
         "topology_source": "explicit",
@@ -216,6 +217,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -315,6 +317,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -415,6 +418,7 @@
           "type": "str"
         },
         "target_branch": "owned-topic",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": false,
         "topology_source": "owned_checkout",
@@ -514,6 +518,7 @@
           "type": "str"
         },
         "target_branch": "main",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -613,6 +618,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -712,6 +718,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -811,6 +818,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -909,6 +917,7 @@
           "type": "str"
         },
         "target_branch": "main",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": true,
         "topology_source": "default",
@@ -1027,6 +1036,7 @@
           "type": "str"
         },
         "target_branch": "feat-x",
+        "target_replacement": null,
         "topology": "lanes",
         "topology_provisional": false,
         "topology_source": "explicit",
@@ -1150,6 +1160,7 @@
           "type": "str"
         },
         "target_branch": "owned-topic",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": false,
         "topology_source": "explicit",
@@ -1176,7 +1187,7 @@
         "main"
       ],
       "envelope": {
-        "error": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry.",
+        "error": "Cannot switch the write checkout onto the new Mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry.",
         "error_code": "WRITE_CHECKOUT_DIRTY",
         "spec_kitty_version": {
           "present": true,
@@ -1269,6 +1280,7 @@
           "type": "str"
         },
         "target_branch": "main",
+        "target_replacement": null,
         "topology": "single_branch",
         "topology_provisional": false,
         "topology_source": "explicit",

@@ -1,5 +1,5 @@
 {
-  "base_commit": "27ba0bf589edaeed1553392f99d1666d625df326",
+  "base_commit": "f26efc0f26c4127761012d99b87bde9223c34c41",
   "cells": {
     "commit_to_target_without_single_branch": {
       "outcome": {
@@ -103,7 +103,7 @@
       "outcome": {
         "error_code": "WRITE_CHECKOUT_DIRTY",
         "exc_type": "WriteCheckoutSwitchDirtyError",
-        "message": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry."
+        "message": "Cannot switch the write checkout onto the new Mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry."
       },
       "post": {
         "branches": [
@@ -1098,6 +1098,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "main",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/ref-orphan-retry-<MID8#1>/spec.md"
           ]

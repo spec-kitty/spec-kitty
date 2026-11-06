@@ -54,6 +54,12 @@ if TYPE_CHECKING:
 
 # ``--start-branch`` / ``--target-branch`` must name the same branch because
 # mission creation stores exactly one planning branch.
+#: ``--target-branch`` help (S7 #7282 IC-13): the implicit target is the checked-out
+#: branch, except when a create without ``--topology`` stands on another Mission's branch.
+TARGET_BRANCH_HELP = (
+    "Target branch (defaults to the current branch; without --topology, a current branch that is "
+    "another Mission's branch is replaced by the Primary Branch, and the create says so)"
+)
 START_TARGET_MISMATCH_MESSAGE = (
     "--start-branch and --target-branch must match because mission "
     "creation stores one planning branch. Omit --target-branch for "
@@ -689,6 +695,9 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # it is still provisional (settled at the first finalize-tasks).
         "topology_source": result.meta.get(TOPOLOGY_SOURCE_KEY),
         "topology_provisional": result.meta.get(TOPOLOGY_SETTLED_KEY) is False,
+        # S7 #7282 IC-13: the implicit target was another Mission's branch and was
+        # replaced; names the replaced branch, its owner, the choice and the remedy.
+        "target_replacement": result.target_replacement.to_json() if result.target_replacement is not None else None,
     }
     if result.owned_checkout is not None:
         # Serialized key stays byte-identical (occurrence_map serialized_keys:
@@ -743,6 +752,8 @@ def _emit_create_result_phase(
     """Emit the create result in JSON or human form (output stays in the CLI layer)."""
     mission_branch = _minted_mission_branch(result)
     if not json_output:
+        if result.target_replacement is not None:
+            console.print(f"[yellow]Note:[/yellow] {result.target_replacement.notice()}")
         _print_branch_line(result, mission_branch)
         if resolved_mission_type == MISSION_TYPE_DOCUMENTATION:
             console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
@@ -798,7 +809,7 @@ def create_mission(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[
         str | None,
-        typer.Option("--target-branch", help="Target branch (defaults to current branch)"),
+        typer.Option("--target-branch", help=TARGET_BRANCH_HELP),
     ] = None,
     friendly_name: Annotated[str | None, typer.Option("--friendly-name", help="Human-friendly mission title")] = None,
     purpose_tldr: Annotated[

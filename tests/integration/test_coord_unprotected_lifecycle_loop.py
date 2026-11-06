@@ -18,10 +18,11 @@ Why the premise is already closed (evidence, all present on this HEAD):
 
 1. **Topology honesty — the root closure (#2533, commit ``7fbd81b832``,
    authored 2026-09-03, before this mission's base ``acf360e23b``).**
-   ``_resolve_default_topology_phase`` (``cli/commands/agent/mission_create.py:417``)
-   now consumes :func:`coord_topology_reachable`: a ``--pr-bound`` mission on an
-   **unprotected** primary target defaults to ``LANES``, never coord (#2602 made
-   ``lanes`` the default; ``single_branch`` is explicit-only) —
+   ``_resolve_default_topology_phase`` (``cli/commands/agent/mission_create.py``)
+   once keyed the ``--pr-bound`` default on a reachability predicate; since S7
+   (#7282, ADR 2026-11-06-3) a create without ``--topology`` is always a
+   provisional ``single_branch`` with no coordination branch, and coord is
+   explicit-only —
    "eliminating the stranded coord branch behind the #2533 split-brain." The
    specimen ``coord-commit-surface-authority-01M1M553`` shape (coord + unprotected
    via ``--pr-bound --start-branch``) is therefore structurally uncreatable, and
@@ -72,11 +73,11 @@ import pytest
 
 from mission_runtime import (
     MissionArtifactKind,
+    MissionTopology,
     resolve_artifact_surface,
 )
 from mission_runtime.issue_matrix_partition import resolve_issue_matrix_partition
 from mission_runtime.resolution import IssueMatrixRefReadError
-from specify_cli.coordination.surface_authority import coord_topology_reachable
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
@@ -221,16 +222,18 @@ def _stand_up_coord_unprotected_mission(tmp_path: Path) -> Path:
 
 
 def test_pr_bound_unprotected_primary_does_not_route_to_coordination() -> None:
-    """#2533 topology honesty: a ``--pr-bound`` mission on an unprotected primary
-    (and not currently on the primary branch) is NOT coord-reachable — it defaults
-    to ``LANES``, so all lifecycle surfaces route to the PRIMARY partition and no
-    four-guard surface contradiction can arise. This is the root reason the
-    specimen deadlock is uncreatable on HEAD.
+    """#2533 topology honesty: a create without ``--topology`` (``--pr-bound`` or not)
+    never mints coord. Since S7 (#7282) it is a provisional ``single_branch``, so all
+    lifecycle surfaces route to the PRIMARY partition and no four-guard surface
+    contradiction can arise. This is the root reason the specimen deadlock is
+    uncreatable on HEAD; coord stays reachable only through an explicit ``--topology``.
     """
-    assert coord_topology_reachable(pr_bound=True, primary_protected=False, current_is_primary=False) is False
-    # Sanity contrast: a protected primary (or being on the primary branch) DOES
-    # keep coordination reachable — the fix is targeted, not a blanket disable.
-    assert coord_topology_reachable(pr_bound=True, primary_protected=True, current_is_primary=False) is True
+    from specify_cli.cli.commands.agent.mission_create import _resolve_default_topology_phase
+    from specify_cli.meta_keys import TopologySource
+
+    assert _resolve_default_topology_phase(explicit_topology=None) == (MissionTopology.SINGLE_BRANCH, TopologySource.DEFAULT)
+    # Sanity contrast: an explicit coord topology is still honoured.
+    assert _resolve_default_topology_phase(explicit_topology=MissionTopology.COORD) == (MissionTopology.COORD, TopologySource.EXPLICIT)
 
 
 # ---------------------------------------------------------------------------

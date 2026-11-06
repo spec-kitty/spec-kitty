@@ -1,7 +1,7 @@
 """Decision-level pin of the create-time topology fallback (follow-up #5707).
 
-The existing ``_resolve_default_topology_phase`` and ``coord_topology_reachable``
-are called on REAL repositories, never copies and never with patches.
+The existing ``_resolve_default_topology_phase`` is called on REAL repositories,
+never copies and never with patches.
 
 The divergence #5707 tracks: with no ``origin/HEAD`` ``resolve_primary_branch(repo)``
 (``bias=True``: the checked-out branch wins) and ``resolve_primary_branch(repo,
@@ -22,7 +22,6 @@ import pytest
 
 from mission_runtime import MissionTopology
 from specify_cli.cli.commands.agent.mission_create import _resolve_default_topology_phase
-from specify_cli.coordination.surface_authority import coord_topology_reachable
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.meta_keys import TopologySource
 from tests._factories import provision_test_charter
@@ -66,20 +65,3 @@ def test_no_origin_head_default_is_provisional_single_branch(tmp_path: Path) -> 
 
     assert _resolve_default_topology_phase(explicit_topology=None) == (MissionTopology.SINGLE_BRANCH, TopologySource.DEFAULT)
     assert _resolve_default_topology_phase(explicit_topology=MissionTopology.LANES) == (MissionTopology.LANES, TopologySource.EXPLICIT)
-
-
-@pytest.mark.parametrize(
-    ("pr_bound", "primary_protected", "current_is_primary", "expected"),
-    [
-        (False, False, False, False),
-        (False, False, True, False),
-        (False, True, False, False),
-        (False, True, True, False),
-        (True, False, False, False),
-        (True, False, True, True),
-        (True, True, False, True),
-        (True, True, True, True),
-    ],
-)
-def test_coord_topology_reachable_truth_table(pr_bound: bool, primary_protected: bool, current_is_primary: bool, expected: bool) -> None:
-    assert coord_topology_reachable(pr_bound, primary_protected, current_is_primary) is expected

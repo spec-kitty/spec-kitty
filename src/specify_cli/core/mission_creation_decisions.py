@@ -177,7 +177,7 @@ def decide_protected_mint(facts: ProtectedMintFacts) -> ProtectedMintDecision | 
     if facts.dirty_outside_scaffold:
         return Refuse(
             "error",
-            "Cannot mint the protected-target mission branch: the write "
+            "Cannot switch the write checkout onto the new Mission branch: the write "
             f"checkout at {facts.write_root_display} has uncommitted changes outside "
             f"this mission's own scaffold: {', '.join(facts.dirty_outside_scaffold)}. Commit or "
             "discard them, then retry.",

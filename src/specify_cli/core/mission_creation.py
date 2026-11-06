@@ -159,6 +159,7 @@ from specify_cli.core.mission_creation_errors import (
     MissionCreationResult as MissionCreationResult,
     MissionBranchExistsError as MissionBranchExistsError,
     ProtectedMintRefusedError as ProtectedMintRefusedError,
+    TargetReplacement as TargetReplacement,
     WriteCheckoutSwitchDirtyError as WriteCheckoutSwitchDirtyError,
     WriteCheckoutSwitchOccupiedError as WriteCheckoutSwitchOccupiedError,
     _BOOTSTRAP_META_COMMIT_SKIPS as _BOOTSTRAP_META_COMMIT_SKIPS,
@@ -187,16 +188,11 @@ from specify_cli.core.mission_creation_protected_mint import (
     _ProtectionProbe as _ProtectionProbe,
     _protected_mint_applies as _protected_mint_applies,
     _mint_protected_single_branch_mission_branch as _mint_protected_single_branch_mission_branch,
-    _check_out_minted_branch as _check_out_minted_branch,
-    _gather_and_decide_protected_mint as _gather_and_decide_protected_mint,
     _local_branch_exists as _local_branch_exists,
-    _dirty_outside_scaffold as _dirty_outside_scaffold,
     _refuse_protected_recreate as _refuse_protected_recreate,
     _mint_protected_branch_for_topology as _mint_protected_branch_for_topology,
-    _refuse_occupied_write_checkout as _refuse_occupied_write_checkout,
-    _dirty_paths_outside as _dirty_paths_outside,
-    _git_switch as _git_switch,
-    switch_write_checkout as switch_write_checkout,
+    _decide_mint_switch as _decide_mint_switch,
+    _scaffold_owned_paths as _scaffold_owned_paths,
     _recorded_mission_branches as _recorded_mission_branches,
     _resolve_planning_branch as _resolve_planning_branch,
     _record_create_return_branch as _record_create_return_branch,
@@ -619,7 +615,7 @@ def _create_mission_core_impl(
 
     # IC-13 (S7 #7282): a default create's implicit target never resolves to another
     # Mission's branch.
-    planning_branch = _resolve_planning_branch(write_root, target_branch, current_branch, guard=topology_source is TopologySource.DEFAULT)
+    planning_branch, target_replacement = _resolve_planning_branch(write_root, target_branch, current_branch, guard=topology_source is TopologySource.DEFAULT)
 
     # One protection probe per create, shared by the duplicate guard, the
     # recreate guard and the mint. Making it resolves nothing; the first caller
@@ -772,7 +768,7 @@ def _create_mission_core_impl(
         meta=meta_build.meta,
     )
 
-    return _build_create_result(
+    result: MissionCreationResult = _build_create_result(
         scaffold=scaffold,
         commit_outcome=commit_outcome,
         mission_slug_formatted=mission_slug_formatted,
@@ -785,3 +781,5 @@ def _create_mission_core_impl(
         phase_event=phase_event,
         status_log_path=(coord_seed.status_dir / "status.events.jsonl") if coord_seed.status_dir is not None else None,
     )
+    result.target_replacement = target_replacement
+    return result

@@ -7,7 +7,7 @@ Mission's branch. The create's only pre-switch check was "dirty outside this sca
 and it carried no error code.
 
 The extracted switch core
-(:func:`specify_cli.core.mission_creation_protected_mint.switch_write_checkout`) refuses
+(:func:`specify_cli.core.write_checkout_switch.switch_write_checkout`) refuses
 ``WRITE_CHECKOUT_OCCUPIED`` and ``WRITE_CHECKOUT_DIRTY`` before any git write, and the
 create path reaches the same refusals. Each refusal is paired with an accepting control.
 """
@@ -86,7 +86,7 @@ def _repo(tmp_path: Path, *, occupant_lane: str | None = None) -> Path:
 
 
 def _switch(repo: Path, branch: str) -> None:
-    from specify_cli.core.mission_creation_protected_mint import switch_write_checkout
+    from specify_cli.core.write_checkout_switch import switch_write_checkout
 
     switch_write_checkout(repo, branch, start_point="main", repository_root=repo, owned_paths=(".kittify",))
 
@@ -126,7 +126,7 @@ def test_dirty_write_checkout_refuses_switch(tmp_path: Path) -> None:
 
 def test_switch_onto_an_existing_branch(tmp_path: Path) -> None:
     """With no start point the core checks out an existing branch (the settlement return path)."""
-    from specify_cli.core.mission_creation_protected_mint import switch_write_checkout
+    from specify_cli.core.write_checkout_switch import switch_write_checkout
 
     repo = _repo(tmp_path)
     _git(repo, "branch", "back")

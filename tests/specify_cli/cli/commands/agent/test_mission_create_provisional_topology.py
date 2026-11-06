@@ -314,7 +314,7 @@ def test_target_branch_help_describes_the_guard() -> None:
 
     from specify_cli.cli.commands.agent.mission import app
 
-    flat = " ".join(CliRunner().invoke(app, ["create", "--help"], terminal_width=400).output.split())
+    flat = " ".join(CliRunner().invoke(app, ["create", "--help"], env={"COLUMNS": "400"}).output.split())
     assert "defaults to current branch)" not in flat
     assert "another Mission's branch" in flat
 

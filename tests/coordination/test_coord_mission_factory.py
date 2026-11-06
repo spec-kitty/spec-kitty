@@ -126,29 +126,6 @@ def test_make_coord_mission_unknown_via_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# M1 -- topology=None (the real default path: no --topology, product-resolved)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-@pytest.mark.git_repo
-def test_make_coord_mission_cli_pr_bound_no_topology_is_no_longer_coord(tmp_path: Path) -> None:
-    """S7 #7282 (ADR 2026-11-06-3): pr-bound, protected primary, NO --topology no longer
-    yields ``coord``; the create is a provisional ``single_branch`` with no coordination
-    branch, so the coord factory refuses to build a coord Mission from it."""
-    with pytest.raises(AssertionError, match="expected a coordination branch"):
-        make_coord_mission(tmp_path, None, via="cli_pr_bound", protected_primary=True)
-
-
-@pytest.mark.integration
-@pytest.mark.git_repo
-@pytest.mark.parametrize("via", ["core", "cli_topology"])
-def test_make_coord_mission_topology_none_rejected_for_non_pr_bound_via(tmp_path: Path, via: Literal["core", "cli_topology"]) -> None:
-    with pytest.raises(ValueError, match="topology=None"):
-        make_coord_mission(tmp_path, None, via=via)
-
-
-# ---------------------------------------------------------------------------
 # M2 -- protected_primary protects the Primary Branch (main), consistently
 # ---------------------------------------------------------------------------
 

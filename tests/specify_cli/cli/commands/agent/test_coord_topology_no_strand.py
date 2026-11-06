@@ -11,8 +11,10 @@ The #2533 split-brain (and the B16-clause-2 "cross-contamination" appearance,
 research D-002) came from ``--pr-bound`` unconditionally minting a ``coord``
 topology — stranding a ``kitty/mission-<slug>-<mid8>`` coordination branch even
 when coordination routing was never reachable (unprotected primary target). WP02
-keys the create-time default on :func:`coord_topology_reachable`, so a pr-bound
-mission created off an unprotected primary defaults away from ``coord``. WP06
+keyed the create-time default on a reachability predicate (since deleted, S7
+#7282: a create without ``--topology`` is now always a provisional
+``single_branch``), so a pr-bound mission created off an unprotected primary
+defaulted away from ``coord``. WP06
 (#2602, binding decision #5100 comment 5870360497) re-keyed that unreachable
 arm from ``single_branch`` to ``lanes`` — ``single_branch`` is now
 explicit-only (``--topology single_branch`` or ``--owned-checkout``) — so the

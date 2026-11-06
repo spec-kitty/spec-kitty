@@ -447,7 +447,7 @@ def test_create_pr_bound_without_topology_is_provisional(tmp_path: Path) -> None
     """``--pr-bound`` no longer selects ``coord`` by reachability (DM 01M6R0QQM5FCPY736008AD4W6V).
 
     The checkout is a non-primary feature branch while the primary target ``main``
-    is protected; formerly ``coord_topology_reachable`` made this ``coord``.
+    is protected; formerly the dropped ``--pr-bound`` reachability fallback made this ``coord``.
     """
     _init_repo(tmp_path)
     _check_out_feature_branch_with_main_primary(tmp_path, "feature/my-fix")
