@@ -13,8 +13,9 @@ Sources (checked in this order):
 2. ``single_branch``, ``lanes`` and provisional Missions -> ``WRITE_CHECKOUT`` (the repository
    root checkout's working tree, or the validated owned checkout). For a
    ``topology_source: default`` Mission the write checkout is the checkout that holds the
-   Mission topic branch (``meta.mission_branch``, FR-061); when no checkout holds it, the
-   declared source is the committed topic branch, ``MISSION_BRANCH_REF``;
+   Mission topic branch (``meta.mission_branch``, FR-061); when no checkout holds it, a lane
+   worktree holds it, or the holder carries no Mission directory, the declared source is the
+   committed topic branch, ``MISSION_BRANCH_REF``;
 3. ``coord`` / ``lanes_with_coord``:
    - materialized coordination worktree -> ``COORD_WORKTREE``;
    - empty or unmaterialized -> ``COORD_BRANCH_REF`` (one ``git cat-file --batch``);
@@ -75,7 +76,7 @@ class StatusReadSource(enum.StrEnum):
     CONSOLIDATED_TARGET = "consolidated_target"
     """The Mission has landed on its target."""
     MISSION_BRANCH_REF = "mission_branch_ref"
-    """A ``topology_source: default`` Mission whose topic branch no checkout holds (WP05 decision)."""
+    """A ``topology_source: default`` Mission whose topic branch no usable checkout holds (WP05 decision)."""
 
 
 _PATH_SOURCES = frozenset({StatusReadSource.WRITE_CHECKOUT, StatusReadSource.COORD_WORKTREE})
@@ -371,12 +372,9 @@ def _write_checkout_decision(facts: _MissionFacts) -> _Decision:
     topic = _default_topic_branch(facts.meta)
     if topic is None:
         return decision
-    holder = _checkout_holding_branch(facts.repo_root, topic)
-    if holder is not None:
-        held_dir = holder / _KITTY_SPECS / facts.mission_dir_name
-        if held_dir.is_dir():
-            return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology, anchor=facts.primary_dir)
-        return decision
+    held_dir = _topic_holder_mission_dir(facts.repo_root, topic, facts.mission_dir_name)
+    if held_dir is not None:
+        return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology, anchor=facts.primary_dir)
     return _Decision(
         topology=facts.topology,
         source=StatusReadSource.MISSION_BRANCH_REF,
@@ -492,14 +490,38 @@ def _holder_from_porcelain(porcelain: str, full_ref: str) -> Path | None:
     return None
 
 
+def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str) -> Path | None:
+    """The Mission directory in the checkout that holds *topic*, or ``None`` when there is none.
+
+    ``None`` -- the caller then reads the committed topic branch (``MISSION_BRANCH_REF``) and
+    never the repository root checkout's copy -- when:
+
+    * no checkout holds the topic branch;
+    * the holder is a registered lane worktree (ADR 2026-11-06-2: a status read never comes
+      from a lane worktree; review cycle 1, N2);
+    * the holder carries no Mission directory (review cycle 1, N3: no quiet fallback to the
+      root's copy).
+    """
+    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
+
+    holder = _checkout_holding_branch(repo_root, topic)
+    if holder is None:
+        return None
+    if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
+        return None
+    held_dir = holder / _KITTY_SPECS / mission_dir_name
+    return held_dir if held_dir.is_dir() else None
+
+
 def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:
     """The PRIMARY-partition Mission directory of a ``topology_source: default`` Mission (FR-061).
 
     Until the Mission lands, its PRIMARY partition lives on its topic branch
     (``meta.mission_branch``): the directory in the checkout that holds that branch. Returns
     ``None`` -- the caller keeps today's (target) placement -- for an explicit-topology or
-    legacy Mission, a landed Mission, or a default Mission whose topic branch no checkout holds
-    (there is no directory to report; status reads take ``MISSION_BRANCH_REF``).
+    legacy Mission, a landed Mission, or a default Mission whose topic branch no checkout holds,
+    a lane worktree holds, or whose holder carries no Mission directory (there is no directory
+    to report; status reads take ``MISSION_BRANCH_REF``).
     """
     from specify_cli.core.paths import load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import normalized_status_read_root
@@ -510,11 +532,7 @@ def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:
         topic = _default_topic_branch(meta or {})
         if topic is None or _has_landed(primary_dir):
             return None
-        holder = _checkout_holding_branch(root, topic)
-        if holder is None:
-            return None
-        held_dir = holder / _KITTY_SPECS / dir_name
-        return held_dir if held_dir.is_dir() else None
+        return _topic_holder_mission_dir(root, topic, dir_name)
 
 
 # ---------------------------------------------------------------------------
