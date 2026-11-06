@@ -264,3 +264,137 @@ def test_for_review_gate_force_bypasses_without_lanes(tmp_path: Path) -> None:
     """Surface-neutral no-ops: ``force`` and a missing manifest both PASS."""
     assert evaluate_for_review_gate(tmp_path, "any-mission", "WP01", force=True).passed
     assert evaluate_for_review_gate(tmp_path, "any-mission", "WP01", force=False).passed
+
+
+# --------------------------------------------------------------------------- #
+# S2 (#7278): the gate reads refs/heads/<lane> from the repository root.      #
+# A lane checkout is never required (FR-010 to FR-014, SC-003).               #
+# --------------------------------------------------------------------------- #
+
+LANE_BRANCH = f"kitty/mission-{MISSION_DIRNAME}-lane-a"
+
+
+def _commit_in_checkout(lane_worktree: Path) -> None:
+    (lane_worktree / "src").mkdir(exist_ok=True)
+    (lane_worktree / "src" / "impl.py").write_text("x = 1\n", encoding="utf-8")
+    _git(lane_worktree, "add", "-A")
+    _git(lane_worktree, "commit", "-q", "-m", "feat(WP01): implement")
+
+
+def _remove_checkout(repo: Path, lane_worktree: Path) -> None:
+    _git(repo, "worktree", "remove", "-f", str(lane_worktree))
+    assert not lane_worktree.exists()
+
+
+def _delete_lane_branch(repo: Path) -> None:
+    _git(repo, "branch", "-D", LANE_BRANCH)
+
+
+def _status_emit_for_review(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    from specify_cli.cli.commands.agent.status import app as status_app
+
+    monkeypatch.chdir(repo)
+    return runner.invoke(
+        status_app,
+        ["emit", "WP01", "--to", "for_review", "--actor", "claude", "--mission", MISSION_DIRNAME, "--json"],
+    )
+
+
+def _move_task_verdict(repo: Path) -> tuple[bool, list[str]]:
+    from specify_cli.cli.commands.agent.tasks_shared import _validate_ready_for_review
+
+    return _validate_ready_for_review(repo, MISSION_DIRNAME, "WP01", False)
+
+
+def test_transition_passes_with_checkout_removed(tmp_path: Path) -> None:
+    repo = _build_mission(tmp_path / "r")
+    lane_worktree = _start_implementation(repo)
+    _commit_in_checkout(lane_worktree)
+    _remove_checkout(repo, lane_worktree)
+
+    decision = evaluate_for_review_gate(repo, MISSION_DIRNAME, "WP01")
+    assert decision.passed, decision.reason
+    result = _transition_for_review(repo)
+    assert result.exit_code == 0, result.output
+
+
+def test_status_emit_passes_with_checkout_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _build_mission(tmp_path / "r")
+    lane_worktree = _start_implementation(repo)
+    _commit_in_checkout(lane_worktree)
+    _remove_checkout(repo, lane_worktree)
+
+    result = _status_emit_for_review(repo, monkeypatch)
+    assert result.exit_code == 0, result.output
+
+
+def test_move_task_parity_checkout_absent(tmp_path: Path) -> None:
+    repo = _build_mission(tmp_path / "r")
+    lane_worktree = _start_implementation(repo)
+    _commit_in_checkout(lane_worktree)
+    _remove_checkout(repo, lane_worktree)
+    assert _move_task_verdict(repo) == (True, [])
+
+    # No commit beyond base and no checkout: the same shared verdict refuses.
+    other = _build_mission(tmp_path / "r2")
+    other_worktree = _start_implementation(other)
+    _remove_checkout(other, other_worktree)
+    ok, guidance = _move_task_verdict(other)
+    assert ok is False
+    assert LANE_BRANCH in "\n".join(guidance)
+
+
+def test_no_commit_refusal_names_branch_not_worktree(tmp_path: Path) -> None:
+    repo = _build_mission(tmp_path / "r")
+    _start_implementation(repo)
+
+    decision = evaluate_for_review_gate(repo, MISSION_DIRNAME, "WP01")
+    assert decision.passed is False
+    assert LANE_BRANCH in decision.reason
+    assert COORD_BRANCH in decision.reason
+    assert "worktree" not in decision.reason.lower()
+    assert "commit in" not in decision.reason.lower()
+    assert decision.reason_code == "LANE_NO_COMMIT_BEYOND_BASE"
+
+    result = _transition_for_review(repo)
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "TRANSITION_REJECTED"
+    assert set(payload["data"]) >= {"wp_id", "lane_id"}
+
+
+def test_missing_lane_branch_refuses_distinct_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _build_mission(tmp_path / "r")
+    lane_worktree = _start_implementation(repo)
+    _remove_checkout(repo, lane_worktree)
+    _delete_lane_branch(repo)
+
+    decision = evaluate_for_review_gate(repo, MISSION_DIRNAME, "WP01")
+    assert decision.passed is False
+    assert decision.reason_code == "LANE_BRANCH_MISSING"
+    assert LANE_BRANCH in decision.reason
+    assert "does not exist" in decision.reason
+
+    result = _transition_for_review(repo)
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "TRANSITION_REJECTED"
+    assert "does not exist" in result.output
+
+    emit = _status_emit_for_review(repo, monkeypatch)
+    assert emit.exit_code != 0
+    assert "does not exist" in emit.output
+
+    ok, guidance = _move_task_verdict(repo)
+    assert ok is False
+    assert "does not exist" in "\n".join(guidance)
+
+
+def test_reads_ref_not_lagging_checkout_head(tmp_path: Path) -> None:
+    repo = _build_mission(tmp_path / "r")
+    lane_worktree = _start_implementation(repo)
+    _commit_in_checkout(lane_worktree)
+    # The checkout's HEAD lags at the base while the branch ref carries the commit.
+    _git(lane_worktree, "checkout", "-q", "--detach", COORD_BRANCH)
+
+    decision = evaluate_for_review_gate(repo, MISSION_DIRNAME, "WP01")
+    assert decision.passed, decision.reason
