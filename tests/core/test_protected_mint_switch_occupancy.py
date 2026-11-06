@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -158,3 +159,33 @@ def test_protected_create_refuses_switch_when_dirty_with_code(tmp_path: Path) ->
         create_mission_core(repo, "beta", topology=MissionTopology.SINGLE_BRANCH, allow_worktree_context=True)
 
     assert excinfo.value.error_code == "WRITE_CHECKOUT_DIRTY"
+
+
+def test_create_switches_through_the_one_switch_core(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B2: create's topic-branch mint goes through ``switch_write_checkout``, the one switch core."""
+    from specify_cli.core import mission_creation_protected_mint as mint
+    from specify_cli.core.mission_creation import create_mission_core
+
+    calls: list[tuple[str, str | None, tuple[str, ...]]] = []
+    real = mint.switch_write_checkout
+
+    def spy(
+        write_root: Path,
+        branch_name: str,
+        *,
+        start_point: str | None,
+        repository_root: Path,
+        owned_paths: tuple[str, ...],
+        decide: Callable[[tuple[str, ...]], None] | None = None,
+    ) -> None:
+        calls.append((branch_name, start_point, owned_paths))
+        real(write_root, branch_name, start_point=start_point, repository_root=repository_root, owned_paths=owned_paths, decide=decide)
+
+    monkeypatch.setattr(mint, "switch_write_checkout", spy)
+    repo = _repo(tmp_path)
+
+    result = create_mission_core(repo, "beta", topology=MissionTopology.SINGLE_BRANCH, allow_worktree_context=True)
+
+    minted = result.meta["mission_branch"]
+    assert calls == [(minted, "main", (".kittify", f"kitty-specs/{result.mission_slug}"))]
+    assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == minted

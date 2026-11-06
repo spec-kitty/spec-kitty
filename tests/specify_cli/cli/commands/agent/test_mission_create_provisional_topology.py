@@ -271,6 +271,52 @@ def test_create_target_never_resolves_to_another_missions_topic_branch(tmp_path:
     # The second topic branch is cut from the Primary Branch, not from alpha's topic branch.
     ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", first_topic, second_topic], cwd=repo_root, check=False)
     assert ancestor.returncode == 1, "the second Mission's topic branch must not carry the first Mission's commits"
+    # R1: the replacement is reported, naming the replaced branch, its owner, the choice and the remedy.
+    assert second["target_replacement"] == {
+        "replaced_branch": first_topic,
+        "owning_mission": first["mission_slug"],
+        "target_branch": _PROTECTED_TARGET,
+        "remedy": "Pass --target-branch <branch> to choose the target.",
+    }
+
+
+def test_create_target_replacement_is_announced_in_human_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R1: the human output names the replaced branch, its owning Mission, the target and the remedy."""
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.mission import app
+
+    repo_root = _repo(tmp_path)
+    first = _payload(_invoke(repo_root, monkeypatch, "alpha").output)
+    _commit_scaffold(repo_root, first)
+
+    result = CliRunner().invoke(app, ["create", "beta"], terminal_width=400)
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert f"The checked-out branch {first['mission_branch']} is Mission {first['mission_slug']}'s branch" in flat
+    assert f"this Mission targets {_PROTECTED_TARGET} instead" in flat
+    assert "Pass --target-branch <branch> to choose the target." in flat
+
+
+def test_create_without_replacement_reports_none(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: a create on an ordinary branch replaces nothing and reports no replacement."""
+    repo_root = _repo(tmp_path)
+
+    payload = _payload(_invoke(repo_root, monkeypatch, "alpha").output)
+
+    assert payload["target_replacement"] is None
+
+
+def test_target_branch_help_describes_the_guard() -> None:
+    """R1: ``--target-branch`` help no longer claims the target always defaults to the current branch."""
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.agent.mission import app
+
+    flat = " ".join(CliRunner().invoke(app, ["create", "--help"], terminal_width=400).output.split())
+    assert "defaults to current branch)" not in flat
+    assert "another Mission's branch" in flat
 
 
 def test_explicit_target_branch_naming_a_topic_branch_is_honoured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
