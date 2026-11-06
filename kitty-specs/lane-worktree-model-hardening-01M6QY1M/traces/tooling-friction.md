@@ -60,3 +60,4 @@ GitHub MCP tools, the cloud-session harness.
 - [2026-11-06][WP07] A parallel consolidation+coordination suite run hit the container memory limit (OOM kill); the red-first check needed a separate base export because PYTHONPATH pins the lane src.
 - [2026-11-06][WP07 review] `agent action review` rejects `--allow-sparse-checkout` as an unknown option; the review claim works without it.
 - [2026-11-06][WP10 review] Running a broad blast-radius suite on the lane and the base at the same time timed out, so its reds could not be attributed; run lane and base comparisons one after the other.
+- [2026-11-06][WP14] After a lanes_with_coord settlement the root checkout has no Mission directory, so every reader that builds the path from the root breaks.
