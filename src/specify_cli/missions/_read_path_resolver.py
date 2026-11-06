@@ -2106,7 +2106,9 @@ def _default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
         meta = json.loads((meta_dir / "meta.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    topic = meta.get("mission_branch") if isinstance(meta, dict) else None
+    if not isinstance(meta, dict):
+        return None
+    topic = meta.get("mission_branch")
     if meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
         return None
     from mission_runtime import mission_has_landed

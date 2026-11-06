@@ -240,6 +240,8 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _missing_status_surface_cause as _missing_status_surface_cause,
     _preflight_frozen_lane_membership as _preflight_frozen_lane_membership,
     _apply_topology_settlement as _apply_topology_settlement,
+    _count_code_lanes_for_settlement as _count_code_lanes_for_settlement,
+    _target_is_protected as _target_is_protected,
     _decide_topology_by_size as _decide_topology_by_size,
     _read_started_wp_ids as _read_started_wp_ids,
     _report_parallelization_risk as _report_parallelization_risk,
