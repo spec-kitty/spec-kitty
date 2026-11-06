@@ -121,15 +121,9 @@ def test_coord_empty_resolves_primary_with_warning_for_both_handle_forms(
     assert resolved.read_dir.resolve() == primary_dir.resolve()
     assert resolved.primary_anchor.resolve() == primary_dir.resolve()
 
-    # The fallback is LOUD, not silent (NFR-003): at least one WARNING-level
-    # record from the resolver's named logger.
-    assert any(
-        r.name == _LOGGER_NAME and r.levelno == logging.WARNING
-        for r in caplog.records
-    ), (
-        "coord-empty Option B must emit a logging.WARNING (no silent fallback). "
-        f"Records seen: {[(r.name, r.levelname) for r in caplog.records]}"
-    )
+    # ADR 2026-11-06-2 (WP05): the loud warning is gone; the branch holds no log, so this
+    # is the read door's declared pre-seed fallback (``fallback_reason`` on the surface).
+    assert not any(r.name == _LOGGER_NAME and r.levelno == logging.WARNING for r in caplog.records)
 
 
 def test_coord_empty_no_longer_raises_status_read_path_not_found(

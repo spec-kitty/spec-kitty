@@ -1799,17 +1799,18 @@ def test_no_local_coord_path_composition_in_status_surfaces() -> None:
 #    composition.
 #
 # The only exempt locations are the routed seam helpers themselves
-# (``_resolve_events_path`` / ``_canonical_events_dir``), whose legacy-mission
-# fallback composes the path AFTER first consulting the canonical resolver.
-# The ratchet additionally asserts each seam exists and calls
-# ``resolve_status_surface``, so deleting a seam (e.g. by reverting WP05's
-# T024/T025 routing) turns this test RED — the anti-vacuity property.
+# (``_read_status_log_retrospective_events`` / ``_canonical_status_events``), whose
+# legacy-mission fallback composes the path AFTER first consulting the one status
+# read door. The ratchet additionally asserts each seam exists and calls
+# ``resolve_status_read`` (ADR 2026-11-06-2; Mission lane-worktree-model-hardening
+# WP06 moved the seams off ``resolve_status_surface``), so deleting a seam turns
+# this test RED — the anti-vacuity property.
 # ---------------------------------------------------------------------------
 
 # module path → routed seam function names exempt from the read-family scan.
 _CANONICAL_STATUS_READ_FILES: dict[str, frozenset[str]] = {
-    "src/specify_cli/retrospective/gate.py": frozenset({"_resolve_events_path"}),
-    "src/specify_cli/cli/commands/agent_retrospect.py": frozenset({"_canonical_events_dir"}),
+    "src/specify_cli/retrospective/gate.py": frozenset({"_read_status_log_retrospective_events"}),
+    "src/specify_cli/cli/commands/agent_retrospect.py": frozenset({"_canonical_status_events"}),
 }
 
 _STATUS_EVENTS_LITERAL = "status.events.jsonl"
@@ -1866,7 +1867,7 @@ def test_no_feature_dir_anchored_status_event_reads() -> None:
     Forbids ``feature_dir``-anchored ``read_events()`` calls and direct
     ``status.events.jsonl`` path compositions in ``retrospective/gate.py`` and
     ``cli/commands/agent_retrospect.py`` outside their routed seam helpers,
-    and asserts each seam consults ``resolve_status_surface``. Reverting the
+    and asserts each seam consults the read door ``resolve_status_read``. Reverting the
     WP05 T024/T025 routing reintroduces a forbidden read and turns this RED;
     renaming or deleting a seam surfaces its fallback reads as forbidden hits.
     """
@@ -1885,8 +1886,8 @@ def test_no_feature_dir_anchored_status_event_reads() -> None:
                 # The seam is only a legitimate exemption if it consults the
                 # canonical resolver before any fallback composition.
                 seam_source = ast.unparse(node)
-                if "resolve_status_surface" not in seam_source:
-                    hits.append(f"line {node.lineno}: routed seam {node.name!r} no longer calls resolve_status_surface — the exemption does not apply")
+                if "resolve_status_read" not in seam_source:
+                    hits.append(f"line {node.lineno}: routed seam {node.name!r} no longer calls resolve_status_read — the exemption does not apply")
                 continue
             hits.extend(_feature_dir_read_family_hits(node, exempt_seams))
 
@@ -1895,7 +1896,7 @@ def test_no_feature_dir_anchored_status_event_reads() -> None:
 
     assert not offenders, (
         "feature_dir-anchored status-event read detected — retrospective reads "
-        "must route through resolve_status_surface, never read "
+        "must route through the status read door (resolve_status_read), never read "
         "status.events.jsonl via the (identity-only) feature dir "
         f"(AC10 / FR-009 / #1735):\n{json.dumps(offenders, indent=2)}"
     )
