@@ -32,6 +32,7 @@ several downstream catchers whose semantics this mission does not touch
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -43,6 +44,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from kernel.git import GitCommandError, GitPath, changed_paths, status_entries
+from kernel.paths import is_windows
 
 from . import ref_advance
 from .ref_advance import ResidueClassifier
@@ -825,6 +827,285 @@ def _delete_branch_cas(repo_root: Path, branch: str, expected_tip: str, env: dic
             current_branch=branch,
             remediation=f"Could not read the worktrees that check {branch!r} out; nothing was deleted: {exc}",
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Landed removal: the proof obligations of ADR 2026-11-06-1 (#7264).
+#
+# O1 clean tree, O2 no live process, O3 landed against a named remote,
+# O4 reflog-only commits kept, O5 compare-and-swap, O6 rebase-merged SHAs only
+# by a git-cherry proof, O7 never --force, O8 a recreate hint. The caller
+# supplies what this module cannot compute without application imports (C-005):
+# the residue context, the process probe and the absorption proof.
+# ---------------------------------------------------------------------------
+
+LANDING_REF_UNNAMED = "LANDING_REF_UNNAMED"
+"""O3: the landing ref is not ``refs/remotes/<remote>/<branch>`` of a configured remote, or does not resolve; nothing was removed."""
+NOT_LANDED_ON_NAMED_REMOTE = "NOT_LANDED_ON_NAMED_REMOTE"
+"""O3: the absorption proof does not hold for the tip on the landing ref; nothing was removed."""
+WORKTREE_TIP_MOVED = "WORKTREE_TIP_MOVED"
+"""O5: the worktree's ``HEAD`` is no longer the proven tip (or no longer on the proven branch); nothing was removed."""
+PROCESS_IN_WORKTREE = "PROCESS_IN_WORKTREE"
+"""O2: a process is standing in the worktree; nothing was removed."""
+PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
+"""O2: the probe cannot tell whether a process is standing in the worktree; nothing was removed."""
+BRANCH_IS_PRIMARY = "BRANCH_IS_PRIMARY"
+"""The branch is the local copy of the landing ref's own branch; it is never deleted (the worktree may still be removed)."""
+
+ProcessProbe = Callable[[Path], "bool | None"]
+"""O2 evidence: ``True`` when a process is standing in the path, ``False`` when none is, ``None`` when the probe cannot tell."""
+
+AbsorptionProof = Callable[[str, str], bool]
+"""O3 evidence: ``(tip, landing_ref) -> True`` when every commit of ``tip`` is on ``landing_ref`` (reachable, or absorbed by a no-op merge)."""
+
+_LOCAL_KEEPING_REFS: tuple[str, ...] = ("--branches", "--tags", "--glob=refs/spec-kitty/*")
+"""O4: the refs that keep a commit alive once its reflogs are gone. A remote-tracking ref never does (operator ruling 2026-11-06)."""
+
+
+@dataclass(frozen=True)
+class LandedRemoval:
+    """What the caller proved: ``worktree`` at ``tip`` (on ``branch``, or detached) landed on ``landing_ref`` of ``remote``."""
+
+    worktree: Path
+    branch: str | None
+    tip: str
+    remote: str
+    landing_ref: str
+
+    @property
+    def landing_branch(self) -> str:
+        """The branch name the landing ref tracks (``refs/remotes/<remote>/<b>`` -> ``<b>``)."""
+        return self.landing_ref.removeprefix(f"refs/remotes/{self.remote}/")
+
+
+@dataclass(frozen=True)
+class LandedRemovalResult:
+    """The worktree is gone (or a husk is left: ``refusal`` is :data:`WORKTREE_PARTIALLY_REMOVED`).
+
+    ``refusal`` names what was refused AFTER the removal (the branch is kept);
+    ``kept_ref`` is the detached-tip or discarded-branch record; ``kept_commits``
+    are the reflog-only records (O4); ``recreate`` brings back what was destroyed (O8).
+    """
+
+    branch_deleted: bool
+    kept_ref: str | None
+    kept_commits: tuple[str, ...]
+    refusal: str | None
+    recreate: str
+
+
+def shell_command(*args: str) -> str:
+    """``args`` as one copy-pasteable command line for this platform's shell (POSIX quoting, or ``cmd.exe`` rules on Windows)."""
+    if is_windows():
+        return subprocess.list2cmdline(args)
+    return shlex.join(args)
+
+
+def recreate_command(worktree: Path, branch: str | None, tip: str, *, branch_kept: bool, checked_out_elsewhere: bool = False) -> str:
+    """O8: the one command that brings back what a landed removal destroyed.
+
+    A deleted branch comes back with ``git branch``; a kept branch gets its
+    worktree back on it, unless another worktree has it checked out (git
+    refuses a second checkout): then, like a detached worktree, the worktree
+    comes back detached at the tip.
+    """
+    if branch is None or checked_out_elsewhere:
+        return shell_command("git", "worktree", "add", "--detach", str(worktree), tip)
+    if branch_kept:
+        return shell_command("git", "worktree", "add", str(worktree), branch)
+    return shell_command("git", "branch", branch, tip)
+
+
+def _refuse(code: str, removal: LandedRemoval, remediation: str, *, entries: Sequence[str] = ()) -> DestructiveOpRefused:
+    return DestructiveOpRefused(
+        error_code=code,
+        worktree_path=removal.worktree,
+        current_branch=removal.branch,
+        dirty_entries=list(entries),
+        remediation=f"{remediation} Nothing was removed.",
+    )
+
+
+def _configured_remotes(repo_root: Path, env: dict[str, str] | None) -> list[str]:
+    result = _run_git(repo_root, ["remote"], env=env)
+    return result.stdout.split() if result.returncode == 0 else []
+
+
+def _assert_named_landing_ref(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> None:
+    """O3, the naming half: the proof must be about one configured remote's tracking ref, never "some ref"."""
+    remote = removal.remote.strip()
+    named = bool(remote) and removal.landing_ref.startswith(f"refs/remotes/{remote}/") and bool(removal.landing_branch)
+    if not named or remote not in _configured_remotes(repo_root, env):
+        raise _refuse(LANDING_REF_UNNAMED, removal, f"{removal.landing_ref!r} is not a tracking ref of a configured remote named {removal.remote!r}.")
+    if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{removal.landing_ref}^{{commit}}"], env=env).returncode != 0:
+        raise _refuse(LANDING_REF_UNNAMED, removal, f"{removal.landing_ref} does not exist locally: run `git fetch {remote}`.")
+
+
+def _assert_worktree_at_tip(removal: LandedRemoval, env: dict[str, str] | None) -> None:
+    """O5, the worktree half: ``HEAD`` is still the proven tip, on the proven branch (or still detached)."""
+    head = _run_git(removal.worktree, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], env=env)
+    symbolic = _run_git(removal.worktree, ["symbolic-ref", "--quiet", "HEAD"], env=env)
+    on = symbolic.stdout.strip() if symbolic.returncode == 0 else None
+    expected = f"refs/heads/{removal.branch}" if removal.branch is not None else None
+    live = head.stdout.strip() if head.returncode == 0 else None
+    if live != removal.tip or on != expected:
+        moved = f"{(live or 'unreadable')[:12]} on {on or 'a detached HEAD'}"
+        raise _refuse(WORKTREE_TIP_MOVED, removal, f"{removal.worktree} moved after its tip {removal.tip[:12]} was proven landed.", entries=[moved])
+
+
+def _assert_landed(removal: LandedRemoval, absorbed: AbsorptionProof) -> None:
+    """O3, the proof half: re-run the caller's absorption proof on the named ref at the proven tip."""
+    if not absorbed(removal.tip, removal.landing_ref):
+        raise _refuse(NOT_LANDED_ON_NAMED_REMOTE, removal, f"{removal.tip[:12]} has work not on {removal.landing_ref}.")
+
+
+def _assert_no_process(removal: LandedRemoval, processes_in: ProcessProbe) -> None:
+    """O2: a probe that cannot tell is a refusal, never a pass."""
+    busy = processes_in(removal.worktree)
+    if busy is None:
+        raise _refuse(PROCESS_PROOF_UNAVAILABLE, removal, f"Cannot tell whether a process is running in {removal.worktree}.")
+    if busy:
+        raise _refuse(PROCESS_IN_WORKTREE, removal, f"A process is running in {removal.worktree}; stop it first.")
+
+
+def _on_a_local_branch_or_tag(repo_root: Path, sha: str, env: dict[str, str] | None) -> bool:
+    """``True`` when a local branch or tag reaches ``sha``; ``False`` when none does or git cannot tell (keep it)."""
+    listed = _run_git(repo_root, ["for-each-ref", "--count=1", "--contains", sha, "--format=%(refname)", *_LOCAL_REF_NAMESPACES], env=env)
+    return listed.returncode == 0 and bool(listed.stdout.strip())
+
+
+def _reflog_shas(cwd: Path, rev: str, env: dict[str, str] | None) -> list[str]:
+    """The shas ``rev``'s reflog records, newest first; ``[]`` when it has none or git cannot read it."""
+    listed = _run_git(cwd, ["reflog", "show", "--format=%H", rev], env=env)
+    return listed.stdout.split() if listed.returncode == 0 else []
+
+
+def _reflog_candidates(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> list[str]:
+    """Every sha the worktree ``HEAD`` reflog and the branch reflog record, except the tip (the tip has its own record)."""
+    found = dict.fromkeys(_reflog_shas(removal.worktree, "HEAD", env))
+    if removal.branch is not None:
+        found.update(dict.fromkeys(_reflog_shas(repo_root, f"refs/heads/{removal.branch}", env)))
+    found.pop(removal.tip, None)
+    return list(found)
+
+
+def _unreached_by_local_refs(repo_root: Path, candidates: Sequence[str], env: dict[str, str] | None) -> list[str]:
+    """O4: the candidates no local ref reaches. Anything git cannot answer for is returned, so the caller keeps it.
+
+    The branch about to be deleted still counts here: its tip is protected by
+    the landing proof and by the discarded-tip record, so its ancestors are not
+    recorded twice. A commit only a reflog held is not its ancestor and surfaces.
+    """
+    if not candidates:
+        return []
+    listed = _run_git(repo_root, ["rev-list", "--stdin", "--not", *_LOCAL_KEEPING_REFS], env=env, stdin="".join(f"{sha}\n" for sha in candidates))
+    if listed.returncode != 0:
+        return list(candidates)
+    unreached = set(listed.stdout.split())
+    return [sha for sha in candidates if sha in unreached]
+
+
+def patch_on_landing_ref(repo_root: Path, landing_ref: str, sha: str, *, env: dict[str, str] | None = None) -> bool:
+    """O6: ``True`` only when everything ``sha`` adds over ``landing_ref`` is provably there already.
+
+    ``git cherry`` marks a commit ``-`` when an equivalent patch is upstream,
+    which is the pre-rebase half of a rebase landing. It omits merges, and no
+    patch carries a merge's own resolution, so a merge anywhere between
+    ``landing_ref`` and ``sha`` answers ``False``. Empty output and any error
+    are not proof either: a wrong answer can only cost a kept ref.
+    """
+    merges = _run_git(repo_root, ["rev-list", "--merges", "--max-count=1", sha, "--not", landing_ref], env=env)
+    if merges.returncode != 0 or merges.stdout.strip():
+        return False
+    listed = _run_git(repo_root, ["cherry", landing_ref, sha], env=env)
+    marks = [line.strip() for line in listed.stdout.splitlines() if line.strip()] if listed.returncode == 0 else []
+    return bool(marks) and all(mark.startswith("-") for mark in marks)
+
+
+def reflog_only_commits(repo_root: Path, removal: LandedRemoval, *, env: dict[str, str] | None = None) -> list[str]:
+    """O4 + O6: the commits that only the reflogs a landed removal destroys still reach, less those proven on the landing ref."""
+    unreached = _unreached_by_local_refs(repo_root, _reflog_candidates(repo_root, removal, env), env)
+    return [sha for sha in unreached if not patch_on_landing_ref(repo_root, removal.landing_ref, sha, env=env)]
+
+
+def _keep_before_removal(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> tuple[str | None, tuple[str, ...]]:
+    """O4: the create-only records written before anything is destroyed; raises when one cannot be written."""
+    detached: str | None = None
+    if removal.branch is None and not _on_a_local_branch_or_tag(repo_root, removal.tip, env):
+        detached = keep_detached_tip(repo_root, removal.tip, env=env)
+    kept = tuple(keep_reflog_tip(repo_root, sha, env=env) for sha in reflog_only_commits(repo_root, removal, env=env))
+    return detached, kept
+
+
+def _delete_landed_branch(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> tuple[bool, str | None, str | None]:
+    """O5, the branch half, after the worktree is gone: ``(deleted, kept_ref, refusal)``; a refusal keeps the branch."""
+    branch = removal.branch
+    if branch is None:
+        return False, None, None
+    if branch == removal.landing_branch:
+        return False, None, BRANCH_IS_PRIMARY
+    if branch_tip(repo_root, branch, env=env) is None:
+        return False, None, None  # already gone: nothing to delete
+    try:
+        recorded = guarded_branch_delete(repo_root, branch, creation_base=None, operator_intent=LANDED_INTENT, expected_tip=removal.tip, env=env)
+    except DestructiveOpRefused as exc:
+        return False, None, exc.error_code
+    except (GitCommandError, RuntimeError):
+        return False, None, BRANCH_DELETE_REFUSED_BY_GIT
+    return True, discarded_ref(repo_root, branch, recorded, env=env) if recorded is not None else None, None
+
+
+def _result(removal: LandedRemoval, *, deleted: bool, kept_ref: str | None, kept: tuple[str, ...], refusal: str | None) -> LandedRemovalResult:
+    return LandedRemovalResult(
+        branch_deleted=deleted,
+        kept_ref=kept_ref,
+        kept_commits=kept,
+        refusal=refusal,
+        recreate=recreate_command(
+            removal.worktree,
+            removal.branch,
+            removal.tip,
+            branch_kept=refusal is not None,
+            checked_out_elsewhere=refusal == BRANCH_CHECKED_OUT,
+        ),
+    )
+
+
+def guarded_landed_removal(
+    repo_root: Path,
+    removal: LandedRemoval,
+    *,
+    context: ResidueClassifier,
+    processes_in: ProcessProbe,
+    absorbed: AbsorptionProof,
+    env: dict[str, str] | None = None,
+) -> LandedRemovalResult:
+    """Remove a landed worktree, then its branch, discharging every obligation of ADR 2026-11-06-1 first.
+
+    Before anything is destroyed (each failure raises :class:`DestructiveOpRefused`
+    and only create-only records may have been written): the landing ref is a
+    configured remote's tracking ref (O3), the worktree is still at the proven
+    tip (O5), the tip is still landed on that ref (O3), no process stands in it
+    (O2), it is clean (O1), and the detached tip and every reflog-only commit
+    (O4, less those ``git cherry`` proves on the ref, O6) are recorded. Then
+    ``git worktree remove`` without ``--force`` (O7) and the compare-and-swap
+    branch delete (O5). A refusal after the removal is returned, not raised,
+    with the command that brings everything back (O8).
+    """
+    _assert_named_landing_ref(repo_root, removal, env)
+    _assert_worktree_at_tip(removal, env)
+    _assert_landed(removal, absorbed)
+    _assert_no_process(removal, processes_in)
+    assert_worktree_clean(removal.worktree, context=context, env=env, treat_untracked_as_dirty=True)
+    detached, kept = _keep_before_removal(repo_root, removal, env)
+    try:
+        _remove_worktree(removal.worktree, env, force=False)
+    except DestructiveOpRefused as exc:
+        if exc.error_code != WORKTREE_PARTIALLY_REMOVED:
+            raise
+        return _result(removal, deleted=False, kept_ref=detached, kept=kept, refusal=WORKTREE_PARTIALLY_REMOVED)
+    deleted, kept_ref, refusal = _delete_landed_branch(repo_root, removal, env)
+    return _result(removal, deleted=deleted, kept_ref=detached or kept_ref, kept=kept, refusal=refusal)
 
 
 def _make_writable_and_retry(function: Callable[[str], object], name: str, _exc: object) -> None:

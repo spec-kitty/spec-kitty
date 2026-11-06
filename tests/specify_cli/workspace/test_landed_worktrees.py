@@ -26,7 +26,6 @@ from specify_cli.git.destructive_guard import (
     WORKTREE_PARTIALLY_REMOVED,
     WORKTREE_REMOVE_REFUSED_BY_GIT,
     DestructiveOpRefused,
-    RemoveResult,
 )
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported
 from specify_cli.workspace import landed_worktrees, process_probe
@@ -555,20 +554,19 @@ def test_a_git_refusal_is_recorded_and_the_run_continues(repo: Path, tmp_path: P
 
 
 def test_a_branch_moved_after_removal_is_not_deleted(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The prune's own comparison is the fast path: a branch moved before it is refused without touching a ref.
+    """A branch moved after the worktree removal is refused by the guard's tip check without touching a ref.
 
-    The window *after* that comparison is closed inside the guard; see
+    The window *after* that check is closed by the compare-and-swap delete; see
     ``test_a_branch_moved_inside_the_delete_is_kept``.
     """
     worktree, tip = _land_by_rebase(repo, "land-x")
-    real_remove = landed_worktrees.guarded_worktree_remove
+    real_remove = destructive_guard._remove_worktree
 
-    def remove_then_move(worktree_path: Path, **kwargs: Any) -> RemoveResult:
-        result = real_remove(worktree_path, **kwargs)
+    def remove_then_move(worktree_path: Path, env: dict[str, str] | None, *, force: bool) -> None:
+        real_remove(worktree_path, env, force=force)
         _git(repo, "branch", "-f", "land-x", "main")  # someone moved the branch meanwhile
-        return result
 
-    monkeypatch.setattr(landed_worktrees, "guarded_worktree_remove", remove_then_move)
+    monkeypatch.setattr(destructive_guard, "_remove_worktree", remove_then_move)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -590,7 +588,7 @@ def test_a_branch_moved_inside_the_delete_is_kept(repo: Path, tmp_path: Path, mo
     bound to the assessed tip (compare-and-swap) can keep the new commit.
     """
     worktree, tip = _land_by_rebase(repo, "land-x")
-    real = landed_worktrees.guarded_branch_delete
+    real = destructive_guard.guarded_branch_delete
     moved_to: list[str] = []
 
     def move_then_delete(root: Path, branch: str, **kwargs: Any) -> str | None:
@@ -599,7 +597,7 @@ def test_a_branch_moved_inside_the_delete_is_kept(repo: Path, tmp_path: Path, mo
         moved_to.append(moved)
         return real(root, branch, **kwargs)
 
-    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", move_then_delete)
+    monkeypatch.setattr(destructive_guard, "guarded_branch_delete", move_then_delete)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -613,14 +611,14 @@ def test_a_branch_moved_inside_the_delete_is_kept(repo: Path, tmp_path: Path, mo
 def test_the_same_fixture_deletes_the_branch_when_it_does_not_move(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Positive control for the test above: the same wrapper and fixture observe a real deletion."""
     worktree, _tip = _land_by_rebase(repo, "land-x")
-    real = landed_worktrees.guarded_branch_delete
+    real = destructive_guard.guarded_branch_delete
     calls: list[str] = []
 
     def observe_then_delete(root: Path, branch: str, **kwargs: Any) -> str | None:
         calls.append(branch)
         return real(root, branch, **kwargs)
 
-    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", observe_then_delete)
+    monkeypatch.setattr(destructive_guard, "guarded_branch_delete", observe_then_delete)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -637,7 +635,7 @@ def test_a_guard_branch_refusal_keeps_the_operator_facing_vocabulary(repo: Path,
     def refuses(root: Path, branch: str, **_: Any) -> str | None:
         raise DestructiveOpRefused(error_code=BRANCH_DELETE_REFUSED_BY_GIT, current_branch=branch, remediation="git refused the delete")
 
-    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", refuses)
+    monkeypatch.setattr(destructive_guard, "guarded_branch_delete", refuses)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -657,7 +655,7 @@ def test_a_branch_delete_failure_is_a_per_worktree_refusal(repo: Path, tmp_path:
             raise RuntimeError("git branch -D failed")
         return None
 
-    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", failing)
+    monkeypatch.setattr(destructive_guard, "guarded_branch_delete", failing)
 
     outcomes = {o.branch: o for o in prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))}
 
@@ -874,7 +872,7 @@ def test_a_detached_tip_that_cannot_be_kept_keeps_the_worktree(repo: Path, tmp_p
     def refuse(repo_root: Path, sha: str, **_: object) -> str:
         raise DestructiveOpRefused(error_code=DESTRUCTIVE_OP_ONLY_COPY, remediation="cannot write")
 
-    monkeypatch.setattr(landed_worktrees, "keep_detached_tip", refuse)
+    monkeypatch.setattr(destructive_guard, "keep_detached_tip", refuse)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -1134,7 +1132,7 @@ def test_a_reflog_commit_that_cannot_be_recorded_keeps_the_worktree(repo: Path, 
         assert sha == orphan, "the refusal must be for the reflog-only commit"
         raise DestructiveOpRefused(error_code=DESTRUCTIVE_OP_ONLY_COPY, remediation="cannot write")
 
-    monkeypatch.setattr(landed_worktrees, "keep_reflog_tip", refuse)
+    monkeypatch.setattr(destructive_guard, "keep_reflog_tip", refuse)
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
@@ -1156,15 +1154,15 @@ def test_the_prune_never_contacts_a_remote(repo: Path, tmp_path: Path) -> None:
 
 
 def test_reachability_keeps_only_the_candidates_no_ref_reaches(repo: Path, tmp_path: Path) -> None:
-    """The rule itself: `rev-list <shas> --not --all`, intersected with the candidates."""
+    """The rule itself: `rev-list <shas> --not <local refs>`, intersected with the candidates."""
     worktree = _worktree(repo, "reflog-rule")
     reached = _commit(worktree, "reached.txt", "reached\n")
     _git(worktree, "checkout", "-q", "--detach")
     orphan = _commit(worktree, "orphan.txt", "orphan\n")
     _git(worktree, "switch", "-q", "reflog-rule")
 
-    assert landed_worktrees._unreachable_after_prune(repo, [reached, orphan]) == [orphan]
-    assert landed_worktrees._unreachable_after_prune(repo, []) == []
+    assert destructive_guard._unreached_by_local_refs(repo, [reached, orphan], None) == [orphan]
+    assert destructive_guard._unreached_by_local_refs(repo, [], None) == []
 
 
 def test_a_reflog_only_commit_whose_patch_is_on_the_primary_is_not_recorded(repo: Path, tmp_path: Path) -> None:
