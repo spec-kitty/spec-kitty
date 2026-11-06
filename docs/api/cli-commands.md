@@ -105,7 +105,8 @@ is passed.
 exists, so it does not report the real run's "Missing mission branch" refusal: a clean forecast
 does not prove that the mission branch is present. Under the default squash strategy the preview
 also leaves out lanes not yet merged into the mission branch, so it can refuse a landing that the
-real run makes (#7268). See #7267.
+real run makes (#7268). It does not run the real run's canceled-content checks, so it can also
+pass a landing that the real run refuses (#7296). See #7267.
 
 | Exit code | Meaning |
 |---|---|
@@ -1620,7 +1621,10 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
 │                                                            be done without   │
-│                                                            executing         │
+│                                                            executing; does   │
+│                                                            not check that    │
+│                                                            the mission       │
+│                                                            branch exists     │
 │ --json                                                     Output            │
 │                                                            deterministic     │
 │                                                            JSON (dry-run     │
@@ -2141,8 +2145,8 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │                         surface.                                             │
 │ state-roots             Show state roots, surface classification, and safety │
 │                         warnings.                                            │
-│ workspaces              Report .worktrees/ husk directories (entries lacking │
-│                         a .git entry).                                       │
+│ workspaces              Report .worktrees/ husk directories and worktrees    │
+│                         whose work has landed.                               │
 │ identity                Report mission-identity health across kitty-specs/.  │
 │ topology                Report each mission's STORED topology across         │
 │                         kitty-specs/.                                        │

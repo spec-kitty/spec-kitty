@@ -31,7 +31,7 @@ Each section gives what you see, what it means, and the command to run. The full
 | `--abort` keeps reporting a branch `NOT restored` | `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`, see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored) |
 | Exit code 75, `COORD_MOVED_AFTER_LANDING` | `spec-kitty consolidate --resume`, see [Exit code 75](#exit-code-75-the-landing-stands) |
 
-A clean `--dry-run` does not prove the real run will land. The dry run is allowed before the mission branch exists, so it never reports the real run's "Missing mission branch" refusal (#7267). Under the default squash strategy it also previews only what is already merged into the mission branch, so it can refuse a landing the real run makes (#7268).
+A clean `--dry-run` does not prove the real run will land. The dry run is allowed before the mission branch exists, so it never reports the real run's "Missing mission branch" refusal (#7267). Under the default squash strategy it also previews only what is already merged into the mission branch, so it can refuse a landing the real run makes (#7268). It does not run the real run's canceled-content checks, so it can also pass a landing the real run refuses (#7296).
 
 ## Resume an Interrupted Consolidation
 

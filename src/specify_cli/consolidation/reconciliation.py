@@ -1173,8 +1173,10 @@ class MergeOutcomeVerifier:
         content check the real run runs, never a second implementation of it:
 
         * *squashed_tree* given (a squash whose clean squash the forecast staged): the
-          squash-sound blob attribution :meth:`_verify_squash_content` over that tree, under
-          the claim the real squash gate verifies (``verify_reachability=False``);
+          squash-sound blob attribution :meth:`_verify_squash_content` over that tree. The tree
+          holds only the mission branch, because lanes are not folded in yet (#7268), so on a
+          PASS the lane refs still get the per-commit scan: without it, un-attributable lane
+          content the real squash gate refuses would forecast clean (#6771);
         * otherwise (merge / rebase, or no squash could be previewed): the per-commit
           closed-world scan :meth:`_unattributable_in` over *landing_refs*.
 
@@ -1182,7 +1184,10 @@ class MergeOutcomeVerifier:
         (the forecast renders it); the squash check REFUSEs on one itself.
         """
         if squashed_tree is not None:
-            return _with_attribution_hint(self._verify_squash_content(squashed_tree, replace(claim, verify_reachability=False)), claim)
+            verdict = _with_attribution_hint(self._verify_squash_content(squashed_tree, claim), claim)
+            if verdict.status is not VerifyStatus.PASS:
+                return verdict
+            landing_refs = landing_refs[1:]
         unattributable = self._unattributable_in(landing_refs, claim)
         if not unattributable:
             return VerifyResult.passed()

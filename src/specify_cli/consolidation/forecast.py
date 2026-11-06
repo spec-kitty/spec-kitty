@@ -316,12 +316,13 @@ def _refuse_unattributable_in_forecast(
 
     The pre-#6771 forecast terminated before reconciliation ever ran, so a mission whose lane
     merged a dependency branch's newer head previewed green and refused on the real run. This
-    builds the SAME claim (so a mis-declaration refuses here too) and runs the SAME content
-    check the real run's strategy runs (:meth:`MergeOutcomeVerifier.forecast_content_verdict`):
+    builds a claim from the same builder (so a mis-declaration refuses here too) and runs the
+    content check for the real run's strategy (:meth:`MergeOutcomeVerifier.forecast_content_verdict`):
 
     * squash, with the tree the squash preview staged (*squashed_tree*): the squash-sound
-      blob attribution over that tree — the real squash run never runs the per-commit scan,
-      so forecasting it there refused landings the real run makes (#7244);
+      blob attribution over that tree, because the per-commit scan of the mission branch
+      refused landings the real run makes (#7244); lane refs still get the per-commit scan,
+      because the preview does not fold lanes in (#7268);
     * merge / rebase (or a squash with nothing previewed, e.g. a missing mission branch): the
       per-commit closed-world scan over the refs the landing WOULD introduce — the mission
       branch, its lane branches and the target.
