@@ -3151,6 +3151,7 @@ pages:
     - {slug: "follow-up-2026-10-04-presence-axis-status-write-guard-wider-lag-recovery-5613", text: "Follow-up 2026-10-04 — presence axis, status-write guard, wider lag recovery (#5613)", level: 3}
     - {slug: "follow-up-2026-10-05-the-record-is-the-only-rollback-anchor-5686-5666", text: "Follow-up 2026-10-05 — the record is the only rollback anchor (#5686 / #5666)", level: 3}
     - {slug: "follow-up-2026-10-31-a-rollback-that-restored-everything-re-baselines-the-record-6770", text: "Follow-up 2026-10-31 — a rollback that restored everything re-baselines the record (#6770)", level: 3}
+    - {slug: "amendment-2026-11-06-what-the-late-teardown-window-proves-and-on-which-tip-7265", text: "Amendment 2026-11-06 — what the late teardown window proves, and on which tip (#7265)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "follow-up-2026-10-31-the-branch-integration-target-is-judged-too-6464", text: "Follow-up 2026-10-31 — the branch-integration target is judged too (#6464)", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
@@ -4104,6 +4105,17 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "why-not-the-others", text: "Why not the others", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md"
+    title: "ADR: a destructive git operation discharges named proof obligations"
+    divio_type: "none"
+    abstract: "The eight things a command must prove before it removes a worktree or deletes a branch, and the guard entry that enforces them for doctor workspaces --prune."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "why-not-the-others", text: "Why not the others", level: 3}
+    - {slug: "scope", text: "Scope", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
@@ -13317,7 +13329,8 @@ pages:
     - {slug: "exit-code-75-the-landing-stands-the-cleanup-did-not-finish", text: "Exit code 75: the landing stands, the cleanup did not finish", level: 3}
     - {slug: "the-lane-workspace-contexts-are-committed-on-teardown", text: "The lane workspace contexts are committed on teardown", level: 3}
     - {slug: "what-a-resume-lands-from-the-coordination-branch", text: "What a resume lands from the coordination branch", level: 3}
-    - {slug: "what-a-first-run-lands-before-it-tears-down", text: "What a first run lands before it tears down", level: 3}
+    - {slug: "what-the-late-window-proves", text: "What the late window proves", level: 3}
+    - {slug: "what-a-run-lands-before-it-tears-down", text: "What a run lands before it tears down", level: 3}
     - {slug: "aborting-a-consolidation", text: "Aborting a Consolidation", level: 2}
     - {slug: "the-consolidation-state-file", text: "The consolidation state file", level: 2}
     - {slug: "consolidation-strategy-selection", text: "Consolidation Strategy Selection", level: 2}
