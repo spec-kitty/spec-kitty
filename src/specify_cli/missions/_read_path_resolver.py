@@ -865,7 +865,7 @@ def read_primary_meta(
     primary_dir = _compose_primary_feature_dir(repo_root, handle)
     # FR-061 (WP14): a settled default Mission's PRIMARY meta lives in the checkout that
     # holds its topic branch, not in the repository root checkout.
-    primary_dir = _default_mission_topic_dir(repo_root, primary_dir) or primary_dir
+    primary_dir = default_mission_topic_dir(repo_root, primary_dir) or primary_dir
     # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
     # primary meta still reads as the empty mapping (the legacy/coord-only
     # arm below); a corrupt or non-object one raises the typed
@@ -1749,7 +1749,7 @@ def resolve_planning_read_dir(
             repo_root, mission_slug, resolver=resolver
         )
         composed = _compose_primary_feature_dir(repo_root, canonical)
-        return _default_mission_topic_dir(repo_root, composed) or composed
+        return default_mission_topic_dir(repo_root, composed) or composed
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
@@ -2084,32 +2084,29 @@ __all__ = [
 ]
 
 
-def _default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
+def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
     """FR-061 / analyze-3 H1: where a ``topology_source: default`` Mission's PRIMARY partition lives.
 
-    Until the Mission lands, its PRIMARY partition is on its topic branch
-    (``meta.mission_branch``): the Mission directory in the checkout that holds that
-    branch. After a ``lanes_with_coord`` settlement the repository root checkout is back
-    on ``create_return_branch`` and carries no Mission directory; the coordination
-    worktree (the topic branch's only checkout) then holds it, so its ``meta.json`` is
-    read when the root has none. Returns ``None`` -- keep *composed* -- for every
-    explicit-topology or legacy Mission, a landed one (the one "landed" signal,
-    :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding
-    the topic branch carries the Mission directory.
+    The one topic-holder locator: the planning-read resolver, :func:`read_primary_meta` and the
+    Mission listing (``context.mission_resolver``) all ask it. Until the Mission lands, its
+    PRIMARY partition is on its topic branch (``meta.mission_branch``): the Mission directory in
+    the checkout that holds that branch. After a ``lanes_with_coord`` settlement the repository
+    root checkout is back on ``create_return_branch`` and carries no Mission directory; the
+    coordination worktree (the topic branch's only checkout) then holds it, so its
+    ``meta.json`` is read when the root has none. Returns ``None`` -- keep *composed* -- for
+    every explicit-topology or legacy Mission, a landed one (the one "landed" signal,
+    :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding the
+    topic branch carries the Mission directory. A corrupt ``meta.json`` raises
+    ``MissionMetaReadError`` (FR-007 / #3162), like every other meta read here.
     """
-    import json
+    from specify_cli.core.paths import load_meta_fail_closed
 
     meta_dir = composed if (composed / "meta.json").is_file() else _coord_worktree_mission_dir(repo_root, composed.name)
     if meta_dir is None:
         return None
-    try:
-        meta = json.loads((meta_dir / "meta.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(meta, dict):
-        return None
-    topic = meta.get("mission_branch")
-    if meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
+    meta = load_meta_fail_closed(meta_dir)
+    topic = meta.get("mission_branch") if meta else None
+    if not meta or meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
         return None
     from mission_runtime import mission_has_landed
 
@@ -2121,6 +2118,14 @@ def _default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
     if held is None or held.resolve() == composed.resolve():
         return None
     return held
+
+
+def coord_worktree_mission_names(repo_root: Path) -> list[str]:
+    """Mission directory names that only a coordination worktree carries (settled default Missions)."""
+    worktrees = repo_root / ".worktrees"
+    if not worktrees.is_dir():
+        return []
+    return sorted({child.name for coord in worktrees.glob("*-coord") for child in (coord / "kitty-specs").glob("*") if (child / "meta.json").is_file()})
 
 
 def _coord_worktree_mission_dir(repo_root: Path, dir_name: str) -> Path | None:

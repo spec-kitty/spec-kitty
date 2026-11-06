@@ -377,7 +377,9 @@ def _write_checkout_decision(facts: _MissionFacts) -> _Decision:
         return decision
     held_dir = _topic_holder_mission_dir(facts.repo_root, topic, facts.mission_dir_name)
     if held_dir is not None:
-        return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology, anchor=facts.primary_dir)
+        # The PRIMARY anchor is the topic holder too (WP05 obligation N1): a status write anchored
+        # on it lands where this decision reads.
+        return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology)
     return _Decision(
         topology=facts.topology,
         source=StatusReadSource.MISSION_BRANCH_REF,

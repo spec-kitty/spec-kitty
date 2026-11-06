@@ -80,6 +80,22 @@ def _reset_cache() -> None:
     """
 
 
+def _is_default_mission_topic_holder(canonical_root: Path, canonical_feature_dir: Path, feature_dir: Path) -> bool:
+    """FR-061 / WP05 obligation N1: *feature_dir* is a default Mission's PRIMARY home (its topic holder).
+
+    The one topic-holder locator decides; the repository root checkout's copy is then a stale
+    copy and a write never redirects onto it.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.missions._read_path_resolver import default_mission_topic_dir
+
+    try:
+        held = default_mission_topic_dir(canonical_root, canonical_feature_dir)
+    except MissionMetaReadError:
+        return False
+    return held is not None and held.resolve() == feature_dir.resolve()
+
+
 def canonicalize_feature_dir(feature_dir: Path) -> Path:
     """Return the canonical-root version of ``feature_dir`` when possible.
 
@@ -135,6 +151,8 @@ def canonicalize_feature_dir(feature_dir: Path) -> Path:
         return feature_dir
 
     canonical_feature_dir = canonical_root / KITTY_SPECS_DIR / feature_dir.name
+    if _is_default_mission_topic_holder(canonical_root, canonical_feature_dir, feature_dir):
+        return feature_dir
     # Only redirect when the canonical path actually exists; this keeps
     # tests that build ad-hoc feature dirs outside a git repo working.
     if canonical_feature_dir.exists():
