@@ -229,8 +229,8 @@
     "WP07": {
       "actor": "claude",
       "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -238,7 +238,8 @@
       "last_transition_at": "2026-11-06T20:40:04.844348+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-06T18:26:26Z – claude::python-pedro – shell_pid=12194 – Blocked (stopped per orchestrator instruction): the empty-allowlist single-door gate needs ~53 legacy status read sites in ~35 files migrated (32 read_dir(STATUS_STATE), 8 resolve_status_surface, 2 resolve_status_surface_with_anchor, 5 read_event_log/stream, 5 private resolvers) plus 31 status.events.jsonl joins classified, and downstream Path-typed APIs (get_wp_lane 52, has_event_log 26, WorkPackage.status_dir 20, reconstruct_wp_view 15). Not achievable in one WP; no code committed, no allowlist. Census returned to orchestrator."
+        "- 2026-11-06T18:26:26Z – claude::python-pedro – shell_pid=12194 – Blocked (stopped per orchestrator instruction): the empty-allowlist single-door gate needs ~53 legacy status read sites in ~35 files migrated (32 read_dir(STATUS_STATE), 8 resolve_status_surface, 2 resolve_status_surface_with_anchor, 5 read_event_log/stream, 5 private resolvers) plus 31 status.events.jsonl joins classified, and downstream Path-typed APIs (get_wp_lane 52, has_event_log 26, WorkPackage.status_dir 20, reconstruct_wp_view 15). Not achievable in one WP; no code committed, no allowlist. Census returned to orchestrator.",
+        "Re-scoped per DM 01M6S40GBWB6JD0FFTMQ2F6NW7: consolidation readers (done_bookkeeping x2 + durable committed-ref, forecast, phase_advance, preflight) on resolve_status_read; door gains resolve_committed_status_read; phase_advance landed check delegates to mission_has_landed. No gate/allowlist. Lane-d 7aefc19f88."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
