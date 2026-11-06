@@ -243,3 +243,44 @@ def test_runtime_asset_without_conflicts_has_no_warning(tmp_path: Path, monkeypa
     _changes, warnings = _migrate_runtime_assets(project, dry_run=True)
 
     assert warnings == []
+
+
+def test_apply_repairs_feature_meta_under_a_stray_non_repository_git_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#7093: a `.git` directory that is not a repository must not stop the baseline repair.
+
+    A `.git` directory holding no `HEAD` is not a repository (git says so for every path
+    below it), so this project is outside any work tree and nothing is tracked for it. The
+    sweep used to report `wrote baseline meta.json` and write nothing, because the anchor
+    walk read that directory as a repository git could not read.
+    """
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "001-upgrade-sweep"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(tasks_dir, "WP01", "doing")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    (repo_root / ".git" / "hooks").mkdir(parents=True)  # a name, not a repository: no HEAD
+    assert not (repo_root / ".git" / "HEAD").exists()
+
+    monkeypatch.setattr(
+        "specify_cli.upgrade.feature_meta.resolve_primary_branch",
+        lambda _repo_root: "2.x",
+    )
+    monkeypatch.setattr(
+        "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep._migrate_runtime_assets",
+        lambda _project_path, dry_run: ([], []),
+    )
+
+    migration = ConsistencySweepMigration()
+    result = migration.apply(repo_root, dry_run=False)
+
+    assert result.success is True
+    meta_path = feature_dir / "meta.json"
+    assert meta_path.is_file(), "the sweep reported a repair it did not make"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert meta["target_branch"] == "2.x"
+    assert meta["mission_type"] == "software-dev"
+    assert any("baseline meta.json" in change for change in result.changes_made)
