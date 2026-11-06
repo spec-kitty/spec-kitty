@@ -19,6 +19,9 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
+from tests._support.git_ceiling import GIT_CEILING_ENV
+from tests._support.temp_root import harness_env
+
 import pytest
 
 pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -31,6 +34,9 @@ REL_SPEC = f"kitty-specs/{SLUG}/spec.md"
 
 @pytest.fixture(autouse=True)
 def _hermetic_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # The harness's discovery boundary is not one of the variables this strip exists to
+    # remove: keep its value and put it back after the strip (#7076).
+    ceiling = harness_env().get(GIT_CEILING_ENV)
     for name in list(os.environ):
         if (name.startswith("GIT_") or name.startswith("SPEC_KITTY_")) and name != "SPEC_KITTY_NO_UPGRADE_CHECK":
             monkeypatch.delenv(name, raising=False)
@@ -49,6 +55,22 @@ def _hermetic_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig"))
     monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
+    if ceiling is not None:
+        monkeypatch.setenv(GIT_CEILING_ENV, ceiling)
+
+
+# Captured at collection time, before any per-test strip runs: this is the value the
+# harness installed in ``pytest_configure`` (#7022), which the strip below must not eat.
+_HARNESS_CEILING = os.environ.get(GIT_CEILING_ENV)
+
+
+def test_the_hermetic_strip_keeps_the_harness_discovery_ceiling() -> None:
+    """The strip removes git steering, not the harness's discovery boundary (#7076)."""
+    assert _HARNESS_CEILING, "the harness installs a GIT_CEILING_DIRECTORIES for every run"
+    assert os.environ.get(GIT_CEILING_ENV) == _HARNESS_CEILING
+    # The strip's own job still holds: only the harness-set GIT_* variables are present.
+    assert GIT_CEILING_ENV in {name for name in os.environ if name.startswith("GIT_")}
+    assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1"
 
 
 def _git(cwd: Path, *args: str) -> str:

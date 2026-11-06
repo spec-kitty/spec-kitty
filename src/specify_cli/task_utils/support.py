@@ -46,7 +46,7 @@ class TaskCliError(RuntimeError):
 
 
 
-def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Path:
+def find_repo_root(start: Path | None = None) -> Path:
     """Find the MAIN repository root, even when inside a worktree.
 
     This function correctly handles git worktrees by detecting when .git is a
@@ -55,14 +55,12 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
 
     Args:
         start: Starting directory for search (defaults to cwd)
-        stop: Last directory examined by the walk-up. Production callers keep
-            the unbounded default (``None``), which walks all the way to the
-            filesystem root. Tests pass an explicit *stop* because nothing
-            above a test's own temp tree is under test control — on a shared
-            machine or under parallel test workers, a sibling test can leave
-            a stray ``.git``/``.kittify`` in a shared ancestor, which would
-            otherwise flip this walk's verdict non-deterministically (same
-            class of bug as #130/#139's ``_find_project_root``).
+
+    The walk's only boundary is ``GIT_CEILING_DIRECTORIES``, which
+    :func:`locate_project_root` and the plain-``.git`` fallback below share (#7022): a
+    listed directory is examined and nothing above it is. Tests used to pass an explicit
+    last directory; the harness points its own temp root inside that ceiling instead
+    (#7076), so there is no test-only boundary to carry.
 
     Returns:
         Path to the main repository root
@@ -71,9 +69,8 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
         TaskCliError: If repository root cannot be found
     """
     current = (start or Path.cwd()).resolve()
-    boundary = stop.resolve() if stop is not None else None
 
-    detected_root = locate_project_root(current, stop=stop)
+    detected_root = locate_project_root(current)
     if detected_root is not None:
         return get_main_repo_root(detected_root)
 
@@ -90,9 +87,6 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
             resolved = get_main_repo_root(candidate)
             if resolved != candidate:
                 return resolved
-
-        if boundary is not None and candidate == boundary:
-            break
 
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 

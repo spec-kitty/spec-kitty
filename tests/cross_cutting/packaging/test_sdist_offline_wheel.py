@@ -22,6 +22,8 @@ import pytest
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
 from charter.offering.packs.pack_pin import load_pack_pin
 
+from tests._support.temp_root import harness_env
+
 pytestmark = [pytest.mark.slow, pytest.mark.distribution, pytest.mark.integration]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -66,6 +68,8 @@ def _offline_env(shim_dir: Path) -> dict[str, str]:
             "SPEC_KITTY_PACK_OFFLINE": "1",
         }
     )
+    # The harness's discovery boundary survives the GIT_* strip (#7076).
+    env.update(harness_env())
     return env
 
 
