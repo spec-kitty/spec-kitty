@@ -1,7 +1,7 @@
 ---
 title: 'ADR: a destructive git operation discharges named proof obligations'
 description: 'The eight things a command must prove before it removes a worktree or deletes a branch, and the guard entry that enforces them for doctor workspaces --prune.'
-status: Proposed
+status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-06'
@@ -9,7 +9,7 @@ date: '2026-11-06'
 
 # A destructive git operation discharges named proof obligations
 
-**Status:** Proposed (2026-11-06). Operator rulings of 2026-11-06 on #7264 (ADR rather than a doc;
+**Status:** Accepted (2026-11-06, accepted by the operator on PR #7275). Operator rulings of 2026-11-06 on #7264 (ADR rather than a doc;
 local refs only for reflog reachability; one guard entry for the prune).
 
 **Date:** 2026-11-06
