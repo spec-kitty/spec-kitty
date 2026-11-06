@@ -1,13 +1,18 @@
 """The one ceiling-aware ancestor walk (#7056).
 
-Every repo/project-root walk in the stack — ``specify_cli.core.paths``'s four walks,
+The repo/project-root walks of the stack — ``specify_cli.core.paths``'s four walks,
 ``task_utils.support.find_repo_root``, the checkout-identity, mission-metadata,
 legacy-charter, coordination, gitignore, env-file, ledger-posture, middleware,
-charter-lint, next-planner and catalog-diagnosis walks — asks the same question: "walk up
+charter-lint, next-planner and catalog-diagnosis walks — ask the same question: "walk up
 from this directory until a marker matches". Before this module each asked it with its
 own ``[start, *start.parents]`` loop, and only three of them honoured
 ``GIT_CEILING_DIRECTORIES`` (#7022). This is the one walk, and the one reading of that
-variable.
+variable; ``tests/architectural/test_no_hand_rolled_root_walks.py`` keeps that idiom out
+of everything else.
+
+Not yet on it: walks written as a ``while``/``range(N)`` loop over ``.parent``, which the
+gate cannot see — ``cli.commands.session_start._find_project_root`` (#7122, with its own
+test-only ``stop=``) and five more tracked in #7269.
 
 It lives at the ``kernel`` floor because ``charter`` and ``runtime`` need it and may not
 import ``specify_cli`` (``tests/architectural/test_layer_rules.py``); ``kernel/paths.py``
@@ -29,6 +34,17 @@ are ignored (as git ignores them) and every absolute entry is resolved (git leav
 entries after an empty entry unresolved). ``tests/kernel/test_ancestor_walk.py`` pins
 each of those choices.
 
+Where the two readings disagree, the walk sees *more* than git (it examines the ceiling
+directory). For the Mission identity reader (``mission_metadata``), which asks this walk
+only after git answered "not a work tree", seeing more means refusing, never minting an
+identity over a copy git holds (#6673 NFR-002). A future change to match git exactly must
+be reviewed against that.
+
+A path that cannot be resolved (an unreadable component, or a symbolic-link loop, which
+Python 3.11 and 3.12 report as ``RuntimeError``) never escapes as an exception: a ceiling
+entry is kept as written, and the start is walked as its absolute, unresolved path, which
+is what the hand-rolled walks did.
+
 The variable is read on every call. The test harness sets it at runtime and tests
 monkeypatch it per case, so a cached read would make a walk's verdict depend on which
 test ran first.
@@ -42,7 +58,6 @@ from pathlib import Path
 from typing import Final
 
 __all__ = [
-    "GIT_CEILING_ENV",
     "find_ancestor",
     "git_ceiling_dirs",
     "iter_ancestors",
@@ -66,7 +81,15 @@ def git_ceiling_dirs(environ: Mapping[str, str] | None = None) -> frozenset[Path
         The resolved absolute entries. Empty and relative entries are dropped.
     """
     source = os.environ if environ is None else environ
-    return frozenset(Path(part).resolve() for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep) if part and Path(part).is_absolute())
+    return frozenset(_resolved(Path(part)) for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep) if part and Path(part).is_absolute())
+
+
+def _resolved(path: Path) -> Path:
+    """*path* resolved, or its absolute form when it cannot be (see the module docstring)."""
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError):
+        return path.absolute()
 
 
 def iter_ancestors(
@@ -90,7 +113,7 @@ def iter_ancestors(
     Yields:
         Each candidate directory, nearest first.
     """
-    resolved_start = Path(start).resolve()
+    resolved_start = _resolved(Path(start))
     boundary = git_ceiling_dirs() if ceilings is None else ceilings
 
     for candidate in (resolved_start, *resolved_start.parents):
