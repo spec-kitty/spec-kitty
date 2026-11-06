@@ -1,28 +1,24 @@
-"""#6768 -- resynthesizing a project's own directive must not hit the built-in layer.
+"""#6768 -- resynthesizing a hand-authored project directive is an honest no-op, not a collision.
 
-A `charter resynthesize --topic directive:<PROJECT_xxx>` run refused the project's own
-directive with the FR-020 / EC-6 additive-only violation, because the CLI's
-`SynthesisRequest.drg_snapshot` held every config-activated directive -- the project's
-`PROJECT_*` directives included -- and every consumer read that one snapshot as the
-*built-in* layer. A project could not amend its own directive through the CLI.
+A `charter resynthesize --topic directive:<PROJECT_xxx>` run refused a directive the project
+authored itself with the FR-020 / EC-6 additive-only violation, because the topic's target
+reached the check although synthesis writes nothing for it. A bounded run now drops a target
+nothing generates, and reports "nothing to regenerate" when none is left.
 
-The fix separates the two layers where the request is authored: the additive-only check
-reads a built-in-only snapshot built from the shipped DRG, and `drg_snapshot` keeps its
-role as the reference universe the project's own references resolve against.
+The check itself keeps refusing a real write over something synthesis did not create: it reads
+the shipped DRG plus the activated directives synthesis does not own
+(`test_collision_refusal_6510.py` pins the hand-written directive). `drg_snapshot` stays the
+narrower reference universe the project's own references resolve against.
 
-These tests drive the real `charter activate` / `charter resynthesize` commands. The
-fixture reaches the reported state exactly: a `PROJECT_*` directive the project authored
-itself and activated, so it is in `activated_directives` but the synthesis manifest
-records it as a `project-direct-write` registration, never as synthesis ownership.
-
-Non-vacuity (tactic `acceptance-criteria-non-vacuity`): the passing case and the built-in
-positive control are built from one shared fixture and one shared graph, so the probe
-demonstrably distinguishes a shipped built-in URN from a project one. The undeclared-URN
-refusal pairs with the reference-resolves case on the same reference snapshot.
+These tests drive the real `charter activate` / `charter resynthesize` commands. The fixture
+reaches the reported state exactly: a `PROJECT_*` directive the project authored itself and
+activated, so it is in `activated_directives` but the synthesis manifest records it as a
+`project-direct-write` registration, never as synthesis ownership.
 """
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from collections.abc import Callable, Iterator
@@ -58,6 +54,7 @@ _AUTHORED_PHRASE = "Every change names the guardrail it serves."
 
 #: A synthesis-created directive of the first run (synthesis ownership, #6510's case).
 _OWNED_STEM = "001-project-intent-directive"
+_OWNED_SLUG = "project-intent-directive"
 
 _ANSWERS = (
     "schema_version: '1'\nmission: software-dev\nprofile: minimal\nanswers:\n"
@@ -189,26 +186,40 @@ def project(
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_resynthesize_activated_project_authored_directive_succeeds(project: Path) -> None:
-    """A project directive the project authored and activated is resynthesizable."""
+def test_resynthesize_hand_authored_directive_reports_nothing_to_regenerate(project: Path) -> None:
+    """Exit 0 and an honest report: no refusal, no false "regenerated", and the file is untouched."""
+    directive = project / _PROJECT_DIRECTIVES / f"{_AUTHORED_STEM}.directive.yaml"
+    before = directive.read_bytes()
+
     result = _invoke("resynthesize", "--topic", _AUTHORED_URN, "--json")
 
-    assert "colliding_urn" not in result.output, result.output
     assert result.exit_code == 0, result.output
-    # The registration normalizes the authored stem to the canonical directive slug.
-    assert "directive:project-007" in result.output
+    payload = json.loads(result.stdout)
+    assert payload["result"] == "noop"
+    assert "Nothing to regenerate" in payload["diagnostic"]
+    assert "regenerated" not in payload
+    assert directive.read_bytes() == before
 
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_resynthesize_twice_is_not_a_refusal(project: Path) -> None:
-    """A second run regenerates or no-ops; it never refuses on the lane it just wrote."""
-    first = _invoke("resynthesize", "--topic", _AUTHORED_URN, "--json")
-    assert first.exit_code == 0, first.output
+@pytest.mark.parametrize(
+    "args",
+    [("synthesize", "--json"), ("synthesize", "--dry-run", "--json"), ("resynthesize", "--topic", f"directive:{_OWNED_SLUG}", "--json")],
+    ids=["synthesize", "dry-run", "resynthesize"],
+)
+def test_project_profile_shadowing_a_shipped_profile_refuses_with_its_remedy(project: Path, args: tuple[str, ...]) -> None:
+    """Each write path reads the shipped graph, including nodes no one activated, and prints the remedy."""
+    profile_id = next(node.urn for node in load_built_in_graph().nodes if node.kind.value == "agent_profile").partition(":")[2]
+    profiles = project / ".kittify" / "charter-packs" / "agent_profiles"
+    profiles.mkdir(parents=True, exist_ok=True)
+    (profiles / f"{profile_id}.agent.yaml").write_text(f"profile-id: {profile_id}\nname: Shadow\n", encoding="utf-8")
 
-    second = _invoke("resynthesize", "--topic", _AUTHORED_URN, "--json")
-    assert "colliding_urn" not in second.output, second.output
-    assert second.exit_code == 0, second.output
+    result = _invoke(*args)
+
+    assert result.exit_code == 1, result.output
+    assert f"agent_profile:{profile_id}" in result.output
+    assert "Give the project profile a profile-id" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -255,18 +266,17 @@ def test_built_in_urn_still_refuses_and_project_urn_does_not(project: Path) -> N
 
 
 @pytest.mark.integration
-def test_request_carries_a_built_in_layer_without_project_directives(project: Path) -> None:
-    """The built-in layer holds shipped nodes only; the reference universe keeps the project's."""
+def test_request_additive_layer_is_the_shipped_graph_plus_the_reference_universe(project: Path) -> None:
+    """The additive layer refuses over shipped and activated nodes; references stay narrower."""
     request, _ = _build_synthesis_request(project, "generated")
 
-    built_in = frozenset(node["urn"] for node in request.built_in_drg_snapshot["nodes"])
+    additive = frozenset(node["urn"] for node in request.additive_drg_snapshot["nodes"])
     reference = frozenset(node["urn"] for node in request.drg_snapshot["nodes"])
+    shipped = frozenset(node.urn for node in load_built_in_graph().nodes)
 
-    assert _AUTHORED_URN not in built_in
     assert _AUTHORED_URN in reference
-    # Not satisfied by an empty layer: the shipped graph's own directives are present.
-    shipped_directives = {node.urn for node in load_built_in_graph().nodes if node.kind.value == "directive"}
-    assert shipped_directives & built_in
+    assert additive == shipped | reference
+    assert shipped - reference, "the reference universe must stay narrower than the shipped graph"
 
 
 # ---------------------------------------------------------------------------
@@ -274,9 +284,9 @@ def test_request_carries_a_built_in_layer_without_project_directives(project: Pa
 # ---------------------------------------------------------------------------
 
 
-def test_built_in_snapshot_falls_back_to_the_reference_universe() -> None:
+def test_additive_snapshot_falls_back_to_the_reference_universe() -> None:
     """A request without the new field behaves exactly as before (every existing caller)."""
-    from charter.activation.synthesizer.request import built_in_snapshot
+    from charter.activation.synthesizer.request import additive_snapshot
 
     snapshot = {"nodes": [{"urn": "directive:DIRECTIVE_003", "kind": "directive"}], "edges": []}
     request = SynthesisRequest(
@@ -287,16 +297,16 @@ def test_built_in_snapshot_falls_back_to_the_reference_universe() -> None:
         run_id="01M00000000000000000000000",
     )
 
-    assert request.built_in_drg_snapshot is None
-    assert built_in_snapshot(request) is snapshot
+    assert request.additive_drg_snapshot is None
+    assert additive_snapshot(request) is snapshot
 
 
 @pytest.mark.integration
 def test_unloadable_built_in_graph_keeps_the_previous_behaviour(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A missing shipped pack is not turned into a new failure mode by the request builder."""
+    """A shipped graph that fails to load falls back to the reference snapshot."""
 
     def _explode() -> Any:
-        raise DRGLoadError("built-in pack missing")
+        raise DRGLoadError("built-in graph unreadable")
 
     # The builder imports through the charter proxy (`charter.drg`), which the
     # runtime doctrine-boundary ratchet enforces; patch that seam.
@@ -304,7 +314,7 @@ def test_unloadable_built_in_graph_keeps_the_previous_behaviour(project: Path, m
 
     request, _ = _build_synthesis_request(project, "generated")
 
-    assert request.built_in_drg_snapshot is None
+    assert request.additive_drg_snapshot is None
     assert request.drg_snapshot["nodes"]
 
 

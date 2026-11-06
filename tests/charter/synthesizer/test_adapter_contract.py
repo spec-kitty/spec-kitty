@@ -176,7 +176,7 @@ class TestContractStructuralEquivalence:
         envelope field cannot be declared there. The contract's promise is that a
         contract-shaped caller keeps working: every field it names is present, and
         anything the impl adds carries a default (#6768 added
-        ``built_in_drg_snapshot``). A removed or renamed contract field still fails.
+        ``additive_drg_snapshot``). A removed or renamed contract field still fails.
         """
         contract = self._load_contract_module(monkeypatch)
         import dataclasses

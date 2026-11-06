@@ -31,6 +31,8 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 
 from __future__ import annotations
 
+import dataclasses
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,7 +53,7 @@ from .reconcile import legacy_applies_edges as _legacy_applies_edges
 from .reconcile import legacy_strip_notice as _legacy_strip_notice
 from .reconcile import synthesized_node_urns as _synthesized_node_urns
 from .reconcile import rewrite_manifest as _rewrite_manifest
-from .request import SynthesisRequest, SynthesisTarget, built_in_snapshot as _built_in_snapshot
+from .request import SynthesisRequest, SynthesisTarget, additive_snapshot as _additive_snapshot
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
@@ -340,16 +342,30 @@ def run(
         run_id=run_id,
         adapter_hints=request.adapter_hints,
         evidence=request.evidence,
-        # #6768: a bounded run is still a synthesis run; it must keep the layer
-        # split the caller authored, or it silently regresses to reading the
-        # reference universe as the built-in layer.
-        built_in_drg_snapshot=request.built_in_drg_snapshot,
     )
 
     # ------------------------------------------------------------------
     # Step 5: Run the full pipeline and filter to bounded targets
     # ------------------------------------------------------------------
     all_new_results = _run_bounded(bounded_request, adapter, target_slugs)
+
+    # #6768: the topic can name an artifact synthesis has no generator for, such as a
+    # directive the project authored by hand. Nothing is written for it, so saying
+    # "regenerated" (or refusing it as a collision) would both be false.
+    generated_slugs = frozenset(prov.artifact_slug for _, prov in all_new_results)
+    generated_targets = [t for t in resolved.targets if t.slug in generated_slugs]
+    if not generated_targets:
+        names = ", ".join(t.urn for t in resolved.targets)
+        return ResynthesisResult(
+            manifest=existing_manifest,
+            resolved_topic=resolved,
+            is_noop=True,
+            diagnostic=(
+                f"Nothing to regenerate: this run's synthesis targets do not include {names}. "
+                "If the project authored it by hand, edit its file directly."
+            ),
+        )
+    resolved = dataclasses.replace(resolved, targets=generated_targets)
 
     # ------------------------------------------------------------------
     # Step 6: Build final merged manifest (FR-017: untouched entries retain
@@ -363,8 +379,8 @@ def run(
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
-    # #6768: the additive-only check reads the built-in layer only; the
-    # validation gate below keeps the reference universe (project nodes included).
+    # #6768: the additive-only check reads the additive layer; the validation gate
+    # below keeps the reference universe.
     built_in_drg = _built_in_drg_from_request(request)
 
     # Org-aware re-emission base (#4121, MAJOR 2), shared by the emit and the
@@ -541,13 +557,13 @@ def _load_merged_drg(
 
 
 def _built_in_drg_from_request(request: SynthesisRequest) -> DRGGraph:
-    """Build the built-in-layer DRGGraph the FR-020 / EC-6 check runs against.
+    """Build the additive-layer DRGGraph the FR-020 / EC-6 check runs against.
 
-    Reads ``request.built_in_drg_snapshot`` when the request carries one and
+    Reads ``request.additive_drg_snapshot`` when the request carries one and
     falls back to ``request.drg_snapshot`` otherwise (#6768): the fallback is
     what every pre-#6768 caller and test relies on.
     """
-    return _built_in_drg_from_request_snapshot(_built_in_snapshot(request))
+    return _built_in_drg_from_request_snapshot(_additive_snapshot(request))
 
 
 def _built_in_drg_from_request_snapshot(snapshot_input: Mapping[str, Any]) -> DRGGraph:

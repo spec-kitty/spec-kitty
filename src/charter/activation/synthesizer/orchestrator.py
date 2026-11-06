@@ -225,7 +225,7 @@ def synthesize(
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
         from .reconcile import apply_prune as _apply_prune  # noqa: PLC0415
         from .reconcile import reconcile_synthesis as _reconcile_synthesis  # noqa: PLC0415
-        from .request import built_in_snapshot as _built_in_snapshot  # noqa: PLC0415
+        from .request import additive_snapshot as _additive_snapshot  # noqa: PLC0415
         from .synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
         from .staging import StagingDir as _StagingDir  # noqa: PLC0415
@@ -252,11 +252,11 @@ def synthesize(
     results = _run_all(request, adapter=adapter)
 
     # #6768: two layers, two roles. ``reference_drg`` is the universe targets and
-    # the validation gate resolve against (it holds the project's own nodes);
-    # ``built_in_drg`` is the shipped built-in layer only, the one the FR-020 /
-    # EC-6 additive-only check may refuse a target against.
+    # the validation gate resolve against; ``built_in_drg`` is the additive layer
+    # the FR-020 / EC-6 check refuses a target against: the shipped graph plus the
+    # reference universe.
     reference_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
-    built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(_built_in_snapshot(request)))
+    built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(_additive_snapshot(request)))
     interview_snapshot = _normalize_interview_snapshot(dict(request.interview_snapshot))
     sections = _resolve_sections(interview_snapshot)
     targets = _build_targets(
