@@ -21,3 +21,4 @@
   - fix spec FR-084/C-003 wording, then re-run analyze;
   - delete the third landed-reader copy in `phase_advance.py:264` unless WP07 does;
   - delete or rename the remaining old enum-member docstrings.
+- **[2026-11-06][review WP13] Closeout item:** the out-of-matrix `tests/specify_cli/cli/commands` directory shows failures that reviewers attributed to xdist or the base without serial confirmation (charter-cascade, doctrine-asset, `test_activate_only_6408`, the merge-golden `--dependency-ref`, and others). Before the PR, run that directory on the consolidated branch and on origin/main and classify each red (CLAUDE.md test policy; out-of-matrix category 6).
