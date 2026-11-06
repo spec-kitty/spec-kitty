@@ -1,7 +1,7 @@
 # Issue classification: method and results
 
 **Window:** issues created 2026-08-06..2026-11-06 in `spec-kitty/spec-kitty`.
-**Files:** `issue-classification.csv` (1365 rows), `issue-hand-labels.csv` (170 hand labels) and `scripts/issue_classify.py` (the heuristic).
+**Files:** `issue-classification.part{1,2}.csv` (1365 rows), `issue-hand-labels.csv` (170 hand labels) and `scripts/issue_classify.py` (the heuristic).
 
 ## Method
 
@@ -65,3 +65,5 @@
 - **Duplicates:** chains of regression and follow-up issues for one defect class (e.g. #4981 → #5570 → #6871 → #7121) overweight a few classes.
 - **Bots:** 105 bot issues are classified NL:CI.
 - **CT is broad:** it includes resume, abort and rollback windows that are only partly caused by coordination topology.
+
+The classified rows are split into parts so each file stays under the 256 KiB Mission artifact cap that the corpus check enforces (`tests/contract/test_mission_status_reality.py`, `_CONTENT_CAP`). Each part carries the header row; concatenate them to rebuild the table.

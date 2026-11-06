@@ -1,6 +1,6 @@
 # Tracer friction classification: method and results
 
-Window: 2026-08-06 to 2026-11-06. Data: `tracer-entries.csv`, which has one row per friction entry. Scripts: `scripts/extract.py` and `scripts/classify.py`.
+Window: 2026-08-06 to 2026-11-06. Data: `tracer-entries.part{1,2,3}.csv`, which has one row per friction entry. Scripts: `scripts/extract.py` and `scripts/classify.py`.
 
 ## Method
 
@@ -37,3 +37,5 @@ Window: 2026-08-06 to 2026-11-06. Data: `tracer-entries.csv`, which has one row 
 - `kitty-specs/meta-driver-base-aware-01M490FF/traces/tooling-friction.md:7`: the Mission defaulted to coord, and the worktree and branch were removed by hand.
 - `kitty-specs/backfill-runtime-state-idempotent-claim-slots-01M67HR8/traces/tooling-friction.md:7`: a lane worktree has no `packs/` tree, so the run failed with `BuiltInPackMissing`.
 - `kitty-specs/upgrade-project-global-state-01M44538/traces/tooling-friction.md:11`: a commit in the root checkout racing a subagent swept staged status events into an unrelated commit.
+
+The classified rows are split into parts so each file stays under the 256 KiB Mission artifact cap that the corpus check enforces (`tests/contract/test_mission_status_reality.py`, `_CONTENT_CAP`). Each part carries the header row; concatenate them to rebuild the table.
