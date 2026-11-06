@@ -340,9 +340,9 @@
     },
     "WP12": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -350,7 +350,8 @@
       "last_transition_at": "2026-11-06T16:05:21.779351+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S8 per-WP approval windows: tier 1+2 claim arm (write_branch_bound.py), gate re-check via lane->branch map, orchestrator planning-only preflight (reused codes), strict-xfail commit-to-target residual"
+        "S8 per-WP approval windows: tier 1+2 claim arm (write_branch_bound.py), gate re-check via lane->branch map, orchestrator planning-only preflight (reused codes), strict-xfail commit-to-target residual",
+        "Cycle 2: dead-symbol gate green (37 passed); ApprovalWindow/approval_windows out of __all__, commits_outside_windows private, stamp_refusal out of __all__, ADR residuals added"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
