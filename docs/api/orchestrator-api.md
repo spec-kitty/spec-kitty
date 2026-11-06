@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.23.0`
+- `CONTRACT_VERSION`: `1.24.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -227,6 +227,9 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   must handle it. The code appears in `data.preflight_error_code(s)` and
   `data.evidence_error_codes`, so the contract-visible error-code set grows, a minor bump; no field
   or `error_code` is removed or renamed.
+- `1.24.0` — the `planning_commit.action` vocabulary of the `tasks` verb gains `"derived"`
+  (#7210): finalize-tasks records a planning commit read from git for a `lanes.json` with none.
+  Purely additive.
 
 ## Response Envelope
 
@@ -234,7 +237,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.23.0",
+  "contract_version": "1.24.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

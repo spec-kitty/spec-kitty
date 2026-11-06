@@ -462,7 +462,8 @@ _FINALIZE_PIN_RECOVERY = (
     "run plain `spec-kitty agent mission finalize-tasks` (no flags) to record the planning commit: with none recorded it derives one "
     "from git, the target-branch commit before the Mission's tasks/WP*.md first appeared there. Do not use `--refresh-planning-commit` "
     "for this: it records the live target tip, which leaves an empty window. Then re-run. If finalize-tasks still warns that it kept the "
-    "recorded pin unchanged, the task files are not in the target branch's history: escalate to the operator instead of writing a "
+    "recorded pin unchanged, the task files are not in the target branch's history, or a lane branch does not contain that commit: "
+    "escalate to the operator instead of writing a "
     "planning commit into lanes.json by hand."
 )
 
