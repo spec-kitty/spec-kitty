@@ -1036,8 +1036,9 @@ directory itself resolves outside the pack, are reported as `ORG_ASSET_PATH_ESCA
 
 #### The same rule on `charter status` and `charter org validate`
 
-Since #6733 the other two surfaces that report on an org pack give the same verdict as the doctor,
-from the same predicates, so a pack cannot look sound on one command and unsound on another.
+Since #6733 the other two surfaces that report on an org pack also report a fragment `body_path` or an asset
+that leaves the pack. `charter status` reports these findings but still exits 0; the other two exit 1. A pack
+skill's `body_path` is refused when the skill is activated and isn't reported on these surfaces (#7299).
 
 | Surface | Where the finding appears | What names it |
 | --- | --- | --- |
@@ -1048,7 +1049,7 @@ from the same predicates, so a pack cannot look sound on one command and unsound
 channel it already uses for a dangling edge endpoint. If a containment check cannot run, the array
 says so (`org-layer body_path check failed: ...`) rather than reading as "no escapes".
 
-All three commands write the same sentence for the same fault. `charter org validate` checks a
+All three commands write the same sentence for a fragment `body_path`, an asset `path` and an `assets/` directory outside the pack. `charter org validate` checks a
 pack directory rather than a registered pack, so it names the pack by its directory name, while
 `doctor charter-packs` and `charter status` use the name from `.kittify/config.yaml`. The validator
 also reports every asset of a pack whose `assets/` directory itself resolves outside the pack, as
