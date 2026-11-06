@@ -1,7 +1,7 @@
 # Implementation Plan: Lane and worktree model hardening
 
 **Branch**: `issue-7276-lane-worktree-hardening` (planning base = consolidation target; Mission topology `lanes`) | **Date**: 2026-11-06 | **Spec**: [spec.md](./spec.md)
-**Input**: Mission specification from `kitty-specs/lane-worktree-model-hardening-01M6QY1M/spec.md`, the 17 resolved Decision Moments (`spec-kitty agent decision list --mission lane-worktree-model-hardening-01M6QY1M`), and the six discovery briefs (A status surface, B lane lifecycle, C topology, D `single_branch` bound, E cleanup, F doctrine and write-service ADRs).
+**Input**: Mission specification from `kitty-specs/lane-worktree-model-hardening-01M6QY1M/spec.md`, the 19 resolved Decision Moments (`spec-kitty agent decision list --mission lane-worktree-model-hardening-01M6QY1M`), and the six discovery briefs (A status surface, B lane lifecycle, C topology, D `single_branch` bound, E cleanup, F doctrine and write-service ADRs).
 
 Profile: architect-alphonso. Every planning question was answered by the rulings, the escalation answers and assumptions A-1 to A-12. Four design points the rulings did not settle (OQ-1 to OQ-4) went to the operator and, with two later decisions (`primary_partition_default`, `pr_bound_fallback`), are resolved; see [Resolved planning decisions](#resolved-planning-decisions).
 
@@ -59,7 +59,7 @@ The Mission applies the 2026-11-06 operator rulings to the lane, worktree and co
 kitty-specs/lane-worktree-model-hardening-01M6QY1M/
 ├── spec.md, plan.md, research.md, data-model.md, quickstart.md
 ├── contracts/                     # CLI/JSON contract deltas (this phase)
-├── decisions/                     # 17 resolved Decision Moments
+├── decisions/                     # 19 resolved Decision Moments
 ├── upstream/                      # hand-offs: open-packs patch (IC-17), events ADR drafts (sibling session), ADR 2026-11-06-1 amendment draft (IC-03)
 ├── traces/                        # tracer files
 └── tasks.md, tasks/               # /spec-kitty.tasks output (not created here)
@@ -113,11 +113,13 @@ docs/changelog/unreleased/  one fragment per issue (<id>.<section>.md)
 
 ## Implementation Concern Map
 
-> Concerns are not work packages. `/spec-kitty.tasks` turns them into WPs. The recommended mapping is one WP per concern (17). IC-04 and IC-05 may merge if #6884 has landed before tasks, which gives 16.
+> Concerns are not work packages. `/spec-kitty.tasks` turns them into WPs. The recommended mapping is one WP per concern (18; IC-18 was added after `/spec-kitty.analyze` finding E1). IC-17 is split into three WPs (WP17-WP19) and IC-18 is WP20.
 
 ```mermaid
 flowchart LR
   IC01[IC-01 ADR S1+ruling3] --> IC05
+  IC01 --> IC04
+  IC03 --> IC09
   IC04[IC-04 S1 tidy+root norm] --> IC05[IC-05 S1 door] --> IC06[IC-06 S1 migrate CLI/status] --> IC07[IC-07 S1 consolidation + gate]
   IC08[IC-08 S2 gate on ref] --> IC09[IC-09 S3/S6 helper+exclusion]
   IC01 --> IC09 --> IC10[IC-10 S6 write refusals+migration]
@@ -128,7 +130,10 @@ flowchart LR
   IC03[IC-03 ADR S3/S5/S9] --> IC15[IC-15 S5 cleanup module] --> IC16[IC-16 S5 bind after #7275]
   IC06 --> IC16
   IC09 --> IC16
-  IC07 & IC10 & IC12 & IC14 & IC15 --> IC17[IC-17 S11 text + docs]
+  IC15 --> IC13
+  IC15 --> IC14
+  IC07 & IC14 & IC15 --> IC18[IC-18 S7 consolidate lands topic-branch PRIMARY]
+  IC07 & IC10 & IC12 & IC14 & IC15 & IC18 --> IC17[IC-17 S11 text + docs]
 ```
 
 **In-flight PR rebase plan.** All five PRs are owned outside this Mission. Each one is waited for or rebased onto, never stacked on.
@@ -171,7 +176,7 @@ flowchart LR
   - add the characterization matrix (topology × CoordState × owned × cwd) pinned at today's values.
 - **Owns**: `missions/_read_path_resolver.py` (`_canonical_status_read_root` lifted to one helper called by `resolve_status_surface_with_anchor`, `candidate_feature_dir_for_mission`, `resolve_surface_dir_or_typed_error`, `MissionStatus.load` and `committed_authority.primary_surface_dir`); `coordination/status_service.py` (`read_event_log`/`read_event_stream_log` return a typed absent-vs-unreadable result); `cli/commands/implement_phases.py` (the rename only); docstring hunks in `mission_runtime/resolution.py`; `tests/status/test_status_read_matrix.py` (new).
 - **Red-first**: `test_lane_root_reads_write_checkout_state` (lane copy at `planned`, write checkout at `in_progress`, three entry points each return the write checkout); `test_ref_reader_bad_ref_raises_typed_error`; `test_ref_reader_absent_file_reads_empty`; positive control `test_repository_root_input_unchanged`.
-- **Size**: M. **Depends-on**: #6884 landed or carried. **ADR**: IC-01 (ruling 8 already binds).
+- **Size**: M. **Depends-on**: IC-01 (the ADR records the fail-closed registry and the typed ref errors before the code lands; analysis F1), #6884 landed or carried. **ADR**: IC-01 (ruling 8 already binds).
 
 ### IC-05 — S1 read door and declared sources (S1 #7277)
 
@@ -204,7 +209,7 @@ flowchart LR
 - **Tidy**: `lane_sparse_checkout_patterns` takes the resolved Mission dir name (the slug+mid8 wrapper kept); `_register_sparse_checkout_if_coord` is renamed.
 - **Owns**: `lanes/lane_checkout.py` (new: `open_lane_checkout(...)`, the only lane `git worktree add`; it installs the lane-tip hook, the `.spec-kitty/` exclude and sparse on every topology with code lanes); `lanes/worktree_allocator.py` (FRESH, FRESH_LEGACY, CRASH_RECOVERY routes); `lanes/lifecycle_sync.py` (`:139`); `cli/commands/agent/workflow.py` (`_create_review_worktree`); `coordination/workspace.py` (patterns); `workspace/landed_worktrees.py` (printed recreate command, `:636-638` hunk only); `tests/architectural/test_lane_checkout_single_seam.py` (new).
 - **Red-first**: `test_lanes_topology_allocation_has_no_status_files_on_disk` (and branch tree still carries the fork-time blob); `test_review_checkout_has_no_status_files`; `test_lifecycle_sync_recreate_has_no_status_files` (flips `tests/integration/test_lane_lifecycle_sync.py:124` deliberately); `test_lane_tip_hook_fires_in_helper_checkout`; gate planted raw `worktree add`.
-- **Size**: M. **Depends-on**: IC-01, IC-08 (S2 before S3's helper). **ADR**: IC-01, IC-03.
+- **Size**: M. **Depends-on**: IC-01, IC-03 (the S3 amendment to ADR `2026-04-03-1` governs the helper; analysis F1), IC-08 (S2 before S3's helper). **ADR**: IC-01, IC-03.
 
 ### IC-10 — S6: lanes never change status; migrate existing lane worktrees; doctor probe (S6 #7281)
 
@@ -230,15 +235,15 @@ flowchart LR
 - **Tidy**: one `TOPOLOGY_HELP` constant used by `mission_create.py:866`, `lifecycle.py:162` and `design_phase.py:173`; extract the protected-mint "switch the write checkout" core with the #5676 occupancy and dirty refusals (red-first bug fix); pure `count_code_lanes(...)` in `lanes/compute_and_persist.py`; a `restamp_*` sibling of `flatten_coordination_metadata` in `mission_metadata.py`, ratchet-registered (it promotes `mission_branch` to `coordination_branch` under the same name).
 - **Owns**: `meta_keys.py` (`TOPOLOGY_SOURCE_KEY`, `TOPOLOGY_DECISION_KEY`, `CREATE_RETURN_BRANCH_KEY`); `cli/commands/agent/mission_create.py` (`_resolve_default_topology_phase` returns `(topology, source)`; the default arm becomes provisional); `core/mission_creation.py`, `core/mission_creation_meta.py`, `core/mission_creation_protected_mint.py`; `cli/commands/lifecycle.py`; `orchestrator_api/design_phase.py` (help + specify envelope fields `topology_source` / `topology_provisional` under contract 1.24.0); `mission_metadata.py`; `lanes/compute_and_persist.py`; `mission_runtime/context.py` (docstring).
 - **Red-first**: `test_create_without_topology_mints_only_topic_branch` (protected and unprotected targets: 1 new branch, 0 worktrees, no coordination branch); positive control `test_explicit_topology_coord_still_creates_coord_branch`; `test_owned_checkout_unchanged`; `test_commit_to_target_still_requires_explicit_single_branch` (FR-060); `test_create_json_marks_provisional`; `test_create_records_return_branch` (the branch the write checkout was on, also when it is not the target); `test_create_target_never_resolves_to_another_missions_topic_branch` (research R-6 risk); `test_occupied_write_checkout_refuses_switch` (#5676).
-- **Size**: M. **Depends-on**: IC-02. Must not reach a release before IC-12 and IC-14 (C-010): IC-13's create change and IC-14 ship together.
+- **Size**: M. **Depends-on**: IC-02, IC-15 (IC-15 owns the single 1.24.0 bump and the doc page; IC-13 adds its `specify` field rows there as a recorded out-of-map edit after it, analysis F2). Must not reach a release before IC-12 and IC-14 (C-010): IC-13's create change and IC-14 ship together.
 
 ### IC-14 — S7 settlement at the first finalize, with compensation (S7 #7282)
 
 - **Owns**: `cli/commands/agent/mission_finalize.py` (`_decide_topology_by_size` phase before the frozen preflight `:1449`; `_apply_topology_settlement` before `_emit_tasks_started` `:1462`); `cli/commands/agent/mission_finalize_lanes.py` (takes the decided topology); `cli/commands/agent/mission_finalize_commit.py` (re-stamped `meta.json` attributable); `lanes/topology_settlement.py` (new: transition plan + git steps + compensation); `mission_runtime/resolution.py` (`single_branch_write_ref` provisional arm, sequenced after IC-06); `cli/commands/agent/tasks_finalize.py` and `migration/mission_state.py` (no-redecide pins only).
 - **Scope (one settlement path, DM `01M6R0B954ZPQN5NV4R1ZRE7NY`)**: the decision yields `single_branch` (no git step) or `lanes_with_coord` on every target. The only git-moving path is: commit the Mission dir on the topic branch; move the repository root checkout to `create_return_branch`; re-stamp `meta.json` (`coordination_branch` = topic ref, `mission_branch` kept as the PRIMARY partition, FR-061); materialize the coordination worktree on the topic branch; write `lanes.json`. There is no landing onto the target, no fast-forward or merge step and no protection-dependent arm, so the earlier `lanes` settlement path and its conflict compensation are gone.
-- **First commit (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`, FR-061)**: `test_default_mission_primary_placement_topic_branch_pinned`, which pins that a default Mission's PRIMARY reads and writes go to the topic branch before and after settlement, and that `consolidate` lands them on the target. A positive control pins that an explicit `--topology lanes_with_coord` create keeps PRIMARY on `target_branch`. No escalation is needed.
+- **First commit (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`, FR-061)**: `test_default_mission_primary_placement_topic_branch_pinned`, which pins that a default Mission's PRIMARY reads and writes go to the topic branch before and after settlement, and that the consolidate landing is IC-18's (FR-062; the `consolidate` leg is asserted in IC-18's own red-first tests, not here). A positive control pins that an explicit `--topology lanes_with_coord` create keeps PRIMARY on `target_branch`. No escalation is needed.
 - **Red-first**: `test_two_wp_settles_single_branch_events_readable`; `test_three_lanes_protected_settles_lanes_with_coord_topic_is_coord`; `test_three_lanes_unprotected_settles_lanes_with_coord_topic_is_coord` (no commit lands on the target; lane branches later fork from the topic branch); `test_settlement_moves_root_checkout_before_coord_worktree` (root checkout on `create_return_branch`, coordination worktree on the topic branch); `test_settlement_refuses_missing_or_busy_return_branch`; `test_explicit_lanes_and_coord_still_materialize_at_create` (positive control: `lanes`/`coord` are explicit-only, never a settlement outcome); `test_five_wp_one_code_lane_settles_single_branch`; `test_explicit_topology_wins`; `test_refinalize_never_redecides`; `test_legacy_mission_without_source_never_changes` (FR-057, with a provisional control); `test_validate_only_previews_and_writes_nothing`; `test_finalize_json_reports_decision` (also through `orchestrator-api tasks`, contract 1.24.0); `test_settlement_refuses_occupied_or_dirty_write_checkout`; `test_settlement_fault_injection_restores_byte_identical` (NFR-003, one arm per git step, including the root checkout restored onto the topic branch); `test_canceled_wps_not_counted_planning_wps_counted`.
-- **Size**: M-L (down from L: one settlement path; `/spec-kitty.tasks` may still split decision and transition). **Depends-on**: IC-12 (C-010), IC-13, #7255. **ADR**: IC-02.
+- **Size**: M-L (down from L: one settlement path; `/spec-kitty.tasks` may still split decision and transition). **Depends-on**: IC-12 (C-010), IC-13, IC-15 (the `tasks` field rows go into IC-15's 1.24.0 page as a recorded out-of-map edit, analysis F2), #7255. **ADR**: IC-02.
 
 ### IC-15 — S5: one lane-cleanup module behind a remover port; keep and report (S5 #7280)
 
@@ -255,9 +260,17 @@ flowchart LR
 
 ### IC-17 — S11 core text, docs and changelog (S11 #7285, FR-059 docs)
 
-- **Owns**: `src/charter/offering/skills/{spec-kitty-implement-review,spec-kitty-git-workflow,spec-kitty-program-orchestrate,spec-kitty-mission-review,spk-gate-consolidate,spk-run-blocked-recovery}/SKILL.md` (K1-K9); `lanes/stale_check.py` (`_stale_remediation` prints a `spec-kitty` command, after the A-10 re-entry path is verified); `tests/charter_offering/test_command_skill_text_guard.py` (new; FR-093 planted strings); `upstream/open-packs-doctrine.patch` + hand-off steps (FR-092; rows whose behaviour ships); `docs/architecture/execution-lanes.md`, `docs/architecture/git-worktrees.md`, `docs/context/topology.md` (size default, topic branch, the coordination branch shares the Mission branch name), CLAUDE.md "Execution Workspace Strategy" and "Consolidation" paragraphs; `docs/changelog/unreleased/{7277,7278,7279,7280,7281,7282,7283,7284,7285}.<section>.md`.
+- **Owns**: `src/charter/offering/skills/{spec-kitty-implement-review,spec-kitty-git-workflow,spec-kitty-program-orchestrate,spec-kitty-mission-review,spk-gate-consolidate,spk-run-blocked-recovery}/SKILL.md` (K1-K9); `lanes/stale_check.py` (`_stale_remediation` prints a `spec-kitty` command, after the A-10 re-entry path is verified); `tests/charter_offering/test_command_skill_text_guard.py` (new; FR-093 planted strings); `upstream/open-packs-doctrine.patch` + hand-off steps (FR-092; superseded: the operator made open-packs PR #128 ready and ungated with the S11 doctrine already applied, so WP19 is canceled at implement time and this Mission does not bump the core pack pin); `docs/architecture/execution-lanes.md`, `docs/architecture/git-worktrees.md`, `docs/context/topology.md` (size default, topic branch, the coordination branch shares the Mission branch name), CLAUDE.md "Execution Workspace Strategy" and "Consolidation" paragraphs; `docs/changelog/unreleased/{7277,7278,7279,7280,7281,7282,7283,7284,7285}.<section>.md`.
 - **Red-first**: `test_stale_remediation_has_no_git_merge_or_worktrees_cd`; the skill guard (no `spec-kitty merge`, no manual stale-lane recipe, no hand status-commit advice, no lease text); `test_pack_patch_applies_to_pinned_tree` (`git apply --check` against the `packs/built-in.source.yaml` pin).
-- **Size**: M. **Depends-on**: IC-07, IC-08, IC-10, IC-12, IC-14, IC-15 (FR-093). Sentences about IC-16 behaviour are withheld until IC-16 lands, or are added in IC-16's PR.
+- **Size**: M. **Depends-on**: IC-07, IC-08, IC-10, IC-12, IC-14, IC-15, IC-18 (FR-093). Sentences about IC-16 behaviour are withheld until IC-16 lands, or are added in IC-16's PR.
+
+### IC-18 — S7: consolidate lands a default Mission's PRIMARY artifacts from the topic branch (S7 #7282, FR-062)
+
+- **Why**: for a `topology_source: default` Mission settled to `lanes_with_coord`, the PRIMARY partition (`_PRIMARY_ARTIFACT_KINDS`, `src/mission_runtime/artifacts.py`) lives on the topic branch, which is also the coordination branch (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`, FR-061; operator OQ-2: "cut the lanes from it and consolidate into it"). Today only a protected `single_branch` Mission lands its `mission_branch` (`lanes/single_branch_landing.py::lands_mission_branch`); `consolidation/bookkeeping_projection.py` projects only status bookkeeping (`_project_status_bookkeeping_to_target`) and post-checkpoint coordination commits (`project_post_checkpoint_commits_to_target`), and the coordination teardown then deletes the branch. A PRIMARY edit made on the topic branch after the last lane cut is lost (analysis E1).
+- **Approach (one landing authority)**: extend the existing mission-branch landing seam, not a parallel path. The `lands_mission_branch` predicate gains the default-settled `lanes_with_coord` arm (keyed on the STORED `topology_source` + topology, never derived), and the projection carries every PRIMARY-partition change of the topic branch to the target before the coordination teardown. Rollback stays with `consolidation/rollback.py` (no new restore path).
+- **Owns**: `consolidation/bookkeeping_projection.py` (the PRIMARY projection leg; unowned by any other concern). Recorded out-of-map hunks: `lanes/single_branch_landing.py` (IC-11 owns; the predicate arm, after IC-11's write-branch collapse), `consolidation/phase_advance.py` (IC-07 owns; the call in the mission-to-target phase, after IC-07's reader migration), `consolidation/phase_teardown.py` (IC-15 owns; land-before-teardown ordering, after IC-15's reorder).
+- **Red-first**: `test_primary_edit_after_last_lane_cut_reaches_target` (a `tasks/WP*.md` / `meta.json` / `spec.md` edit on the topic branch after the last lane was cut is on the target after `consolidate`); `test_resume_and_rollback_lose_no_primary_change` (kill between projection and teardown, `--resume`; a gate FAIL rolls back through the one authority and the topic branch still carries the change); positive control `test_explicit_lanes_with_coord_consolidate_unchanged` (explicit `--topology lanes_with_coord`: byte-identical landing as today).
+- **Size**: M. **Depends-on**: IC-07, IC-14, IC-15 (teardown ordering). **ADR**: IC-02 (placement contract).
 
 ### Ownership map (shared files, declared and sequenced)
 
@@ -269,9 +282,12 @@ flowchart LR
 | `cli/commands/implement_phases.py` | IC-04 (rename), IC-06 (call migration) | IC-04 → IC-06 |
 | `workspace/landed_worktrees.py` | IC-09 (recreate command), IC-16 (prune candidates) | IC-09 → IC-16 |
 | `orchestrator_api/design_phase.py` | IC-13 (help, specify fields); IC-14 reads through `finalize_tasks` only | IC-13 → IC-14 |
-| `orchestrator_api/envelope.py`, `docs/api/orchestrator-api.md` | IC-15 (the 1.24.0 bump and the doc page); IC-13/IC-14 add their field rows to the same page | IC-15 owns the bump; whichever lands first sets 1.24.0, and no release ships a 1.24.0 without all three |
+| `orchestrator_api/envelope.py`, `docs/api/orchestrator-api.md` | IC-15 (the single owner of the 1.24.0 `CONTRACT_VERSION` bump and of the doc page); IC-13/IC-14 add their field rows as recorded out-of-map edits | IC-15 → IC-13 → IC-14 (IC-13 and IC-14 depend on IC-15; lanes stay acyclic); no release ships 1.24.0 without all three |
 | `cli/commands/accept.py` | IC-06 (reader); IC-16 edits `acceptance/__init__.py` only | IC-06 → IC-16 |
 | `consolidation/lane_cleanup.py` | IC-15 (module), IC-16 (binding) | IC-15 → IC-16 |
+| `lanes/single_branch_landing.py` | IC-11 (write-branch collapse), IC-18 (default `lanes_with_coord` landing arm) | IC-11 → IC-18 |
+| `consolidation/phase_advance.py` | IC-07 (reader migration), IC-18 (PRIMARY landing call) | IC-07 → IC-18 |
+| `consolidation/phase_teardown.py` | IC-15 (cleanup order), IC-18 (land before coordination teardown) | IC-15 → IC-18 |
 
 Every other file listed under "Owns" has exactly one owner. `lanes/auto_rebase.py` is deliberately untouched: the union merger and the deletion refusals stay (C-008; retiring the merger is out of scope).
 
