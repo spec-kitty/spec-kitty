@@ -55,16 +55,17 @@ from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import DecisionError, DecisionErrorCode
 
+#: ``lock_timeout_error`` and ``anchor_lock_path`` are this module's own building
+#: blocks (every refusal is raised from here), so they stay out of the export list;
+#: the tests import them to pin the contract.
 __all__ = [
     "ACQUIRE_TIMEOUT_S",
     "LOCK_FILENAME",
     "OPEN_WAIT_S",
-    "anchor_lock_path",
     "decisions_lock",
     "decisions_write_locks",
     "is_lock_timeout",
     "lock_path",
-    "lock_timeout_error",
 ]
 
 #: The sidecar lock-only file guarding the decisions index RMW. Never the
