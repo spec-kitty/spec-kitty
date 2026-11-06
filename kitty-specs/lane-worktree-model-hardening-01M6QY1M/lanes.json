@@ -482,7 +482,7 @@
       "parallel_group": 7
     }
   ],
-  "computed_at": "2026-11-06T09:25:54.633571+00:00",
+  "computed_at": "2026-11-06T09:36:21.051151+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP01",
@@ -490,5 +490,5 @@
     "WP03",
     "WP19"
   ],
-  "planning_commit_sha": "55109efc2c35e82430bdcafb95d171e21c9403f4"
+  "planning_commit_sha": "86048ac68a340824b5e2a5885e682b9137164ec7"
 }

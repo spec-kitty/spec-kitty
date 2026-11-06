@@ -38,7 +38,7 @@ tracker_refs: []
 # Work Package Prompt: WP19 - S11 open-packs doctrine patch and hand-off
 
 > ## ⛔ TO BE CANCELED at implement time (do not implement)
-> The operator made open-packs PR #128 ready and ungated, and the S11 doctrine is already applied there. This Mission does not bump the core pack pin (`packs/built-in.source.yaml`). When the implement loop reaches WP19, the orchestrator cancels it: `spec-kitty agent tasks move-task WP19 --to canceled --force --note "S11 doctrine already applied in spec-kitty-open-packs PR #128 (ready, ungated); this Mission does not bump the core pack pin"`. FR-092 and the pack half of SC-011 are then recorded as delivered by open-packs PR #128 in the issue matrix. No other WP depends on WP19. The text below is kept for the record only.
+> The S11 doctrine landed through open-packs PR #128 (merged, open-packs `main` 9013b34), applied by the S11 sibling session. Whether this Mission bumps the core pack pin (`packs/built-in.source.yaml`) is an open operator decision taken at pre-PR time, outside every WP. When the implement loop reaches WP19, the orchestrator cancels it: `spec-kitty agent tasks move-task WP19 --to canceled --force --note "S11 doctrine delivered by spec-kitty-open-packs PR #128 (merged, main 9013b34); core pack pin bump is an operator decision at pre-PR time"`. FR-092 and the pack half of SC-011 are then recorded as delivered by open-packs PR #128 in the issue matrix. No other WP depends on WP19. The text below is kept for the record only.
 
 ## ⚡ Do This First: Load Agent Profile
 

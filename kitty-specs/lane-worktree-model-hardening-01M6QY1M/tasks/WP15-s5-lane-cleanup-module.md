@@ -113,6 +113,7 @@ S5 (#7280), the seam (does NOT wait for #7275):
 - `ConsolidationState.cleanup_started: bool = False` is additive and read with a default; ADR `2026-09-19-1` is NOT amended (not persisted across `--abort`).
 - Rollback authority AST pin (`tests/consolidation/test_single_rollback_authority.py`) stays green.
 - C-011 red-first. This WP is at the 9-subtask limit; keep each subtask tight.
+- **Later recorded out-of-map hunks by WP20** (analysis G3/G4/G5/G8): WP20 (after you) edits `consolidation/phase_teardown.py` (land-before-coordination-teardown check), `consolidation/run_state.py` (`_is_coord_topology_mission` for a default Mission), `consolidation/executor.py` (the `target_feature_dir` PRIMARY anchor at `:446`; not the `lands_mission_branch` calls at `:456` / `:953`) and, only if its parity test needs it, `orchestrator_api/consolidation.py`. Keep your teardown order and S10 exit codes stable so WP20 rebases cleanly.
 
 ## Branch Strategy
 

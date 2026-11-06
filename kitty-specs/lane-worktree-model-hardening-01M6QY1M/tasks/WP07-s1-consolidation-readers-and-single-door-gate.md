@@ -89,6 +89,7 @@ spec-kitty agent action implement WP07 --agent claude --mission lane-worktree-mo
 - **#7274 (NOT merged)** touches consolidation neighbours; rebase only if it lands first.
 - No transient allowlist; if a call site cannot migrate, migrate it anyway or stop and report.
 - C-011 red-first: gate self-mutation arms red before the live scan goes green.
+- **Later recorded out-of-map hunk by WP20** (analysis G5): WP20 (after you) edits `consolidation/phase_advance.py` for the default-Mission landing-phase call or check and the pre-landing `target_feature_dir` read in `_phase_baseline_and_surface`; it does not change the `lands_mission_branch` calls. Keep those functions' shape stable so WP20 rebases cleanly.
 
 ## Branch Strategy
 

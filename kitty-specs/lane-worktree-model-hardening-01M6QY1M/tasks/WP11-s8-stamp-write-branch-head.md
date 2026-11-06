@@ -81,6 +81,7 @@ S8 (#7283), stamp half:
 - **#7248 (NOT merged, `issue-7224-flat-fixture-single-branch`)**: its fixture comment says `single_branch` is never stamped. When it lands, rebase onto it and deliberately reverse that comment/assertion in a separate commit; note it. Until then, do not depend on its fixture.
 - `mission_runtime/resolution.py::single_branch_write_ref` is the pure write-branch rule; `write_branch_for` should delegate to it, not duplicate it.
 - C-011 red-first; complexity <= 15 (the `check_lane` split exists for that).
+- **Later recorded out-of-map hunk by WP20** (analysis G3/G5): WP20 (after you, via WP12 -> WP14) adds a separate default-Mission predicate (for example `lands_topic_branch`) to `lanes/single_branch_landing.py`. `lands_mission_branch` keeps its `single_branch` meaning and its six callers; do not widen it here either.
 
 ## Branch Strategy
 

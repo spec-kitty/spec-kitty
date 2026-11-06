@@ -29,7 +29,7 @@ description: "Work packages for Mission lane-worktree-model-hardening-01M6QY1M (
 | #7248 (`issue-7224-flat-fixture-single-branch`) | flat-fixture `single_branch` | NOT merged. WP11 rebases onto it once it lands and deliberately reverses its "single_branch is never stamped" fixture comment. |
 | #7274 (`issue-7198-late-window-one-pass`, S10) | late-window one pass | NOT merged. WP15 shares `phase_teardown.py` / `run_state.py`; rebase onto it when it lands. WP07 rebases if consolidation neighbours conflict. |
 | #7275 (`issue-7211-safe-landed-prune`, S4) | destructive guard + ADR `2026-11-06-1` | NOT merged. **WP16 is BLOCKED until #7275 merges into `main` and the topic branch is rebased.** WP16 is out of the first PR cut. WP15 does not wait (port only). See the WP16 exit rule below. |
-| open-packs PR #128 | the S11 pack doctrine | Made ready and ungated by the operator, with the S11 doctrine already applied. **WP19 is canceled at implement time** with that rationale; this Mission does not bump the core pack pin; no WP depends on WP19. |
+| open-packs PR #128 | the S11 pack doctrine | Merged (open-packs `main` 9013b34), applied by the S11 sibling session. **WP19 is canceled at implement time** with that rationale; no WP depends on WP19. Whether this Mission bumps the core pack pin is an open operator decision taken at pre-PR time (not a WP). |
 
 ---
 
@@ -417,17 +417,17 @@ T106 Quality gates, blast radius, changelog fragment (WP16)
 
 ## Work Package WP20: S7 - consolidate lands a default Mission's PRIMARY artifacts from the topic branch (Priority: P1)
 
-**Goal**: for a `topology_source: default` Mission settled to `lanes_with_coord`, `consolidate` carries every PRIMARY-partition change on the topic branch (= coordination branch) to the target before the coordination teardown, through the extended mission-branch landing seam (one landing authority; rollback authority unchanged). Added after `/spec-kitty.analyze` finding E1 (plan IC-18).
-**Independent Test**: (a) a PRIMARY edit made on the topic branch after the last lane cut reaches the target; (b) nothing is lost on `--resume` or rollback; (c) control: explicit `--topology lanes_with_coord` consolidates as today.
+**Goal**: for a `topology_source: default` Mission settled to `lanes_with_coord`, no PRIMARY-partition change of the topic branch (= coordination branch = `lanes.json` `mission_branch`) is off the target when the coordination teardown deletes that branch. The landing seam is `_phase_mission_to_target` / `integrate_mission_into_target`, which already carries the tip (edits after the last lane cut included); the gap is PRIMARY commits after the consolidation checkpoint that the landing did not carry, which `_post_checkpoint_mission_paths` excludes, plus consolidate's mid-run PRIMARY reads (`run.target_feature_dir`, `_is_coord_topology_mission`) before the landing. One landing authority; rollback authority unchanged. Added after `/spec-kitty.analyze` finding E1, re-aimed after re-run 2 (G1-G4, G8; plan IC-18).
+**Independent Test**: (a) a PRIMARY commit on the topic branch after the landing read its tip reaches the target or the teardown refuses; (b) the target-authored `mission_number` and `baseline_merge_commit` survive; (c) a default Mission's consolidate detects coordination topology, tears down the coordination triple and bakes `mission_number` on the target; (d) nothing is lost on `--resume` or rollback; (e) control: explicit `--topology lanes_with_coord` consolidates as today.
 **Prompt**: `tasks/WP20-s7-consolidate-lands-topic-branch-primary.md`
 **Requirement Refs**: FR-055, FR-061, FR-062, SC-007, NFR-002
 
 ### Included Subtasks
 
-T118 Characterize today's consolidate of a default `lanes_with_coord` Mission (which PRIMARY paths are lost, where) (WP20)
-T119 Red-first: post-last-cut PRIMARY edit reaches target; resume/rollback lose nothing; explicit-topology control; orchestrator parity; predicate unit tests (WP20)
-T120 Extend the landing predicate in `lanes/single_branch_landing.py` with the default-settled `lanes_with_coord` arm (recorded out-of-map, WP11-owned) (WP20)
-T121 PRIMARY projection leg in `bookkeeping_projection.py`; call in `phase_advance.py` (out-of-map, WP07-owned); land-before-teardown in `phase_teardown.py` (out-of-map, WP15-owned) (WP20)
+T118 Characterization test that decides the design: which PRIMARY commits the landing carries and which are lost (post-checkpoint, post-landing window), and how mid-run PRIMARY reads resolve (WP20)
+T119 Red-first on WP20's own lane base: post-landing PRIMARY commit; `mission_number`/`baseline_merge_commit` survive; coord detection and bake on the target; resume/rollback lose nothing; explicit-topology control; orchestrator parity; predicate unit tests (WP20)
+T120 Separate default-Mission predicate (e.g. `lands_topic_branch`) in `lanes/single_branch_landing.py`; `lands_mission_branch` unchanged (recorded out-of-map, WP11-owned) (WP20)
+T121 Close the window T118 shows: teardown refuses (existing paths) or re-lands through the landing seam, never by widening `project_post_checkpoint_commits_to_target` to PRIMARY kinds; mid-run PRIMARY anchor in `run_state.py`/`executor.py` (out-of-map, WP15) and `phase_advance.py` (out-of-map, WP07); teardown check in `phase_teardown.py` (out-of-map, WP15) (WP20)
 T122 Green the red tests; projection, late-teardown and rollback-authority pins stay green (WP20)
 T123 Quality gates and blast radius (WP20)
 
@@ -483,7 +483,7 @@ T116 Validation: changelog style/spelling, terminology guard, docs frontmatter (
 
 ## Work Package WP19: S11 open-packs doctrine patch and hand-off (Priority: P3) TO BE CANCELED
 
-**To be canceled at implement time**: the operator made open-packs PR #128 ready and ungated, and the S11 doctrine is already applied there. This Mission does not bump the core pack pin. The orchestrator cancels WP19 with that rationale when the implement loop reaches it; FR-092 and the pack half of SC-011 are recorded as delivered by open-packs PR #128 in the issue matrix. No WP depends on WP19.
+**To be canceled at implement time**: the S11 doctrine landed through open-packs PR #128 (merged, main 9013b34), applied by the S11 sibling session. Whether this Mission bumps the core pack pin is an open operator decision taken at pre-PR time, outside every WP. The orchestrator cancels WP19 with that rationale when the implement loop reaches it; FR-092 and the pack half of SC-011 are recorded as delivered by open-packs PR #128 in the issue matrix. No WP depends on WP19.
 
 **Goal**: a patch against the pinned `spec-kitty-open-packs` tree plus hand-off steps (FR-092).
 **Independent Test**: SC-011 (pack half): `git apply --check` succeeds on the pinned tree.
@@ -541,9 +541,11 @@ WP19 (planning lane, no deps; TO BE CANCELED: open-packs PR #128)
 | `src/specify_cli/workspace/landed_worktrees.py` | WP16 | WP09 (printed recreate command) | WP09 -> WP16 |
 | `src/specify_cli/consolidation/lane_cleanup.py` | WP15 | WP16 (binding) | WP15 -> WP16 |
 | `docs/api/orchestrator-api.md`, `orchestrator_api/envelope.py` | WP15 (single owner of the 1.24.0 bump and of every 1.24.0 field row) | none planned; a correction by WP13/WP14 is a recorded out-of-map edit | WP15 -> WP13 -> WP14 (dependencies; lanes stay acyclic, analysis F2) |
-| `src/specify_cli/lanes/single_branch_landing.py` | WP11 | WP20 (default `lanes_with_coord` landing arm) | WP11 -> WP12 -> WP14 -> WP20 |
-| `src/specify_cli/consolidation/phase_advance.py` | WP07 | WP20 (PRIMARY landing call) | WP07 -> WP20 |
+| `src/specify_cli/lanes/single_branch_landing.py` | WP11 | WP20 (separate default-Mission predicate; `lands_mission_branch` unchanged) | WP11 -> WP12 -> WP14 -> WP20 |
+| `src/specify_cli/consolidation/phase_advance.py` | WP07 | WP20 (landing-phase call; pre-landing `target_feature_dir` read) | WP07 -> WP20 |
 | `src/specify_cli/consolidation/phase_teardown.py` | WP15 | WP20 (land before coordination teardown) | WP15 -> WP20 |
+| `src/specify_cli/consolidation/run_state.py`, `src/specify_cli/consolidation/executor.py` | WP15 | WP20 (`_is_coord_topology_mission` and the `target_feature_dir` PRIMARY anchor for a default Mission) | WP15 -> WP20 |
+| `src/specify_cli/orchestrator_api/consolidation.py` | WP15 | WP20 (only if the parity test needs a hunk) | WP15 -> WP20 |
 
 ---
 
@@ -708,7 +710,7 @@ WP19 (planning lane, no deps; TO BE CANCELED: open-packs PR #128)
 | T117 | Validation (patch) | WP19 | P3 | No |
 | T118 | Characterize default lanes_with_coord consolidate | WP20 | P1 | No |
 | T119 | Red-first PRIMARY landing tests | WP20 | P1 | No |
-| T120 | Landing predicate default arm | WP20 | P1 | No |
-| T121 | PRIMARY projection before teardown | WP20 | P1 | No |
+| T120 | Separate default-Mission landing predicate | WP20 | P1 | No |
+| T121 | Close post-landing window; mid-run PRIMARY anchor | WP20 | P1 | No |
 | T122 | Green tests, pins stay green | WP20 | P1 | No |
 | T123 | Quality gates (WP20) | WP20 | P1 | No |
