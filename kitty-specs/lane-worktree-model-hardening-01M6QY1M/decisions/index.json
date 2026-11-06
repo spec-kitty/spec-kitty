@@ -239,6 +239,26 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-06T08:18:26.478027Z",
+      "decision_id": "01M6QZ02HDACM7A0VNYSAQ8MQB",
+      "final_answer": "Confirm as drafted: on a protected target a Mission with >2 WPs and >1 lane settles to lanes_with_coord with the create-minted topic branch promoted to the coordination branch; lanes on an unprotected target; coord without lanes is explicit-only.",
+      "input_key": "protected_target_topology",
+      "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",
+      "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "A-3: on a protected target, what does the size rule's 'lanes otherwise' settle to?",
+      "rationale": "Operator confirmation, stijn-dejongh, 2026-11-06, together with the Intent Summary.",
+      "resolved_at": "2026-11-06T08:18:28.603232Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "specify.topology.protected-target-mapping",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",
