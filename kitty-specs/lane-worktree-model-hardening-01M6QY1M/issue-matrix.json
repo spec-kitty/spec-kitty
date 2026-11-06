@@ -313,7 +313,7 @@
       "wp": "WP10"
     },
     "#7282": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S7 size-based topology: WP02 ADR, WP13, WP14, WP20",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -321,8 +321,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP14"
     },
     "#7283": {
       "evidence_ref": "<link or commit>",
