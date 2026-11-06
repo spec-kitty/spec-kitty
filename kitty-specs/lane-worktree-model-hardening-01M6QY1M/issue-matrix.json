@@ -133,7 +133,7 @@
       "wp": null
     },
     "#7237": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,7 +141,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7239": {
