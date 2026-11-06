@@ -351,7 +351,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "S8 per-WP approval windows: tier 1+2 claim arm (write_branch_bound.py), gate re-check via lane->branch map, orchestrator planning-only preflight (reused codes), strict-xfail commit-to-target residual",
-        "Cycle 2: dead-symbol gate green (37 passed); ApprovalWindow/approval_windows out of __all__, commits_outside_windows private, stamp_refusal out of __all__, ADR residuals added"
+        "Cycle 2: dead-symbol gate green (37 passed); ApprovalWindow/approval_windows out of __all__, commits_outside_windows private, stamp_refusal out of __all__, ADR residuals added",
+        "Review passed (cycle 2): dead-symbol gate green serially (37 passed); ApprovalWindow/approval_windows/stamp_refusal out of __all__, commits_outside_windows private; moved tests pin the degrade via check_write_branch (refusals==() with early commit + INFO log text) and stamped-open refusal of the pre-claim commit; ADR residual states missing/rebased O_k hide case. Nit: _commits_outside_windows now has no caller, delete it in a follow-up."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
