@@ -645,3 +645,25 @@ def test_the_single_collection_still_fails_loudly(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(pytest.fail.Exception):
         this_module._live_collected_counts(_SYNTHETIC_DIRS)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    "live_test",
+    ["test_every_registry_module_agrees_with_live_collection", "test_charter_agrees_with_live_collection"],
+)
+def test_live_collection_runs_only_in_strict_mode(live_test: str) -> None:
+    """#7288 (operator ruling 2026-11-06): the live collection runs only where it can fail.
+
+    Per PR the gate can only warn (#5189) and the module-tests select step already annotates
+    every missing and stale node id, so the ~160 s collection in the per-PR battery bought a
+    duplicate warning. Under ``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` (the scheduled strict lane)
+    both live tests run and hard-fail on drift; otherwise they are skipped before their
+    session fixture is set up.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    marks = [mark for mark in getattr(getattr(this_module, live_test), "pytestmark", []) if mark.name == "skipif"]
+    assert len(marks) == 1, f"{live_test} must carry exactly one skipif bound to strict mode"
+    assert marks[0].args == (not this_module._strict_mode(),)
+    assert "SPEC_KITTY_STRICT_SHARD_TIMINGS=1" in marks[0].kwargs["reason"]
