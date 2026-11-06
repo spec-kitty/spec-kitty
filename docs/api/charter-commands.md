@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-06'
 related:
 - context/charter-overview
 - context/governance-files
@@ -1047,6 +1047,12 @@ from the same predicates, so a pack cannot look sound on one command and unsound
 `charter status` adds no JSON key: the finding rides the existing `org_layer.errors` array, the
 channel it already uses for a dangling edge endpoint. If a containment check cannot run, the array
 says so (`org-layer body_path check failed: ...`) rather than reading as "no escapes".
+
+All three commands write the same sentence for the same fault. `charter org validate` checks a
+pack directory rather than a registered pack, so it names the pack by its directory name, while
+`doctor charter-packs` and `charter status` use the name from `.kittify/config.yaml`. The validator
+also reports every asset of a pack whose `assets/` directory itself resolves outside the pack, as
+the doctor does.
 
 ### `spec-kitty migrate activation-ledger`
 

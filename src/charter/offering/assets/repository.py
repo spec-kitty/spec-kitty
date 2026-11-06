@@ -41,7 +41,7 @@ from charter.offering.drg.org_pack_config import (
     resolve_relative_path_within_root,
 )
 
-if TYPE_CHECKING:  # type-only: this module is on the build hook's import path and must stay light
+if TYPE_CHECKING:  # type-only: keeps org_pack_loader (and PyYAML) off the build hook's import path
     from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 __all__ = [
