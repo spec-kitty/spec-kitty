@@ -193,7 +193,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -206,6 +206,7 @@
         "T034 partial by orchestrator decision: support.py, mission_runtime STATUS_STATE arm (+callers), finalize pin, status_transition and aggregate._resolve_read_dir transferred to WP07 (single-door gate owner). See traces/design-decisions.md."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP06-s1-migrate-cli-and-runtime-readers/review-cycle-1.md",
         "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP06-s1-migrate-cli-and-runtime-readers/review-cycle-1.md",
@@ -213,15 +214,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 869,
-      "shell_pid_created_at": "1793984661.94",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T030": "done",
-        "T031": "done",
-        "T032": "done",
-        "T033": "done",
-        "T034": "done",
-        "T035": "done"
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned"
       }
     },
     "WP07": {
