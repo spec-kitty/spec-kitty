@@ -1,7 +1,7 @@
 {
-  "event_count": 44,
-  "last_event_id": "01M6R552PVYYHYZWNAXJRGKD8J",
-  "materialized_at": "2026-11-06T10:06:01.938422+00:00",
+  "event_count": 45,
+  "last_event_id": "01M6R5F29Y4APYJV1K2VWYRKKQ",
+  "materialized_at": "2026-11-06T10:11:29.214539+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 4,
+    "for_review": 1,
+    "in_progress": 3,
     "in_review": 0,
     "planned": 13
   },
@@ -89,12 +89,13 @@
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M6R547DE82MSY8Q164NFK1VB",
-      "last_transition_at": "2026-11-06T10:05:33.995041+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6R5F29Y4APYJV1K2VWYRKKQ",
+      "last_transition_at": "2026-11-06T10:11:29.214539+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "C-1/C-2/C-3 ADRs (2026-11-06-4/5/6), S3 amendment on 2026-04-03-1, D-6 records + step 4a amendment on 2026-10-22-1 (SC-010 table), 2026-11-06-1 amendment draft for #7275; events ADR-0007/0008 cross-linked (PR #215). Terminology guard 98 passed; docs spelling/description checks clean."
+        "C-1/C-2/C-3 ADRs (2026-11-06-4/5/6), S3 amendment on 2026-04-03-1, D-6 records + step 4a amendment on 2026-10-22-1 (SC-010 table), 2026-11-06-1 amendment draft for #7275; events ADR-0007/0008 cross-linked (PR #215). Terminology guard 98 passed; docs spelling/description checks clean.",
+        "- 2026-11-06T10:08:20Z – unknown – Review cycle 1 addressed (9c6741a696): blocking O4/O6 fix in ADR 2026-04-03-1 amendment and C-1 D-9 step 4, Confirmation and drain test bullets cover reflog-only commits; nits: #215 is a pull request, D-9 step 2 names the migration's plain git commit. FR-084/C-003 spec drift flagged to orchestrator (spec not owned)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -108,12 +109,12 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "planned",
-        "T012": "planned",
-        "T013": "planned",
-        "T014": "planned",
-        "T015": "planned",
-        "T016": "planned"
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
       }
     },
     "WP04": {
