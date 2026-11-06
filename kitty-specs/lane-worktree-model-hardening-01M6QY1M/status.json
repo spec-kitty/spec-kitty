@@ -213,7 +213,7 @@
     },
     "WP09": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -226,6 +226,7 @@
         "One lane-checkout helper (lanes/lane_checkout.py::open_lane_checkout) on every route: allocation fresh/legacy/recovery, lifecycle_sync recreate, review checkout, implement --recover recreate; status exclusion on every topology incl. lanes; single-seam gate; dirty status rows kept. landed_worktrees printed hint left as git command (no WP-free re-entry). Out-of-map: recovery.py, consolidation.py (index-based status.json regeneration in sparse lanes), 3 test files."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP09-s3-s6-lane-checkout-helper/review-cycle-1.md",
         "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP09-s3-s6-lane-checkout-helper/review-cycle-1.md",
@@ -233,16 +234,16 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 11350,
-      "shell_pid_created_at": "1793967650.13",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T047": "done",
-        "T048": "done",
-        "T049": "done",
-        "T050": "done",
-        "T051": "done",
-        "T052": "done",
-        "T053": "done"
+        "T047": "planned",
+        "T048": "planned",
+        "T049": "planned",
+        "T050": "planned",
+        "T051": "planned",
+        "T052": "planned",
+        "T053": "planned"
       }
     },
     "WP10": {
