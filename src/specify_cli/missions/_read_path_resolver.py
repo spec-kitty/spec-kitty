@@ -1050,6 +1050,13 @@ def _canonical_status_read_root(repo_root: Path) -> Path:
     composed. The classification is the single existing authority
     (:func:`classify_worktree_topology`, C-SEAM-1); path shape never decides.
 
+    Cost: the overwhelmingly common cases — the primary checkout, an independent
+    clone, a bare repository — answer from ``get_main_repo_root`` and
+    :func:`is_under_worktrees_segment` alone (no git subprocess), so this guard
+    adds nothing to a repository-rooted status read. Only a root that actually
+    lives under a ``.worktrees/`` segment pays the one registry read that tells a
+    coordination worktree from a lane worktree.
+
     Deliberately unchanged by this normalisation:
 
     * the **coordination worktree** — also a linked worktree, and the authority
@@ -1066,19 +1073,28 @@ def _canonical_status_read_root(repo_root: Path) -> Path:
         WorktreeRegistryUnavailable,
         WorktreeTopology,
         classify_worktree_topology,
+        is_under_worktrees_segment,
     )
+    from specify_cli.core.paths import get_main_repo_root
+
+    # Shape and ancestry are judged on the resolved path: a caller may hand in a
+    # relative root (``Path(".")`` from inside the lane worktree), whose ``parts``
+    # would never show the ``.worktrees/`` segment.
+    resolved_root = repo_root.resolve(strict=False)
+    main_root = get_main_repo_root(resolved_root)
+    if main_root == resolved_root or not is_under_worktrees_segment(resolved_root):
+        # The primary checkout, an independent clone, or a linked checkout that
+        # does not live under ``.worktrees/``: there is no lane-worktree copy to
+        # shadow the read, and no git subprocess is spent finding that out.
+        return repo_root
 
     try:
-        topology = classify_worktree_topology(repo_root)
+        topology = classify_worktree_topology(resolved_root)
     except WorktreeRegistryUnavailable:
         return repo_root
     if topology is not WorktreeTopology.LANE_WORKTREE:
         return repo_root
-
-    from specify_cli.core.paths import get_main_repo_root
-
-    main_root = get_main_repo_root(repo_root)
-    return main_root if main_root != repo_root else repo_root
+    return main_root
 
 
 def resolve_handle_to_read_path(
@@ -1098,6 +1114,10 @@ def resolve_handle_to_read_path(
 
     Body (the prototype pattern, in order):
 
+    0. ``_canonical_status_read_root(repo_root)`` — a lane worktree is never a
+       status-surface root (#6466): its fork-time copy of the mission directory
+       would answer every step below from stale state, so the root is normalised
+       to the repository's main worktree root FIRST.
     1. ``assert_safe_path_segment(handle)`` — the traversal guard fires FIRST,
        before any ``KITTY_SPECS_DIR`` join (FR-004 / NFR-002).
     2. Read the primary ``meta.json`` (:func:`read_primary_meta`) to learn the
@@ -1133,7 +1153,10 @@ def resolve_handle_to_read_path(
     ``UNMATERIALIZED`` keeps the #1718 create-window primary read.
 
     Args:
-        repo_root: Absolute repository root (primary checkout).
+        repo_root: Repository root. Normalised by
+            :func:`_canonical_status_read_root` when it is a lane worktree; the
+            primary checkout, a coordination worktree, an independent clone and
+            an unreadable worktree registry are all used as handed in.
         handle: Mission handle — bare slug, ``<slug>-<mid8>``, full ``mission_id``,
             bare ``mid8``, or numeric prefix.
         require_exists: Forwarded to :func:`_resolve_mission_read_path`; when

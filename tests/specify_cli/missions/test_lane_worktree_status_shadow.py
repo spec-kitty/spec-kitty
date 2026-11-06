@@ -250,10 +250,8 @@ def test_lane_worktree_root_reads_the_authoritative_lane(tmp_path: Path) -> None
     lane_worktree = _start_implementation(repo)
 
     resolved = resolve_feature_dir_for_mission(lane_worktree, MISSION_DIRNAME, cwd=lane_worktree)
-    assert MISSION_DIRNAME == resolved.name
-    assert resolved != lane_worktree / "kitty-specs" / MISSION_DIRNAME, (
-        "a status read anchored at a lane worktree root resolved the lane worktree's fork-time copy"
-    )
+    assert resolved.name == MISSION_DIRNAME
+    assert resolved != lane_worktree / "kitty-specs" / MISSION_DIRNAME, "a status read anchored at a lane worktree root resolved the lane worktree's fork-time copy"
     assert _lane_read_from_root(lane_worktree) == "in_progress"
 
 
@@ -292,4 +290,107 @@ def test_an_independent_clone_still_answers_from_its_own_checkout(tmp_path: Path
 
     resolved = resolve_handle_to_read_path(clone, MISSION_DIRNAME)
     assert clone.resolve() in resolved.parents or resolved.parent == clone.resolve(), resolved
+    assert _lane_of(resolved) == "in_progress"
+
+
+def test_an_unregistered_worktree_shaped_directory_keeps_its_own_root(tmp_path: Path) -> None:
+    """NFR-002 boundary: a husk (under ``.worktrees``, not registered) is not re-anchored."""
+    repo = _build_mission(tmp_path / "repo", coordination=False)
+    _start_implementation(repo)
+    husk = repo / ".worktrees" / "not-a-worktree"
+    (husk / "kitty-specs" / MISSION_DIRNAME).mkdir(parents=True)
+    (husk / "kitty-specs" / MISSION_DIRNAME / "meta.json").write_text(
+        (repo / "kitty-specs" / MISSION_DIRNAME / "meta.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    resolved = resolve_handle_to_read_path(husk, MISSION_DIRNAME)
+
+    assert resolved == husk / "kitty-specs" / MISSION_DIRNAME
+
+
+def test_an_unreadable_worktree_registry_keeps_the_callers_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-002: when the registry cannot be consulted the root is returned untouched.
+
+    The helper must never guess a root: the pre-existing surfaces keep their own fail-closed
+    behaviour, so a lane-rooted read behaves exactly as it did before this guard.
+    """
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+
+    repo = _build_mission(tmp_path / "repo", coordination=False)
+    lane_worktree = _start_implementation(repo)
+    lane_copy = lane_worktree / "kitty-specs" / MISSION_DIRNAME
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise WorktreeRegistryUnavailable(repo_root=repo, detail="registry unavailable")
+
+    monkeypatch.setattr(
+        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
+        _boom,
+    )
+
+    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == lane_copy
+
+
+def test_a_primary_rooted_read_spends_no_worktree_registry_call(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The guard costs nothing on the common path: a repository root never consults git.
+
+    NFR-001: a repository-rooted status read is the overwhelmingly common case, so the guard
+    answers from ``get_main_repo_root`` and the ``.worktrees`` shape alone. Proven by making the
+    registry classifier explode: a primary-rooted read must still resolve, and a lane-rooted read
+    must fall back to the caller's root instead of raising.
+    """
+    repo = _build_mission(tmp_path / "repo", coordination=False)
+    lane_worktree = _start_implementation(repo)
+
+    calls: list[Path] = []
+
+    def _explode(path: Path, **_kwargs: object) -> None:
+        calls.append(path)
+        raise AssertionError("the worktree registry was consulted for a non-negative case")
+
+    monkeypatch.setattr(
+        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
+        _explode,
+    )
+
+    assert _lane_of(resolve_handle_to_read_path(repo, MISSION_DIRNAME)) == "in_progress"
+    assert calls == []
+
+    # A lane-rooted read does consult the classifier, and a registry failure keeps the caller's
+    # root untouched (NFR-002) rather than raising out of the read seam.
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+
+    def _unavailable(path: Path, **_kwargs: object) -> None:
+        raise WorktreeRegistryUnavailable(repo_root=path, detail="registry unavailable")
+
+    monkeypatch.setattr(
+        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
+        _unavailable,
+    )
+
+    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == (
+        lane_worktree / "kitty-specs" / MISSION_DIRNAME
+    )
+
+
+def test_a_relative_lane_worktree_root_is_re_anchored_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller standing in the lane worktree hands in a relative root (``Path(".")``).
+
+    The guard judges shape and git ancestry on the resolved path, so ``.`` from inside the lane
+    worktree is still normalised instead of silently answering from the copy in the current
+    directory.
+    """
+    repo = _build_mission(tmp_path / "repo", coordination=False)
+    lane_worktree = _start_implementation(repo)
+
+    monkeypatch.chdir(lane_worktree)
+
+    resolved = resolve_handle_to_read_path(Path("."), MISSION_DIRNAME)
+
+    assert lane_worktree.resolve() not in resolved.parents, resolved
     assert _lane_of(resolved) == "in_progress"
