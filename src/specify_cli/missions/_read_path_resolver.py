@@ -1057,7 +1057,7 @@ def _canonical_status_read_root(repo_root: Path) -> Path:
     lives under a ``.worktrees/`` segment pays the one registry read that tells a
     coordination worktree from a lane worktree.
 
-    Deliberately unchanged by this normalisation:
+    Deliberately unchanged by this normalization:
 
     * the **coordination worktree** — also a linked worktree, and the authority
       on a coordination-routed mission, so it keeps its own root;
@@ -1116,7 +1116,7 @@ def resolve_handle_to_read_path(
 
     0. ``_canonical_status_read_root(repo_root)`` — a lane worktree is never a
        status-surface root (#6466): its fork-time copy of the mission directory
-       would answer every step below from stale state, so the root is normalised
+       would answer every step below from stale state, so the root is normalized
        to the repository's main worktree root FIRST.
     1. ``assert_safe_path_segment(handle)`` — the traversal guard fires FIRST,
        before any ``KITTY_SPECS_DIR`` join (FR-004 / NFR-002).
@@ -1153,7 +1153,7 @@ def resolve_handle_to_read_path(
     ``UNMATERIALIZED`` keeps the #1718 create-window primary read.
 
     Args:
-        repo_root: Repository root. Normalised by
+        repo_root: Repository root. Normalized by
             :func:`_canonical_status_read_root` when it is a lane worktree; the
             primary checkout, a coordination worktree, an independent clone and
             an unreadable worktree registry are all used as handed in.
