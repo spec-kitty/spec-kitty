@@ -134,9 +134,12 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
     elif tracked_state == "config-error":
         # A git that runs and cannot parse its configuration is unknown, not an absence.
+        # The ceiling sits below the repository, so this walk reaches no anchor and the
+        # configuration witness is what has to refuse: a start-equal ceiling is dropped by
+        # the absence helper, which is the ownership case above.
         assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
         monkeypatch.setenv("GIT_CONFIG_COUNT", "invalid")
-        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir.parent))
 
     result = backfill_mission(mission_dir)
 

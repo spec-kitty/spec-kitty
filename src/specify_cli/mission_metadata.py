@@ -28,6 +28,7 @@ from kernel.ancestor_walk import find_ancestor, git_ceiling_dirs
 from kernel.clock import now_utc_iso
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import resolve_mid8
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
@@ -589,8 +590,9 @@ class _GitRefuses(Exception):
 def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     """``rev-parse --show-prefix`` of *feature_dir* (``""`` at the checkout root), or ``None``.
 
-    ``None`` means "nothing is tracked here": git is not installed, or it positively answered
-    that *feature_dir* is outside a work tree and no ``.git`` anchor exists above it.
+    ``None`` means "nothing is tracked here": git is not installed, or a query that did not
+    establish a worktree context has no ``.git`` anchor in Git's effective search domain
+    and its configuration is readable.
 
     The trailing newline git prints is removed -- and only that. ``strip()`` would also eat a
     leading space that is part of the first path component, silently missing the blob and
@@ -626,8 +628,9 @@ def _has_git_anchor(candidate: Path) -> bool:
 
     Fail-closed: an ancestor that cannot be read counts as an anchor, so the caller
     refuses (``_GitRefuses``) rather than falling back to minting an identity over a copy
-    git does hold (NFR-002). The walk itself stops at ``GIT_CEILING_DIRECTORIES``, so an
-    ambient repository above the ceiling is not an anchor (#7056).
+    git does hold (NFR-002). The caller's negative-evidence walk follows Git's effective
+    ceilings, ignoring entries equal to its starting directory; an ambient repository
+    above a boundary that actually applies is not an anchor (#7056).
     """
     try:
         return (candidate / ".git").exists()
@@ -641,8 +644,18 @@ def _has_no_git_anchor(feature_dir: Path) -> bool:
     Use the canonical walk with git's no-realpath rule for entries after an empty entry.
     This negative evidence must not stop below an anchor git's own search reached and
     refused: that would turn an unknown tracked identity into permission to mint one.
+
+    git ignores a ceiling entry that *is* its starting directory (it bounds only a search
+    that starts below it), so that one entry is dropped before this walk runs; the
+    start-equal stop stays the general reading for every other caller. A start that cannot
+    be resolved leaves the question open -- unknown is a refusal here, never an absence.
     """
-    return find_ancestor(feature_dir, _has_git_anchor, ceilings=git_ceiling_dirs(resolve_after_empty=False)) is None
+    try:
+        start = resolve_rejecting_loops(feature_dir)
+    except OSError:
+        return False
+    ceilings = git_ceiling_dirs(resolve_after_empty=False) - {start}
+    return find_ancestor(start, _has_git_anchor, ceilings=ceilings) is None
 
 
 def _require_readable_git_config(feature_dir: Path) -> None:
