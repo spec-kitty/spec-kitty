@@ -67,6 +67,46 @@ class StatusContractError(TypeError):
     """Raised when a read-only contract is used for mutation or vice versa."""
 
 
+STATUS_WRITE_TARGETS_LANE_CHECKOUT = "STATUS_WRITE_TARGETS_LANE_CHECKOUT"
+"""Error code of :class:`StatusWriteTargetsLaneCheckout` (``contracts/error-codes.yaml``, FR-041)."""
+
+
+class StatusWriteTargetsLaneCheckout(StatusContractError):
+    """A status write whose target lies inside a registered lane checkout (FR-041).
+
+    A lane checkout never shows the Mission's status files and a lane never
+    changes them (ADR 2026-07-29-1, restated ruling 3). The worktree registry
+    classifies the target (a linked checkout on a lane branch), never the
+    ``.worktrees/`` path shape, so a lane checkout placed anywhere refuses.
+    """
+
+    error_code: str = STATUS_WRITE_TARGETS_LANE_CHECKOUT
+
+    def __init__(self, *, target: Path, checkout: Path, branch: str) -> None:
+        self.target = target
+        self.checkout = checkout
+        self.branch = branch
+        super().__init__(
+            f"Refusing a status write into {target}: it lies inside the lane checkout {checkout} (branch {branch}). "
+            "A lane never changes the Mission's status files; status is written on the resolved status surface "
+            f"(the coordination worktree, or the write checkout). Error code: {STATUS_WRITE_TARGETS_LANE_CHECKOUT}."
+        )
+
+
+def refuse_status_write_into_lane_checkout(target: Path) -> None:
+    """Raise :class:`StatusWriteTargetsLaneCheckout` when *target* lies in a registered lane checkout.
+
+    Raises:
+        StatusWriteTargetsLaneCheckout: the registry places *target* in a lane checkout.
+        WorktreeRegistryUnavailable: the registry cannot be read (fail closed).
+    """
+    from specify_cli.lanes.lane_checkout import lane_checkout_containing  # noqa: PLC0415 -- cold path, avoids a lanes<->coordination import cycle
+
+    lane = lane_checkout_containing(target)
+    if lane is not None and lane.branch is not None:
+        raise StatusWriteTargetsLaneCheckout(target=target, checkout=lane.path, branch=lane.branch)
+
+
 def _validate_read_labels(contract: EventLogReadContract) -> None:
     """Fold the duplicated ``PRIMARY_CHECKOUT`` / ``COORDINATION_WORKTREE``
     read-guard blocks that :func:`read_event_log` and :func:`read_event_stream_log`
@@ -449,11 +489,14 @@ def _validate_write_contract(contract: EventLogWriteContract) -> None:
 
     Both :class:`EventLogWriteTarget` members are guarded: a
     ``PRIMARY_CHECKOUT_APPEND`` must not target a coordination worktree path,
-    and a ``COORDINATION_TRANSACTION_APPEND`` must target one.
+    and a ``COORDINATION_TRANSACTION_APPEND`` must target one. Neither may
+    target a registered lane checkout (FR-041), whatever its path shape.
     """
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
         primary_read_targets_coord_worktree,
     )
+
+    refuse_status_write_into_lane_checkout(contract.feature_dir)
 
     owned = contract.owned if contract.target == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND else None
     targets_coord = primary_read_targets_coord_worktree(contract.feature_dir, owned=owned)
@@ -507,10 +550,12 @@ def merge_append_preserving_coordination_event_log_bytes(
 __all__ = [
     "EventLogReadContract",
     "EventLogWriteContract",
+    "StatusWriteTargetsLaneCheckout",
     "append_event_stream_log",
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
     "read_event_stream_log",
     "ref_names_object",
+    "refuse_status_write_into_lane_checkout",
     "wp_lane_actor_from_events",
 ]

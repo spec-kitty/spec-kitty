@@ -14,7 +14,6 @@ no symlinks, no case-sensitivity assumptions.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -23,7 +22,7 @@ import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.upgrade.migrations.m_4_0_0rc9_lane_checkout_status_exclusion import (
+from specify_cli.upgrade.migrations.m_4_0_0rc8_lane_checkout_status_exclusion import (
     MIGRATION_ID,
     LaneCheckoutOutcome,
     LaneCheckoutStatusExclusionMigration,
@@ -138,7 +137,7 @@ def _fingerprint(repo: Path) -> dict[str, str]:
     for root in (repo, _lane(repo)):
         for path in sorted(root.rglob("*")):
             if path.is_file() and ".git" not in path.relative_to(root).parts[:1]:
-                digest[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
+                digest[str(path)] = path.read_bytes().hex()
     digest["refs"] = _git(repo, "for-each-ref", "--format=%(refname) %(objectname)")
     for worktree in (repo, _lane(repo)):
         sparse = Path(_git(worktree, "rev-parse", "--path-format=absolute", "--git-path", "info/sparse-checkout").strip())

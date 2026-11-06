@@ -33,7 +33,7 @@ from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
     _normalize_ref,
 )
-from specify_cli.coordination.status_service import EventLogWriteContract
+from specify_cli.coordination.status_service import EventLogWriteContract, StatusContractError, refuse_status_write_into_lane_checkout
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
@@ -1027,6 +1027,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         elif self._legacy_mode and not is_under_worktrees_segment(self.feature_dir):
             write_contract = EventLogWriteContract.primary_checkout_append(self.feature_dir)
         else:
+            _require_registered_coordination_target(self.feature_dir)
             write_contract = EventLogWriteContract.coordination_transaction_append(self.feature_dir)
         self._attempted_event_ids.extend(unit_ids)
         try:
@@ -1449,3 +1450,20 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 "BookkeepingTransaction: lock release failed: %s",
                 exc,
             )
+
+
+def _require_registered_coordination_target(feature_dir: Path) -> None:
+    """A coordination append needs a registry-classified coordination worktree (FR-041).
+
+    The ``.worktrees/`` path shape alone used to admit any worktree append as a
+    coordination write, a lane checkout included. The registry decides: a
+    target inside a registered lane checkout refuses with
+    ``STATUS_WRITE_TARGETS_LANE_CHECKOUT``, and a target in no registered
+    coordination worktree (a husk, or the repository root checkout) refuses as a
+    contract error. An unreadable registry fails closed.
+    """
+    from specify_cli.coordination.surface_resolver import is_registered_coord_worktree  # noqa: PLC0415 -- lazy, as above: avoids the mission_runtime cycle
+
+    refuse_status_write_into_lane_checkout(feature_dir)
+    if not is_registered_coord_worktree(feature_dir):
+        raise StatusContractError(f"coordination_transaction_append requires a registered coordination worktree; {feature_dir} is not inside one")

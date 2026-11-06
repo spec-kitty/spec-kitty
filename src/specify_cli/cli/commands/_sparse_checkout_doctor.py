@@ -14,7 +14,9 @@ pattern. The ``sparse-checkout`` subcommand name is owned by the shell in
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,16 +34,109 @@ if TYPE_CHECKING:
     from specify_cli.git.sparse_checkout_remediation import (
         SparseCheckoutRemediationResult,
     )
+    from specify_cli.lanes.lane_checkout import MissionCodeLane
 
 # ``__all__`` lists this sibling's single cross-module entrypoint. The render
 # helpers are intra-module (used here + by this module's own unit tests) and are
 # deliberately NOT exported — listing them would register orphan public symbols
 # under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
+    "LaneStatusAuthored",
+    "find_lane_status_authored",
     "run_sparse_checkout",
 ]
 
 _FIX_HINT = "spec-kitty doctor sparse-checkout --fix"
+
+LANE_STATUS_AUTHORED = "LANE_STATUS_AUTHORED"
+"""Doctor finding code (``contracts/error-codes.yaml``, FR-045)."""
+
+
+@dataclass(frozen=True)
+class LaneStatusAuthored:
+    """A live lane branch whose Mission status files differ from its merge-base (FR-045).
+
+    ``merge_base`` is ``merge-base(lane, consolidation base)``, so coordination
+    bytes merged into the lane do not count: only a change the lane made itself.
+    """
+
+    lane_branch: str
+    mission: str
+    paths: tuple[str, ...]
+    merge_base: str
+    code: str = LANE_STATUS_AUTHORED
+
+
+def find_lane_status_authored(repo_root: Path) -> list[LaneStatusAuthored]:
+    """Every live code-lane branch of every Mission carrying a lane-authored status change.
+
+    The comparison covers the Mission's two status files only. A lane whose
+    branch is gone, or whose consolidation base resolves to no branch, is not
+    a live lane this probe can judge and yields no finding.
+    """
+    from specify_cli.lanes.lane_checkout import mission_code_lanes
+
+    findings: list[LaneStatusAuthored] = []
+    for lane in mission_code_lanes(repo_root):
+        finding = _probe_lane(repo_root, lane)
+        if finding is not None:
+            findings.append(finding)
+    return findings
+
+
+def _probe_lane(repo_root: Path, lane: MissionCodeLane) -> LaneStatusAuthored | None:
+    if not _branch_exists(repo_root, lane.branch):
+        return None
+    base = _consolidation_base(repo_root, lane)
+    if base is None:
+        return None
+    merge_base = _git_stdout(repo_root, "merge-base", lane.branch, base)
+    if not merge_base:
+        return None
+    changed = set(_git_stdout(repo_root, "diff", "--name-only", merge_base, lane.branch, "--", *lane.status_paths).splitlines())
+    paths = tuple(path for path in lane.status_paths if path in changed)
+    if not paths:
+        return None
+    return LaneStatusAuthored(lane_branch=lane.branch, mission=lane.mission, paths=paths, merge_base=merge_base)
+
+
+def _consolidation_base(repo_root: Path, lane: MissionCodeLane) -> str | None:
+    """The branch the lane's status bytes come from: coordination, else Mission, else target branch."""
+    for candidate in (lane.coordination_branch, lane.mission_branch, lane.target_branch):
+        if candidate and _branch_exists(repo_root, candidate):
+            return candidate
+    return None
+
+
+def _branch_exists(repo_root: Path, branch: str) -> bool:
+    probe = subprocess.run(
+        ["git", "-C", str(repo_root), "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+        capture_output=True,
+        check=False,
+    )
+    return probe.returncode == 0
+
+
+def _git_stdout(repo_root: Path, *args: str) -> str:
+    """Stdout of one read-only git command, or ``""`` when it fails."""
+    result = subprocess.run(["git", "-C", str(repo_root), *args], capture_output=True, text=True, check=False)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _render_lane_status_authored(findings: Sequence[LaneStatusAuthored]) -> None:
+    """Print each ``LANE_STATUS_AUTHORED`` finding on grep-able lines."""
+    console.print("[yellow]⚠ Lane branches carry lane-authored status changes[/yellow]", soft_wrap=True)
+    for finding in findings:
+        console.print(
+            f"  {finding.code}: {finding.lane_branch} (Mission {finding.mission}) changes {', '.join(finding.paths)} since merge-base {finding.merge_base}",
+            soft_wrap=True,
+        )
+    console.print(
+        "  A lane never changes status; the resolved status surface is the authority. "
+        "Revert the change on the lane branch, or record the transitions with spec-kitty agent tasks move-task.",
+        soft_wrap=True,
+    )
+    console.print()
 
 
 def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
@@ -199,8 +294,13 @@ def run_sparse_checkout(fix: bool) -> None:
 
     repo_root = _resolve_repo_root()
     report = scan_repo(repo_root)
+    authored = find_lane_status_authored(repo_root)
+    if authored:
+        _render_lane_status_authored(authored)
 
     if not report.any_blocking:
+        if authored and not fix:
+            raise typer.Exit(1)
         _emit_clean_state(fix)
 
     # Detection-only surface: print the finding and exit non-zero so CI scripts

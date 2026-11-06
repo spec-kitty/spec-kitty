@@ -28,25 +28,33 @@ fails on any lane ``git worktree add`` outside this module.
 
 from __future__ import annotations
 
+import os
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.coordination.workspace import lane_status_exclusion_patterns
 from specify_cli.core.git_ops import exclude_from_git_index
-from specify_cli.lanes.branch_naming import coord_mission_dir_name, resolve_mid8
+from specify_cli.lanes.branch_naming import code_lane_branch_name, coord_mission_dir_name, is_lane_branch, resolve_mid8
 from specify_cli.mission_metadata import load_meta
 
 __all__ = [
     "LaneCheckoutError",
     "LaneCheckoutRequest",
     "LaneCheckoutRoute",
+    "MissionCodeLane",
+    "RegisteredCheckout",
+    "exclude_lane_status_files",
+    "is_mission_status_file",
+    "lane_checkout_containing",
     "lane_mission_dir_name",
     "lane_mission_dir_name_from_meta",
+    "mission_code_lanes",
     "open_lane_checkout",
+    "read_registered_checkouts",
     "resolve_lane_mission_dir_name",
 ]
 
@@ -231,3 +239,179 @@ def _git(cwd: Path, *args: str) -> str:
     if result.returncode != 0:
         raise LaneCheckoutError(f"git {' '.join(args)} failed in {cwd}: {(result.stderr or result.stdout).strip()}")
     return result.stdout.strip()
+
+
+# ---------------------------------------------------------------------------
+# Registry classification of lane checkouts (Mission WP10, FR-041/FR-044/FR-045)
+# ---------------------------------------------------------------------------
+
+#: The Mission status files a lane checkout never shows and a lane never changes.
+_MISSION_STATUS_FILE_NAMES = frozenset({"status.events.jsonl", "status.json"})
+
+
+def is_mission_status_file(relative_path: str) -> bool:
+    """True for ``kitty-specs/<dir>/status.events.jsonl`` or ``.../status.json`` (any Mission).
+
+    Judged on the repository-relative path, with either separator (NFR-008).
+    """
+    parts = PurePosixPath(relative_path.replace("\\", "/")).parts
+    return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] in _MISSION_STATUS_FILE_NAMES
+
+
+@dataclass(frozen=True)
+class RegisteredCheckout:
+    """A checkout the git worktree registry lists, with the branch it has checked out (``None`` when detached)."""
+
+    path: Path
+    branch: str | None
+    is_main: bool
+
+    @property
+    def is_lane(self) -> bool:
+        """A linked checkout on a lane branch: the registry, not the path shape, decides."""
+        return not self.is_main and self.branch is not None and is_lane_branch(self.branch)
+
+
+def read_registered_checkouts(repo_root: Path) -> tuple[RegisteredCheckout, ...]:
+    """Every checkout ``git worktree list --porcelain`` registers, main checkout first.
+
+    Raises:
+        WorktreeRegistryUnavailable: git cannot read the registry (fail closed).
+    """
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except OSError as exc:
+        raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=str(exc)) from exc
+    if result.returncode != 0:
+        raise WorktreeRegistryUnavailable(repo_root=repo_root, detail=(result.stderr or result.stdout).strip() or f"exit {result.returncode}")
+    return tuple(_parse_porcelain(result.stdout))
+
+
+def _parse_porcelain(porcelain: str) -> Iterator[RegisteredCheckout]:
+    for index, block in enumerate(chunk for chunk in porcelain.split("\n\n") if chunk.strip()):
+        path: Path | None = None
+        branch: str | None = None
+        for line in block.splitlines():
+            if line.startswith("worktree "):
+                path = Path(line[len("worktree ") :].strip()).resolve(strict=False)
+            elif line.startswith("branch refs/heads/"):
+                branch = line[len("branch refs/heads/") :].strip()
+        if path is not None:
+            yield RegisteredCheckout(path=path, branch=branch, is_main=index == 0)
+
+
+def _normcase(path: Path) -> str:
+    return os.path.normcase(str(path))
+
+
+def _within(path: Path, root: Path) -> bool:
+    target, anchor = _normcase(path), _normcase(root)
+    return target == anchor or target.startswith(anchor.rstrip(os.sep) + os.sep)
+
+
+def lane_checkout_containing(path: Path) -> RegisteredCheckout | None:
+    """The registered lane checkout *path* lies in, or ``None``.
+
+    The innermost registered checkout enclosing *path* decides (a lane checkout
+    nested under the repository root checkout's ``.worktrees/`` wins over the
+    root). A path outside every git repository is in no lane checkout.
+
+    Raises:
+        WorktreeRegistryUnavailable: *path* is in a git repository whose
+            registry cannot be read (fail closed, never path shape).
+    """
+    probe = _nearest_existing(path.resolve(strict=False))
+    if probe is None or not _inside_git_repository(probe):
+        return None
+    resolved = path.resolve(strict=False)
+    enclosing = [checkout for checkout in read_registered_checkouts(probe) if _within(resolved, checkout.path)]
+    if not enclosing:
+        return None
+    innermost = max(enclosing, key=lambda checkout: len(checkout.path.parts))
+    return innermost if innermost.is_lane else None
+
+
+def _nearest_existing(path: Path) -> Path | None:
+    for candidate in (path, *path.parents):
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _inside_git_repository(directory: Path) -> bool:
+    probe = subprocess.run(
+        ["git", "-C", str(directory), "rev-parse", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return probe.returncode == 0
+
+
+@dataclass(frozen=True)
+class MissionCodeLane:
+    """One code lane of one Mission, as its ``lanes.json`` and ``meta.json`` declare it."""
+
+    mission: str
+    """The Mission's directory name under the repository root checkout's ``kitty-specs/``."""
+    mission_dir_name: str
+    """The Mission's directory name inside a lane tree (:func:`lane_mission_dir_name_from_meta`)."""
+    lane_id: str
+    branch: str
+    coordination_branch: str | None
+    mission_branch: str | None
+    target_branch: str | None
+
+    @property
+    def status_paths(self) -> tuple[str, str]:
+        """The repository-relative status files of this Mission inside a lane tree."""
+        return (f"kitty-specs/{self.mission_dir_name}/status.events.jsonl", f"kitty-specs/{self.mission_dir_name}/status.json")
+
+
+def mission_code_lanes(repo_root: Path) -> tuple[MissionCodeLane, ...]:
+    """Every code lane of every Mission with a readable ``lanes.json`` under ``kitty-specs/``.
+
+    A Mission whose manifest or ``meta.json`` cannot be read is skipped: it has
+    no lanes this enumeration can name.
+    """
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+
+    specs = repo_root / "kitty-specs"
+    if not specs.is_dir():
+        return ()
+    found: list[MissionCodeLane] = []
+    for mission_dir in sorted(child for child in specs.iterdir() if child.is_dir()):
+        try:
+            manifest = read_lanes_json(mission_dir)
+        except (CorruptLanesError, OSError, ValueError):
+            continue
+        if manifest is None:
+            continue
+        meta = load_meta(mission_dir, on_malformed="none") or {}
+        dir_name = lane_mission_dir_name_from_meta(manifest.mission_slug, meta)
+        coordination = meta.get("coordination_branch")
+        for lane in manifest.lanes:
+            if lane.lane_id == PLANNING_LANE_ID:
+                continue
+            found.append(
+                MissionCodeLane(
+                    mission=mission_dir.name,
+                    mission_dir_name=dir_name,
+                    lane_id=lane.lane_id,
+                    branch=code_lane_branch_name(manifest.mission_slug, lane.lane_id),
+                    coordination_branch=coordination if isinstance(coordination, str) and coordination else None,
+                    mission_branch=manifest.mission_branch or None,
+                    target_branch=manifest.target_branch or None,
+                )
+            )
+    return tuple(found)
