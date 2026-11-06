@@ -616,6 +616,7 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     if result.returncode != 0 and any(name in os.environ for name in _GIT_CONTEXT_REDIRECTS):
         raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
     if _has_no_git_anchor(feature_dir):
+        _require_readable_git_config(feature_dir)
         return None
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
 
