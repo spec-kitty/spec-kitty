@@ -3,7 +3,7 @@
 ADR ``docs/adr/4.x/2026-11-06-2-one-status-read-contract.md`` (FR-001, FR-003, FR-004, FR-061,
 NFR-001). :func:`resolve_status_read` is the only way a status read finds its source; readers
 consume the returned :class:`StatusReadSurface` through :func:`read_status_events`,
-:func:`read_status_stream` and :func:`materialize_status`. Writers keep the write seam.
+:func:`read_status_stream`, :func:`read_status_text` and :func:`materialize_status`. Writers keep the write seam.
 
 Sources (checked in this order):
 
@@ -50,6 +50,8 @@ if TYPE_CHECKING:
 __all__ = [
     "materialize_status",
     "read_status_events",
+    "read_status_stream",
+    "read_status_text",
     "resolve_primary_partition_dir",
     "resolve_status_read",
 ]
@@ -549,6 +551,20 @@ def _ref_text(surface: StatusReadSurface) -> str | None:
     if result is None:
         result = read_status_ref(surface.repo_root, surface.ref, _ref_events_path(surface.mission_dir_name))
     return None if result.data is None else result.data.decode("utf-8", errors="replace")
+
+
+def read_status_text(surface: StatusReadSurface) -> str | None:
+    """The raw log text at the surface's declared source, or ``None`` when there is no log.
+
+    For readers that need every line of ``status.events.jsonl``, not only lane transitions and
+    annotations (e.g. the retrospective gate's ``retrospective.*`` events). Read only; a ref read
+    reuses the door's prefetched read (NFR-001) and an unreadable ref raises
+    ``StatusSurfaceRefUnreadable`` (never an empty history).
+    """
+    if surface.path is None:
+        return _ref_text(surface)
+    events_path = surface.path / _EVENTS_FILENAME
+    return events_path.read_text(encoding="utf-8") if events_path.is_file() else None
 
 
 def read_status_stream(surface: StatusReadSurface) -> EventStream:

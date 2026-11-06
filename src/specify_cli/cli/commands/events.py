@@ -30,9 +30,8 @@ Surface section):
 1. FR-004's own-flag-combo usage check (``--from-invariant`` without ``--from-offset``).
 2. Resolve the mission slug via the existing ``resolve_mission_handle()`` (FR-009 --
    zero new resolution code), then dispatch on ``--log``: the log's directory comes
-   from the shared ``resolve_surface_dir_or_typed_error()`` delegator over
-   ``resolve_status_surface()``, the resolver every status writer uses (#5466) —
-   but ONLY for the COORD-partition kinds (``status``/``decisions``); the other
+   from the one status read door ``resolve_status_read()`` (ADR 2026-11-06-2,
+   #5466) — but ONLY for the COORD-partition kinds (``status``/``decisions``); the other
    kinds never touch the coordination surface. The ``run`` kind maps the helper's
    ``RunLogUnavailable`` to the typed ``run_log_unavailable`` refusal.
 3. If ``--from-offset`` is given, call ``validate_resume_cursor()`` (against the
@@ -42,7 +41,7 @@ Surface section):
    iterates ``tail_events()``.
 
 Every error/usage/refusal signal (``usage_error``, ``mission_not_found``,
-``status_surface_unavailable``, ``run_log_unavailable``,
+``status_surface_unavailable``, ``status_surface_on_ref``, ``run_log_unavailable``,
 ``invalid_resume_offset``, ``resume_content_mismatch``) goes through
 ``_err_console`` (STDERR), never ``_console`` -- modeled on
 ``agent_retrospect.py:593``/``:600``'s
@@ -68,10 +67,11 @@ import typer
 from specify_cli.cli.console import err_console as _err_console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.context.mission_resolver import ResolvedMission
+from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
 from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
 from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from specify_cli.core.paths import locate_project_root
-from specify_cli.missions._read_path_resolver import resolve_surface_dir_or_typed_error
+from specify_cli.status.read_surface import resolve_status_read
 from specify_cli.status import (
     EMPTY_DIGEST,
     ResumeRefused,
@@ -121,23 +121,23 @@ def _refuse(error: str, detail: str, exit_code: int) -> typer.Exit:
 
 
 def _resolve_event_log_dir(repo_root: Path, resolved: ResolvedMission) -> Path:
-    """Return the directory holding the Mission's resolved status surface (#5466).
+    """Return the directory holding the Mission's declared status source (#5466).
 
-    On a coordination-routed Mission the work package transitions live in the
-    coordination worktree, not in ``resolved.feature_dir`` (the repository root
-    checkout), so the directory comes from the shared
-    :func:`resolve_surface_dir_or_typed_error` delegator over
-    :func:`resolve_status_surface`, the resolver every status writer uses. It
-    falls back to the handed mission dir when ``meta.json`` cannot be read.
+    The directory comes from the one status read door
+    (:func:`~specify_cli.status.read_surface.resolve_status_read`, ADR 2026-11-06-2): the
+    coordination worktree when it is materialized, the write checkout for the coordination-less
+    topologies (and the declared pre-seed fallback), the landed target's copy once consolidated.
+    It falls back to the handed Mission dir only when no Mission directory exists yet.
 
-    When the surface cannot be resolved -- the resolver fails closed
-    (``StatusReadPathNotFound``, e.g. a deleted coordination branch), the
-    coordination worktree is on another branch, or git cannot list worktrees --
-    the command refuses rather than tail the root checkout's copy.
+    Refusals (the command never tails the repository root checkout's stale copy):
 
-    An UNMATERIALIZED coordination surface (branch present, no worktree) resolves
-    to the coordination path, which does not exist yet: ``--once`` prints nothing
-    and a stream starts once the first write materializes it.
+    * ``status_surface_unavailable`` -- the door fails closed (``StatusReadPathNotFound``, e.g. a
+      deleted coordination branch; the coordination worktree on another branch; an unreadable
+      worktree registry; an unreadable coordination ref);
+    * ``status_surface_on_ref`` -- the declared source is a committed ref (the coordination
+      worktree is empty or absent). ``tail`` follows a file by byte offset and a ref has no
+      file, so it refuses instead of printing an empty history (WP06; the cursor source over a
+      ref is ADR 2026-11-06-6's).
 
     Called LAZILY, only for the COORD-partition kinds (``status``/``decisions``):
     a closed coordination surface never blocks the project-scoped or
@@ -147,10 +147,20 @@ def _resolve_event_log_dir(repo_root: Path, resolved: ResolvedMission) -> Path:
     the chosen log name onto the same resolution.
     """
     try:
-        surface_dir: Path = resolve_surface_dir_or_typed_error(repo_root, resolved.mission_slug, on_missing_meta=resolved.feature_dir)
-    except (StatusReadPathNotFound, CoordinationWorkspaceBranchMismatch, WorktreeRegistryUnavailable) as exc:
+        surface = resolve_status_read(repo_root, resolved.mission_slug)
+    except FileNotFoundError:
+        fallback: Path = resolved.feature_dir
+        return fallback
+    except (StatusReadPathNotFound, CoordinationWorkspaceBranchMismatch, WorktreeRegistryUnavailable, StatusSurfaceRefUnreadable) as exc:
         raise _refuse("status_surface_unavailable", str(exc), 1) from exc
-    return surface_dir
+    if surface.path is None:
+        raise _refuse(
+            "status_surface_on_ref",
+            f"the status of {resolved.mission_slug} lives on {surface.ref} and no checkout holds its log, so there is no file to tail; "
+            f"read it with 'spec-kitty agent status materialize --mission {resolved.mission_slug}'.",
+            1,
+        )
+    return surface.path
 
 
 @app.command("tail")

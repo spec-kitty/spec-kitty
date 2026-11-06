@@ -136,29 +136,23 @@ def _output_error(json_mode: bool, error_message: str, diagnostic: dict | None =
         console.print(f"[red]Error:[/red] {error_message}")
 
 
-def _resolve_status_surface(
+def _load_mission_status_for_command(
     explicit_mission: str | None = None,
     *,
     json_output: bool = False,
-) -> tuple[Path, str, Path]:
-    """Resolve the status read surface, mission slug, and repo root.
+) -> tuple[MissionStatus, str, Path]:
+    """Locate the project, resolve the Mission and load its ``MissionStatus`` aggregate.
 
-    This is the ``MissionStatus`` authority resolver (slug validation +
-    fail-closed coord authority), **not** the dir-only feature-dir resolver
-    in :mod:`specify_cli.missions._read_path_resolver`. It uses
-    ``MissionStatus.load()`` to resolve the coord-aware read path so that
-    coordination-topology missions read from the coord worktree rather than
-    the (potentially stale) primary checkout.
+    The aggregate resolves the declared status read source on demand
+    (``ms.status_read_surface()``, the one read door, ADR 2026-11-06-2) beside the write
+    anchor ``ms.read_dir``.
 
     Returns:
-        (feature_dir, mission_slug, repo_root)
+        (mission_status, mission_slug, main_repo_root)
 
     Raises:
         typer.Exit: If resolution fails
     """
-    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-    from specify_cli.status import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
-
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
 
@@ -172,19 +166,54 @@ def _resolve_status_surface(
         repo_root=repo_root,
     )
     main_repo_root = get_main_repo_root(repo_root)
+    return _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output), mission_slug, main_repo_root
 
-    try:
-        ms = MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
-        feature_dir = ms.read_dir
-    # ``CoordinationBranchDeleted`` (WP05 / T025) surfaces the converged coord-
-    # deleted hard-fail (#1848 data-loss) identically to the other fail-closed
-    # boundary types; it is listed explicitly because the aggregate now propagates
-    # it VERBATIM rather than re-wrapping to ``CoordAuthorityUnavailable``.
-    except (CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable) as exc:
-        _output_error(json_output, str(exc))
-        raise typer.Exit(1)
 
-    return feature_dir, mission_slug, main_repo_root
+def _status_path_or_refuse(ms: MissionStatus, json_output: bool, command: str) -> Path:
+    """The Mission directory a path-based status check reads, from the declared source.
+
+    ``doctor``, ``lifecycle`` and ``validate`` inspect files on disk. On a ref-sourced
+    surface (the coordination worktree is empty or absent, ADR 2026-11-06-2) no file holds
+    the authoritative log, so the command refuses and names the ref, rather than inspecting
+    the repository root checkout's stale copy.
+    """
+    surface = ms.status_read_surface()
+    if surface is None:
+        return ms.read_dir
+    if surface.path is not None:
+        return surface.path
+    _output_error(
+        json_output,
+        f"status for {ms.mission_slug} lives on {surface.ref} ({surface.source.value}); no checkout holds the "
+        f"authoritative status.events.jsonl, so 'agent status {command}' cannot inspect it. Read it with "
+        f"'spec-kitty agent status materialize --mission {ms.mission_slug}', or check out the coordination worktree.",
+    )
+    raise typer.Exit(1)
+
+
+def _status_dir_for_command(
+    explicit_mission: str | None,
+    *,
+    json_output: bool,
+    command: str,
+) -> tuple[Path, str, Path]:
+    """``(status_dir, mission_slug, main_repo_root)`` for a path-based status check.
+
+    ``status_dir`` is the declared source's Mission directory (:func:`_status_path_or_refuse`).
+    """
+    ms, mission_slug, main_repo_root = _load_mission_status_for_command(explicit_mission, json_output=json_output)
+    return _status_path_or_refuse(ms, json_output, command), mission_slug, main_repo_root
+
+
+def _read_mission_events(ms: MissionStatus) -> list[Any]:
+    """Lane transitions from the aggregate's declared source (the one read door)."""
+    from specify_cli.status import read_events
+    from specify_cli.status.read_surface import read_status_events
+
+    surface = ms.status_read_surface()
+    if surface is None:
+        return list(read_events(ms.read_dir))
+    return read_status_events(surface)
 
 
 def _resolve_mission_status_for_repo(
@@ -206,6 +235,7 @@ def _resolve_mission_status_for_repo(
         typer.Exit: If the slug is invalid or the coord authority is
             unavailable / metadata cannot be trusted (fail closed).
     """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.status import (
         CoordAuthorityUnavailable,
@@ -218,30 +248,11 @@ def _resolve_mission_status_for_repo(
         return MissionStatus.load(repo_root=main_repo_root, mission_slug=mission_slug)
     # ``CoordinationBranchDeleted`` (WP05 / T025): the aggregate now propagates the
     # converged coord-deleted hard-fail VERBATIM, so the CLI surfaces it as a clean
-    # fail-closed error (#1848) rather than letting it escape uncaught.
-    except (CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug) as exc:
+    # fail-closed error (#1848) rather than letting it escape uncaught. An unreadable
+    # coordination ref (FR-004) is never read as an empty history.
+    except (CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable, InvalidMissionSlug, StatusSurfaceRefUnreadable) as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1)
-
-
-def _resolve_status_surface_for_repo(
-    main_repo_root: Path,
-    mission_slug: str,
-    json_output: bool = False,
-) -> tuple[Path, str, Path]:
-    """Resolve coord-aware status read_dir given an already-resolved main_repo_root.
-
-    Factored out to avoid duplicating MissionStatus.load + CoordAuthorityUnavailable
-    handling across multiple commands (reduces cyclomatic complexity).
-
-    Returns:
-        (feature_dir, mission_slug, main_repo_root)
-
-    Raises:
-        typer.Exit: If CoordAuthorityUnavailable is raised.
-    """
-    ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
-    return ms.read_dir, mission_slug, main_repo_root
 
 
 def _enforce_emit_for_review_gate(
@@ -490,11 +501,13 @@ def emit(
         # create→first-write window. Reload so machine output points at the
         # event log affected by this command.
         output_feature_dir = feature_dir
+        reloaded = ms
         try:
-            output_feature_dir = type(ms).load(
+            reloaded = type(ms).load(
                 repo_root=main_repo_root,
                 mission_slug=mission_slug,
-            ).read_dir
+            )
+            output_feature_dir = reloaded.read_dir
         except Exception as reload_exc:  # noqa: BLE001
             logger.debug(
                 "Could not reload mission status after transition for %s: %s",
@@ -503,9 +516,8 @@ def emit(
             )
 
         from specify_cli.consolidation.approved_bound import approval_warnings
-        from specify_cli.status import read_events
 
-        for warning in approval_warnings(event, lambda: read_events(output_feature_dir), repo_root=main_repo_root, mission_slug=mission_slug):
+        for warning in approval_warnings(event, lambda: _read_mission_events(reloaded), repo_root=main_repo_root, mission_slug=mission_slug):
             typer.echo(warning, err=True)
 
         # Build result
@@ -574,16 +586,15 @@ def materialize(
         # Resolve feature slug
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
-        # Resolve coord-aware mission directory via MissionStatus aggregate
-        feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
+        # The declared read source (ADR 2026-11-06-2) and the write anchor, via the aggregate.
+        ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+        surface = ms.status_read_surface()
+        feature_dir = ms.read_dir if surface is None else surface.path
 
-        # Lazy import to avoid circular imports
-        from specify_cli.status import materialize as do_materialize
-        from specify_cli.status import EVENTS_FILENAME
-
-        # Check that the events file exists
-        events_path = feature_dir / EVENTS_FILENAME
-        if not events_path.exists():
+        # Check that the events file exists (a ref-sourced surface has no file; the door
+        # reads the committed log and an absent one is an empty history).
+        events_path = feature_dir / EVENTS_FILENAME if feature_dir is not None else None
+        if events_path is not None and not events_path.exists():
             _output_error(
                 json_output,
                 f"No event log found at {events_path}\n"
@@ -592,9 +603,10 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        with feature_status_lock(main_repo_root, mission_lock_key(feature_dir, repo_root=main_repo_root)):
-            # Materialize snapshot from event log
-            snapshot = do_materialize(feature_dir)
+        with feature_status_lock(main_repo_root, mission_lock_key(ms.read_dir, repo_root=main_repo_root)):
+            # Reduce the declared source; status.json is written only into a writable source
+            # (MissionStatus.materialize), never into a read-only path.
+            snapshot = ms.materialize(surface)
 
         # Build output
         if json_output:
@@ -669,7 +681,7 @@ def doctor(
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status import run_doctor
 
-    feature_dir, mission_slug, repo_root = _resolve_status_surface(mission, json_output=json_output)
+    feature_dir, mission_slug, repo_root = _status_dir_for_command(mission, json_output=json_output, command="doctor")
 
     # Run global runtime checks BEFORE project-specific checks
     global_checks = run_global_checks(project_dir=repo_root)
@@ -787,7 +799,7 @@ def lifecycle(
     """
     from specify_cli.status import derive_mission_lifecycle
 
-    feature_dir, mission_slug, _repo_root = _resolve_status_surface(mission, json_output=json_output)
+    feature_dir, mission_slug, _repo_root = _status_dir_for_command(mission, json_output=json_output, command="lifecycle")
     try:
         result = derive_mission_lifecycle(feature_dir)
     except StoreError as exc:
@@ -971,7 +983,8 @@ def validate(
     mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir, _, _ = _resolve_status_surface_for_repo(main_repo_root, mission_slug, json_output)
+    ms = _resolve_mission_status_for_repo(main_repo_root, mission_slug, json_output)
+    feature_dir = _status_path_or_refuse(ms, json_output, "validate")
 
     if not feature_dir.exists():
         msg = f"Mission directory not found: {feature_dir}"
