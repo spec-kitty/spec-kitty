@@ -9,6 +9,7 @@ part of the contract, not an accident (see the ``kernel.ancestor_walk`` module d
 from __future__ import annotations
 
 import ast
+import errno
 import os
 from pathlib import Path
 
@@ -183,7 +184,7 @@ def test_the_module_imports_nothing_above_the_kernel_floor() -> None:
     assert violations == [], f"kernel.ancestor_walk must stay at the floor, found {violations}"
 
 
-@pytest.mark.parametrize("error", [RuntimeError("Symlink loop"), PermissionError(13, "Permission denied")])
+@pytest.mark.parametrize("error", [OSError(errno.ELOOP, "Too many levels of symbolic links"), PermissionError(13, "Permission denied")])
 def test_a_start_that_cannot_be_resolved_is_walked_as_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
     """A resolve failure never escapes the walk: it continues lexically, still bounded by the ceiling."""
     start = tmp_path / "a" / "b"
@@ -207,7 +208,7 @@ def test_a_ceiling_entry_that_cannot_be_resolved_is_kept_as_written(tmp_path: Pa
 
     def failing(self: Path, strict: bool = False) -> Path:
         if self == ceiling:
-            raise RuntimeError("Symlink loop")
+            raise OSError(errno.ELOOP, "Too many levels of symbolic links")
         return real_resolve(self, strict=strict)
 
     monkeypatch.setattr(Path, "resolve", failing)
