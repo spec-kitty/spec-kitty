@@ -256,7 +256,9 @@ class PackPathEscape:
 
     ``path`` is kept exactly as written and ``reason`` is the primitive's own
     message, so a reporter never re-derives either. ``pack`` names the declaring
-    org pack; for a pack skill it is the skill directory. ``kind`` is the node
+    org pack; a pack skill has no org pack of its own (it may come from any tier), so
+    for ``PACK_SKILL_BODY_PATH_ESCAPE`` it holds the skill directory and the message
+    leaves it out. ``kind`` is the node
     kind of a fragment node and ``None`` otherwise.
     """
 
@@ -281,7 +283,7 @@ class PackPathEscape:
     def message(self) -> str:
         """Operator-facing finding naming the owner, the subject, the path and the reason."""
         shape = self._SHAPES[self.code]
-        kind = f" ({self.kind})" if self.kind else ""
+        kind = f" ({self.kind})" if self.kind is not None else ""
         owner = shape.owner.format(pack=self.pack)
         return f"{owner}{shape.subject_key} {self.subject!r}{kind} {shape.path_key} {self.path!r} is not contained in {shape.root}: {self.reason}"
 
