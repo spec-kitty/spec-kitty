@@ -267,7 +267,6 @@ def test_distinct_open_waits_without_bound_behind_open_held_on_status_lock(tmp_p
 
     Red on 581b5c46: B raised ``LockAcquireTimeout`` after the bounded wait.
     """
-    from specify_cli.decisions import service
 
     _setup(tmp_path)
     monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.5)

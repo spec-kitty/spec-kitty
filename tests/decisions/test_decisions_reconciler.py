@@ -1083,7 +1083,6 @@ def test_repair_lock_timeout_is_a_structured_refusal(tmp_path: Path, monkeypatch
     ``DECISION_LOCK_TIMEOUT``, the lock path and a retry), exit 1, and the
     decisions directory is byte-identical -- nothing was rebuilt.
     """
-    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
     lock_path = _lock_mod.lock_path(mission_dir)
@@ -1106,7 +1105,6 @@ def test_repair_lock_timeout_is_a_structured_refusal(tmp_path: Path, monkeypatch
 
 def test_repair_with_a_free_lock_still_rebuilds_the_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Positive control on the SAME fixture: a free lock repairs and exits 0."""
-    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
     monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
@@ -1127,7 +1125,6 @@ def test_repair_lock_timeout_refusal_human_mode(tmp_path: Path, monkeypatch: pyt
     operator grepping the line finds the same term the ``--json`` document
     carries, and no partial report (or JSON) may precede it.
     """
-    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
 
     mission_dir, decision_id = _diverged_mission(tmp_path)
     lock_path = _lock_mod.lock_path(mission_dir)

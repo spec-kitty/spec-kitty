@@ -398,6 +398,7 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     shape (unchanged) and the acquisition order (anchor before sidecar).
     """
     from kernel.event_log_append import event_log_lock_path
+
     d1 = _open(tmp_path, "k1")
     d2 = _open(tmp_path, "k2")
     pause = _Pause(monkeypatch)

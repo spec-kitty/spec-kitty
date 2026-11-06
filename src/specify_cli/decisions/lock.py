@@ -202,7 +202,5 @@ def decisions_write_locks(
     """
     with ExitStack() as stack:
         stack.enter_context(_anchor_lock(events_path, timeout_s=timeout_s, mission_slug=mission_slug, decision_id=decision_id))
-        stack.enter_context(
-            decisions_lock(lock_path(ledger_dir), timeout_s=timeout_s, mission_slug=mission_slug, decision_id=decision_id)
-        )
+        stack.enter_context(decisions_lock(lock_path(ledger_dir), timeout_s=timeout_s, mission_slug=mission_slug, decision_id=decision_id))
         yield

@@ -31,8 +31,7 @@ def test_refusal_carries_the_contract_code_message_and_details(tmp_path: Path) -
     assert error.code is DecisionErrorCode.LOCK_TIMEOUT
     assert error.code.value == "DECISION_LOCK_TIMEOUT"
     assert str(error) == (
-        f"Timed out after 0.25s waiting for the decisions lock {str(held)!r}; "
-        "another decision command is holding it. Nothing was written; retry the command."
+        f"Timed out after 0.25s waiting for the decisions lock {str(held)!r}; another decision command is holding it. Nothing was written; retry the command."
     )
     assert error.details == {
         "decision_id": "01DEC",
@@ -81,9 +80,12 @@ def test_a_busy_sidecar_raises_the_refusal_and_runs_nothing(tmp_path: Path) -> N
     held.parent.mkdir(parents=True)
     ran: list[str] = []
 
-    with machine_file_lock(held, blocking=True, timeout_s=5.0), pytest.raises(DecisionError) as raised:
-        with _lock.decisions_lock(held, timeout_s=0.1, mission_slug="m", decision_id=None):
-            ran.append("critical section")
+    with (
+        machine_file_lock(held, blocking=True, timeout_s=5.0),
+        pytest.raises(DecisionError) as raised,
+        _lock.decisions_lock(held, timeout_s=0.1, mission_slug="m", decision_id=None),
+    ):
+        ran.append("critical section")
 
     assert ran == []
     assert _lock.is_lock_timeout(raised.value)
