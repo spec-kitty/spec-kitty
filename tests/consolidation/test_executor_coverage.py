@@ -270,11 +270,9 @@ def test_phase_baseline_and_surface_resolves_paths(tmp_path: Path) -> None:
 
 def test_phase_baseline_and_surface_handles_missing_identity(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
     with (
         patch_executor_family("run_command", return_value=(1, "", "fatal")),
         patch_executor_family("resolve_mission_identity", side_effect=ValueError("no meta")),
-        patch.object(phase_advance, "resolve_status_surface", return_value=surface),
         patch_executor_family("is_under_worktrees_segment", return_value=False),
         patch_executor_family("get_state_path", return_value=tmp_path / "state.json"),
     ):
