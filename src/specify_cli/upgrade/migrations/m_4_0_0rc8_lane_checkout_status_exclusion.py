@@ -41,10 +41,7 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 __all__ = [
-    "LaneCheckoutMigrationItem",
-    "LaneCheckoutOutcome",
     "LaneCheckoutStatusExclusionMigration",
-    "migrate_lane_checkouts",
 ]
 
 MIGRATION_ID = "4.0.0rc8_lane_checkout_status_exclusion"

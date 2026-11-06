@@ -46,7 +46,6 @@ __all__ = [
     "LaneCheckoutRequest",
     "LaneCheckoutRoute",
     "MissionCodeLane",
-    "RegisteredCheckout",
     "exclude_lane_status_files",
     "is_mission_status_file",
     "lane_checkout_containing",

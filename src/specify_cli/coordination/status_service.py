@@ -550,7 +550,6 @@ def merge_append_preserving_coordination_event_log_bytes(
 __all__ = [
     "EventLogReadContract",
     "EventLogWriteContract",
-    "StatusWriteTargetsLaneCheckout",
     "append_event_stream_log",
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",

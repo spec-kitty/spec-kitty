@@ -41,8 +41,6 @@ if TYPE_CHECKING:
 # deliberately NOT exported — listing them would register orphan public symbols
 # under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
-    "LaneStatusAuthored",
-    "find_lane_status_authored",
     "run_sparse_checkout",
 ]
 
