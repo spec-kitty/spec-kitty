@@ -134,8 +134,8 @@ def test_a_directory_that_cannot_be_listed_is_unknown(tmp_path: Path, monkeypatc
     git_dir = _git_dir(tmp_path)
     real_scandir = os.scandir
 
-    def denied(path: str) -> Any:
-        if Path(path) == git_dir:
+    def denied(path: Any) -> Any:
+        if not isinstance(path, int) and Path(path) == git_dir:
             raise error
         return real_scandir(path)
 
