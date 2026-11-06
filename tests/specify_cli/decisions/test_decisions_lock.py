@@ -31,7 +31,8 @@ def test_refusal_carries_the_contract_code_message_and_details(tmp_path: Path) -
     assert error.code is DecisionErrorCode.LOCK_TIMEOUT
     assert error.code.value == "DECISION_LOCK_TIMEOUT"
     assert str(error) == (
-        f"Timed out after 0.25s waiting for the decisions lock {str(held)!r}; another decision command is holding it. Nothing was written; retry the command."
+        f"Timed out after 0.25s waiting for the decisions lock {str(held)!r}; "
+        "another decision command is holding it. Nothing was written under this lock; retry the command."
     )
     assert error.details == {
         "decision_id": "01DEC",
@@ -46,7 +47,7 @@ def test_refusal_renders_without_a_slug_decision_or_bound(tmp_path: Path) -> Non
     """``doctor --repair`` and owned ``next`` have no decision id; an unbounded wait names no seconds."""
     error = _lock.lock_timeout_error(tmp_path / "x.lock", timeout_s=None, mission_slug=None, decision_id=None)
 
-    assert "Timed out after the bounded wait waiting" in str(error)
+    assert "Timed out after an unbounded wait waiting" in str(error)
     assert error.details["mission_slug"] is None
     assert error.details["decision_id"] is None
     assert error.details["timeout_seconds"] is None

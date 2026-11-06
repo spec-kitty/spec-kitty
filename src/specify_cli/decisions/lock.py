@@ -15,11 +15,15 @@ built by :func:`lock_timeout_error`, and only that:
 * **code** -- ``DECISION_LOCK_TIMEOUT`` (:attr:`DecisionErrorCode.LOCK_TIMEOUT`,
   orchestrator-api contract 1.19.0);
 * **message** -- names the wait and the lock file, says another decision
-  command holds it, that nothing was written, and to retry;
+  command holds it, that nothing was written under this lock, and to retry
+  ("under this lock" keeps it true for an owned ``next``, whose advancement is
+  already recorded before the commit takes the lock);
 * **details** -- ``decision_id``, ``mission_slug``, ``lock_path`` and
   ``timeout_seconds`` (the orchestrator-api ``data`` keys, unchanged);
 * **retryability** -- always retryable: the critical section never ran, so the
-  same call can be made again. :func:`is_lock_timeout` is the one predicate a
+  same call can be made again. The code itself is the retryability signal;
+  no envelope carries a separate ``retryable`` flag (adding one would change
+  the orchestrator-api contract). :func:`is_lock_timeout` is the one predicate a
   caller uses to recognise it; a caller renders it in its own envelope and lets
   every other :class:`DecisionError` propagate unchanged.
 
@@ -120,7 +124,7 @@ def lock_timeout_error(
     have no decision id). ``timeout_s`` is ``None`` only for an unbounded wait,
     which cannot time out; the message still renders.
     """
-    waited = "the bounded wait" if timeout_s is None else f"{timeout_s:g}s"
+    waited = "an unbounded wait" if timeout_s is None else f"{timeout_s:g}s"
     return DecisionError(
         code=DecisionErrorCode.LOCK_TIMEOUT,
         details={
@@ -131,7 +135,7 @@ def lock_timeout_error(
         },
         message=(
             f"Timed out after {waited} waiting for the decisions lock {str(held_lock)!r}; "
-            "another decision command is holding it. Nothing was written; retry the command."
+            "another decision command is holding it. Nothing was written under this lock; retry the command."
         ),
     )
 

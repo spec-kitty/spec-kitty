@@ -268,6 +268,12 @@ def _run_coexistence(tmp_path: Path, *, slow_hold_s: float = 0.0) -> None:
     leaves ``_DEADLOCK_BUDGET_S`` as the only deadline, so the verdict is "a
     participant never returned", never "a participant was slow".
 
+    The two holders #6763 newly routed through ``decisions/lock.py`` (an owned
+    ``next``'s commit guard and ``repair-runtime-lock``) are not participants
+    here: they read the same ``lock.ACQUIRE_TIMEOUT_S``, and their refusal is
+    pinned by ``tests/specify_cli/cli/commands/test_next_owned_lock_timeout.py``
+    and ``tests/integration/test_owned_decision_runtime_lock.py``.
+
     ``slow_hold_s`` injects a FINITE hold into every holder's critical section;
     it exists so the proof in
     ``test_coexistence_ratchet_is_indifferent_to_the_ambient_acquire_bound`` can

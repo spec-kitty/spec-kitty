@@ -1324,3 +1324,44 @@ def test_repair_keeps_reporting_tolerated_duplicates_and_never_rewrites_the_log(
     assert payload["clean"] is True, payload
     assert payload["duplicate_openings_tolerated"] == [decision_id], payload
     assert events_path.read_bytes() == log_before, "doctor --repair must never rewrite the event log"
+
+
+def test_copy_refused_after_a_saved_repair_says_the_rebuild_was_kept(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6763 review: the rebuild ran under an earlier hold, so the refusal must not imply it was lost.
+
+    ``--repair`` rebuilds the index, releases the lock, then takes it again for the
+    additive coordination-only ledger copy. When only that second acquire times out,
+    the index rebuild is on disk and the refusal says so, still as ONE C2 document
+    with exit 1.
+    """
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+
+    mission_dir, decision_id = _diverged_mission(tmp_path)
+
+    def refused_copy(_repo_root: Path, mission_slug: str, ledger_dir: Path) -> None:
+        raise _lock_mod.lock_timeout_error(_lock_mod.lock_path(ledger_dir), timeout_s=0.2, mission_slug=mission_slug, decision_id=None)
+
+    monkeypatch.setattr(_doctor_mod._fork, "ledger_is_coordination_only", lambda _ledger: True)
+    monkeypatch.setattr(_doctor_mod, "_copy_coordination_only_ledger", refused_copy)
+
+    exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert exception is None or isinstance(exception, SystemExit), repr(exception)
+    assert exit_code == 1, output
+    payload = json.loads(output)
+    assert payload["error"]["code"] == "DECISION_LOCK_TIMEOUT"
+    assert "index rebuild finished" in payload["error"]["message"]
+    assert "retry" in payload["error"]["message"].lower()
+    assert decision_id in {entry.decision_id for entry in _store.load_index(mission_dir).entries}, "the saved rebuild stays"
+
+
+def test_a_refused_first_phase_carries_no_rebuild_note(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Negative control: when the rebuild itself is refused, nothing claims it was saved."""
+    mission_dir, _ = _diverged_mission(tmp_path)
+    monkeypatch.setattr(_lock_mod, "ACQUIRE_TIMEOUT_S", 0.2)
+
+    with _hold_decisions_lock(_lock_mod.lock_path(mission_dir)):
+        exit_code, output, _exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert exit_code == 1, output
+    assert "index rebuild finished" not in json.loads(output)["error"]["message"]

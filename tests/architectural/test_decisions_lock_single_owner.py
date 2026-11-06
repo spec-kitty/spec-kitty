@@ -70,8 +70,13 @@ def _locks_by_hand(tree: ast.AST) -> int | None:
                 imports_decisions = True
             if node.module == "kernel.locks" and any(alias.name in _LOCK_PRIMITIVES for alias in node.names):
                 primitive_line = primitive_line or node.lineno
-        elif isinstance(node, ast.Import) and any(alias.name.startswith("specify_cli.decisions") for alias in node.names):
-            imports_decisions = True
+            if node.module == "kernel" and any(alias.name == "locks" for alias in node.names):
+                primitive_line = primitive_line or node.lineno
+        elif isinstance(node, ast.Import):
+            if any(alias.name.startswith("specify_cli.decisions") for alias in node.names):
+                imports_decisions = True
+            if any(alias.name == "kernel.locks" for alias in node.names):
+                primitive_line = primitive_line or node.lineno
     return primitive_line if imports_decisions else None
 
 
@@ -83,7 +88,7 @@ _RULES: dict[str, Callable[[ast.AST], int | None]] = {
 
 
 #: A module can only break a rule if its text holds one of these, so only those are parsed.
-_CANDIDATE_MARKERS = (LOCK_FILENAME, "LOCK_TIMEOUT", "kernel.locks")
+_CANDIDATE_MARKERS = (LOCK_FILENAME, "LOCK_TIMEOUT", "kernel.locks", "import locks")
 
 
 def _src_trees() -> dict[str, ast.AST]:
@@ -122,6 +127,18 @@ _PLANTED = {
         "from kernel.locks import machine_file_lock\nfrom specify_cli.decisions.service import _ledger_dir\n"
     ),
 }
+
+
+#: Other spellings of a hand-taken lock the third rule must also see.
+_PLANTED_IMPORT_FORMS = (
+    "import kernel.locks as kl\nfrom specify_cli.decisions import store\n",
+    "from kernel import locks\nimport specify_cli.decisions.service\n",
+)
+
+
+@pytest.mark.parametrize("source", _PLANTED_IMPORT_FORMS)
+def test_every_import_form_of_kernel_locks_is_seen(source: str) -> None:
+    assert _locks_by_hand(ast.parse(source)) is not None
 
 
 @pytest.mark.parametrize("rule", sorted(_RULES))
