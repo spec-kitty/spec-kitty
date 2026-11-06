@@ -16,6 +16,7 @@ always either the old version or the new version, never a partial write.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -38,6 +39,18 @@ META_FILENAME: str = "meta.json"
 _UTF8: str = "utf-8"
 _UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
 _HEAD: str = "HEAD"
+
+# A failed git probe under an explicit repository/index/object redirect does not
+# prove that no tracked identity exists, even when discovery stops at a ceiling.
+# Successful redirects retain their existing behavior; #7262 owns their classifier.
+_GIT_CONTEXT_REDIRECTS = (
+    "GIT_DIR",
+    "GIT_COMMON_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
 
 
 def baseline_slug_fields(slug: str) -> dict[str, str]:
@@ -600,6 +613,8 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     lines = result.stdout.decode(_UTF8, "replace").split("\n")
     if result.returncode == 0 and len(lines) >= 2 and lines[0].strip() == "true":
         return lines[1].removesuffix("\n")
+    if result.returncode != 0 and any(name in os.environ for name in _GIT_CONTEXT_REDIRECTS):
+        raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
     if _has_no_git_anchor(feature_dir):
         return None
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
