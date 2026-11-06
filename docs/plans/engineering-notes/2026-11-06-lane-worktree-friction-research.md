@@ -376,9 +376,9 @@ Five readers still depend on a checkout:
   (#7198).
 - **The dirty-checkout preflight.** It reads lane checkouts.
 - **Resume and rollback resync.** They reset and resync checkouts.
-- **Auto-rebase and the dependency-lane merge at allocation.** Both run in the lane checkout.
+- **Auto-rebase and folding dependency lanes in at allocation.** Both run in the lane checkout.
 
-Auto-rebase and the dependency merge could run in a temporary worktree. The other three need
+Auto-rebase and the dependency fold-in could run in a temporary worktree. The other three need
 reworking first.
 
 So **lanes can stay branches while their checkouts become short-lived**, provided the for_review
