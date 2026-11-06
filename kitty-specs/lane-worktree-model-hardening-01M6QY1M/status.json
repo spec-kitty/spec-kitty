@@ -340,7 +340,7 @@
     },
     "WP12": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -353,6 +353,7 @@
         "S8 per-WP approval windows: tier 1+2 claim arm (write_branch_bound.py), gate re-check via lane->branch map, orchestrator planning-only preflight (reused codes), strict-xfail commit-to-target residual"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate/review-cycle-1.md",
         "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP12-s8-approval-windows-claim-and-gate/review-cycle-1.md",
@@ -360,16 +361,16 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 27801,
-      "shell_pid_created_at": "1793977840.71",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T067": "done",
-        "T068": "done",
-        "T069": "done",
-        "T070": "done",
-        "T071": "done",
-        "T072": "done",
-        "T073": "done"
+        "T067": "planned",
+        "T068": "planned",
+        "T069": "planned",
+        "T070": "planned",
+        "T071": "planned",
+        "T072": "planned",
+        "T073": "planned"
       }
     },
     "WP13": {
