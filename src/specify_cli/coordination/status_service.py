@@ -4,7 +4,10 @@ This module is the explicit contract layer for rc34-adjacent mission state
 surfaces:
 
 * status reads: primary checkout, coordination worktree, or coordination branch
-  ref read via ``git show`` without worktree creation;
+  ref read via one ``git cat-file --batch`` without worktree creation; the ref
+  reader is typed (:class:`RefRead`): an absent file on a readable ref is an
+  empty history, a missing or unreadable ref raises
+  :class:`StatusSurfaceRefUnreadable` (FR-004, ADR 2026-11-06-2);
 * move-task/review handoff: read-only transactional snapshots use the same
   target as transactional writes;
 * planning-artifact commits: append-preserving coordination event-log merge is a
@@ -35,7 +38,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -169,9 +172,148 @@ class EventLogWriteContract:
         )
 
 
+STATUS_SURFACE_REF_UNREADABLE = "STATUS_SURFACE_REF_UNREADABLE"
+"""Error code of :class:`StatusSurfaceRefUnreadable` (``contracts/error-codes.yaml``)."""
+
+_BATCH_MISSING_MARKERS = (b"missing", b"ambiguous")
+
+
+class StatusSurfaceRefUnreadable(RuntimeError):
+    """A status read sourced from a ref hit a missing or unreadable ref or object, or git failed.
+
+    Never read as an empty history (FR-004): a broken ref is not genesis. Carries a
+    stable ``error_code`` so callers route without string parsing.
+    """
+
+    error_code: str = STATUS_SURFACE_REF_UNREADABLE
+
+    def __init__(self, *, repo_root: Path, ref: str, path: str, detail: str) -> None:
+        self.repo_root = repo_root
+        self.ref = ref
+        self.path = path
+        self.detail = detail
+        super().__init__(
+            f"Cannot read {path} from ref {ref!r} in {repo_root}: {detail}. "
+            f"A status history is never assumed empty when its ref cannot be read. "
+            f"Error code: {STATUS_SURFACE_REF_UNREADABLE}."
+        )
+
+
+@dataclass(frozen=True)
+class RefRead:
+    """Typed result of a ref read: ``ABSENT`` or ``PRESENT(data)`` (data model §2).
+
+    ``ABSENT`` means the ref resolved to a commit whose tree has no file at the
+    path; readers map it to an empty history. A status read door applies its
+    declared pre-seed fallback BEFORE reading an ABSENT result as empty
+    (ADR 2026-11-06-2); this reader itself never falls back.
+    """
+
+    data: bytes | None = None
+    ABSENT: ClassVar[RefRead]
+
+    @property
+    def absent(self) -> bool:
+        return self.data is None
+
+    @classmethod
+    def present(cls, data: bytes) -> RefRead:
+        return cls(data=data)
+
+
+RefRead.ABSENT = RefRead()
+
+
+def _split_batch_entry(output: bytes) -> tuple[bytes, bytes | None, bytes]:
+    """Split one ``git cat-file --batch`` entry off *output*: ``(type, body, rest)``.
+
+    ``body`` is ``None`` for a ``missing`` / ``ambiguous`` entry, whose ``type`` is
+    that marker. Raises ``ValueError`` on truncated output.
+    """
+    newline = output.find(b"\n")
+    if newline < 0:
+        raise ValueError("truncated cat-file header")
+    fields = output[:newline].split()
+    if not fields:
+        raise ValueError("empty cat-file header")
+    if fields[-1] in _BATCH_MISSING_MARKERS:
+        return fields[-1], None, output[newline + 1 :]
+    if len(fields) != 3:
+        raise ValueError(f"unexpected cat-file header {output[:newline]!r}")
+    size = int(fields[2])
+    start = newline + 1
+    if len(output) < start + size:
+        raise ValueError("truncated cat-file body")
+    return fields[1], output[start : start + size], output[start + size + 1 :]
+
+
+def _run_cat_file_batch(repo_root: Path, request: bytes, *, ref: str, path: str) -> bytes:
+    """Run one batched object read; any failure to run git raises the typed error."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "cat-file", "--batch"],
+            input=request,
+            check=False,
+            capture_output=True,
+        )
+    except OSError as exc:
+        raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=str(exc)) from exc
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip() or f"git exit {result.returncode}"
+        raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=detail)
+    return result.stdout
+
+
+def read_status_ref(repo_root: Path, ref: str, path: str) -> RefRead:
+    """Read *path* at *ref* with ONE ``git cat-file --batch`` subprocess (NFR-001).
+
+    The ref and path travel on stdin, never in argv, so a ``-``-prefixed name can
+    never be read as an option. The first request resolves ``<ref>^{commit}``,
+    the second ``<ref>:<path>``:
+
+    * the commit does not resolve (missing ref, missing object, ambiguous name)
+      or git fails -> :class:`StatusSurfaceRefUnreadable`;
+    * the commit resolves but the tree has no such path -> :attr:`RefRead.ABSENT`;
+    * the path is a blob -> ``RefRead.present(<bytes>)``; anything else raises.
+
+    A coordination branch that the resolver already classifies as deleted keeps
+    raising ``CoordinationBranchDeleted`` there, before this reader runs.
+    """
+    request = f"{ref}^{{commit}}\n{ref}:{path}\n".encode()
+    output = _run_cat_file_batch(repo_root, request, ref=ref, path=path)
+    try:
+        commit_type, _commit, rest = _split_batch_entry(output)
+        if commit_type != b"commit":
+            detail = f"ref does not resolve to a commit ({commit_type.decode(errors='replace')})"
+            raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=detail)
+        file_type, body, _rest = _split_batch_entry(rest)
+    except ValueError as exc:
+        raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=str(exc)) from exc
+    if body is None:
+        if file_type == b"missing":
+            return RefRead.ABSENT
+        raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=f"path is {file_type.decode(errors='replace')}")
+    if file_type != b"blob":
+        raise StatusSurfaceRefUnreadable(repo_root=repo_root, ref=ref, path=path, detail=f"path is a {file_type.decode(errors='replace')}, not a file")
+    return RefRead.present(body)
+
+
+def _read_ref_events_text(contract: EventLogReadContract) -> str | None:
+    """Read a ``COORDINATION_BRANCH_REF`` contract's log text, or ``None`` when ABSENT."""
+    from specify_cli.status import EVENTS_FILENAME  # noqa: PLC0415
+
+    if contract.repo_root is None or contract.destination_ref is None:
+        raise StatusContractError("coordination_branch_ref reads require repo_root and destination_ref")
+    path = f"kitty-specs/{contract.feature_dir.name}/{EVENTS_FILENAME}"
+    result = read_status_ref(contract.repo_root, contract.destination_ref, path)
+    if result.data is None:
+        return None
+    return result.data.decode("utf-8", errors="replace")
+
+
 def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
     """Read events from the contract's explicit source without mutation."""
-    from specify_cli.status import EVENTS_FILENAME, read_events, read_events_from_text  # noqa: PLC0415
+    from specify_cli.status import read_events, read_events_from_text  # noqa: PLC0415
 
     if not isinstance(contract, EventLogReadContract):
         raise StatusContractError("read_event_log requires EventLogReadContract")
@@ -184,26 +326,11 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
         return read_events(contract.feature_dir)
 
     if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
-        if contract.repo_root is None or contract.destination_ref is None:
-            raise StatusContractError(
-                "coordination_branch_ref reads require repo_root and destination_ref"
-            )
-        events_ref = (
-            f"{contract.destination_ref}:"
-            f"kitty-specs/{contract.feature_dir.name}/{EVENTS_FILENAME}"
-        )
-        result = subprocess.run(
-            ["git", "-C", str(contract.repo_root), "show", events_ref],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        if result.returncode != 0:
+        text = _read_ref_events_text(contract)
+        if text is None:
             return []
         parser_feature_dir = contract.parser_feature_dir or contract.feature_dir
-        return read_events_from_text(parser_feature_dir, result.stdout)
+        return read_events_from_text(parser_feature_dir, text)
 
     raise StatusContractError(f"unsupported status read source: {contract.source}")
 
@@ -216,7 +343,6 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
     returning the complete event stream required by runtime-state reducers.
     """
     from specify_cli.status import (  # noqa: PLC0415
-        EVENTS_FILENAME,
         EventStream,
         read_event_stream,
         read_event_stream_from_text,
@@ -233,26 +359,11 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
         return read_event_stream(contract.feature_dir)
 
     if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
-        if contract.repo_root is None or contract.destination_ref is None:
-            raise StatusContractError(
-                "coordination_branch_ref reads require repo_root and destination_ref"
-            )
-        events_ref = (
-            f"{contract.destination_ref}:"
-            f"kitty-specs/{contract.feature_dir.name}/{EVENTS_FILENAME}"
-        )
-        result = subprocess.run(
-            ["git", "-C", str(contract.repo_root), "show", events_ref],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        if result.returncode != 0:
+        text = _read_ref_events_text(contract)
+        if text is None:
             return EventStream()
         parser_feature_dir = contract.parser_feature_dir or contract.feature_dir
-        return read_event_stream_from_text(parser_feature_dir, result.stdout)
+        return read_event_stream_from_text(parser_feature_dir, text)
 
     raise StatusContractError(f"unsupported status read source: {contract.source}")
 
@@ -375,11 +486,15 @@ def merge_append_preserving_coordination_event_log_bytes(
 
 
 __all__ = [
+    "STATUS_SURFACE_REF_UNREADABLE",
     "EventLogReadContract",
     "EventLogWriteContract",
     "append_event_stream_log",
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
     "read_event_stream_log",
+    "read_status_ref",
+    "RefRead",
+    "StatusSurfaceRefUnreadable",
     "wp_lane_actor_from_events",
 ]
