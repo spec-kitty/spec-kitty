@@ -1051,7 +1051,6 @@ def test_terminal_verb_retry_with_corrupt_event_log_emits_json_envelope(tmp_path
 def test_terminal_verb_lock_timeout_returns_lock_timeout_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
     """Red on 581b5c46: ``LockAcquireTimeout`` escaped with an empty stdout."""
     from kernel.locks import machine_file_lock
-    from specify_cli.decisions import service
 
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, f"lock-timeout-{verb}")

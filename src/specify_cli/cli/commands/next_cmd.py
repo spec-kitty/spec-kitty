@@ -542,9 +542,7 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     # The owner lock serialises the ignore provision/rollback with a concurrent
     # owned run or decision write; it only exists once the service created it.
     guard = (
-        _decisions_lock.decisions_lock(
-            runtime_lock, timeout_s=_decisions_lock.ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None
-        )
+        _decisions_lock.decisions_lock(runtime_lock, timeout_s=_decisions_lock.ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None)
         if runtime_lock.exists()
         else nullcontext()
     )

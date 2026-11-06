@@ -82,11 +82,17 @@ _RULES: dict[str, Callable[[ast.AST], int | None]] = {
 }
 
 
+#: A module can only break a rule if its text holds one of these, so only those are parsed.
+_CANDIDATE_MARKERS = (LOCK_FILENAME, "LOCK_TIMEOUT", "kernel.locks")
+
+
 def _src_trees() -> dict[str, ast.AST]:
-    return {
-        path.relative_to(REPO_ROOT).as_posix(): ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for path in sorted(SRC_ROOT.rglob("*.py"))
-    }
+    trees: dict[str, ast.AST] = {}
+    for path in sorted(SRC_ROOT.rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if any(marker in text for marker in _CANDIDATE_MARKERS):
+            trees[path.relative_to(REPO_ROOT).as_posix()] = ast.parse(text, filename=str(path))
+    return trees
 
 
 @pytest.fixture(scope="module")
@@ -110,8 +116,7 @@ def test_only_the_owner_breaks_the_rule(rule: str, src_trees: dict[str, ast.AST]
 _PLANTED = {
     "spells the decisions lock file name": '_LOCK_FILENAME = "index.json.lock"\n',
     "builds a DECISION_LOCK_TIMEOUT refusal": (
-        "from specify_cli.decisions.models import DecisionError, DecisionErrorCode\n"
-        "raise DecisionError(code=DecisionErrorCode.LOCK_TIMEOUT, message='busy')\n"
+        "from specify_cli.decisions.models import DecisionError, DecisionErrorCode\nraise DecisionError(code=DecisionErrorCode.LOCK_TIMEOUT, message='busy')\n"
     ),
     "takes a kernel.locks primitive beside a decisions import": (
         "from kernel.locks import machine_file_lock\nfrom specify_cli.decisions.service import _ledger_dir\n"

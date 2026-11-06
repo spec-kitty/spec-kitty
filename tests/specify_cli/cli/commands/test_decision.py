@@ -1218,7 +1218,6 @@ def test_terminal_retry_repairs_missing_event_via_cli(tmp_path: Path, verb: str)
 def test_terminal_lock_timeout_exits_1_structured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
     """Red on 581b5c46: the timeout escaped as an uncaught ``LockAcquireTimeout``."""
     from kernel.locks import machine_file_lock
-    from specify_cli.decisions import service
 
     mission_dir = _setup_mission(tmp_path)
     decision_id = _open_decision(tmp_path)
