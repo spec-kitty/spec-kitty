@@ -68,6 +68,8 @@ from specify_cli.consolidation.bookkeeping_projection import (
     assert_alias_events_preserved,
     assert_late_window_landed,
     project_late_gate_matrix_commits,
+    topic_primary_landing_bytes,
+    unlanded_topic_primary_paths,
 )
 from specify_cli.consolidation.state import (
     save_state,
@@ -733,6 +735,89 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
     return approved_branch_tip
 
 
+def _topic_primary_window(run: _MergeRunState) -> tuple[str, str, str] | None:
+    """``(base, topic_ref, target)`` for a default Mission whose topic branch still exists, else ``None``."""
+    from specify_cli.lanes.single_branch_landing import lands_topic_branch
+
+    base = _topic_primary_window_base(run)
+    branch = run.lanes_manifest.mission_branch
+    if base is None or not lands_topic_branch(run.main_repo, run.lanes_manifest):
+        return None
+    if not _resolve_ref_sha(run.main_repo, f"refs/heads/{branch}"):
+        return None
+    return base, f"refs/heads/{branch}", run.lanes_manifest.target_branch
+
+
+def _topic_primary_window_base(run: _MergeRunState) -> str | None:
+    """The topic tip the PRIMARY comparison starts at: the checkpoint, or on a ``--resume`` the persisted pre-mutation tip.
+
+    A resume's in-memory checkpoint is read at resume start, after the interrupted run's late
+    commits, so it would hide them; the persisted ``state.pre_mutation_coord_sha`` does not.
+    """
+    if run.is_resume:
+        resume_base: str | None = run.state.pre_mutation_coord_sha
+        return resume_base
+    checkpoint = run.coord_checkpoint
+    return None if checkpoint is None else str(checkpoint.sha)
+
+
+def _unlanded_topic_primary(run: _MergeRunState, window: tuple[str, str, str]) -> list[str]:
+    """The window's unlanded PRIMARY paths; an unreadable diff refuses (branch kept)."""
+    base, topic_ref, target = window
+    try:
+        unlanded: list[str] = unlanded_topic_primary_paths(run.main_repo, run.mission_slug, base=base, topic_ref=topic_ref, target_ref=target)
+    except GitCommandError as exc:
+        raise CoordinationTeardownError(
+            f"the PRIMARY changes on topic branch {run.lanes_manifest.mission_branch!r} could not be compared with {target!r} "
+            f"({escape(str(exc))}); the branch was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
+    return unlanded
+
+
+def _land_topic_primary_before_teardown(run: _MergeRunState) -> None:
+    """FR-062: land a default Mission's late PRIMARY changes before its topic branch is deleted.
+
+    A ``topology_source: default`` Mission settled to ``lanes_with_coord`` keeps its PRIMARY
+    partition (spec, plan, tasks, WP files, ``lanes.json``, ``meta.json``) on its topic branch,
+    which is also the coordination branch this teardown deletes. The landing carried the topic
+    tip it read; a PRIMARY commit made after that read is excluded from the coordination
+    projection (G2), so it used to die with the branch at exit 0. This lands exactly those
+    changes on the target through the late window's own commit (``_commit_projection_and_carry``,
+    which moves the PASS anchor, so a ``--resume`` explains the commit), compared against the
+    consolidation checkpoint so a value the target authored is never overwritten
+    (:func:`topic_primary_landing_bytes`). Whatever is still unlanded afterwards REFUSES through
+    :class:`CoordinationTeardownError` (exit 1) with the coordination triple kept. Explicit and
+    legacy Missions are unchanged.
+    """
+    window = _topic_primary_window(run)
+    if window is None:
+        return
+    unlanded = _unlanded_topic_primary(run, window)
+    if not unlanded:
+        return
+    base, topic_ref, target = window
+    paths: list[Path] = []
+    for rel in unlanded:
+        content = topic_primary_landing_bytes(run.main_repo, rel, base=base, topic_ref=topic_ref, target_ref=target)
+        if content is None:
+            continue  # a topic-side deletion is not replayed here: the re-check below refuses it
+        path = run.main_repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        paths.append(path)
+    if paths:
+        _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): land topic-branch PRIMARY changes made after the landing (FR-062)")
+        console.print(f"  Landed {len(paths)} PRIMARY change(s) made on the topic branch after the landing onto {target}")
+    still = _unlanded_topic_primary(run, window)
+    if still:
+        branch = run.lanes_manifest.mission_branch
+        raise CoordinationTeardownError(
+            f"topic branch {branch!r} still holds PRIMARY change(s) the target {target!r} does not carry: {', '.join(still[:20])}. "
+            f"Branch {branch!r}, its worktree and the coordination marker were NOT removed. "
+            f"Review them with `git diff {target} {branch}`, then run `spec-kitty consolidate --resume`."
+        )
+
+
 def _teardown_coordination_triple(run: _MergeRunState) -> None:
     """Coord branch + marker-flatten + coord-worktree -- ONE atomic unit.
 
@@ -757,6 +842,7 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     # #5570: the delete is a compare-and-swap at the tip approved BEFORE the
     # window opens -- the gate's tip when one ran, else the tip read now, ahead of
     # the persist/worktree-destroy legs. A commit landing in between survives.
+    _land_topic_primary_before_teardown(run)
     _land_late_coordination_commits(run)
     _fold_coord_status_before_flatten(run)
     pre_teardown_tip = _mission_branch_tip(run)

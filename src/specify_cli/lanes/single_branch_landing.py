@@ -158,6 +158,33 @@ def lands_mission_branch(repo: Path, manifest: LanesManifest) -> bool:
     return _is_protected_single_branch(repo, manifest.mission_slug, manifest.target_branch)
 
 
+def lands_topic_branch_meta(meta: Mapping[str, Any]) -> bool:
+    """True for a STORED ``topology_source: default`` Mission settled to ``lanes_with_coord`` (FR-062).
+
+    Pure over an already-loaded ``meta.json``: keyed on the stored ``topology_source`` and the
+    stored topology, never on a derived or manifest-only fact. An explicit or legacy Mission
+    (no ``topology_source``) answers ``False``.
+    """
+    from mission_runtime import MissionTopology
+    from specify_cli.meta_keys import TOPOLOGY_SOURCE_KEY, TopologySource
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    if meta.get(TOPOLOGY_SOURCE_KEY) != TopologySource.DEFAULT.value:
+        return False
+    return stored_topology(meta) is MissionTopology.LANES_WITH_COORD
+
+
+def lands_topic_branch(repo: Path, manifest: LanesManifest) -> bool:
+    """True when consolidate lands a default Mission's topic branch, which holds its PRIMARY partition (FR-062).
+
+    The topic branch is the coordination branch and ``manifest.mission_branch``; its PRIMARY
+    artifacts reach the target through the one landing seam (``integrate_mission_into_target``),
+    after which the run's PRIMARY anchor is the target checkout. Separate from
+    :func:`lands_mission_branch`, whose ``single_branch`` callers are unchanged.
+    """
+    return lands_topic_branch_meta(stored_mission_meta(repo, manifest.mission_slug))
+
+
 def expected_consolidate_checkout(repo: Path, manifest: LanesManifest, target_branch: str) -> str:
     """Branch the write checkout must be on when consolidate starts.
 
