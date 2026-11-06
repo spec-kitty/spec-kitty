@@ -81,16 +81,14 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
 
 @pytest.mark.parametrize(
     "tracked_state",
-    ["usable", "corrupt", "staged-edit", "redirect-ceiling", "post-empty-ownership", "config-error"],
+    ["usable", "corrupt", "staged-edit", "redirect-ceiling", "post-empty-ownership", "start-ceiling-ownership", "config-error"],
 )
 def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint.
 
-    ``post-empty-ownership`` and ``config-error`` are the two distinct ways a git that did run
-    can end up unable to answer, each with a ceiling that hides the physical anchor: git's own
-    no-realpath rule for an entry after an empty separator (so its search really reaches the
-    repository it then refuses for ownership), and a git that cannot parse its configuration
-    at all.
+    Ownership refusal is exercised with both an unresolved post-empty ceiling alias and a
+    ceiling equal to git's starting directory: neither stops git reaching the held identity.
+    Configuration failure is separate evidence that a failed query cannot establish absence.
     """
     root = _repo(tmp_path)
     mission_dir = _mission(root)
@@ -129,6 +127,11 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
             pytest.skip("platform cannot create directory symlinks")
         monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{alias}")
+    elif tracked_state == "start-ceiling-ownership":
+        # Git ignores a ceiling equal to its starting directory. Its ownership refusal
+        # must not become an absence merely because the general walk stops at the start.
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
     elif tracked_state == "config-error":
         # A git that runs and cannot parse its configuration is unknown, not an absence.
         assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")

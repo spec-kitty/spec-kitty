@@ -75,7 +75,7 @@ def test_neutrality_lint_still_finds_a_pyproject_below_the_ceiling(ambient_proje
     assert neutrality_lint._find_repo_root(work) == work
 
 
-def test_next_planner_project_root_stops_at_the_ceiling(ambient_project: tuple[Path, Path]) -> None:
+def test_next_planner_project_root_stops_at_the_ceiling(ambient_project: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     _outer, work = ambient_project
     mission_dir = work / "kitty-specs" / "some-mission"
     mission_dir.mkdir(parents=True)
@@ -83,6 +83,10 @@ def test_next_planner_project_root_stops_at_the_ceiling(ambient_project: tuple[P
     # The mission dir's own kitty-specs parent rule is below the ceiling, so the mission
     # still resolves -- but it must resolve to its own project, never the ambient one.
     assert planner._infer_project_root(mission_dir) == work
+
+    # The same parent convention cannot infer an owner the canonical sequence excludes.
+    monkeypatch.setenv(CEILING_ENV, str(mission_dir.parent))
+    assert planner._infer_project_root(mission_dir) is None
 
 
 def test_next_planner_does_not_adopt_a_project_above_the_ceiling(ambient_project: tuple[Path, Path]) -> None:
