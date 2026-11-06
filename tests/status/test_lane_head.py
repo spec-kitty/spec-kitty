@@ -445,7 +445,8 @@ def _read_coord_branch_events(repo: Path, mission_dirname: str) -> list[StatusEv
         capture_output=True,
         text=True,
     ).stdout
-    return read_events_from_text(repo / "kitty-specs" / mission_dirname, content)
+    events: list[StatusEvent] = read_events_from_text(repo / "kitty-specs" / mission_dirname, content)
+    return events
 
 
 def test_transactional_shell_stamps_lane_head(coord_repo: Path) -> None:
