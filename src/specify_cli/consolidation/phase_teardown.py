@@ -438,6 +438,13 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     refusal is therefore reachable on an ordinary resume, not just one that follows a refused
     teardown -- a window that deletes a record the target holds REFUSES (exit 1) where this path
     used to exit 0 and drop the deletion with the branch (see :func:`assert_late_window_landed`).
+
+    #7198: the proof above covers EVERY change in the window, not only coordination-kind records. The
+    two exemptions it used to carry -- the status byte-sets and every non-coordination path -- were
+    what let a branch-only ``status.events.jsonl`` append (the union stage folds the coordination
+    worktree's working tree, not the branch's commits) or a late ``meta.json`` edit be approved and
+    deleted at exit 0. Each is now landed, proved, or refused by its own rule; see
+    :func:`~specify_cli.consolidation.bookkeeping_projection.assert_late_window_landed`.
     """
     checkpoint = run.coord_checkpoint
     base = _late_window_base(run)
@@ -538,6 +545,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         )
     except LateProjectionRefused as exc:
         raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
+    except GitCommandError as exc:
+        # #7198 review: the assertion reads blobs through the failure-distinguishing reader, so a git
+        # failure is an ERROR, never a verdict. Fail closed with the triple kept -- the same recovery as
+        # the projection leg above -- instead of letting a failed read look like a landed blob.
+        raise CoordinationTeardownError(
+            f"the late window's blobs could not be read ({escape(str(exc))}); "
+            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
     # #6871: only a PROVEN landing may move the tip teardown approves. The projection teardown gate
     # and the compare-and-swap branch delete anchor on ``coord_tip_after_projection``; leaving it at
     # the pre-window tip after landing the window would refuse the very commit this run just landed.
@@ -550,6 +566,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         run.coord_tip_after_projection = projected_tip
 
 
+#: Printed by the repairs that ask the operator to commit ON the target (#7198 review). A commit there
+#: moves the target off the verified landing, so the next `--resume` can stop at the branch-move guard --
+#: the same continuation the unreadable-target remedy already spells out (TARGET_GATE_DOCUMENT_UNREADABLE).
+_TARGET_COMMIT_BRANCH_MOVE_CAVEAT = (
+    "Committing on {target!r} yourself moves it off the verified landing, so the next resume may stop at the "
+    "branch-move guard, whose message prints the command that releases the move and clears the record."
+)
+
+
 def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target: str) -> str:
     """The action that actually CLEARS one late-projection refusal (#6791), per encoded kind.
 
@@ -559,6 +584,11 @@ def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target:
     repeats), and for an overturn that instruction writes the STALE coordination bytes over the
     established verdict the guard just protected. So each kind names its own repair, and the one
     that would overwrite evidence says explicitly not to do it.
+
+    #7198 added two kinds on the same principle: a status event is proved by EVENT containment and the
+    union stage reads the coordination WORKTREE's working tree (:func:`_status_event_ids_missing_from_target`),
+    so its repair is about that copy; a non-coordination (primary) document is deliberately never
+    projected (#5460), so only the target can author the change or the coordination branch can take it back.
     """
     if refused.kind is LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST:
         return (
@@ -592,6 +622,43 @@ def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target:
             f"{target!r} off the verified landing, so the next resume stops at the branch-move guard, whose "
             "message prints the command that releases the move and clears the record; delete the coordination "
             "branch by hand afterwards."
+        )
+    if refused.kind is LateProjectionRefusalKind.STATUS_EVENTS_NOT_LANDED:
+        # #7198: the log is proved by EVENT containment, so the repair is about the copy the union stage
+        # actually reads. Telling the operator to copy the file over the target's log would be wrong twice:
+        # the next projection rematerializes status.json from the union, and a blind overwrite drops the
+        # events the target already holds.
+        return (
+            f"make the coordination worktree's working-tree copy of status.events.jsonl hold the missing events, then "
+            f"re-run: the union stage folds the coordination WORKTREE's working-tree event log, not the coordination "
+            f"branch's commits, which is how the events came to be missing. In the coordination worktree run "
+            f"`git checkout {branch} -- kitty-specs/<slug>/status.events.jsonl`, or land the events on {target!r} "
+            "yourself (append them to its log and rematerialize status.json from the union) and commit. Do NOT overwrite "
+            f"{target!r}'s log with the coordination file: that would drop the events {target!r} already holds. "
+            f"{_TARGET_COMMIT_BRANCH_MOVE_CAVEAT.format(target=target)}"
+        )
+    if refused.kind is LateProjectionRefusalKind.STATUS_LOG_NOT_RECONCILABLE:
+        # #7198 review: an unparseable log and two payloads for one event id are NOT the missing-event case.
+        # Checking the same bytes out into the worktree would hand the union the same corruption, so the repair
+        # is on the branch itself, and it is a revert or a rewrite -- not a checkout.
+        return (
+            f"repair the coordination branch's status.events.jsonl, then re-run: it must parse as JSONL events and it "
+            f"must not carry an event id with different bytes than {target!r}'s log, because the canonical union "
+            f"refuses that pair. Revert the commit that corrupted or forked it, or rewrite the event on {branch!r} so "
+            f"the two agree."
+        )
+    if refused.kind is LateProjectionRefusalKind.NON_COORDINATION_RECORD_NOT_LANDED:
+        # #7198: a primary/unclassified document is never projected (#5460) -- the target authors its own copy
+        # after the checkpoint (mission-number bake, baseline stamp), so the repairs are "merge your change into
+        # the target's copy" and "revert the coordination copy". A whole-file checkout would overwrite exactly the
+        # fields the projection refuses to touch (#7198 review).
+        return (
+            f"land the change on {target!r} yourself, or revert it on {branch!r}: the projection cannot carry "
+            f"{target!r}'s own files, because the merge authors them there after the checkpoint. Merge your intended "
+            f"change into {target!r}'s copy BY HAND and commit it -- a whole-file `git checkout {branch} -- <path>` "
+            f"would overwrite the mission number, baseline stamp and marker {target!r} owns. If the change was never "
+            f"meant to exist, revert the coordination commit that made it. "
+            f"{_TARGET_COMMIT_BRANCH_MOVE_CAVEAT.format(target=target)}"
         )
     # LateProjectionRefusalKind.RECORD_NOT_LANDED -- the one case the old instruction was written for:
     # the record exists on the coordination branch and the target does not have it.
