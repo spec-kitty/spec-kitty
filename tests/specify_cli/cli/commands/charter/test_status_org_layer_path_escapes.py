@@ -338,3 +338,20 @@ def test_status_containment_judges_the_root_the_loader_used(tmp_path: Path, monk
     # Positive control: both findings are there, so the probe saw a real containment run.
     assert sum("is not contained in" in entry for entry in errors) == 2, errors
     assert len(calls) == 1, f"expected one registry read in drg_activation, got {len(calls)}"
+
+
+def test_a_path_that_looks_like_markup_is_printed_not_parsed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A hostile ``body_path`` such as ``/[/x]`` is shown verbatim, never parsed as Rich markup.
+
+    RED before the fix: the message went into ``console.print`` as markup and ``[/x]`` raised
+    ``MarkupError``, so the human view crashed on exactly the pack it should report.
+    """
+    from specify_cli.cli.commands.charter import _collect_org_layer_status
+    from specify_cli.cli.commands.charter.status import _render_org_layer
+
+    repo = _build_repo(tmp_path)
+    _add_escaping_node(repo, "/[/x]")
+
+    _render_org_layer(_collect_org_layer_status(repo))
+
+    assert "'/[/x]'" in capsys.readouterr().out

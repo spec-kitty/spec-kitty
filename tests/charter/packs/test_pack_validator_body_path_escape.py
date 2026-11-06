@@ -20,7 +20,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from charter.offering.packs.pack_validator import validate_pack
+from charter.offering.packs.pack_validator import ValidationIssue, ValidationResult, validate_pack
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -63,12 +63,12 @@ def _add_escaping_sidecar(pack_dir: Path, path: str) -> None:
     (assets / f"{_ASSET_ID}.asset.yaml").write_text(yaml.safe_dump({"id": _ASSET_ID, "mime": "text/plain", "path": path}), encoding="utf-8")
 
 
-def _categories(result: object) -> set[str | None]:
-    return {issue.category for issue in result.errors}  # type: ignore[attr-defined]
+def _categories(result: ValidationResult) -> set[str | None]:
+    return {issue.category for issue in result.errors}
 
 
-def _body_path_issues(result: object) -> list[object]:
-    return [issue for issue in result.errors if issue.category == "body_path_escape"]  # type: ignore[attr-defined]
+def _body_path_issues(result: ValidationResult) -> list[ValidationIssue]:
+    return [issue for issue in result.errors if issue.category == "body_path_escape"]
 
 
 # ---------------------------------------------------------------------------
@@ -208,3 +208,53 @@ def test_org_validate_cli_reports_both_findings(tmp_path: Path) -> None:
     assert result.exit_code != 0, result.output
     assert "body_path_escape" in result.output
     assert "asset_path_escape" in result.output
+
+
+# ---------------------------------------------------------------------------
+# The asset half speaks the same finding type (#7263)
+# ---------------------------------------------------------------------------
+
+
+def _asset_issues(result: ValidationResult) -> list[ValidationIssue]:
+    return [issue for issue in result.errors if issue.category == "asset_path_escape"]
+
+
+def test_asset_escape_message_is_the_shared_finding_sentence(tmp_path: Path) -> None:
+    pack_dir = _scaffold_pack(tmp_path)
+    _add_escaping_sidecar(pack_dir, _ESCAPING)
+
+    [issue] = _asset_issues(validate_pack(pack_dir))
+
+    assert issue.artifact_id == _ASSET_ID
+    assert issue.message.startswith(f"org pack {pack_dir.name!r}: asset {_ASSET_ID!r} path {_ESCAPING!r} is not contained in the pack's assets/ root: "), (
+        issue.message
+    )
+
+
+def test_an_unresolvable_asset_path_is_a_finding_not_a_crash(tmp_path: Path) -> None:
+    # RED before #7263: the validator caught only the containment error, so the resolver's
+    # ValueError on a NUL byte escaped ``validate_pack``; the doctor reported it as a finding.
+    pack_dir = _scaffold_pack(tmp_path)
+    _add_escaping_sidecar(pack_dir, "blobs/a\x00b.txt")
+
+    assert [issue.artifact_id for issue in _asset_issues(validate_pack(pack_dir))] == [_ASSET_ID]
+
+
+def test_a_symlinked_assets_directory_outside_the_pack_is_reported(tmp_path: Path) -> None:
+    # RED before #7263: the validator anchored at the *resolved* ``assets/``, so a sidecar inside
+    # an ``assets/`` symlinked out of the pack passed; the doctor already reported it.
+    pack_dir = _scaffold_pack(tmp_path)
+    outside = tmp_path / "outside-assets"
+    outside.mkdir()
+    (outside / f"{_ASSET_ID}.asset.yaml").write_text(yaml.safe_dump({"id": _ASSET_ID, "mime": "text/plain", "path": "logo.txt"}), encoding="utf-8")
+    if (pack_dir / "assets").exists():
+        (pack_dir / "assets").rmdir()
+    try:
+        (pack_dir / "assets").symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"cannot create symlink: {exc}")
+
+    [issue] = _asset_issues(validate_pack(pack_dir))
+
+    assert issue.artifact_id == _ASSET_ID
+    assert "assets" in issue.message and "not contained" in issue.message, issue.message

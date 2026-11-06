@@ -116,6 +116,7 @@ from charter.offering.drg.override_policy import (
     pack_sanction_present,
     sanction_reason_missing,
 )
+from charter.offering.drg.org_pack_config import ORG_ASSET_PATH_ESCAPE, PackPathEscape, path_containment_fault
 from charter.offering.drg.org_pack_loader import (
     ORG_PLURAL_TO_SINGULAR_KIND,
     OrgPackMissingError,
@@ -1432,7 +1433,11 @@ def _validate_asset_manifests(
     if not asset_manifests:
         return errors, advisories
 
-    assets_root = (pack_dir / "assets").resolve(strict=False)
+    assets_root = pack_dir / "assets"
+    # An ``assets/`` that itself resolves outside the pack (a symlink) would let every
+    # sidecar pass its own check, so it is judged once and reported per asset, as
+    # ``doctor charter-packs`` does (#6418, #7263).
+    assets_dir_fault = path_containment_fault(pack_dir, "assets")
     for artifact_id in sorted(asset_manifests):
         data, source_file = asset_manifests[artifact_id]
         raw_path = data.get("path")
@@ -1440,7 +1445,9 @@ def _validate_asset_manifests(
             continue  # defensive guard: schema already enforces non-empty path
 
         escape_error = _check_asset_path_containment(
+            pack_name=pack_dir.name,
             assets_root=assets_root,
+            assets_dir_fault=assets_dir_fault,
             artifact_id=artifact_id,
             raw_path=raw_path,
             source_file=source_file,
@@ -1467,40 +1474,40 @@ def _validate_asset_manifests(
 
 def _check_asset_path_containment(
     *,
+    pack_name: str,
     assets_root: Path,
+    assets_dir_fault: str | None,
     artifact_id: str,
     raw_path: str,
     source_file: Path,
 ) -> ValidationIssue | None:
-    """Reuse the shared containment primitive to enforce path safety.
+    """Judge one sidecar's blob ``path`` with the shared containment primitive.
 
-    Delegates to
-    :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root` —
-    the same primitive :meth:`OrgPackConfig.effective_root` uses for
-    ``subdir`` containment — rather than another hand-rolled
-    resolve-then-``relative_to`` implementation.
+    The verdict comes from
+    :func:`charter.offering.drg.org_pack_config.path_containment_fault` (the finding
+    form of :func:`~charter.offering.drg.org_pack_config.resolve_relative_path_within_root`)
+    and the message from :class:`~charter.offering.drg.org_pack_config.PackPathEscape`
+    (code ``ORG_ASSET_PATH_ESCAPE``), so ``charter org validate`` says the sentence
+    ``doctor charter-packs`` and ``charter status`` say (#7263). A path the resolver
+    cannot handle at all (a NUL byte) is a finding, never a crash.
 
     Returns an ``asset_path_escape`` error issue when *raw_path* is absolute,
     contains a ``..`` component, or resolves (symlink-aware) outside
-    *assets_root*; ``None`` when containment holds.
+    *assets_root*, or when *assets_dir_fault* says ``assets/`` itself is outside
+    the pack; ``None`` when containment holds.
     """
-    from charter.offering.drg.org_pack_config import (
-        OrgPackSubdirEscapeError,
-        resolve_relative_path_within_root,
+    reason = assets_dir_fault or path_containment_fault(assets_root, raw_path)
+    if reason is None:
+        return None
+    escape = PackPathEscape(code=ORG_ASSET_PATH_ESCAPE, pack=pack_name, subject=artifact_id, path=raw_path, reason=reason)
+    return ValidationIssue(
+        severity="error",
+        artifact_type="assets",
+        artifact_id=artifact_id,
+        file=str(source_file),
+        message=escape.message,
+        category="asset_path_escape",
     )
-
-    try:
-        resolve_relative_path_within_root(assets_root, raw_path)
-    except OrgPackSubdirEscapeError as exc:
-        return ValidationIssue(
-            severity="error",
-            artifact_type="assets",
-            artifact_id=artifact_id,
-            file=str(source_file),
-            message=(f"asset path {raw_path!r} escapes the pack's assets/ root: {exc}"),
-            category="asset_path_escape",
-        )
-    return None
 
 
 def _check_asset_mime(

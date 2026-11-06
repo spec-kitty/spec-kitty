@@ -174,9 +174,12 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         that escapes the skill directory — an absolute path, a ``..``
         component, or a symlink resolving outside — raises
         :class:`PackSkillViolation` instead of reading the outside file, so a
-        post-load symlink swap can never serve content from outside the pack
-        skill (#6734). ``None`` is reserved for an unknown id, a missing
-        source, or a skill with no ``body_path``.
+        symlink swapped after load, before this call, cannot serve content from
+        outside the pack skill (#6734). The file read is the resolved real path;
+        a parent directory swapped between that resolution and the read is not
+        caught (that needs concurrent local write access to the pack). ``None``
+        is reserved for an unknown id, a missing source, or a skill with no
+        ``body_path``.
         """
         skill = self._items.get(skill_id)
         source = self._sources.get(skill_id)
