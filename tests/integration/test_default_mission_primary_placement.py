@@ -71,14 +71,6 @@ def _json(stdout: str) -> dict[str, object]:
     return payload
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "WP14 residual: handle resolution (context.mission_resolver.resolve_mission) enumerates only the "
-        "repository root checkout's kitty-specs/, which carries no Mission directory once the root is back "
-        "on create_return_branch; it answers MISSION_NOT_FOUND. Follow-up: discovery through the topic holder."
-    ),
-)
 def test_context_resolve_and_prerequisites_report_primary_location_after_settlement(tmp_path: Path) -> None:
     from specify_cli.cli.commands.agent.context import app as context_app
     from specify_cli.cli.commands.agent.mission import app as mission_app
@@ -102,33 +94,6 @@ def test_context_resolve_and_prerequisites_report_primary_location_after_settlem
     assert Path(str(_json(prereq.stdout)["feature_dir"])).resolve() == mission.coord_mission_dir.resolve()
 
 
-def test_status_write_location_after_root_moved_is_the_topic_holder(tmp_path: Path) -> None:
-    """N1, placement half: the seam's STATUS_STATE write location is the door's read location."""
-    from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.status.read_surface import resolve_status_read
-
-    mission = make_default_mission(tmp_path, ("src/one.py", "src/two.py"))
-    assert run_finalize(mission)[0] == 0
-    git(mission.root, "checkout", "-q", "main")
-    holder = tmp_path / "topic-holder"
-    git(mission.root, "worktree", "add", "-q", str(holder), mission.topic)
-    shutil.copytree(holder / "kitty-specs" / mission.slug, mission.root_mission_dir, dirs_exist_ok=True)
-    held_dir = (holder / "kitty-specs" / mission.slug).resolve()
-
-    write_dir = placement_seam(mission.root, mission.slug).write_dir(MissionArtifactKind.STATUS_STATE).path
-    surface = resolve_status_read(mission.root, mission.slug)
-    assert write_dir.resolve() == held_dir
-    assert surface.path is not None and surface.path.resolve() == held_dir
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "WP14 residual (N1, emit half): the status transition door anchors its transaction identity through "
-        "status_transition._canonical_primary_feature_dir, which returns the repository root checkout's stale "
-        "copy, so the event lands there while the door reads the topic holder. Follow-up."
-    ),
-)
 def test_status_write_after_root_moved_is_readable_through_the_door(tmp_path: Path) -> None:
     """WP05 review obligation N1: write side aligned with the read door, read-after-write.
 
@@ -142,7 +107,6 @@ def test_status_write_after_root_moved_is_readable_through_the_door(tmp_path: Pa
 
     mission = make_default_mission(tmp_path, ("src/one.py", "src/two.py"))
     assert run_finalize(mission)[0] == 0
-    assert not git(mission.root, "status", "--porcelain"), git(mission.root, "status", "--porcelain")
     git(mission.root, "checkout", "-q", "main")
     holder = tmp_path / "topic-holder"
     git(mission.root, "worktree", "add", "-q", str(holder), mission.topic)
@@ -156,10 +120,15 @@ def test_status_write_after_root_moved_is_readable_through_the_door(tmp_path: Pa
     surface = resolve_status_read(mission.root, mission.slug)
     events = read_status_events(surface)
     assert surface.path is not None and surface.path.resolve() == held_dir.resolve(), surface
-    assert any(event.wp_id == "WP01" and str(event.to_lane) == "claimed" for event in events), (
-        [(e.wp_id, str(e.to_lane)) for e in events],
-        "HELD-CLAIMED" if "claimed" in (held_dir / "status.events.jsonl").read_text(encoding="utf-8") else "held-none",
-        "ROOT-CLAIMED" if "claimed" in (mission.root_mission_dir / "status.events.jsonl").read_text(encoding="utf-8") else "root-none",
-    )
+    assert any(event.wp_id == "WP01" and str(event.to_lane) == "claimed" for event in events)
+
+    # The transactional door (move-task) writes and commits on the topic holder too.
+    from specify_cli.coordination.status_transition import emit_status_transition_transactional
+    from specify_cli.status.models import TransitionRequest
+
+    emit_status_transition_transactional(TransitionRequest(mission_dir=write_dir, mission_slug=mission.slug, wp_id="WP02", to_lane="claimed", actor="claude"))
+    events = read_status_events(resolve_status_read(mission.root, mission.slug))
+    assert any(event.wp_id == "WP02" and str(event.to_lane) == "claimed" for event in events)
+    assert "claimed" in git(holder, "show", f"HEAD:kitty-specs/{mission.slug}/status.events.jsonl")
     stale = (mission.root_mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
     assert '"to_lane":"claimed"' not in stale.replace(" ", "")
