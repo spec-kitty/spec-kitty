@@ -300,7 +300,7 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": "claude::reviewer-renata",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -313,6 +313,7 @@
         "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-1.md",
         "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-1.md",
@@ -320,16 +321,16 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 3965,
-      "shell_pid_created_at": "1793984677.53",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T054": "done",
-        "T055": "done",
-        "T056": "done",
-        "T057": "done",
-        "T058": "done",
-        "T059": "done",
-        "T060": "done"
+        "T054": "planned",
+        "T055": "planned",
+        "T056": "planned",
+        "T057": "planned",
+        "T058": "planned",
+        "T059": "planned",
+        "T060": "planned"
       }
     },
     "WP11": {
