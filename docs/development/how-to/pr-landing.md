@@ -623,7 +623,9 @@ spec-kitty doctor workspaces --prune
   lists the ignored files a removal would delete, such as `.venv/` or `.env`.
 - **`--prune`** removes only the landed worktrees, then their local branches.
   It never uses `--force`. It checks each worktree again right before it
-  removes it.
+  removes it, and deletes the branch only while it still points at the tip it
+  proved landed (a compare-and-swap), so a branch that moves in the meantime is
+  kept and reported as `BRANCH_MOVED`.
 
 `--fix` is unchanged: it still removes only unregistered husks.
 

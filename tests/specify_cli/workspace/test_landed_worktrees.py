@@ -21,6 +21,7 @@ import pytest
 
 from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import (
+    BRANCH_DELETE_REFUSED_BY_GIT,
     DESTRUCTIVE_OP_ONLY_COPY,
     WORKTREE_PARTIALLY_REMOVED,
     WORKTREE_REMOVE_REFUSED_BY_GIT,
@@ -62,6 +63,12 @@ def _commit(cwd: Path, name: str, content: str) -> str:
     _git(cwd, "add", "-A")
     _git(cwd, "commit", "-q", "-m", f"add {name}")
     return _rev(cwd, "HEAD")
+
+
+def _detached_commit(root: Path, message: str) -> str:
+    """A commit no ref reaches: the shape a concurrent actor leaves on a branch."""
+    tree = _rev(root, "HEAD^{tree}")
+    return _git(root, "commit-tree", tree, "-p", "HEAD", "-m", message).strip()
 
 
 def _init(path: Path) -> Path:
@@ -548,7 +555,11 @@ def test_a_git_refusal_is_recorded_and_the_run_continues(repo: Path, tmp_path: P
 
 
 def test_a_branch_moved_after_removal_is_not_deleted(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The guard's branch delete is not compare-and-swap: the prune compares the tip itself first."""
+    """The prune's own comparison is the fast path: a branch moved before it is refused without touching a ref.
+
+    The window *after* that comparison is closed inside the guard; see
+    ``test_a_branch_moved_inside_the_delete_is_kept``.
+    """
     worktree, tip = _land_by_rebase(repo, "land-x")
     real_remove = landed_worktrees.guarded_worktree_remove
 
@@ -568,6 +579,72 @@ def test_a_branch_moved_after_removal_is_not_deleted(repo: Path, tmp_path: Path,
     assert outcome.recreate == f"git worktree add {outcome.path} land-x", "the branch was kept: recreate the worktree on it"
     _git(repo, *shlex.split(outcome.recreate)[1:])
     assert worktree.exists() and _git(worktree, "branch", "--show-current").strip() == "land-x"
+
+
+def test_a_branch_moved_inside_the_delete_is_kept(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The window the prune cannot see: the ref moves after its own read, inside the guarded delete.
+
+    The existing ``test_a_branch_moved_after_removal_is_not_deleted`` moves the
+    branch before the prune reads it again, which the prune's comparison catches.
+    This one moves it after that read and before the delete, so only a delete
+    bound to the assessed tip (compare-and-swap) can keep the new commit.
+    """
+    worktree, tip = _land_by_rebase(repo, "land-x")
+    real = landed_worktrees.guarded_branch_delete
+    moved_to: list[str] = []
+
+    def move_then_delete(root: Path, branch: str, **kwargs: Any) -> str | None:
+        moved = _detached_commit(repo, "committed inside the delete window")
+        _git(repo, "branch", "-f", branch, moved)
+        moved_to.append(moved)
+        return real(root, branch, **kwargs)
+
+    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", move_then_delete)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert moved_to and moved_to[0] != tip
+    assert outcome.removed and not outcome.branch_deleted
+    assert outcome.refusal == landed_worktrees.BRANCH_MOVED
+    assert _rev(repo, "refs/heads/land-x") == moved_to[0], "the commit added in the window must stay on the branch"
+    assert not worktree.exists()
+
+
+def test_the_same_fixture_deletes_the_branch_when_it_does_not_move(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control for the test above: the same wrapper and fixture observe a real deletion."""
+    worktree, _tip = _land_by_rebase(repo, "land-x")
+    real = landed_worktrees.guarded_branch_delete
+    calls: list[str] = []
+
+    def observe_then_delete(root: Path, branch: str, **kwargs: Any) -> str | None:
+        calls.append(branch)
+        return real(root, branch, **kwargs)
+
+    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", observe_then_delete)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert calls == ["land-x"]
+    assert outcome.removed and outcome.branch_deleted
+    assert not _has_branch(repo, "land-x")
+    assert not worktree.exists()
+
+
+def test_a_guard_branch_refusal_keeps_the_operator_facing_vocabulary(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The guard's internal delete codes surface as the codes this report already used."""
+    worktree, _tip = _land_by_rebase(repo, "land-x")
+
+    def refuses(root: Path, branch: str, **_: Any) -> str | None:
+        raise DestructiveOpRefused(error_code=BRANCH_DELETE_REFUSED_BY_GIT, current_branch=branch, remediation="git refused the delete")
+
+    monkeypatch.setattr(landed_worktrees, "guarded_branch_delete", refuses)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed and not outcome.branch_deleted
+    assert outcome.refusal == landed_worktrees.BRANCH_DELETE_FAILED
+    assert _has_branch(repo, "land-x")
+    assert not worktree.exists()
 
 
 def test_a_branch_delete_failure_is_a_per_worktree_refusal(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
