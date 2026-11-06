@@ -15,6 +15,7 @@ small seed is duplicated here rather than imported from that test module).
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from collections.abc import Callable, Iterator
@@ -106,11 +107,12 @@ def test_upstream_node_says_built_in_or_org(tmp_path: Path) -> None:
 
 
 @pytest.mark.unit
-def test_non_directive_urn_is_upstream(tmp_path: Path) -> None:
+def test_project_profile_collision_names_the_profile_remedy(tmp_path: Path) -> None:
     text = collision_remedy(tmp_path, _error("agent_profile:researcher-ryan"))
 
     assert text is not None
-    assert "built-in or org" in text
+    assert "profile-id" in text
+    assert "report the clash" not in text
 
 
 @pytest.mark.unit
@@ -262,30 +264,63 @@ def test_synthesis_owned_directive_is_not_called_unowned(project: Path) -> None:
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_synthesize_after_lost_ownership_no_longer_refuses(project: Path) -> None:
-    """#6768: the lost-record state no longer refuses -- the layer, not the record, decides.
-
-    The refusal these CLI cases used to pin WAS the defect: the CLI's request snapshot listed
-    the project's own activated directive as a built-in node, so its own target collided. The
-    additive-only gate is still proved to fire for a genuine shipped built-in URN by
-    ``test_project_directive_layer_split_6768.py::test_built_in_urn_still_refuses_and_project_urn_does_not``,
-    and the refusal's remedy wiring stays covered by the ``collision_remedy`` unit cases above.
-    """
+def test_synthesize_json_refusal_carries_remedy(project: Path) -> None:
+    """The refusal also keeps a hand-edited directive: synthesis never overwrites what it did not create (#6768)."""
     _lose_ownership_record(project)
+    directive = next((project / ".kittify" / "charter-packs" / "directive").glob(f"{_OWN_STEM}*.directive.yaml"))
+    body = yaml.safe_load(directive.read_text(encoding="utf-8"))
+    body["intent"] = "Hand-written intent."
+    hand_written = yaml.safe_dump(body)
+    directive.write_text(hand_written, encoding="utf-8")
 
     result = _invoke("synthesize", "--json")
 
-    assert "colliding_urn" not in result.output, result.output
-    assert result.exit_code == 0, result.output
+    assert directive.read_text(encoding="utf-8") == hand_written
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    warnings = payload["warnings"]
+    assert any(_OWN_URN in w for w in warnings if w.startswith("SynthesisError"))
+    remedy = [w for w in warnings if _MANIFEST in w and "synthesis did not create" in w]
+    assert remedy, warnings
+    assert _NO_DEACTIVATE in remedy[0]
 
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_resynthesize_after_lost_ownership_no_longer_refuses(project: Path) -> None:
-    """The same state through the bounded resynthesis path (#6768)."""
+def test_synthesize_human_refusal_prints_hint(project: Path) -> None:
+    _lose_ownership_record(project)
+
+    result = _invoke("synthesize")
+
+    assert result.exit_code == 1, result.output
+    flat = " ".join(result.output.split())
+    assert "Hint:" in flat
+    assert "synthesis did not create" in flat
+    assert _MANIFEST in flat
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_resynthesize_json_refusal_carries_remedy(project: Path) -> None:
     _lose_ownership_record(project)
 
     result = _invoke("resynthesize", "--topic", _OWN_URN, "--json")
 
-    assert "colliding_urn" not in result.output, result.output
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert _OWN_URN in payload["error"]
+    assert "synthesis did not create" in payload["error"]
+    assert _MANIFEST in payload["error"]
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_resynthesize_human_refusal_prints_hint(project: Path) -> None:
+    _lose_ownership_record(project)
+
+    result = _invoke("resynthesize", "--topic", _OWN_URN)
+
+    assert result.exit_code == 1, result.output
+    flat = " ".join(result.output.split())
+    assert "Hint:" in flat
+    assert "synthesis did not create" in flat
