@@ -1,26 +1,26 @@
 {
-  "event_count": 37,
-  "last_event_id": "01M6R535B24D18A0N8PQ819806",
-  "materialized_at": "2026-11-06T10:04:59.106895+00:00",
+  "event_count": 38,
+  "last_event_id": "01M6R53GT7SK5KV4JFQMD47QPG",
+  "materialized_at": "2026-11-06T10:05:10.855268+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 16
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-06T10:04:59.106895+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "ADR 2026-11-06-2 one status read contract (FR-007, FR-061 placement, fail-closed registry, FR-017/C-002 reversal); amendments to ADR 2026-06-19-1 and 2026-07-29-1 (ruling 3 restated, Assert A' kept)"
+        "ADR 2026-11-06-2 one status read contract (FR-007, FR-061 placement, fail-closed registry, FR-017/C-002 reversal); amendments to ADR 2026-06-19-1 and 2026-07-29-1 (ruling 3 restated, Assert A' kept)",
+        "Review passed (reviewer-renata): ADR 2026-11-06-2 maps every topology/coordination state to one source, reverses FR-017/C-002, fail-closed registry, FR-061 with explicit-topology exception, no second landed signal, amendments keep Assert A'. Nits for WP05/WP14: source when root checkout is off the Mission branch; CONSOLIDATED_TARGET scope; minted protected single_branch PRIMARY wording; ref-reader vs pre-seed precedence."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -56,14 +57,19 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M6R4R6GQV6V4T0TK0AKCB57W",
-      "last_transition_at": "2026-11-06T09:58:59.863856+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6R53GT7SK5KV4JFQMD47QPG",
+      "last_transition_at": "2026-11-06T10:05:10.855268+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S7 topology ADR 2026-11-06-3, D2 amendment of 2026-06-22-1, S8 amendment of 2026-10-04-5 (appended last). Terminology guard 98 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 29640,
       "shell_pid_created_at": "1793959134.7",
