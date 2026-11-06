@@ -52,7 +52,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -62,7 +62,8 @@
       "last_transition_at": "2026-11-06T10:05:10.855268+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S7 topology ADR 2026-11-06-3, D2 amendment of 2026-06-22-1, S8 amendment of 2026-10-04-5 (appended last). Terminology guard 98 passed."
+        "S7 topology ADR 2026-11-06-3, D2 amendment of 2026-06-22-1, S8 amendment of 2026-10-04-5 (appended last). Terminology guard 98 passed.",
+        "Review passed (reviewer-renata): ADR 2026-11-06-3 covers the size rule, lanes_with_coord on every target with the topic branch as coordination branch, explicit-only lanes/coord, dropped --pr-bound fallback, create_return_branch, FR-061 + H1 landed signal owned by the seam, topology_source, decide-once; S8 amendment appended last on 2026-10-04-5. Nits: name the refusal when a WP started before first finalize (WP14); keep both sections on the #7255 rebase."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
