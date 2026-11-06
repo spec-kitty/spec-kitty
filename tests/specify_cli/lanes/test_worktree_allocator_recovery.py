@@ -250,13 +250,13 @@ def test_crash_recovery_reregisters_sparse_checkout_for_coord_lane(
     )
 
 
-def test_crash_recovery_noncoord_lane_is_noop(git_repo: Path) -> None:
-    """A recovered non-coord (legacy ``mission_branch``) lane stays a no-op.
+def test_crash_recovery_noncoord_lane_also_gets_the_status_exclusion(git_repo: Path) -> None:
+    """A recovered non-coord (legacy ``mission_branch``) lane gets the status exclusion too.
 
-    No ``coordination_branch`` in ``meta.json`` (the ``git_repo`` fixture has
-    no ``kitty-specs`` dir at all) → ``_register_lane_status_exclusion``
-    must be a byte-identical no-op on recovery, exactly as it already is on
-    the fresh-create path.
+    Mission WP09 (FR-040, ADR 2026-07-29-1 Amendment 2026-11-06): every lane
+    checkout, on every topology with code lanes, comes from the one
+    lane-checkout helper, which registers the sparse exclusion. This replaces
+    the pre-WP09 pin that a non-coord recovery stayed a no-op.
     """
     manifest = _make_manifest()
     worktree_path, _ = _first_allocation(git_repo, manifest)
@@ -272,15 +272,13 @@ def test_crash_recovery_noncoord_lane_is_noop(git_repo: Path) -> None:
     )
     assert recovered_path.exists()
 
-    # No sparse-checkout was applied — legacy/non-coord recovery must remain
-    # byte-identical to the pre-WP04 behaviour: no `core.sparseCheckout` set.
     result = subprocess.run(
         ["git", "-C", str(recovered_path), "config",
          "--get", "core.sparseCheckout"],
         capture_output=True, text=True,
     )
-    # config --get returns 1 when unset.
-    assert result.returncode != 0 or result.stdout.strip() != "true"
+    assert result.stdout.strip() == "true"
+    assert (recovered_path / "README.md").exists(), "only the status files are excluded"
 
 
 def test_reuse_path_still_works_when_worktree_exists(git_repo: Path) -> None:
