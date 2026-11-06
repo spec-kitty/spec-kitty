@@ -1436,8 +1436,6 @@ def _collect_summary_or_exit(
         # hits the same load path, without weakening gates_core.py's /
         # post_consolidation.py's own loud-crash contract on malformed input.
         _fail(run.json_output, str(exc), tracker=run.tracker, step="verify")
-    if not run.json_output:
-        run.tracker.complete("verify", "ready" if summary.ok else "issues found")
     return summary
 
 
@@ -1841,6 +1839,8 @@ def accept(
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
     if evidence.skipped is not None:
         _append_skipped_evidence(summary, evidence.skipped)
+    if not run.json_output:
+        run.tracker.complete("verify", "ready" if summary.ok else "issues found")
     if evidence.report is not None:
         _report_evidence_diagnosis(run, summary, evidence.report)
     _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)
