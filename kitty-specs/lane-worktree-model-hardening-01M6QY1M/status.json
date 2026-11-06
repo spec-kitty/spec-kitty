@@ -504,15 +504,15 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T082": "planned",
-        "T083": "planned",
-        "T084": "planned",
-        "T085": "planned",
-        "T086": "planned",
-        "T087": "planned",
-        "T088": "planned",
-        "T089": "planned",
-        "T090": "planned"
+        "T082": "done",
+        "T083": "done",
+        "T084": "done",
+        "T085": "done",
+        "T086": "done",
+        "T087": "done",
+        "T088": "done",
+        "T089": "done",
+        "T090": "done"
       }
     },
     "WP15": {
