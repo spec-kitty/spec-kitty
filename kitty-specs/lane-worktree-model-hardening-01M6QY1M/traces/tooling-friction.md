@@ -47,3 +47,4 @@ GitHub MCP tools, the cloud-session harness.
 - **[2026-11-06][implement WP04] #6884 commit 5b6f2a8c21 (not on the carry list) holds the review-round code and the test to flip; style commit f404a0b2 does not apply without it.** Disposition: carried, path-limited to src and tests.
 - **[2026-11-06][implement WP04] Integration tests in a lane worktree run very slowly (about 100 s per few tests); 47 test files plant an empty `.git` directory.** Disposition: used `-n`; an empty `.git` without HEAD counts as no repository.
 - **[2026-11-06][implement WP04] WP04 handed off with the bare claim identity as well; identity correction applied before review.**
+- **[2026-11-06][implement WP15] Every `done` transition clears the lane-tip ref (`lanes/claim_base.on_wp_terminal`, #5115); a killed consolidate leaves the merge lock behind, so `--resume` needs a manual unlock; shared-machine OOM killed parallel test workers twice.** Disposition: noted; candidate gaps for the lock.
