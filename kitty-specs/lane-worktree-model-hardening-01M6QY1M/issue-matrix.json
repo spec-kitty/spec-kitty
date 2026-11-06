@@ -265,7 +265,7 @@
       "wp": "WP05"
     },
     "#7278": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S2 for_review gate on the lane branch",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -273,8 +273,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP08"
     },
     "#7279": {
       "evidence_ref": "<link or commit>",
