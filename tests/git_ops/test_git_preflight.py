@@ -51,6 +51,41 @@ class _FakeCmdResult:
     stderr: str
 
 
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        ("fatal: detected dubious ownership in repository at '/srv/checkout'", True),
+        (
+            "fatal: unsafe repository ('/srv/checkout' is owned by someone else)\n"
+            "to add an exception for this directory, call: safe.directory",
+            True,
+        ),
+        ("fatal: not a git repository (or any of the parent directories): .git", False),
+        ("", False),
+        pytest.param(
+            "fatal: not a git repository: /nonexistent/safe.directory/gitdir",
+            False,
+            id="path-word-not-ownership",
+        ),
+        pytest.param(
+            "\tgit config --global --add safe.directory /srv/checkout",
+            True,
+            id="ownership-exception-hint",
+        ),
+    ],
+)
+def test_the_ownership_refusal_predicate_has_one_owner(stderr: str, expected: bool) -> None:
+    """`kernel.git.refuses_ownership` is the single classifier git_preflight consumes.
+
+    Ownership diagnosis lines and the explicit exception hint are signals; words in an
+    echoed non-repository path are not. Positive and negative cases share one parametrization
+    so a probe that always answers True (or always False) cannot pass.
+    """
+    from kernel.git import refuses_ownership
+
+    assert refuses_ownership(stderr) is expected
+
+
 def test_run_git_preflight_detects_dubious_ownership(tmp_path: Path) -> None:
     dubious = _FakeCmdResult(
         returncode=128,
