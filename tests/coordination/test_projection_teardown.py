@@ -951,6 +951,25 @@ def test_a_composed_directory_change_already_on_the_target_tears_down(tmp_path: 
     assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch)
 
 
+def test_a_composed_status_snapshot_is_judged_against_the_targets_own_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``status.json`` under the composed name is derived while the target's OWN log reduces to its copy (#7271)."""
+    from specify_cli.consolidation.bookkeeping_projection import _rematerialize_status_snapshot
+
+    composed = f"{SLUG}-composed"
+    monkeypatch.setattr(phase_teardown, "mission_dir_aliases", lambda _repo, slug: frozenset({slug, composed}))
+    run, worktree, _tip = _first_run_with_coord_worktree(tmp_path)
+    target_dir = run.main_repo / "kitty-specs" / SLUG
+    log = (target_dir / "status.events.jsonl").read_bytes()
+    (target_dir / "status.json").write_bytes(_rematerialize_status_snapshot(log, target_dir))
+    _git(run.main_repo, "add", "-A")
+    _git(run.main_repo, "commit", "-qm", "the target's derived snapshot")
+    late = _commit_in_coord_worktree(worktree, f"kitty-specs/{composed}/status.json", '{"stale": true}\n', "a stale composed snapshot")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert run.coord_tip_after_projection == late
+
+
 def test_an_event_log_the_union_cannot_read_is_refused_with_its_remedy(tmp_path: Path) -> None:
     """A malformed line committed in the worktree is a refusal the operator can act on, not a traceback."""
     from specify_cli.consolidation.run_state import CoordinationTeardownError

@@ -262,13 +262,17 @@ event or coordination record lands or is refused with its remedy, and a change t
 a primary artifact such as `meta.json` is refused until it is on the target.
 
 A Mission whose coordination directory is named `<slug>-<mid8>` (a bare-slug
-Mission) gets the same proof for that directory, against the target's copy.
+Mission) gets the same proof for that directory, against the target's copy. Nothing
+is projected from it, so a record committed there is refused until you copy it to
+the same relative path under the target's own Mission directory, or revert it on
+the coordination branch.
 
 This closes the window where a verification or status write made *between* the
 gate and the teardown was refused after a landing that was already complete,
 leaving you to hand-assemble it. A first run that recorded no coordination tip
 has no window to build and is still unprotected: such a commit can be lost with
-the branch (#7121).
+the branch (#7121). A commit made while the merge is running, before that tip is
+captured, is not judged on a first run either (#7300).
 
 ## Aborting a Consolidation
 

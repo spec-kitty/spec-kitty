@@ -599,7 +599,7 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   and only by a guarded read (the live ref still equals `T`). The projection teardown gate and
   the compare-and-swap branch delete anchor on that value, so a commit after `T` is never
   approved: the gate refuses and keeps the triple. The resume advance (#7199) is sound only
-  because the proof exempts nothing it approves (#7198, and the containment above); that is why
+  because the proof exempts nothing it approves (#7198, #7271); that is why
   the two land together.
 - **Refusal and rollback.** An unproven path refuses with `COORD_LATE_PROJECTION_REFUSED` (exit 1),
   one refusal kind per remedy (three added: `STATUS_EVENTS_NOT_LANDED`,
@@ -693,7 +693,7 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
 - Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
-- Amendment 2026-11-06: #7265 (design, slice S10 of epic #7276), #7198, #7199; sequencing with #7280 (S5), #7264 (S4), #7281 (S6); supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7271, #7121, #5460; separate: #7201 / PR #7233.
+- Amendment 2026-11-06: #7265 (design, slice S10 of epic #7276), #7198, #7199; sequencing with #7280 (S5), #7264 (S4), #7281 (S6); supersedes PRs #7228 and #7226 (author Ivan-Melck); closes #7271; residuals #7300, #7121, #5460; separate: #7201 / PR #7233.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

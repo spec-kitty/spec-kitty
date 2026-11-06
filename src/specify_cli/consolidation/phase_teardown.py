@@ -26,7 +26,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
-from specify_cli.status import EventLogMergeError
+from specify_cli.status import EventLogMergeError, StoreError
 from kernel.git import GitCommandError
 from kernel.git import changed_paths as git_changed_paths
 from specify_cli.git.bookkeeping_commit import (
@@ -586,14 +586,14 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
                 checkpoint_sha=base,
             )
         )
-    except (EventLogMergeError, UnicodeDecodeError) as exc:
+    except (EventLogMergeError, StoreError, UnicodeDecodeError) as exc:
         # An ordinary place to commit: a log the union cannot read must get the refusal and its
         # remedy, not a traceback.
         raise CoordinationTeardownError(
             f"the coordination branch's status event log cannot be merged with the target's ({escape(str(exc))}); "
             f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
-            "Repair the malformed line in the coordination worktree's status.events.jsonl and commit it, "
-            "then run `spec-kitty consolidate --resume`."
+            "Repair or remove the line it names in the coordination worktree's status.events.jsonl and commit it, "
+            f"then run `spec-kitty consolidate --resume`.{COORD_LATE_PROJECTION_REFUSED_SUFFIX}"
         ) from exc
     except GitCommandError as exc:
         raise CoordinationTeardownError(
@@ -710,14 +710,17 @@ def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target:
             f"{target!r}'s own files, because the merge authors them there after the checkpoint. Merge your intended "
             f"change into {target!r}'s copy BY HAND and commit it -- a whole-file `git checkout {branch} -- <path>` "
             f"would overwrite the mission number, baseline stamp and marker {target!r} owns. If the change was never "
-            f"meant to exist, revert the coordination commit that made it. "
+            f"meant to exist, revert the coordination commit that made it. A path under a composed `<slug>-<mid8>` "
+            f"directory is judged against the same relative path under {target!r}'s own Mission directory. "
             f"{_TARGET_COMMIT_BRANCH_MOVE_CAVEAT.format(target=target)}"
         )
     # LateProjectionRefusalKind.RECORD_NOT_LANDED -- the one case the old instruction was written for:
     # the record exists on the coordination branch and the target does not have it.
     return (
         f"land the named record on {target!r} from {branch!r} (`git checkout {branch} -- <path>` in the {target!r} "
-        "checkout, then commit it), or, if it must not exist at all, delete it on both branches."
+        "checkout, then commit it), or, if it must not exist at all, delete it on both branches. A record under a "
+        "composed `<slug>-<mid8>` directory is judged against the same relative path under the target's own Mission "
+        f"directory, so copy it there instead, or revert it on {branch!r}."
     )
 
 
