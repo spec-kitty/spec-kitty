@@ -16,6 +16,8 @@ and the coordination worktree (when one is checked out).
 ``events tail`` follows a file by byte offset, so on a ref-sourced surface (no file on disk) it
 refuses with ``status_surface_on_ref`` instead of printing an empty history; that refusal is its
 pinned cell value there (WP06 decision; the cursor source over a ref is ADR C-3's).
+``agent status materialize`` writes ``status.json`` into a checkout, so on a ref-sourced surface
+it refuses with the same code rather than report a write it did not make (WP06 review cycle 1).
 
 Commands whose readers live outside WP06's files (``agent tasks status``, ``next``, ``accept``,
 ``issue-verdict``) are migrated, and joined to this matrix, by WP07 and its follow-ups.
@@ -112,7 +114,8 @@ def _agent_status_materialize(root: Path) -> str:
     from specify_cli.cli.commands.agent.status import app
 
     result = _runner.invoke(app, ["materialize", "--mission", SLUG, "--json"])
-    assert result.exit_code == 0, result.output
+    if result.exit_code != 0:
+        return f"refused:{_first_json(result.output).get('error_code')}"
     return str(_first_json(result.output)["work_packages"]["WP01"]["lane"])
 
 
@@ -181,6 +184,11 @@ READERS: dict[str, Callable[..., str]] = {
     "events tail": _events_tail,
 }
 
+#: Readers that need a file on disk refuse a ref-sourced surface (no checkout holds the log):
+#: ``events tail`` has no file to follow, and ``agent status materialize`` has no checkout to
+#: write ``status.json`` into (WP06 review cycle 1).
+REFUSE_ON_REF = frozenset({"events tail", "agent status materialize"})
+
 CELLS: list[tuple[str, str]] = [
     (PRESENT, CWD_ROOT),
     (PRESENT, CWD_LANE),
@@ -194,7 +202,7 @@ CELLS: list[tuple[str, str]] = [
 
 
 def expected(reader: str, coord_state: str) -> str:
-    if reader == "events tail" and coord_state != PRESENT:
+    if reader in REFUSE_ON_REF and coord_state != PRESENT:
         return REFUSED_ON_REF
     return AUTHORITY
 
