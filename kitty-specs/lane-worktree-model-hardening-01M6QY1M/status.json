@@ -157,9 +157,9 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -168,7 +168,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object.",
-        "- 2026-11-06T15:20:02Z – claude::python-pedro – Review cycle 1 acknowledged: B1 fixed (CLI case with topic branch held by another checkout; mutation-proven red without the routing hunk). N2/N3/N5/N6 folded with tests. N1 (WP14), N4 (WP06/WP07), N7 (WP06 DoD) left to their owners."
+        "- 2026-11-06T15:20:02Z – claude::python-pedro – Review cycle 1 acknowledged: B1 fixed (CLI case with topic branch held by another checkout; mutation-proven red without the routing hunk). N2/N3/N5/N6 folded with tests. N1 (WP14), N4 (WP06/WP07), N7 (WP06 DoD) left to their owners.",
+        "Cycle 2: B1 CLI case with another checkout holding the topic branch (mutation-proven); N2 lane-worktree holder skipped to MISSION_BRANCH_REF; N3 holder without Mission dir reads MISSION_BRANCH_REF; N5 runtime bridge delegates to mission_has_landed; N6 one StatusReadSource enum; stale R2' test rewritten."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
