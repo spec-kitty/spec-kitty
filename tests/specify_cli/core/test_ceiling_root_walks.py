@@ -125,7 +125,7 @@ def test_checkout_identity_does_not_adopt_a_repo_above_the_ceiling(ambient_repo:
 def test_mission_metadata_has_no_git_anchor_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
     _outer, work = ambient_repo
 
-    assert find_git_anchor(work, environ={}) is None
+    assert find_git_anchor(work) is None
 
 
 def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
@@ -133,7 +133,7 @@ def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tupl
     (work / ".git").mkdir()
     (work / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
 
-    anchor = find_git_anchor(work, environ={})
+    anchor = find_git_anchor(work)
 
     assert anchor is not None and anchor.kind is AnchorKind.REPOSITORY
 
@@ -161,7 +161,7 @@ def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_rep
 
     monkeypatch.setattr(Path, "lstat", _raising_lstat)
 
-    anchor = find_git_anchor(work, environ={})
+    anchor = find_git_anchor(work)
 
     assert anchor is not None and anchor.kind is AnchorKind.UNKNOWN
 
