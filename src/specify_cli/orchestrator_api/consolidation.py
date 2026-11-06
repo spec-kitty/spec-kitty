@@ -407,7 +407,7 @@ def _apply_lane_merge_cleanup(
     *,
     retention: RetentionDecision,
     mission_branch_deletable: bool,
-    lane_tips: Mapping[str, str],
+    lane_tips: Mapping[str, str] | None = None,
 ) -> LaneCleanupReport:
     """Mission branch first, then the lane legs through the shared lane-cleanup module (S5, FR-031).
 

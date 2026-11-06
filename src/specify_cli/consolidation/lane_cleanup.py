@@ -35,6 +35,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     DestructiveOpRefused,
     guarded_branch_delete,
@@ -337,7 +338,9 @@ class MainTodayRemover:
         self._after_worktree_removed = after_worktree_removed
 
     def remove(self, item: LaneCleanupItem, *, landing: LandingProof | None) -> LaneCleanupResult:
-        if item.worktree is not None and item.worktree.exists():
+        # ``safe_is_dir`` (#3194): an unstattable worktree raises on every interpreter, so it
+        # is never silently read as absent; ``apply`` turns the raise into a kept lane.
+        if item.worktree is not None and safe_is_dir(item.worktree):
             refused = self._remove_worktree(item, item.worktree, landing)
             if refused is not None:
                 return refused
