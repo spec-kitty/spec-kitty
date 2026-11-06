@@ -9,6 +9,7 @@ points in ``tests/specify_cli/upgrade/test_read_tracked_meta_6673.py`` and
 
 from __future__ import annotations
 
+import errno
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -221,7 +222,7 @@ def test_a_start_that_cannot_be_resolved_still_classifies_every_git_above_it(tmp
 
     def looping(self: Path, strict: bool = False) -> Path:
         if self == start:
-            raise RuntimeError("Symlink loop")
+            raise OSError(errno.ELOOP, "Too many levels of symbolic links")
         return real_resolve(self, strict=strict)
 
     monkeypatch.setattr(Path, "resolve", looping)
