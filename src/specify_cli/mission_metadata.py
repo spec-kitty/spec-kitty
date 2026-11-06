@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from charter.activation.api import read_mission_type
-from kernel.ancestor_walk import find_ancestor
+from kernel.ancestor_walk import find_ancestor, git_ceiling_dirs
 from kernel.clock import now_utc_iso
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
@@ -637,9 +637,29 @@ def _has_git_anchor(candidate: Path) -> bool:
 def _has_no_git_anchor(feature_dir: Path) -> bool:
     """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*.
 
-    "At or above" is the ceiling-bounded walk in :mod:`kernel.ancestor_walk`.
+    Use the canonical walk with git's no-realpath rule for entries after an empty entry.
+    This negative evidence must not stop below an anchor git's own search reached and
+    refused: that would turn an unknown tracked identity into permission to mint one.
     """
-    return find_ancestor(feature_dir, _has_git_anchor) is None
+    return find_ancestor(feature_dir, _has_git_anchor, ceilings=git_ceiling_dirs(resolve_after_empty=False)) is None
+
+
+def _require_readable_git_config(feature_dir: Path) -> None:
+    """Require usable configuration before a failed discovery probe can mean absence.
+
+    The same-environment, same-directory query also works outside a repository. It prints
+    only key names; stdout is discarded. Nonzero and not-run answers refuse, while timeout
+    keeps the existing GitCommandError contract. This checks configuration readability,
+    not ownership or the broader Git-context taxonomy.
+    """
+    try:
+        probe = run_git(feature_dir, "config", "--list", "--name-only", check=False)
+    except GitCommandError as exc:
+        if exc.timed_out:
+            raise
+        raise _GitRefuses(str(exc)) from exc
+    if probe.returncode != 0:
+        raise _GitRefuses(probe.stderr.decode(_UTF8, "replace"))
 
 
 def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:
