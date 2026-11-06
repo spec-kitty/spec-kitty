@@ -1030,71 +1030,63 @@ def mission_dir_aliases(repo_root: Path, mission_slug: str) -> frozenset[str]:
     return names | {composed} if _is_safe_segment(composed) else names
 
 
-def _canonical_status_read_root(repo_root: Path) -> Path:
-    """Return the repository root a status read must be anchored at (#6466).
+def _inside_git_repository(path: Path) -> bool:
+    """True when *path* or one of its ancestors carries a ``.git`` entry (shape only, no git)."""
+    return any((candidate / ".git").exists() for candidate in (path, *path.parents))
+
+
+def canonical_status_read_root(repo_root: Path) -> Path:
+    """Return the repository root a status read must be anchored at (#6466, FR-002).
+
+    The ONE root normalization every root-taking status entry point applies
+    first (ADR 2026-11-06-2 "Root normalization"; carried forward from PR #6884).
 
     A lane worktree carries a fork-time *copy* of ``kitty-specs/<mission>/``
     (``status.events.jsonl``, and the derived ``status.json`` once the fork
     post-dates the first snapshot). That copy is never a status surface: the
-    authority is the resolved surface — the coordination husk on a
-    coordination-routed mission, the primary/mission-branch copy on a
-    branch-flat one. Answering a read from the copy is exactly the split-brain
-    #6466 reports: the work package reads as its fork-time lane (``planned``)
-    while the mission has moved on (``in_progress``), so a routine
-    ``planned -> for_review`` transition is not a legal edge and the operator's
-    only escape is ``--force`` — the hatch reserved for genuine process
-    exceptions.
+    authority is the resolved surface. Answering a read from the copy is the
+    split-brain #6466 reports: the work package reads as its fork-time lane
+    (``planned``) while the Mission has moved on (``in_progress``).
 
     So a root that the worktree registry *disposes* as a lane worktree is
     re-anchored to the repository's main worktree root before any surface is
     composed. The classification is the single existing authority
     (:func:`classify_worktree_topology`, C-SEAM-1); path shape never decides.
 
-    Cost: the overwhelmingly common cases — the primary checkout, an independent
-    clone, a bare repository — answer from ``get_main_repo_root`` and
-    :func:`is_under_worktrees_segment` alone (no git subprocess), so this guard
-    adds nothing to a repository-rooted status read. Only a root that actually
-    lives under a ``.worktrees/`` segment pays the one registry read that tells a
-    coordination worktree from a lane worktree.
+    Fail closed (Rules and Invariants rule 1, research R-1): when the worktree
+    registry cannot be read, :class:`WorktreeRegistryUnavailable` propagates
+    for EVERY caller, repository root callers included, because without the
+    registry a lane root cannot be told from the repository root. This
+    deliberately tightens #6884, which kept the caller's root. The cost is one
+    ``git worktree list`` per normalization, repository-rooted reads included.
 
-    Deliberately unchanged by this normalization:
+    Returned unchanged: the repository root checkout, the coordination worktree
+    (the authority on a coordination Mission), an independent clone, a husk
+    (under ``.worktrees`` but unregistered), a linked checkout outside
+    ``.worktrees``, and a directory in no git repository at all (it has no
+    registry to read and cannot be a lane worktree). A lane root is never
+    returned.
 
-    * the **coordination worktree** — also a linked worktree, and the authority
-      on a coordination-routed mission, so it keeps its own root;
-    * an **independent clone** — not a linked worktree of this repository, so its
-      own checkout stays authoritative;
-    * a **husk** (under ``.worktrees`` but unregistered) and the primary
-      checkout — classified as today;
-    * any root when the worktree registry cannot be consulted: the caller's root
-      is returned untouched, so the existing surfaces keep failing closed
-      rather than this helper guessing one.
+    Raises:
+        WorktreeRegistryUnavailable: the root lives in a git repository whose
+            worktree registry git cannot read.
     """
     from specify_cli.coordination.surface_resolver import (
-        WorktreeRegistryUnavailable,
         WorktreeTopology,
         classify_worktree_topology,
-        is_under_worktrees_segment,
+        read_worktree_registry,
     )
     from specify_cli.core.paths import get_main_repo_root
 
-    # Shape and ancestry are judged on the resolved path: a caller may hand in a
-    # relative root (``Path(".")`` from inside the lane worktree), whose ``parts``
-    # would never show the ``.worktrees/`` segment.
+    # Judged on the resolved path: a caller may hand in a relative root
+    # (``Path(".")`` from inside the lane worktree).
     resolved_root = repo_root.resolve(strict=False)
-    main_root = get_main_repo_root(resolved_root)
-    if main_root == resolved_root or not is_under_worktrees_segment(resolved_root):
-        # The primary checkout, an independent clone, or a linked checkout that
-        # does not live under ``.worktrees/``: there is no lane-worktree copy to
-        # shadow the read, and no git subprocess is spent finding that out.
+    if not _inside_git_repository(resolved_root):
         return repo_root
-
-    try:
-        topology = classify_worktree_topology(resolved_root)
-    except WorktreeRegistryUnavailable:
+    registry = read_worktree_registry(resolved_root)
+    if classify_worktree_topology(resolved_root, registry=registry) is not WorktreeTopology.LANE_WORKTREE:
         return repo_root
-    if topology is not WorktreeTopology.LANE_WORKTREE:
-        return repo_root
-    return main_root
+    return get_main_repo_root(resolved_root)
 
 
 def resolve_handle_to_read_path(
@@ -1114,7 +1106,7 @@ def resolve_handle_to_read_path(
 
     Body (the prototype pattern, in order):
 
-    0. ``_canonical_status_read_root(repo_root)`` — a lane worktree is never a
+    0. ``canonical_status_read_root(repo_root)`` — a lane worktree is never a
        status-surface root (#6466): its fork-time copy of the mission directory
        would answer every step below from stale state, so the root is normalized
        to the repository's main worktree root FIRST.
@@ -1154,9 +1146,10 @@ def resolve_handle_to_read_path(
 
     Args:
         repo_root: Repository root. Normalized by
-            :func:`_canonical_status_read_root` when it is a lane worktree; the
-            primary checkout, a coordination worktree, an independent clone and
-            an unreadable worktree registry are all used as handed in.
+            :func:`canonical_status_read_root` when it is a lane worktree; the
+            primary checkout, a coordination worktree and an independent clone
+            are used as handed in. An unreadable worktree registry raises
+            :class:`WorktreeRegistryUnavailable` (fail closed).
         handle: Mission handle — bare slug, ``<slug>-<mid8>``, full ``mission_id``,
             bare ``mid8``, or numeric prefix.
         require_exists: Forwarded to :func:`_resolve_mission_read_path`; when
@@ -1194,9 +1187,9 @@ def resolve_handle_to_read_path(
     #     answer every downstream read — primary-meta probe, mid8 cascade,
     #     topology classification and the composed surface — from that stale
     #     copy. Normalise to the repository's main worktree root once, before
-    #     anything is composed. The coordination worktree, an independent clone
-    #     and an unreadable registry are all returned untouched (see the helper).
-    repo_root = _canonical_status_read_root(repo_root)
+    #     anything is composed. The coordination worktree and an independent
+    #     clone are returned untouched; an unreadable registry fails closed.
+    repo_root = canonical_status_read_root(repo_root)
 
     # 1b. Bare human slug → composed ``<slug>-<mid8>`` dir name (#2050 read mirror,
     #     FR-004 bare-human-slug quirk): when the operator typed a bare human slug
@@ -1387,6 +1380,7 @@ def resolve_surface_dir_or_typed_error(
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
 
+    repo_root = canonical_status_read_root(repo_root)
     try:
         surface: Path = resolve_status_surface(repo_root, mission_slug)
     except (FileNotFoundError, ValueError):
@@ -1445,6 +1439,9 @@ def candidate_feature_dir_for_mission(
     the same way the guarded seam does. ``None`` preserves historical behaviour.
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    # FR-002: a lane root is never a status-surface root (#6466).
+    repo_root = canonical_status_read_root(repo_root)
 
     # FR-006: read the WP02 stored topology ONCE from primary meta so a coord-less
     # mission resolves PRIMARY before any on-disk husk probe can land on the
@@ -2032,6 +2029,7 @@ __all__ = [
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
+    "canonical_status_read_root",
     "coord_feature_dir",
     "literal_primary_meta",
     "mission_dir_aliases",

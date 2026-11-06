@@ -230,6 +230,10 @@ class MissionStatus:
         # 0. Guard the slug at the boundary (FR-007 / DIRECTIVE_010) before it
         #    is used to compose paths, git refs, or worktree names.
         cls._validate_mission_slug(mission_slug)
+        # FR-002: a lane root re-anchors to the repository root (#6466).
+        from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+        repo_root = canonical_status_read_root(repo_root)
 
         # 1. Load meta.json (best-effort; legacy missions may not have one) so
         #    the aggregate carries identity + coord-branch declaration. The

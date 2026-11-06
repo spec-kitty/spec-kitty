@@ -18,6 +18,8 @@ moved on (``in_progress``):
   - ``empty``: the coordination worktree is checked out with no Mission directory;
   - ``unmaterialized``: the coordination branch holds the log, no worktree is checked out.
 
+No lane-checkout cell resolves the lane copy (``LANE``) since WP04 (FR-002).
+
 Labels: ``ROOT`` (the repository root checkout's Mission dir), ``LANE`` (the lane worktree's
 copy), ``COORD`` (the coordination worktree's Mission dir), ``NESTED`` (a coordination path
 composed under the coordination worktree itself), a ``(missing)`` suffix when the path does not
@@ -322,10 +324,11 @@ def _all(value: str) -> dict[str, str]:
 MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     (SINGLE_BRANCH, NOT_APPLICABLE, CWD_ROOT): _all(ROOT),
     (LANES, NOT_APPLICABLE, CWD_ROOT): _all(ROOT),
-    # A lane root re-anchors to the repository root (FR-002, #6884).
-    (LANES, NOT_APPLICABLE, CWD_LANE): {**_all(ROOT), CANDIDATE: LANE_COPY},  # changes in WP04 (FR-002)
+    # A lane root re-anchors to the repository root (WP04, FR-002, #6884): every lane-checkout
+    # cell reads exactly what its repository-root cell reads.
+    (LANES, NOT_APPLICABLE, CWD_LANE): _all(ROOT),
     (LANES_WITH_COORD, MATERIALIZED, CWD_ROOT): {**_all(COORD), COMMITTED: ROOT},
-    (LANES_WITH_COORD, MATERIALIZED, CWD_LANE): {**_all(LANE_COPY), COMMITTED: ROOT},  # changes in WP04 (FR-002)
+    (LANES_WITH_COORD, MATERIALIZED, CWD_LANE): {**_all(COORD), COMMITTED: ROOT},
     # A coordination worktree root composes a nested coordination path today.
     # changes in WP05/WP06 (FR-001, cross-cwd parity)
     (LANES_WITH_COORD, MATERIALIZED, CWD_COORD): {
@@ -337,7 +340,7 @@ MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     },
     # Empty coordination worktree: the loud repository-root fallback.
     (LANES_WITH_COORD, EMPTY, CWD_ROOT): _all(ROOT),  # changes in WP05 (FR-003)
-    (LANES_WITH_COORD, EMPTY, CWD_LANE): {**_all(LANE_COPY), COMMITTED: ROOT},  # changes in WP04 (FR-002)
+    (LANES_WITH_COORD, EMPTY, CWD_LANE): _all(ROOT),  # changes in WP05 (FR-003)
     # changes in WP05/WP06 (FR-001, FR-003, cross-cwd parity)
     (LANES_WITH_COORD, EMPTY, CWD_COORD): {
         ANCHOR: NESTED_MISSING,
@@ -355,7 +358,14 @@ MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
         TYPED: COORD_MISSING,
         COMMITTED: ROOT,
     },
-    (LANES_WITH_COORD, UNMATERIALIZED, CWD_LANE): {**_all(LANE_COPY), COMMITTED: ROOT},  # changes in WP04 (FR-002)
+    # changes in WP05 (FR-003)
+    (LANES_WITH_COORD, UNMATERIALIZED, CWD_LANE): {
+        ANCHOR: COORD_MISSING,
+        CANDIDATE: ROOT,
+        LOAD: ROOT,
+        TYPED: COORD_MISSING,
+        COMMITTED: ROOT,
+    },
 }
 
 _MISSIONS: dict[tuple[str, str], MatrixMission] = {}
