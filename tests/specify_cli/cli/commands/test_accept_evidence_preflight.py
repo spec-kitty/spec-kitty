@@ -334,6 +334,8 @@ def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence, monkeypa
 
     assert result.exit_code == 0, result.output
     output = _flat(result.output)
+    assert "Run readiness checks (issues found)" in output
+    assert "Run readiness checks (ready)" not in output
     assert "implementation_evidence skipped: EVIDENCE_WINDOW_UNCOMPUTABLE: " in output
     assert str(caught.value) in output, "the complete real parser reason/path must remain literal"
     assert manifest_path.read_text(encoding="utf-8") == "{not-json"
