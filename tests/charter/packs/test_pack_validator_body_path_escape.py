@@ -258,3 +258,31 @@ def test_a_symlinked_assets_directory_outside_the_pack_is_reported(tmp_path: Pat
 
     assert issue.artifact_id == _ASSET_ID
     assert "assets" in issue.message and "not contained" in issue.message, issue.message
+
+
+def test_a_sidecar_symlinked_from_outside_the_pack_is_reported(tmp_path: Path) -> None:
+    """The doctor refuses a sidecar living outside ``assets/``; validate must not pass the same pack."""
+    pack_dir = _scaffold_pack(tmp_path)
+    _add_escaping_sidecar(pack_dir, "blob.txt")
+    sidecar = next((pack_dir / "assets").glob("*.asset.yaml"))
+    outside = tmp_path / "outside.asset.yaml"
+    outside.write_bytes(sidecar.read_bytes())
+    sidecar.unlink()
+    sidecar.symlink_to(outside)
+
+    issues = _asset_issues(validate_pack(pack_dir))
+
+    assert [issue.category for issue in issues] == ["asset_path_escape"]
+    assert "the sidecar is not inside" in issues[0].message
+
+
+def test_a_pack_validated_from_inside_itself_is_still_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``charter org validate .`` names the directory, never an empty pack name."""
+    pack_dir = _scaffold_pack(tmp_path)
+    _add_escaping_sidecar(pack_dir, _ESCAPING)
+    monkeypatch.chdir(pack_dir)
+
+    issues = _asset_issues(validate_pack(Path(".")))
+
+    assert issues
+    assert f"org pack '{pack_dir.name}'" in issues[0].message

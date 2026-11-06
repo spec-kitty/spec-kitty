@@ -905,7 +905,7 @@ def _validate_org_fragment(pack_dir: Path) -> tuple[OrgDRGFragment | None, list[
     fragment = pack_drg_fragment(pack_dir)
     if fragment.exists():
         try:
-            loaded = load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+            loaded = load_org_pack(pack_name=pack_dir.resolve().name, pack_root=pack_dir, layer_index=1)
         except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError) as exc:
             return None, [_org_load_finding(exc, fallback_file=fragment)]
         return loaded, []
@@ -1008,7 +1008,7 @@ def _validate_pack_sanction(
     """
     sanction_file = pack_dir / PACK_POLICY_FILENAME
     try:
-        policy = load_pack_sanction(pack_dir.name, pack_dir)
+        policy = load_pack_sanction(pack_dir.resolve().name, pack_dir)
     except OverridePolicyError as exc:
         return [_sanction_issue("error", sanction_file, None, str(exc))], []
 
@@ -1438,6 +1438,8 @@ def _validate_asset_manifests(
     # sidecar pass its own check, so it is judged once and reported per asset, as
     # ``doctor charter-packs`` does (#6418, #7263).
     assets_dir_fault = path_containment_fault(pack_dir, "assets")
+    if assets_dir_fault is not None:
+        assets_dir_fault = f"the pack's assets/ directory is not inside the pack root: {assets_dir_fault}"
     for artifact_id in sorted(asset_manifests):
         data, source_file = asset_manifests[artifact_id]
         raw_path = data.get("path")
@@ -1445,7 +1447,7 @@ def _validate_asset_manifests(
             continue  # defensive guard: schema already enforces non-empty path
 
         escape_error = _check_asset_path_containment(
-            pack_name=pack_dir.name,
+            pack_name=pack_dir.resolve().name,
             assets_root=assets_root,
             assets_dir_fault=assets_dir_fault,
             artifact_id=artifact_id,
@@ -1472,6 +1474,16 @@ def _validate_asset_manifests(
     return errors, advisories
 
 
+def _sidecar_location_fault(assets_root: Path, source_file: Path) -> str | None:
+    """Why a sidecar does not live inside ``assets/`` (a symlink to a file outside), or ``None``."""
+    try:
+        relative = source_file.relative_to(assets_root)
+    except ValueError:
+        return None
+    fault = path_containment_fault(assets_root, relative.as_posix())
+    return None if fault is None else f"the sidecar is not inside the pack's assets/ directory: {fault}"
+
+
 def _check_asset_path_containment(
     *,
     pack_name: str,
@@ -1493,10 +1505,11 @@ def _check_asset_path_containment(
 
     Returns an ``asset_path_escape`` error issue when *raw_path* is absolute,
     contains a ``..`` component, or resolves (symlink-aware) outside
-    *assets_root*, or when *assets_dir_fault* says ``assets/`` itself is outside
-    the pack; ``None`` when containment holds.
+    *assets_root*, when *assets_dir_fault* says ``assets/`` itself is outside
+    the pack, or when the sidecar itself lives outside ``assets/``; ``None`` when
+    containment holds.
     """
-    reason = assets_dir_fault or path_containment_fault(assets_root, raw_path)
+    reason = assets_dir_fault or _sidecar_location_fault(assets_root, source_file) or path_containment_fault(assets_root, raw_path)
     if reason is None:
         return None
     escape = PackPathEscape(code=ORG_ASSET_PATH_ESCAPE, pack=pack_name, subject=artifact_id, path=raw_path, reason=reason)

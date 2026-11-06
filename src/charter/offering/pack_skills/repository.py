@@ -15,6 +15,9 @@ pack-skill rules the base cannot express:
 
 from __future__ import annotations
 
+import errno
+import os
+import stat
 import warnings
 from pathlib import Path
 
@@ -175,9 +178,10 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         component, or a symlink resolving outside — raises
         :class:`PackSkillViolation` instead of reading the outside file, so a
         symlink swapped after load, before this call, cannot serve content from
-        outside the pack skill (#6734). The file read is the resolved real path;
-        a parent directory swapped between that resolution and the read is not
-        caught (that needs concurrent local write access to the pack). ``None``
+        outside the pack skill (#6734). The read opens the resolved real path
+        without following a symlink and only as a regular file, so a leaf swapped
+        in after that resolution, or a FIFO, is refused rather than read or waited
+        on; a parent directory swapped in that window is not caught (#7299). ``None``
         is reserved for an unknown id, a missing source, or a skill with no
         ``body_path``.
         """
@@ -185,7 +189,22 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         source = self._sources.get(skill_id)
         if skill is None or source is None or not skill.body_path:
             return None
-        return resolve_body_path(skill, source).read_text(encoding="utf-8")
+        return _read_regular_file(resolve_body_path(skill, source), skill_id)
+
+
+def _read_regular_file(path: Path, skill_id: str) -> str:
+    """Read *path* as text, refusing a symlink or anything that is not a regular file."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise PackSkillViolation(f"skill {skill_id!r}: body file changed while it was being read") from exc
+        raise
+    with os.fdopen(descriptor, encoding="utf-8") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise PackSkillViolation(f"skill {skill_id!r}: body file is not a regular file")
+        return handle.read()
 
 
 __all__ = ["PackSkillConflictError", "PackSkillRepository"]

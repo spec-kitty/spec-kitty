@@ -297,7 +297,7 @@ def test_doctor_status_and_validate_say_the_same_sentence(tmp_path: Path) -> Non
     assert isinstance(doctor_errors, list)
     escape_messages = {message for message in doctor_errors if "is not contained in" in message}
     status_messages = {message for message in _collect_org_layer_status(repo)["errors"] if "is not contained in" in message}
-    validate_messages = {issue.message for issue in validate_pack(repo / "example_org").errors if issue.category == "body_path_escape"}
+    validate_messages = {issue.message for issue in validate_pack(repo / "example_org").errors if issue.category in {"body_path_escape", "asset_path_escape"}}
 
     assert len(escape_messages) == 2, escape_messages
     assert status_messages == escape_messages
@@ -307,8 +307,7 @@ def test_doctor_status_and_validate_say_the_same_sentence(tmp_path: Path) -> Non
     def _after_owner(message: str) -> str:
         return message.split(": ", 1)[1]
 
-    assert validate_messages
-    assert {_after_owner(m) for m in validate_messages} <= {_after_owner(m) for m in escape_messages}
+    assert {_after_owner(m) for m in validate_messages} == {_after_owner(m) for m in escape_messages}
 
 
 def test_status_containment_judges_the_root_the_loader_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

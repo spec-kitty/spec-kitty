@@ -211,3 +211,32 @@ def test_body_text_reads_a_nested_contained_body(skill_dirs: dict[str, Path]) ->
     repo, warned = _load(skill_dirs)
     assert warned == []
     assert repo.body_text("land-pr") == "nested body\n"
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="FIFOs are unavailable on this platform")
+@pytest.mark.parametrize("swap", ["symlink", "fifo"])
+def test_body_text_refuses_a_leaf_swapped_after_it_was_resolved(skill_dirs: dict[str, Path], monkeypatch: pytest.MonkeyPatch, swap: str) -> None:
+    # The window between resolve_body_path and the read: never a followed link, never a hang.
+    from charter.offering.pack_skills import PackSkillViolation, repository
+
+    skill_dir = skill_dirs["org_a"] / "team"
+    write_skill(skill_dir, prompt_skill("land-pr", body_path="body.md"), body="inside body\n")
+    repo, _ = _load(skill_dirs)
+    body = skill_dir / "body.md"
+    outside = skill_dirs["org_a"].parent / "outside.md"
+    outside.write_text("SECRET OUTSIDE\n", encoding="utf-8")
+    real_resolve = repository.resolve_body_path
+
+    def _resolve_then_swap(skill: object, source: Path) -> Path:
+        resolved: Path = real_resolve(skill, source)
+        body.unlink()
+        if swap == "symlink":
+            body.symlink_to(outside)
+        else:
+            os.mkfifo(body)
+        return resolved
+
+    monkeypatch.setattr(repository, "resolve_body_path", _resolve_then_swap)
+
+    with pytest.raises(PackSkillViolation):
+        repo.body_text("land-pr")
