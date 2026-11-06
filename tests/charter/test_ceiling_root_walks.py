@@ -16,7 +16,6 @@ import pytest
 from charter.activation.context_renderers import catalog_diagnosis
 from charter.activation.neutrality import lint as neutrality_lint
 from runtime.next._internal_runtime import planner
-from specify_cli.charter_runtime.lint.checks import org_layer
 from specify_cli.cli.commands import regen
 
 CEILING_ENV = "GIT_CEILING_DIRECTORIES"

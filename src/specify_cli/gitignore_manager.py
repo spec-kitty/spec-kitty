@@ -227,8 +227,7 @@ def _has_git_control_path(project_path: Path) -> bool:
     return (
         find_ancestor(
             project_path,
-            lambda candidate: candidate.joinpath(".git").is_file()
-            or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file()),
+            lambda candidate: candidate.joinpath(".git").is_file() or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file()),
         )
         is not None
     )
