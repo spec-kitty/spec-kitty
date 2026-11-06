@@ -10,11 +10,10 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from specify_cli.cli import helpers as _cli_helpers
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
-from specify_cli.core.paths import locate_project_root
+from tests._support.git_ceiling import GIT_CEILING_ENV
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
@@ -113,10 +112,10 @@ def test_mutating_siblings_outside_project_are_json_errors(tmp_path: Path, monke
     # clear it. Tier-2, the .git/.kittify ancestor walk, is NOT clean by virtue of tmp_path
     # living under the temp tree: tmp_path's parent is the pytest basetemp every test in the
     # session shares, so a sibling test that leaves a marker there turns this tmp_path into
-    # the inside of a project (#6367). Bound the walk at tmp_path, the boundary
-    # locate_project_root's own ``stop`` parameter exists for, so only this test's tree counts.
+    # the inside of a project (#6367). Bound the walk's ceiling at tmp_path so only this
+    # test's tree counts (#7076: the walk itself carries no ``stop`` parameter).
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
-    monkeypatch.setattr(_cli_helpers, "locate_project_root", lambda start=None: locate_project_root(start, stop=tmp_path))
+    monkeypatch.setenv(GIT_CEILING_ENV, str(tmp_path))
     human = runner.invoke(mission_type_app, args)
     machine = runner.invoke(mission_type_app, [*args, "--json"])
     assert human.exit_code == machine.exit_code == 1
