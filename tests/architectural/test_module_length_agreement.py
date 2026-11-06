@@ -525,3 +525,92 @@ def test_load_registry_fails_loudly_when_artefact_missing(monkeypatch: pytest.Mo
     monkeypatch.setattr(this_module, "_REGISTRY_PATH", this_module._REPO_ROOT / "does-not-exist-module-registry-fixture.yml")
     with pytest.raises(pytest.fail.Exception):  # _load_registry() calls pytest.fail(...), raising pytest.fail.Exception
         this_module._load_registry()
+
+
+# ---------------------------------------------------------------------------
+# #7288: one collection for every module, attributed by directory.
+# ---------------------------------------------------------------------------
+class _FakeCollect:
+    """Stands in for ``subprocess.run``: records each call and prints the given node ids."""
+
+    def __init__(self, node_ids: list[str], returncode: int = 0) -> None:
+        self.node_ids = node_ids
+        self.returncode = returncode
+        self.calls: list[list[str]] = []
+
+    def __call__(self, argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        self.calls.append(list(argv))
+        return subprocess.CompletedProcess(argv, self.returncode, stdout="\n".join([*self.node_ids, "", "3 tests collected"]), stderr="")
+
+
+_SYNTHETIC_DIRS = {
+    "alpha": ("tests/alpha",),
+    "beta": ("tests/beta", "tests/shared/beta_part"),
+    "outer": ("tests/shared",),
+}
+_SYNTHETIC_IDS = [
+    "tests/alpha/test_a.py::test_one",
+    "tests/alpha/test_a.py::test_two",
+    "tests/beta/test_b.py::TestB::test_one",
+    "tests/shared/beta_part/test_s.py::test_nested",
+    "tests/shared/test_top.py::test_outer_only",
+    "tests/alphabet/test_x.py::test_not_alpha",
+]
+
+
+@pytest.mark.fast
+def test_every_module_is_counted_from_one_collection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7288: one ``--collect-only`` over the union of the modules' directories, never one per module.
+
+    Twenty serial per-module collections measured 275.7 s locally (and timed out the per-PR
+    architectural battery at 240 s); one collection over the same 45 directories, 37.2 s, with
+    identical per-module counts.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    fake = _FakeCollect(_SYNTHETIC_IDS[:-1])
+    monkeypatch.setattr(this_module.subprocess, "run", fake)
+
+    counts = this_module._live_collected_counts(_SYNTHETIC_DIRS)
+
+    assert len(fake.calls) == 1, f"expected one collection, got {len(fake.calls)}"
+    collected_dirs = [arg for arg in fake.calls[0] if arg.startswith("tests/")]
+    assert collected_dirs == ["tests/alpha", "tests/beta", "tests/shared", "tests/shared/beta_part"]
+    assert "--collect-only" in fake.calls[0]
+    assert fake.calls[0][fake.calls[0].index("-m", 3) + 1] == this_module._CONSUMER_MARKER_EXPR
+    assert counts == {"alpha": 2, "beta": 2, "outer": 2}
+
+
+@pytest.mark.fast
+def test_attribution_is_by_path_component_and_counts_nested_directories_for_both_modules() -> None:
+    """Per-module semantics survive the single collection.
+
+    A node under a directory nested in another module's directory counts for both, as each
+    module's own collection would; ``tests/alphabet`` is not under ``tests/alpha``.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    counts, orphans = this_module._attribute_node_ids(_SYNTHETIC_IDS, _SYNTHETIC_DIRS)
+
+    assert counts == {"alpha": 2, "beta": 2, "outer": 2}
+    assert orphans == ["tests/alphabet/test_x.py::test_not_alpha"]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("node_ids", "returncode"),
+    [
+        (_SYNTHETIC_IDS[:2], 0),  # beta and outer collect nothing
+        (_SYNTHETIC_IDS, 0),  # tests/alphabet is under no module directory
+        (_SYNTHETIC_IDS[:-1], 2),  # pytest reports a collection error
+    ],
+    ids=["empty-module", "orphan", "collection-error"],
+)
+def test_the_single_collection_still_fails_loudly(monkeypatch: pytest.MonkeyPatch, node_ids: list[str], returncode: int) -> None:
+    """The per-module failure modes are kept: an empty module or a broken collection is an infra fault, never a count of 0."""
+    import tests.architectural.test_module_length_agreement as this_module
+
+    monkeypatch.setattr(this_module.subprocess, "run", _FakeCollect(node_ids, returncode))
+
+    with pytest.raises(pytest.fail.Exception):
+        this_module._live_collected_counts(_SYNTHETIC_DIRS)
