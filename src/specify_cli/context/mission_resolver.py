@@ -260,15 +260,11 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
 
 def _topic_holder_or(repo_root: Path, entry: Path) -> Path:
     """*entry*, or the topic holder's copy for an unlanded default Mission whose root copy has no meta."""
-    from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.missions._read_path_resolver import default_mission_topic_dir
 
     if (entry / "meta.json").is_file():
         return entry
-    try:
-        held = default_mission_topic_dir(repo_root, entry)
-    except MissionMetaReadError:
-        return entry
+    held = default_mission_topic_dir(repo_root, entry)
     return held if held is not None else entry
 
 

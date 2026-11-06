@@ -2096,15 +2096,20 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
     ``meta.json`` is read when the root has none. Returns ``None`` -- keep *composed* -- for
     every explicit-topology or legacy Mission, a landed one (the one "landed" signal,
     :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding the
-    topic branch carries the Mission directory. A corrupt ``meta.json`` raises
-    ``MissionMetaReadError`` (FR-007 / #3162), like every other meta read here.
+    topic branch carries the Mission directory. ``meta.json`` is read through the one
+    fail-closed reader (FR-007 / #3162); a corrupt one answers ``None`` here so the caller's own
+    fail-closed meta read keeps the corruption verdict (the posture of
+    :func:`mission_runtime.mission_has_landed`).
     """
-    from specify_cli.core.paths import load_meta_fail_closed
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     meta_dir = composed if (composed / "meta.json").is_file() else _coord_worktree_mission_dir(repo_root, composed.name)
     if meta_dir is None:
         return None
-    meta = load_meta_fail_closed(meta_dir)
+    try:
+        meta = load_meta_fail_closed(meta_dir)
+    except MissionMetaReadError:
+        return None
     topic = meta.get("mission_branch") if meta else None
     if not meta or meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
         return None

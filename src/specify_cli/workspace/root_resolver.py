@@ -86,13 +86,9 @@ def _is_default_mission_topic_holder(canonical_root: Path, canonical_feature_dir
     The one topic-holder locator decides; the repository root checkout's copy is then a stale
     copy and a write never redirects onto it.
     """
-    from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.missions._read_path_resolver import default_mission_topic_dir
 
-    try:
-        held = default_mission_topic_dir(canonical_root, canonical_feature_dir)
-    except MissionMetaReadError:
-        return False
+    held = default_mission_topic_dir(canonical_root, canonical_feature_dir)
     return held is not None and held.resolve() == feature_dir.resolve()
 
 
