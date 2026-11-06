@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Final
 
 from kernel.ancestor_walk import iter_ancestors
+from kernel.resolution import resolve_rejecting_loops
 
 __all__ = [
     "AnchorKind",
@@ -202,8 +203,12 @@ def _git_ceilings(environ: Mapping[str, str]) -> frozenset[Path]:
 
 
 def _resolved_or_as_written(path: Path) -> Path:
-    """*path* resolved, or unchanged when it cannot be (an unreadable component, a symlink loop)."""
+    """*path* resolved, or unchanged when it cannot be (an unreadable component, a symlink loop).
+
+    :func:`kernel.resolution.resolve_rejecting_loops` reports a loop as ``OSError`` on every
+    supported interpreter (#3189).
+    """
     try:
-        return path.resolve()
-    except (OSError, RuntimeError):
+        return resolve_rejecting_loops(path)
+    except OSError:
         return path
