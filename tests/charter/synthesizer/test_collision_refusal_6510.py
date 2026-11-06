@@ -29,6 +29,7 @@ from typer.testing import CliRunner, Result
 from charter.activation.synthesizer.errors import DuplicateTargetError, ProjectDRGValidationError
 from charter.activation.synthesizer.manifest import MANIFEST_PATH
 from specify_cli.cli.commands.charter import app
+from kernel.activation_ledger_store import activation_ledger_path
 from tests._factories.activation_ledger import seed_activation_ledger
 from tests._support.charter_cwd import CHARTER_FIND_REPO_ROOT
 
@@ -290,7 +291,10 @@ def test_synthesize_json_refusal_carries_remedy(project: Path) -> None:
 def test_synthesize_refuses_over_an_unowned_directive_with_no_allow_list(project: Path) -> None:
     """A hand-written directive is kept although no ``activated_directives`` key names it (#6768)."""
     _lose_ownership_record(project)
-    seed_activation_ledger(project)
+    ledger = activation_ledger_path(project)
+    keys = yaml.safe_load(ledger.read_text(encoding="utf-8"))
+    del keys["activated_directives"]
+    ledger.write_text(yaml.safe_dump(keys), encoding="utf-8")
     directive = next((project / ".kittify" / "charter-packs" / "directive").glob(f"{_OWN_STEM}*.directive.yaml"))
     hand_written = directive.read_text(encoding="utf-8").replace("Serve the outcome.", "Hand-written intent.")
     directive.write_text(hand_written, encoding="utf-8")
