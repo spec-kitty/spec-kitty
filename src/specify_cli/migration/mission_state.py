@@ -1522,6 +1522,10 @@ def _count_jsonl_rows(path: Path) -> int:
 # ---------------------------------------------------------------------------
 
 LANES_REBUILT_ACTION = "lanes_rebuilt_from_event_log"
+#: #7210: reported beside :data:`LANES_REBUILT_ACTION` when no planning base could be derived from
+#: git, so the rebuilt ``lanes.json`` records the live target tip (an empty evidence window for work
+#: already committed there).
+LANES_REBUILT_WITH_TARGET_TIP_ACTION = "lanes_rebuilt_pin_is_target_tip"
 #: ``status.json`` differs from a fresh materialization but was NOT rewritten
 #: (the event log was unchanged, or the file is untracked): reported, never
 #: silently "fixed" (#5811).
@@ -1597,25 +1601,26 @@ def _rebuild_lanes_if_wedged(
     target_branch: str,
     snapshot: StatusSnapshot,
     meta: Mapping[str, Any],
-) -> str | None:
+) -> tuple[str, ...]:
     """Rebuild ``lanes.json`` from the event log when the #4758 wedge holds.
 
     Three outcomes, mirroring ``tasks_finalize._finalize_lanes``'s own
     three-outcome shape:
 
     1. ``lanes.json`` already exists -- the #3311 guard: never rewrite
-       existing lanes. Silent no-op (returns ``None``).
+       existing lanes. Silent no-op (returns ``()``).
     2. ``lanes.json`` absent but the shared wedge predicate
        (:func:`specify_cli.lanes.persistence.is_execution_wedged`) does
        NOT hold (a fresh/never-finalized mission, or execution genuinely
        has not begun) -- also nothing to repair here. Silent no-op.
     3. ``lanes.json`` absent AND the mission is wedged -- rebuild it via
        WP01's pure :func:`~specify_cli.lanes.compute_and_persist.compute_and_write_lanes`
-       core. ``planning_commit_sha`` is populated by capturing the current
-       ``target_branch`` tip (:func:`~specify_cli.core.vcs.git.capture_branch_tip`,
-       best-effort, ``None`` only on a git failure) -- the same "captured"
-       semantics ``tasks_finalize._finalize_lanes`` already uses for the
-       pre-execution branch. A recorded ``None`` is NOT universally
+       core. ``planning_commit_sha`` is the base ``finalize-tasks`` derives for a
+       pin-less ``lanes.json`` (#7210): the target-branch commit before the
+       Mission's ``tasks/WP*.md`` first appeared on its first-parent line
+       (:func:`_rebuilt_planning_commit`). When none can be derived it falls back
+       to the live ``target_branch`` tip (best-effort, ``None`` only on a git
+       failure) and reports :data:`LANES_REBUILT_WITH_TARGET_TIP_ACTION` too. A recorded ``None`` is NOT universally
        tolerated by downstream consumers: ``tasks_move_task.py``'s
        ``_mt_resolve_owned_review_base`` hard-raises
        ``OWNED_REVIEW_BASE_INVALID`` when ``lanes.json`` has no
@@ -1647,7 +1652,7 @@ def _rebuild_lanes_if_wedged(
     )
 
     if read_lanes_json(mission_dir) is not None:
-        return None  # #3311 guard -- never rewrite existing lanes.
+        return ()  # #3311 guard -- never rewrite existing lanes.
     # Derived from the ALREADY-loaded `meta` (#5100 M3), see the note below.
     topology = topology_from_meta(meta, mission_dir)
     if topology is not MissionTopology.LANES:
@@ -1656,26 +1661,26 @@ def _rebuild_lanes_if_wedged(
         # and a ``single_branch`` Mission has no lanes. Recreating it for them
         # dirtied healthy history and drove the fail-closed lane-glob errors on
         # historical Missions (#5811).
-        return None
+        return ()
 
     execution_has_begun = _execution_has_begun_in_snapshot(snapshot)
     if not is_execution_wedged(execution_has_begun=execution_has_begun, lanes_present=False):
-        return None
+        return ()
 
     wp_frontmatters, wp_bodies = _gather_wp_frontmatter_for_lanes_rebuild(mission_dir / "tasks")
     if not wp_frontmatters:
-        return LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION
+        return (LANES_REBUILD_SKIPPED_NO_WP_FILES_ACTION,)
 
     wp_manifests = resolve_wp_manifests(InMemoryFrontmatterSource(wp_frontmatters))
     if not wp_manifests:
-        return LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION
+        return (LANES_REBUILD_SKIPPED_NO_OWNED_FILES_ACTION,)
 
     # #5974: the cheap checks above stay unlocked. On the rebuild path alone, the "still absent"
     # re-check and the write are ONE ``lanes_json_lock`` hold, so a manifest another process
     # created since the first check is never overwritten. The caller runs outside any Mission hold.
     with lanes_json_lock(mission_dir):
         if read_lanes_json(mission_dir) is not None:
-            return None  # #3311 guard, re-checked under the lock.
+            return ()  # #3311 guard, re-checked under the lock.
         return _write_rebuilt_lanes(
             repo_root,
             mission_dir,
@@ -1702,21 +1707,22 @@ def _write_rebuilt_lanes(
     wp_frontmatters: dict[str, WPMetadata],
     wp_bodies: dict[str, str],
     wp_manifests: dict[str, OwnershipManifest],
-) -> str:
+) -> tuple[str, ...]:
     """Compute and write the rebuilt ``lanes.json``; the caller holds ``lanes_json_lock`` (#5974).
 
-    Returns the action recorded for the outcome (see :func:`_rebuild_lanes_if_wedged`).
+    Returns the actions recorded for the outcome (see :func:`_rebuild_lanes_if_wedged`):
+    :data:`LANES_REBUILT_WITH_TARGET_TIP_ACTION` follows :data:`LANES_REBUILT_ACTION` when no
+    planning base could be derived and the live target tip was recorded instead (#7210).
     """
     from mission_runtime import TopologyManifestMismatch
 
-    from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.compute_and_persist import (
         LaneGlobValidationError,
         compute_and_write_lanes,
     )
 
     wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items()}
-    planning_commit_sha = capture_branch_tip(repo_root, target_branch)
+    planning_commit_sha, derived = _rebuilt_planning_commit(repo_root, mission_slug, target_branch)
     # #5100 M3 (review cycle-1 nit 3, extended for consistency across all
     # three callers): derived from the ALREADY-loaded `meta` this repair's
     # canonicalization already produced (`_canonicalize_meta`, tolerant by
@@ -1757,8 +1763,28 @@ def _write_rebuilt_lanes(
         # FINDING, not a crash -- this repair is not the remedy (the re-stamp
         # migration / CLI is), so it reports and returns cleanly rather than
         # letting the typed mismatch propagate as an unhandled repair error.
-        return LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION
-    return LANES_REBUILT_ACTION
+        return (LANES_REBUILD_SKIPPED_TOPOLOGY_UNMIGRATED_ACTION,)
+    if derived or planning_commit_sha is None:
+        return (LANES_REBUILT_ACTION,)
+    return (LANES_REBUILT_ACTION, LANES_REBUILT_WITH_TARGET_TIP_ACTION)
+
+
+def _rebuilt_planning_commit(repo_root: Path, mission_slug: str, target_branch: str) -> tuple[str | None, bool]:
+    """The planning commit a rebuilt ``lanes.json`` records, and whether it was derived (#7210).
+
+    The same base ``finalize-tasks`` derives for a pin-less ``lanes.json``: the target-branch
+    commit before the Mission's ``tasks/WP*.md`` first appeared on its first-parent line
+    (:func:`specify_cli.lanes.planning_base.resolve_planning_base_commit`). When none can be
+    derived, today's behaviour stands: the live target tip (``None`` only on a git failure).
+    """
+    from specify_cli.core.vcs.git import capture_branch_tip
+    from specify_cli.lanes.planning_base import mission_wp_tasks_pathspec, resolve_planning_base_commit
+
+    derived = resolve_planning_base_commit(repo_root, target_branch, mission_wp_tasks_pathspec(mission_slug))
+    if derived is not None:
+        return derived, True
+    tip: str | None = capture_branch_tip(repo_root, target_branch)
+    return tip, False
 
 
 @dataclass
@@ -1961,7 +1987,7 @@ def _repair_lanes_phase(
 
     lanes_path = mission_dir / LANES_FILENAME
     before_lanes = _file_fingerprint(lanes_path)
-    lanes_action = _rebuild_lanes_if_wedged(
+    lanes_actions = _rebuild_lanes_if_wedged(
         repo_root,
         mission_dir,
         mission_slug=state.mission_slug,
@@ -1970,12 +1996,11 @@ def _repair_lanes_phase(
         snapshot=snapshot,
         meta=meta,
     )
-    if lanes_action == LANES_REBUILT_ACTION:
+    if LANES_REBUILT_ACTION in lanes_actions:
         # Only this repair's own write is its change (#5974): a manifest another process created
         # concurrently is reported as nothing.
         state.record_change(repo_root, lanes_path, before_lanes)
-    if lanes_action is not None:
-        state.meta_actions = (*state.meta_actions, lanes_action)
+    state.meta_actions = (*state.meta_actions, *lanes_actions)
 
 
 def _repair_status_log_phases(
