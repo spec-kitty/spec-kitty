@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-11-06'
 related:
 - api/bulk-edit-gate
 - api/finalize-tasks-internals
@@ -100,6 +100,12 @@ record is the 2026-10-01 amendment of
 Hand-authored companion to the generated `consolidate` section below. `consolidate` lands a
 Mission on its **local** target branch only; it never publishes to a remote unless `--push`
 is passed.
+
+**What `--dry-run` does not check.** The dry run is allowed before the Mission's mission branch
+exists, so it does not report the real run's "Missing mission branch" refusal: a clean forecast
+does not prove that the mission branch is present. Under the default squash strategy the preview
+also leaves out lanes not yet merged into the mission branch, so it can refuse a landing that the
+real run makes (#7268). See #7267.
 
 | Exit code | Meaning |
 |---|---|
