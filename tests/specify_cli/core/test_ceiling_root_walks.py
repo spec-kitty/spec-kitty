@@ -131,9 +131,21 @@ def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tupl
     assert _has_no_git_anchor(work) is False
 
 
-def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fail-closed: a ``.git`` probe that raises still refuses instead of minting."""
+@pytest.mark.parametrize("unreadable_at", ["anchor", "start-loop"])
+def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(
+    ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, unreadable_at: str
+) -> None:
+    """Fail-closed: an unreadable marker or unresolvable start cannot prove absence."""
     _outer, work = ambient_repo
+    if unreadable_at == "start-loop":
+        loop = work / "loop"
+        try:
+            loop.symlink_to(Path("loop"), target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
+            pytest.skip("platform cannot create directory symlinks")
+        monkeypatch.setenv(CEILING_ENV, str(work))
+        assert _has_no_git_anchor(loop / "child") is False
+        return
     real_exists = Path.exists
 
     def _raising_exists(self: Path) -> bool:
