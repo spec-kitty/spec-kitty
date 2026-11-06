@@ -240,7 +240,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "S8 stamp: single_branch transitions carry the minted Mission write-branch head (meta-keyed, lanes planning lane + commit-to-target unstamped); write_branch_for collapse; approval_stamps/stamp_refusal split; _approval_is_bounded warnings on move-task and status emit",
-        "Re-claimed with full implementer identity (identity correction); code unchanged."
+        "Re-claimed with full implementer identity (identity correction); code unchanged.",
+        "Review passed: FR-070 stamp keyed on stored single_branch via minted_write_branch (meta.json), before and independent of is_planning_lane/lane_created_branch; lanes planning lane and commit-to-target unstamped; FR-075 warnings via _approval_is_bounded on move-task and status emit; red-first verified (7 red/4 controls green at 5a256963aa); tidy behaviour-preserving. Nits (non-blocking): single_branch_evidence_window still reads manifest.mission_branch (T062 collapse partial, defensible); stale 'single_branch never bounded' docstrings in tests/consolidation/test_approved_bound.py:1003 and tests/specify_cli/status/test_execution_mode_stamp_paths.py:293; unstamped warning says consolidate will refuse, true only once WP12 lands; _maps_to_code_lane kept and wrapped instead of renamed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
