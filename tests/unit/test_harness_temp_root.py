@@ -32,7 +32,7 @@ from tests._support.git_ceiling import (
     harness_git_ceilings,
     install_git_ceilings,
 )
-from tests._support.temp_root import install_temp_root
+from tests._support.temp_root import TEMP_ROOT_VARS, install_temp_root
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -92,6 +92,12 @@ def test_a_tempfile_dir_under_a_hostile_temp_root_resolves_no_project(tmp_path: 
     monkeypatch.setenv(GIT_CEILING_ENV, "")
     install_git_ceilings(harness_git_ceilings(_Config(basetemp), home_base), os.environ)
 
+    # install_temp_root writes the temp-root variables and resets tempfile's cached root in
+    # this process; hand both to monkeypatch first so teardown gives the next test on this
+    # worker the run's real temp root back instead of this test's (soon deleted) one.
+    for variable in TEMP_ROOT_VARS:
+        monkeypatch.setenv(variable, os.environ.get(variable, ""))
+    monkeypatch.setattr(tempfile, "tempdir", tempfile.tempdir)
     installed = install_temp_root(_Config(basetemp), os.environ)
     assert installed is not None
     assert installed.is_relative_to(basetemp)
