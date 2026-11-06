@@ -73,32 +73,27 @@ EXEMPTIONS: tuple[Exemption, ...] = (
     Exemption(
         "src/specify_cli/analysis_inputs.py",
         "_global_template_mirror",
-        "Symlink check over the home directory's ancestry, not a marker walk: it accepts "
-        "no directory and returns no root.",
+        "Symlink check over the home directory's ancestry, not a marker walk: it accepts no directory and returns no root.",
     ),
     Exemption(
         "src/specify_cli/coordination/surface_resolver.py",
         "_enclosing_worktree_root",
-        "Classifies a path against the '.worktrees/<name>' segment shape; the git ceiling "
-        "has no meaning for a path-shape question.",
+        "Classifies a path against the '.worktrees/<name>' segment shape; the git ceiling has no meaning for a path-shape question.",
     ),
     Exemption(
         "src/specify_cli/core/vcs/detection.py",
         "_get_locked_vcs_from_feature",
-        "Two segment-shape walks ('kitty-specs/<feature>', '.worktrees/<lane>') that "
-        "identify what a path is, not which repository contains it.",
+        "Two segment-shape walks ('kitty-specs/<feature>', '.worktrees/<lane>') that identify what a path is, not which repository contains it.",
     ),
     Exemption(
         "src/specify_cli/workspace/root_resolver.py",
         "canonicalize_feature_dir",
-        "Path-shape fallback used only when the git worktree registry is unreadable; it "
-        "proposes a directory it was already handed, never discovers one.",
+        "Path-shape fallback used only when the git worktree registry is unreadable; it proposes a directory it was already handed, never discovers one.",
     ),
     Exemption(
         "src/specify_cli/upgrade/migrations/m_0_6_7_ensure_missions.py",
         "_find_package_missions",
-        "Frozen historical migration: its dev-checkout fallback must reproduce what that "
-        "release did on an operator's machine, ceiling or not.",
+        "Frozen historical migration: its dev-checkout fallback must reproduce what that release did on an operator's machine, ceiling or not.",
     ),
     Exemption(
         "src/specify_cli/upgrade/migrations/m_0_9_2_research_mission_templates.py",
@@ -119,13 +114,7 @@ def _is_parents_attribute(node: ast.expr) -> bool:
 
 def _is_plain_parents_list(node: ast.expr) -> bool:
     """``list(<expr>.parents)`` — the right-hand half of the concat idiom."""
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id == "list"
-        and len(node.args) == 1
-        and _is_parents_attribute(node.args[0])
-    )
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "list" and len(node.args) == 1 and _is_parents_attribute(node.args[0])
 
 
 def _idiom_nodes(tree: ast.AST) -> Iterator[tuple[ast.expr, str]]:

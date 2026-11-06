@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import typer
 
 from specify_cli.bootstrap.env_file import _find_repo_root as env_file_repo_root
 from specify_cli.context import middleware as context_middleware
@@ -230,10 +231,8 @@ def test_context_middleware_does_not_adopt_a_project_above_the_ceiling(ambient_r
     _outer, work = ambient_repo
     monkeypatch.chdir(work)
 
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(typer.BadParameter, match=r"no \.kittify/"):
         context_middleware._find_repo_root()
-
-    assert "no .kittify/" in str(excinfo.value)
 
 
 def test_context_middleware_still_finds_a_project_below_the_ceiling(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:

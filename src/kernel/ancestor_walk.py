@@ -66,9 +66,7 @@ def git_ceiling_dirs(environ: Mapping[str, str] | None = None) -> frozenset[Path
         The resolved absolute entries. Empty and relative entries are dropped.
     """
     source = os.environ if environ is None else environ
-    return frozenset(
-        Path(part).resolve() for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep) if part and Path(part).is_absolute()
-    )
+    return frozenset(Path(part).resolve() for part in source.get(GIT_CEILING_ENV, "").split(os.pathsep) if part and Path(part).is_absolute())
 
 
 def iter_ancestors(
