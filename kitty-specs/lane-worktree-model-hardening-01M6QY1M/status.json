@@ -222,9 +222,9 @@
     },
     "WP09": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -233,7 +233,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "One lane-checkout helper (lanes/lane_checkout.py::open_lane_checkout) on every route: allocation fresh/legacy/recovery, lifecycle_sync recreate, review checkout, implement --recover recreate; status exclusion on every topology incl. lanes; single-seam gate; dirty status rows kept. landed_worktrees printed hint left as git command (no WP-free re-entry). Out-of-map: recovery.py, consolidation.py (index-based status.json regeneration in sparse lanes), 3 test files.",
-        "- 2026-11-06T13:39:04Z – claude::python-pedro – Review cycle 1 addressed (a0cb24fb50 red, 4a1d8e7a1d green): (1) sparse policy covers every topology, exact match to the helper's patterns; (2) index-only status.json regenerated with meta.json + stage-2 snapshot, byte-identical to in-place; (3) dead WP worktree creators deleted, empty lane allowlist; (4) workspace.py registrars deleted, exclude_lane_status_files is the one authority. Gate budget stays CPU time, justified (7.4 s wall clock under -n 8)."
+        "- 2026-11-06T13:39:04Z – claude::python-pedro – Review cycle 1 addressed (a0cb24fb50 red, 4a1d8e7a1d green): (1) sparse policy covers every topology, exact match to the helper's patterns; (2) index-only status.json regenerated with meta.json + stage-2 snapshot, byte-identical to in-place; (3) dead WP worktree creators deleted, empty lane allowlist; (4) workspace.py registrars deleted, exclude_lane_status_files is the one authority. Gate budget stays CPU time, justified (7.4 s wall clock under -n 8).",
+        "Cycle 1 fixed: managed sparse policy on every topology (exact match), faithful index snapshot regen, dead lane-checkout creators deleted (empty allowlist), single exclusion authority. Red a0cb24fb50, green 4a1d8e7a1d."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
