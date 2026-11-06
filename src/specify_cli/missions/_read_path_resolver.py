@@ -1030,9 +1030,18 @@ def mission_dir_aliases(repo_root: Path, mission_slug: str) -> frozenset[str]:
     return names | {composed} if _is_safe_segment(composed) else names
 
 
+def _is_git_entry(dot_git: Path) -> bool:
+    """True for a linked checkout's ``.git`` file or a ``.git`` directory holding ``HEAD``.
+
+    A bare ``.git`` directory without ``HEAD`` is not a repository to git either
+    (``git`` answers "not a git repository"), so it has no registry to read.
+    """
+    return dot_git.is_file() or (dot_git / "HEAD").is_file()
+
+
 def _inside_git_repository(path: Path) -> bool:
-    """True when *path* or one of its ancestors carries a ``.git`` entry (shape only, no git)."""
-    return any((candidate / ".git").exists() for candidate in (path, *path.parents))
+    """True when *path* or one of its ancestors carries a git entry (shape only, no git)."""
+    return any(_is_git_entry(candidate / ".git") for candidate in (path, *path.parents))
 
 
 def canonical_status_read_root(repo_root: Path) -> Path:

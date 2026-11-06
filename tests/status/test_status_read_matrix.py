@@ -511,3 +511,13 @@ def test_root_outside_any_repository_is_unchanged(tmp_path: Path) -> None:
     plain.mkdir()
 
     assert canonical_status_read_root(plain) == plain
+
+
+def test_root_with_a_headless_git_directory_is_unchanged(tmp_path: Path) -> None:
+    """A ``.git`` directory without ``HEAD`` is no repository to git either: no registry to read."""
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    fake = tmp_path / "fake-repository"
+    (fake / ".git").mkdir(parents=True)
+
+    assert canonical_status_read_root(fake) == fake
