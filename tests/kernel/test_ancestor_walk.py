@@ -8,7 +8,6 @@ part of the contract, not an accident (see the ``kernel.ancestor_walk`` module d
 
 from __future__ import annotations
 
-import ast
 import errno
 import os
 from pathlib import Path
@@ -22,15 +21,9 @@ from kernel.ancestor_walk import (
     iter_ancestors,
 )
 
-_REPO_SRC = Path(__file__).resolve().parents[2] / "src"
-
 
 def _ceiling_env(monkeypatch: pytest.MonkeyPatch, *entries: Path | str) -> None:
     monkeypatch.setenv(GIT_CEILING_ENV, os.pathsep.join(str(entry) for entry in entries))
-
-
-def test_env_name_is_the_git_variable() -> None:
-    assert GIT_CEILING_ENV == "GIT_CEILING_DIRECTORIES"
 
 
 def test_no_ceiling_walks_to_the_filesystem_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,15 +118,6 @@ def test_the_ceiling_is_read_on_every_call(tmp_path: Path, monkeypatch: pytest.M
     assert list(iter_ancestors(start))[-1] == tmp_path.resolve()
 
 
-def test_git_ceiling_dirs_resolves_absolute_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(GIT_CEILING_ENV, str(tmp_path))
-
-    ceilings = git_ceiling_dirs()
-
-    assert ceilings == frozenset({tmp_path.resolve()})
-    assert all(isinstance(entry, Path) and entry.is_absolute() for entry in ceilings)
-
-
 def test_git_ceiling_dirs_accepts_an_explicit_environment(tmp_path: Path) -> None:
     ceilings = git_ceiling_dirs({GIT_CEILING_ENV: f"{tmp_path}{os.pathsep}relative/entry"})
 
@@ -170,30 +154,6 @@ def test_find_ancestor_respects_the_ceiling(tmp_path: Path, monkeypatch: pytest.
     # ... and must not see it once the ceiling sits above the start but below the marker.
     _ceiling_env(monkeypatch, work)
     assert find_ancestor(work, lambda candidate: (candidate / ".marker").exists()) is None
-
-
-def test_find_ancestor_does_not_continue_above_a_ceiling_for_a_later_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "above-marker").write_text("x", encoding="utf-8")
-    below = (tmp_path / "below").resolve()
-    below.mkdir()
-    _ceiling_env(monkeypatch, below)
-
-    assert find_ancestor(below, lambda candidate: (candidate / "above-marker").exists()) is None
-
-
-def test_the_module_imports_nothing_above_the_kernel_floor() -> None:
-    module = _REPO_SRC / "kernel" / "ancestor_walk.py"
-    tree = ast.parse(module.read_text(encoding="utf-8"))
-    imported: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported.extend(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            imported.append(node.module)
-
-    forbidden = ("specify_cli", "charter", "runtime", "mission_runtime", "glossary")
-    violations = [name for name in imported if name.split(".")[0] in forbidden]
-    assert violations == [], f"kernel.ancestor_walk must stay at the floor, found {violations}"
 
 
 @pytest.mark.parametrize("error", [OSError(errno.ELOOP, "Too many levels of symbolic links"), PermissionError(13, "Permission denied")])

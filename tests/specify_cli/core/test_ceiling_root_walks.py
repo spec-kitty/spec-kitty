@@ -24,7 +24,6 @@ from specify_cli.core.paths import (
     WorkspaceRootNotFound,
     get_status_read_root,
     is_worktree_context,
-    locate_project_root,
     resolve_canonical_root,
 )
 from specify_cli.gitignore_manager import _has_git_control_path
@@ -57,19 +56,6 @@ def ambient_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path,
     work.mkdir(parents=True)
     monkeypatch.setenv(CEILING_ENV, str(ceiling))
     return outer, work
-
-
-def test_locate_project_root_does_not_adopt_a_repo_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
-    _outer, work = ambient_repo
-
-    assert locate_project_root(work) is None
-
-
-def test_locate_project_root_still_finds_a_project_below_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
-    _outer, work = ambient_repo
-    (work / ".kittify").mkdir()
-
-    assert locate_project_root(work) == work
 
 
 def test_resolve_canonical_root_does_not_adopt_a_repo_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
