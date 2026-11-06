@@ -1,20 +1,20 @@
 {
-  "event_count": 163,
-  "last_event_id": "01M6SB0F3MMFGN345KNFCP6HPV",
-  "materialized_at": "2026-11-06T21:07:36.692971+00:00",
+  "event_count": 164,
+  "last_event_id": "01M6SB0Z627M0CYXMJX48AQPR0",
+  "materialized_at": "2026-11-06T21:07:53.154427+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 13,
+    "approved": 14,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 4
   },
   "work_packages": {
@@ -340,9 +340,9 @@
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M6S1E1V3K5EAHVDNAN8NSCJ0",
-      "last_transition_at": "2026-11-06T18:20:16.100049+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6SB0Z627M0CYXMJX48AQPR0",
+      "last_transition_at": "2026-11-06T21:07:53.154427+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate).",
@@ -351,10 +351,9 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-1.md",
-        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-1.md",
-        "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP10:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
       },
       "role": "reviewer",
       "shell_pid": 2195,
@@ -481,14 +480,17 @@
     "WP14": {
       "actor": "claude",
       "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
       "last_event_id": "01M6SB0F3MMFGN345KNFCP6HPV",
       "last_transition_at": "2026-11-06T21:07:36.692971+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "S7 settlement at first finalize with compensation; PRIMARY placement on topic branch; two strict-xfail residuals (handle discovery after settlement, N1 emit half)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1842,
