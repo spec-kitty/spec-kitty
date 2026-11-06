@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M6R1ZVTQ0HJZ70NX4KXRQ154",
-  "materialized_at": "2026-11-06T09:10:45.335859+00:00",
+  "event_count": 9,
+  "last_event_id": "01M6R1ZX7Y2WFQW1GJW6VJW5P7",
+  "materialized_at": "2026-11-06T09:10:46.782909+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 8
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -73,6 +73,13 @@
       "lane": "planned",
       "last_event_id": "01M6R1ZVTQ0HJZ70NX4KXRQ154",
       "last_transition_at": "2026-11-06T09:10:45.335859+00:00"
+    },
+    "WP09": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6R1ZX7Y2WFQW1GJW6VJW5P7",
+      "last_transition_at": "2026-11-06T09:10:46.782909+00:00"
     }
   }
 }
