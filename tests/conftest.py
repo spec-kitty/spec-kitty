@@ -37,6 +37,7 @@ from tests._support.quarantine import (
 from tests._support.repo_root_status_guard import register_repo_root_status_guard
 from tests._support.git_ceiling import harness_git_ceilings, install_git_ceilings
 from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
+from tests._support.temp_root import install_temp_root
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
     default_wheel_sdist_builder,
@@ -292,6 +293,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # must not climb into that foreign repository. After install_run_basetemp
     # so the run's basetemp is known; workers and subprocesses inherit it.
     install_git_ceilings(harness_git_ceilings(config, _worker_home_base(config)), os.environ)
+
+    # The ceiling only bounds directories BELOW a listed entry, and tempfile's root is the
+    # platform temp root -- above every entry -- so nothing tempfile makes was bounded by
+    # the harness at all (#7076). Point it inside this run's basetemp, which is a ceiling
+    # entry and is wiped/reaped with the run. After `_worker_home_base` above: that helper
+    # reads tempfile.gettempdir() and the isolated home stays under the platform temp root.
+    install_temp_root(config, os.environ)
 
     try:
         prepare_mutants_environment_from_cwd()
