@@ -625,7 +625,14 @@ def _unreadable_reason(stderr: str, *, repository_identified: bool) -> Unreadabl
 
 
 def _refusal_reason(exc: _GitRefuses) -> UnreadableReason:
-    """The cause a :class:`_GitRefuses` names: the ``.git`` itself first, then git's own answer (#7262)."""
+    """The cause a :class:`_GitRefuses` names (#7262).
+
+    Git's ownership diagnosis wins: it is positive evidence that git found a repository, and a
+    nearer ``.git`` git walked past cannot be the cause. Otherwise a ``.git`` the classifier
+    cannot rule out is named before git's generic answer.
+    """
+    if refuses_ownership(exc.stderr):
+        return "ownership"
     if exc.anchor is not None and exc.anchor.kind is AnchorKind.UNKNOWN:
         return "anchor"
     if exc.git_not_run:

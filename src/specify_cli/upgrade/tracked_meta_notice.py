@@ -51,17 +51,19 @@ _UNREADABLE_TAIL: dict[UnreadableReason, str] = {
         "was minted — check repository and object-store access first (`git fsck` can help diagnose the failure), "
         "because no file restore can succeed until git answers"
     ),
-    "git-not-run": (
-        "git could not be started here (it is not installed, or this folder cannot be its working directory) while a "
-        "repository sits above it, so whether it is tracked is unknown and no identity was minted — make git runnable "
-        "here, then re-run"
-    ),
 }
+
+#: The tail for a git that could not be started while a repository sits above the folder (#7262).
+_GIT_NOT_RUN_TAIL = (
+    "git could not be started here (it is not installed, or this folder cannot be its working directory) while "
+    "`{anchor}` is a repository above it, so whether it is tracked is unknown and no identity was minted — make git "
+    "runnable here, then re-run"
+)
 
 #: The tail for a `.git` the classifier could not rule out (#7262). It names that `.git` and both real repairs,
 #: and never tells the operator to delete it blindly: a repository that lost its `HEAD` still holds history.
 _ANCHOR_TAIL = (
-    "`{anchor}` is {why}: neither a repository git can open nor harmless residue, so whether it is "
+    "`{anchor}` is {why}: this check can neither confirm it as a repository nor rule it out as harmless residue, so whether it is "
     "tracked is unknown and no identity was minted — if it is a repository, repair it (for example restore its "
     "`HEAD`); if it is leftover residue that holds nothing you need, remove it; then re-run"
 )
@@ -152,10 +154,13 @@ def _refusal_notice(path: str, tracked: TrackedMeta, lead: str, repo_root: Path)
     """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
     if tracked.unreadable_reason == "anchor" and tracked.anchor is not None:
         return f"{path}: meta.json {lead} and {_anchor_tail(tracked.anchor, repo_root)}"
+    if tracked.unreadable_reason == "git-not-run" and tracked.anchor is not None and tracked.anchor.path is not None:
+        return f"{path}: meta.json {lead} and {_GIT_NOT_RUN_TAIL.format(anchor=_shown(tracked.anchor.path, repo_root))}"
     if tracked.unreadable_reason is not None:
         # Git never answered, so the subject is not "tracked meta.json": whether the path is
         # tracked is exactly what could not be established (#7131).
-        return f"{path}: meta.json {lead} and {_UNREADABLE_TAIL[tracked.unreadable_reason]}"
+        tail = _UNREADABLE_TAIL.get(tracked.unreadable_reason, _UNREADABLE_TAIL["repository"])
+        return f"{path}: meta.json {lead} and {tail}"
     if tracked.staged_differs:
         return (
             f"{path}: meta.json {lead} and the index copy differs from the committed one (a staged edit); "
@@ -181,11 +186,15 @@ def _anchor_tail(anchor: GitAnchor, repo_root: Path) -> str:
     """The repair tail for a `.git` the classifier could not rule out, naming that `.git` (#7262)."""
     if anchor.path is None:
         return _REDIRECT_TAIL.format(why=anchor.reason)
+    return _ANCHOR_TAIL.format(anchor=_shown(anchor.path, repo_root), why=anchor.reason)
+
+
+def _shown(path: Path, repo_root: Path) -> str:
+    """*path* relative to *repo_root* (POSIX), or absolute when it is not below it."""
     try:
-        shown = anchor.path.relative_to(repo_root).as_posix()
+        return path.relative_to(repo_root).as_posix()
     except ValueError:
-        shown = anchor.path.as_posix()
-    return _ANCHOR_TAIL.format(anchor=shown, why=anchor.reason)
+        return path.as_posix()
 
 
 def _display_path(feature_dir: Path, repo_root: Path) -> str:
