@@ -1308,11 +1308,22 @@ class _EvidencePreflight:
 
     *report* is a computed refusal ``--diagnose`` folds in as a blocked check (exit 1);
     *skipped* is the skip note of a check that could not be computed (#7222, #7223), which
-    ``--diagnose`` adds to the skipped checks and leaves the blocker to the readiness report.
+    ``--diagnose`` adds to the skipped checks without allowing unknown evidence to imply readiness.
     """
 
     report: EvidenceReport | None = None
     skipped: AcceptanceCheckDiagnostic | None = None
+
+
+def _append_skipped_evidence(summary: AcceptanceSummary, skipped: AcceptanceCheckDiagnostic) -> None:
+    """Keep otherwise-ready diagnostics not-ready when required evidence cannot be evaluated.
+
+    Diagnostic notes do not affect ``AcceptanceSummary.ok``. Use its existing activity-issue
+    input, as the matrix cannot-evaluate path does, without inventing a matrix verdict or WPs.
+    """
+    summary.skipped_checks.append(skipped)
+    if summary.ok:
+        summary.activity_issues.append(f"Implementation evidence could not be evaluated: {skipped.detail}")
 
 
 def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, landed_commit: str | None = None) -> _EvidencePreflight:
@@ -1827,7 +1838,7 @@ def accept(
     evidence = _refuse_unevidenced_work(run, report_only=diagnose, landed_commit=landed_commit)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
     if evidence.skipped is not None:
-        summary.skipped_checks.append(evidence.skipped)
+        _append_skipped_evidence(summary, evidence.skipped)
     if evidence.report is not None:
         _report_evidence_diagnosis(run, summary, evidence.report)
     _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)

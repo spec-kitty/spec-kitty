@@ -20,7 +20,10 @@ from typing import Any
 
 import pytest
 
+from specify_cli.acceptance import AcceptanceCheckDiagnostic, AcceptanceSummary, WorkPackageState
+from specify_cli.acceptance.gates_core import PLANNING_ARTIFACT_ONLY_SKIP_REASON
 from specify_cli.cli.commands import accept as accept_module
+from specify_cli.task_utils import LANES
 from specify_cli.consolidation.canceled_attestation import AttestationError
 from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
 from specify_cli.consolidation.wp_evidence import EvidenceReport
@@ -35,6 +38,50 @@ _REFUSAL = (
     "IMPLEMENTATION_MISSING: WP02 was approved with no change to its owned_files in its evidence window p..b (lane-b).\n"
     "REVIEW_NOT_INDEPENDENT: WP03 was approved without a confirmable independent review."
 )
+
+
+def _ready_planning_summary(repo_root: Path) -> AcceptanceSummary:
+    """A real serialized report with an approved planning WP and the legitimate matrix exemption."""
+    mission_dir = repo_root / "kitty-specs" / _SLUG
+    summary = AcceptanceSummary(
+        feature=_SLUG,
+        repo_root=repo_root,
+        feature_dir=mission_dir,
+        tasks_dir=mission_dir / "tasks",
+        branch="main",
+        worktree_root=repo_root,
+        primary_repo_root=repo_root,
+        lanes={lane: ["WP01"] if lane == "approved" else [] for lane in LANES},
+        work_packages=[
+            WorkPackageState(
+                work_package_id="WP01",
+                lane="approved",
+                title="Planning deliverable",
+                path=f"kitty-specs/{_SLUG}/tasks/WP01.md",
+                has_lane_entry=True,
+                latest_lane="approved",
+                metadata={"execution_mode": "planning_artifact", "agent": "planner"},
+            )
+        ],
+        metadata_issues=[],
+        activity_issues=[],
+        unchecked_tasks=[],
+        needs_clarification=[],
+        missing_artifacts=[],
+        optional_missing=[],
+        git_dirty=[],
+        path_violations=[],
+        warnings=[],
+        skipped_checks=[
+            AcceptanceCheckDiagnostic(
+                check="acceptance_matrix_presence",
+                detail="planning_artifact-only missions do not produce acceptance-matrix.json",
+            )
+        ],
+        acceptance_matrix_gate_skip_reason=PLANNING_ARTIFACT_ONLY_SKIP_REASON,
+    )
+    assert summary.ok, "the fixture must expose unknown evidence as the only readiness failure"
+    return summary
 
 
 @dataclass
@@ -229,6 +276,7 @@ def _unmaterialized(tmp_root: Path) -> CoordinationWorktreeUnmaterialized:
 
 def test_diagnose_skips_the_evidence_check_on_a_corrupt_lanes_manifest(evidence: Evidence) -> None:
     evidence.lanes_error = CorruptLanesError("bad json")
+    evidence.harness.summary = _ready_planning_summary(evidence.harness.root)
 
     result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
 
@@ -236,31 +284,40 @@ def test_diagnose_skips_the_evidence_check_on_a_corrupt_lanes_manifest(evidence:
     assert result.exit_code == 0, result.output
     assert payload["diagnose"] is True
     assert "error_code" not in payload, "no computed evidence verdict: the readiness report owns the blocker"
-    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
-    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
-    assert skipped[0][1].startswith("implementation_evidence skipped: ")
-    assert "bad json" in skipped[0][1]
-    assert evidence.harness.summary.blocked_checks == []
+    skipped = [item for item in payload["skipped_checks"] if item["check"] == "implementation_evidence"]
+    assert len(skipped) == 1
+    assert skipped[0]["detail"].startswith("implementation_evidence skipped: EVIDENCE_WINDOW_UNCOMPUTABLE: ")
+    assert "bad json" in skipped[0]["detail"]
+    assert payload["ok"] is False, "unknown evidence cannot leave an otherwise-ready report ready"
+    assert any("could not be evaluated" in issue for issue in payload["activity_issues"])
+    assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
+    assert payload["blocked_checks"] == [], "do not manufacture a matrix refusal for its legitimate exemption"
     assert evidence.harness.events == ["origin_gate", "collect"]
     assert evidence.harness.calls == []
 
 
 def test_diagnose_skips_the_evidence_check_on_an_unmaterialized_coordination_worktree(evidence: Evidence) -> None:
     evidence.status_dir_error = _unmaterialized(evidence.harness.root)
+    evidence.harness.summary = _ready_planning_summary(evidence.harness.root)
 
     result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
 
+    payload = json.loads(result.output)
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["diagnose"] is True
-    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
-    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
-    assert "COORDINATION_WORKTREE_UNMATERIALIZED" in skipped[0][1]
+    assert payload["diagnose"] is True
+    skipped = [item for item in payload["skipped_checks"] if item["check"] == "implementation_evidence"]
+    assert len(skipped) == 1
+    assert "COORDINATION_WORKTREE_UNMATERIALIZED" in skipped[0]["detail"]
+    assert payload["ok"] is False, "the planning-only matrix exemption does not imply evidence was readable"
+    assert any("could not be evaluated" in issue for issue in payload["activity_issues"])
+    assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
     assert "evidence" not in evidence.harness.events, "the verdict is never judged on a substitute surface"
     assert evidence.harness.calls == []
 
 
 def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence) -> None:
     evidence.status_dir_error = _unmaterialized(evidence.harness.root)
+    evidence.harness.summary = _ready_planning_summary(evidence.harness.root)
 
     result = evidence.harness.invoke("--mission", _SLUG, "--diagnose", json_output=False)
 
