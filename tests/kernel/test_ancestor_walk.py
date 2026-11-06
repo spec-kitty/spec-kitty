@@ -126,12 +126,15 @@ def test_git_ceiling_dirs_accepts_an_explicit_environment(tmp_path: Path) -> Non
 
 def test_find_ancestor_returns_the_first_accepted_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(GIT_CEILING_ENV, raising=False)
-    target = (tmp_path / "a").resolve()
-    target.mkdir()
-    start = (target / "b" / "c").resolve()
+    nearest = (tmp_path / "a").resolve()
+    nearest.mkdir()
+    (nearest / "marker").write_text("x", encoding="utf-8")
+    # A competing match farther up the tree: "first" must mean nearest, not last-accepted.
+    (tmp_path / "marker").write_text("x", encoding="utf-8")
+    start = (nearest / "b" / "c").resolve()
     start.mkdir(parents=True)
 
-    assert find_ancestor(start, lambda candidate: (candidate / "b").is_dir()) == target
+    assert find_ancestor(start, lambda candidate: (candidate / "marker").exists()) == nearest
 
 
 def test_find_ancestor_returns_none_when_nothing_is_accepted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

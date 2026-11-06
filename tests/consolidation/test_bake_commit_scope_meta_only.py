@@ -68,9 +68,14 @@ def test_the_hermetic_strip_keeps_the_harness_discovery_ceiling() -> None:
     """The strip removes git steering, not the harness's discovery boundary (#7076)."""
     assert _HARNESS_CEILING, "the harness installs a GIT_CEILING_DIRECTORIES for every run"
     assert os.environ.get(GIT_CEILING_ENV) == _HARNESS_CEILING
-    # The strip's own job still holds: only the harness-set GIT_* variables are present.
-    assert GIT_CEILING_ENV in {name for name in os.environ if name.startswith("GIT_")}
-    assert os.environ["GIT_CONFIG_NOSYSTEM"] == "1"
+    # The strip's own job still holds: the ceiling it must not eat, this module's three
+    # explicit settings, and nothing else.
+    assert {name for name in os.environ if name.startswith("GIT_")} == {
+        GIT_CEILING_ENV,
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_NOSYSTEM",
+        "GIT_TERMINAL_PROMPT",
+    }
 
 
 def _git(cwd: Path, *args: str) -> str:

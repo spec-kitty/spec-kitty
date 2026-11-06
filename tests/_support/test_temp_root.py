@@ -61,8 +61,10 @@ def test_install_points_every_temp_variable_at_the_root(tmp_path: Path, monkeypa
     assert root is not None and root.is_dir()
     assert environ == {variable: str(root) for variable in TEMP_ROOT_VARS}
     # The stdlib caches the root in a module global; without the reset the new variables
-    # are ignored for the rest of the process.
-    assert tempfile.tempdir is None
+    # are ignored and ``gettempdir()`` keeps answering with the root cached before install.
+    for variable in TEMP_ROOT_VARS:
+        monkeypatch.setenv(variable, environ[variable])
+    assert Path(tempfile.gettempdir()).resolve() == root.resolve()
 
 
 def test_install_overwrites_a_previously_installed_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,7 +76,8 @@ def test_install_overwrites_a_previously_installed_root(tmp_path: Path, monkeypa
     second = install_temp_root(_Config(str(tmp_path / "two")), environ)
 
     assert first != second
-    assert environ["TMPDIR"] == str(second)
+    for variable in TEMP_ROOT_VARS:
+        assert environ[variable] == str(second), f"{variable} kept the first install's root"
     assert second is not None and second.is_dir()
 
 
