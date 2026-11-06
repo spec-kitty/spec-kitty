@@ -24,6 +24,7 @@ from specify_cli.coordination.status_service import (
     read_event_log,
     read_event_stream_log,
     read_status_ref,
+    ref_exists,
 )
 
 pytestmark = [pytest.mark.git_repo]
@@ -161,3 +162,22 @@ def test_ref_reader_spawns_one_subprocess_per_read(repo: Path, monkeypatch: pyte
 
     assert len(calls) == 1
     assert "cat-file" in calls[0]
+
+
+def test_ref_exists_distinguishes_missing_from_unreadable(repo: Path, tmp_path: Path) -> None:
+    """``ref_exists`` is the one home of the declared ref-missing arm (coherence, done bookkeeping).
+
+    It answers only "does the ref resolve to an object name": a corrupt ref still exists (so its
+    read raises), while a missing ref or a non-repository root does not.
+    """
+    corrupt = repo / ".git" / "refs" / "heads" / "kitty" / "mission-corrupt"
+    corrupt.parent.mkdir(parents=True, exist_ok=True)
+    corrupt.write_text("0123456789abcdef0123456789abcdef01234567\n", encoding="utf-8")
+    not_a_repo = tmp_path / "plain"
+    not_a_repo.mkdir()
+
+    assert ref_exists(repo, BRANCH_REF) is True
+    assert ref_exists(repo, "refs/heads/kitty/mission-corrupt") is True
+    assert ref_exists(repo, "refs/heads/kitty/mission-deleted") is False
+    assert ref_exists(repo, "--output=/tmp/x") is False
+    assert ref_exists(not_a_repo, BRANCH_REF) is False
