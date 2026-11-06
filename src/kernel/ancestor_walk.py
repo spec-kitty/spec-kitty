@@ -79,7 +79,7 @@ __all__ = [
     "iter_ancestors",
 ]
 
-#: The variable git (and every root walk in this stack) reads for discovery ceilings.
+#: The variable git and the migrated parent-enumerating root walks read for discovery ceilings.
 GIT_CEILING_ENV: Final[str] = "GIT_CEILING_DIRECTORIES"
 
 

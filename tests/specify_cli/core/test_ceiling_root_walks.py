@@ -1,11 +1,13 @@
-"""Every ``.git``/``.kittify`` root walk stops at ``GIT_CEILING_DIRECTORIES`` (#7056).
+"""The migrated ``.git``/``.kittify`` root walks stop at ``GIT_CEILING_DIRECTORIES`` (#7056).
 
 #7022 taught three walks to honour the git ceiling; the rest kept climbing, so a
 hermetic tree inside an enclosing repository resolved into that repository. Each case
 here builds an ambient repository/service *above* a ceiling and starts a walk *below* it:
-the walk must behave exactly as it would with no ambient repository at all. The second
-half of each test proves the ceiling does not blind the walk to a marker inside its own
-tree.
+the walk must behave exactly as it would with no ambient repository at all. The paired
+positive cases prove the ceiling does not blind a walk to a marker inside its own tree (a
+few definitions pin only the negative side). The loop-form walks (#7269) and
+``session_start``'s own walk with its ``stop=`` (#7122) are not migrated yet and have no
+case here.
 """
 
 from __future__ import annotations
@@ -132,9 +134,7 @@ def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tupl
 
 
 @pytest.mark.parametrize("unreadable_at", ["anchor", "start-loop"])
-def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(
-    ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, unreadable_at: str
-) -> None:
+def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, unreadable_at: str) -> None:
     """Fail-closed: an unreadable marker or unresolvable start cannot prove absence."""
     _outer, work = ambient_repo
     if unreadable_at == "start-loop":
