@@ -277,7 +277,7 @@
       "wp": "WP08"
     },
     "#7279": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S3 ADR 2026-04-03-1 amendment (WP03) + lane-checkout helper (WP09)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -285,8 +285,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7280": {
       "evidence_ref": "<link or commit>",
