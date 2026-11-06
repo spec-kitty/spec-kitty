@@ -585,9 +585,11 @@ def build_flat_topology_mission(
 
     ``topology="single_branch"`` (the default, #7224) writes the manifest a real
     single_branch Mission carries: one repo-root ``lane-planning`` lane, no code lane
-    and no lane branch. ``mission_branch`` records a write branch distinct from the
-    ``main`` target (the protected-target mint shape) in both ``meta.json`` and
-    ``lanes.json``; the branch itself is not created. ``topology="lanes"`` keeps a
+    and no lane branch. ``create`` gives such a Mission on protected ``main`` one of two
+    shapes, and so does this builder: by default ``commit_to_target`` (``--commit-to-target``),
+    or with ``mission_branch`` a write branch distinct from the ``main`` target (the
+    protected-target mint) in both ``meta.json`` and ``lanes.json``; the branch itself is
+    not created. ``topology="lanes"`` keeps a
     coordination-less mission with one ``lane-a`` code lane, for tests whose subject
     is lane-branch or lane-worktree behaviour.
 
@@ -620,11 +622,13 @@ def build_flat_topology_mission(
         # read from the WP kind; a finalized code WP declares it.
         _write_wp_task(tasks_dir, "WP01", execution_mode="code_change")
         _write_single_branch_lanes_json(primary_feature_dir, slug=slug, mission_id=mission_id, mission_branch=mission_branch)
-        if mission_branch is not None:
-            meta_path = primary_feature_dir / "meta.json"
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta_path = primary_feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if mission_branch is None:
+            meta["commit_to_target"] = True
+        else:
             meta["mission_branch"] = mission_branch
-            meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     else:
         assert mission_branch is None, "mission_branch is a single_branch knob"
         _write_wp_task(tasks_dir, "WP01")

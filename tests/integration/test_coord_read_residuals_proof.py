@@ -509,33 +509,13 @@ def test_flat_topology_materialize_is_noop(
     assert topo.mission_slug == ctx.slug
 
 
-def test_flat_topology_forecast_is_noop(
-    flat_topology_mission: FlatTopologyContext,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """On a flat mission the dry-run forecast reads the single-surface lanes.json.
-
-    The fixture is a real single_branch Mission (#7224): its one repo-root
-    ``lane-planning`` lane holds WP01, and the forecast's claim holds WP01 once it is
-    implemented in the write checkout and approved by an independent reviewer (#6715).
-    """
+def _flat_forecast_payload(repo_root: Path, ctx: FlatTopologyContext, capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
+    """Run the dry-run forecast for the flat Mission from *repo_root* and return its JSON."""
     from specify_cli.consolidation import forecast
     from specify_cli.consolidation.config import MergeStrategy
-    from specify_cli.lanes.compute import PLANNING_LANE_ID
 
-    ctx = flat_topology_mission
-    # #5385: a flat (coordination-less) mission's done bookkeeping lands on its
-    # target, and this fixture's target is the protected ``main``, so the dry-run
-    # now reports PROTECTED_BRANCH_REFUSED up front. This test is about which
-    # surface lanes.json is read from, so declare ``main`` unprotected.
-    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    # Empty the (single-surface) event log so the review-artifact preflight
-    # materialises cleanly.
-    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
-    _seed_approved_single_branch_wp01(ctx)
     forecast.run_dry_run_forecast(
-        repo_root=ctx.repo,
+        repo_root=repo_root,
         resolved_feature=ctx.slug,
         resolved_target_branch="main",
         resolved_strategy=MergeStrategy.SQUASH,
@@ -544,12 +524,61 @@ def test_flat_topology_forecast_is_noop(
         push=False,
         json_output=True,
     )
-    payload = json.loads(capsys.readouterr().out.strip())
+    payload: dict[str, Any] = json.loads(capsys.readouterr().out.strip())
+    return payload
+
+
+def test_flat_topology_forecast_is_noop(
+    flat_topology_mission: FlatTopologyContext,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """On a flat mission the dry-run forecast succeeds and reports the one repo-root lane.
+
+    A neutrality control: a flat Mission has a single surface, so this cannot tell which
+    surface was read. ``test_dry_run_forecast_returns_primary_wp_set`` pins the routing on a
+    coordination Mission, and the linked-checkout test below pins the read off the checkout.
+
+    The fixture is a real single_branch Mission (#7224): its one repo-root ``lane-planning``
+    lane holds WP01, and the forecast's claim holds WP01 once it is implemented in the write
+    checkout and approved by an independent reviewer (#6715).
+    """
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    ctx = flat_topology_mission
+    # Empty the (single-surface) event log so the review-artifact preflight
+    # materialises cleanly.
+    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    _seed_approved_single_branch_wp01(ctx)
+
+    payload = _flat_forecast_payload(ctx.repo, ctx, capsys)
     forecast_wps = {wp for lane in payload.get("lanes", []) for wp in lane["wp_ids"]}
 
     assert "error" not in payload, payload
     assert forecast_wps == {"WP01"}
-    # The lanes came from the PRIMARY single_branch manifest, not a code-lane shape.
+    assert {lane["lane_id"] for lane in payload["lanes"]} == {PLANNING_LANE_ID}
+
+
+def test_flat_topology_forecast_ignores_a_linked_checkouts_manifest(
+    flat_topology_mission: FlatTopologyContext,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """Run from a linked checkout, the forecast reads PRIMARY's lanes.json, not the local copy."""
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    ctx = flat_topology_mission
+    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    _seed_approved_single_branch_wp01(ctx)
+    linked = tmp_path / "linked-checkout"
+    _git(ctx.repo, "worktree", "add", "-q", "-b", "linked-checkout", str(linked))
+    decoy_path = linked / "kitty-specs" / ctx.slug / "lanes.json"
+    decoy = json.loads(decoy_path.read_text(encoding="utf-8"))
+    decoy["lanes"][0]["lane_id"] = "lane-decoy"
+    decoy_path.write_text(json.dumps(decoy), encoding="utf-8")
+
+    payload = _flat_forecast_payload(linked, ctx, capsys)
+
+    assert "error" not in payload, payload
     assert {lane["lane_id"] for lane in payload["lanes"]} == {PLANNING_LANE_ID}
 
 
