@@ -24,7 +24,7 @@ from kernel.git import GitCommandError, run_git
 from specify_cli.consolidation.git_probes import GitProbeError, commit_parents
 from specify_cli.lanes.branch_naming import code_lane_branch_name
 
-__all__ = ["mission_dir_pathspec", "mission_wp_tasks_pathspec", "resolve_finalize_planning_base", "resolve_planning_base_commit"]
+__all__ = ["mission_dir_pathspec", "resolve_finalize_planning_base", "resolve_planning_base_commit"]
 
 
 def mission_dir_pathspec(mission_slug: str) -> str:
