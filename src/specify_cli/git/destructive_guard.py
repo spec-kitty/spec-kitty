@@ -1015,8 +1015,10 @@ def _unreached_by_local_refs(repo_root: Path, candidates: Sequence[str], env: di
 
 
 def _tree_of(repo_root: Path, rev: str, env: dict[str, str] | None) -> str | None:
-    result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{rev}^{{tree}}"], env=env)
-    return result.stdout.strip() if result.returncode == 0 else None
+    """The tree of commit ``rev``, or ``None`` when git cannot read it."""
+    result = _run_git(repo_root, ["show", "-s", "--format=%T", rev, "--"], env=env)
+    tree = result.stdout.strip() if result.returncode == 0 else ""
+    return tree or None
 
 
 def _change_is_a_no_op_on(repo_root: Path, landing_ref: str, commit: str, env: dict[str, str] | None) -> bool:
