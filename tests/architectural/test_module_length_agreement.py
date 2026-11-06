@@ -48,7 +48,12 @@ fixture now runs ONE collection over the union of the modules' directories
 and attributes node ids to modules by directory (37.2 s, identical counts).
 This module pays that cost once per pytest session, via the session-scoped
 ``_collected_counts`` fixture, so every assertion below reuses the same
-collection instead of repeating it per test. The live-collection test is marked ``slow`` (pytest.ini: "expected to
+collection instead of repeating it per test -- and only under
+``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` (#7288). In the per-PR battery the single
+collection still took ~160 s against four xdist workers, to produce a warning
+the module-tests select step already prints for the same drift, so the two
+live tests are skipped there and run in ``ci-shard-recapture.yml``'s strict
+lane, where they hard-fail. The live-collection test is marked ``slow`` (pytest.ini: "expected to
 take >30 seconds"), never ``fast``. The genuinely fast, self-validating half
 of this gate -- proving the comparison mechanism actually FIRES on a real
 mismatch (Standing Order #5's "self-mutation test") -- is kept in pure-logic
@@ -68,6 +73,9 @@ job is deliberately CODE-SCOPED: its ``if:`` is the OR of the registry's
 group deliberately gates no router job, #4386), so on that PR shape this test
 first runs on ``ci-nightly.yml``'s ``mode: full`` dispatch, under ``make
 test-full``, or on the next PR touching ``src/**`` or ``tests/architectural/**``.
+Wherever it runs without ``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` the two live tests
+are skipped (#7288); the fast tests below still run. The live comparison runs in
+``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` job.
 
 Both YAML/JSON artefacts are loaded lazily inside fixtures/tests (never at
 import time), mirroring ``test_module_shard_registry.py``'s own convention,
@@ -124,6 +132,20 @@ def _strict_mode() -> bool:
     failure (as ``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` does).
     """
     return os.environ.get(_STRICT_ENV_VAR) == "1"
+
+
+#: The live collection runs only where it can fail (#7288, operator ruling 2026-11-06). Per PR
+#: the gate can only warn (#5189), and the module-tests select step already annotates every
+#: missing and stale node id on the PR that caused it (``scripts/ci/shard_select.py``), so the
+#: ~160 s collection in the per-PR architectural battery bought a duplicate warning. Evaluated
+#: at collection time, so a skipped run never sets up the ``_collected_counts`` fixture.
+_LIVE_ONLY_WHEN_STRICT = pytest.mark.skipif(
+    not _strict_mode(),
+    reason=(
+        "live collection runs only under SPEC_KITTY_STRICT_SHARD_TIMINGS=1 (ci-shard-recapture.yml's strict lane, "
+        "or locally); per PR the module-tests select step reports the same drift (#7288)"
+    ),
+)
 
 
 def _report_drift(message: str, *, strict: bool) -> None:
@@ -291,6 +313,7 @@ def _collected_counts(_live_registry_state: dict[str, Any]) -> dict[str, int]:
 # The real gate.
 # ---------------------------------------------------------------------------
 @pytest.mark.slow
+@_LIVE_ONLY_WHEN_STRICT
 def test_every_registry_module_agrees_with_live_collection(
     _live_registry_state: dict[str, Any],
     _live_timings_state: dict[str, Any],
@@ -317,6 +340,7 @@ def test_every_registry_module_agrees_with_live_collection(
 
 
 @pytest.mark.slow
+@_LIVE_ONLY_WHEN_STRICT
 def test_charter_agrees_with_live_collection(
     _live_timings_state: dict[str, Any],
     _collected_counts: dict[str, int],
