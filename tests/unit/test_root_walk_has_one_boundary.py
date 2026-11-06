@@ -7,15 +7,14 @@ no coverage the ceiling does not already give — git's ceiling bounds child pro
 #7076 retired it, so a caller cannot bound a walk with a mechanism the production code no
 longer reads.
 
-The behavioural half matters as much as the signature half: removing the parameter must
-not remove the *boundary*. The last two tests here are the same-fixture positive control
-— a directory below a ceiling resolves to no project, and the ceiling directory itself,
-when it is a project, still resolves.
+The behavioural guards reject the retired caller-supplied boundary and preserve the
+ceiling itself. One same-fixture control proves both directions: a directory below a
+ceiling resolves to no project, and a project at the ceiling directory still resolves.
+No signature representation is pinned.
 """
 
 from __future__ import annotations
 
-import inspect
 from pathlib import Path
 
 import pytest
@@ -25,12 +24,6 @@ from specify_cli.task_utils.support import TaskCliError, find_repo_root
 from tests._support.git_ceiling import GIT_CEILING_ENV
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-
-@pytest.mark.parametrize("walk", [locate_project_root, find_repo_root], ids=["locate", "find_repo"])
-def test_the_walk_takes_no_stop_parameter(walk: object) -> None:
-    """The parameter is gone, not accepted and ignored."""
-    assert "stop" not in inspect.signature(walk).parameters
 
 
 @pytest.mark.parametrize("walk", [locate_project_root, find_repo_root], ids=["locate", "find_repo"])
