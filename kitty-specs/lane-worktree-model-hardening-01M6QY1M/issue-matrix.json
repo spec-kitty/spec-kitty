@@ -253,7 +253,7 @@
       "wp": null
     },
     "#7277": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S1 read contract: WP01 ADR, WP04-WP07",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -261,8 +261,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#7278": {
       "evidence_ref": "<link or commit>",
