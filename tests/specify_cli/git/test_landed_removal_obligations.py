@@ -466,22 +466,30 @@ def test_o4_an_unreadable_reflog_removes_nothing(repo: Path, monkeypatch: pytest
     assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
 
 
-@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0), reason="needs file modes that bind this user")
-@pytest.mark.parametrize("damage", ["unreadable", "garbage"])
-def test_o4_a_reflog_git_silently_skips_removes_nothing(repo: Path, damage: str) -> None:
-    """``git reflog show`` exits 0 with no output on these, so the exit code alone would fail open."""
+def test_o4_a_reflog_that_cannot_be_opened_removes_nothing(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``git reflog show`` exits 0 on a file it can't open, so the guard must read the file itself."""
+    worktree, tip = _land(repo)
+    real_read_bytes = Path.read_bytes
+
+    def denied(path: Path) -> bytes:
+        if path.name == "HEAD" and path.parent.name == "logs":
+            raise PermissionError(13, "Permission denied", str(path))
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+
+    assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+    assert worktree.exists()
+
+
+def test_o4_a_corrupt_reflog_removes_nothing(repo: Path) -> None:
+    """On a file it can't parse, ``git reflog show`` exits 0 and prints the current commit."""
     worktree, tip = _land(repo)
     log = Path(_git(worktree, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD").strip())
-    if damage == "unreadable":
-        log.chmod(0)
-    else:
-        log.write_text("not a reflog\n", encoding="utf-8")
-    try:
-        assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
-        assert worktree.exists()
-    finally:
-        if log.exists():
-            log.chmod(0o644)
+    log.write_text("not a reflog\n", encoding="utf-8")
+
+    assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+    assert worktree.exists()
 
 
 def test_o4_reachability_that_git_cannot_answer_keeps_every_candidate(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
