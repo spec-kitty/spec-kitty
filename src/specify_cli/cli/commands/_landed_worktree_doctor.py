@@ -205,6 +205,8 @@ def _render_outcome(outcome: PruneOutcome, repo_root: Path, primary: str) -> Non
     _print(f"{_INDENT}recreate: {escape(outcome.recreate)}")
     if outcome.kept_ref is not None:
         _print(f"{_INDENT}tip kept at {escape(outcome.kept_ref)}")
+    for kept in outcome.kept_commits:
+        _print(f"{_INDENT}reflog-only commit kept at {escape(kept)}")
     if outcome.refusal is not None:
         label = "partly removed" if outcome.refusal == WORKTREE_PARTIALLY_REMOVED else "branch kept"
         _print(f"{_INDENT}[yellow]{label}:[/yellow] {escape(outcome.refusal)}")

@@ -698,6 +698,9 @@ def _keep_discarded_tip(repo_root: Path, ref: str, tip: str, env: dict[str, str]
 DETACHED_DISCARDED_REF_PREFIX = f"{DISCARDED_REF_PREFIX}detached/"
 """Where :func:`keep_detached_tip` records the tip of a detached worktree before it is removed."""
 
+REFLOG_DISCARDED_REF_PREFIX = f"{DISCARDED_REF_PREFIX}reflog/"
+"""Where :func:`keep_reflog_tip` records a commit that only a destroyed reflog still reached (one ref per sha)."""
+
 
 def keep_detached_tip(repo_root: Path, sha: str, *, env: dict[str, str] | None = None) -> str:
     """Record ``sha`` as ``refs/spec-kitty/discarded/detached/<sha>`` (create-only) and return that ref.
@@ -715,6 +718,30 @@ def keep_detached_tip(repo_root: Path, sha: str, *, env: dict[str, str] | None =
             error_code=DESTRUCTIVE_OP_ONLY_COPY,
             worktree_path=repo_root,
             remediation=f"Could not record detached tip {sha[:12]} under {DETACHED_DISCARDED_REF_PREFIX}; nothing was removed.",
+        )
+    return ref
+
+
+def keep_reflog_tip(repo_root: Path, sha: str, *, env: dict[str, str] | None = None) -> str:
+    """Record ``sha`` as ``refs/spec-kitty/discarded/reflog/<sha>`` (create-only) and return that ref.
+
+    ``git worktree remove`` deletes the removed worktree's ``HEAD`` reflog and
+    ``git branch -D`` deletes the branch reflog (#7211). A commit that only one
+    of those still reached is then reached by no ref at all, and the next
+    ``git gc`` may collect it. A caller about to destroy such a reflog records
+    each such commit here first, one ref per sha, so the commit stays
+    reachable even when several commits are involved (the tip alone cannot
+    hold a reflog-only commit that no tip reaches).
+    Idempotent: a ref already holding ``sha`` is accepted. When the ref cannot
+    be written, :class:`DestructiveOpRefused` (``DESTRUCTIVE_OP_ONLY_COPY``)
+    is raised and the caller must remove nothing.
+    """
+    ref = f"{REFLOG_DISCARDED_REF_PREFIX}{sha}"
+    if not _keep_discarded_tip(repo_root, ref, sha, env):
+        raise DestructiveOpRefused(
+            error_code=DESTRUCTIVE_OP_ONLY_COPY,
+            worktree_path=repo_root,
+            remediation=f"Could not record reflog-only commit {sha[:12]} under {REFLOG_DISCARDED_REF_PREFIX}; nothing was removed.",
         )
     return ref
 

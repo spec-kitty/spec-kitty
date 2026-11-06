@@ -692,7 +692,30 @@ def test_json_shapes_use_the_data_model_field_names(repo: Path, tmp_path: Path) 
     assert set(payload["verdicts"][0]) == {"path", "branch", "tip", "verdict", "reason", "detail", "removable", "ignored_paths", "ignored_count"}
     assert {v["verdict"] for v in payload["verdicts"]} == {"excluded", "landed"}
     outcome = PruneOutcome(path=Path("/x"), branch=None, tip="abc", removed=False, branch_deleted=False, kept_ref=None, recreate="r", refusal=None)
-    assert set(outcome.to_json()) == {"path", "branch", "tip", "removed", "branch_deleted", "kept_ref", "recreate", "refusal"}
+    assert set(outcome.to_json()) == {
+        "path",
+        "branch",
+        "tip",
+        "removed",
+        "branch_deleted",
+        "kept_ref",
+        "recreate",
+        "refusal",
+        "kept_commits",
+    }
+    assert outcome.to_json()["kept_commits"] == [], "the #7211 key is additive and empty by default"
+    kept = PruneOutcome(
+        path=Path("/x"),
+        branch="b",
+        tip="abc",
+        removed=True,
+        branch_deleted=True,
+        kept_ref=None,
+        recreate="r",
+        refusal=None,
+        kept_commits=("refs/spec-kitty/discarded/reflog/abc",),
+    )
+    assert kept.to_json()["kept_commits"] == ["refs/spec-kitty/discarded/reflog/abc"]
 
 
 def test_assessment_probes_processes_once_for_many_worktrees(repo: Path, tmp_path: Path) -> None:
@@ -1020,3 +1043,189 @@ def test_a_worktree_with_a_submodule_is_refused_by_git(repo: Path, tmp_path: Pat
     assert not outcome.removed
     assert outcome.refusal == WORKTREE_REMOVE_REFUSED_BY_GIT
     assert (worktree / "sub" / "src.py").exists()
+
+
+# ---------------------------------------------------------------------------
+# Reflog reachability (#7211): a destroyed reflog must not orphan a commit
+# ---------------------------------------------------------------------------
+
+_REFLOG_PREFIX = "refs/spec-kitty/discarded/reflog/"
+
+
+def _reflog_refs(root: Path) -> list[str]:
+    return [line for line in _git(root, "for-each-ref", "--format=%(refname)", _REFLOG_PREFIX).splitlines() if line]
+
+
+def _refs_holding(root: Path, sha: str) -> list[str]:
+    return [line for line in _git(root, "for-each-ref", "--contains", sha, "--format=%(refname)").splitlines() if line]
+
+
+def _expire_and_gc(root: Path) -> None:
+    _git(root, "-c", "gc.reflogExpire=now", "-c", "gc.reflogExpireUnreachable=now", "gc", "--prune=now", "--quiet")
+
+
+def _object_exists(root: Path, sha: str) -> bool:
+    return subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False, capture_output=True).returncode == 0
+
+
+def _three_commit_rebase_landing(repo: Path) -> tuple[Path, list[str]]:
+    """Three commits whose SHAs are rewritten onto ``main`` (this repository's landing style)."""
+    worktree = _worktree(repo, "rebase3")
+    shas = [_commit(worktree, f"r{index}.txt", f"r{index}\n") for index in range(3)]
+    env = {**os.environ, "GIT_COMMITTER_DATE": _OLD_DATE}
+    _git(repo, "cherry-pick", *shas, env=env)
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+    assert not set(shas) & {_rev(repo, "refs/remotes/origin/main")}, "the fixture must rewrite the SHAs"
+    return worktree, shas
+
+
+def test_a_rebase_landing_keeps_no_reflog_ref(repo: Path, tmp_path: Path) -> None:
+    """SC-003: the pre-rebase half of a landing is superseded, not lost, so nothing is recorded."""
+    worktree, shas = _three_commit_rebase_landing(repo)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed
+    assert outcome.kept_commits == ()
+    assert _reflog_refs(repo) == []
+    # Positive control: the branch reflog really did hold three SHAs the primary
+    # does not contain by ancestry, so the empty keep list is a decision about
+    # them, not an empty candidate set. They stay reachable through the guard's
+    # own tip record, which is not a reflog ref.
+    for sha in shas:
+        is_ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", sha, "refs/remotes/origin/main"], cwd=repo, check=False)
+        assert is_ancestor.returncode != 0, f"{sha} must not be an ancestor of the primary"
+    assert outcome.kept_ref == "refs/spec-kitty/discarded/rebase3", outcome.kept_ref
+    assert _rev(repo, outcome.kept_ref or "") == shas[-1], "the guard's tip record is what keeps them"
+
+
+def test_a_reflog_only_commit_is_recorded_once_and_survives_a_second_prune(repo: Path, tmp_path: Path) -> None:
+    worktree = _worktree(repo, "detached-orphan")
+    _commit(worktree, "landed.txt", "landed\n")
+    _git(worktree, "checkout", "-q", "--detach")
+    orphan = _commit(worktree, "orphan.txt", "orphan\n")
+    _git(worktree, "switch", "-q", "detached-orphan")
+    _git(repo, "merge", "-q", "--ff-only", "detached-orphan")
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+    assert outcome.kept_commits == (f"{_REFLOG_PREFIX}{orphan}",)
+    _expire_and_gc(repo)
+    assert _object_exists(repo, orphan), "the record must survive an aggressive gc"
+
+    assert prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path)) == []
+    assert _rev(repo, f"{_REFLOG_PREFIX}{orphan}") == orphan, "a second prune must not move the record"
+
+
+def test_a_reflog_commit_that_cannot_be_recorded_keeps_the_worktree(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """SC-004: the record step is load-bearing; without it the prune removes nothing."""
+    worktree = _worktree(repo, "detached-orphan")
+    _commit(worktree, "landed.txt", "landed\n")
+    _git(worktree, "checkout", "-q", "--detach")
+    orphan = _commit(worktree, "orphan.txt", "orphan\n")
+    _git(worktree, "switch", "-q", "detached-orphan")
+    _git(repo, "merge", "-q", "--ff-only", "detached-orphan")
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+
+    def refuse(repo_root: Path, sha: str, **_: object) -> str:
+        assert sha == orphan, "the refusal must be for the reflog-only commit"
+        raise DestructiveOpRefused(error_code=DESTRUCTIVE_OP_ONLY_COPY, remediation="cannot write")
+
+    monkeypatch.setattr(landed_worktrees, "keep_reflog_tip", refuse)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert not outcome.removed
+    assert outcome.refusal == DESTRUCTIVE_OP_ONLY_COPY
+    assert worktree.exists() and _registered(repo, worktree)
+    assert _has_branch(repo, "detached-orphan")
+
+
+def test_the_prune_never_contacts_a_remote(repo: Path, tmp_path: Path) -> None:
+    """NFR-001: origin points at a path that does not exist, and the prune still removes."""
+    worktree, _ = _three_commit_rebase_landing(repo)
+    _git(repo, "remote", "set-url", "origin", str(tmp_path / "gone.git"))
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed, "the prune reads local refs only; an unreachable origin URL must not matter"
+    assert not worktree.exists()
+
+
+def test_reachability_keeps_only_the_candidates_no_ref_reaches(repo: Path, tmp_path: Path) -> None:
+    """The rule itself: `rev-list <shas> --not --all`, intersected with the candidates."""
+    worktree = _worktree(repo, "reflog-rule")
+    reached = _commit(worktree, "reached.txt", "reached\n")
+    _git(worktree, "checkout", "-q", "--detach")
+    orphan = _commit(worktree, "orphan.txt", "orphan\n")
+    _git(worktree, "switch", "-q", "reflog-rule")
+
+    assert landed_worktrees._unreachable_after_prune(repo, [reached, orphan]) == [orphan]
+    assert landed_worktrees._unreachable_after_prune(repo, []) == []
+
+
+def test_a_reflog_only_commit_whose_patch_is_on_the_primary_is_not_recorded(repo: Path, tmp_path: Path) -> None:
+    """The patch narrowing, non-vacuously: the commit is unreachable but its patch is not lost."""
+    worktree = _worktree(repo, "same-patch")
+    _commit(worktree, "landed.txt", "landed\n")
+    _git(worktree, "checkout", "-q", "--detach")
+    orphan = _commit(worktree, "same.txt", "same\n")
+    _git(worktree, "switch", "-q", "same-patch")
+    _git(worktree, "cherry-pick", orphan, env={**os.environ, "GIT_COMMITTER_DATE": _OLD_DATE})
+    tip = _rev(worktree, "HEAD")
+    assert tip != orphan, "the fixture must land the patch as a different commit"
+    _git(repo, "merge", "-q", "--ff-only", "same-patch")
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed
+    assert outcome.kept_commits == (), "a patch that is already on the primary is superseded, not lost"
+    assert _refs_holding(repo, orphan) == [], "nothing reached it, and nothing needed to"
+
+
+def _merge_with_unique_content(repo: Path) -> tuple[Path, str]:
+    """A landed branch whose *reflog* holds a merge carrying an edit no patch on the primary covers.
+
+    Both parents' patches land on ``main`` (so every non-merge commit between the
+    primary and the merge reads ``-`` in ``git cherry``), while the merge itself
+    was committed with one further edit that exists nowhere else.
+    """
+    worktree = _worktree(repo, "merge-only")
+    _commit(worktree, "landed.txt", "landed\n")
+    _git(repo, "checkout", "-q", "-b", "other-side", "main")
+    side = _commit(repo, "g.txt", "g\n")
+    _git(repo, "checkout", "-q", "main")
+    branch = _commit(worktree, "f.txt", "f\n")
+    _git(worktree, "merge", "--no-commit", "--no-ff", "other-side")
+    _commit(worktree, "h.txt", "merge-only\n")  # the merge commit carries an edit of its own
+    merge = _rev(worktree, "HEAD")
+    assert _git(repo, "rev-list", "--merges", "-n1", merge).strip(), "the merge must be a merge commit"
+    _git(worktree, "reset", "-q", "--hard", branch)  # the merge now lives only in the reflog
+    _git(repo, "merge", "-q", "--ff-only", "merge-only")
+    _git(repo, "cherry-pick", side)  # the other parent's patch lands too, under a new SHA
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+    main = _git(repo, "rev-list", "refs/remotes/origin/main")
+    assert merge not in main and _git(repo, "cherry", "refs/remotes/origin/main", merge).count("+ ") == 0, (
+        "the fixture must leave the merge's own edit uncovered while every non-merge patch reads '-'"
+    )
+    assert "h.txt" not in _git(repo, "ls-tree", "--name-only", "refs/remotes/origin/main")
+    return worktree, merge
+
+
+def test_a_merge_whose_resolution_exists_nowhere_else_is_recorded(repo: Path, tmp_path: Path) -> None:
+    """Review finding: git cherry omits merges, so all `-` patches never prove a merge's content."""
+    worktree, merge = _merge_with_unique_content(repo)
+
+    [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
+
+    assert outcome.removed
+    assert outcome.kept_ref is None, "the landed tip needs no ref, so everything else is at risk"
+    assert f"{_REFLOG_PREFIX}{merge}" in outcome.kept_commits, outcome.kept_commits
+    _expire_and_gc(repo)
+    assert _object_exists(repo, merge), "a merge's own resolution is carried by no patch"
