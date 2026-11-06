@@ -647,15 +647,19 @@ def _durable_coordination_lanes(
 ) -> dict[str, str] | None:
     """Current lane per WP among *candidate_wps* on the COMMITTED coord ref.
 
-    Returns ``None`` when the coordination ref cannot be resolved or carries no
-    committed events (a non-coord topology or a legacy mission) — the caller then
-    falls back to the transactional on-disk check. A WP with no committed event
-    maps to ``""``. Shared by :func:`_durable_done_wps_on_coordination_ref` and
+    Returns ``None`` when the coordination placement cannot be resolved, when the
+    coordination ref does not exist (a non-coord topology, a legacy mission, a
+    torn-down branch), when *repo_root* is not a git repository (no ref can exist
+    there; ``ref_exists`` answers ``False``), or when the ref carries no committed
+    events — the caller then falls back to the transactional on-disk check. A ref
+    that exists but cannot be read raises ``StatusSurfaceRefUnreadable`` (FR-004):
+    it is never read as an empty history. Shared by :func:`_durable_done_wps_on_coordination_ref` and
     :func:`_reconcile_completed_wps_for_resume` so both read ONE durable authority.
     """
     from specify_cli.coordination.status_service import (
         EventLogReadContract,
         read_event_log,
+        ref_exists,
         wp_lane_actor_from_events,
     )
 
@@ -664,6 +668,11 @@ def _durable_coordination_lanes(
             repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
         ).ref
     except Exception:  # noqa: BLE001 — unresolvable placement: fall back to on-disk check
+        return None
+    if not ref_exists(repo_root, coord_ref):
+        # Declared arm (FR-004): no ref, or no repository, means no committed history
+        # to read; the caller takes the on-disk fallback. An existing ref that cannot
+        # be read still raises ``StatusSurfaceRefUnreadable`` below.
         return None
 
     # The committed events live at ``kitty-specs/<slug>/status.events.jsonl`` on
