@@ -477,6 +477,12 @@ def workspaces(
     (its commits are on the local origin/<primary> and nothing uncommitted or
     running is in it), not landed, unproven, or Mission-owned (#7173).
 
+    With --prune, a commit that only the worktree HEAD reflog or the branch
+    reflog still reached is recorded under
+    refs/spec-kitty/discarded/reflog/<sha> before anything is removed (#7211),
+    and printed as a `reflog-only commit kept at` line; --json names the refs
+    in each pruned entry's kept_commits key.
+
     Examples:
         spec-kitty doctor workspaces
         spec-kitty doctor workspaces --fix

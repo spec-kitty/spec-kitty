@@ -625,7 +625,10 @@ spec-kitty doctor workspaces --prune
   It never uses `--force`. It checks each worktree again right before it
   removes it, and deletes the branch only while it still points at the tip it
   proved landed (a compare-and-swap), so a branch that moves in the meantime is
-  kept and reported as `BRANCH_MOVED`.
+  kept and reported as `BRANCH_MOVED`. Before it removes anything it reads the
+  worktree's `HEAD` reflog and the branch reflog, and records every commit that
+  only those still reached
+  (see [Restore a removed worktree](#restore-a-removed-worktree)).
 
 `--fix` is unchanged: it still removes only unregistered husks.
 
@@ -717,6 +720,32 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   example on a read-only directory under `.venv/`), the report prints a
   `partly removed` line, keeps the branch and exits 1. Run
   `spec-kitty doctor workspaces --fix` to clear the leftover directory.
+- A commit that only a destroyed reflog still reached gets its own line and its
+  own ref:
+
+  ```text
+    reflog-only commit kept at refs/spec-kitty/discarded/reflog/<sha>
+  ```
+
+  `git worktree remove` deletes the worktree `HEAD` reflog and
+  `git branch -D` deletes the branch reflog, so a commit made while the worktree
+  was detached, or one dropped with `git reset --hard`, would otherwise be
+  reachable from nothing and could be collected by `git gc`. The prune records
+  it under `refs/spec-kitty/discarded/reflog/<sha>` **before** it removes the
+  worktree; restore it with
+  `git branch <name> refs/spec-kitty/discarded/reflog/<sha>`.
+
+  Two things are deliberately not recorded: a commit that another ref still
+  reaches, and one the prune can **prove** is already on `origin/<primary>`.
+  "Prove" is narrow: every commit `git cherry` reports for it reads
+  patch-equivalent, no merge sits between it and the primary, and the check
+  itself succeeded and was not empty. That proof is what keeps a rebase landing
+  from adding a ref per superseded commit. Anything it cannot prove is
+  recorded, so a merge commit in that position always is: no patch carries a
+  merge's own resolution. The `--json` payload names the refs in the
+  `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
+  prune removes nothing and reports it, the same as a failed `tip kept at`
+  record.
 
 ### `upgrade` leaves landing worktrees alone
 

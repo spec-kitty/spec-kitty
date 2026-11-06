@@ -540,3 +540,94 @@ def test_a_project_root_inside_a_larger_repository_gets_the_worktree_section(rep
     assert code == 0, out
     payload = json.loads(out)
     assert _verdict_of(payload, path)["verdict"] == "landed"
+
+
+# --- reflog reachability (#7211) ---------------------------------------------
+
+_REFLOG_PREFIX = "refs/spec-kitty/discarded/reflog/"
+
+
+def _land_and_push(root: Path, branch: str) -> None:
+    """Merge ``branch`` into ``main`` fast-forward, push, and refresh ``origin/main``."""
+    _git(root, "merge", "-q", "--ff-only", branch)
+    _git(root, "push", "-q", "origin", "main")
+    _git(root, "fetch", "-q", "origin")
+
+
+def _reflog_refs_holding(root: Path, sha: str) -> list[str]:
+    listed = _git(root, "for-each-ref", "--contains", sha, "--format=%(refname)", _REFLOG_PREFIX)
+    return [line for line in listed.splitlines() if line.strip()]
+
+
+def _expire_and_gc(root: Path) -> None:
+    """Expire every reflog and collect: only a ref can keep a commit alive after this."""
+    _git(root, "-c", "gc.reflogExpire=now", "-c", "gc.reflogExpireUnreachable=now", "gc", "--prune=now", "--quiet")
+
+
+def _object_exists(root: Path, sha: str) -> bool:
+    probe = subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, capture_output=True, check=False)
+    return probe.returncode == 0
+
+
+def test_prune_keeps_a_commit_only_the_worktree_head_reflog_reached(repo: Path) -> None:
+    """The issue's reproduction: detached commit, back on the branch, then prune."""
+    path = repo / ".worktrees" / _LANDED
+    _git(repo, "worktree", "add", "-q", "-b", _LANDED, str(path), "main")
+    _commit(path, f"{_LANDED}.txt", "landed work\n")
+    _git(path, "checkout", "-q", "--detach")
+    orphan = _commit(path, "orphan-only.txt", "orphan\n")
+    _git(path, "switch", "-q", _LANDED)
+    _land_and_push(repo, _LANDED)
+
+    assert _reflog_refs_holding(repo, orphan) == [], "fixture: the orphan reaches no kept ref yet"
+
+    code, out = _invoke("--prune", "--json")
+
+    assert code == 0, out
+    _expire_and_gc(repo)
+    assert _object_exists(repo, orphan), "the commit a destroyed reflog reached must survive gc"
+    payload = json.loads(out)
+    pruned = payload["pruned"]
+    assert len(pruned) == 1, payload
+    kept = [ref for ref in pruned[0]["kept_commits"] if ref.startswith(_REFLOG_PREFIX)]
+    assert kept == [f"{_REFLOG_PREFIX}{orphan}"], payload
+    assert _reflog_refs_holding(repo, orphan) == kept
+
+    code, text = _invoke("--prune")
+    assert code == 0, text  # already pruned: nothing landed left to remove
+    assert "No landed worktrees to prune." in text
+    assert _reflog_refs_holding(repo, orphan) == kept, "a second prune must not disturb the record"
+
+
+def test_prune_names_the_kept_reflog_ref(repo: Path) -> None:
+    path = repo / ".worktrees" / _LANDED
+    _git(repo, "worktree", "add", "-q", "-b", _LANDED, str(path), "main")
+    _commit(path, f"{_LANDED}.txt", "landed work\n")
+    _git(path, "checkout", "-q", "--detach")
+    orphan = _commit(path, "orphan-only.txt", "orphan\n")
+    _git(path, "switch", "-q", _LANDED)
+    _land_and_push(repo, _LANDED)
+
+    code, out = _invoke("--prune")
+
+    assert code == 0, out
+    assert f"reflog-only commit kept at {_REFLOG_PREFIX}{orphan}" in out
+
+
+def test_prune_keeps_a_commit_only_the_branch_reflog_reached(repo: Path) -> None:
+    """A commit reset away from a branch that landed anyway lives only in the branch reflog."""
+    path = repo / ".worktrees" / _LANDED
+    _git(repo, "worktree", "add", "-q", "-b", _LANDED, str(path), "main")
+    _commit(path, "kept.txt", "kept\n")
+    dropped = _commit(path, "dropped.txt", "dropped\n")
+    _git(path, "reset", "-q", "--hard", "HEAD~1")
+    _land_and_push(repo, _LANDED)
+
+    code, out = _invoke("--prune", "--json")
+
+    assert code == 0, out
+    _expire_and_gc(repo)
+    assert _object_exists(repo, dropped), "the commit the branch reflog alone reached must survive gc"
+    payload = json.loads(out)
+    kept = [ref for ref in payload["pruned"][0]["kept_commits"] if ref.startswith(_REFLOG_PREFIX)]
+    assert kept == [f"{_REFLOG_PREFIX}{dropped}"], payload
