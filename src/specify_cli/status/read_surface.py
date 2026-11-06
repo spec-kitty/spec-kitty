@@ -516,6 +516,16 @@ def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str
     return held_dir if held_dir.is_dir() else None
 
 
+def checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
+    """Public face of the one "which checkout holds *branch*" probe (FR-061)."""
+    return _checkout_holding_branch(repo_root, branch)
+
+
+def topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str) -> Path | None:
+    """Public face of the topic-holder lookup the planning-read resolver shares (FR-061)."""
+    return _topic_holder_mission_dir(repo_root, topic, mission_dir_name)
+
+
 def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:
     """The PRIMARY-partition Mission directory of a ``topology_source: default`` Mission (FR-061).
 

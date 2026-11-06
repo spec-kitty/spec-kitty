@@ -66,6 +66,7 @@ from specify_cli.design.validation import native_finalization_scope
 if TYPE_CHECKING:
     from specify_cli.design.validation import FinalizationScope
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+    from specify_cli.lanes.topology_settlement import SettlementHandle, TopologyDecision
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedRefusalCode
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
@@ -238,6 +239,8 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
     _gather_frozen_lane_membership as _gather_frozen_lane_membership,
     _missing_status_surface_cause as _missing_status_surface_cause,
     _preflight_frozen_lane_membership as _preflight_frozen_lane_membership,
+    _apply_topology_settlement as _apply_topology_settlement,
+    _decide_topology_by_size as _decide_topology_by_size,
     _read_started_wp_ids as _read_started_wp_ids,
     _report_parallelization_risk as _report_parallelization_risk,
     _resolve_acceptance_matrix_home as _resolve_acceptance_matrix_home,
@@ -280,6 +283,7 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _report_write_scope_kept as _report_write_scope_kept,
     _snapshot_mission_write_scope as _snapshot_mission_write_scope,
     _undo_finalize_write_scope as _undo_finalize_write_scope,
+    _undo_finalize_with_settlement as _undo_finalize_with_settlement,
     _undo_one_path as _undo_one_path,
     _ACTIVE_LEDGER as _ACTIVE_LEDGER,
     active_write_ledger as active_write_ledger,
@@ -1313,6 +1317,8 @@ def finalize_tasks(
     # envelope omits the key exactly as a non-owned run's does).
     owned: OwnedCheckout | None = None
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
+    # S7 (#7282): what this run's topology settlement did, so a later failure undoes it.
+    settlement: SettlementHandle | None = None
     # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
     write_ledger, ledger_token, observer_token = begin_write_ledger()
     scope_stack = contextlib.ExitStack()
@@ -1445,6 +1451,23 @@ def finalize_tasks(
         # first status write (``_emit_tasks_started``), ``--validate-only``
         # included; a refresh-only run never recomputes membership.
         frozen: FrozenLaneMembership | None = None
+        # S7 (#7282, FR-053): decide a provisional Mission's topology by size before the
+        # frozen preflight; settle it (FR-055) before the run's first status write.
+        topology_decision = (
+            None
+            if refresh_planning_commit
+            else _decide_topology_by_size(
+                repo_root,
+                mission_slug,
+                meta,
+                target_branch,
+                eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
+                lane_wp_manifests=lane_wp_manifests,
+                lane_wp_dependencies=lane_wp_dependencies,
+                lane_wp_bodies=lane_wp_bodies,
+            )
+        )
+        _bind_topology_decision(meta, topology_decision, settled=False, preview=validate_only)
         if not refresh_planning_commit:
             frozen = _preflight_frozen_lane_membership(
                 planning_dir,
@@ -1459,6 +1482,26 @@ def finalize_tasks(
                 eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
                 owned=owned,
             )
+            if topology_decision is not None and not validate_only:
+                assert meta is not None
+                settlement = _settle_or_refuse(
+                    repo_root,
+                    planning_dir,
+                    mission_slug,
+                    meta,
+                    topology_decision,
+                    target_branch,
+                    lane_wp_manifests=lane_wp_manifests,
+                    lane_wp_dependencies=lane_wp_dependencies,
+                    wp_frontmatters=wp_frontmatters,
+                    lane_wp_bodies=lane_wp_bodies,
+                    json_output=json_output,
+                )
+                planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
+                    planning_dir, settlement.planning_dir, tasks_dir, preexisting_primary_files
+                )
+                meta = _read_meta_for_emission(planning_dir)
+                _bind_topology_decision(meta, topology_decision, settled=True, preview=False)
             _emit_tasks_started(
                 mission_slug,
                 state,
@@ -1565,7 +1608,8 @@ def finalize_tasks(
         # field excludes it. A LATER, unrelated failure after a real commit
         # must never unwind an already-durable finalize.
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover, kept_files = _undo_finalize_write_scope(
+            status_leftover, kept_files = _undo_finalize_with_settlement(
+                settlement,
                 status_surface,
                 mission_write_scope_snapshot,
                 mission_write_scope_dir,
@@ -1588,7 +1632,8 @@ def finalize_tasks(
             written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover, kept_files = _undo_finalize_write_scope(
+            status_leftover, kept_files = _undo_finalize_with_settlement(
+                settlement,
                 status_surface,
                 mission_write_scope_snapshot,
                 mission_write_scope_dir,
@@ -1601,3 +1646,65 @@ def finalize_tasks(
         scope_stack.close()
         end_write_ledger(ledger_token, observer_token)
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)
+
+
+# ---------------------------------------------------------------------------
+# S7 settlement wiring (#7282, Mission lane-worktree-model-hardening WP14)
+# ---------------------------------------------------------------------------
+
+
+def _bind_topology_decision(meta: dict[str, object] | None, decision: TopologyDecision | None, *, settled: bool, preview: bool) -> None:
+    """Add ``topology_decision`` (``contracts/finalize-tasks-json.md``) to every later JSON payload of this run."""
+    from specify_cli.lanes.topology_settlement import decision_payload
+
+    extras = dict(_OWNED_ENVELOPE_EXTRAS.get() or {})
+    extras["topology_decision"] = decision_payload(meta, decision, settled_this_run=settled, preview=preview)
+    _OWNED_ENVELOPE_EXTRAS.set(extras)
+
+
+def _settle_or_refuse(
+    repo_root: Path,
+    planning_dir: Path,
+    mission_slug: str,
+    meta: dict[str, object],
+    decision: TopologyDecision,
+    target_branch: str,
+    *,
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    lane_wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    lane_wp_bodies: dict[str, str],
+    json_output: bool,
+) -> SettlementHandle:
+    """Settle, or render the FR-056 refusal (``error_code``) and exit 1 with nothing changed."""
+    from specify_cli.core.mission_creation_errors import WriteCheckoutSwitchDirtyError, WriteCheckoutSwitchOccupiedError
+    from specify_cli.lanes.topology_settlement import TopologySettlementRefused
+
+    try:
+        return _apply_topology_settlement(
+            repo_root,
+            planning_dir,
+            mission_slug,
+            meta,
+            decision,
+            target_branch,
+            lane_wp_manifests=lane_wp_manifests,
+            lane_wp_dependencies=lane_wp_dependencies,
+            wp_frontmatters=wp_frontmatters,
+            lane_wp_bodies=lane_wp_bodies,
+        )
+    except (TopologySettlementRefused, WriteCheckoutSwitchOccupiedError, WriteCheckoutSwitchDirtyError) as refusal:
+        code = str(getattr(refusal, "error_code", "TOPOLOGY_SETTLEMENT_REFUSED"))
+        if json_output:
+            _emit_json({"result": "error", "error": str(refusal), "error_code": code})
+        else:
+            console.print(f"[red]Error:[/red] {refusal}")
+        raise typer.Exit(1) from None
+
+
+def _rebase_onto_settled_dir(old_dir: Path, new_dir: Path, tasks_dir: Path, preexisting: set[Path]) -> tuple[Path, Path, set[Path]]:
+    """Re-anchor the run's Mission-directory paths on the settled PRIMARY location (FR-061)."""
+    if new_dir == old_dir:
+        return old_dir, tasks_dir, preexisting
+    moved = {new_dir / path.relative_to(old_dir) if path.is_relative_to(old_dir) else path for path in preexisting}
+    return new_dir, new_dir / tasks_dir.relative_to(old_dir), moved

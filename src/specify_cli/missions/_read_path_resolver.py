@@ -863,6 +863,9 @@ def read_primary_meta(
     from specify_cli.core.paths import load_meta_fail_closed
 
     primary_dir = _compose_primary_feature_dir(repo_root, handle)
+    # FR-061 (WP14): a settled default Mission's PRIMARY meta lives in the checkout that
+    # holds its topic branch, not in the repository root checkout.
+    primary_dir = _default_mission_topic_dir(repo_root, primary_dir) or primary_dir
     # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
     # primary meta still reads as the empty mapping (the legacy/coord-only
     # arm below); a corrupt or non-object one raises the typed
@@ -1745,7 +1748,8 @@ def resolve_planning_read_dir(
         canonical = _canonicalize_primary_read_handle(
             repo_root, mission_slug, resolver=resolver
         )
-        return _compose_primary_feature_dir(repo_root, canonical)
+        composed = _compose_primary_feature_dir(repo_root, canonical)
+        return _default_mission_topic_dir(repo_root, composed) or composed
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
@@ -2078,3 +2082,46 @@ __all__ = [
     "resolve_subtasks_gate_dir",
     "resolve_surface_dir_or_typed_error",
 ]
+
+
+def _default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
+    """FR-061 / analyze-3 H1: where a ``topology_source: default`` Mission's PRIMARY partition lives.
+
+    Until the Mission lands, its PRIMARY partition is on its topic branch
+    (``meta.mission_branch``): the Mission directory in the checkout that holds that
+    branch. After a ``lanes_with_coord`` settlement the repository root checkout is back
+    on ``create_return_branch`` and carries no Mission directory; the coordination
+    worktree (the topic branch's only checkout) then holds it, so its ``meta.json`` is
+    read when the root has none. Returns ``None`` -- keep *composed* -- for every
+    explicit-topology or legacy Mission, a landed one (the one "landed" signal,
+    :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding
+    the topic branch carries the Mission directory.
+    """
+    import json
+
+    meta_dir = composed if (composed / "meta.json").is_file() else _coord_worktree_mission_dir(repo_root, composed.name)
+    if meta_dir is None:
+        return None
+    try:
+        meta = json.loads((meta_dir / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    topic = meta.get("mission_branch") if isinstance(meta, dict) else None
+    if meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
+        return None
+    from mission_runtime import mission_has_landed
+
+    if meta_dir == composed and mission_has_landed(composed):
+        return None
+    from specify_cli.status.read_surface import topic_holder_mission_dir
+
+    held = topic_holder_mission_dir(repo_root, topic, composed.name)
+    if held is None or held.resolve() == composed.resolve():
+        return None
+    return held
+
+
+def _coord_worktree_mission_dir(repo_root: Path, dir_name: str) -> Path | None:
+    """The coordination worktree's copy of Mission *dir_name*, or ``None`` when it has none."""
+    candidate = repo_root / ".worktrees" / f"{dir_name}-coord" / "kitty-specs" / dir_name
+    return candidate if (candidate / "meta.json").is_file() else None

@@ -59,7 +59,8 @@ LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 # ``_ensure_vcs_in_meta`` -> ``set_vcs_lock`` even under ``--no-auto-commit``)
 # belongs to a different command and must not silently ride finalize-tasks'
 # commit. See ``_meta_json_delta_is_finalize_attributable``.
-FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch", "merge_target_branch"})
+# S7 (#7282): the first finalize is also the sole writer of the settlement keys.
+FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch", "merge_target_branch", "topology_settled", "topology_decision"})
 
 
 # FR-007/R-12 (WP13 T074): the additive ``stale_repository_root_copy`` envelope
