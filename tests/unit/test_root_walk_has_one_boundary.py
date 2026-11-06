@@ -7,10 +7,11 @@ no coverage the ceiling does not already give — git's ceiling bounds child pro
 #7076 retired it, so a caller cannot bound a walk with a mechanism the production code no
 longer reads.
 
-The behavioural guards reject the retired caller-supplied boundary and preserve the
-ceiling itself. One same-fixture control proves both directions: a directory below a
-ceiling resolves to no project, and a project at the ceiling directory still resolves.
-No signature representation is pinned.
+The behavioural guard rejects the retired caller-supplied boundary. The control keeps
+the inclusive ceiling: ``find_repo_root`` still finds a project at the ceiling directory
+itself. Above-ceiling exclusion stays with the core caller's actual ambient-marker test;
+``locate_project_root``'s stronger negative and inclusive cases stay in
+``tests/specify_cli/core/test_paths.py``. No signature representation is pinned.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import locate_project_root
-from specify_cli.task_utils.support import TaskCliError, find_repo_root
+from specify_cli.task_utils.support import find_repo_root
 from tests._support.git_ceiling import GIT_CEILING_ENV
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -33,19 +34,12 @@ def test_passing_stop_is_a_type_error(walk: object, tmp_path: Path) -> None:
         walk(tmp_path, stop=tmp_path)
 
 
-def test_a_ceiling_dir_is_examined_and_nothing_above_it_is(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Same fixture, two verdicts: the ceiling is the last directory examined."""
+def test_a_project_at_the_ceiling_directory_is_still_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ceiling directory is examined, so a project there is found rather than skipped."""
     monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
     jail = tmp_path / "jail"
     (jail / "child" / "grandchild").mkdir(parents=True)
+    (jail / ".kittify").mkdir()
     monkeypatch.setenv(GIT_CEILING_ENV, str(jail))
 
-    # Nothing at or below the ceiling is a project...
-    assert locate_project_root(jail / "child" / "grandchild") is None
-    with pytest.raises(TaskCliError, match="Unable to locate repository root"):
-        find_repo_root(jail / "child" / "grandchild")
-
-    # ...and the ceiling directory itself is still examined, so a project there is found.
-    (jail / ".kittify").mkdir()
-    assert locate_project_root(jail / "child" / "grandchild") == jail
     assert find_repo_root(jail / "child" / "grandchild") == jail
