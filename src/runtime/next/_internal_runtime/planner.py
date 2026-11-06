@@ -206,13 +206,23 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
 
 
 def _infer_project_root(mission_dir: Path) -> Path | None:
-    """Infer the project root that owns *mission_dir* for `.kittify` lookup."""
+    """Infer the project root that owns *mission_dir* for `.kittify` lookup.
+
+    The ``kitty-specs`` convention names the directory's parent as the owner, but only a
+    directory the walk itself admitted may be returned: when the ceiling is
+    ``…/kitty-specs``, that parent sits above the boundary (and the workflow registry would
+    read its overrides), so no owner is inferred. Below the ceiling the convention still
+    applies, with or without a ``.kittify`` marker.
+    """
     current = mission_dir.resolve()
+    inferred_parent: Path | None = None
     for candidate in iter_ancestors(current):
+        if inferred_parent is not None and candidate == inferred_parent:
+            return candidate
         if (candidate / ".kittify").exists():
             return candidate
         if candidate.name == KITTY_SPECS_DIR:
-            return candidate.parent
+            inferred_parent = candidate.parent
     return None
 
 
