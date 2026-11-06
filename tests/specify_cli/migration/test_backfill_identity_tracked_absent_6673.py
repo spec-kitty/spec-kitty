@@ -10,6 +10,7 @@ behaviour: a folder git holds nothing for still has its identity minted.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -19,8 +20,8 @@ from specify_cli.migration.backfill_identity import backfill_mission
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
-_SLUG = "tracked-meta-01REALMIS"
-_MISSION_ID = "01REALMISZZZZZZZZZZZZZZZZZ"
+_MISSION_ID = "01M6RMVF55CDNV3SF3FP70ERKZ"
+_SLUG = f"tracked-meta-{_MISSION_ID[:8]}"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -78,9 +79,19 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
     assert restored["mission_id"] == _MISSION_ID, "backfill_mission minted over a tracked identity"
 
 
-@pytest.mark.parametrize("tracked_state", ["usable", "corrupt", "staged-edit"])
-def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str) -> None:
-    """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint."""
+@pytest.mark.parametrize(
+    "tracked_state",
+    ["usable", "corrupt", "staged-edit", "redirect-ceiling", "post-empty-ownership", "config-error"],
+)
+def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint.
+
+    ``post-empty-ownership`` and ``config-error`` are the two distinct ways a git that did run
+    can end up unable to answer, each with a ceiling that hides the physical anchor: git's own
+    no-realpath rule for an entry after an empty separator (so its search really reaches the
+    repository it then refuses for ownership), and a git that cannot parse its configuration
+    at all.
+    """
     root = _repo(tmp_path)
     mission_dir = _mission(root)
     without_id = {
@@ -100,6 +111,29 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         (mission_dir / "meta.json").write_text(json.dumps({**without_id, "mission_id": _MISSION_ID}) + "\n", encoding="utf-8")
         _git(root, "add", "-A")
     (mission_dir / "meta.json").write_text(lost, encoding="utf-8")
+    if tracked_state == "redirect-ceiling":
+        # Git cannot answer for an explicit redirect. The discovery ceiling must not
+        # turn that unknown tracked identity into permission to mint a replacement.
+        monkeypatch.setenv("GIT_DIR", str(tmp_path / "missing-git-dir"))
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
+    elif tracked_state == "post-empty-ownership":
+        # git does not resolve a ceiling entry listed after an empty entry, so its own search
+        # still reaches this repository and the ownership check it then applies is a refusal,
+        # not an absence. The alias resolves to this Mission's parent, so a walk that resolves
+        # it stops below the ``.git`` git refused.
+        assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
+        alias = tmp_path / "kitty-specs-alias"
+        try:
+            alias.symlink_to(mission_dir.parent, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
+            pytest.skip("platform cannot create directory symlinks")
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{alias}")
+    elif tracked_state == "config-error":
+        # A git that runs and cannot parse its configuration is unknown, not an absence.
+        assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "invalid")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
 
     result = backfill_mission(mission_dir)
 
@@ -114,7 +148,7 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
     assert result.mission_id is None
     assert result.reason is not None
     assert f"[{expected_code}]" in result.reason
-    assert "mission_id" not in written, "backfill_mission minted over an identity git holds"
+    assert (mission_dir / "meta.json").read_bytes() == lost.encode("utf-8"), "refused backfill changed the working metadata"
 
 
 def test_an_untracked_copy_without_identity_is_still_minted(tmp_path: Path) -> None:
