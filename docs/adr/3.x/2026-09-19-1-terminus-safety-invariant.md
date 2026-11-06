@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-19'
-updated: '2026-10-31'
+updated: '2026-11-06'
 ---
 
 ## Context and Problem Statement
@@ -562,6 +562,46 @@ with "no post-mutation tip was recorded".
   tears down the coordination worktree only (never the branch) and takes no tip compare-and-swap,
   so a coordination commit made after the rollback survives it.
 
+### Amendment 2026-11-06 — what the late teardown window proves, and on which tip (#7265)
+
+Issues #7198 and #7199, design issue #7265, one pull request superseding PRs #7228 and #7226. The
+late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator decision
+(2026-11-06): one statement for both run kinds, then the two fixes land together.
+
+- **Tip.** The teardown reads the coordination tip ONCE (`T`, `git rev-parse` with the exit code
+  kept: exit 1 is a no-op, any other failure refuses with the triple kept). The projection and the
+  proof read `T`, never the live branch name. A commit that lands after `T` was read is not in the
+  window: it is neither partly projected nor judged under a late-projection refusal kind.
+- **Base.** First run: `coord_tip_after_projection`, the anchor captured after the bookkeeping
+  phase. Resume: `state.pre_mutation_coord_sha`. The 2026-10-31 re-baseline (#6770) keeps that
+  anchor on a coordination topology and drops it where no coordination branch exists, so a resume
+  after a full restore still has its base. A first run with no anchor builds no window (#7121,
+  unchanged).
+- **Proof.** Over the tree delta `B → T` of the Mission directory (plus the existing check for paths
+  outside it), against the TARGET REF's committed blobs, never the working tree. Blob reads tell
+  absence from failure; a read failure refuses. Renames are judged as delete + add. Each changed
+  path gets exactly one disposition: **landed** (byte-equal); **landed by the union**
+  (`status.events.jsonl`: every event id at `T` is in the target's committed log, after the
+  canonical event union, which refuses one id with two payloads); **derived** (`status.json`, only
+  while the target's committed snapshot is the reduction of its committed log); **carried by the
+  target's copy** (a target-authored JSON document whose `B → T` delta is on the target, a removed
+  key absent); **refused** (anything else, and a deletion the target still holds). No path is
+  exempt by filename.
+- **Approval.** Only a fully proven `T` becomes `coord_tip_after_projection`, on BOTH run kinds,
+  and only by compare-and-swap (the live ref still equals `T`). The projection teardown gate and
+  the compare-and-swap branch delete anchor on that value, so a commit after `T` is never
+  approved: the gate refuses and keeps the triple. The resume advance (#7199) is sound only
+  because the proof exempts nothing (#7198); that is why the two land together.
+- **Refusal and rollback.** An unproven path refuses with `COORD_LATE_PROJECTION_REFUSED` (exit 1),
+  one refusal kind per remedy (three added: `STATUS_EVENTS_NOT_LANDED`,
+  `STATUS_LOG_NOT_RECONCILABLE`, `NON_COORDINATION_RECORD_NOT_LANDED`), and keeps the branch,
+  worktree and marker. It never rolls back: teardown runs after the gate PASS, the late projection
+  commit is additive and carried over the PASS anchor, and the next `--resume` re-proves it
+  idempotently. Teardown calls no restore path, so the single rollback authority stays the only one.
+  No CLI flag, exit code or error code is added.
+- **Residuals (named, not closed).** #7121 (a first run with no anchor), #5460 (primary artifacts
+  are judged, never projected), #7201 (the retrospective commit's target, PR #7233, separate).
+
 ## Consequences
 
 - **Positive.** A default-config command can no longer wedge an in-flight mission or push
@@ -632,6 +672,7 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
 - Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
+- Amendment 2026-11-06: #7265 (design), #7198, #7199; supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7121, #5460; separate: #7201 / PR #7233.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

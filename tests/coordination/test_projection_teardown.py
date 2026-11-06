@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -867,6 +867,47 @@ def test_resume_does_not_approve_a_tip_that_moved_during_the_projection(tmp_path
     assert "compare-and-swap failed" in str(caught.value), "the gate refuses, because the anchor no longer matches the live ref"
     assert run.coord_tip_after_projection == tip, "the anchor stays at the pre-window tip: a tip the assertion did not cover is never stamped approved"
     assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unproven commit"
+
+
+@pytest.mark.parametrize("is_resume", [False, True], ids=["first-run", "resume"])
+def test_the_window_is_read_at_the_tip_it_was_opened_on(tmp_path: Path, is_resume: bool) -> None:
+    """#7265: the projection and the proof read the tip read ONCE (T), never the live branch name.
+
+    A commit that lands on the coordination branch after T was read but before the projection reads the
+    window is not in ``base..T``: it must not be partly projected onto the target, and its refusal is the
+    projection teardown gate's compare-and-swap, never a late-projection refusal kind it was judged under
+    by accident. Before the pin the projection read the live ref and carried the foreign file onto the
+    target although no proof would ever approve the tip that held it.
+    """
+    from specify_cli.coordination.teardown import ProjectionTeardownAbort
+
+    run, worktree, tip = (_resume_with_coord_worktree if is_resume else _first_run_with_coord_worktree)(tmp_path)
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
+    real_projection = phase_teardown._project_status_bookkeeping_to_target
+    foreign_rel = f"kitty-specs/{SLUG}/traces/foreign.md"
+    foreign_landed: list[bool] = []
+
+    def land_a_foreign_commit_then_project(**kwargs: Any) -> tuple[Path, Path]:
+        if not foreign_landed:
+            meta = worktree / "kitty-specs" / SLUG / "meta.json"
+            meta.write_text(json.dumps({**json.loads(meta.read_text(encoding="utf-8")), "concurrent": "emit"}) + "\n", encoding="utf-8")
+            _commit_in_coord_worktree(worktree, foreign_rel, "foreign\n", "concurrent emit")
+            foreign_landed.append(True)
+        return real_projection(**kwargs)
+
+    with (
+        patch.object(phase_teardown, "_project_status_bookkeeping_to_target", land_a_foreign_commit_then_project),
+        pytest.raises(ProjectionTeardownAbort) as caught,
+    ):
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert foreign_landed == [True], "fixture invalid: the foreign commit was never injected"
+    assert _git(run.main_repo, "show", f"main:kitty-specs/{SLUG}/traces/late.md").stdout == "late\n", "the window up to T landed"
+    shown = subprocess.run(["git", "-C", str(run.main_repo), "cat-file", "-e", f"main:{foreign_rel}"], capture_output=True, check=False)
+    assert shown.returncode != 0, "a commit after T is never projected: it is not in the window"
+    assert "compare-and-swap failed" in str(caught.value), "the gate refuses the tip that moved, not the assertion"
+    assert run.coord_tip_after_projection == tip, "the approved tip never advances past what was proven"
+    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the foreign commit"
 
 
 def test_first_run_refuses_rather_than_skips_a_window_it_cannot_read(tmp_path: Path) -> None:
