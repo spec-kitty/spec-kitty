@@ -609,4 +609,36 @@ def test_a_git_that_cannot_be_run_refuses_only_under_a_repository(tmp_path: Path
     assert (tracked.unavailable, tracked.unreadable_reason) == (True, "git-not-run")
     assert classified is not None and classified.refuse is True
     assert "git could not be started" in classified.notice
+    assert "`.git` is a repository above it" in classified.notice
     assert "git checkout --" not in classified.notice
+
+
+def test_an_ownership_refusal_wins_over_an_unknown_git_nearer_the_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Git's ownership diagnosis is positive evidence it found a repository; a nearer junk ``.git`` it walked past is not the cause."""
+    from kernel.git import GitResult
+
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path, monkeypatch)
+    _no_head_but_objects(ancestor / ".git")
+    refusal = b"fatal: detected dubious ownership in repository at '/srv/checkout'\n"
+    monkeypatch.setattr("specify_cli.mission_metadata.run_git", lambda *_a, **_k: GitResult(returncode=128, stdout=b"", stderr=refusal))
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert (tracked.unavailable, tracked.unreadable_reason) == (True, "ownership")
+
+
+def test_a_git_that_cannot_be_run_names_an_unknown_git_rather_than_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``.git`` the classifier cannot rule out is the cause to repair, whether or not git could start."""
+    from kernel.git import GitCommandError
+
+    mission_dir, ancestor = _mission_under_ancestor(tmp_path, monkeypatch)
+    _no_head_but_objects(ancestor / ".git")
+
+    def not_run(cwd: Path, *args: str, **_kwargs: object) -> object:
+        raise GitCommandError(argv=args, cwd=cwd, returncode=-1, stderr="git: not found")
+
+    monkeypatch.setattr("specify_cli.mission_metadata.run_git", not_run)
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert (tracked.unavailable, tracked.unreadable_reason) == (True, "anchor")

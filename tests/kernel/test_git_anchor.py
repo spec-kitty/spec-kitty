@@ -159,25 +159,48 @@ def test_the_walk_passes_residue_and_stops_at_the_first_repository(tmp_path: Pat
     assert (verdict.kind, verdict.path) == (AnchorKind.REPOSITORY, (outer / ".git").resolve())
 
 
-def test_the_walk_returns_none_when_only_residue_is_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(_CEILING_ENV, str(tmp_path))
+def test_the_walk_returns_none_when_only_residue_is_found(tmp_path: Path) -> None:
     (tmp_path / ".git" / "spec-kitty-locks").mkdir(parents=True)
     start = tmp_path / "a" / "b"
     start.mkdir(parents=True)
 
-    assert find_git_anchor(start, environ={}) is None
+    assert find_git_anchor(start, environ={_CEILING_ENV: str(tmp_path)}) is None
 
 
-def test_the_walk_stops_at_the_git_ceiling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A repository above ``GIT_CEILING_DIRECTORIES`` is not this folder's (#7056)."""
-    (tmp_path / ".git").mkdir()
-    (tmp_path / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
-    ceiling = tmp_path / "ceiling"
+def _repository_above_a_ceiling(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """``(repository_root, ceiling, start)`` with a real-shaped repository above the ceiling."""
+    repository = tmp_path / "repo"
+    (repository / ".git").mkdir(parents=True)
+    (repository / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    ceiling = repository / "ceiling"
     start = ceiling / "work"
     start.mkdir(parents=True)
-    monkeypatch.setenv(_CEILING_ENV, str(ceiling))
+    return repository, ceiling, start
 
-    assert find_git_anchor(start, environ={}) is None
+
+def test_the_walk_stops_at_the_git_ceiling(tmp_path: Path) -> None:
+    """A repository above ``GIT_CEILING_DIRECTORIES`` is not this folder's (#7056)."""
+    _repository, ceiling, start = _repository_above_a_ceiling(tmp_path)
+
+    assert find_git_anchor(start, environ={_CEILING_ENV: str(ceiling)}) is None
+
+
+def test_a_symlinked_ceiling_after_an_empty_entry_does_not_stop_the_walk(tmp_path: Path) -> None:
+    """Git leaves entries after an empty entry unresolved, so a symlinked one never stops it.
+
+    Stopping there anyway would read the repository git found as "nothing here" and let a
+    caller mint over the identity it holds (#6673 NFR-002). Before the empty entry the same
+    symlink is resolved and does stop the walk, as it stops git.
+    """
+    repository, ceiling, start = _repository_above_a_ceiling(tmp_path)
+    link = tmp_path / "link-to-ceiling"
+    link.symlink_to(ceiling, target_is_directory=True)
+
+    after_empty = find_git_anchor(start, environ={_CEILING_ENV: f"{os.pathsep}{link}"})
+    resolved = find_git_anchor(start, environ={_CEILING_ENV: str(link)})
+
+    assert after_empty is not None and after_empty.path == (repository / ".git").resolve()
+    assert resolved is None
 
 
 @pytest.mark.parametrize("variable", GIT_REDIRECT_ENV)
@@ -189,7 +212,10 @@ def test_an_explicit_git_redirect_is_unknown(tmp_path: Path, variable: str) -> N
     assert variable in verdict.reason
 
 
-def test_a_start_that_cannot_be_resolved_is_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_start_that_cannot_be_resolved_still_classifies_every_git_above_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symlink loop or unreadable component never hides a repository above the folder."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
     start = tmp_path / "loop"
     real_resolve = Path.resolve
 
@@ -203,4 +229,4 @@ def test_a_start_that_cannot_be_resolved_is_unknown(tmp_path: Path, monkeypatch:
     verdict = find_git_anchor(start, environ={})
 
     assert verdict is not None
-    assert verdict.kind is AnchorKind.UNKNOWN
+    assert (verdict.kind, verdict.path) == (AnchorKind.REPOSITORY, tmp_path / ".git")
