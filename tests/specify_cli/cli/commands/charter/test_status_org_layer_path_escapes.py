@@ -167,21 +167,21 @@ def test_a_crashed_containment_check_is_reported_not_silent(tmp_path: Path, monk
     The alternative — swallowing the fault — turns "the containment check crashed" into "no
     escapes", the exact false-clean this fix exists to remove.
     """
-    import charter.activation.drg_activation as drg_activation
+    import charter.drg as charter_drg
     from specify_cli.cli.commands.charter import _collect_org_layer_status
 
     def _boom(*_args: object, **_kwargs: object) -> object:
-        raise RuntimeError("registry exploded")
+        raise RuntimeError("containment check exploded")
 
-    monkeypatch.setattr(drg_activation, "find_org_body_path_escapes", _boom)
-    monkeypatch.setattr(drg_activation, "find_org_asset_path_escapes", _boom)
+    monkeypatch.setattr(charter_drg, "find_body_path_escapes", _boom)
+    monkeypatch.setattr(charter_drg, "find_asset_path_escapes", _boom)
 
     result = _collect_org_layer_status(_build_repo(tmp_path))
 
     errors = result["errors"]
     assert isinstance(errors, list)
-    assert any("org-layer body_path check failed" in entry and "registry exploded" in entry for entry in errors), errors
-    assert any("org-layer asset path check failed" in entry and "registry exploded" in entry for entry in errors), errors
+    assert any("org-layer body_path check failed" in entry and "containment check exploded" in entry for entry in errors), errors
+    assert any("org-layer asset path check failed" in entry and "containment check exploded" in entry for entry in errors), errors
 
 
 def test_escapes_are_reported_even_when_the_merge_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -275,3 +275,66 @@ def test_render_org_layer_prints_the_finding(tmp_path: Path, capsys: pytest.Capt
     printed = capsys.readouterr().out
     assert _ESCAPING_NODE_ID in printed, printed
     assert "is not contained in the pack root" in printed, printed
+
+
+def test_doctor_status_and_validate_say_the_same_sentence(tmp_path: Path) -> None:
+    """One finding type, one sentence on every surface (#7263).
+
+    ``doctor charter-packs``, ``charter status`` and ``charter org validate`` all consume
+    ``PackPathEscape``; for one escaping node and one escaping asset, the doctor's and status's
+    messages are identical and the validator's ``body_path_escape`` issue carries the same text
+    after the owner prefix (the validator names the pack by its directory).
+    """
+    from charter.offering.packs.pack_validator import validate_pack
+    from specify_cli.cli.commands._charter_pack_collect import _collect_org_layer_data
+    from specify_cli.cli.commands.charter import _collect_org_layer_status
+
+    repo = _build_repo(tmp_path)
+    _add_escaping_node(repo, _ESCAPING)
+    _add_escaping_asset(repo, _ESCAPING)
+
+    doctor_errors = _collect_org_layer_data(repo)["errors"]
+    assert isinstance(doctor_errors, list)
+    escape_messages = {message for message in doctor_errors if "is not contained in" in message}
+    status_messages = {message for message in _collect_org_layer_status(repo)["errors"] if "is not contained in" in message}
+    validate_messages = {issue.message for issue in validate_pack(repo / "example_org").errors if issue.category == "body_path_escape"}
+
+    assert len(escape_messages) == 2, escape_messages
+    assert status_messages == escape_messages
+
+    # ``charter org validate`` judges a pack directory, not a registry entry, so it names the
+    # pack by that directory; everything after the owner prefix is the same sentence.
+    def _after_owner(message: str) -> str:
+        return message.split(": ", 1)[1]
+
+    assert validate_messages
+    assert {_after_owner(m) for m in validate_messages} <= {_after_owner(m) for m in escape_messages}
+
+
+def test_status_containment_judges_the_root_the_loader_used(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``charter status`` reaches its verdict on one registry read, as the doctor does (#6731).
+
+    The predicates read the effective root the fragment carries, so the containment half adds
+    no ``load_pack_registry`` call beyond the one inside ``load_org_drg``: a config change
+    between two reads can no longer judge a pack against a root it was not loaded from.
+    """
+    import charter.activation.drg_activation as drg_activation
+    from specify_cli.cli.commands.charter import _collect_org_layer_status
+
+    real = drg_activation.load_pack_registry
+    calls: list[object] = []
+
+    def _counting(repo_root: object) -> object:
+        calls.append(repo_root)
+        return real(repo_root)
+
+    monkeypatch.setattr(drg_activation, "load_pack_registry", _counting)
+    repo = _build_repo(tmp_path)
+    _add_escaping_node(repo, _ESCAPING)
+    _add_escaping_asset(repo, _ESCAPING)
+
+    errors = _collect_org_layer_status(repo)["errors"]
+
+    # Positive control: both findings are there, so the probe saw a real containment run.
+    assert sum("is not contained in" in entry for entry in errors) == 2, errors
+    assert len(calls) == 1, f"expected one registry read in drg_activation, got {len(calls)}"

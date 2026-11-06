@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import logging
 import warnings
+from dataclasses import dataclass
 from collections.abc import Mapping, MutableMapping, MutableSequence
 from io import StringIO
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from ruamel.yaml import YAML
@@ -36,7 +37,11 @@ from kernel.resolution import resolve_rejecting_loops
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "ORG_ASSET_PATH_ESCAPE",
+    "ORG_FRAGMENT_BODY_PATH_ESCAPE",
+    "PACK_SKILL_BODY_PATH_ESCAPE",
     "RESERVED_PACK_NAMES",
+    "PackPathEscape",
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
     "OrgPackSubdirEscapeError",
@@ -49,6 +54,7 @@ __all__ = [
     "resolve_org_dirs",
     "resolve_org_roots",
     "require_declared_org_roots",
+    "path_containment_fault",
     "resolve_relative_path_within_root",
 ]
 
@@ -204,6 +210,95 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
         ) from exc
     return resolved_candidate
 
+
+
+def path_containment_fault(root: Path, relative_path: str) -> str | None:
+    """Return why *relative_path* is not contained in *root*, or ``None`` when it is.
+
+    The finding form of :func:`resolve_relative_path_within_root` (#7263): a
+    containment refusal and a path ``Path.resolve`` cannot handle at all (a NUL
+    byte, a loop) are both reported as a reason string, so one bad path never
+    aborts a scan over many. Existence is not checked.
+    """
+    try:
+        resolve_relative_path_within_root(root, relative_path)
+    except (OrgPackSubdirEscapeError, ValueError, OSError) as exc:
+        return str(exc)
+    return None
+
+
+#: Finding codes of :class:`PackPathEscape`, one per kind of pack-declared path.
+ORG_FRAGMENT_BODY_PATH_ESCAPE = "ORG_FRAGMENT_BODY_PATH_ESCAPE"
+ORG_ASSET_PATH_ESCAPE = "ORG_ASSET_PATH_ESCAPE"
+PACK_SKILL_BODY_PATH_ESCAPE = "PACK_SKILL_BODY_PATH_ESCAPE"
+
+
+@dataclass(frozen=True)
+class _EscapeShape:
+    """How one finding code names its owner, its subject, its path field and its root."""
+
+    owner: str
+    subject_key: str
+    path_key: str
+    root: str
+
+
+@dataclass(frozen=True)
+class PackPathEscape:
+    """One pack-declared path that is not contained in the root it must stay inside (#7263).
+
+    The single finding type for pack path containment. Every surface that judges
+    a pack path consumes it: ``doctor charter-packs``, ``charter status`` and
+    ``charter org validate`` (an authored fragment node's ``body_path``, an org
+    asset sidecar's ``path``) and the pack-skill reader (a skill's ``body_path``,
+    raised as :class:`~charter.offering.pack_skills.validation.PackSkillPathEscape`).
+    The verdict always comes from :func:`resolve_relative_path_within_root`.
+
+    ``path`` is kept exactly as written and ``reason`` is the primitive's own
+    message, so a reporter never re-derives either. ``pack`` names the declaring
+    org pack; for a pack skill it is the skill directory. ``kind`` is the node
+    kind of a fragment node and ``None`` otherwise.
+    """
+
+    _SHAPES: ClassVar[dict[str, _EscapeShape]] = {
+        ORG_FRAGMENT_BODY_PATH_ESCAPE: _EscapeShape("org pack {pack!r}: ", "node", "body_path", "the pack root"),
+        ORG_ASSET_PATH_ESCAPE: _EscapeShape("org pack {pack!r}: ", "asset", "path", "the pack's assets/ root"),
+        PACK_SKILL_BODY_PATH_ESCAPE: _EscapeShape("", "skill", "body_path", "its skill directory"),
+    }
+
+    code: str
+    pack: str
+    subject: str
+    path: str
+    reason: str
+    kind: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.code not in self._SHAPES:
+            raise ValueError(f"unknown pack path escape code {self.code!r}")
+
+    @property
+    def message(self) -> str:
+        """Operator-facing finding naming the owner, the subject, the path and the reason."""
+        shape = self._SHAPES[self.code]
+        kind = f" ({self.kind})" if self.kind else ""
+        owner = shape.owner.format(pack=self.pack)
+        return f"{owner}{shape.subject_key} {self.subject!r}{kind} {shape.path_key} {self.path!r} is not contained in {shape.root}: {self.reason}"
+
+    def as_dict(self) -> dict[str, str]:
+        """JSON-ready record keyed by the subject's own field names.
+
+        A fragment node gives ``{code, pack, node, kind, body_path, reason}`` and an
+        asset ``{code, pack, asset, path, reason}``: the ``doctor charter-packs``
+        JSON shape of #6418, unchanged.
+        """
+        shape = self._SHAPES[self.code]
+        record = {"code": self.code, "pack": self.pack, shape.subject_key: self.subject}
+        if self.kind is not None:
+            record["kind"] = self.kind
+        record[shape.path_key] = self.path
+        record["reason"] = self.reason
+        return record
 
 def _yaml() -> YAML:
     yaml = YAML()

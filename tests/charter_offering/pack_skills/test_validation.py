@@ -98,7 +98,7 @@ def test_body_path_escaping_directory_refused(tmp_path: Path) -> None:
     data = prompt_skill(body_path="../outside.md")
     skill, path = _load(data, skills, body=None)
     (tmp_path / "outside.md").write_text("x", encoding="utf-8")
-    with pytest.raises(PackSkillViolation, match="escapes"):
+    with pytest.raises(PackSkillViolation, match="not contained in its skill directory"):
         validate_pack_skill(skill, path, tier="org")
 
 
@@ -116,7 +116,7 @@ def test_escaping_body_path_kinds_refused(tmp_path: Path, body_path: str) -> Non
     skills = tmp_path / "skills"
     skill, path = _load(prompt_skill(body_path=body_path), skills, body=None)
     (tmp_path / "outside.md").write_text("x", encoding="utf-8")
-    with pytest.raises(PackSkillViolation, match="escapes"):
+    with pytest.raises(PackSkillViolation, match="not contained in its skill directory"):
         validate_pack_skill(skill, path, tier="org")
 
 
@@ -127,7 +127,7 @@ def test_symlink_escape_refused(tmp_path: Path) -> None:
     skills.mkdir(parents=True)
     (skills / "link.md").symlink_to(tmp_path / "outside.md")
     skill, path = _load(prompt_skill(body_path="link.md"), skills, body=None)
-    with pytest.raises(PackSkillViolation, match="escapes"):
+    with pytest.raises(PackSkillViolation, match="not contained in its skill directory"):
         validate_pack_skill(skill, path, tier="org")
 
 

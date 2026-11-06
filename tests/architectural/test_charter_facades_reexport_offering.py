@@ -145,9 +145,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # wrapper. ``OrgPackRootUnavailableError`` is the typed refusal the carried-root
         # accessor raises. All FACADE-ONLY; identity verified by the parametrized gate.
         ("find_body_path_escapes", "charter.offering.drg.org_pack_loader"),
-        # The typed finding the body-path predicate returns; the doctor's JSON half
-        # annotates its aggregate with it (#6731).
-        ("BodyPathEscape", "charter.offering.drg.org_pack_loader"),
+        # The one pack-path finding type both predicates return (#7263); the doctor's
+        # JSON half annotates its aggregate with it.
+        ("PackPathEscape", "charter.offering.drg.org_pack_config"),
         ("find_asset_path_escapes", "charter.offering.assets"),
         ("OrgPackRootUnavailableError", "charter.offering.drg.org_pack_loader"),
         ("OrgPackSubdirEscapeError", "charter.offering.drg.org_pack_config"),

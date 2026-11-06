@@ -915,22 +915,23 @@ def _validate_fragment_body_paths(pack_dir: Path, fragment: OrgDRGFragment) -> l
     """Report each authored fragment node whose ``body_path`` escapes the pack root (#6733).
 
     Delegates containment to :func:`charter.offering.drg.org_pack_loader.find_body_path_escapes` —
-    the predicate ``doctor charter-packs`` reports through since #6418 — over the *loaded* fragment
-    (never a re-validated copy: the loader's copy caveat keeps a discovered node from being judged
-    as authored). The message is the predicate's own, so the validator and the doctor say the same
-    sentence, and category ``body_path_escape`` sits beside the existing ``asset_path_escape``.
+    the predicate ``doctor charter-packs`` and ``charter status`` report through — over the *loaded*
+    fragment, judged against the effective root it carries (#6731; never a re-validated copy: the
+    loader's copy caveat keeps a discovered node from being judged as authored). Each escape is a
+    ``PackPathEscape`` (#7263). The message is the finding's own, so the validator and the doctor say
+    the same sentence, and category ``body_path_escape`` sits beside the existing ``asset_path_escape``.
     """
     fragment_file = pack_drg_fragment(pack_dir)
     return [
         ValidationIssue(
             severity="error",
             artifact_type="drg",
-            artifact_id=escape.node,
+            artifact_id=escape.subject,
             file=str(fragment_file),
             message=escape.message,
             category="body_path_escape",
         )
-        for escape in find_body_path_escapes(fragment, pack_dir)
+        for escape in find_body_path_escapes(fragment)
     ]
 
 
