@@ -7,12 +7,13 @@ charter-lint, next-planner and catalog-diagnosis walks — ask the same question
 from this directory until a marker matches". Before this module each asked it with its
 own ``[start, *start.parents]`` loop, and only three of them honoured
 ``GIT_CEILING_DIRECTORIES`` (#7022). This is the one walk, and the one reading of that
-variable; ``tests/architectural/test_no_hand_rolled_root_walks.py`` keeps that idiom out
-of everything else.
+variable.
 
-Not yet on it: walks written as a ``while``/``range(N)`` loop over ``.parent``, which the
-gate cannot see — ``cli.commands.session_start._find_project_root`` (#7122, with its own
-test-only ``stop=``) and five more tracked in #7269.
+Not yet on it: ``cli.commands.session_start._find_project_root`` (#7122, with its own
+test-only ``stop=``) and five walks written as a ``while``/``range(N)`` loop over
+``.parent`` (#7269). A gate that keeps hand-rolled root walks out is still owed by #7056;
+it lands separately, once it can start without an exemption list (#7304, ADR
+``2026-09-30-1``).
 
 It lives at the ``kernel`` floor because ``charter`` and ``runtime`` need it and may not
 import ``specify_cli`` (``tests/architectural/test_layer_rules.py``); ``kernel/paths.py``
