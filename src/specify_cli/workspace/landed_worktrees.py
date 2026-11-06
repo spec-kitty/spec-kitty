@@ -75,7 +75,7 @@ module's ``/proc`` probe), it is clean (O1), and the commits that would be
 lost are recorded first (O4): a detached tip no local branch or tag reaches
 under ``refs/spec-kitty/discarded/detached/<sha>``, and every commit that only
 the worktree ``HEAD`` reflog or the branch reflog still reaches (#7211; local
-refs only, and less those ``git cherry`` proves on the landing ref, O6) under
+refs only, and less those whose change is verbatim on the landing ref, O6) under
 ``refs/spec-kitty/discarded/reflog/<sha>``. The worktree is then removed
 without ``--force`` (O7) and the branch deleted by compare-and-swap at the
 proven tip (O5, #7212), with its tip recorded under
@@ -114,8 +114,9 @@ from specify_cli.core.git_ops import COMMON_PRIMARY_BRANCHES, resolve_primary_br
 from specify_cli.git.destructive_guard import (
     BRANCH_CHECKED_OUT,
     BRANCH_DELETE_REFUSED_BY_GIT,
-    BRANCH_IS_PRIMARY,
     BRANCH_TIP_MOVED,
+    LANDING_REF_UNNAMED,
+    MERGE_UNSAFE_WORKTREE_DIRTY,
     NOT_LANDED_ON_NAMED_REMOTE,
     PROCESS_IN_WORKTREE,
     PROCESS_PROOF_UNAVAILABLE,
@@ -128,7 +129,6 @@ from specify_cli.git.destructive_guard import (
     assert_worktree_clean,
     guarded_landed_removal,
     recreate_command,
-    shell_command,
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
@@ -136,7 +136,6 @@ from specify_cli.workspace.process_probe import ProcessProbeResult, processes_wi
 
 __all__ = [
     "BRANCH_DELETE_FAILED",
-    "BRANCH_IS_PRIMARY",
     "BRANCH_MOVED",
     "DEFAULT_REMOTE",
     "NOT_REGISTERED",
@@ -150,7 +149,6 @@ __all__ = [
     "WorktreeVerdict",
     "assess_worktrees",
     "prune_landed",
-    "shell_command",
 ]
 
 DEFAULT_REMOTE = "origin"
@@ -213,6 +211,8 @@ _GUARD_REFUSALS: dict[str, str] = {
     PROCESS_IN_WORKTREE: Reason.PROCESS_RUNNING.value,
     PROCESS_PROOF_UNAVAILABLE: Reason.PROCESS_PROOF_UNAVAILABLE.value,
     NOT_LANDED_ON_NAMED_REMOTE: Reason.CONTENT_NOT_ON_PRIMARY.value,
+    LANDING_REF_UNNAMED: Reason.PRIMARY_REF_MISSING.value,
+    MERGE_UNSAFE_WORKTREE_DIRTY: Reason.UNCOMMITTED_CHANGES.value,
 }
 """The guard's refusals, under the vocabulary this report already uses (the others keep the guard's own code)."""
 
@@ -839,23 +839,27 @@ def prune_landed(
     current_dir: Path,
     probe: ProbeFn = processes_with_cwd_under,
     assessment: WorktreeAssessment | None = None,
-    remote: str = DEFAULT_REMOTE,
+    remote: str | None = None,
 ) -> list[PruneOutcome]:
     """Remove each ``landed`` worktree, then its branch; one outcome per ``landed`` verdict.
 
     ``assessment`` lets a caller that already assessed (to report) reuse it;
     every worktree is re-assessed right before it is removed either way. An
     unreadable worktree list yields no outcome (``assess_worktrees`` reports it).
-    ``remote`` is the remote the re-assessment proves against: a verdict list
-    produced against a different remote therefore fails closed (the worktree is
-    kept) instead of removing on the other remote's proof.
+    ``remote`` is the remote whose primary ref proves a landing; omitted, it is
+    the assessment's own remote (else ``origin``). Naming a different remote
+    than the assessment was made against is a :class:`ValueError`: the verdicts
+    would be reported against one remote and acted on against another.
     """
-    current = assessment if assessment is not None else assess_worktrees(repo_root, current_dir=current_dir, probe=probe, remote=remote)
+    if assessment is not None and remote is not None and remote != assessment.remote:
+        raise ValueError(f"the assessment was proven against {assessment.remote!r}, not {remote!r}")
+    proving = remote if remote is not None else (assessment.remote if assessment is not None else DEFAULT_REMOTE)
+    current = assessment if assessment is not None else assess_worktrees(repo_root, current_dir=current_dir, probe=probe, remote=proving)
     landed = [verdict for verdict in current.verdicts if verdict.removable]
     if current.error is not None or not landed:
         return []
     try:
-        ctx = _context(repo_root, worktree_entries(repo_root), current_dir, probe, remote)
+        ctx = _context(repo_root, worktree_entries(repo_root), current_dir, probe, proving)
     except GitCommandError:
         return []
     return [_prune_one(repo_root, verdict, ctx) for verdict in landed]

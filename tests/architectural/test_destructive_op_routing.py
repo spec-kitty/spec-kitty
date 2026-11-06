@@ -732,16 +732,29 @@ def test_the_guards_own_landed_delete_names_the_tip_it_approved() -> None:
 
 _PRUNE_MODULE = REPO_ROOT / "src" / "specify_cli" / "workspace" / "landed_worktrees.py"
 _LOWER_LEVEL_PRIMITIVES = frozenset(
-    {"guarded_branch_delete", "guarded_worktree_remove", "keep_detached_tip", "keep_reflog_tip", "guarded_tree_delete", "guarded_reset_hard"}
+    {
+        "guarded_branch_delete",
+        "guarded_worktree_remove",
+        "guarded_tree_delete",
+        "guarded_reset_hard",
+        "keep_detached_tip",
+        "keep_reflog_tip",
+        "_remove_worktree",
+        "delete_branch_ref",
+        "write_bookkeeping_ref",
+    }
 )
 
 
 def _called_names(path: Path) -> set[str]:
+    """Every called name in *path*, plus the original name of every ``from ... import X as Y`` (an alias cannot hide a primitive)."""
     called: set[str] = set()
     for node in _ast.walk(_ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, _ast.Call):
             func = node.func
             called.add(func.attr if isinstance(func, _ast.Attribute) else func.id if isinstance(func, _ast.Name) else "")
+        elif isinstance(node, _ast.ImportFrom):
+            called.update(alias.name for alias in node.names)
     return called
 
 
@@ -757,8 +770,11 @@ def test_the_prune_entry_scanner_detects_a_planted_bypass(tmp_path: Path) -> Non
     """Non-vacuity: the same scan sees a direct primitive call."""
     planted = tmp_path / "planted_bypass.py"
     planted.write_text("def sneaky(root, path):\n    guarded_worktree_remove(path, retain=False)\n", encoding="utf-8")
+    aliased = tmp_path / "planted_alias.py"
+    aliased.write_text("from specify_cli.git.ref_advance import delete_branch_ref as tidy\n\n\ndef sneaky(root):\n    tidy(root, 'b', 'sha')\n", encoding="utf-8")
 
     assert _called_names(planted) & _LOWER_LEVEL_PRIMITIVES == {"guarded_worktree_remove"}
+    assert _called_names(aliased) & _LOWER_LEVEL_PRIMITIVES == {"delete_branch_ref"}
 
 
 def test_landed_delete_scanner_detects_a_planted_unbound_caller(tmp_path: Path) -> None:

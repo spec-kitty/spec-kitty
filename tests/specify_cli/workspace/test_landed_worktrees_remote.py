@@ -165,18 +165,30 @@ def test_prune_removes_the_worktree_landed_on_the_named_remote(fork_clone: dict[
     assert outcomes[0].recreate == f"git branch land-7214 {fork_clone['tip']}"
 
 
-def test_pruning_on_another_remote_than_the_report_fails_closed(fork_clone: dict[str, object], tmp_path: Path) -> None:
-    """A prune told a different remote than the assessment keeps the worktree, with the fresh reason."""
+def test_pruning_on_another_remote_than_the_report_is_refused(fork_clone: dict[str, object], tmp_path: Path) -> None:
+    """A prune told a different remote than the assessment removes nothing: report and action must name one remote."""
     root, worktree = fork_clone["root"], fork_clone["worktree"]
     assert isinstance(root, Path) and isinstance(worktree, Path)
 
     assessment = assess_worktrees(root, current_dir=root, probe=_probe(tmp_path), remote="upstream")
     assert _verdict_of(assessment, worktree).verdict is Verdict.LANDED
 
-    outcomes = prune_landed(root, current_dir=root, probe=_probe(tmp_path), assessment=assessment, remote="origin")
+    with pytest.raises(ValueError, match="proven against 'upstream'"):
+        prune_landed(root, current_dir=root, probe=_probe(tmp_path), assessment=assessment, remote="origin")
 
-    assert [(outcome.removed, outcome.refusal) for outcome in outcomes] == [(False, Reason.CONTENT_NOT_ON_PRIMARY.value)]
     assert worktree.exists() and _has_branch(root, "land-7214")
+
+
+def test_an_omitted_remote_prunes_against_the_assessments_own(fork_clone: dict[str, object], tmp_path: Path) -> None:
+    """The re-assessment proves against the remote the report was made against, not a silent ``origin``."""
+    root, worktree = fork_clone["root"], fork_clone["worktree"]
+    assert isinstance(root, Path) and isinstance(worktree, Path)
+
+    assessment = assess_worktrees(root, current_dir=root, probe=_probe(tmp_path), remote="upstream")
+    outcomes = prune_landed(root, current_dir=root, probe=_probe(tmp_path), assessment=assessment)
+
+    assert [(outcome.removed, outcome.refusal) for outcome in outcomes] == [(True, None)]
+    assert not worktree.exists()
 
 
 def test_a_worktree_landed_on_neither_remote_is_kept(fork_clone: dict[str, object], tmp_path: Path) -> None:

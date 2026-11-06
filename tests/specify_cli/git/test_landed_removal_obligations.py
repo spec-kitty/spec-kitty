@@ -19,7 +19,9 @@ import pytest
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.git import destructive_guard, ref_advance
 from specify_cli.git.destructive_guard import (
+    BRANCH_DELETE_REFUSED_BY_GIT,
     BRANCH_IS_PRIMARY,
+    DESTRUCTIVE_OP_ONLY_COPY,
     BRANCH_TIP_MOVED,
     LANDING_REF_UNNAMED,
     MERGE_UNSAFE_WORKTREE_DIRTY,
@@ -235,7 +237,7 @@ def test_o4_a_record_that_cannot_be_written_removes_nothing(repo: Path, monkeypa
     _git(worktree, "switch", "-q", _BRANCH)
     monkeypatch.setattr(ref_advance, "write_bookkeeping_ref", lambda *_a, **_k: False)
 
-    _refused(repo, _removal(worktree, _rev(worktree, "HEAD")))
+    assert _refused(repo, _removal(worktree, _rev(worktree, "HEAD"))) == DESTRUCTIVE_OP_ONLY_COPY
     assert _ref_exists(repo, f"refs/heads/{_BRANCH}")
 
 
@@ -272,7 +274,7 @@ def test_o5_a_branch_moved_while_the_delete_runs_is_kept(repo: Path, monkeypatch
 
 
 def test_o6_the_pre_rebase_half_of_a_rebase_landing_is_not_recorded(repo: Path) -> None:
-    """The pre-rebase commit is reachable from nothing, but `git cherry` proves its patch is on the landing ref."""
+    """The pre-rebase commit is reachable from nothing, but replaying it onto the landing ref changes nothing."""
     worktree = repo / ".worktrees" / _BRANCH
     _git(repo, "worktree", "add", "-q", "-b", _BRANCH, str(worktree), "main")
     pre_rebase = _commit(worktree, "feature.txt")
@@ -294,6 +296,48 @@ def test_o6_a_reflog_only_commit_whose_patch_is_not_on_the_ref_is_recorded(repo:
     worktree, _ = _land(repo)
     dropped = _commit(worktree, "dropped.txt")
     _git(worktree, "reset", "-q", "--hard", "HEAD~1")
+
+    result = _remove(repo, _removal(worktree, _rev(worktree, "HEAD")))
+
+    assert result.kept_commits == (f"{REFLOG_DISCARDED_REF_PREFIX}{dropped}",)
+
+
+def _dropped_commit(repo: Path, worktree: Path, *, name: str, body: str | None) -> str:
+    """A commit made in ``worktree`` and dropped with ``reset --hard``: only the reflogs still reach it."""
+    if body is None:
+        _git(worktree, "commit", "-q", "--allow-empty", "-m", name)
+        dropped = _rev(worktree, "HEAD")
+    else:
+        dropped = _commit(worktree, name, body)
+    _git(worktree, "reset", "-q", "--hard", "HEAD~1")
+    return dropped
+
+
+def _land_on_main(repo: Path, *, name: str, body: str | None) -> None:
+    if body is None:
+        _git(repo, "commit", "-q", "--allow-empty", "-m", name)
+    else:
+        _commit(repo, name, body)
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "fetch", "-q", "origin")
+
+
+def test_o6_a_change_that_differs_only_in_whitespace_is_not_proof(repo: Path) -> None:
+    """Squad finding: `git cherry`'s patch-id ignores whitespace, so an indented line read as landed and was lost."""
+    worktree, _ = _land(repo)
+    dropped = _dropped_commit(repo, worktree, name="f.py", body="def f():\n    print(1)\n")
+    _land_on_main(repo, name="f.py", body="def f():\nprint(1)\n")
+
+    result = _remove(repo, _removal(worktree, _rev(worktree, "HEAD")))
+
+    assert result.kept_commits == (f"{REFLOG_DISCARDED_REF_PREFIX}{dropped}",)
+
+
+def test_o6_an_empty_commit_is_never_proof(repo: Path) -> None:
+    """An empty commit carries only its message; an unrelated empty commit on the ref does not prove it landed."""
+    worktree, _ = _land(repo)
+    dropped = _dropped_commit(repo, worktree, name="design note", body=None)
+    _land_on_main(repo, name="unrelated empty", body=None)
 
     result = _remove(repo, _removal(worktree, _rev(worktree, "HEAD")))
 
@@ -343,7 +387,7 @@ def test_o8_a_kept_branch_gets_its_worktree_back(repo: Path, monkeypatch: pytest
     result = _remove(repo, _removal(worktree, tip))
     _git(repo, *shlex.split(result.recreate)[1:])
 
-    assert result.refusal is not None and not result.branch_deleted
+    assert (result.refusal, result.branch_deleted) == (BRANCH_DELETE_REFUSED_BY_GIT, False)
     assert _git(worktree, "branch", "--show-current").strip() == _BRANCH
 
 
@@ -370,3 +414,122 @@ def test_the_local_copy_of_the_landing_branch_is_never_deleted(repo: Path) -> No
     assert not worktree.exists()
     assert (result.branch_deleted, result.refusal) == (False, BRANCH_IS_PRIMARY)
     assert _rev(repo, "main") == tip
+    _git(repo, *shlex.split(result.recreate)[1:])  # the pruned worktree held the primary, so nothing else has it checked out
+    assert _git(worktree, "branch", "--show-current").strip() == "main"
+
+
+# Squad follow-ups (pre-PR adversarial review) -------------------------------------
+
+
+def test_o4_a_commit_only_the_branch_reflog_reached_survives_gc(repo: Path) -> None:
+    """The branch half of O4: the commit is in the branch reflog and in no worktree's HEAD reflog."""
+    worktree, tip = _land(repo)
+    scratch = repo.parent / "scratch"
+    _git(repo, "worktree", "add", "-q", "--detach", str(scratch), tip)
+    orphan = _commit(scratch, "branch-only.txt")
+    _git(repo, "worktree", "remove", str(scratch))
+    _git(repo, "update-ref", "-m", "moved by hand", f"refs/heads/{_BRANCH}", orphan)
+    _git(repo, "update-ref", "-m", "moved back", f"refs/heads/{_BRANCH}", tip)
+    assert orphan not in _git(worktree, "reflog", "show", "--format=%H", "HEAD").split()
+
+    result = _remove(repo, _removal(worktree, tip))
+    _expire_and_collect(repo)
+
+    assert result.kept_commits == (f"{REFLOG_DISCARDED_REF_PREFIX}{orphan}",)
+    assert _object_exists(repo, orphan)
+
+
+def test_o4_a_commit_only_the_remote_landing_ref_reaches_is_still_recorded(repo: Path) -> None:
+    """Pushed to origin/main but on no local ref: the remote-tracking ref does not vouch (empty range is no proof)."""
+    worktree, _ = _land(repo)
+    dropped = _dropped_commit(repo, worktree, name="pushed.txt", body="pushed\n")
+    _git(repo, "push", "-q", "origin", f"{dropped}:refs/heads/main")
+    _git(repo, "fetch", "-q", "origin")
+
+    result = _remove(repo, _removal(worktree, _rev(worktree, "HEAD")))
+
+    assert f"{REFLOG_DISCARDED_REF_PREFIX}{dropped}" in result.kept_commits
+
+
+def test_o4_an_unreadable_reflog_removes_nothing(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    worktree, tip = _land(repo)
+    real = destructive_guard._run_git
+
+    def reflog_fails(cwd: Path, args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ["reflog", "show"]:
+            return subprocess.CompletedProcess(args, 128, "", "fatal: corrupt reflog")
+        return real(cwd, args, **kwargs)
+
+    monkeypatch.setattr(destructive_guard, "_run_git", reflog_fails)
+
+    assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+
+
+def test_o4_reachability_that_git_cannot_answer_keeps_every_candidate(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = destructive_guard._run_git
+
+    def rev_list_fails(cwd: Path, args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ["rev-list", "--stdin"]:
+            return subprocess.CompletedProcess(args, 128, "", "fatal")
+        return real(cwd, args, **kwargs)
+
+    monkeypatch.setattr(destructive_guard, "_run_git", rev_list_fails)
+    head = _rev(repo, "HEAD")
+
+    assert destructive_guard._unreached_by_local_refs(repo, [head], None) == [head]
+
+
+def test_o5_a_commit_made_during_the_slow_checks_is_caught_before_the_removal(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The window between the first tip check and the removal: a detached worktree has no branch delete to refuse."""
+    worktree, tip = _land(repo)
+    _git(worktree, "checkout", "-q", "--detach")
+    real = destructive_guard._keep_before_removal
+    late: list[str] = []
+
+    def keep_then_commit(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> tuple[str | None, tuple[str, ...]]:
+        kept = real(repo_root, removal, env)
+        late.append(_commit(worktree, "late.txt"))
+        return kept
+
+    monkeypatch.setattr(destructive_guard, "_keep_before_removal", keep_then_commit)
+
+    assert _refused(repo, _removal(worktree, tip, branch=None)) == WORKTREE_TIP_MOVED
+    assert late and _rev(worktree, "HEAD") == late[0]
+
+
+def test_o5_a_worktree_list_failure_in_the_delete_keeps_the_branch(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    worktree, tip = _land(repo)
+
+    def cannot_list(*_args: object, **_kwargs: object) -> None:
+        raise ref_advance.RefAdvanceError("worktree list failed")
+
+    monkeypatch.setattr(ref_advance, "delete_branch_ref", cannot_list)
+
+    result = _remove(repo, _removal(worktree, tip))
+
+    assert (result.branch_deleted, result.refusal) == (False, BRANCH_DELETE_REFUSED_BY_GIT)
+    assert _rev(repo, _BRANCH) == tip
+
+
+def test_o5_a_branch_already_gone_is_not_a_refusal(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    worktree, tip = _land(repo)
+    real = destructive_guard._remove_worktree
+
+    def remove_then_drop_branch(path: Path, env: dict[str, str] | None, *, force: bool) -> None:
+        real(path, env, force=force)
+        _git(repo, "branch", "-D", _BRANCH)
+
+    monkeypatch.setattr(destructive_guard, "_remove_worktree", remove_then_drop_branch)
+
+    result = _remove(repo, _removal(worktree, tip))
+
+    assert (result.branch_deleted, result.refusal) == (False, None)
+    assert result.recreate == recreate_command(worktree, _BRANCH, tip, branch_kept=False)
+
+
+def test_o8_the_recreate_hint_is_quoted_for_cmd_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(destructive_guard, "is_windows", lambda: True)
+
+    hint = recreate_command(Path("C:/work/my tree"), "land-x", "abc123", branch_kept=True)
+
+    assert hint == 'git worktree add "C:/work/my tree" land-x'

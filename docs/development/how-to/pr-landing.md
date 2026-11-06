@@ -754,12 +754,12 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   Two things are deliberately not recorded: a commit that a local branch, tag
   or `refs/spec-kitty/` ref still reaches (a remote-tracking ref does not count:
   the next fetch can rewrite it), and one the prune can **prove** is already on `<remote>/<primary>`.
-  "Prove" is narrow: every commit `git cherry` reports for it reads
-  patch-equivalent, no merge sits between it and the primary, and the check
-  itself succeeded and was not empty. That proof is what keeps a rebase landing
-  from adding a ref per superseded commit. Anything it cannot prove is
-  recorded, so a merge commit in that position always is: no patch carries a
-  merge's own resolution. The `--json` payload names the refs in the
+  "Prove" is narrow: replaying each commit that would be lost onto the primary
+  must change nothing, byte for byte (whitespace included, so `git cherry`'s
+  patch-id is not used), and none of them may be a merge, a root or an empty
+  commit. That proof is what keeps a rebase landing from adding a ref per
+  superseded commit. Anything it cannot prove is recorded, so a merge commit
+  in that position always is: no patch carries a merge's own resolution. The `--json` payload names the refs in the
   `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
   prune removes nothing and reports it, the same as a failed `tip kept at`
   record.

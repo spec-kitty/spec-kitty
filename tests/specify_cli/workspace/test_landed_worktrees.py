@@ -1000,7 +1000,7 @@ def test_a_worktree_on_the_primary_branch_is_removed_and_the_branch_kept(repo: P
 
     [outcome] = prune_landed(repo, current_dir=repo, probe=_idle_probe(tmp_path))
 
-    assert (outcome.removed, outcome.branch_deleted, outcome.refusal) == (True, False, landed_worktrees.BRANCH_IS_PRIMARY)
+    assert (outcome.removed, outcome.branch_deleted, outcome.refusal) == (True, False, destructive_guard.BRANCH_IS_PRIMARY)
     assert not worktree.exists() and _rev(repo, "main") == tip
     _git(repo, *shlex.split(outcome.recreate)[1:])
     assert _git(worktree, "branch", "--show-current").strip() == "main"
