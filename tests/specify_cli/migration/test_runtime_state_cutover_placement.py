@@ -76,8 +76,13 @@ def _init_unusable_git_anchor(repo_root: Path) -> None:
     Used ONLY by the seam-distinction regression test, which pins the deliberate
     refusal path. Placement-contract fixtures must use :func:`_init_git_repo`
     instead, or they short-circuit before the check they exist to exercise.
+
+    A pointer file to a gitdir that does not exist, not an empty ``.git`` directory: since
+    the #7262 ruling an empty directory is harmless residue that reads as "nothing tracked",
+    while a pointer names a repository git cannot open, which must still refuse.
     """
-    (repo_root / ".git").mkdir(parents=True)
+    repo_root.mkdir(parents=True)
+    (repo_root / ".git").write_text(f"gitdir: {repo_root / 'missing-gitdir'}\n", encoding="utf-8")
 
 
 def _build_status_leg(status_dir: Path, *, slug: str = _SLUG, mission_id: str = _MISSION_ID) -> None:
@@ -183,8 +188,8 @@ def test_unusable_git_anchor_refuses_with_tracked_meta_notice_without_writing(
 ) -> None:
     """An unusable ``.git`` anchor is the OTHER fail-safe path: a #6673 refusal, not a mismatch.
 
-    A ``.git`` anchor that git runs and refuses (a bare marker, a garbled gitdir,
-    dubious ownership) makes the tracked-``meta.json`` classifier answer "the
+    A ``.git`` anchor that git runs and refuses (a garbled gitdir pointer, dubious
+    ownership) makes the tracked-``meta.json`` classifier answer "the
     tracked copy is unknown" — never "nothing is tracked" — because fabricating an
     identity over an unreadable copy is the failure #6673 exists to prevent. So
     ``cutover_mission`` refuses BEFORE seeding or flipping: it returns a
