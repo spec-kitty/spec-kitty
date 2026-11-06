@@ -215,9 +215,9 @@
     },
     "WP11": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -225,7 +225,8 @@
       "last_transition_at": "2026-11-06T11:21:26.344418+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S8 stamp: single_branch transitions carry the minted Mission write-branch head (meta-keyed, lanes planning lane + commit-to-target unstamped); write_branch_for collapse; approval_stamps/stamp_refusal split; _approval_is_bounded warnings on move-task and status emit"
+        "S8 stamp: single_branch transitions carry the minted Mission write-branch head (meta-keyed, lanes planning lane + commit-to-target unstamped); write_branch_for collapse; approval_stamps/stamp_refusal split; _approval_is_bounded warnings on move-task and status emit",
+        "Re-claimed with full implementer identity (identity correction); code unchanged."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
