@@ -44,6 +44,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from kernel.git import GitCommandError, GitPath, changed_paths, status_entries
+from kernel.git.remote import configured_remotes, tracking_ref
 from kernel.paths import is_windows
 
 from . import ref_advance
@@ -834,7 +835,7 @@ def _delete_branch_cas(repo_root: Path, branch: str, expected_tip: str, env: dic
 #
 # O1 clean tree, O2 no live process, O3 landed against a named remote,
 # O4 reflog-only commits kept, O5 compare-and-swap, O6 rebase-merged SHAs only
-# by a git-cherry proof, O7 never --force, O8 a recreate hint. The caller
+# by a verbatim no-op-merge proof, O7 never --force, O8 a recreate hint. The caller
 # supplies what this module cannot compute without application imports (C-005):
 # the residue context, the process probe and the absorption proof.
 # ---------------------------------------------------------------------------
@@ -875,7 +876,7 @@ class LandedRemoval:
     @property
     def landing_branch(self) -> str:
         """The branch name the landing ref tracks (``refs/remotes/<remote>/<b>`` -> ``<b>``)."""
-        return self.landing_ref.removeprefix(f"refs/remotes/{self.remote}/")
+        return self.landing_ref.removeprefix(tracking_ref(self.remote, ""))
 
 
 @dataclass(frozen=True)
@@ -926,16 +927,11 @@ def _refuse(code: str, removal: LandedRemoval, remediation: str, *, entries: Seq
     )
 
 
-def _configured_remotes(repo_root: Path, env: dict[str, str] | None) -> list[str]:
-    result = _run_git(repo_root, ["remote"], env=env)
-    return result.stdout.split() if result.returncode == 0 else []
-
-
 def _assert_named_landing_ref(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> None:
     """O3, the naming half: the proof must be about one configured remote's tracking ref, never "some ref"."""
     remote = removal.remote.strip()
-    named = bool(remote) and removal.landing_ref.startswith(f"refs/remotes/{remote}/") and bool(removal.landing_branch)
-    if not named or remote not in _configured_remotes(repo_root, env):
+    named = bool(remote) and removal.landing_ref.startswith(tracking_ref(remote, "")) and bool(removal.landing_branch)
+    if not named or remote not in configured_remotes(repo_root, env=env):
         raise _refuse(LANDING_REF_UNNAMED, removal, f"{removal.landing_ref!r} is not a tracking ref of a configured remote named {removal.remote!r}.")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{removal.landing_ref}^{{commit}}"], env=env).returncode != 0:
         raise _refuse(LANDING_REF_UNNAMED, removal, f"{removal.landing_ref} does not exist locally: run `git fetch {remote}`.")
@@ -975,9 +971,22 @@ def _on_a_local_branch_or_tag(repo_root: Path, sha: str, env: dict[str, str] | N
 
 
 def _reflog_shas(cwd: Path, rev: str, env: dict[str, str] | None) -> list[str]:
-    """The shas ``rev``'s reflog records, newest first; ``[]`` when it has none or git cannot read it."""
+    """The shas ``rev``'s reflog records, newest first; ``[]`` when it has none.
+
+    A reflog that exists but cannot be read raises: the commits it holds are
+    unknown, so nothing may be destroyed (fail closed, O4).
+    """
+    if _run_git(cwd, ["reflog", "exists", rev], env=env).returncode != 0:
+        return []
     listed = _run_git(cwd, ["reflog", "show", "--format=%H", rev], env=env)
-    return listed.stdout.split() if listed.returncode == 0 else []
+    if listed.returncode != 0:
+        raise DestructiveOpRefused(
+            error_code=DESTRUCTIVE_OP_ONLY_COPY,
+            worktree_path=cwd,
+            dirty_entries=[f"reflog of {rev}: {listed.stderr.strip() or listed.returncode}"],
+            remediation=f"The reflog of {rev} could not be read, so the commits only it holds are unknown. Nothing was removed.",
+        )
+    return listed.stdout.split()
 
 
 def _reflog_candidates(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> list[str]:
@@ -1005,27 +1014,51 @@ def _unreached_by_local_refs(repo_root: Path, candidates: Sequence[str], env: di
     return [sha for sha in candidates if sha in unreached]
 
 
-def patch_on_landing_ref(repo_root: Path, landing_ref: str, sha: str, *, env: dict[str, str] | None = None) -> bool:
-    """O6: ``True`` only when everything ``sha`` adds over ``landing_ref`` is provably there already.
+def _tree_of(repo_root: Path, rev: str, env: dict[str, str] | None) -> str | None:
+    result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{rev}^{{tree}}"], env=env)
+    return result.stdout.strip() if result.returncode == 0 else None
 
-    ``git cherry`` marks a commit ``-`` when an equivalent patch is upstream,
-    which is the pre-rebase half of a rebase landing. It omits merges, and no
-    patch carries a merge's own resolution, so a merge anywhere between
-    ``landing_ref`` and ``sha`` answers ``False``. Empty output and any error
-    are not proof either: a wrong answer can only cost a kept ref.
+
+def _change_is_a_no_op_on(repo_root: Path, landing_ref: str, commit: str, env: dict[str, str] | None) -> bool:
+    """``True`` when replaying ``commit``'s own change onto ``landing_ref`` changes nothing, byte for byte.
+
+    A three-way ``merge-tree`` of ``commit^..commit`` onto the landing ref
+    that leaves its tree unchanged means every line the commit wrote is
+    already there, whitespace included (``git cherry``'s patch-id ignores
+    whitespace, so it is not used). A root commit, a merge (no single parent
+    to diff against), an empty commit (its message is the only content) and
+    any git error are no proof.
     """
-    merges = _run_git(repo_root, ["rev-list", "--merges", "--max-count=1", sha, "--not", landing_ref], env=env)
-    if merges.returncode != 0 or merges.stdout.strip():
+    parents = _run_git(repo_root, ["rev-list", "--parents", "--max-count=1", commit], env=env)
+    line = parents.stdout.split() if parents.returncode == 0 else []
+    if len(line) != 2:
         return False
-    listed = _run_git(repo_root, ["cherry", landing_ref, sha], env=env)
-    marks = [line.strip() for line in listed.stdout.splitlines() if line.strip()] if listed.returncode == 0 else []
-    return bool(marks) and all(mark.startswith("-") for mark in marks)
+    parent = line[1]
+    own, before, landed = (_tree_of(repo_root, rev, env) for rev in (commit, parent, landing_ref))
+    if own is None or landed is None or own == before:
+        return False
+    merged = _run_git(repo_root, ["merge-tree", "--write-tree", "--merge-base", parent, landing_ref, commit], env=env)
+    return merged.returncode == 0 and merged.stdout.split()[:1] == [landed]
+
+
+def change_on_landing_ref(repo_root: Path, landing_ref: str, sha: str, *, env: dict[str, str] | None = None) -> bool:
+    """O6: ``True`` only when everything that would be lost with ``sha`` is provably on ``landing_ref`` already.
+
+    "Lost with ``sha``" is every commit ``sha`` reaches that neither the
+    landing ref nor a local keeping ref reaches; each must be a verbatim no-op
+    on the landing ref (:func:`_change_is_a_no_op_on`). That is the pre-rebase
+    half of a rebase landing. An empty range and any error are no proof: a
+    wrong answer can only cost a kept ref.
+    """
+    listed = _run_git(repo_root, ["rev-list", sha, "--not", landing_ref, *_LOCAL_KEEPING_REFS], env=env)
+    commits = listed.stdout.split() if listed.returncode == 0 else []
+    return bool(commits) and all(_change_is_a_no_op_on(repo_root, landing_ref, commit, env) for commit in commits)
 
 
 def reflog_only_commits(repo_root: Path, removal: LandedRemoval, *, env: dict[str, str] | None = None) -> list[str]:
     """O4 + O6: the commits that only the reflogs a landed removal destroys still reach, less those proven on the landing ref."""
     unreached = _unreached_by_local_refs(repo_root, _reflog_candidates(repo_root, removal, env), env)
-    return [sha for sha in unreached if not patch_on_landing_ref(repo_root, removal.landing_ref, sha, env=env)]
+    return [sha for sha in unreached if not change_on_landing_ref(repo_root, removal.landing_ref, sha, env=env)]
 
 
 def _keep_before_removal(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> tuple[str | None, tuple[str, ...]]:
@@ -1087,7 +1120,7 @@ def guarded_landed_removal(
     configured remote's tracking ref (O3), the worktree is still at the proven
     tip (O5), the tip is still landed on that ref (O3), no process stands in it
     (O2), it is clean (O1), and the detached tip and every reflog-only commit
-    (O4, less those ``git cherry`` proves on the ref, O6) are recorded. Then
+    (O4, less those whose change is provably on the ref, O6) are recorded. Then
     ``git worktree remove`` without ``--force`` (O7) and the compare-and-swap
     branch delete (O5). A refusal after the removal is returned, not raised,
     with the command that brings everything back (O8).
@@ -1098,6 +1131,7 @@ def guarded_landed_removal(
     _assert_no_process(removal, processes_in)
     assert_worktree_clean(removal.worktree, context=context, env=env, treat_untracked_as_dirty=True)
     detached, kept = _keep_before_removal(repo_root, removal, env)
+    _assert_worktree_at_tip(removal, env)  # O5 again, one git call before the removal: the slow checks above left a window
     try:
         _remove_worktree(removal.worktree, env, force=False)
     except DestructiveOpRefused as exc:

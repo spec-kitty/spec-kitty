@@ -56,8 +56,8 @@ proof), so the guard stays free of application imports (C-005). For the prune th
 | O2 | **No live process.** No process is standing in the worktree. | The caller's probe answers for the worktree; "cannot tell" is a refusal, not a pass. | `PROCESS_IN_WORKTREE`, `PROCESS_PROOF_UNAVAILABLE` |
 | O3 | **Landed against a named remote.** Every commit of the tip is on `refs/remotes/<remote>/<primary>` for a remote the repository configures: reachable from it, or absorbed by it (a `merge-tree` no-op, which covers squash landings). | The landing ref must sit under `refs/remotes/<remote>/` for a configured `<remote>` and resolve; the caller's absorption proof is re-run on that ref at the proven tip. Nothing is fetched. | `LANDING_REF_UNNAMED`, `NOT_LANDED_ON_NAMED_REMOTE` |
 | O4 | **Reflog-only commits are kept.** A commit that only the worktree `HEAD` reflog or the branch reflog still reaches would be lost when those reflogs go. | Before anything is removed, each such commit that no local ref reaches (`refs/heads`, `refs/tags`, `refs/spec-kitty`; a remote-tracking ref never vouches) is recorded under `refs/spec-kitty/discarded/reflog/<sha>`, create-only. A record that cannot be written refuses the removal. | `DESTRUCTIVE_OP_ONLY_COPY` |
-| O5 | **Compare-and-swap deletes.** A ref is deleted only while it still holds the commit the proof was about, and the worktree is removed only while its `HEAD` is still that commit. | Worktree `HEAD` and branch are re-read against the proven tip; the branch delete is `git update-ref --no-deref -d <ref> <tip>`, so a branch that moves while the delete runs is kept, and a symbolic branch never takes its target with it. | `WORKTREE_TIP_MOVED`, `BRANCH_TIP_MOVED`, `BRANCH_CHECKED_OUT` |
-| O6 | **Rebase-merged SHAs count as landed only by proof.** The pre-rebase commits of a rebase landing are reachable from nothing, yet their content is on the primary. | A reflog-only commit is left unrecorded only when `git cherry <landing-ref> <sha>` marks every commit patch-equivalent, answers non-empty, and no merge lies between it and the landing ref; anything unproven is recorded. | (never refuses; it records) |
+| O5 | **Compare-and-swap deletes.** A ref is deleted only while it still holds the commit the proof was about, and the worktree is removed only while its `HEAD` was still that commit one step earlier. | The branch delete is `git update-ref --no-deref -d <ref> <tip>`, so a branch that moves while the delete runs is kept, and a symbolic branch never takes its target with it. git has no compare-and-swap for a worktree, so its `HEAD` and branch are re-read twice: before the other checks, and again as the last step before the removal. | `WORKTREE_TIP_MOVED`, `BRANCH_TIP_MOVED`, `BRANCH_CHECKED_OUT` |
+| O6 | **Rebase-merged SHAs count as landed only by proof.** The pre-rebase commits of a rebase landing are reachable from nothing, yet their content is on the primary. | A reflog-only commit is left unrecorded only when every commit that would be lost with it replays onto the landing ref as a verbatim no-op (`git merge-tree --write-tree --merge-base <c>^ <landing-ref> <c>` returns the landing ref's own tree). A merge, a root or an empty commit, an empty range and any git error are no proof. `git cherry` is not used: its patch-id ignores whitespace, which can change what a program does. | (never refuses; it records) |
 | O7 | **Never `--force`.** git's own refusals (a locked worktree, one it still finds dirty) are a last net, not something to override. | The removal is `git worktree remove` without `--force`, hard-coded. | `WORKTREE_REMOVE_REFUSED_BY_GIT` |
 | O8 | **A recreate hint.** Everything destroyed comes back with one printed command. | The result carries the command (`git branch <b> <tip>`, or `git worktree add [--detach] <path> <ref>`), plus the kept refs. | (always present) |
 
@@ -65,8 +65,8 @@ Two further rules come with the table:
 
 - **The local branch the landing is proven against is never deleted.** The guard derives it from the
   landing ref (`refs/remotes/<remote>/<primary>` → `<primary>`) and keeps it (`BRANCH_IS_PRIMARY`).
-- **Order.** O2, O3 and O5's re-reads first, then O1, then the O4/O8 records, then the removal (O7),
-  then the branch delete (O5). git refuses to delete a branch a worktree has checked out, so the
+- **Order.** O3 and O5's first re-read, then O2, then O1, then the O4 records, then O5's second
+  re-read, then the removal (O7), then the branch delete (O5). git refuses to delete a branch a worktree has checked out, so the
   branch delete must follow the removal; a refusal after the removal is reported, never raised, so the
   caller still prints what was removed and how to get it back.
 
@@ -80,7 +80,8 @@ caught by anything.
 
 This ADR binds `doctor workspaces --prune` now. Lane teardown (`DESTROYED_LANE`,
 `LANE_WORK_TIP_UNKNOWN`) and consolidate cleanup already discharge several obligations through their
-own guards; moving them onto the same entry is follow-up work, filed separately.
+own guards; moving them onto the same entry is follow-up work (listed as deferred in the PR that
+introduced this ADR; no issue is filed yet).
 
 ## Consequences
 
@@ -95,10 +96,16 @@ own guards; moving them onto the same entry is follow-up work, filed separately.
   prune's own re-assessment did the same: one extra `/proc` scan and one `merge-tree` per removed
   worktree.
 - O4 counts only local refs, so a reflog-only commit that only a remote-tracking ref reaches, and that
-  `git cherry` cannot prove on the landing ref, gets a kept ref of its own. That errs toward keeping.
+  the O6 proof cannot show on the landing ref, gets a kept ref of its own. That errs toward keeping.
 - `refs/spec-kitty/discarded/` grows by one ref per kept commit; nothing prunes it yet.
+- Two ref sets count as "keeping" a commit. O4 counts local branches, tags and `refs/spec-kitty/*`; the
+  older tip records (the detached tip and the deleted branch's tip) count local branches and tags only,
+  as they did before this ADR. Both leave out remote-tracking refs; the narrower set only records more.
 
 **Residuals.**
+- A commit made in the worktree between O5's second re-read and `git worktree remove` (one git call)
+  is not caught when the worktree is detached; with a branch checked out, the compare-and-swap delete
+  keeps it.
 - The process probe sees only same-uid processes whose cwd it can read (#7173 WP06).
 - A remote-tracking ref is read as a local cache: a landing ref that is stale may still vouch for a
   tip since force-pushed off the remote. O4 and the discarded-tip record keep such a tip reachable

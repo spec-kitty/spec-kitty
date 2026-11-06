@@ -115,7 +115,8 @@ def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) ->
     """
     from specify_cli.git.destructive_guard import discarded_ref
     from specify_cli.git.ref_advance import bookkeeping_ref_write_args
-    from specify_cli.workspace.landed_worktrees import Reason, shell_command
+    from specify_cli.git.destructive_guard import shell_command
+    from specify_cli.workspace.landed_worktrees import Reason
 
     if verdict.reason is not Reason.PROCESS_PROOF_UNAVAILABLE:
         return []
@@ -183,14 +184,13 @@ def _render_assessment(assessment: WorktreeAssessment, repo_root: Path, *, prune
 
 def _refusal_hint(outcome: PruneOutcome, primary: str, prune_command: str = PRUNE_COMMAND) -> str | None:
     """What the operator does next for a prune refusal that is not the guard's own (``None`` for the guard's)."""
-    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED
+    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED, shell_command
     from specify_cli.workspace.landed_worktrees import (
         BRANCH_DELETE_FAILED,
         BRANCH_MOVED,
         NOT_REGISTERED,
         TIP_MOVED,
         WORKTREE_REMOVE_FAILED,
-        shell_command,
     )
 
     if outcome.refusal in (TIP_MOVED, NOT_REGISTERED):
@@ -272,7 +272,7 @@ def _exit_code(assessment: WorktreeAssessment, outcomes: Sequence[PruneOutcome])
 
     Keeping the primary branch (``BRANCH_IS_PRIMARY``) is the rule, not a refusal.
     """
-    from specify_cli.workspace.landed_worktrees import BRANCH_IS_PRIMARY
+    from specify_cli.git.destructive_guard import BRANCH_IS_PRIMARY
 
     refused = any(outcome.refusal not in (None, BRANCH_IS_PRIMARY) for outcome in outcomes)
     if assessment.error is not None or refused:
