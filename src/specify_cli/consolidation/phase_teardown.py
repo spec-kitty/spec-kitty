@@ -369,6 +369,54 @@ def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_re
     return sorted(set(unlanded))
 
 
+def _unjudged_mission_dir_paths(run: _MergeRunState, base: str, tip: str) -> list[str]:
+    """Paths ``base..tip`` changed under a directory of THIS Mission the late-window proof does not judge (#7271).
+
+    :func:`~specify_cli.consolidation.bookkeeping_projection.assert_late_window_landed` diffs only
+    ``kitty-specs/<mission_slug>/``. A bare-slug coordination Mission keeps its coordination directory under
+    the composed ``<slug>-<mid8>`` name (#5651), and :func:`_unlanded_paths_outside_mission_dir` skips that
+    directory as the Mission's own, so a change there is neither projected nor proved. Until the proof
+    judges it (#7271), such a window never advances the tip teardown approves (#7265): the projection
+    teardown gate's compare-and-swap then refuses fail-closed, as it did before #7124 / #7199.
+    """
+    judged = run.mission_slug
+    other_names = ({run.target_feature_dir.name} | mission_dir_aliases(run.main_repo, run.mission_slug)) - {judged}
+    if not other_names:
+        return []
+    prefixes = tuple(sorted(f"{KITTY_SPECS_DIR}/{name}/" for name in other_names))
+    return sorted({str(path) for path in git_changed_paths(run.main_repo, base, tip, renames=False, pathspecs=prefixes)})
+
+
+def _advance_approved_tip(run: _MergeRunState, coord_ref: str, base: str, projected_tip: str) -> None:
+    """Record ``projected_tip`` (T) as the tip teardown approves, once the window is proven (#6871/#7199/#7265).
+
+    The projection teardown gate and the compare-and-swap branch delete anchor on
+    ``coord_tip_after_projection``; leaving it at the anchor this run captured earlier would refuse the very
+    commit this window just landed, on EITHER run kind. The advance is a guarded read on T: a commit that
+    lands DURING the projection leaves the ref somewhere else, the anchor stays put, and the gate's own
+    compare-and-swap refuses (fail-closed) -- a foreign commit is never stamped approved. A window that changed
+    a Mission directory the proof does not judge (#7271) is not proven, so it never advances either.
+    """
+    try:
+        unjudged = _unjudged_mission_dir_paths(run, base, projected_tip)
+    except GitCommandError as exc:
+        branch = run.lanes_manifest.mission_branch
+        raise CoordinationTeardownError(
+            f"the late window's Mission directories could not be read ({escape(str(exc))}); "
+            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
+    if unjudged:
+        shown = ", ".join(unjudged[:5]) + (f" (and {len(unjudged) - 5} more)" if len(unjudged) > 5 else "")
+        console.print(
+            f"  The late coordination window changes {shown}, which the late-window proof does not judge yet (#7271); "
+            "teardown keeps the coordination tip it captured instead of approving the new one."
+        )
+        return
+    if _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
+        run.coord_tip_after_projection = projected_tip
+
+
 def _late_window_base(run: _MergeRunState) -> str | None:
     """The coordination tip the late-teardown window starts at, per RUN KIND (#6871).
 
@@ -569,15 +617,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
             "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
         ) from exc
-    # #6871/#7199: only a PROVEN landing may move the tip teardown approves, on either run kind. The
-    # projection teardown gate and the compare-and-swap branch delete anchor on
-    # ``coord_tip_after_projection``; leaving it at the anchor this run captured earlier would refuse
-    # the very commit this window just landed. The advance is a compare-and-swap on the tip the
-    # assertion was made over (T): a commit that lands DURING the projection leaves the ref somewhere
-    # else, the anchor stays put, and the gate refuses (fail-closed) -- a foreign commit is never
-    # stamped approved.
-    if projected_tip and _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
-        run.coord_tip_after_projection = projected_tip
+    _advance_approved_tip(run, coord_ref, base, projected_tip)
 
 
 #: Printed by the repairs that ask the operator to commit ON the target (#7198 review). A commit there
@@ -585,7 +625,9 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
 #: the same continuation the unreadable-target remedy already spells out (TARGET_GATE_DOCUMENT_UNREADABLE).
 _TARGET_COMMIT_BRANCH_MOVE_CAVEAT = (
     "Committing on {target!r} yourself moves it off the verified landing, so the next resume may stop at the "
-    "branch-move guard, whose message prints the command that releases the move and clears the record."
+    "branch-move guard, whose message prints the command that releases the move and clears the record. That "
+    "leaves the coordination branch, its worktree and the marker in place: review `git log {target}..<coordination "
+    "branch>` before you delete the branch by hand."
 )
 
 
@@ -639,16 +681,18 @@ def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target:
         )
     if refused.kind is LateProjectionRefusalKind.STATUS_EVENTS_NOT_LANDED:
         # #7198: the log is proved by EVENT containment, so the repair is about the copy the union stage
-        # actually reads. Telling the operator to copy the file over the target's log would be wrong twice:
-        # the next projection rematerializes status.json from the union, and a blind overwrite drops the
-        # events the target already holds.
+        # actually reads: the coordination worktree's WORKING-TREE log. That copy can hold events nobody has
+        # committed yet, which the fold lands too (#7265 squad), so the repair ADDS the missing lines and never
+        # replaces the file -- neither the worktree's copy nor the target's.
         return (
-            f"make the coordination worktree's working-tree copy of status.events.jsonl hold the missing events, then "
-            f"re-run: the union stage folds the coordination WORKTREE's working-tree event log, not the coordination "
-            f"branch's commits, which is how the events came to be missing. In the coordination worktree run "
-            f"`git checkout {branch} -- kitty-specs/<slug>/status.events.jsonl`, or land the events on {target!r} "
-            "yourself (append them to its log and rematerialize status.json from the union) and commit. Do NOT overwrite "
-            f"{target!r}'s log with the coordination file: that would drop the events {target!r} already holds. "
+            f"add the missing events to the coordination worktree's working-tree status.events.jsonl, then re-run: "
+            f"the union stage folds that working-tree copy, not the coordination branch's commits, which is how the "
+            f"events came to be missing. Save a copy of that file first, then append each line of `git show "
+            f"{branch}:<the log named above>` whose event_id it does not already hold, and keep every line it has. "
+            f"Do NOT overwrite it with the branch file or check the branch file out over it: the working-tree log can "
+            f"hold events not committed anywhere yet. Do NOT overwrite {target!r}'s log either: that would drop the "
+            f"events {target!r} already holds. To land them on {target!r} yourself instead, append them to its log "
+            f"the same way, rematerialize status.json from the union and commit. "
             f"{_TARGET_COMMIT_BRANCH_MOVE_CAVEAT.format(target=target)}"
         )
     if refused.kind is LateProjectionRefusalKind.STATUS_LOG_NOT_RECONCILABLE:

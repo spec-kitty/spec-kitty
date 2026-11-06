@@ -571,7 +571,10 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
 - **Tip.** The teardown reads the coordination tip ONCE (`T`, `git rev-parse` with the exit code
   kept: exit 1 is a no-op, any other failure refuses with the triple kept). The projection and the
   proof read `T`, never the live branch name. A commit that lands after `T` was read is not in the
-  window: it is neither partly projected nor judged under a late-projection refusal kind.
+  window: its branch content is neither projected nor judged under a late-projection refusal kind.
+  The status union is the one exception by construction: it folds the coordination worktree's
+  working-tree log, so events committed from inside that worktree after `T` can be unioned onto the
+  target before the gate refuses. That is additive, and the next `--resume` proves them.
 - **Base.** First run: `coord_tip_after_projection`, the anchor captured after the bookkeeping
   phase. Resume: `state.pre_mutation_coord_sha`. The 2026-10-31 re-baseline (#6770) keeps that
   anchor on a coordination topology and drops it where no coordination branch exists, so a resume
@@ -585,13 +588,21 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   canonical event union, which refuses one id with two payloads); **derived** (`status.json`, only
   while the target's committed snapshot is the reduction of its committed log); **carried by the
   target's copy** (a target-authored JSON document whose `B → T` delta is on the target, a removed
-  key absent); **refused** (anything else, and a deletion the target still holds). No path is
-  exempt by filename.
+  key absent); **refused** (anything else, and a deletion the target still holds). No path in the
+  judged directory is exempt by filename.
+- **Directories the proof does not judge.** The proof diffs `kitty-specs/<mission_slug>/`. A
+  bare-slug coordination Mission keeps its coordination directory under the composed
+  `<slug>-<mid8>` name (#5651), which the proof does not judge yet and the outside-directory check
+  skips as the Mission's own. A window that changes any other directory of the same Mission
+  (`mission_dir_aliases`, or the primary directory's own name) is therefore not proven, and the
+  approved tip does NOT advance on either run kind: the gate's compare-and-swap refuses
+  fail-closed, as before #7124 / #7199, for that topology only. Extending the proof is #7271.
 - **Approval.** Only a fully proven `T` becomes `coord_tip_after_projection`, on BOTH run kinds,
   and only by compare-and-swap (the live ref still equals `T`). The projection teardown gate and
   the compare-and-swap branch delete anchor on that value, so a commit after `T` is never
   approved: the gate refuses and keeps the triple. The resume advance (#7199) is sound only
-  because the proof exempts nothing (#7198); that is why the two land together.
+  because the proof exempts nothing it approves (#7198, and the containment above); that is why
+  the two land together.
 - **Refusal and rollback.** An unproven path refuses with `COORD_LATE_PROJECTION_REFUSED` (exit 1),
   one refusal kind per remedy (three added: `STATUS_EVENTS_NOT_LANDED`,
   `STATUS_LOG_NOT_RECONCILABLE`, `NON_COORDINATION_RECORD_NOT_LANDED`), and keeps the branch,
@@ -599,8 +610,9 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   commit is additive and carried over the PASS anchor, and the next `--resume` re-proves it
   idempotently. Teardown calls no restore path, so the single rollback authority stays the only one.
   No CLI flag, exit code or error code is added.
-- **Residuals (named, not closed).** #7121 (a first run with no anchor), #5460 (primary artifacts
-  are judged, never projected), #7201 (the retrospective commit's target, PR #7233, separate).
+- **Residuals (named, not closed).** #7271 (the composed coordination directory is contained, not
+  proved), #7121 (a first run with no anchor), #5460 (primary artifacts are judged, never
+  projected), #7201 (the retrospective commit's target, PR #7233, separate).
 
 ## Consequences
 
@@ -672,7 +684,7 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
 - Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
-- Amendment 2026-11-06: #7265 (design), #7198, #7199; supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7121, #5460; separate: #7201 / PR #7233.
+- Amendment 2026-11-06: #7265 (design), #7198, #7199; supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7271, #7121, #5460; separate: #7201 / PR #7233.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),
