@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
     from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
     from specify_cli.context.mission_resolver import MissionListing
-    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.models import DecisionError
 
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
@@ -494,15 +494,15 @@ def _dispatch_advancing_mode(
         owned=owned,
     )
     if owned is not None:
-        from specify_cli.decisions.models import DecisionErrorCode
-        from specify_cli.decisions.service import DecisionError
+        from specify_cli.decisions import lock as _decisions_lock
+        from specify_cli.decisions.models import DecisionError
 
         try:
             _commit_owned_next_mutations(owned)
         except DecisionError as _exc:
-            # #6763: only the seam's lock timeout becomes this refusal; any
+            # #6763: only the decisions-lock refusal becomes this refusal; any
             # other DecisionError keeps propagating unchanged.
-            if _exc.code is not DecisionErrorCode.LOCK_TIMEOUT:
+            if not _decisions_lock.is_lock_timeout(_exc):
                 raise
             # Refuse in ``next``'s own error contract rather than letting
             # ``LockAcquireTimeout`` escape into the agent loop.
@@ -529,24 +529,22 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     Every input is read straight off the fact -- no handle walk, no resolver.
 
     #6763: the guard is the decisions sidecar lock taken through
-    :func:`~specify_cli.decisions.service._decisions_lock`, the single timeout
-    translation. A busy lock therefore raises ``DecisionError(LOCK_TIMEOUT)``
+    :func:`specify_cli.decisions.lock.decisions_lock`, the single owner of the
+    decisions lock and its refusal. A busy lock therefore raises ``DecisionError(LOCK_TIMEOUT)``
     for :func:`_dispatch_advancing_mode` to render as a refusal; the error is
     deliberately not caught here.
     """
     from contextlib import nullcontext
 
-    from specify_cli.decisions.service import (
-        _LOCK_ACQUIRE_TIMEOUT_S,
-        _decisions_lock,
-        _decisions_lock_path,
-    )
+    from specify_cli.decisions import lock as _decisions_lock
 
-    runtime_lock = _decisions_lock_path(owned.mission_dir)
+    runtime_lock = _decisions_lock.lock_path(owned.mission_dir)
     # The owner lock serialises the ignore provision/rollback with a concurrent
     # owned run or decision write; it only exists once the service created it.
     guard = (
-        _decisions_lock(runtime_lock, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None)
+        _decisions_lock.decisions_lock(
+            runtime_lock, timeout_s=_decisions_lock.ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None
+        )
         if runtime_lock.exists()
         else nullcontext()
     )

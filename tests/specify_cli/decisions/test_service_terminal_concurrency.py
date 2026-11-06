@@ -20,7 +20,8 @@ marker in this file: a genuine deadlock must produce this file's verdict, never
 a bare ``Failed: Timeout`` from the marker.
 
 The coexistence scenario additionally pins the decisions-lock acquire bound it
-runs under (``_run_coexistence``), so a holder that is merely slow on a loaded
+runs under (``_run_coexistence``) -- one constant, ``decisions/lock.py``'s
+``ACQUIRE_TIMEOUT_S``, which every participant reads (#6763), so a holder that is merely slow on a loaded
 runner can never be reported as a deadlock.  The product's bounded refusal keeps
 its own coverage in ``test_decisions_lock_waiter_times_out_and_writes_nothing``.
 """
@@ -40,7 +41,7 @@ from typing import Any
 import pytest
 
 from specify_cli.decisions import emit as _emit
-from specify_cli.decisions import service as _service
+from specify_cli.decisions import lock as _lock
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.index_fold import fold_events
 from specify_cli.decisions.models import DecisionErrorCode, DecisionStatus, DecisionTerminalResponse, IndexEntry, OriginFlow
@@ -257,13 +258,13 @@ def _run_coexistence(tmp_path: Path, *, slow_hold_s: float = 0.0) -> None:
     """Run the four-participant coexistence interleaving (#6773, NFR-002 (2)).
 
     The scenario owns the decisions-lock acquire bound it runs under.  The
-    product bounds that wait at ``_LOCK_ACQUIRE_TIMEOUT_S`` (10 s) because a
+    product bounds that wait at ``lock.ACQUIRE_TIMEOUT_S`` (10 s) because a
     caller must fail loudly rather than hang, and that refusal is correct: it is
     pinned by ``test_decisions_lock_waiter_times_out_and_writes_nothing``.
     Inside THIS scenario a bounded wait would let a loaded runner turn "the
     holder is slow" into ``LOCK_TIMEOUT`` and be reported as a failed worker --
     the false red #6773 diagnosed.  Pinning the bound to ``None`` (the same
-    unbounded wait ``open_decision`` already uses for ``_OPEN_LOCK_WAIT_S``)
+    unbounded wait ``open_decision`` already uses, ``lock.OPEN_WAIT_S``)
     leaves ``_DEADLOCK_BUDGET_S`` as the only deadline, so the verdict is "a
     participant never returned", never "a participant was slow".
 
@@ -296,11 +297,16 @@ def _run_coexistence(tmp_path: Path, *, slow_hold_s: float = 0.0) -> None:
 
         return run
 
-    # The context manager restores both constants even when a worker raises, so a
+    # #6763: the decisions lock has ONE owner, so ONE pin covers every holder in
+    # this scenario (the terminal calls and the doctor repair read
+    # ``lock.ACQUIRE_TIMEOUT_S``; the open already waits unbounded). A second
+    # copy of the bound anywhere would make this pin incomplete, so refuse to
+    # run on such a tree rather than pass on a partial pin.
+    assert not hasattr(doctor, "_LOCK_ACQUIRE_TIMEOUT_S"), "the doctor must read the decisions lock's one bound"
+    # The context manager restores the constant even when a worker raises, so a
     # sibling test in the same xdist worker never inherits an unbounded acquire.
     with pytest.MonkeyPatch.context() as pinned:
-        pinned.setattr(_service, "_LOCK_ACQUIRE_TIMEOUT_S", None)
-        pinned.setattr(doctor, "_LOCK_ACQUIRE_TIMEOUT_S", None)
+        pinned.setattr(_lock, "ACQUIRE_TIMEOUT_S", None)
         if slow_hold_s:
             real_save_index = _store.save_index
 
@@ -343,13 +349,13 @@ def test_coexistence_ratchet_is_indifferent_to_the_ambient_acquire_bound(tmp_pat
 
     Red before the fix, with this exact injection: the scenario inherited the
     ambient bound, so a holder slower than it made a peer refuse with
-    ``LOCK_TIMEOUT`` and the ratchet reported a deadlock that did not exist (the
-    reproducible pre-fix output is recorded in the mission's
-    ``research/deadlock-budget-probe.md``).  The ambient bound here is tighter
+    ``LOCK_TIMEOUT`` and the ratchet reported a deadlock that did not exist
+    (remove the ``pinned.setattr`` in ``_run_coexistence`` to see it: this test
+    fails with ``DecisionError(LOCK_TIMEOUT)``).  The ambient bound here is tighter
     than the injected hold, so this stays non-vacuous: it can only pass because
     the scenario pins its own bound.
     """
-    monkeypatch.setattr(_service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(_lock, "ACQUIRE_TIMEOUT_S", 0.1)
     _run_coexistence(tmp_path, slow_hold_s=0.3)
 
 
@@ -392,8 +398,6 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     shape (unchanged) and the acquisition order (anchor before sidecar).
     """
     from kernel.event_log_append import event_log_lock_path
-    from specify_cli.decisions import service
-
     d1 = _open(tmp_path, "k1")
     d2 = _open(tmp_path, "k2")
     pause = _Pause(monkeypatch)
@@ -403,7 +407,7 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     index_path = _mission_dir(tmp_path) / "decisions" / "index.json"
     artifact = _mission_dir(tmp_path) / "decisions" / f"DM-{d2}.md"
     before = (index_path.read_bytes(), artifact.read_bytes(), len(_events(tmp_path)))
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.3)
+    monkeypatch.setattr(_lock, "ACQUIRE_TIMEOUT_S", 0.3)
     b = _Worker(lambda: _resolve(tmp_path, d2)).start()
     b.thread.join(10)
     assert not b.thread.is_alive()
@@ -412,12 +416,15 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     lock_path = event_log_lock_path(_mission_dir(tmp_path) / "status.events.jsonl")
     assert b.error.details["lock_path"] == str(lock_path)
     assert b.error.details["decision_id"] == d2
-    assert str(lock_path) in str(b.error)
-    assert "retry" in str(b.error).lower()
+    # #6763: the refusal is THE decisions-lock refusal, byte for byte.
+    expected = _lock.lock_timeout_error(lock_path, timeout_s=0.3, mission_slug=MISSION_SLUG, decision_id=d2)
+    assert str(b.error) == str(expected)
+    assert b.error.details == expected.details
+    assert _lock.is_lock_timeout(b.error)
     assert (index_path.read_bytes(), artifact.read_bytes(), len(_events(tmp_path))) == before
 
     pause.release.set()
     a.finish()
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 10.0)
+    monkeypatch.setattr(_lock, "ACQUIRE_TIMEOUT_S", 10.0)
     assert _resolve(tmp_path, d2).event_lamport is not None
     assert len(_resolved_rows(tmp_path, d2)) == 1

@@ -287,6 +287,22 @@ def _opened_identity(event: Mapping[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in event["payload"].items() if k != _OPENED_VOLATILE_FIELD}
 
 
+def _opened_events(events: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    """The ``DecisionPointOpened`` envelopes of one decision's event group, in input order."""
+    return [e for e in events if e.get("event_type") == DECISION_POINT_OPENED]
+
+
+def _openings_identical(opened_events: list[Mapping[str, Any]]) -> bool:
+    """THE #4848 tolerance rule: every opening equals the first apart from ``recorded_at``.
+
+    The one predicate both :func:`_select_opened_event` (the fold) and
+    :func:`tolerated_duplicate_openings` (the ``doctor decisions`` finding,
+    #6764) apply, so the report cannot drift from what the fold accepts.
+    """
+    first_identity = _opened_identity(opened_events[0])
+    return all(_opened_identity(e) == first_identity for e in opened_events[1:])
+
+
 def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str, Any]:
     """Pick the single ``DecisionPointOpened`` envelope to fold.
 
@@ -312,8 +328,7 @@ def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str,
     """
     if not opened_events:
         raise FoldError("no DecisionPointOpened event in the fold input")
-    first_identity = _opened_identity(opened_events[0])
-    if any(_opened_identity(e) != first_identity for e in opened_events[1:]):
+    if not _openings_identical(opened_events):
         raise FoldError("more than one DecisionPointOpened event for one decision_point_id with differing payloads")
     return min(
         opened_events,
@@ -329,22 +344,25 @@ def tolerated_duplicate_openings(events: Iterable[Mapping[str, Any]]) -> int:
     :data:`_OPENED_VOLATILE_FIELD`). A positive count is the number of rows
     :func:`_select_opened_event` accepts alongside the earliest one (#4848).
 
-    The tolerance rule is NOT restated here: this shares :func:`_opened_identity`
-    and :data:`_OPENED_VOLATILE_FIELD` with :func:`_select_opened_event`, so the
-    report a consumer builds from it (``doctor decisions``, #6764) can never drift
-    from what the fold actually accepts.
+    The tolerance rule is NOT restated here: this applies the fold's own
+    :func:`_openings_identical` to the fold's own :func:`_opened_events`
+    selection, so the report a consumer builds from it (``doctor decisions``,
+    #6764) can never drift from what the fold actually accepts.
 
-    Deliberately does NOT raise :class:`FoldError`: a differing-payload duplicate is
-    the FOLD's refusal, reported through :func:`fold_events`, and must never be
-    reported as a tolerated duplicate. Read-only; *events* is not mutated.
+    Deliberately does NOT raise: a differing-payload duplicate is the FOLD's
+    refusal, reported through :func:`fold_events`, and must never be reported as a
+    tolerated duplicate; a malformed opening (no ``payload`` mapping) is likewise
+    the fold's to report, so it counts as nothing tolerated. Read-only; *events*
+    is not mutated.
     """
-    opened = [e for e in events if e.get("event_type") == DECISION_POINT_OPENED]
+    opened = _opened_events(events)
     if len(opened) < 2:
         return 0
-    first_identity = _opened_identity(opened[0])
-    if any(_opened_identity(e) != first_identity for e in opened[1:]):
+    try:
+        identical = _openings_identical(opened)
+    except _PAYLOAD_ERRORS:
         return 0
-    return len(opened) - 1
+    return len(opened) - 1 if identical else 0
 
 
 #: Errors a malformed on-disk PAYLOAD raises inside the fold (a missing key,
@@ -405,7 +423,7 @@ def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
     """
     materialized = list(events)
 
-    opened_event = _select_opened_event([e for e in materialized if e.get("event_type") == DECISION_POINT_OPENED])
+    opened_event = _select_opened_event(_opened_events(materialized))
 
     resolved = [e for e in materialized if e.get("event_type") == DECISION_POINT_RESOLVED]
 

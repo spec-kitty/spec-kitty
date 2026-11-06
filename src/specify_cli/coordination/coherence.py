@@ -177,7 +177,7 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
 def is_decisions_runtime_lock(path: str | Path) -> bool:
     r"""Return True for a Mission's decision-service runtime lock (#6628).
 
-    ``decisions/service.py`` (``_LOCK_FILENAME``) keeps
+    ``decisions/lock.py`` (``LOCK_FILENAME``, the decisions lock's one owner) keeps
     ``kitty-specs/<mission>/decisions/index.json.lock`` on disk, untracked, on
     purpose: release truncates it and never unlinks it (#5925). Its presence is
     spec-kitty's own bookkeeping, so no dirty-state gate may refuse on it, and no

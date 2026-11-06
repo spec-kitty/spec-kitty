@@ -152,3 +152,82 @@ def test_reopen_rule_comes_from_events_package() -> None:
         assert is_allowed_terminal_reopen(current, target) is ((current, target) in allowed), (current, target)
     # Verdicts unchanged: defer -> resolve is the only reopen.
     assert allowed == {(DecisionStatus.DEFERRED, DecisionStatus.RESOLVED)}
+
+
+# ---------------------------------------------------------------------------
+# #6764: the ``doctor decisions`` finding counts exactly what the fold tolerates.
+# ---------------------------------------------------------------------------
+
+
+def _groups(original: Envelope) -> dict[str, list[Envelope]]:
+    """Opening groups covering every branch of the fold's opening rule."""
+    no_payload = {key: value for key, value in _later_copy(original, 3).items() if key != "payload"}
+    return {
+        "single": [original],
+        "one-duplicate": [original, _later_copy(original, 1)],
+        "two-duplicates-shuffled": [_later_copy(original, 2), original, _later_copy(original, 1)],
+        "differing-question": [original, _later_copy(original, 1, question="A different question?")],
+        "differing-actor": [original, _later_copy(original, 1, actor="mallory")],
+        "malformed-duplicate": [original, no_payload],
+        "no-opening": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("group", "expected"),
+    [
+        ("single", 0),
+        ("one-duplicate", 1),
+        ("two-duplicates-shuffled", 2),
+        ("differing-question", 0),
+        ("differing-actor", 0),
+        ("malformed-duplicate", 0),
+        ("no-opening", 0),
+    ],
+)
+def test_tolerated_duplicate_count_per_group(tmp_path: Path, group: str, expected: int) -> None:
+    original = _opened_row(_events_for_decision(tmp_path, _open(tmp_path)))
+
+    assert index_fold.tolerated_duplicate_openings(_groups(original)[group]) == expected
+
+
+@pytest.mark.parametrize(
+    "group",
+    [
+        "single",
+        "one-duplicate",
+        "two-duplicates-shuffled",
+        "differing-question",
+        "differing-actor",
+        "malformed-duplicate",
+        "no-opening",
+    ],
+)
+def test_finding_agrees_with_the_fold(tmp_path: Path, group: str) -> None:
+    """A tolerated duplicate is reported if and only if the fold accepted it.
+
+    Positive count: the fold succeeds and equals the fold of the earliest opening alone.
+    Zero with several openings: the fold refuses, so ``doctor`` reports a malformed fold
+    instead -- the two findings are disjoint by construction.
+    """
+    original = _opened_row(_events_for_decision(tmp_path, _open(tmp_path)))
+    rows = _groups(original)[group]
+    count = index_fold.tolerated_duplicate_openings(rows)
+    openings = [row for row in rows if row.get("event_type") == DECISION_POINT_OPENED]
+
+    if count:
+        assert count == len(openings) - 1
+        assert fold_events(rows) == fold_events([original])
+    elif len(openings) > 1:
+        with pytest.raises(FoldError):
+            fold_events(rows)
+
+
+def test_finding_does_not_mutate_its_input(tmp_path: Path) -> None:
+    original = _opened_row(_events_for_decision(tmp_path, _open(tmp_path)))
+    rows = [original, _later_copy(original, 1)]
+    snapshot = json.dumps(rows, sort_keys=True)
+
+    index_fold.tolerated_duplicate_openings(iter(rows))
+
+    assert json.dumps(rows, sort_keys=True) == snapshot

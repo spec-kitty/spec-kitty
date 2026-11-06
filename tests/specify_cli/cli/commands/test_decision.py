@@ -1223,7 +1223,7 @@ def test_terminal_lock_timeout_exits_1_structured(tmp_path: Path, monkeypatch: p
     mission_dir = _setup_mission(tmp_path)
     decision_id = _open_decision(tmp_path)
     lock_path = mission_dir / "decisions" / "index.json.lock"
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
     before = _tree_bytes(mission_dir / "decisions")
 
     with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(tmp_path):

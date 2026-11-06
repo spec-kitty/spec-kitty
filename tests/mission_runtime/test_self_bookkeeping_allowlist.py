@@ -260,7 +260,7 @@ class TestSelfBookkeepingPredicate:
         assert not is_decisions_runtime_lock(path)
 
     def test_lock_anchor_agrees_with_the_decision_service_filename(self) -> None:
-        from specify_cli.decisions.service import _LOCK_FILENAME
+        from specify_cli.decisions.lock import LOCK_FILENAME as _LOCK_FILENAME
 
         assert is_decisions_runtime_lock(f"kitty-specs/{_MISSION_SLUG}/decisions/{_LOCK_FILENAME}")
 
