@@ -17,10 +17,7 @@ import pytest
 
 from specify_cli.consolidation.approved_bound import BoundRefusal, BoundRefusalCode, refusal_codes
 from specify_cli.consolidation.write_branch_bound import (
-    ApprovalWindow,
-    approval_windows,
     check_write_branch,
-    commits_outside_windows,
     render_write_branch_refusals,
 )
 from specify_cli.status import LANE_HEAD_KEY, Lane, StatusEvent
@@ -213,29 +210,24 @@ def test_bookkeeping_merges_and_anchored_commits_are_exempt(repo: _Repo) -> None
 
 def test_missing_open_stamp_degrades_to_the_claim_base_and_is_logged(repo: _Repo, caplog: pytest.LogCaptureFixture) -> None:
     """A-8: a work package with no stamped claim gets the window (claim_base, S_k]; no new refusal."""
-    early = repo.commit("src/early.py")
+    repo.commit("src/early.py")
     repo.claim("WP01", stamped=False)
     repo.commit("src/m1.py")
     repo.approve("WP01")
 
     with caplog.at_level(logging.INFO, logger="specify_cli.consolidation.write_branch_bound"):
-        windows = approval_windows(repo.events, {"WP01": repo.head})
-        outside = commits_outside_windows(repo.root, tip=_BRANCH, claim_base="base", windows=windows)
+        refusals = repo.check(approved=("WP01",))
 
-    assert windows == (ApprovalWindow("WP01", None, repo.head),)
-    assert windows[0].degraded
-    assert early not in outside and outside == []
+    # The degraded window (claim_base, S_k] covers the early commit, so nothing is outside it.
+    assert refusals == ()
     assert "WP01 has no stamped claim" in caplog.text
-    assert repo.check(approved=("WP01",)) == ()
 
 
 def test_stamped_open_excludes_what_preceded_the_claim(repo: _Repo) -> None:
     early = repo.commit("src/early.py")
     _build(repo, "WP01", "src/m1.py")
-    windows = approval_windows(repo.events, {"WP01": repo.head})
 
-    assert not windows[0].degraded
-    assert commits_outside_windows(repo.root, tip=_BRANCH, claim_base="base", windows=windows) == [early]
+    assert [(r.wp_ids, r.commits) for r in repo.check(approved=("WP01",))] == [(("WP01",), (early,))]
 
 
 def test_unstamped_approval_refuses_stamp_missing(repo: _Repo) -> None:

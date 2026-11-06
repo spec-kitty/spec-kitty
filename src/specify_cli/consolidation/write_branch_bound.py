@@ -108,7 +108,7 @@ def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[
     return min(after, key=lambda entry: len(entry.reach)).window.wp_id
 
 
-def commits_outside_windows(
+def _commits_outside_windows(
     repo_root: Path,
     *,
     tip: str,
@@ -243,9 +243,6 @@ def render_write_branch_refusals(refusals: Sequence[BoundRefusal], mission_slug:
 
 
 __all__ = [
-    "ApprovalWindow",
-    "approval_windows",
     "check_write_branch",
-    "commits_outside_windows",
     "render_write_branch_refusals",
 ]
