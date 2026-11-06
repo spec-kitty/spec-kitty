@@ -250,6 +250,12 @@ teardown gate and the branch delete approve, on either run kind. So a resume tha
 lands a commit made *after* it captured its own coordination tip finishes the
 consolidation instead of refusing a landing it just completed.
 
+The window is read once, at the coordination tip the teardown opened it on. A
+commit that lands on the coordination branch while the teardown runs is not in
+that window: it is not projected, the approved tip does not move to it, and the
+teardown refuses at the projection teardown gate with the branch kept. Run
+`spec-kitty consolidate --resume` again and the next window carries it.
+
 This closes the window where a verification or status write made *between* the
 gate and the teardown was refused after a landing that was already complete,
 leaving you to hand-assemble it. A first run that recorded no coordination tip

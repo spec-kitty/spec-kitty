@@ -497,11 +497,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
             "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
         )
+    # #7265: the window is read ONCE, at ``projected_tip`` (T). The projection and the proof below read
+    # that SHA, never the live branch name, so a commit landing on the coordination branch mid-window is
+    # neither partly projected nor judged under the wrong refusal kind: it is simply not in ``base..T``,
+    # the compare-and-swap advance below sees the live ref != T, and the projection teardown gate refuses.
     target = run.lanes_manifest.target_branch
     try:
-        if not _post_checkpoint_commit_shas(run.main_repo, base, coord_ref):
+        if not _post_checkpoint_commit_shas(run.main_repo, base, projected_tip):
             return
-        stranded = _unlanded_paths_outside_mission_dir(run, base, coord_ref)
+        stranded = _unlanded_paths_outside_mission_dir(run, base, projected_tip)
         if stranded:
             raise CoordinationTeardownError(
                 f"a commit on coordination branch {branch!r} changes files outside kitty-specs/{run.target_feature_dir.name}/ "
@@ -515,9 +519,9 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             mission_slug=run.mission_slug,
             status_feature_dir=run.feature_dir,
             checkpoint_sha=base,
-            coord_ref=coord_ref,
+            coord_ref=projected_tip,
         )
-        late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, coord_ref)]
+        late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, projected_tip)]
         # #6791: a gate matrix changed in this window is projected too. On a resume the window
         # starts at the PRE-mutation snapshot, so it reaches back to the start of the merge (a
         # first run starts at ``coord_tip_after_projection``); a matrix in it is newer than the
@@ -527,7 +531,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             project_late_gate_matrix_commits(
                 main_repo=run.main_repo,
                 mission_slug=run.mission_slug,
-                coord_ref=coord_ref,
+                coord_ref=projected_tip,
                 checkpoint_sha=base,
             )
         )
@@ -549,7 +553,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         assert_late_window_landed(
             main_repo=run.main_repo,
             mission_slug=run.mission_slug,
-            coord_ref=coord_ref,
+            coord_ref=projected_tip,
             checkpoint_sha=base,
             target_feature_dir=run.target_feature_dir,
             target_ref=target,
@@ -569,7 +573,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     # projection teardown gate and the compare-and-swap branch delete anchor on
     # ``coord_tip_after_projection``; leaving it at the anchor this run captured earlier would refuse
     # the very commit this window just landed. The advance is a compare-and-swap on the tip the
-    # assertion was made over: a commit that lands DURING the projection leaves the ref somewhere
+    # assertion was made over (T): a commit that lands DURING the projection leaves the ref somewhere
     # else, the anchor stays put, and the gate refuses (fail-closed) -- a foreign commit is never
     # stamped approved.
     if projected_tip and _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
