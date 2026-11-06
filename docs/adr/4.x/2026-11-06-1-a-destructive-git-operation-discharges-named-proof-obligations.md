@@ -17,7 +17,8 @@ local refs only for reflog reachability; one guard entry for the prune).
 **Deciders:** Stijn Dejongh (operator).
 
 **Technical Story:**
-- #7264: write down the proof obligations of a safe destructive git operation.
+- #7264: write down the proof obligations of a safe destructive git operation. Slice S4 of epic #7276
+  (lane and worktree model hardening), whose operator rulings 5, 6 and 7 (2026-11-06) set this ADR's scope.
 - #7173 / #7196: `spec-kitty doctor workspaces --prune`, the first command that removes a worktree
   and deletes its branch on its own judgement.
 - #7212 (PR #7239), #7211 (PR #7237), #7214 (PR #7240): three safety holes found in that prune
@@ -78,10 +79,27 @@ caught by anything.
 
 ### Scope
 
-This ADR binds `doctor workspaces --prune` now. Lane teardown (`DESTROYED_LANE`,
-`LANE_WORK_TIP_UNKNOWN`) and consolidate cleanup already discharge several obligations through their
-own guards; moving them onto the same entry is follow-up work (listed as deferred in the PR that
-introduced this ADR; no issue is filed yet).
+This list is the single authority for every destructive git operation (epic #7276, ruling 7). It binds
+`doctor workspaces --prune` now, through `guarded_landed_removal`. The other callers adopt it in
+their own slices, each through `destructive_guard.py`, never with a check of their own:
+
+- **Consolidate cleanup** (S5, #7280). Removing lane worktrees and branches becomes the final step of
+  the consolidation phase and does not wait for the pull request to merge (ruling 6). The prune stays
+  the proof-based backstop for what that step leaves.
+- **The consolidate teardown's late window** (S10, #7265).
+- **Releasing a short-lived lane checkout** (S3, #7279, ruling 5). A release either commits or
+  refuses. It is destructive, so O1 (nothing uncommitted is lost: it is committed, or the release is
+  refused), O2, O5, O7 and O8 apply to it as written; O3, O4 and O6 apply whenever the release also
+  deletes a branch.
+- **Lane teardown** (`DESTROYED_LANE`, `LANE_WORK_TIP_UNKNOWN`), which already discharges several
+  obligations through its own guards.
+
+`LandedRemoval` names the proven tip, the branch and the ref that proves the landing, so those callers
+can reuse the entry; a caller whose proof is not a remote-tracking ref (consolidation lands on the
+local target) needs an amendment to O3 first, not a parallel check.
+
+Evidence is read from git refs and the resolved status surface only. A lane worktree's own status
+files never count as evidence for any obligation (epic #7276; #6466, #6884).
 
 ## Consequences
 
