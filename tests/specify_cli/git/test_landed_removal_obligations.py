@@ -167,6 +167,7 @@ def test_o2_a_probe_that_cannot_tell_is_refused_not_passed(repo: Path) -> None:
 def test_o3_the_landing_ref_must_be_a_configured_remotes_tracking_ref(repo: Path, remote: str, landing_ref: str) -> None:
     worktree, tip = _land(repo)
     _git(repo, "update-ref", "refs/remotes/other/main", tip)
+    _git(repo, "update-ref", "refs/remotes/upstream/main", tip)  # the ref exists, so only "not configured" can refuse it
 
     assert _refused(repo, _removal(worktree, tip, remote=remote, landing_ref=landing_ref)) == LANDING_REF_UNNAMED
 
@@ -463,6 +464,24 @@ def test_o4_an_unreadable_reflog_removes_nothing(repo: Path, monkeypatch: pytest
     monkeypatch.setattr(destructive_guard, "_run_git", reflog_fails)
 
     assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+
+
+@pytest.mark.skipif(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0), reason="needs file modes that bind this user")
+@pytest.mark.parametrize("damage", ["unreadable", "garbage"])
+def test_o4_a_reflog_git_silently_skips_removes_nothing(repo: Path, damage: str) -> None:
+    """``git reflog show`` exits 0 with no output on these, so the exit code alone would fail open."""
+    worktree, tip = _land(repo)
+    log = Path(_git(worktree, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD").strip())
+    if damage == "unreadable":
+        log.chmod(0)
+    else:
+        log.write_text("not a reflog\n", encoding="utf-8")
+    try:
+        assert _refused(repo, _removal(worktree, tip)) == DESTRUCTIVE_OP_ONLY_COPY
+        assert worktree.exists()
+    finally:
+        if log.exists():
+            log.chmod(0o644)
 
 
 def test_o4_reachability_that_git_cannot_answer_keeps_every_candidate(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:

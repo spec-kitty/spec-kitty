@@ -625,7 +625,8 @@ spec-kitty doctor workspaces --prune --remote upstream
   is read, never another remote's copy of the same commit. A blank value
   (`--remote "$UNSET"`) is refused rather than falling back to `origin`, and a
   name the clone does not configure exits 1 with the names it does have, so a
-  mistyped remote never reads as "nothing landed".
+  mistyped remote never reads as "nothing landed". A clone with no remotes at all
+  reports `unproven` instead.
 - **`spec-kitty doctor workspaces`** writes nothing. It gives every registered
   worktree a verdict with a reason: landed, not landed, unproven, or
   Mission-owned. "Landed" means the worktree's commits are on
@@ -761,8 +762,8 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   superseded commit. Anything it cannot prove is recorded, so a merge commit
   in that position always is: no patch carries a merge's own resolution. The `--json` payload names the refs in the
   `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
-  prune removes nothing and reports it, the same as a failed `tip kept at`
-  record.
+  prune removes nothing and reports it. A failed `tip kept at` record happens after
+  the removal: the worktree is gone and the output says the branch was kept.
 
 ### `upgrade` leaves landing worktrees alone
 

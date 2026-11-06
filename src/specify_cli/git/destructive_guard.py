@@ -31,6 +31,7 @@ several downstream catchers whose semantics this mission does not touch
 
 from __future__ import annotations
 
+import re
 import os
 import shlex
 import shutil
@@ -970,22 +971,41 @@ def _on_a_local_branch_or_tag(repo_root: Path, sha: str, env: dict[str, str] | N
     return listed.returncode == 0 and bool(listed.stdout.strip())
 
 
+#: One reflog line: the old and new object ids, then the committer. A SHA-1 or SHA-256 repository.
+_REFLOG_ENTRY = re.compile(rb"^[0-9a-f]{40,64} [0-9a-f]{40,64} ")
+
+
+def _unreadable_reflog(cwd: Path, rev: str, reason: object) -> DestructiveOpRefused:
+    return DestructiveOpRefused(
+        error_code=DESTRUCTIVE_OP_ONLY_COPY,
+        worktree_path=cwd,
+        dirty_entries=[f"reflog of {rev}: {reason}"],
+        remediation=f"The reflog of {rev} could not be read, so the commits only it holds are unknown. Nothing was removed.",
+    )
+
+
 def _reflog_shas(cwd: Path, rev: str, env: dict[str, str] | None) -> list[str]:
     """The shas ``rev``'s reflog records, newest first; ``[]`` when it has none.
 
     A reflog that exists but cannot be read raises: the commits it holds are
-    unknown, so nothing may be destroyed (fail closed, O4).
+    unknown, so nothing may be destroyed (fail closed, O4). ``git reflog show``
+    alone can't tell: it exits 0 on a file it can't open or parse, so the file
+    itself is read and any line that is not a reflog entry refuses.
     """
     if _run_git(cwd, ["reflog", "exists", rev], env=env).returncode != 0:
         return []
+    log_path = cwd / _run_git(cwd, ["rev-parse", "--git-path", f"logs/{rev}"], env=env).stdout.strip()
+    try:
+        content = log_path.read_bytes()
+    except FileNotFoundError:
+        content = b""  # another ref backend keeps no such file; the listing below stands alone
+    except OSError as exc:
+        raise _unreadable_reflog(cwd, rev, exc) from exc
     listed = _run_git(cwd, ["reflog", "show", "--format=%H", rev], env=env)
     if listed.returncode != 0:
-        raise DestructiveOpRefused(
-            error_code=DESTRUCTIVE_OP_ONLY_COPY,
-            worktree_path=cwd,
-            dirty_entries=[f"reflog of {rev}: {listed.stderr.strip() or listed.returncode}"],
-            remediation=f"The reflog of {rev} could not be read, so the commits only it holds are unknown. Nothing was removed.",
-        )
+        raise _unreadable_reflog(cwd, rev, listed.stderr.strip() or listed.returncode)
+    if any(line.strip() and not _REFLOG_ENTRY.match(line) for line in content.splitlines()):
+        raise _unreadable_reflog(cwd, rev, f"{log_path} holds a line that is not a reflog entry")
     return listed.stdout.split()
 
 
