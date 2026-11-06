@@ -301,7 +301,7 @@
       "wp": "WP15"
     },
     "#7281": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S6 restated ruling 3: WP09/WP10",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -309,8 +309,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP10"
     },
     "#7282": {
       "evidence_ref": "<link or commit>",
