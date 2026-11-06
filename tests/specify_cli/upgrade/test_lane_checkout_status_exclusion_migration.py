@@ -10,6 +10,10 @@ the worktree is left untouched: the migration never drops an event (C-009).
 
 Portable on Linux and Windows (NFR-008): git's own commands, ``pathlib`` paths,
 no symlinks, no case-sensitivity assumptions.
+
+Outcomes are compared by value, never by identity: ``tests/upgrade/test_auto_discovery.py``
+re-imports the migration modules, after which a module-level enum import here
+names a different class object than the one the re-imported module returns.
 """
 
 from __future__ import annotations
@@ -22,9 +26,12 @@ import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.upgrade.ledger import MigrationLedger
+from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.registry import migration_settled
+from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.migrations.m_4_0_0rc8_lane_checkout_status_exclusion import (
     MIGRATION_ID,
-    LaneCheckoutOutcome,
     LaneCheckoutStatusExclusionMigration,
     migrate_lane_checkouts,
 )
@@ -152,7 +159,7 @@ def test_migration_excludes_clean_lane_worktree(tmp_path: Path) -> None:
 
     item = _only(repo)
 
-    assert item.outcome is LaneCheckoutOutcome.EXCLUDED
+    assert item.outcome == "excluded"
     assert item.lane_id == "lane-a"
     assert _sparse_on(_lane(repo))
     assert not _copy(repo).exists(), "a clean copy leaves the disk"
@@ -166,7 +173,7 @@ def test_migration_flags_redundant_dirty_copy(tmp_path: Path) -> None:
 
     item = _only(repo)
 
-    assert item.outcome is LaneCheckoutOutcome.FLAGGED_REDUNDANT
+    assert item.outcome == "flagged_redundant"
     assert item.event_ids_only_in_lane == ()
     assert _sparse_on(_lane(repo))
     assert _copy(repo).exists(), "git keeps a locally modified status file on disk"
@@ -179,7 +186,7 @@ def test_migration_refuses_lane_only_event_ids_untouched(tmp_path: Path) -> None
 
     item = _only(repo)
 
-    assert item.outcome is LaneCheckoutOutcome.REFUSED_LANE_ONLY_EVENTS
+    assert item.outcome == "refused_lane_only_events"
     assert item.event_ids_only_in_lane == ("01M6QY1MLANEONLY0000000001",)
     assert _fingerprint(repo) == before, "a refused worktree is left byte-for-byte untouched"
     result = LaneCheckoutStatusExclusionMigration().apply(repo)
@@ -201,7 +208,7 @@ def test_migration_skips_mid_rebase(tmp_path: Path) -> None:
 
     item = _only(repo)
 
-    assert item.outcome is LaneCheckoutOutcome.SKIPPED_MID_OPERATION
+    assert item.outcome == "skipped_mid_operation"
     assert _fingerprint(repo) == before
     subprocess.run(["git", "-C", str(lane), "rebase", "--abort"], capture_output=True, check=False)
 
@@ -215,7 +222,7 @@ def test_migration_second_run_changes_nothing(tmp_path: Path) -> None:
 
     second = migrate_lane_checkouts(repo, dry_run=False)
 
-    assert [item.outcome for item in second] == [LaneCheckoutOutcome.ALREADY_EXCLUDED]
+    assert [item.outcome for item in second] == ["already_excluded"]
     assert _fingerprint(repo) == after_first, "a second run changes 0 files, refs and sparse configurations"
     assert LaneCheckoutStatusExclusionMigration().apply(repo).changes_made == []
 
@@ -257,3 +264,99 @@ def test_not_a_git_repository_is_not_applicable(tmp_path: Path) -> None:
     assert migration.clone_local_effect is True
     assert not migration.detect(project)
     assert migration.apply(project).changes_made == []
+
+
+def _upgrade_once(repo: Path) -> tuple[object, str]:
+    """One pass of this migration through the production runner (ledger selection, detect, can_apply, apply, record)."""
+    migration = LaneCheckoutStatusExclusionMigration()
+    return MigrationRunner(repo)._apply_migration(migration, ProjectMetadata.load(repo / ".kittify"), dry_run=False)
+
+
+def _settled(repo: Path) -> bool:
+    return migration_settled(MigrationLedger(repo), LaneCheckoutStatusExclusionMigration())
+
+
+def test_can_apply_refuses_while_a_lane_holds_lane_only_events(tmp_path: Path) -> None:
+    """The refusal names the lane, the lane-only ids and the remedy; it is not an error."""
+    repo = _project(tmp_path)
+    _lane_append(repo, "01M6QY1MLANEONLY0000000003")
+
+    ok, reason = LaneCheckoutStatusExclusionMigration().can_apply(repo)
+
+    assert not ok
+    assert "01M6QY1MLANEONLY0000000003" in reason
+    assert "lane-a" in reason
+    assert "spec-kitty upgrade" in reason
+
+
+def test_refused_lane_is_retried_on_next_upgrade_once_reconciled(tmp_path: Path) -> None:
+    """B2: an incomplete run never settles the migration; the next upgrade excludes the reconciled lane."""
+    repo = _project(tmp_path, lanes=("lane-a", "lane-b"))
+    _lane_append(repo, "01M6QY1MLANEONLY0000000004", "lane-b")
+    before = _copy(repo, "lane-b").read_bytes()
+
+    first, first_status = _upgrade_once(repo)
+
+    assert first_status == "skipped", "an incomplete run is a skip: the upgrade does not fail"
+    assert first.success
+    assert any("01M6QY1MLANEONLY0000000004" in warning for warning in first.warnings), first.warnings
+    assert not _settled(repo), "a run that left a lane unexcluded must not settle the migration"
+    assert _copy(repo, "lane-b").read_bytes() == before, "the refused lane copy is untouched"
+
+    _surface_append(repo, "01M6QY1MLANEONLY0000000004")  # the operator records the event on the surface
+
+    second, second_status = _upgrade_once(repo)
+
+    assert second_status == "applied", second.warnings
+    assert _settled(repo)
+    assert _sparse_on(_lane(repo, "lane-a"))
+    assert _sparse_on(_lane(repo, "lane-b"))
+
+
+def test_mid_rebase_lane_is_retried_on_next_upgrade(tmp_path: Path) -> None:
+    """A lane skipped mid-operation also leaves the migration unsettled until the operation ends."""
+    repo = _project(tmp_path)
+    rebase_dir = Path(_git(_lane(repo), "rev-parse", "--path-format=absolute", "--git-path", "rebase-merge").strip())
+    rebase_dir.mkdir(parents=True)
+
+    _, first_status = _upgrade_once(repo)
+    assert first_status == "skipped"
+    assert not _settled(repo)
+
+    rebase_dir.rmdir()
+    _, second_status = _upgrade_once(repo)
+    assert second_status == "applied"
+    assert _settled(repo)
+    assert _sparse_on(_lane(repo))
+
+
+def test_doctor_names_lanes_lacking_the_exclusion_with_a_remedy(tmp_path: Path) -> None:
+    """B2: a lane left unexcluded is reported by ``doctor sparse-checkout``, with its remedy."""
+    from specify_cli.cli.commands._sparse_checkout_doctor import LANE_STATUS_NOT_EXCLUDED, find_lanes_lacking_exclusion
+
+    repo = _project(tmp_path, lanes=("lane-a", "lane-b"))
+    _lane_append(repo, "01M6QY1MLANEONLY0000000005", "lane-b")
+
+    findings = {finding.lane_id: finding for finding in find_lanes_lacking_exclusion(repo, fix=False)}
+
+    assert set(findings) == {"lane-a", "lane-b"}
+    assert all(finding.code == LANE_STATUS_NOT_EXCLUDED for finding in findings.values())
+    assert "01M6QY1MLANEONLY0000000005" in findings["lane-b"].detail
+    assert "spec-kitty upgrade" in findings["lane-b"].remedy
+    assert "doctor sparse-checkout --fix" in findings["lane-a"].remedy
+    assert not _sparse_on(_lane(repo, "lane-a")), "a report changes nothing"
+
+
+def test_doctor_fix_excludes_safe_lanes_and_keeps_reporting_the_refused_one(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._sparse_checkout_doctor import find_lanes_lacking_exclusion
+
+    repo = _project(tmp_path, lanes=("lane-a", "lane-b"))
+    _lane_append(repo, "01M6QY1MLANEONLY0000000006", "lane-b")
+    before = _copy(repo, "lane-b").read_bytes()
+
+    remaining = find_lanes_lacking_exclusion(repo, fix=True)
+
+    assert [finding.lane_id for finding in remaining] == ["lane-b"]
+    assert _sparse_on(_lane(repo, "lane-a"))
+    assert _copy(repo, "lane-b").read_bytes() == before
+    assert find_lanes_lacking_exclusion(repo, fix=False) == remaining

@@ -1,9 +1,11 @@
 """FR-045: the ``LANE_STATUS_AUTHORED`` doctor finding.
 
 Mission ``lane-worktree-model-hardening-01M6QY1M`` WP10 (S6). A live lane
-branch whose Mission status files differ from ``merge-base(lane,
-consolidation base)`` carries a lane-authored status change. The comparison is
-against the merge-base, so coordination bytes merged into the lane do not count.
+branch carries a lane-authored status change when a commit of the lane's own
+(reachable from the lane, from none of the status-surface branches) touches the
+Mission status files. Status bytes merged into the lane from the surface
+(coordination, or the target branch of a ``lanes`` Mission) do not count, also
+after the surface branch has moved on since the lane was cut.
 """
 
 from __future__ import annotations
@@ -41,14 +43,16 @@ def _commit_on(repo: Path, branch: str, rel: str, text: str, message: str) -> No
     _git(repo, "checkout", "-q", "main")
 
 
-def _project(tmp_path: Path) -> tuple[Path, str]:
+def _project(tmp_path: Path, *, topology: str = "lanes_with_coord", lanes: tuple[str, ...] = ("lane-a",)) -> tuple[Path, str]:
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test")
     _git(repo, "config", "commit.gpgsign", "false")
-    meta = {"mission_slug": _SLUG, "mission_id": _MISSION_ID, "topology": "lanes_with_coord", "coordination_branch": _COORD, "target_branch": "main"}
+    meta: dict[str, str] = {"mission_slug": _SLUG, "mission_id": _MISSION_ID, "topology": topology, "target_branch": "main"}
+    if topology == "lanes_with_coord":
+        meta["coordination_branch"] = _COORD
     lane_dir = lane_mission_dir_name_from_meta(_SLUG, meta)
     primary = repo / "kitty-specs" / _SLUG
     primary.mkdir(parents=True)
@@ -61,7 +65,7 @@ def _project(tmp_path: Path) -> tuple[Path, str]:
             mission_id=_MISSION_ID,
             mission_branch="kitty/mission-s6doc-01M6QY1M",
             target_branch="main",
-            lanes=[ExecutionLane(lane_id="lane-a", wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)],
+            lanes=[ExecutionLane(lane_id=lane, wp_ids=("WP01",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0) for lane in lanes],
             computed_at="2026-11-06T12:00:00+00:00",
             computed_from="test",
         ),
@@ -71,8 +75,9 @@ def _project(tmp_path: Path) -> tuple[Path, str]:
     (status_dir / "status.events.jsonl").write_text('{"event_id": "E1"}\n', encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "seed")
-    _git(repo, "branch", _COORD)
-    _git(repo, "branch", _LANE, _COORD)
+    if topology == "lanes_with_coord":
+        _git(repo, "branch", _COORD)
+        _git(repo, "branch", _LANE, _COORD)
     return repo, lane_dir
 
 
@@ -101,4 +106,36 @@ def test_doctor_probe_reports_lane_authored_change(tmp_path: Path) -> None:
     assert finding.lane_branch == _LANE
     assert finding.mission == _SLUG
     assert finding.paths == (events,)
-    assert finding.merge_base == _git(repo, "merge-base", _LANE, _COORD).strip()
+    lane_status_commit = _git(repo, "log", "-1", "--format=%H", _LANE, "--", events).strip()
+    assert finding.commits == (lane_status_commit,)
+
+
+def test_doctor_probe_ignores_surface_status_reached_through_a_dependency_lane(tmp_path: Path) -> None:
+    """B3 regression, the shape of a ``lanes`` Mission: no coordination branch, the status surface is the target.
+
+    Lanes are cut from the Mission branch. The target then records status
+    transitions; a dependency lane merges the target (the planning lane), and
+    the lane merges that dependency lane. Every status byte the lane carries is
+    on the target, so nothing is lane-authored, although the target moved on
+    after the lane was cut and the lane's blob differs from the Mission branch.
+    """
+    repo, lane_dir = _project(tmp_path, topology="lanes", lanes=("lane-a", "lane-b"))
+    mission_branch = "kitty/mission-s6doc-01M6QY1M"
+    lane_b = "kitty/mission-s6doc-lane-b"
+    events = f"kitty-specs/{lane_dir}/status.events.jsonl"
+    _git(repo, "branch", mission_branch)
+    _git(repo, "branch", _LANE, mission_branch)
+    _git(repo, "branch", lane_b, mission_branch)
+    _commit_on(repo, "main", events, '{"event_id": "E1"}\n{"event_id": "T1"}\n', "chore(spec-kitty): status transition WP01")
+    _commit_on(repo, lane_b, "b.txt", "b\n", "lane-b code")
+    _git(repo, "checkout", "-q", lane_b)
+    _git(repo, "merge", "-q", "--no-edit", "main")
+    _git(repo, "checkout", "-q", _LANE)
+    _git(repo, "merge", "-q", "--no-edit", lane_b)
+    _git(repo, "checkout", "-q", "main")
+    _commit_on(repo, "main", events, '{"event_id": "E1"}\n{"event_id": "T1"}\n{"event_id": "T2"}\n', "chore(spec-kitty): status transition WP02")
+
+    assert find_lane_status_authored(repo) == []
+
+    _commit_on(repo, _LANE, events, '{"event_id": "E1"}\n{"event_id": "T1"}\n{"event_id": "LANE"}\n', "hand-made lane status commit")
+    assert [finding.lane_branch for finding in find_lane_status_authored(repo)] == [_LANE]
