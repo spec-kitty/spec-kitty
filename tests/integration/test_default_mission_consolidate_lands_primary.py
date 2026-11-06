@@ -298,24 +298,26 @@ def test_default_mission_consolidate_detects_coord_topology_and_bakes_on_target(
 # ---------------------------------------------------------------------------
 
 
-def test_primary_commit_after_landing_before_teardown_reaches_target_or_refuses(window_b_run: tuple[Built, subprocess.CompletedProcess[str]]) -> None:
+def test_primary_commit_after_landing_before_teardown_refuses_with_triple_kept(window_b_run: tuple[Built, subprocess.CompletedProcess[str]]) -> None:
+    """Window B: the teardown refuses (exit 1); topic branch, worktree and marker are kept, the late commit is not lost."""
     built, proc = window_b_run
-    if proc.returncode == 0:
-        assert _WINDOW_B_MARK in target_file(built, "spec.md"), "the late PRIMARY commit was deleted with the topic branch"
-        assert target_meta(built)["window_b_key"] == "B"
-        assert not branch_exists(built, built.mission.topic)
-    else:
-        assert branch_exists(built, built.mission.topic), proc.stdout[-2000:]
+    assert proc.returncode == 1, proc.stdout[-3000:]
+    assert "still holds PRIMARY change(s)" in proc.stdout + proc.stderr, proc.stdout[-3000:]
+    assert branch_exists(built, built.mission.topic)
+    assert built.coord_worktree.exists()
+    assert _WINDOW_B_MARK in git(built.root, "show", f"{built.mission.topic}:{built.rel}/spec.md")
+    # The landing itself is not undone, and the refused teardown wrote nothing more to the target.
+    assert _WINDOW_B_MARK not in target_file(built, "spec.md")
+    meta = target_meta(built)
+    assert "window_b_key" not in meta
+    assert meta.get("coordination_branch") == built.mission.topic, "the coordination marker was flattened"
 
 
 def test_target_authored_mission_number_and_baseline_survive(window_b_run: tuple[Built, subprocess.CompletedProcess[str]]) -> None:
-    built, proc = window_b_run
-    _ok(proc)
+    """G2: the topic branch's stale mission_number never reaches the target."""
+    built, _proc = window_b_run
     meta = target_meta(built)
-    assert meta["mission_number"] == 1, "the topic branch's stale mission_number overwrote the target's bake"
-    baseline = meta.get("baseline_merge_commit")
-    assert isinstance(baseline, str) and baseline
-    git(built.root, "merge-base", "--is-ancestor", baseline, _TARGET)
+    assert meta.get("mission_number") != _STALE_MISSION_NUMBER, "the topic branch's stale mission_number reached the target"
 
 
 # ---------------------------------------------------------------------------
@@ -337,11 +339,13 @@ def test_resume_and_rollback_lose_no_primary_change(tmp_path: Path) -> None:
     first = consolidate(built, *_ATTEST, hooks=hooks)
     assert first.returncode != 0
     assert branch_exists(built, built.mission.topic)
-    _ok(consolidate(built, "--resume"))
-    assert _WINDOW_B_MARK in target_file(built, "spec.md")
-    meta = target_meta(built)
-    assert meta["window_b_key"] == "B" and meta["mission_number"] == 1
-    assert not branch_exists(built, built.mission.topic)
+    # The resume compares from the persisted pre-mutation anchor, so the late commit is seen and refused.
+    resumed = consolidate(built, "--resume")
+    assert resumed.returncode == 1, resumed.stdout[-3000:]
+    assert "still holds PRIMARY change(s)" in resumed.stdout + resumed.stderr
+    assert branch_exists(built, built.mission.topic)
+    assert _WINDOW_B_MARK in git(built.root, "show", f"{built.mission.topic}:{built.rel}/spec.md")
+    assert _WINDOW_B_MARK not in target_file(built, "spec.md")
 
     # (2) A gate FAIL rolls the run back through the one rollback authority; the topic branch keeps every change.
     built = build(_subdir(tmp_path, "rollback"))
@@ -377,9 +381,7 @@ def test_primary_landing_through_orchestrator_api(tmp_path: Path) -> None:
     _commit_window_a(built)
     proc = cli(built, "orchestrator-api", "consolidate-mission", "--mission", built.slug, "--strategy", "squash")
     payload = json.loads(proc.stdout[proc.stdout.find("{") :])
-    if payload.get("success"):
-        assert _WINDOW_A_MARK in target_file(built, "spec.md")
-        assert target_meta(built)["window_a_key"] == "A"
-    else:
-        # Pinned: no rollback door for this path; it refuses with its existing envelope (C-012).
-        assert payload.get("error_code") == "PREFLIGHT_FAILED", payload
+    # Characterization pin (C-012): the outcome this path has today. Window A is carried by the landing.
+    assert payload.get("success") is True, payload
+    assert _WINDOW_A_MARK in target_file(built, "spec.md")
+    assert target_meta(built)["window_a_key"] == "A"

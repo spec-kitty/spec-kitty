@@ -124,24 +124,24 @@ def test_unlanded_topic_primary_paths_names_late_changes_only(topic_repo: tuple[
     assert unlanded == [f"{_REL}/meta.json", f"{_REL}/spec.md"]
 
 
-def test_topic_primary_landing_bytes_keeps_target_authored_meta(topic_repo: tuple[Path, str]) -> None:
-    from specify_cli.consolidation.bookkeeping_projection import topic_primary_landing_bytes
+def test_unlanded_topic_primary_paths_ignores_target_authored_meta_keys(topic_repo: tuple[Path, str]) -> None:
+    """G2: a topic-side change to a target-authored key alone is not an unlanded change."""
+    from specify_cli.consolidation.bookkeeping_projection import unlanded_topic_primary_paths
 
     repo, base = topic_repo
-    raw = topic_primary_landing_bytes(repo, f"{_REL}/meta.json", base=base, topic_ref="topic", target_ref="main")
-    assert raw is not None
-    meta = json.loads(raw)
-    assert meta == {"mission_number": 1, "friendly_name": "Q", "extra": "x", "baseline_merge_commit": "abc"}
-    assert topic_primary_landing_bytes(repo, f"{_REL}/spec.md", base=base, topic_ref="topic", target_ref="main") == b"spec\nlate\n"
+    _git(repo, "checkout", "-q", "topic")
+    (repo / _REL / "spec.md").write_text("spec\n", encoding="utf-8")
+    _write(repo, "meta.json", json.dumps({"mission_number": 99, "friendly_name": "P"}) + "\n")
+    _commit(repo, "only target-authored keys differ")
+    _git(repo, "checkout", "-q", "main")
+    assert unlanded_topic_primary_paths(repo, _SLUG, base=base, topic_ref="topic", target_ref="main") == []
 
 
 def test_unlanded_topic_primary_paths_empty_once_landed(topic_repo: tuple[Path, str]) -> None:
-    from specify_cli.consolidation.bookkeeping_projection import topic_primary_landing_bytes, unlanded_topic_primary_paths
+    from specify_cli.consolidation.bookkeeping_projection import unlanded_topic_primary_paths
 
     repo, base = topic_repo
-    for rel in unlanded_topic_primary_paths(repo, _SLUG, base=base, topic_ref="topic", target_ref="main"):
-        content = topic_primary_landing_bytes(repo, rel, base=base, topic_ref="topic", target_ref="main")
-        assert content is not None
-        (repo / rel).write_bytes(content)
+    _write(repo, "spec.md", "spec\nlate\n")
+    _write(repo, "meta.json", json.dumps({"mission_number": 1, "friendly_name": "Q", "extra": "x", "baseline_merge_commit": "abc"}) + "\n")
     _commit(repo, "land")
     assert unlanded_topic_primary_paths(repo, _SLUG, base=base, topic_ref="topic", target_ref="main") == []
