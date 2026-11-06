@@ -10,6 +10,7 @@ tree.
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -30,6 +31,7 @@ from specify_cli.gitignore_manager import _has_git_control_path
 from specify_cli.migration.legacy_charter_gate import find_checkout_root
 from specify_cli.mission_metadata import _has_no_git_anchor
 from specify_cli.task_utils.support import find_repo_root
+from tests._support.git_cli import git_out
 
 CEILING_ENV = "GIT_CEILING_DIRECTORIES"
 
@@ -185,14 +187,20 @@ def test_env_file_loader_still_finds_a_repo_below_the_ceiling(ambient_repo: tupl
 
 
 def test_coordination_legacy_resolution_does_not_adopt_a_worktree_above_the_ceiling(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    _outer, work = ambient_repo
+    """A real enclosing checkout must not become the lane destination; without the ceiling it does."""
+    outer, work = ambient_repo
+    # A real repository, so ``git symbolic-ref HEAD`` can actually answer: the refusal has
+    # to come from the ceiling, not from a stub that makes reaching git fail.
+    shutil.rmtree(outer / ".git")
+    git_out(outer, "init", "--quiet", "--template=", "-b", "main")
     monkeypatch.chdir(work)
 
-    def _fail(*_args: object, **_kwargs: object) -> bytes:
-        raise AssertionError("the walk must not reach git for a worktree above the ceiling")
+    # The same fixture with no ceiling is the foreign destination the unbounded walk
+    # adopted; the ceiling is the only reason the bounded call refuses.
+    monkeypatch.delenv(CEILING_ENV)
+    assert legacy_resolution._resolve_legacy_lane_destination(work) == (outer, "main")
 
-    monkeypatch.setattr(legacy_resolution.subprocess, "check_output", _fail)
-
+    monkeypatch.setenv(CEILING_ENV, str(outer / "ceiling"))
     with pytest.raises(legacy_resolution.BookkeepingLegacyResolutionFailed):
         legacy_resolution._resolve_legacy_lane_destination(work)
 
