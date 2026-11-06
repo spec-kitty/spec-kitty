@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import doctor as doctor_module
 from specify_cli.git.destructive_guard import DestructiveOpRefused
+from specify_cli.git import destructive_guard
 from specify_cli.workspace import landed_worktrees, process_probe
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
@@ -337,10 +338,10 @@ def test_fix_and_prune_removes_husk_then_landed_worktree(repo: Path) -> None:
 def test_guard_refusal_exits_one_and_lists_the_refusal(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path, _ = _landed_worktree(repo)
 
-    def refuse(worktree: Path, **_kwargs: object) -> None:
+    def refuse(worktree: Path, *_args: object, **_kwargs: object) -> None:
         raise DestructiveOpRefused(error_code="WORKTREE_DIRTY", remediation="commit first", worktree_path=worktree)
 
-    monkeypatch.setattr(landed_worktrees, "guarded_worktree_remove", refuse)
+    monkeypatch.setattr(destructive_guard, "assert_worktree_clean", refuse)
 
     code, out = _invoke("--prune")
     assert code == 1

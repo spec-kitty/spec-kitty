@@ -635,7 +635,9 @@ spec-kitty doctor workspaces --prune --remote upstream
   or `.env`. A remote name the repository does not configure is an error, not
   an all-unproven report.
 - **`--prune`** removes only the landed worktrees, then their local branches.
-  It never uses `--force`. It checks each worktree again right before it
+  It never uses `--force`. Every step it takes discharges the proof obligations
+  of [ADR 2026-11-06-1](../../adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md).
+  It checks each worktree again right before it
   removes it, against the same `--remote`, and deletes the branch only while it
   still points at the tip it proved landed (a compare-and-swap), so a branch
   that moves in the meantime is kept and reported as `BRANCH_MOVED`. Before it
@@ -749,8 +751,9 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   worktree; restore it with
   `git branch <name> refs/spec-kitty/discarded/reflog/<sha>`.
 
-  Two things are deliberately not recorded: a commit that another ref still
-  reaches, and one the prune can **prove** is already on `<remote>/<primary>`.
+  Two things are deliberately not recorded: a commit that a local branch, tag
+  or `refs/spec-kitty/` ref still reaches (a remote-tracking ref does not count:
+  the next fetch can rewrite it), and one the prune can **prove** is already on `<remote>/<primary>`.
   "Prove" is narrow: every commit `git cherry` reports for it reads
   patch-equivalent, no merge sits between it and the primary, and the check
   itself succeeded and was not empty. That proof is what keeps a rebase landing

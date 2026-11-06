@@ -34,9 +34,12 @@ either routed through the one guard (``git/destructive_guard.py``) or it fails.
    which skips the unique-commit check, is passed only by
    ``missions/_create.py::_delete_branch`` (``--force-recreate``),
    ``cli/commands/mission_type.py::_discard_own_mission_branch``
-   (``mission close --discard``) and
-   ``workspace/landed_worktrees.py::_delete_landed_branch`` (the
-   landed-worktree prune, ``LANDED_INTENT``, #7173).
+   (``mission close --discard``). The landed-worktree prune's ``LANDED_INTENT``
+   delete (#7173) lives inside the guard itself
+   (``destructive_guard.py::_delete_landed_branch``, reached only through
+   ``guarded_landed_removal``, ADR 2026-11-06-1), where it must name the tip it
+   approved; the prune calls ``guarded_landed_removal`` and no lower-level
+   destructive primitive.
 5. **Spelling-independent gates.** No ``"--hard"`` string constant anywhere outside the guard modules, and no
    ``shell=True`` call whose command string holds a destructive git fragment.
 6. **Non-vacuity.** Every needle detects a planted literal through the SAME
@@ -615,7 +618,6 @@ _OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset(
     {
         ("src/specify_cli/missions/_create.py", "_delete_branch"),
         ("src/specify_cli/cli/commands/mission_type.py", "_discard_own_mission_branch"),
-        ("src/specify_cli/workspace/landed_worktrees.py", "_delete_landed_branch"),
     }
 )
 _GUARDED_BRANCH_DELETE = "guarded_branch_delete"
@@ -711,9 +713,52 @@ def test_every_landed_branch_delete_names_the_tip_it_approved() -> None:
     }
 
     assert live == set(), f"LANDED branch delete(s) without an expected_tip: {sorted(live)}"
-    assert ("src/specify_cli/workspace/landed_worktrees.py", "_delete_landed_branch") in _OPERATOR_INTENT_CALLERS, (
-        "the pin must keep seeing the landed caller; a renamed caller silently empties the check above"
-    )
+
+
+_GUARD_MODULE = REPO_ROOT / "src" / "specify_cli" / "git" / "destructive_guard.py"
+
+
+def test_the_guards_own_landed_delete_names_the_tip_it_approved() -> None:
+    """#7212 / ADR 2026-11-06-1 O5: the one LANDED delete, inside the guard, is bound to a tip.
+
+    The scan above skips the guard module, so this pins the call that matters by name:
+    the landed delete exists exactly once and passes ``expected_tip``.
+    """
+    landed = [qualname for _, qualname in _operator_intent_callers(_GUARD_MODULE) if qualname == "_delete_landed_branch"]
+
+    assert landed == ["_delete_landed_branch"], "the guard's landed delete moved or multiplied; re-pin it"
+    assert _landed_deletes_without_expected_tip(_GUARD_MODULE) == []
+
+
+_PRUNE_MODULE = REPO_ROOT / "src" / "specify_cli" / "workspace" / "landed_worktrees.py"
+_LOWER_LEVEL_PRIMITIVES = frozenset(
+    {"guarded_branch_delete", "guarded_worktree_remove", "keep_detached_tip", "keep_reflog_tip", "guarded_tree_delete", "guarded_reset_hard"}
+)
+
+
+def _called_names(path: Path) -> set[str]:
+    called: set[str] = set()
+    for node in _ast.walk(_ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, _ast.Call):
+            func = node.func
+            called.add(func.attr if isinstance(func, _ast.Attribute) else func.id if isinstance(func, _ast.Name) else "")
+    return called
+
+
+def test_the_prune_destroys_only_through_the_landed_removal_entry() -> None:
+    """ADR 2026-11-06-1: every proof obligation is enforced in one place, so the prune may not reach past it."""
+    called = _called_names(_PRUNE_MODULE)
+
+    assert "guarded_landed_removal" in called, "the prune no longer routes through the guard entry"
+    assert called & _LOWER_LEVEL_PRIMITIVES == set()
+
+
+def test_the_prune_entry_scanner_detects_a_planted_bypass(tmp_path: Path) -> None:
+    """Non-vacuity: the same scan sees a direct primitive call."""
+    planted = tmp_path / "planted_bypass.py"
+    planted.write_text("def sneaky(root, path):\n    guarded_worktree_remove(path, retain=False)\n", encoding="utf-8")
+
+    assert _called_names(planted) & _LOWER_LEVEL_PRIMITIVES == {"guarded_worktree_remove"}
 
 
 def test_landed_delete_scanner_detects_a_planted_unbound_caller(tmp_path: Path) -> None:
