@@ -70,7 +70,7 @@ def _context_mission_dir(repo: Path) -> Path:
     from specify_cli.cli.commands.agent.context import app
 
     with patch("specify_cli.cli.commands.agent.context.locate_project_root", return_value=repo):
-        result = runner.invoke(app, ["resolve", "--action", "tasks", "--mission", SLUG, "--json"])
+        result = runner.invoke(app, ["--action", "tasks", "--mission", SLUG, "--json"])
     assert result.exit_code == 0, result.output
     return Path(str(_json_payload(result.stdout)["mission_dir"]))
 

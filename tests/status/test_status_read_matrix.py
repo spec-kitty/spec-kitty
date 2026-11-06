@@ -360,7 +360,7 @@ MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     # changes in WP06 (cross-cwd parity) for the others.
     (LANES_WITH_COORD, MATERIALIZED, CWD_COORD): _cell(
         COORD,
-        **{ANCHOR: COORD, CANDIDATE: COORD, LOAD: ROOT, TYPED: NESTED_MISSING, COMMITTED: ROOT},
+        **{ANCHOR: COORD, CANDIDATE: COORD, LOAD: COORD, TYPED: COORD, COMMITTED: ROOT},
     ),
     # Empty coordination worktree whose branch holds no log yet: the declared pre-seed
     # WRITE_CHECKOUT fallback (WP05, FR-003; the surface carries ``fallback_reason``).
@@ -369,7 +369,7 @@ MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     # changes in WP06 (cross-cwd parity) for the legacy entry points
     (LANES_WITH_COORD, EMPTY, CWD_COORD): _cell(
         ROOT,
-        **{ANCHOR: ROOT, CANDIDATE: COORD_MISSING, LOAD: ROOT, TYPED: NESTED_MISSING, COMMITTED: ROOT},
+        **{ANCHOR: ROOT, CANDIDATE: COORD_MISSING, LOAD: ROOT, TYPED: ROOT, COMMITTED: ROOT},
     ),
     # Unmaterialized coordination worktree: the door reads the committed branch (WP05, FR-003);
     # the legacy entry points still compose a missing path or read the root's stale copy

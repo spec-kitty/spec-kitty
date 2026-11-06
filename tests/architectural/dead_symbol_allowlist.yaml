@@ -350,7 +350,17 @@ categories:
       and by the WP06 reconciliation test suite (tests/consolidation/test_reconciliation.py), not yet
       imported from a second src/ module. External consumers land with the Epic #5001 follow-ups.'
     requires_issue: false
+  category_c_status_read_door_7277:
+    rationale: 'C. The one status read door (#7277, ADR 2026-11-06-2, Mission lane-worktree-model-hardening
+      WP05). ``read_status_events`` is a read function of the door''s data-model contract; its src/ callers
+      are the status readers WP06/WP07 move onto the door (the empty-allowlist call-site gate of FR-006).
+      Burns down when WP06 lands.'
+    requires_issue: true
 entries:
+- module: specify_cli.status.read_surface
+  name: read_status_events
+  category: category_c_status_read_door_7277
+  issue: '#7277'
 - module: charter.activation._catalog_miss
   name: CharterCatalogMissError
   category: category_a_slice_f_deferred

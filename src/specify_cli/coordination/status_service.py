@@ -264,8 +264,12 @@ def _run_cat_file_batch(repo_root: Path, request: bytes, *, ref: str, path: str)
     return result.stdout
 
 
-def ref_exists(repo_root: Path, ref: str) -> bool:
+def ref_names_object(repo_root: Path, ref: str) -> bool:
     """True when *ref* names an object in *repo_root* (``rev-parse --verify``; no object read).
+
+    Named apart from ``specify_cli.lanes._git.ref_exists``, which peels to a commit
+    (``<ref>^{commit}``) and so answers ``False`` for a ref naming a missing object; this one
+    answers ``True`` there, so the object read reports the corruption (renamed in WP05).
 
     The one home of the declared ref-missing arm (FR-004) that a status read door
     checks before :func:`read_status_ref`: a ref that does not resolve, and a
@@ -510,6 +514,6 @@ __all__ = [
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
     "read_event_stream_log",
-    "ref_exists",
+    "ref_names_object",
     "wp_lane_actor_from_events",
 ]
