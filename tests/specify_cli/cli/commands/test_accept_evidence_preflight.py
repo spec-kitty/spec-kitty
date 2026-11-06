@@ -222,9 +222,9 @@ def _unmaterialized(tmp_root: Path) -> CoordinationWorktreeUnmaterialized:
     )
 
 
-# #7222 / #7223 (operator ruling 2026-11-05): when the evidence check cannot even be computed,
-# --diagnose exits 0 and leaves the blocker to the readiness report, with a visible skip note;
-# without --diagnose the run refuses with exit 1 and a typed code, never a raw traceback.
+# #7222 / #7223: corrupt manifests and unmaterialized coordination yield a visible evidence
+# skip under --diagnose; other modes refuse with a typed code. An unreadable status log is
+# never downgraded to a skip, including in diagnosis (narrow #7247 landing scope).
 
 
 def test_diagnose_skips_the_evidence_check_on_a_corrupt_lanes_manifest(evidence: Evidence) -> None:
@@ -307,21 +307,44 @@ def test_an_unreadable_status_surface_refuses_with_a_typed_code(evidence: Eviden
 
 
 @pytest.mark.parametrize("error", _UNREADABLE_LOGS)
-def test_diagnose_skips_the_evidence_check_on_an_unreadable_status_log(evidence: Evidence, error: Exception) -> None:
-    """Operator ruling: --diagnose exits 0 and lists the skip, like the other uncomputable cases."""
+def test_diagnose_refuses_an_unreadable_status_log_with_the_typed_code(evidence: Evidence, error: Exception) -> None:
+    """Diagnosis does not bypass unreadable canonical status (narrow #7247 scope)."""
     evidence.report_error = error
 
     result = evidence.harness.invoke("--mission", _SLUG, "--diagnose")
 
     payload = json.loads(result.output)
-    assert result.exit_code == 0, result.output
-    assert payload["diagnose"] is True
-    assert "error_code" not in payload
-    skipped = [(item.check, item.detail) for item in evidence.harness.summary.skipped_checks]
-    assert len(skipped) == 1 and skipped[0][0] == "implementation_evidence"
-    assert skipped[0][1].startswith("implementation_evidence skipped: EVIDENCE_STATUS_UNREADABLE: ")
-    assert str(error) in skipped[0][1]
-    assert evidence.harness.summary.blocked_checks == []
+    assert result.exit_code == 1, result.output
+    assert payload["error_code"] == "EVIDENCE_STATUS_UNREADABLE"
+    assert payload["error_codes"] == ["EVIDENCE_STATUS_UNREADABLE"]
+    assert str(error) in payload["error"]
+    assert "skipped_checks" not in payload, "an unreadable log does not yield a readiness report"
+    assert evidence.harness.calls == []
+
+
+def test_an_invalid_utf8_status_log_refuses_with_the_typed_code(evidence: Evidence, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real store decoder's failure is translated, not left as a raw CLI exception."""
+    from specify_cli.consolidation.wp_evidence import mission_evidence_report
+    from specify_cli.lanes.persistence import read_lanes_json
+    from tests.lane_test_utils import write_single_lane_manifest
+
+    assert evidence.status_dir is not None
+    evidence.status_dir.mkdir(parents=True, exist_ok=True)
+    write_single_lane_manifest(evidence.status_dir)
+    evidence.lanes = read_lanes_json(evidence.status_dir)
+    status_log = evidence.status_dir / "status.events.jsonl"
+    invalid_log = b'{"event_id": "\xff\xfe"}\n'
+    status_log.write_bytes(invalid_log)
+    monkeypatch.setattr(accept_module, "mission_evidence_report", mission_evidence_report)
+
+    result = evidence.harness.invoke("--mission", _SLUG)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["error_code"] == "EVIDENCE_STATUS_UNREADABLE"
+    assert payload["error_codes"] == ["EVIDENCE_STATUS_UNREADABLE"]
+    assert "utf-8" in payload["error"]
+    assert status_log.read_bytes() == invalid_log
     assert evidence.harness.calls == []
 
 
