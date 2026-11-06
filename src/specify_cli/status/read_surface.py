@@ -34,7 +34,7 @@ from __future__ import annotations
 import enum
 import subprocess
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -258,7 +258,8 @@ def _locate_mission(root: Path, mission: str) -> tuple[Path, str, Path]:
     """
     from specify_cli.coordination.surface_resolver import locate_status_mission
 
-    return locate_status_mission(root, mission)
+    located: tuple[Path, str, Path] = locate_status_mission(root, mission)
+    return located
 
 
 def _has_landed(primary_dir: Path) -> bool:
@@ -407,11 +408,17 @@ def _coordination_decision(facts: _MissionFacts, *, for_write: bool) -> _Decisio
         )
     if state is CoordState.MATERIALIZED:
         return _path_decision(facts.repo_root, coord_dir.name, coord_dir, StatusReadSource.COORD_WORKTREE, facts.topology, anchor=facts.primary_dir)
-    return _coord_ref_decision(facts, coord_dir, for_write=for_write)
+    return _coord_ref_decision(facts, coord_dir, for_write=for_write, worktree_present=state is CoordState.EMPTY)
 
 
-def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: bool) -> _Decision:
-    """Empty or unmaterialized: read the committed branch unless it holds no log yet (pre-seed)."""
+def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: bool, worktree_present: bool) -> _Decision:
+    """Empty or unmaterialized: read the committed branch unless it holds no log yet (pre-seed).
+
+    The legacy path projection of the pre-seed window keeps the path it named before the door
+    (WP05): the repository root checkout for an EMPTY worktree, the composed coordination path
+    for an unmaterialized one, so path-classifying callers (e.g. the WP status backfill's
+    live-coordination refusal) keep their answer until WP06/WP07 move them onto the door.
+    """
     from specify_cli.coordination.status_service import read_status_ref
 
     assert facts.coord_branch is not None
@@ -421,7 +428,7 @@ def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: boo
         prefetched = read_status_ref(facts.repo_root, ref, _ref_events_path(coord_dir.name))
         if prefetched.absent and facts.primary_dir.exists():
             reason = PRE_SEED_FALLBACK_REASON.format(branch=facts.coord_branch, events=_EVENTS_FILENAME)
-            return _path_decision(
+            decision = _path_decision(
                 facts.repo_root,
                 facts.mission_dir_name,
                 facts.primary_dir,
@@ -429,6 +436,9 @@ def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: boo
                 facts.topology,
                 fallback_reason=reason,
             )
+            if worktree_present:
+                return decision
+            return replace(decision, legacy_path=coord_dir / _EVENTS_FILENAME)
     return _Decision(
         topology=facts.topology,
         source=StatusReadSource.COORD_BRANCH_REF,
