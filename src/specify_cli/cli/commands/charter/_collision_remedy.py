@@ -54,6 +54,7 @@ def collision_remedy(repo_root: Path, error: SynthesisError) -> str | None:
         return None
     urn = error.colliding_urn
     kind, _, directive_id = urn.partition(":")
+    # A project profile is the project's to rename; every other non-directive node is upstream's.
     if kind == ArtifactKind.AGENT_PROFILE.value:
         return f"'{urn}' is declared by a project agent profile and by a lower layer. Give the project profile a profile-id no other layer declares."
     project_ids: frozenset[str] = frozenset()

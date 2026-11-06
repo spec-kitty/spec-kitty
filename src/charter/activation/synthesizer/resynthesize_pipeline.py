@@ -45,6 +45,7 @@ from kernel.charter_pack_paths import project_pack_root
 from .manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
+    _synthesized_urns,
     load_yaml as load_manifest,
 )
 from .reconcile import REACH_ONLY_KINDS as _REACH_ONLY_KINDS
@@ -212,9 +213,11 @@ def run(
            If absent → raise ``FileNotFoundError``.
         2. Load all provenance sidecars → build lookup maps.
         3. Call ``topic_resolver.resolve(topic, ...)`` → ``ResolvedTopic``.
-           Empty targets (EC-4) → return current manifest unchanged + diagnostic.
+           Empty targets (EC-4), or only hand-written ones → return current
+           manifest unchanged + diagnostic.
         4. Construct bounded ``SynthesisRequest`` objects for each target.
-        5. Call ``synthesize_pipeline.run_all()`` → ``[(body, prov), ...]``.
+        5. Call ``synthesize_pipeline.run_all()`` → ``[(body, prov), ...]``. Targets
+           it did not generate are dropped; none left → return as in step 3.
         6. Build the authoritative merged manifest: regenerated entries get
            fresh hashes; untouched entries retain prior ``content_hash``
            (FR-017).
@@ -324,6 +327,17 @@ def run(
             ),
         )
 
+    # #6768: a hand-written artifact has no generator, so running the pipeline for it
+    # could only fail on some unrelated missing input. Report it before any model call.
+    if all(_is_hand_authored(_repo_root, t) for t in resolved.targets):
+        names = ", ".join(t.urn for t in resolved.targets)
+        return ResynthesisResult(
+            manifest=existing_manifest,
+            resolved_topic=resolved,
+            is_noop=True,
+            diagnostic=f"Nothing to regenerate: {names} is hand-written, so synthesis has nothing to generate for it. Edit its file directly.",
+        )
+
     # ------------------------------------------------------------------
     # Step 4: Compute bounded target slugs + new run_id
     # ------------------------------------------------------------------
@@ -349,9 +363,8 @@ def run(
     # ------------------------------------------------------------------
     all_new_results = _run_bounded(bounded_request, adapter, target_slugs)
 
-    # #6768: the topic can name an artifact synthesis has no generator for, such as a
-    # directive the project authored by hand. Nothing is written for it, so saying
-    # "regenerated" (or refusing it as a collision) would both be false.
+    # #6768: a topic target the pipeline did not generate gets no write, so it must not
+    # reach the additive-only check or the "regenerated" report.
     generated_slugs = frozenset(prov.artifact_slug for _, prov in all_new_results)
     generated_targets = [t for t in resolved.targets if t.slug in generated_slugs]
     if not generated_targets:
@@ -360,10 +373,7 @@ def run(
             manifest=existing_manifest,
             resolved_topic=resolved,
             is_noop=True,
-            diagnostic=(
-                f"Nothing to regenerate: this run's synthesis targets do not include {names}. "
-                "If the project authored it by hand, edit its file directly."
-            ),
+            diagnostic=f"Nothing to regenerate: the current interview and activated directives do not produce {names}. No files changed.",
         )
     resolved = dataclasses.replace(resolved, targets=generated_targets)
 
@@ -456,6 +466,20 @@ def run(
 # ---------------------------------------------------------------------------
 # Internal helpers for loading project state
 # ---------------------------------------------------------------------------
+
+
+def _is_hand_authored(repo_root: Path, target: SynthesisTarget) -> bool:
+    """Whether *target*'s sidecar is a direct-write registration synthesis does not also own.
+
+    ``charter activate`` re-records a synthesized directive as direct-write too, so the
+    sidecar alone does not decide it (``manifest._synthesized_sidecar_urn``).
+    """
+    from .provenance import load_yaml as load_provenance  # noqa: PLC0415
+
+    sidecar = repo_root / _KITTIFY_DIRNAME / "charter" / "provenance" / f"{target.kind}-{target.slug}.yaml"
+    if not sidecar.is_file() or load_provenance(sidecar).adapter_id != "project-direct-write":
+        return False
+    return target.urn not in _synthesized_urns(repo_root, target.kind)
 
 
 def _load_project_artifacts_from_provenance(
