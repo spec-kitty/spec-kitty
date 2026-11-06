@@ -15,18 +15,14 @@ Two responsibilities:
    ``COORDINATION_WORKTREE_BRANCH_MISMATCH``) because automatic recovery
    could mask operator mistakes.
 
-2. **Lane sparse-checkout policy.**
-   :func:`register_lane_sparse_checkout` configures a lane worktree so
-   that ``kitty-specs/<slug>-<mid8>/status.events.jsonl`` and
-   ``status.json`` are absent from the lane filesystem. This is how
-   lane processes are *physically prevented* from writing the event log
-   — they cannot open a file that does not exist.
-
-Important gotcha: in linked git worktrees, ``.git`` is a *file*
-pointing to a per-worktree gitdir, not a directory. We therefore never
-write literally to ``<lane>/.git/info/sparse-checkout``; we resolve the
-real per-worktree gitdir path via
-``git rev-parse --git-path info/sparse-checkout``.
+2. **Lane sparse-checkout patterns.**
+   :func:`lane_status_exclusion_patterns` is the one definition of the
+   patterns that keep ``kitty-specs/<dir>/status.events.jsonl`` and
+   ``status.json`` off a lane checkout's disk. The one lane-checkout helper
+   (``specify_cli.lanes.lane_checkout.exclude_lane_status_files``) is the
+   only place that applies them (Mission WP09, FR-021, FR-040); the
+   sparse-checkout policy reads the same patterns to recognize them as
+   Mission-managed.
 """
 
 from __future__ import annotations
@@ -423,66 +419,3 @@ def lane_sparse_checkout_patterns(
     end with ``-<mid8>`` — protecting callers from double-suffixing.
     """
     return lane_status_exclusion_patterns(_compose_mission_dir(mission_slug, mid8))
-
-
-def register_lane_sparse_checkout(
-    lane_path: Path, mission_slug: str, mid8: str,
-) -> None:
-    """Configure a lane worktree's sparse-checkout policy from a slug and a mid8.
-
-    Wrapper over :func:`register_lane_status_exclusion`; see
-    :func:`lane_sparse_checkout_patterns` for the argument semantics.
-    """
-    register_lane_status_exclusion(lane_path, _compose_mission_dir(mission_slug, mid8))
-
-
-def register_lane_status_exclusion(lane_path: Path, mission_dir_name: str) -> None:
-    """Configure a lane worktree's sparse-checkout policy for one Mission directory.
-
-    Steps:
-
-    1. ``git sparse-checkout init --no-cone`` — switch the worktree to
-       non-cone sparse-checkout (negation patterns are not supported in
-       cone mode).
-    2. Resolve the *real* per-worktree ``info/sparse-checkout`` path via
-       ``git rev-parse --git-path info/sparse-checkout``. In linked
-       worktrees ``.git`` is a file, NOT a directory; the resolved path
-       points into the per-worktree gitdir (typically under
-       ``<repo>/.git/worktrees/<name>/info/sparse-checkout``).
-    3. Write the patterns from :func:`lane_status_exclusion_patterns`.
-    4. ``git read-tree -mu HEAD`` — materialise the working tree against
-       the new sparse-checkout rules so the excluded files actually
-       disappear from disk.
-
-    Idempotent: re-invoking on an already-configured lane simply
-    rewrites the same file with the same content.
-    """
-    # Step 1: switch to non-cone sparse-checkout.
-    subprocess.run(
-        ["git", "-C", str(lane_path), "sparse-checkout", "init", "--no-cone"],
-        check=True,
-    )
-
-    # Step 2: resolve the real per-worktree sparse-checkout file path.
-    # `git rev-parse --git-path info/sparse-checkout` returns a path
-    # that may be absolute or relative to the current git dir; resolve
-    # it against the lane path to be safe.
-    raw = subprocess.check_output(
-        ["git", "-C", str(lane_path), "rev-parse", "--git-path",
-         "info/sparse-checkout"],
-        text=True,
-    ).strip()
-    sparse_file = Path(raw)
-    if not sparse_file.is_absolute():
-        sparse_file = lane_path / sparse_file
-    sparse_file.parent.mkdir(parents=True, exist_ok=True)
-
-    # Step 3: write the patterns.
-    patterns = lane_status_exclusion_patterns(mission_dir_name)
-    sparse_file.write_text("\n".join(patterns) + "\n")
-
-    # Step 4: materialise the working tree.
-    subprocess.run(
-        ["git", "-C", str(lane_path), "read-tree", "-mu", "HEAD"],
-        check=True,
-    )

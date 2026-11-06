@@ -1022,21 +1022,33 @@ def _regenerate_snapshot(worktree: Path, rel: str, env: dict[str, str]) -> bool:
 
 
 def _regenerate_snapshot_in_index(worktree: Path, rel: str, env: dict[str, str]) -> bool:
-    """Stage a ``status.json`` regenerated from the index's merged event log, never touching disk."""
+    """Stage a ``status.json`` regenerated from the index's merged event log, never touching disk.
+
+    The snapshot is reduced in a scratch Mission directory of the same name
+    that carries what an in-place regeneration would read beside the log: the
+    Mission's ``meta.json`` (``mission_type`` / ``mission_number`` come from
+    it) and the lane's own pre-merge snapshot (stage 2, whose recorded
+    ``schema_version`` the reducer keys on). Nothing is written to disk in the
+    checkout and no write is reported for the scratch path: the status-owned
+    :func:`~specify_cli.status.materialize_snapshot` /
+    :func:`~specify_cli.status.materialize_to_json` render it in memory.
+    """
     import tempfile
 
-    from specify_cli.status import EVENTS_FILENAME, reconcile_status_snapshot
+    from specify_cli.status import EVENTS_FILENAME, materialize_snapshot, materialize_to_json
 
-    log_rel = (Path(rel).parent / EVENTS_FILENAME).as_posix()
-    log = subprocess.run(["git", "show", f":0:{log_rel}"], cwd=str(worktree), capture_output=True, env=env, check=False)
-    if log.returncode != 0:
+    mission_rel = Path(rel).parent
+    log = _index_blob(worktree, f":0:{(mission_rel / EVENTS_FILENAME).as_posix()}", env)
+    # No merged log, or an empty one: no authoritative state to reduce (fail closed).
+    if log is None or not log.strip():
         return False
     with tempfile.TemporaryDirectory(prefix="spec-kitty-status-") as scratch:
-        scratch_dir = Path(scratch)
-        (scratch_dir / EVENTS_FILENAME).write_bytes(log.stdout)
-        if not reconcile_status_snapshot(scratch_dir):
-            return False
-        snapshot = (scratch_dir / Path(rel).name).read_bytes()
+        scratch_dir = Path(scratch) / mission_rel.name
+        scratch_dir.mkdir()
+        (scratch_dir / EVENTS_FILENAME).write_bytes(log)
+        _seed_scratch(scratch_dir, "meta.json", _index_blob(worktree, f":0:{(mission_rel / 'meta.json').as_posix()}", env))
+        _seed_scratch(scratch_dir, Path(rel).name, _index_blob(worktree, f":2:{rel}", env))
+        snapshot = materialize_to_json(materialize_snapshot(scratch_dir)).encode("utf-8")
     blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=str(worktree), input=snapshot, capture_output=True, env=env, check=False)
     if blob.returncode != 0:
         return False
@@ -1046,6 +1058,17 @@ def _regenerate_snapshot_in_index(worktree: Path, rel: str, env: dict[str, str])
     # The conflicted copy git wrote to disk goes; the path stays excluded (skip-worktree).
     (worktree / rel).unlink(missing_ok=True)
     return _git_in(worktree, ["update-index", "--skip-worktree", "--", rel], env)
+
+
+def _index_blob(worktree: Path, spec: str, env: dict[str, str]) -> bytes | None:
+    """The bytes of one index entry (``:<stage>:<path>``), or ``None`` when there is none."""
+    result = subprocess.run(["git", "show", spec], cwd=str(worktree), capture_output=True, env=env, check=False)
+    return result.stdout if result.returncode == 0 else None
+
+
+def _seed_scratch(scratch_dir: Path, name: str, content: bytes | None) -> None:
+    if content is not None:
+        (scratch_dir / name).write_bytes(content)
 
 
 def _git_in(worktree: Path, args: list[str], env: dict[str, str]) -> bool:

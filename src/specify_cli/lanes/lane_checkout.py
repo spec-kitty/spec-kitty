@@ -29,6 +29,7 @@ fails on any lane ``git worktree add`` outside this module.
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -43,8 +44,8 @@ __all__ = [
     "LaneCheckoutError",
     "LaneCheckoutRequest",
     "LaneCheckoutRoute",
-    "exclude_lane_status_files",
     "lane_mission_dir_name",
+    "lane_mission_dir_name_from_meta",
     "open_lane_checkout",
     "resolve_lane_mission_dir_name",
 ]
@@ -118,6 +119,23 @@ def lane_mission_dir_name(mission_slug: str, *, coordination_mid8: str | None) -
     return mission_slug
 
 
+def lane_mission_dir_name_from_meta(mission_slug: str, meta: Mapping[str, object]) -> str:
+    """:func:`lane_mission_dir_name` for one Mission's ``meta.json`` record.
+
+    The single derivation every reader of the status exclusion shares: the
+    helper that writes it (through :func:`resolve_lane_mission_dir_name`) and
+    the sparse-checkout policy that recognizes it as Mission-managed
+    (``git/sparse_checkout.py``). A ``coordination_branch`` makes the
+    directory ``<slug>-<mid8>``; every other topology carries ``mission_slug``.
+    """
+    coordination_branch = meta.get("coordination_branch")
+    if not (isinstance(coordination_branch, str) and coordination_branch):
+        return lane_mission_dir_name(mission_slug, coordination_mid8=None)
+    mission_id = meta.get("mission_id")
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id if isinstance(mission_id, str) else None)
+    return lane_mission_dir_name(mission_slug, coordination_mid8=mid8 or None)
+
+
 def resolve_lane_mission_dir_name(repo_root: Path, mission_slug: str) -> str:
     """Resolve :func:`lane_mission_dir_name` from the Mission's ``meta.json``.
 
@@ -126,13 +144,7 @@ def resolve_lane_mission_dir_name(repo_root: Path, mission_slug: str) -> str:
     PRIMARY partition, exactly as the allocator reads them.
     """
     meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    data = load_meta(meta_dir, on_malformed="none") or {}
-    coordination_branch = data.get("coordination_branch")
-    if not (isinstance(coordination_branch, str) and coordination_branch):
-        return lane_mission_dir_name(mission_slug, coordination_mid8=None)
-    mission_id = data.get("mission_id")
-    mid8 = resolve_mid8(mission_slug, mission_id=mission_id if isinstance(mission_id, str) else None)
-    return lane_mission_dir_name(mission_slug, coordination_mid8=mid8 or None)
+    return lane_mission_dir_name_from_meta(mission_slug, load_meta(meta_dir, on_malformed="none") or {})
 
 
 def open_lane_checkout(request: LaneCheckoutRequest) -> Path:
