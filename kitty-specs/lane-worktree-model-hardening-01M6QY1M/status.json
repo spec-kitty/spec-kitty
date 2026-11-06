@@ -1,20 +1,20 @@
 {
-  "event_count": 97,
-  "last_event_id": "01M6RFFWZVG0WVY4KPVXWXYSPY",
-  "materialized_at": "2026-11-06T13:06:42.299536+00:00",
+  "event_count": 112,
+  "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
+  "materialized_at": "2026-11-06T14:55:31.142819+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 7,
+    "approved": 8,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
-    "in_review": 0,
+    "in_progress": 1,
+    "in_review": 1,
     "planned": 9
   },
   "work_packages": {
@@ -156,11 +156,38 @@
       }
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
+      "actor": "claude",
+      "agent": null,
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
       "lane": "planned",
-      "last_event_id": "01M6R1ZPVQ2PW2C15EDYWEGMKF",
-      "last_transition_at": "2026-11-06T09:10:40.247111+00:00"
+      "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
+      "last_transition_at": "2026-11-06T14:55:31.142819+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-1.md",
+        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP05-s1-read-door-declared-sources/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
@@ -213,37 +240,40 @@
     },
     "WP09": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6RE41VEFWT1YJ7ZHV0WT3BA",
-      "last_transition_at": "2026-11-06T12:42:45.463842+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6RMH6Q6ZXPFK5V3PJX84Q95",
+      "last_transition_at": "2026-11-06T14:34:47.910300+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "One lane-checkout helper (lanes/lane_checkout.py::open_lane_checkout) on every route: allocation fresh/legacy/recovery, lifecycle_sync recreate, review checkout, implement --recover recreate; status exclusion on every topology incl. lanes; single-seam gate; dirty status rows kept. landed_worktrees printed hint left as git command (no WP-free re-entry). Out-of-map: recovery.py, consolidation.py (index-based status.json regeneration in sparse lanes), 3 test files."
+        "One lane-checkout helper (lanes/lane_checkout.py::open_lane_checkout) on every route: allocation fresh/legacy/recovery, lifecycle_sync recreate, review checkout, implement --recover recreate; status exclusion on every topology incl. lanes; single-seam gate; dirty status rows kept. landed_worktrees printed hint left as git command (no WP-free re-entry). Out-of-map: recovery.py, consolidation.py (index-based status.json regeneration in sparse lanes), 3 test files.",
+        "- 2026-11-06T13:39:04Z – claude::python-pedro – Review cycle 1 addressed (a0cb24fb50 red, 4a1d8e7a1d green): (1) sparse policy covers every topology, exact match to the helper's patterns; (2) index-only status.json regenerated with meta.json + stage-2 snapshot, byte-identical to in-place; (3) dead WP worktree creators deleted, empty lane allowlist; (4) workspace.py registrars deleted, exclude_lane_status_files is the one authority. Gate budget stays CPU time, justified (7.4 s wall clock under -n 8).",
+        "Cycle 1 fixed: managed sparse policy on every topology (exact match), faithful index snapshot regen, dead lane-checkout creators deleted (empty allowlist), single exclusion authority. Red a0cb24fb50, green 4a1d8e7a1d.",
+        "Cycle 3: removed LANE_BRANCH_MISSING/LANE_NO_COMMIT_BEYOND_BASE from for_review_gate __all__ (out-of-map); test_no_dead_symbols.py 37 passed; renamed stale raw-git test",
+        "Review passed (cycle 3): 6217017a4d drops LANE_BRANCH_MISSING/LANE_NO_COMMIT_BEYOND_BASE from __all__ (kept as module constants, used by evaluate_for_review_gate); test_no_dead_symbols.py 37 passed serially; no star imports, tests compare string literals only; test rename to test_raw_git_worktree_add_with_base_branch matches its body; mypy --strict + ruff check/format clean; diff since 4a1d8e7a1d is only mission bookkeeping plus the fix. Non-blocking carry-overs from cycle 2: ADR 'printed recreate command' wording; CI length-agreement timings."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP09-s3-s6-lane-checkout-helper/review-cycle-1.md",
-        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP09-s3-s6-lane-checkout-helper/review-cycle-1.md",
-        "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP09:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 3249,
+      "shell_pid_created_at": "1793975409.2",
       "subtasks": {
-        "T047": "planned",
-        "T048": "planned",
-        "T049": "planned",
-        "T050": "planned",
-        "T051": "planned",
-        "T052": "planned",
-        "T053": "planned"
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done"
       }
     },
     "WP10": {
@@ -305,20 +335,33 @@
       "shell_pid_created_at": "1793965875.96"
     },
     "WP13": {
-      "actor": "claude::python-pedro",
-      "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6RFB8X26TCVEPBW38Z8PNMQ",
-      "last_transition_at": "2026-11-06T13:04:10.641039+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6RN29JNK7120SQZMJ6ZKEDV",
+      "last_transition_at": "2026-11-06T14:44:07.894017+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0)."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 30546,
-      "shell_pid_created_at": "1793970237.61"
+      "role": "reviewer",
+      "shell_pid": 29074,
+      "shell_pid_created_at": "1793976243.08",
+      "subtasks": {
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done",
+        "T081": "done"
+      }
     },
     "WP14": {
       "actor": "finalize-tasks",
