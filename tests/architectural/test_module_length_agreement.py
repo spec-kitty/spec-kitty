@@ -40,15 +40,20 @@ Cost trade-off
 ---------------
 Live collection is the only non-vacuous comparison -- comparing the
 committed file to a number recorded in the SAME file would be exactly the
-self-validating defect this gate exists to close. It is not free: collecting
-all the modules serially measured ~36s locally (2026-09-22, via
-``.venv/bin/python``); a later local run of this whole file under strict mode
-took ~230s wall (2026-09-28, 4 cores), which is what
-``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` timeout is
-sized against. This module pays that cost once per pytest session,
-via the session-scoped ``_collected_counts`` fixture, so every assertion
-below reuses the same per-module subprocess calls instead of repeating them per
-test. The live-collection test is marked ``slow`` (pytest.ini: "expected to
+self-validating defect this gate exists to close. It is not free. Collecting
+the modules one subprocess at a time measured 275.7 s locally (2026-11-06) and
+timed out the per-PR architectural battery at 240 s (#7288), because every
+subprocess re-paid interpreter start-up plus conftest and plugin import. The
+fixture now runs ONE collection over the union of the modules' directories
+and attributes node ids to modules by directory (37.2 s, identical counts).
+This module pays that cost once per pytest session, via the session-scoped
+``_collected_counts`` fixture, so every assertion below reuses the same
+collection instead of repeating it per test -- and only under
+``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` (#7288). In the per-PR battery the single
+collection still took ~160 s against four xdist workers, to produce a warning
+the module-tests select step already prints for the same drift, so the two
+live tests are skipped there and run in ``ci-shard-recapture.yml``'s strict
+lane, where they hard-fail. The live-collection test is marked ``slow`` (pytest.ini: "expected to
 take >30 seconds"), never ``fast``. The genuinely fast, self-validating half
 of this gate -- proving the comparison mechanism actually FIRES on a real
 mismatch (Standing Order #5's "self-mutation test") -- is kept in pure-logic
@@ -68,6 +73,9 @@ job is deliberately CODE-SCOPED: its ``if:`` is the OR of the registry's
 group deliberately gates no router job, #4386), so on that PR shape this test
 first runs on ``ci-nightly.yml``'s ``mode: full`` dispatch, under ``make
 test-full``, or on the next PR touching ``src/**`` or ``tests/architectural/**``.
+Wherever it runs without ``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` the two live tests
+are skipped (#7288); the fast tests below still run. The live comparison runs in
+``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` job.
 
 Both YAML/JSON artefacts are loaded lazily inside fixtures/tests (never at
 import time), mirroring ``test_module_shard_registry.py``'s own convention,
@@ -83,7 +91,7 @@ import subprocess
 import sys
 import warnings
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -124,6 +132,20 @@ def _strict_mode() -> bool:
     failure (as ``ci-shard-recapture.yml``'s ``strict-shard-timings-check`` does).
     """
     return os.environ.get(_STRICT_ENV_VAR) == "1"
+
+
+#: The live collection runs only where it can fail (#7288, operator ruling 2026-11-06). Per PR
+#: the gate can only warn (#5189), and the module-tests select step already annotates every
+#: missing and stale node id on the PR that caused it (``scripts/ci/shard_select.py``), so the
+#: ~160 s collection in the per-PR architectural battery bought a duplicate warning. Evaluated
+#: at collection time, so a skipped run never sets up the ``_collected_counts`` fixture.
+_LIVE_ONLY_WHEN_STRICT = pytest.mark.skipif(
+    not _strict_mode(),
+    reason=(
+        "live collection runs only under SPEC_KITTY_STRICT_SHARD_TIMINGS=1 (ci-shard-recapture.yml's strict lane, "
+        "or locally); per PR the module-tests select step reports the same drift (#7288)"
+    ),
+)
 
 
 def _report_drift(message: str, *, strict: bool) -> None:
@@ -189,28 +211,66 @@ def _resolve_test_dirs(registry: dict[str, Any], module: str) -> tuple[str, ...]
     return resolved
 
 
-def _live_collected_count(test_dirs: tuple[str, ...]) -> int:
-    """Run the consumer's own collection command and count node ids.
+def _attribute_node_ids(node_ids: list[str], dirs_by_module: dict[str, tuple[str, ...]]) -> tuple[dict[str, int], list[str]]:
+    """Count *node_ids* per module by path-component prefix; return the counts and the orphans.
 
-    Mirrors `.github/workflows/module-tests.yml`'s "Select this shard's
-    tests" step's `collected = subprocess.run([...--collect-only...])` call:
-    same marker expression, same `--collect-only -q` invocation, same
-    `"::" in line` node-id filter.
+    A node id counts for every module with a test directory its file sits under, so a
+    directory nested in another module's directory counts for both -- exactly what each
+    module's own collection would collect. Matching is by path component, so
+    ``tests/alphabet`` is not under ``tests/alpha``. A line whose part before ``::`` is no
+    Python file is ignored. Pure, so the self-mutation tests below
+    exercise it without a subprocess.
     """
+    module_parts = {module: [PurePosixPath(test_dir).parts for test_dir in dirs] for module, dirs in dirs_by_module.items()}
+    counts = dict.fromkeys(dirs_by_module, 0)
+    orphans: list[str] = []
+    for node_id in node_ids:
+        file_part = node_id.split("::", 1)[0]
+        if not file_part.endswith(".py"):
+            continue  # A warning line that happens to hold "::" is not a test.
+        file_parts = PurePosixPath(file_part).parts
+        owners = [module for module, parts in module_parts.items() if any(file_parts[: len(dir_parts)] == dir_parts for dir_parts in parts)]
+        if not owners:
+            orphans.append(node_id)
+        for module in owners:
+            counts[module] += 1
+    return counts, orphans
+
+
+def _live_collected_counts(dirs_by_module: dict[str, tuple[str, ...]]) -> dict[str, int]:
+    """Run the consumer's own collection command ONCE over every module's directories (#7288).
+
+    Mirrors `.github/workflows/module-tests.yml`'s "Select this shard's tests" step's
+    `collected = subprocess.run([...--collect-only...])` call: same marker expression, same
+    `--collect-only -q` invocation, same `"::" in line` node-id filter -- over the union of the
+    modules' directories instead of one module at a time, then attributed per module by
+    :func:`_attribute_node_ids`. Twenty serial per-module collections cost 275.7 s locally and
+    timed out the per-PR architectural battery at 240 s; the single collection cost 37.2 s with
+    identical per-module counts (origin/main ad03459c, 2026-11-06), because each subprocess
+    paid interpreter start-up plus conftest and plugin import again.
+
+    Every failure the per-module collections reported is still reported: a collection error,
+    a module that collects nothing, and (new) a node id under no module's directory.
+    """
+    union = sorted({test_dir for dirs in dirs_by_module.values() for test_dir in dirs})
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", *test_dirs, "-m", _CONSUMER_MARKER_EXPR, "--collect-only", "-q"],
+        [sys.executable, "-m", "pytest", *union, "-m", _CONSUMER_MARKER_EXPR, "--collect-only", "-q"],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
     node_ids = [line for line in proc.stdout.splitlines() if "::" in line]
-    if proc.returncode not in (0, 1) or not node_ids:
+    counts, orphans = _attribute_node_ids(node_ids, dirs_by_module)
+    empty = sorted(module for module, count in counts.items() if count == 0)
+    if proc.returncode not in (0, 1) or empty or orphans:
         pytest.fail(
-            f"live collection over {test_dirs!r} failed (rc={proc.returncode}, {len(node_ids)} node ids parsed):\n"
+            f"live collection over {union!r} failed (rc={proc.returncode}, {len(node_ids)} node ids parsed; "
+            f"modules with none: {empty}; node ids under no module directory: {orphans[:5]}; "
+            f"collection errors: {[line for line in proc.stdout.splitlines() if line.startswith('ERROR ')][:10]}):\n"
             f"STDOUT tail:\n{proc.stdout[-2000:]}\nSTDERR tail:\n{proc.stderr[-2000:]}"
         )
-    return len(node_ids)
+    return counts
 
 
 def _find_mismatches(
@@ -249,17 +309,16 @@ def _live_timings_state() -> dict[str, Any]:
 
 @pytest.fixture(scope="session")
 def _collected_counts(_live_registry_state: dict[str, Any]) -> dict[str, int]:
-    """Live-collect every registry module exactly once per pytest session."""
-    counts: dict[str, int] = {}
-    for module in _registry_modules(_live_registry_state):
-        counts[module] = _live_collected_count(_resolve_test_dirs(_live_registry_state, module))
-    return counts
+    """Live-collect every registry module exactly once per pytest session, in one collection (#7288)."""
+    dirs_by_module = {module: _resolve_test_dirs(_live_registry_state, module) for module in _registry_modules(_live_registry_state)}
+    return _live_collected_counts(dirs_by_module)
 
 
 # ---------------------------------------------------------------------------
 # The real gate.
 # ---------------------------------------------------------------------------
 @pytest.mark.slow
+@_LIVE_ONLY_WHEN_STRICT
 def test_every_registry_module_agrees_with_live_collection(
     _live_registry_state: dict[str, Any],
     _live_timings_state: dict[str, Any],
@@ -280,12 +339,13 @@ def test_every_registry_module_agrees_with_live_collection(
             "committed/collected length mismatch for registry module(s): "
             f"{[(m.module, m.committed, m.collected) for m in mismatches]}. The module's timings drifted "
             "without recapture (recapture via scripts/ci/capture_shard_timings.py --module <name> --write); "
-            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            f"this test runs only with {_STRICT_ENV_VAR}=1 (#7288); the scheduled recapture owns the fix.",
             strict=_strict_mode(),
         )
 
 
 @pytest.mark.slow
+@_LIVE_ONLY_WHEN_STRICT
 def test_charter_agrees_with_live_collection(
     _live_timings_state: dict[str, Any],
     _collected_counts: dict[str, int],
@@ -303,7 +363,7 @@ def test_charter_agrees_with_live_collection(
     if committed != collected:
         _report_drift(
             f"charter drifted: committed={committed} collected={collected} (was 6156==6156 at WP04/WP05 recapture); "
-            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            f"this test runs only with {_STRICT_ENV_VAR}=1 (#7288); the scheduled recapture owns the fix.",
             strict=_strict_mode(),
         )
 
@@ -525,3 +585,114 @@ def test_load_registry_fails_loudly_when_artefact_missing(monkeypatch: pytest.Mo
     monkeypatch.setattr(this_module, "_REGISTRY_PATH", this_module._REPO_ROOT / "does-not-exist-module-registry-fixture.yml")
     with pytest.raises(pytest.fail.Exception):  # _load_registry() calls pytest.fail(...), raising pytest.fail.Exception
         this_module._load_registry()
+
+
+# ---------------------------------------------------------------------------
+# #7288: one collection for every module, attributed by directory.
+# ---------------------------------------------------------------------------
+class _FakeCollect:
+    """Stands in for ``subprocess.run``: records each call and prints the given node ids."""
+
+    def __init__(self, node_ids: list[str], returncode: int = 0) -> None:
+        self.node_ids = node_ids
+        self.returncode = returncode
+        self.calls: list[list[str]] = []
+
+    def __call__(self, argv: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        self.calls.append(list(argv))
+        return subprocess.CompletedProcess(argv, self.returncode, stdout="\n".join([*self.node_ids, "", "3 tests collected"]), stderr="")
+
+
+_SYNTHETIC_DIRS = {
+    "alpha": ("tests/alpha",),
+    "beta": ("tests/beta", "tests/shared/beta_part"),
+    "outer": ("tests/shared",),
+}
+_SYNTHETIC_IDS = [
+    "tests/alpha/test_a.py::test_one",
+    "tests/alpha/test_a.py::test_two",
+    "tests/beta/test_b.py::TestB::test_one",
+    "tests/shared/beta_part/test_s.py::test_nested",
+    "tests/shared/test_top.py::test_outer_only",
+    "tests/alphabet/test_x.py::test_not_alpha",
+]
+
+
+@pytest.mark.fast
+def test_every_module_is_counted_from_one_collection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7288: one ``--collect-only`` over the union of the modules' directories, never one per module.
+
+    Twenty serial per-module collections measured 275.7 s locally (and timed out the per-PR
+    architectural battery at 240 s); one collection over the same 45 directories, 37.2 s, with
+    identical per-module counts.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    fake = _FakeCollect(_SYNTHETIC_IDS[:-1])
+    monkeypatch.setattr(subprocess, "run", fake)
+
+    counts = this_module._live_collected_counts(_SYNTHETIC_DIRS)
+
+    assert len(fake.calls) == 1, f"expected one collection, got {len(fake.calls)}"
+    collected_dirs = [arg for arg in fake.calls[0] if arg.startswith("tests/")]
+    assert collected_dirs == ["tests/alpha", "tests/beta", "tests/shared", "tests/shared/beta_part"]
+    assert "--collect-only" in fake.calls[0]
+    assert fake.calls[0][fake.calls[0].index("-m", 3) + 1] == _CONSUMER_MARKER_EXPR
+    assert counts == {"alpha": 2, "beta": 2, "outer": 2}
+
+
+@pytest.mark.fast
+def test_attribution_is_by_path_component_and_counts_nested_directories_for_both_modules() -> None:
+    """Per-module semantics survive the single collection.
+
+    A node under a directory nested in another module's directory counts for both, as each
+    module's own collection would; ``tests/alphabet`` is not under ``tests/alpha``.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    counts, orphans = this_module._attribute_node_ids([*_SYNTHETIC_IDS, "RuntimeWarning: a::b"], _SYNTHETIC_DIRS)
+
+    assert counts == {"alpha": 2, "beta": 2, "outer": 2}
+    assert orphans == ["tests/alphabet/test_x.py::test_not_alpha"]
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    ("node_ids", "returncode"),
+    [
+        (_SYNTHETIC_IDS[:2], 0),  # beta and outer collect nothing
+        (_SYNTHETIC_IDS, 0),  # tests/alphabet is under no module directory
+        (_SYNTHETIC_IDS[:-1], 2),  # pytest reports a collection error
+    ],
+    ids=["empty-module", "orphan", "collection-error"],
+)
+def test_the_single_collection_still_fails_loudly(monkeypatch: pytest.MonkeyPatch, node_ids: list[str], returncode: int) -> None:
+    """The per-module failure modes are kept: an empty module or a broken collection is an infra fault, never a count of 0."""
+    import tests.architectural.test_module_length_agreement as this_module
+
+    monkeypatch.setattr(subprocess, "run", _FakeCollect(node_ids, returncode))
+
+    with pytest.raises(pytest.fail.Exception):
+        this_module._live_collected_counts(_SYNTHETIC_DIRS)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    "live_test",
+    ["test_every_registry_module_agrees_with_live_collection", "test_charter_agrees_with_live_collection"],
+)
+def test_live_collection_runs_only_in_strict_mode(live_test: str) -> None:
+    """#7288 (operator ruling 2026-11-06): the live collection runs only where it can fail.
+
+    Per PR the gate can only warn (#5189) and the module-tests select step already annotates
+    every missing and stale node id, so the ~160 s collection in the per-PR battery bought a
+    duplicate warning. Under ``SPEC_KITTY_STRICT_SHARD_TIMINGS=1`` (the scheduled strict lane)
+    both live tests run and hard-fail on drift; otherwise they are skipped before their
+    session fixture is set up.
+    """
+    import tests.architectural.test_module_length_agreement as this_module
+
+    marks = [mark for mark in getattr(getattr(this_module, live_test), "pytestmark", []) if mark.name == "skipif"]
+    assert len(marks) == 1, f"{live_test} must carry exactly one skipif bound to strict mode"
+    assert marks[0].args == (not this_module._strict_mode(),)
+    assert "SPEC_KITTY_STRICT_SHARD_TIMINGS=1" in marks[0].kwargs["reason"]

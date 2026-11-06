@@ -901,8 +901,8 @@ been fixed, the end-state is stated instead of the trap.
   (for example `test_charter_agrees_with_live_collection` and
   `test_every_registry_module_agrees_with_live_collection`) drift. This is the one
   count-pinning anchor the general "recapture a drifted count anchor" advice does
-  **not** apply to, for any module. Per PR the drift is a non-blocking
-  `ShardTimingsDriftWarning`, not a failure. The strict exact-count gate lives in
+  **not** apply to, for any module. Per PR the drift is a warning from the
+  module-tests select step, not a failure, and those two tests are skipped (#7288). The strict exact-count gate lives in
   `ci-shard-recapture.yml` (`schedule` + `workflow_dispatch`, no PR/push trigger, so
   it cannot run on a PR or block merge). Its `recapture-shard-timings` job counts
   every module's tests on each scheduled run on the primary branch (`main`),

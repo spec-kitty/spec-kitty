@@ -1,0 +1,12 @@
+source,location,relevance,status
+Tooling-friction tracers,kitty-specs/*/traces/*friction*,primary friction record,mined (research/tracer-entries.part{1,2,3}.csv)
+Tracer recon 2026-09-26,docs/reports/tracer-friction-recon/2026-09-26/README.md,coverage bias,cited
+GitHub issues 2026-08-06..2026-11-06,https://github.com/spec-kitty/spec-kitty/issues,friction and defects,mined (research/issue-classification.part{1,2}.csv)
+Merged PRs 2026-08-06..2026-11-06,https://github.com/spec-kitty/spec-kitty/pulls,engineering effort,mined (research/pr-classification.csv)
+Named issues (#7173 #7196 #7211 #7212 #7214 #6466 #6884 #7198 #7199 #6791 #6770 #5550 #6715 #7264 #7265 #7266),https://github.com/spec-kitty/spec-kitty/issues,mechanisms,read in full (research/named-examples.md)
+Architecture docs,docs/architecture/execution-lanes.md; docs/architecture/git-worktrees.md; docs/context/topology.md,model description,read
+ADR 2026-10-22-1,docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md,Java write service,read
+ADR 2026-10-29-1,docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md,Java write service home,read
+ADRs 2026-09-19-1 2026-09-26-2 2026-10-04-5 2026-09-29-1,docs/adr/,consolidation and lane naming,read
+Code,src/specify_cli/{lanes;coordination;workspace;consolidation;status}; src/mission_runtime,mechanisms,read (research/mechanisms-and-options.md)
+Doctrine,spec-kitty-open-packs@23686fb packs/built-in; packs/internal; core src/charter/offering/skills,agent guidance,read (research/doctrine-scan.md)

@@ -42,6 +42,7 @@ from specify_cli.acceptance.execution_context import (
     declared_home_surface,
 )
 from specify_cli.acceptance.gates_core import (
+    _evaluate_branch_gate,
     AcceptanceCheckDiagnostic,
     _acceptance_gate_context,
     _check_lane_gates,
@@ -55,6 +56,7 @@ from specify_cli.acceptance.matrix import (
 )
 from specify_cli.coordination.write_seam import WriteSeamResult
 from specify_cli.core.owned_mission import resolve_owned_mission
+from specify_cli.lanes.persistence import read_lanes_json
 from tests.integration import coord_topology_fixture as ctf
 
 # The WP02 owned-checkout fixtures live in ``tests/integration/conftest.py``, which
@@ -76,6 +78,9 @@ if TYPE_CHECKING:
 
 __all__ = ["make_owned_checkouts", "make_r_snapshot", "owned_checkouts", "r_snapshot", "stale_root_copy"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+# The write branch a protected-target single_branch Mission mints and records (#7224).
+_MINTED_WRITE_BRANCH = f"kitty/mission-{ctf.FLAT_TOPOLOGY_SLUG}"
 
 
 # ===========================================================================
@@ -561,7 +566,7 @@ def test_gec2_primary_ref_drift_gate_refuses_instead_of_passing(
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
-def test_gec2_real_cross_checkout_branch_drift_gate_refuses(flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path) -> None:
+def test_gec2_real_cross_checkout_branch_drift_gate_refuses(tmp_path: Path) -> None:
     """GEC-2 / C5, the REAL production trigger: two genuinely divergent checkouts.
 
     ``test_gec2_primary_ref_drift_gate_refuses_instead_of_passing`` proves the
@@ -583,9 +588,11 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(flat_topology_missio
     ``{target_branch, mission_branch}`` — exactly the set
     ``_evaluate_branch_gate`` allows — so this path does NOT bypass that gate
     with an invalid value; the branch gate would legitimately let it through.
+    The single_branch Mission records that branch as its write branch, and the
+    test asserts the gate lets it through.
     """
-    ctx = flat_topology_mission
-    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctx = ctf.build_flat_topology_mission(tmp_path / "mission", mission_branch=_MINTED_WRITE_BRANCH)
+    mission_branch = _MINTED_WRITE_BRANCH
     # A real branch, not yet checked out anywhere, cut from the SAME commit the
     # main checkout (still on "main") sits at.
     ctf._git(ctx.repo, "branch", mission_branch)
@@ -602,6 +609,15 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(flat_topology_missio
     activity_issues: list[str] = []
     skipped: list[AcceptanceCheckDiagnostic] = []
     blocked: list[AcceptanceCheckDiagnostic] = []
+    assert _evaluate_branch_gate(
+        linked_worktree,
+        read_lanes_json(ctx.primary_feature_dir),
+        ctx.primary_feature_dir,
+        mission_branch,
+        activity_issues,
+        skipped,
+        blocked,
+    ), blocked
     _evaluate_acceptance_matrix(
         linked_worktree,
         ctx.primary_feature_dir,
@@ -621,7 +637,7 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(flat_topology_missio
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
-def test_resolve_git_context_branch_forwards_through_check_lane_gates(flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path) -> None:
+def test_resolve_git_context_branch_forwards_through_check_lane_gates(tmp_path: Path) -> None:
     """#2909 item 2: the invocation-checkout ``branch`` is not dropped mid-chain.
 
     ``test_gec2_real_cross_checkout_branch_drift_gate_refuses`` proves GEC-2/C5 at
@@ -643,9 +659,12 @@ def test_resolve_git_context_branch_forwards_through_check_lane_gates(flat_topol
     So the top-level ``collect_feature_summary -> _check_lane_gates(branch)`` hop
     remains uncovered pending that defect; #2909 item 2 is therefore only
     partially covered by this test.)
+
+    The single_branch Mission records ``kitty/mission-<slug>`` as its write branch
+    (the protected-target mint), so that branch is a legitimate acceptance branch.
     """
-    ctx = flat_topology_mission
-    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctx = ctf.build_flat_topology_mission(tmp_path / "mission", mission_branch=_MINTED_WRITE_BRANCH)
+    mission_branch = _MINTED_WRITE_BRANCH
     # A real branch, not yet checked out anywhere, cut from the SAME commit the
     # main checkout (still on "main") sits at — a genuine member of
     # {target_branch, mission_branch}, so `_evaluate_branch_gate` legitimately
@@ -719,7 +738,7 @@ def test_gec2_primary_ref_agreement_still_judges(
 
 
 def test_accept_command_forwards_normal_branch_to_matrix_gate(
-    flat_topology_mission: ctf.FlatTopologyContext,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The public accept path preserves the invocation branch through matrix judgement.
@@ -727,10 +746,11 @@ def test_accept_command_forwards_normal_branch_to_matrix_gate(
     The mission branch deliberately differs from target ``main``. The seeded FAIL
     verdict remains observable only when every production forwarding hop preserves
     that branch: dropping it either trips the branch gate or yields a surface-ref
-    mismatch before the matrix can be judged.
+    mismatch before the matrix can be judged. The single_branch Mission records that
+    branch as its write branch (the protected-target mint).
     """
-    ctx = flat_topology_mission
-    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctx = ctf.build_flat_topology_mission(tmp_path, mission_branch=_MINTED_WRITE_BRANCH)
+    mission_branch = _MINTED_WRITE_BRANCH
     ctf._git(ctx.repo, "switch", "-c", mission_branch)
     _seed_matrix(
         ctx.primary_feature_dir,
@@ -838,7 +858,8 @@ def test_fixture_smoke_no_resolver_patched(
 
 @pytest.fixture
 def owned_fact(owned_checkouts: OwnedCheckouts) -> OwnedCheckout:
-    return resolve_owned_mission(owned_checkouts.repository_root, owned_checkouts.owned_root, owned_checkouts.mission_slug)
+    fact: OwnedCheckout = resolve_owned_mission(owned_checkouts.repository_root, owned_checkouts.owned_root, owned_checkouts.mission_slug)
+    return fact
 
 
 @pytest.fixture
