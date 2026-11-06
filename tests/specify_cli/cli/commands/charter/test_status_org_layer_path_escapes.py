@@ -355,3 +355,30 @@ def test_a_path_that_looks_like_markup_is_printed_not_parsed(tmp_path: Path, cap
     _render_org_layer(_collect_org_layer_status(repo))
 
     assert "'/[/x]'" in capsys.readouterr().out
+
+
+def test_a_fragment_without_its_root_is_reported_as_not_checked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real "could not run" cause, not a patched one (#6731, #7263).
+
+    A fragment rebuilt from ``model_dump()`` carries no pack root, so the predicates raise
+    ``OrgPackRootUnavailableError``. Status must say the check failed, never report "no escapes";
+    a predicate that swallowed the error and returned ``[]`` would turn this test red.
+    """
+    import charter.activation.drg_activation as drg_activation
+    from charter.drg import OrgDRGFragment
+    from specify_cli.cli.commands.charter import _collect_org_layer_status
+
+    real = drg_activation.load_org_drg
+
+    def _round_tripped(repo_root: Path) -> list[OrgDRGFragment]:
+        return [OrgDRGFragment.model_validate(fragment.model_dump()) for fragment in real(repo_root)]
+
+    monkeypatch.setattr(drg_activation, "load_org_drg", _round_tripped)
+    repo = _build_repo(tmp_path)
+    _add_escaping_node(repo, _ESCAPING)
+
+    errors = _collect_org_layer_status(repo)["errors"]
+
+    for label in ("org-layer body_path check failed", "org-layer asset path check failed"):
+        assert any(entry.startswith(label) and "carries no effective pack root" in entry for entry in errors), errors
+    assert not any("is not contained in" in entry for entry in errors), errors

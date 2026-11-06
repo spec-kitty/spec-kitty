@@ -181,7 +181,7 @@ def test_body_text_refuses_symlink_swapped_after_load(skill_dirs: dict[str, Path
         repo.body_text("land-pr")
 
 
-@pytest.mark.parametrize("body_path", ["../outside.md", "/etc/passwd", "nested/../../outside.md"])
+@pytest.mark.parametrize("body_path", ["../outside.md", "/etc/passwd", "nested/../../outside.md", "a\x00b.md"])
 def test_body_text_refuses_escaping_body_path(skill_dirs: dict[str, Path], body_path: str) -> None:
     # Injected record: load-time validation skips a file with an escaping
     # body_path, so the catalog cannot hold one through loading -- the read-time

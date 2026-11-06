@@ -321,7 +321,7 @@ def _render_org_body_path_escapes(console: Console, fragments: Sequence[OrgDRGFr
 
     label = "fragment body_path escapes"
     try:
-        escapes = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
+        escapes = [finding for fragment in fragments for finding in find_body_path_escapes(fragment)]
     except Exception as exc:
         # Diagnostics never crash; say the check did not run rather than "none".
         console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
@@ -340,7 +340,7 @@ def _render_org_asset_path_escapes(console: Console, fragments: Sequence[OrgDRGF
 
     label = "asset path escapes"
     try:
-        escapes = [escape for fragment in fragments for escape in find_asset_path_escapes(fragment)]
+        escapes = [finding for fragment in fragments for finding in find_asset_path_escapes(fragment)]
     except Exception as exc:
         console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
         return

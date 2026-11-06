@@ -110,6 +110,7 @@ def test_body_path_escaping_directory_refused(tmp_path: Path) -> None:
         "\\\\server\\share\\body.md",  # Windows UNC
         "nested/../../outside.md",  # .. component that climbs out
         "nested/../outside.md",  # string-level .. is refused by the shared primitive
+        "a\x00b.md",  # unresolvable (NUL byte): a refusal, never a crash
     ],
 )
 def test_escaping_body_path_kinds_refused(tmp_path: Path, body_path: str) -> None:

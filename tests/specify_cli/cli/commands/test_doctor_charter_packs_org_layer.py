@@ -1099,3 +1099,29 @@ def test_render_prints_a_markup_looking_path_verbatim(tmp_repo_with_org_pack: Pa
     output = _render(tmp_repo_with_org_pack)
 
     assert "'/[/x]'" in output, output
+
+
+def test_a_fragment_without_its_root_is_not_checked_rather_than_clean(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A round-tripped fragment (no carried root) is "not checked" on both halves (#6731, #7263)."""
+    import charter.activation.drg_activation as drg_activation
+    from charter.drg import OrgDRGFragment
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    real = drg_activation.load_org_drg
+
+    def _round_tripped(repo_root: Path) -> list[OrgDRGFragment]:
+        return [OrgDRGFragment.model_validate(fragment.model_dump()) for fragment in real(repo_root)]
+
+    monkeypatch.setattr(drg_activation, "load_org_drg", _round_tripped)
+
+    result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
+    output = _render(tmp_repo_with_escaping_pack)
+
+    errors = result["errors"]
+    assert isinstance(errors, list)
+    assert any("carries no effective pack root" in entry for entry in errors), errors
+    assert result["body_path_escapes"] == []
+    assert "fragment body_path escapes: not checked" in output, output
+    assert "asset path escapes: not checked" in output, output
