@@ -996,7 +996,7 @@ provider-owned mutation calls.
 
 ## Error Codes
 
-Current machine-readable error codes, in `allowed_error_codes` order (the
+Current machine-readable error codes (the
 authoritative list is `allowed_error_codes` in
 `src/specify_cli/core/upstream_contract.json`). The list between the markers is
 the human enumeration, and
@@ -1062,7 +1062,7 @@ documented in the same change that registers it.
 - `DECISION_EVENT_REPAIR_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_LOCK_TIMEOUT` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
-- `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`, `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
+- `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`, `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`, `plan`, `artifact-submit`
 - `RESULT_REQUIRED` — `answer-decision`
 - `INVALID_RESULT` — `answer-decision`
 - `NO_PENDING_DECISION` — `answer-decision`
@@ -1072,16 +1072,16 @@ documented in the same change that registers it.
 - `DESIGN_BOUNDS_EXCEEDED` — `artifact-read`, `artifact-submit`, `design-validate`: an artifact, request or batch exceeds the documented byte bound
 - `DESIGN_COMMIT_FAILED` — `artifact-submit`: the content materialized but the host commit did not complete; inspect the reported effect state and commit outcome before retrying
 - `DESIGN_CONTEXT_FAILED` — `design-context`, `interview-record`, `artifact-submit`, `design-validate`: the resolved design context cannot be built — an undeclared design stage, host content over the inline byte limit, or an activated Mission with no template mapping
-- `DESIGN_CONTEXT_STALE` — `artifact-submit`, `design-validate`: the resolved template or governance context changed since the content was authored; re-read `design-context` and resubmit
+- `DESIGN_CONTEXT_STALE` — `artifact-submit`, `design-validate`, `tasks`: the resolved template or governance context changed since the content was authored; re-read `design-context` and resubmit
 - `DESIGN_FINALIZED` — `plan`, `artifact-submit`: an API-authored Mission whose native task board is finalized refuses plan scaffolding and design writes; native reconciliation applies instead
 - `DESIGN_INTERVIEW_FAILED` — `design-context`, `interview-record`, `artifact-submit`, `design-validate`: the interview ledger could not be read, or a requested answer could not be recorded; the failure carries the decision IDs already applied, if any, and asks for reconciliation before retrying
-- `DESIGN_INTERVIEW_INCOMPLETE` — `artifact-submit`, `design-validate`: required interview answers are still pending, deferred or canceled; `interview-record` reports that state as `data.interview.complete: false` rather than refusing
+- `DESIGN_INTERVIEW_INCOMPLETE` — `artifact-submit`, `design-validate`, `tasks`: required interview answers are still pending, deferred or canceled; `interview-record` reports that state as `data.interview.complete: false` rather than refusing
 - `DESIGN_INTERVIEW_INVALID` — `interview-record`: the answers are not bounded UTF-8 JSON, the mapping is empty, or the actor identity is missing
 - `DESIGN_IO_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`: the host could not read or persist design content
-- `DESIGN_LOCK_TIMEOUT` — `artifact-read`, `artifact-submit`: the Mission authoring lock stayed busy past its bound; nothing was written, retry
-- `DESIGN_PARENT_STALE` — `artifact-submit`, `design-validate`: an accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt
+- `DESIGN_LOCK_TIMEOUT` — `artifact-read`, `artifact-submit`, `tasks`: the Mission authoring lock stayed busy past its bound; nothing was written, retry
+- `DESIGN_PARENT_STALE` — `artifact-submit`, `design-validate`, `tasks`: an accepted parent artifact is missing or changed, or accepted content changed outside its authoring receipt
 - `DESIGN_PATH_REFUSED` — `artifact-read`, `artifact-submit`: an artifact identifier or location is not a single safe basename or a declared destination
-- `DESIGN_PREREQUISITES_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`: canonical prerequisites are unmet — open decisions, missing accepted provenance, an invalid outline, or an invalid bounded package graph
+- `DESIGN_PREREQUISITES_FAILED` — `artifact-read`, `artifact-submit`, `design-validate`, `tasks`: canonical prerequisites are unmet — open decisions, missing accepted provenance, an invalid outline, or an invalid bounded package graph
 - `DESIGN_RECEIPT_UNREADABLE` — `artifact-submit`, `design-validate`: API authoring provenance is missing or corrupt while the API-enabled marker stands, or a post-commit receipt write failed; reconcile the effects
 - `DESIGN_REQUEST_INVALID` — `artifact-read`, `artifact-submit`, `design-validate`: the request is not bounded UTF-8 JSON, carries unknown fields, supplies runtime or status authority, names an unknown stage, or selects an identifier the kind does not take
 - `DESIGN_REVISION_CONFLICT` — `artifact-submit`: the artifact revision changed since its `expected_sha256` was read; re-read and resubmit
