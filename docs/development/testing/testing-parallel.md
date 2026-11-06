@@ -117,9 +117,11 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
   (`tests/_support/git_ceiling.py`), so discovery from a `tmp_path` never
   climbs into a git work tree that happens to enclose the temp root (an agent
   sandbox with `TMPDIR` under a checkout, a `/tmp` someone ran `git init` in).
-  Git and every repo/project-root walk in the stack honor it, through the one
-  walk in `kernel.ancestor_walk` (#7056); a repository a test creates inside its
-  own `tmp_path` is still found. It is the floor: a test
+  Git and the migrated parent-enumerating repo/project-root walks in the stack
+  honor it, through the one walk in `kernel.ancestor_walk` (#7056); a repository
+  a test creates inside its own `tmp_path` is still found. The `while`/`range`
+  loop walks (#7269) and `session_start`'s own walk with its `stop=` (#7122) are
+  not on it yet. It is the floor: a test
   may still set its own, narrower ceiling with `monkeypatch.setenv`.
 - **`tempfile` lives inside the ceiling too** (#7076). The ceiling only governs
   directories *below* a listed entry, and `tempfile`'s root is the platform temp

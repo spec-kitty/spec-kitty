@@ -1,9 +1,11 @@
 """The ceiling-aware ancestor-walk contract (#7056).
 
-Pins the walk every root authority in the stack shares: a start directory and each
-parent in order, never above a ``GIT_CEILING_DIRECTORIES`` entry, with the ceiling read
-on every call. The deliberate deviation from git's exact rule for a ceiling directory is
-part of the contract, not an accident (see the ``kernel.ancestor_walk`` module docstring).
+Pins the walk the migrated parent-enumerating root walks in the stack share: a start
+directory and each parent in order, never above a ``GIT_CEILING_DIRECTORIES`` entry, with
+the ceiling read on every call. The deliberate deviations from git's exact rule -- the
+ceiling directory is examined, and a ceiling equal to the start ends the walk here -- are
+part of the contract, not an accident (see the ``kernel.ancestor_walk`` module docstring,
+and ``mission_metadata`` for the negative-evidence caller that drops the start-equal entry).
 """
 
 from __future__ import annotations
