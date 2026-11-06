@@ -28,6 +28,7 @@ import json
 from typing import TYPE_CHECKING
 
 from rich.console import Console
+from rich.markup import escape
 
 from charter.drg import ArtifactKind
 from specify_cli.cli.console import console
@@ -300,7 +301,9 @@ def _render_escape_findings(console: Console, label: str, summary: str, messages
         return
     console.print(f"  [red]{label}:[/red] {len(messages)} {summary}")
     for message in messages[:_ORG_FINDINGS_SHOWN]:
-        console.print(f"    [red]•[/red] {message}")
+        # The message quotes a pack author's path verbatim; escape it so text such as
+        # ``[/x]`` is printed, not parsed as Rich markup (which would crash the render).
+        console.print(f"    [red]•[/red] {escape(message)}")
     if len(messages) > _ORG_FINDINGS_SHOWN:
         console.print(f"    … and {len(messages) - _ORG_FINDINGS_SHOWN} more (run spec-kitty doctor charter-packs --json for the full list)")
 
@@ -321,7 +324,7 @@ def _render_org_body_path_escapes(console: Console, fragments: Sequence[OrgDRGFr
         escapes = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
     except Exception as exc:
         # Diagnostics never crash; say the check did not run rather than "none".
-        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
         return
     _render_escape_findings(console, label, "fragment node(s) point outside their pack", [e.message for e in escapes])
 
@@ -339,7 +342,7 @@ def _render_org_asset_path_escapes(console: Console, fragments: Sequence[OrgDRGF
     try:
         escapes = [escape for fragment in fragments for escape in find_asset_path_escapes(fragment)]
     except Exception as exc:
-        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
         return
     _render_escape_findings(console, label, "asset sidecar(s) point outside their pack's assets/ root", [e.message for e in escapes])
 

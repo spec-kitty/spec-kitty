@@ -1090,3 +1090,12 @@ def test_the_activation_layer_no_longer_owns_the_containment_wrappers() -> None:
     # Positive control: the probe can see a symbol that IS there, so the three
     # absences above are not an artifact of looking at the wrong module.
     assert callable(drg_activation.load_org_drg)
+
+
+def test_render_prints_a_markup_looking_path_verbatim(tmp_repo_with_org_pack: Path) -> None:
+    """A ``body_path`` such as ``/[/x]`` is printed, not parsed as Rich markup (RED: ``MarkupError``)."""
+    _add_authored_node(tmp_repo_with_org_pack, "/[/x]")
+
+    output = _render(tmp_repo_with_org_pack)
+
+    assert "'/[/x]'" in output, output
