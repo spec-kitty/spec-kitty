@@ -1117,25 +1117,35 @@ def _status_event_ids_missing_from_target(
     SUPERSET, so id containment is the proof and byte equality is its special case.
 
     Both sides are parsed through the canonical event-log reader, and the pair is put through the
-    canonical UNION (:func:`~specify_cli.status.event_log_merge.merge_event_payloads`) before the ids
-    are compared: the union is what refuses one id carrying two different payloads, and asking it here
-    keeps ONE identity rule instead of trusting whichever side sorts last. An unparseable or
-    self-conflicting pair REFUSES rather than reading as "nothing missing" (fail-closed).
+    canonical UNION (:func:`~specify_cli.status.merge_event_log_texts`, the ``specify_cli.status``
+    facade's entry to ``merge_event_payloads``) before the ids are compared: the union is what refuses
+    one id carrying two different payloads, and asking it here keeps ONE identity rule instead of
+    trusting whichever side sorts last. An unparseable or self-conflicting pair REFUSES rather than
+    reading as "nothing missing" (fail-closed).
     """
-    from specify_cli.status.event_log_merge import EventLogMergeError, merge_event_payloads, read_event_log_text
+    from specify_cli.status import EventLogMergeError, merge_event_log_texts
 
+    stage = "the coordination branch"
     try:
-        coord_events = read_event_log_text(coord_content.decode("utf-8"), source=f"{repo_rel} on the coordination branch")
-        target_events = read_event_log_text((target_content or b"").decode("utf-8"), source=f"{repo_rel} on the target")
-        merge_event_payloads(coord_events, target_events)
+        coord_text = coord_content.decode("utf-8")
+        coord_ids = _event_ids_of(merge_event_log_texts(coord_text))
+        stage = "the target"
+        target_text = (target_content or b"").decode("utf-8")
+        landed_ids = _event_ids_of(merge_event_log_texts(target_text))
+        stage = "the union of both"
+        merge_event_log_texts(coord_text, target_text)
     except (EventLogMergeError, UnicodeDecodeError) as exc:
         raise LateProjectionRefused(
-            f"{repo_rel} cannot be reconciled with the target's committed log ({exc}); an unreadable or "
+            f"{repo_rel} cannot be reconciled with the target's committed log ({stage}: {exc}); an unreadable or "
             "self-conflicting status log is never proof that a status event landed",
             kind=LateProjectionRefusalKind.STATUS_LOG_NOT_RECONCILABLE,
         ) from exc
-    landed_ids = {str(event["event_id"]) for event in target_events}
-    return sorted({str(event["event_id"]) for event in coord_events} - landed_ids)
+    return sorted(coord_ids - landed_ids)
+
+
+def _event_ids_of(canonical_jsonl: str) -> set[str]:
+    """The event ids of a log the canonical union already parsed and validated (one object per line)."""
+    return {str(json.loads(line)["event_id"]) for line in canonical_jsonl.splitlines() if line.strip()}
 
 
 #: Sentinel for "this key path is absent from a JSON document".
