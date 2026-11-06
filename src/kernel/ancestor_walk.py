@@ -37,11 +37,17 @@ each of those choices. :func:`git_ceiling_dirs` can reproduce that second rule o
 (``resolve_after_empty=False``) for the one caller that must not report absence from a
 boundary git would not have stopped at; every other caller keeps the resolved reading.
 
-Where the two readings disagree, the walk sees *more* than git (it examines the ceiling
-directory). For the Mission identity reader (``mission_metadata``), which asks this walk
-only after git answered "not a work tree", seeing more means refusing, never minting an
-identity over a copy git holds (#6673 NFR-002). A future change to match git exactly must
-be reviewed against that.
+Where the two readings disagree, the walk normally sees *more* than git: it examines the
+ceiling directory, which git does not. One disagreement runs the other way. git ignores a
+ceiling entry that *is* the directory the search starts in -- such an entry bounds only a
+search that starts below it -- while this walk stops at the start. A caller cannot infer
+absence from a walk that sees less than git did, so negative Git evidence has to drop that
+start-equal entry before it concludes anything, and treat a start it cannot resolve as
+unknown rather than absent; the Mission identity reader (``mission_metadata``) does this
+when Git did not establish a worktree context. Everywhere the walk instead sees more
+than git, that means refusing, never minting an identity over a copy git
+holds (#6673 NFR-002). This module's default readings are unchanged for every other
+caller, and a future change to match git exactly must be reviewed against that.
 
 A path that cannot be resolved (an unreadable component, or a symbolic-link loop, which
 ``kernel.resolution.resolve_rejecting_loops`` reports as ``OSError`` on every supported
