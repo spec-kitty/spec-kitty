@@ -159,6 +159,8 @@ from specify_cli.core.mission_creation_errors import (
     MissionCreationResult as MissionCreationResult,
     MissionBranchExistsError as MissionBranchExistsError,
     ProtectedMintRefusedError as ProtectedMintRefusedError,
+    WriteCheckoutSwitchDirtyError as WriteCheckoutSwitchDirtyError,
+    WriteCheckoutSwitchOccupiedError as WriteCheckoutSwitchOccupiedError,
     _BOOTSTRAP_META_COMMIT_SKIPS as _BOOTSTRAP_META_COMMIT_SKIPS,
 )
 from specify_cli.core.mission_creation_identity import (
@@ -191,6 +193,13 @@ from specify_cli.core.mission_creation_protected_mint import (
     _dirty_outside_scaffold as _dirty_outside_scaffold,
     _refuse_protected_recreate as _refuse_protected_recreate,
     _mint_protected_branch_for_topology as _mint_protected_branch_for_topology,
+    _refuse_occupied_write_checkout as _refuse_occupied_write_checkout,
+    _dirty_paths_outside as _dirty_paths_outside,
+    _git_switch as _git_switch,
+    switch_write_checkout as switch_write_checkout,
+    _recorded_mission_branches as _recorded_mission_branches,
+    _resolve_planning_branch as _resolve_planning_branch,
+    _record_create_return_branch as _record_create_return_branch,
 )
 from specify_cli.core.mission_creation_scaffold import (
     TASKS_README_TEMPLATE as TASKS_README_TEMPLATE,
@@ -200,7 +209,9 @@ from specify_cli.core.mission_creation_scaffold import (
     _Scaffold as _Scaffold,
     _scaffold_mission_dir as _scaffold_mission_dir,
 )
+from specify_cli.meta_keys import TopologySource
 from specify_cli.core.mission_creation_meta import (
+    _refuse_inconsistent_topology_inputs as _refuse_inconsistent_topology_inputs,
     _META_KEY_MISSION_TYPE as _META_KEY_MISSION_TYPE,
     _META_KEY_CREATED_AT as _META_KEY_CREATED_AT,
     _MetaBuild as _MetaBuild,
@@ -266,6 +277,7 @@ def create_mission_core(
     retain_worktrees: bool = False,
     commit_to_target: bool = False,
     allow_duplicate: bool = False,
+    topology_source: TopologySource | None = None,
 ) -> MissionCreationResult:
     """Create a new mission, restoring git state if creation fails (FR-011).
 
@@ -294,6 +306,7 @@ def create_mission_core(
         retain_worktrees=retain_worktrees,
         commit_to_target=commit_to_target,
         allow_duplicate=allow_duplicate,
+        topology_source=topology_source,
     )
 
 
@@ -315,6 +328,7 @@ def _create_mission_core_failure_atomic(
     retain_worktrees: bool = False,
     commit_to_target: bool = False,
     allow_duplicate: bool = False,
+    topology_source: TopologySource | None = None,
     _mission_id: str | None = None,
     _created_at: str | None = None,
 ) -> MissionCreationResult:
@@ -387,6 +401,7 @@ def _create_mission_core_failure_atomic(
             retain_worktrees=retain_worktrees,
             commit_to_target=commit_to_target,
             allow_duplicate=allow_duplicate,
+            topology_source=topology_source,
             _rollback_journal=rollback_journal,
             _mission_id=_mission_id,
             _created_at=_created_at,
@@ -439,6 +454,7 @@ def _create_mission_core_impl(
     retain_worktrees: bool = False,
     commit_to_target: bool = False,
     allow_duplicate: bool = False,
+    topology_source: TopologySource | None = None,
     _rollback_journal: CreateRollbackJournal | None = None,
     _mission_id: str | None = None,
     _created_at: str | None = None,
@@ -530,6 +546,13 @@ def _create_mission_core_impl(
         deliberately create a second same-key mission -- programmatic/volume
         callers (e.g. the ``tests/_factories`` mission factory) opt in via
         this keyword when they intentionally need more than one.
+    topology_source:
+        How *topology* was chosen (S7 #7282, ADR 2026-11-06-3), persisted as
+        ``topology_source``. :attr:`TopologySource.DEFAULT` (no ``--topology``)
+        requires ``SINGLE_BRANCH``: the create mints the Mission topic branch on
+        every target, records ``topology_settled: false`` and
+        ``create_return_branch``. ``None`` (programmatic callers) writes no
+        provenance key, which reads as a settled legacy Mission.
     _rollback_journal:
         Private (T032/FR-002a). The empty
         :class:`CreateRollbackJournal` the failure-atomic wrapper
@@ -565,11 +588,7 @@ def _create_mission_core_impl(
         template. Resolution happens before any mission state is created.
     """
     normalized_friendly_name = _validate_create_inputs(mission_slug, friendly_name)
-    if commit_to_target and topology is not MissionTopology.SINGLE_BRANCH:
-        raise MissionCreationError(
-            f"--commit-to-target is only valid for a single_branch mission (got topology '{topology.value}'). "
-            "Pass --topology single_branch, or drop --commit-to-target."
-        )
+    _refuse_inconsistent_topology_inputs(topology, topology_source, commit_to_target=commit_to_target)
     roots = _resolve_create_roots(repo_root, owned_create_root, allow_worktree_context)
     resolved_root = roots.repository_root
     write_root = roots.write_root
@@ -598,14 +617,17 @@ def _create_mission_core_impl(
     # coordination create is never seeded onto the coordination surface
     # itself -- tracked as a follow-up, not fixed here.
 
-    planning_branch = target_branch if target_branch else current_branch
+    # IC-13 (S7 #7282): a default create's implicit target never resolves to another
+    # Mission's branch.
+    planning_branch = _resolve_planning_branch(write_root, target_branch, current_branch, guard=topology_source is TopologySource.DEFAULT)
 
     # One protection probe per create, shared by the duplicate guard, the
     # recreate guard and the mint. Making it resolves nothing; the first caller
     # that needs protection resolves it, the others reuse it. The duplicate
     # guard asks only for a genesis prior with a live minted mission branch
     # (#5726), so every other create resolves protection where it did before.
-    protection = _ProtectionProbe(write_root)
+    # A default create mints its topic branch on every target (FR-051).
+    protection = _ProtectionProbe(write_root, mints_on_every_target=topology_source is TopologySource.DEFAULT)
     _refuse_live_duplicate(
         write_root,
         mission_slug,
@@ -670,6 +692,7 @@ def _create_mission_core_impl(
         topology=topology,
         force_recreate_coordination_branch=force_recreate_coordination_branch,
         created_at=_created_at,
+        topology_source=topology_source,
     )
     # Step 6.7: the protected-target mint runs here, after the
     # coordination-branch mint inside ``_build_create_meta`` and before the
@@ -682,7 +705,10 @@ def _create_mission_core_impl(
         planning_branch=planning_branch,
         meta=meta_build.meta,
         protection=protection,
+        repository_root=resolved_root,
     )
+    if topology_source is TopologySource.DEFAULT:
+        _record_create_return_branch(meta_build.meta, minted_branch=minted_mission_branch, return_branch=current_branch)
     _write_create_meta(scaffold.feature_dir, meta_build.meta, mission, write_root=write_root)
     meta_build = replace(meta_build, minted_mission_branch=minted_mission_branch)
     if meta_build.minted_mission_branch is not None:

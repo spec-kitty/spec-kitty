@@ -488,7 +488,7 @@ spec-kitty orchestrator-api specify \
 |---|---|---|
 | `--mission` | yes | Mission slug to create. |
 | `--mission-type` | yes | Blueprint key (e.g. `software-dev`). |
-| `--topology` | no | Create-time mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`. Defaults to the context-derived default (matches the host CLI's own `--topology` default) when omitted. |
+| `--topology` | no | Mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`, settled at create. When omitted, create mints one Mission topic branch on any target and the first `tasks` settles `single_branch` or `lanes_with_coord` by size; `lanes` and `coord` are explicit-only (same default as the host CLI). |
 | `--policy` | yes | Policy metadata JSON (see [Required Flags](#required-flags)). |
 
 Response `data` (contract >= 1.24.0) also carries:

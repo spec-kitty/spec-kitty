@@ -101,8 +101,8 @@
     },
     "dirty_checkout_protected_mint": {
       "outcome": {
-        "error_code": null,
-        "exc_type": "ProtectedMintRefusedError",
+        "error_code": "WRITE_CHECKOUT_DIRTY",
+        "exc_type": "WriteCheckoutSwitchDirtyError",
         "message": "Cannot mint the protected-target mission branch: the write checkout at <TMP>/repo has uncommitted changes outside this mission's own scaffold: stray.txt. Commit or discard them, then retry."
       },
       "post": {

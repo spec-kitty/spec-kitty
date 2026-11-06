@@ -234,8 +234,10 @@ def test_create_json_marks_provisional(tmp_path: Path, monkeypatch: pytest.Monke
 def test_create_records_return_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = _repo(tmp_path)
 
-    on_target = _meta(_payload(_invoke(repo_root, monkeypatch, SLUG).output))
+    first = _payload(_invoke(repo_root, monkeypatch, SLUG).output)
+    on_target = _meta(first)
     assert on_target["create_return_branch"] == _PROTECTED_TARGET
+    _commit_scaffold(repo_root, first)
 
     # From a branch that is not the target: the return branch is where the checkout was.
     _git(repo_root, "checkout", "-q", "-b", "elsewhere", _PROTECTED_TARGET)

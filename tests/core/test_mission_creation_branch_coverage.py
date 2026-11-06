@@ -140,7 +140,9 @@ class TestProtectedMintBranches:
             _create(repo, "row-one", topology=MissionTopology.SINGLE_BRANCH, target_branch=_MAIN)
 
         message = str(excinfo.value)
-        assert type(excinfo.value) is ProtectedMintRefusedError  # #5704: disposable, no orphan scaffold
+        # #5704: disposable, no orphan scaffold; #5676: typed WRITE_CHECKOUT_DIRTY.
+        assert isinstance(excinfo.value, ProtectedMintRefusedError)
+        assert excinfo.value.error_code == "WRITE_CHECKOUT_DIRTY"
         assert "Cannot mint the protected-target mission branch" in message
         assert "has uncommitted changes outside this mission's own scaffold: operator-notes.txt" in message
         assert "Commit or discard them, then retry." in message

@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology
+from specify_cli.core.mission_creation import MissionCreationError
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
@@ -92,10 +93,10 @@ def _switch(repo: Path, branch: str) -> None:
 def test_occupied_write_checkout_refuses_switch(tmp_path: Path) -> None:
     repo = _repo(tmp_path, occupant_lane="in_progress")
 
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(MissionCreationError, match="WRITE_CHECKOUT_OCCUPIED") as excinfo:
         _switch(repo, "kitty/mission-new-01NEWNEW")
 
-    assert getattr(excinfo.value, "error_code", None) == "WRITE_CHECKOUT_OCCUPIED"
+    assert excinfo.value.error_code == "WRITE_CHECKOUT_OCCUPIED"
     assert f"{_OCCUPANT}/WP01" in str(excinfo.value)
     assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"
     assert "kitty/mission-new-01NEWNEW" not in _git(repo, "branch", "--list")
@@ -114,10 +115,10 @@ def test_dirty_write_checkout_refuses_switch(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
 
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(MissionCreationError, match="WRITE_CHECKOUT_DIRTY") as excinfo:
         _switch(repo, "kitty/mission-new-01NEWNEW")
 
-    assert getattr(excinfo.value, "error_code", None) == "WRITE_CHECKOUT_DIRTY"
+    assert excinfo.value.error_code == "WRITE_CHECKOUT_DIRTY"
     assert "README.md" in str(excinfo.value)
     assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"
 
@@ -136,7 +137,7 @@ def test_switch_onto_an_existing_branch(tmp_path: Path) -> None:
 
 def test_protected_create_refuses_switch_while_occupied(tmp_path: Path) -> None:
     """The create path reaches the occupancy refusal (#5676 reproduction), and leaves HEAD alone."""
-    from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
+    from specify_cli.core.mission_creation import create_mission_core
 
     repo = _repo(tmp_path, occupant_lane="in_progress")
 
@@ -148,7 +149,7 @@ def test_protected_create_refuses_switch_while_occupied(tmp_path: Path) -> None:
 
 
 def test_protected_create_refuses_switch_when_dirty_with_code(tmp_path: Path) -> None:
-    from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
+    from specify_cli.core.mission_creation import create_mission_core
 
     repo = _repo(tmp_path)
     (repo / "README.md").write_text("operator edit\n", encoding="utf-8")

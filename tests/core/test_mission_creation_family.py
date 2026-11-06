@@ -800,12 +800,15 @@ def test_planted_control_flags_the_write_before_the_mint() -> None:
     assert len(violations) == 1 and violations[0].startswith("orchestrator order"), violations
 
 
+_PROBE_LINE = "    protection = _ProtectionProbe(write_root, mints_on_every_target=topology_source is TopologySource.DEFAULT)\n"
+
+
 def test_planted_control_flags_an_early_protection_resolution() -> None:
     trees = _family_trees(
         (
             "mission_creation",
-            "    protection = _ProtectionProbe(write_root)\n",
-            "    protection = _ProtectionProbe(write_root)\n    protection.is_protected(planning_branch)\n",
+            _PROBE_LINE,
+            _PROBE_LINE + "    protection.is_protected(planning_branch)\n",
         )
     )
     assert _orchestrator_order_violations(trees) == ["orchestrator resolves protection itself (is_protected call)"]

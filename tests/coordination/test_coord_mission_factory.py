@@ -126,17 +126,18 @@ def test_make_coord_mission_unknown_via_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# M1 -- topology=None (WP06's real default path: no --topology, product-resolved)
+# M1 -- topology=None (the real default path: no --topology, product-resolved)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_make_coord_mission_cli_pr_bound_no_topology_resolves_to_coord(tmp_path: Path) -> None:
-    """WP06 US1.4's real default path: pr-bound, protected primary, NO --topology."""
-    coord = make_coord_mission(tmp_path, None, via="cli_pr_bound", protected_primary=True)
-
-    assert coord.topology is MissionTopology.COORD
+def test_make_coord_mission_cli_pr_bound_no_topology_is_no_longer_coord(tmp_path: Path) -> None:
+    """S7 #7282 (ADR 2026-11-06-3): pr-bound, protected primary, NO --topology no longer
+    yields ``coord``; the create is a provisional ``single_branch`` with no coordination
+    branch, so the coord factory refuses to build a coord Mission from it."""
+    with pytest.raises(AssertionError, match="expected a coordination branch"):
+        make_coord_mission(tmp_path, None, via="cli_pr_bound", protected_primary=True)
 
 
 @pytest.mark.integration

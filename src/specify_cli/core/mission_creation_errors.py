@@ -124,3 +124,25 @@ class MissionBranchExistsError(ProtectedMintRefusedError):
     __module__ = "specify_cli.core.mission_creation"
 
     error_code: str = "MISSION_BRANCH_EXISTS"
+
+
+class WriteCheckoutSwitchOccupiedError(ProtectedMintRefusedError):
+    """A switch of the write checkout refused: another WP is ``in_progress`` there (#5676).
+
+    The same rule ``implement`` refuses with (``WRITE_CHECKOUT_OCCUPIED``). Raised before
+    any git write; the failure-atomic create treats it as disposable.
+    """
+
+    # Report the façade as home, as the sibling creation errors do (#5634).
+    __module__ = "specify_cli.core.mission_creation"
+
+    error_code: str = "WRITE_CHECKOUT_OCCUPIED"
+
+
+class WriteCheckoutSwitchDirtyError(ProtectedMintRefusedError):
+    """A switch of the write checkout refused: it has uncommitted operator work (#5676)."""
+
+    # Report the façade as home, as the sibling creation errors do (#5634).
+    __module__ = "specify_cli.core.mission_creation"
+
+    error_code: str = "WRITE_CHECKOUT_DIRTY"
