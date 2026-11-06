@@ -3,8 +3,7 @@
 Pins the walk every root authority in the stack shares: a start directory and each
 parent in order, never above a ``GIT_CEILING_DIRECTORIES`` entry, with the ceiling read
 on every call. The deliberate deviation from git's exact rule for a ceiling directory is
-part of the contract, not an accident (see
-``kitty-specs/ceiling-aware-ancestor-walk-01M6EJNY/contracts/kernel-ancestor-walk.md``).
+part of the contract, not an accident (see the ``kernel.ancestor_walk`` module docstring).
 """
 
 from __future__ import annotations
@@ -182,3 +181,35 @@ def test_the_module_imports_nothing_above_the_kernel_floor() -> None:
     forbidden = ("specify_cli", "charter", "runtime", "mission_runtime", "glossary")
     violations = [name for name in imported if name.split(".")[0] in forbidden]
     assert violations == [], f"kernel.ancestor_walk must stay at the floor, found {violations}"
+
+
+@pytest.mark.parametrize("error", [RuntimeError("Symlink loop"), PermissionError(13, "Permission denied")])
+def test_a_start_that_cannot_be_resolved_is_walked_as_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
+    """A resolve failure never escapes the walk: it continues lexically, still bounded by the ceiling."""
+    start = tmp_path / "a" / "b"
+    real_resolve = Path.resolve
+
+    def failing(self: Path, strict: bool = False) -> Path:
+        if self == start:
+            raise error
+        return real_resolve(self, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", failing)
+    _ceiling_env(monkeypatch, tmp_path)
+
+    assert list(iter_ancestors(start)) == [start, tmp_path / "a", tmp_path]
+
+
+def test_a_ceiling_entry_that_cannot_be_resolved_is_kept_as_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Dropping it would widen the walk; keeping it unresolved can only stop the walk earlier."""
+    ceiling = tmp_path / "ceiling"
+    real_resolve = Path.resolve
+
+    def failing(self: Path, strict: bool = False) -> Path:
+        if self == ceiling:
+            raise RuntimeError("Symlink loop")
+        return real_resolve(self, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", failing)
+
+    assert git_ceiling_dirs({GIT_CEILING_ENV: str(ceiling)}) == frozenset({ceiling})
