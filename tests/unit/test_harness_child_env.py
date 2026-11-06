@@ -1,11 +1,11 @@
 """Every from-scratch child environment carries the harness git ceiling (#7076).
 
-#7022 installs ``GIT_CEILING_DIRECTORIES`` for the run, and #7056 moved every root walk in
-``src/`` onto it. An environment built from an allowlist — or copied and stripped of
-``GIT_*`` — drops it, and that is the one place the harness boundary silently disappears: a
-child's git and a child's root walks then climb out of the test's tree into whatever
-encloses it. These tests drive each site's *real* helper, so they fail if a helper is
-written without the carry.
+#7022 installs ``GIT_CEILING_DIRECTORIES`` for the run, and #7056 moved the
+parent-enumerating root walks in ``src/`` onto it. An environment built from an
+allowlist — or copied and stripped of ``GIT_*`` — drops it, and that is the one place the
+harness boundary silently disappears: a child's git and a child's root walks then climb
+out of the tree into whatever encloses it. These tests drive each site's *real* helper, so
+they fail if a helper is written without the carry.
 
 The sixth site, ``tests/consolidation/test_bake_commit_scope_meta_only.py::_hermetic_env``,
 is a module-level autouse fixture and is therefore asserted by a test inside that module
