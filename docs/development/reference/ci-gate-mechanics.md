@@ -748,8 +748,8 @@ pull request per head branch.
 - A push the token is not allowed to make (HTTP 403) fails the step with a message
   naming the secret. That is a token problem code cannot fix; see #5624.
 
-**The red window.** Per pull request, a drifted count is a non-blocking
-`ShardTimingsDriftWarning`. The job `strict-shard-timings-check` in the same
+**The red window.** Per pull request, the module-tests select step reports a drifted
+count as a warning, and the live collection in this gate is skipped (#7288). The job `strict-shard-timings-check` in the same
 workflow runs `tests/architectural/test_module_length_agreement.py` with
 `SPEC_KITTY_STRICT_SHARD_TIMINGS=1` and has no `needs` edge to the recapture job. So
 from the first scheduled run that sees a drift until the proposal merges, the strict

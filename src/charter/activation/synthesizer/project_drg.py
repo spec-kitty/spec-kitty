@@ -287,17 +287,16 @@ def emit_project_layer(
     Args:
         targets: Ordered sequence of ``SynthesisTarget`` objects to emit.
         spec_kitty_version: Version string embedded in ``generated_by``.
-        built_in_drg: The built-in-layer ``DRGGraph`` used for additive-only
-            checks.  **Not mutated.**
+        built_in_drg: The ``DRGGraph`` the additive-only checks read: on the CLI
+            paths, the shipped graph plus the directives synthesis does not own
+            (#6768).  **Not mutated.**
         project_root: Project root for hand-authored profile/registered-
             artifact composition (see above).
         org_drg: The org-chain base graph (built-in + org merged, as returned
             by :func:`charter.activation._drg_helpers.org_chain_graph`), or ``None``
             when no org packs are configured. Used ONLY for the
-            reference-resolution universe — the additive-only checks stay
-            built-in-only, because an org node may legitimately be overridden
-            by the project layer (``merge_three_layers`` precedence) while a
-            built-in node may not. **Not mutated.**
+            reference-resolution universe; the additive-only checks read
+            *built_in_drg* alone. **Not mutated.**
         warnings_out: Optional sink that receives the unresolved-reference
             warnings (the same strings logged below) so CLI callers can
             surface them instead of them living only in ``logging`` output.
