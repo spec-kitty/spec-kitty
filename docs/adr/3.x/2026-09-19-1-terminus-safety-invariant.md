@@ -610,6 +610,18 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   commit is additive and carried over the PASS anchor, and the next `--resume` re-proves it
   idempotently. Teardown calls no restore path, so the single rollback authority stays the only one.
   No CLI flag, exit code or error code is added.
+- **Sequencing (epic #7276, operator rulings 2026-11-06).** This is slice S10 of the lane and
+  worktree hardening epic. The order inside the consolidation phase is: landing and the
+  reconciliation gate PASS, then this late window (projection, proof, guarded advance), then the
+  projection teardown gate and the compare-and-swap branch delete, both anchored on the approved
+  tip. Worktree and branch cleanup is the final step of the consolidation phase (ruling 6, slice S5
+  #7280). It runs after the late window, anchors on the tip this window approved, and does not wait
+  for the pull request to merge. `doctor workspaces --prune` stays the proof-based backstop. This
+  amendment adds no deletion of its own. Routing the existing teardown delete through the #7264
+  proof list and `git/destructive_guard.py` (ruling 7, slice S4) is left to S5. The proof reads
+  the resolved status surface only: the target ref's committed log, and the coordination worktree's
+  log the union folds. It reads no lane-branch status copy (ruling 3, slice S6 #7281; #6466,
+  #6884).
 - **Residuals (named, not closed).** #7271 (the composed coordination directory is contained, not
   proved), #7121 (a first run with no anchor), #5460 (primary artifacts are judged, never
   projected), #7201 (the retrospective commit's target, PR #7233, separate).
@@ -684,7 +696,7 @@ next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded tar
 - Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
-- Amendment 2026-11-06: #7265 (design), #7198, #7199; supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7271, #7121, #5460; separate: #7201 / PR #7233.
+- Amendment 2026-11-06: #7265 (design, slice S10 of epic #7276), #7198, #7199; sequencing with #7280 (S5), #7264 (S4), #7281 (S6); supersedes PRs #7228 and #7226 (author Ivan-Melck); residuals #7271, #7121, #5460; separate: #7201 / PR #7233.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),
