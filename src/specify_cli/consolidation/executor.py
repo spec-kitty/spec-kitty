@@ -91,7 +91,6 @@ from specify_cli.consolidation.state import (
     ConsolidationState,
     acquire_merge_lock,
     load_state,
-    reconciliation_passed_for_tip,
     release_merge_lock,
     save_state,
 )
@@ -151,6 +150,7 @@ from specify_cli.consolidation.run_state import (
     _MergeRunState,
     _resume_reconciliation_already_passed,
     _status_surface_ref,
+    landing_verified_for_resume,
 )
 
 
@@ -190,7 +190,7 @@ def _refuse_unexplained_branch_moves(main_repo: Path, canonical_id: str) -> dict
         return {}
     healed = _pending_heal_branch(state)
     rows = [row for row in rollback.unexplained_branches(main_repo, state) if row[0] != healed]
-    if rows and reconciliation_passed_for_tip(state, _resolve_ref_sha(main_repo, state.target_branch) or ""):
+    if rows and landing_verified_for_resume(main_repo, state):
         exempt = _verified_landing_exempt_branches(state, None)
         rows = [row for row in rows if row[0] not in exempt]
     if rows:
@@ -1005,7 +1005,9 @@ def _run_lane_based_consolidation(
             main_repo,
             lanes_manifest.target_branch,
         )
-    else:
+    elif not (existing_state is not None and existing_state.cleanup_started and landing_verified_for_resume(main_repo, existing_state)):
+        # S5 FR-035: a resume after a kill inside cleanup finds the mission branch already torn
+        # down with the coordination triple; the landing is verified, so only cleanup is left.
         branch_ok, branch_blocker = _check_mission_branch(
             mission_slug,
             main_repo,

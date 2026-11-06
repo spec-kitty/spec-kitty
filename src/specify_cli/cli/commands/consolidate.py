@@ -581,9 +581,34 @@ def _abort_restore_or_keep_record(repo_root: Path, state: ConsolidationState) ->
     if not state.pre_mutation_refs:
         console.print(_ABORT_NO_SNAPSHOT_NOTICE)
         return True, None
+    if _cleanup_interrupted(repo_root, state):
+        _print_interrupted_cleanup(repo_root, state)
+        return True, None
     report = rollback_to_snapshot(repo_root, state, target_branch=state.target_branch)
     console.print(report.render(), markup=False, highlight=False)
     return bool(report.fully_restored), report
+
+
+def _cleanup_interrupted(repo_root: Path, state: ConsolidationState) -> bool:
+    """True when the record's run was interrupted inside the cleanup that follows a verified landing (S5)."""
+    from specify_cli.consolidation.run_state import landing_verified_for_resume
+
+    return state.cleanup_started and bool(landing_verified_for_resume(repo_root, state))
+
+
+def _print_interrupted_cleanup(repo_root: Path, state: ConsolidationState) -> None:
+    """``--abort`` after a partial cleanup: nothing is rolled back and no lane branch is restored (S5 edge case).
+
+    The landing was verified and the coordination triple already came down, so there is nothing
+    to restore; a lane branch the cleanup already deleted is only named with its recreate command.
+    """
+    from specify_cli.consolidation.lane_cleanup import branch_exists
+
+    console.print("Cleanup had started after a verified landing: nothing is rolled back and no lane branch is restored.", markup=False)
+    for branch in state.snapshot_lane_branches:
+        sha = state.pre_mutation_refs.get(branch)
+        if sha and not branch_exists(repo_root, branch):
+            console.print(f"  deleted lane branch {branch}; recreate with: git branch {branch} {sha}", markup=False)
 
 
 def _abort_exit_keeping_record(repo_root: Path, state: ConsolidationState) -> None:
@@ -697,7 +722,12 @@ def _dispatch_abort(repo_root: Path, mission: str | None, release: _ReleaseReque
         git_merge_aborted, cleared, report = _abort_lock_restore_clear(repo_root, resolved, state_entry, release)
         if cleared:
             console.print(
-                _abort_success_line(resolved, restored=bool(active_state.pre_mutation_refs), resume_seeded=bool(active_state.resume_seeded_refs), report=report)
+                _abort_success_line(
+                    resolved,
+                    restored=bool(active_state.pre_mutation_refs) and report is not None,
+                    resume_seeded=bool(active_state.resume_seeded_refs),
+                    report=report,
+                )
             )
         else:
             console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")

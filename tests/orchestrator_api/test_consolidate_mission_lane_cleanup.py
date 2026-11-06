@@ -1,7 +1,8 @@
 """``orchestrator-api consolidate-mission`` reports per-lane cleanup outcomes (S5, FR-039a, SC-012, contract 1.24.0).
 
 The orchestrator path and ``spec-kitty consolidate`` share one lane-cleanup module, so the same
-Mission shape yields the same per-lane outcome on both. Driven through the REAL CLI over real git.
+Mission shape yields the same per-lane outcome on both (the 1.24.0 value itself is pinned in
+``tests/specify_cli/orchestrator_api/test_contract_version.py``). Driven through the REAL CLI over real git.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from tests.consolidation.test_lane_cleanup_kept_report import (
     add_lane_worktrees,
     consolidate_args,
@@ -54,7 +56,7 @@ def test_orchestrator_and_executor_same_lane_outcome(tmp_path: Path) -> None:
     assert api.returncode == 0, output(api)
 
     envelope = json.loads([line for line in api.stdout.splitlines() if line.strip().startswith("{")][-1])
-    assert envelope["contract_version"] == "1.24.0", envelope
+    assert envelope["contract_version"] == CONTRACT_VERSION, envelope
     assert envelope["success"] is True, envelope
     cleanup = lane_cleanup_json(api)
     api_outcomes = [(str(entry["lane_id"]), str(entry["outcome"])) for entry in cleanup]

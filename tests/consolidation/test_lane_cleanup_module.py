@@ -256,6 +256,10 @@ def test_resume_after_kill_in_cleanup_skips_regate(tmp_path: Path) -> None:
     assert killed.returncode == 137, output(killed)
     assert state_files(mission), f"the kill must leave the record behind\n{output(killed)}"
 
+    # A SIGKILL leaves the merge lock files behind; the operator removes them, as the lock error says.
+    for lock in (mission.repo / ".kittify" / "runtime" / "merge").glob("*/lock"):
+        lock.unlink()
+
     resumed = run_terminus(mission, consolidate_args(mission, "--resume"))
 
     out = output(resumed)

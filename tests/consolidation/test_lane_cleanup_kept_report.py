@@ -76,13 +76,6 @@ def add_lane_worktrees(mission: CoordMission, lane_ids: Sequence[str]) -> None:
         git(mission.repo, "worktree", "add", "-q", str(lane_worktree(mission, lane_id)), lane_branch(mission, lane_id))
 
 
-def record_lane_tip(mission: CoordMission, lane_id: str) -> str:
-    branch = lane_branch(mission, lane_id)
-    sha = mission.rev(branch)
-    git(mission.repo, "update-ref", f"{_LANE_TIP_PREFIX}{branch}", sha)
-    return sha
-
-
 def state_files(mission: CoordMission) -> list[Path]:
     return sorted((mission.repo / ".kittify" / "runtime" / "merge").glob("*/state.json"))
 
@@ -222,9 +215,14 @@ def test_retained_by_policy_distinct_from_kept(
 
 def test_missing_branch_keeps_lane_tip_ref(tmp_path: Path) -> None:
     mission = _three_lane_mission(tmp_path, "01M7280C")
-    tip = record_lane_tip(mission, "lane-a")
     removed_branch = lane_branch(mission, "lane-a")
-    delete_by_hand = f"subprocess.run(['git', 'branch', '-D', {removed_branch!r}], check=True, capture_output=True)"
+    tip = mission.rev(removed_branch)
+    # The lane-tip ref is (re)recorded after the run's ``done`` bookkeeping, which clears the tip of a
+    # fully terminal lane (``lanes.claim_base.on_wp_terminal``, #5115); then the branch is deleted by hand.
+    delete_by_hand = (
+        f"subprocess.run(['git', 'update-ref', '{_LANE_TIP_PREFIX}{removed_branch}', {tip!r}], check=True)\n"
+        f"subprocess.run(['git', 'branch', '-D', {removed_branch!r}], check=True, capture_output=True)"
+    )
     result = run_patched(mission, consolidate_args(mission), after_gate(delete_by_hand))
     out = output(result)
 
@@ -235,6 +233,7 @@ def test_missing_branch_keeps_lane_tip_ref(tmp_path: Path) -> None:
     # A branch this run DID delete has its tip ref cleared (only after the confirmed delete).
     assert not ref_exists(mission.repo, f"refs/heads/{lane_branch(mission, 'lane-b')}"), out
     assert not ref_exists(mission.repo, f"{_LANE_TIP_PREFIX}{lane_branch(mission, 'lane-b')}"), out
+    assert outcome_line(lane_cleanup_block(result), "lane-a").startswith("Removed"), out
 
 
 def _kill_after_first_lane_leg() -> str:
@@ -266,6 +265,8 @@ def test_abort_after_partial_cleanup_never_restores_lane_branches(tmp_path: Path
     assert aborted.returncode == 0, out
     for lane_id in deleted:
         assert not ref_exists(mission.repo, f"refs/heads/{lane_branch(mission, lane_id)}"), f"{lane_id} must not be recreated by --abort\n{out}"
+        recreate = f"git branch {lane_branch(mission, lane_id)} {lane_tips[lane_id]}"
+        assert recreate in " ".join(out.split()), f"the recovery hint names the deleted lane's tip\n{out}"
     assert mission.rev(mission.target_branch) == landed, f"a verified landing is never rolled back\n{out}"
     assert state_files(mission) == [], out
 
