@@ -242,8 +242,8 @@
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
-      "shell_pid": 12194,
-      "shell_pid_created_at": "1793989291.36"
+      "shell_pid": 1406,
+      "shell_pid_created_at": "1793994522.93"
     },
     "WP08": {
       "actor": "claude",
