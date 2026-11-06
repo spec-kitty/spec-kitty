@@ -469,6 +469,79 @@ def test_default_mission_topic_branch_in_another_checkout_reads_that_checkout(tm
     assert primary.resolve() == (holder / KITTY_SPECS / SLUG).resolve()
 
 
+def _hold_topic_branch_elsewhere(mission: MatrixMission, holder: Path) -> None:
+    """Root checkout back on ``main`` with a decoy copy; *holder* checks the topic branch out."""
+    git(mission.repo, "checkout", "-q", "main")
+    git(mission.repo, "worktree", "add", "-q", str(holder), MISSION_BRANCH)
+    shutil.copytree(holder / KITTY_SPECS / SLUG, mission.root_mission_dir, dirs_exist_ok=True)
+    (mission.root_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+
+
+def test_default_mission_topic_branch_held_by_a_lane_worktree_reads_the_branch(tmp_path: Path) -> None:
+    """Review cycle 1, N2: a lane worktree is never a status read source (ADR 2026-11-06-2).
+
+    The topic branch is checked out in a registered lane worktree: the door skips it and reads
+    the committed topic branch; the PRIMARY-partition location is not the lane's copy.
+    """
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+    _make_default(mission)
+    lane = mission.repo / ".worktrees" / f"{SLUG}-lane-a"
+    _hold_topic_branch_elsewhere(mission, lane)
+
+    surface = resolve_status_read(mission.repo, SLUG)
+
+    assert surface.source is StatusReadSource.MISSION_BRANCH_REF
+    assert surface.ref == f"refs/heads/{MISSION_BRANCH}"
+    assert _lanes(read_status_events(surface))[-1] == "in_progress"
+    assert resolve_primary_partition_dir(mission.repo, SLUG) is None
+
+
+def test_default_mission_holder_without_mission_dir_reads_the_branch(tmp_path: Path) -> None:
+    """Review cycle 1, N3: a holder with no Mission directory never falls back to the root's copy.
+
+    The root checkout carries an emptied decoy log; the declared source is the committed topic
+    branch, so the read sees its history, not the decoy's empty one.
+    """
+    mission = build_matrix_mission(tmp_path, SINGLE_BRANCH)
+    _make_default(mission)
+    holder = tmp_path / "topic-holder"
+    _hold_topic_branch_elsewhere(mission, holder)
+    shutil.rmtree(holder / KITTY_SPECS / SLUG)
+
+    surface = resolve_status_read(mission.repo, SLUG)
+
+    assert surface.source is StatusReadSource.MISSION_BRANCH_REF
+    assert surface.ref == f"refs/heads/{MISSION_BRANCH}"
+    assert _lanes(read_status_events(surface))[-1] == "in_progress"
+    assert resolve_primary_partition_dir(mission.repo, SLUG) is None
+
+
+def test_one_status_read_source_enum() -> None:
+    """Review cycle 1, N6: the status contract layer and the door share ONE read-source enum."""
+    from specify_cli.coordination import status_service
+    from specify_cli.status import read_surface
+
+    assert status_service.StatusReadSource is read_surface.StatusReadSource
+    assert status_service.EventLogReadContract.primary_checkout(Path("x")).source is StatusReadSource.WRITE_CHECKOUT
+
+
+def test_runtime_bridge_reads_the_one_landed_reader(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Review cycle 1, N5: the runtime bridge's landed check delegates to ``mission_has_landed``."""
+    import mission_runtime
+    from runtime.next import runtime_bridge
+
+    seen: list[Path] = []
+
+    def _fake(primary_dir: Path) -> bool:
+        seen.append(primary_dir)
+        return True
+
+    monkeypatch.setattr(mission_runtime, "mission_has_landed", _fake)
+
+    assert runtime_bridge._primary_mission_is_completed(tmp_path) is True
+    assert seen == [tmp_path]
+
+
 def test_explicit_topology_mission_keeps_target_placement(tmp_path: Path) -> None:
     """Positive control (FR-061): an explicit ``--topology`` Mission keeps today's placement."""
     mission = build_matrix_mission(tmp_path, LANES_WITH_COORD, MATERIALIZED)
