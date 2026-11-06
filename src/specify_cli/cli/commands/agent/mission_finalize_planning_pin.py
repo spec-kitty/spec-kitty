@@ -943,16 +943,15 @@ def _derive_missing_pin(
     """#7210: a pin derived from git when none is recorded and the tip resolves, else ``None``.
 
     The parent of the first commit on *target_branch*'s first-parent line that touched the
-    Mission's ``tasks/WP*.md`` (the one resolver the ``--skip-lanes`` base also uses, #7209) --
-    the tip a timely finalize would have recorded, or slightly earlier (operator ruling
-    2026-11-05, ADR ``2026-10-04-5`` Amendment 2026-11-05).
-    A recorded pin is never replaced.
+    Mission's ``tasks/WP*.md`` (the one resolver the ``--skip-lanes`` base also uses, #7209),
+    when every lane branch contains it (operator ruling 2026-11-05, ADR ``2026-10-04-5``
+    Amendment 2026-11-05). Never written over a recorded pin.
     """
     if recorded is not None or tip is None:
         return None
     from specify_cli.lanes import planning_base
 
-    derived = planning_base.resolve_planning_base_commit(repo_root, target_branch, planning_base.mission_wp_tasks_pathspec(mission_slug))
+    derived = planning_base.resolve_finalize_planning_base(repo_root, target_branch, mission_slug)
     if derived is None:
         return None
     return PlanningCommitResolution(sha=derived, action="derived", previous_sha=None, branch_tip=tip, pin_class=PinClass.INDETERMINATE.value)

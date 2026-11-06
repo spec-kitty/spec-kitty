@@ -691,6 +691,21 @@ def test_finalize_derives_a_pin_from_git_when_none_is_recorded(tmp_path: Path, m
     )
 
 
+def test_finalize_keeps_no_pin_when_a_lane_branch_lacks_the_derived_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7210: a base the lane lacks reads the target's content as the lane's work, so it is not recorded."""
+    from specify_cli.lanes.branch_naming import code_lane_branch_name
+
+    coord, original_pin = _blank_recorded_pin(monkeypatch, tmp_path, "issue-7210-lane-lacks-base")
+    older = _git_stdout(coord.repo_root, "rev-parse", f"{original_pin}~1").strip()
+    _git_stdout(coord.repo_root, "branch", code_lane_branch_name(coord.mission_dir_name, "lane-z"), older)
+
+    emitted = _run_real_finalize(monkeypatch, coord)
+
+    after = read_lanes_json(coord.root_mission_dir)
+    assert after is not None and after.planning_commit_sha is None
+    assert _success_payload(emitted)["planning_commit"]["action"] == "kept_with_warning"
+
+
 def test_finalize_warns_and_keeps_no_pin_when_none_can_be_derived(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """C2-1 (WP15 cycle 2), narrowed by #7210: with no recorded pin AND no derivable one,
     the run stays a VISIBLE ``kept_with_warning`` (exit 0), never a silent ``preserved``.

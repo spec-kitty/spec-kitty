@@ -1778,9 +1778,9 @@ def _rebuilt_planning_commit(repo_root: Path, mission_slug: str, target_branch: 
     derived, today's behaviour stands: the live target tip (``None`` only on a git failure).
     """
     from specify_cli.core.vcs.git import capture_branch_tip
-    from specify_cli.lanes.planning_base import mission_wp_tasks_pathspec, resolve_planning_base_commit
+    from specify_cli.lanes.planning_base import resolve_finalize_planning_base
 
-    derived = resolve_planning_base_commit(repo_root, target_branch, mission_wp_tasks_pathspec(mission_slug))
+    derived = resolve_finalize_planning_base(repo_root, target_branch, mission_slug)
     if derived is not None:
         return derived, True
     tip: str | None = capture_branch_tip(repo_root, target_branch)

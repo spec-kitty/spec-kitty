@@ -7,12 +7,13 @@ Two callers anchor it on different Mission paths:
 * ``consolidate --skip-lanes`` (#7209, ``consolidation.entry_preflight``): a Mission with no
   ``lanes.json`` anchors on the Mission directory, ``kitty-specs/<slug>/``.
 * ``finalize-tasks`` (#7210, ``mission_finalize_planning_pin``): a ``lanes.json`` that predates the
-  pin anchors on the work package task files, ``kitty-specs/<slug>/tasks/WP*.md``. That is the
-  tip a timely finalize would have recorded, or slightly earlier.
+  pin anchors on the work package task files, ``kitty-specs/<slug>/tasks/WP*.md``, through
+  :func:`resolve_finalize_planning_base`, which also requires every lane branch to contain the
+  base. On a direct history that is the tip a timely finalize would have recorded.
 
 A derived base is a fact read from git and claims nothing about review (operator ruling
-2026-11-05, ADR ``2026-10-04-5`` Amendment 2026-11-05). The window it opens can be slightly wider
-than a recorded one. The window itself stays computed only in ``consolidation.wp_evidence``.
+2026-11-05, ADR ``2026-10-04-5`` Amendment 2026-11-05). The window it opens can be wider than a
+recorded one. The window itself stays computed only in ``consolidation.wp_evidence``.
 """
 
 from __future__ import annotations
@@ -21,8 +22,9 @@ from pathlib import Path
 
 from kernel.git import GitCommandError, run_git
 from specify_cli.consolidation.git_probes import GitProbeError, commit_parents
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 
-__all__ = ["mission_dir_pathspec", "mission_wp_tasks_pathspec", "resolve_planning_base_commit"]
+__all__ = ["mission_dir_pathspec", "mission_wp_tasks_pathspec", "resolve_finalize_planning_base", "resolve_planning_base_commit"]
 
 
 def mission_dir_pathspec(mission_slug: str) -> str:
@@ -60,11 +62,14 @@ def resolve_planning_base_commit(repo_root: Path, target_branch: str, pathspec: 
     #2745 fixture) would otherwise get an empty window and a false ``IMPLEMENTATION_MISSING``. A
     root introducing commit has no parent and is its own base.
 
-    Returns ``None`` when the path never reached the target branch's history or git cannot read it.
+    Returns ``None`` when the path never reached the target branch's history, git cannot read it,
+    or the repository is shallow (a shallow boundary has no parents, so it would pass as a root).
     Never fabricates a base (no timestamp, no current tip): an unresolvable window keeps the
     fail-closed refusal.
     """
     try:
+        if run_git(repo_root, "rev-parse", "--is-shallow-repository").stdout.strip() == b"true":
+            return None
         history = run_git(repo_root, "log", "--first-parent", "--format=%H", target_branch, "--", pathspec)
     except GitCommandError:
         return None
@@ -79,3 +84,25 @@ def resolve_planning_base_commit(repo_root: Path, target_branch: str, pathspec: 
         # the caller while it still has work to judge.
         return None
     return parents[0] if parents else introducing
+
+
+def resolve_finalize_planning_base(repo_root: Path, target_branch: str, mission_slug: str) -> str | None:
+    """The base ``finalize-tasks`` and ``doctor mission-state --fix`` record for a pin-less Mission (#7210).
+
+    :func:`resolve_planning_base_commit` over the Mission's ``tasks/WP*.md``, accepted only when
+    every existing lane branch of the Mission contains it. The evidence window is a tree diff
+    ``base..lane``, so a base holding content the lane never had reads that content as the lane's
+    implementation: a work package with no commits would land. That happens when the tasks reach
+    the target by a merge or a rebase after the lane was cut. No such base is recorded, so the
+    fail-closed refusal stands.
+    """
+    base = resolve_planning_base_commit(repo_root, target_branch, mission_wp_tasks_pathspec(mission_slug))
+    if base is None:
+        return None
+    pattern = f"refs/heads/{code_lane_branch_name(mission_slug, 'lane-*')}"
+    try:
+        lanes = run_git(repo_root, "for-each-ref", "--format=%(refname)", pattern).stdout.decode("utf-8", "replace").split()
+        containing = run_git(repo_root, "for-each-ref", f"--contains={base}", "--format=%(refname)", pattern).stdout.decode("utf-8", "replace").split()
+    except GitCommandError:
+        return None
+    return base if set(lanes) <= set(containing) else None

@@ -189,7 +189,10 @@ from kernel.clock import now_utc_iso
 # it is now refused with the new code, and no attestation lifts it. A new ``error_code`` value on
 # existing verbs and a changed code on previously-refused calls, so a minor bump; no field is
 # removed or renamed.
-CONTRACT_VERSION = "1.23.0"
+# 1.24.0: the ``planning_commit.action`` vocabulary of the ``tasks`` verb gains ``"derived"``:
+# finalize-tasks records a planning commit read from git for a ``lanes.json`` with none (#7210).
+# Purely additive.
+CONTRACT_VERSION = "1.24.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
