@@ -10,6 +10,7 @@ post-settlement case (repository root checkout back on ``create_return_branch``)
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,6 +19,7 @@ from typer.testing import CliRunner
 
 from specify_cli.status.read_surface import resolve_primary_partition_dir
 from tests.status.test_status_read_matrix import (
+    KITTY_SPECS,
     LANES_WITH_COORD,
     MATERIALIZED,
     MISSION_BRANCH,
@@ -98,6 +100,30 @@ def test_context_resolve_mission_dir_is_primary_partition_location(tmp_path: Pat
     assert primary.resolve() == mission.root_mission_dir.resolve()
     assert _context_mission_dir(mission.repo).resolve() == primary.resolve()
     assert _prerequisites_mission_dir(mission.repo).resolve() == primary.resolve()
+
+
+def test_topic_branch_held_by_another_checkout_reports_that_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B1 (review cycle 1): another checkout holds the topic branch; both commands report it.
+
+    The repository root checkout is back on ``main`` with a leftover copy of the Mission
+    directory (today's target placement), while a linked worktree holds the topic branch. The
+    PRIMARY-partition location is the holder's copy, which differs from the target placement,
+    so this case fails when the FR-061 routing in ``_primary_anchored_feature_dir`` is removed.
+    """
+    mission = _default_mission_on_topic_branch(tmp_path)
+    git(mission.repo, "checkout", "-q", "main")
+    holder = tmp_path / "topic-holder"
+    git(mission.repo, "worktree", "add", "-q", str(holder), MISSION_BRANCH)
+    shutil.copytree(holder / KITTY_SPECS / SLUG, mission.root_mission_dir, dirs_exist_ok=True)
+    held_dir = (holder / KITTY_SPECS / SLUG).resolve()
+    monkeypatch.chdir(mission.repo)
+
+    assert held_dir != mission.root_mission_dir.resolve()
+    primary = resolve_primary_partition_dir(mission.repo, SLUG)
+    assert primary is not None
+    assert primary.resolve() == held_dir
+    assert _context_mission_dir(mission.repo).resolve() == held_dir
+    assert _prerequisites_mission_dir(mission.repo).resolve() == held_dir
 
 
 def test_explicit_topology_mission_keeps_target_placement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
