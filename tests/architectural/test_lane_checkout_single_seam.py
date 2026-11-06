@@ -9,12 +9,15 @@ invocation in three shapes:
 * an argv sequence: a list/tuple literal, or a call's own positional
   arguments, holding the consecutive tokens ``worktree`` then ``add`` (a name
   bound at module level to the string ``"worktree"`` counts, so a hoisted
-  constant cannot hide one; a module with neither a quoted ``worktree`` token
-  nor ``worktree add`` text is skipped unparsed, so a constant imported from
-  another module is out of reach, a known limit);
+  constant cannot hide one);
 * a shell string: an f-string or string passed as the command to
   ``subprocess.run`` / ``check_output`` / ``check_call`` / ``call`` /
   ``Popen`` / ``os.system``.
+
+Known limits: a ``worktree`` constant imported from another module, and a
+shell string built by concatenation (``"git worktree add " + path``), are out
+of reach; a module with neither a quoted ``worktree`` token nor ``worktree
+add`` text is skipped unparsed.
 
 An invocation is allowed only when it is:
 
@@ -22,13 +25,18 @@ An invocation is allowed only when it is:
 2. detached (``--detach`` in the same argv or shell string): a detached
    worktree is a scratch checkout, never a lane checkout, which the helper
    requires to be attached;
-3. inside one of the non-lane modules in :data:`_NON_LANE_WORKTREE_MODULES`,
-   each with its justification.
+3. inside one of the modules in :data:`_NON_LANE_WORKTREE_MODULES`, each of
+   which creates (or prints) a checkout that is NOT a lane checkout, with its
+   justification.
 
-There is NO allowlist for a lane checkout outside the seam. The planted
-violations below (raw list, f-string, hoisted-constant helper alias) prove the
-scan is non-vacuous, the scan floor proves it still reads the tree, and every
-non-lane entry must still match a real invocation (no stale entries).
+There is no allowlist for a lane checkout outside the seam: the former WP
+code-change worktree creators (``core/worktree.py::create_wp_workspace`` /
+``create_feature_worktree`` and ``core/vcs/git.py::GitVCS.create_workspace``)
+had no production caller and were deleted (Mission WP09 review cycle 1). The
+planted violations below (raw list, f-string, hoisted-constant helper alias)
+prove the scan is non-vacuous, the scan floor proves it still reads the tree,
+and every non-lane entry must still match a real invocation (no stale
+entries).
 """
 
 from __future__ import annotations
@@ -54,15 +62,13 @@ _NON_LANE_WORKTREE_MODULES: dict[str, str] = {
         "CoordinationWorkspace.resolve materializes the coordination worktree (`.worktrees/<slug>-<mid8>-coord`), the status surface itself, never a lane"
     ),
     "specify_cli/cli/commands/_coordination_doctor.py": ("`recovery_args` names the coordination worktree re-materialization for doctor output"),
-    "specify_cli/core/vcs/git.py": ("the VCS abstraction's generic create_workspace; its only caller is core/worktree.py"),
-    "specify_cli/core/worktree.py": ("legacy create_wp_workspace / create_feature_worktree fallback; no production caller (Mission WP09 friction: retire it)"),
     "specify_cli/workspace/landed_worktrees.py": ("builds the printed recreate HINT for `doctor workspaces --prune`; spec-kitty never runs it"),
 }
 
 #: Measured 2026-11-06: 1421 ``src/**/*.py`` files. The floor keeps a broken
 #: glob (or a moved tree) from passing on zero files.
 _SCAN_FLOOR = 1200
-_TIME_BUDGET_S = 5.0  # NFR-006
+_TIME_BUDGET_S = 5.0  # NFR-006: wall clock (measured 2026-11-06: about 1.2 s)
 
 _WORKTREE_ADD_TEXT = re.compile(r"\bworktree\s+add\b")
 _PREFILTER = re.compile(r"[\"']worktree[\"']|\bworktree\s+add\b")
@@ -170,17 +176,16 @@ def _scan_src() -> tuple[int, list[Invocation]]:
 
 @pytest.fixture(scope="module")
 def scan() -> tuple[int, list[Invocation], float]:
-    # CPU time, not wall clock: the budget measures the scan's own work, so a
-    # co-scheduled xdist worker or a loaded machine cannot flake it.
-    started = time.process_time()
+    # Wall clock, as NFR-006 states the budget ("completes in at most 5 s").
+    started = time.perf_counter()
     count, invocations = _scan_src()
-    return count, invocations, time.process_time() - started
+    return count, invocations, time.perf_counter() - started
 
 
 def test_no_lane_worktree_add_outside_the_helper(scan: tuple[int, list[Invocation], float]) -> None:
     count, invocations, elapsed = scan
     assert count >= _SCAN_FLOOR, f"scanned {count} files, below the floor {_SCAN_FLOOR}: the scan no longer reads src/"
-    assert elapsed <= _TIME_BUDGET_S, f"scan took {elapsed:.1f}s of CPU (budget {_TIME_BUDGET_S}s)"
+    assert elapsed <= _TIME_BUDGET_S, f"scan took {elapsed:.1f}s wall clock (budget {_TIME_BUDGET_S}s)"
     bad = violations(invocations)
     assert not bad, "lane `git worktree add` outside lanes/lane_checkout.py::open_lane_checkout (route it through the helper):\n" + "\n".join(
         str(item) for item in bad

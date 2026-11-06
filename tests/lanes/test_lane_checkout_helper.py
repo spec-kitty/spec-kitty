@@ -309,3 +309,56 @@ def test_status_exclusion_keeps_dirty_local_status_rows(tmp_path: Path) -> None:
 
     assert log.read_text(encoding="utf-8") == _EVENT_ROW + local_row
     assert not (checkout / "kitty-specs" / MISSION_SLUG / "status.json").exists(), "the clean status file still leaves the disk"
+
+
+# --- the exclusion is Mission-managed sparse state on every topology (review cycle 1, issue 1) ---
+
+
+_PREFLIGHT_COMMANDS = ("spec-kitty agent action implement", "spec-kitty consolidate")
+
+
+@pytest.mark.parametrize("route", sorted(_ROUTE_DRIVERS))
+def test_every_route_checkout_passes_the_sparse_checkout_preflight(route: str, tmp_path: Path) -> None:
+    """The status exclusion is Mission-managed, not legacy sparse state, on every topology.
+
+    Before the fix a ``lanes``-topology lane (and a review or recreate checkout
+    of such a Mission) was classified ``LEGACY_USER``, so ``implement`` of any
+    later WP and ``consolidate`` refused once the first lane was allocated.
+    """
+    from specify_cli.git.sparse_checkout import require_no_sparse_checkout, scan_repo
+
+    opened = _ROUTE_DRIVERS[route](tmp_path)
+    report = scan_repo(opened.repo)
+    assert report.any_active, "the helper's exclusion must be live sparse-checkout state"
+    assert not report.any_blocking, f"managed exclusion classified as blocking: {report.worktrees}"
+    for command in _PREFLIGHT_COMMANDS:
+        require_no_sparse_checkout(
+            opened.repo,
+            command=command,
+            override_flag=False,
+            actor="tester",
+            mission_slug=MISSION_SLUG,
+            mission_id=MISSION_ID,
+        )
+
+
+@pytest.mark.parametrize("route", ["allocation_fresh", "allocation_legacy"])
+def test_an_operator_sparse_pattern_beside_the_exclusion_stays_refused(route: str, tmp_path: Path) -> None:
+    """The status exclusion is the only sparse pattern a lane may carry; anything else is operator state."""
+    from specify_cli.git.sparse_checkout import SparseCheckoutPreflightError, require_no_sparse_checkout
+
+    opened = _ROUTE_DRIVERS[route](tmp_path)
+    sparse_file = Path(_git(opened.checkout, "rev-parse", "--git-path", "info/sparse-checkout"))
+    if not sparse_file.is_absolute():
+        sparse_file = opened.checkout / sparse_file
+    sparse_file.write_text(sparse_file.read_text(encoding="utf-8") + "!src/\n", encoding="utf-8")
+
+    with pytest.raises(SparseCheckoutPreflightError):
+        require_no_sparse_checkout(
+            opened.repo,
+            command="spec-kitty consolidate",
+            override_flag=False,
+            actor="tester",
+            mission_slug=MISSION_SLUG,
+            mission_id=MISSION_ID,
+        )
