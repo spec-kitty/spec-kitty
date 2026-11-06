@@ -89,3 +89,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-31 | [a charter-write budget for repository-scale projects, and why 2 s is not it](2026-10-31-1-charter-write-budget-for-repository-scale-projects.md) |
 | 2026-11-01 | [pull requests touch no shared generated file and land through a merge queue](2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md) |
 | 2026-11-01 | [Op lifecycle records are one file per record](2026-11-01-2-op-lifecycle-records-are-one-file-per-record.md) |
+| 2026-11-06 | [a destructive git operation discharges named proof obligations](2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md) |
