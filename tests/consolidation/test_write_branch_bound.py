@@ -151,9 +151,7 @@ def test_commit_between_two_approvals_refuses_naming_the_preceding_work_package(
         is_bookkeeping=_is_bookkeeping,
     )
 
-    assert [(r.code, r.wp_ids, r.commits, r.path) for r in refusals] == [
-        (BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, ("WP01",), (between,), "src/between.py")
-    ]
+    assert [(r.code, r.wp_ids, r.commits, r.path) for r in refusals] == [(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, ("WP01",), (between,), "src/between.py")]
     text = render_write_branch_refusals(refusals, _SLUG)
     assert refusal_codes(text) == ["LANE_MOVED_AFTER_APPROVAL"]
     assert between[:7] in text and "WP01" in text
