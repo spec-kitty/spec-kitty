@@ -43,8 +43,8 @@ Window: 2026-08-06 to 2026-11-06.
 
 | Source | Population | Evidence file |
 |---|---|---|
-| Tooling-friction tracers (`kitty-specs/*/traces/`) | 1,169 entries from 239 files | `research/tracer-entries.csv`, `research/tracer-summary.md` |
-| GitHub issues with a reliability, bug, priority, git, consolidation or status label | 1,365 of 2,550 opened in the window | `research/issue-classification.csv`, `research/issue-summary.md` |
+| Tooling-friction tracers (`kitty-specs/*/traces/`) | 1,169 entries from 239 files | `research/tracer-entries.part{1,2,3}.csv`, `research/tracer-summary.md` |
+| GitHub issues with a reliability, bug, priority, git, consolidation or status label | 1,365 of 2,550 opened in the window | `research/issue-classification.part{1,2}.csv`, `research/issue-summary.md` |
 | Named example issues and their linked PRs | 16 issues plus 7 related | `research/named-examples.md` |
 | Merged PRs and git churn on `main` | see section 2.4 | `research/pr-classification.csv`, `research/pr-churn-summary.md` |
 | Code, architecture docs and ADRs | lanes, coordination, workspace, consolidation, status | `research/mechanisms-and-options.md` |
