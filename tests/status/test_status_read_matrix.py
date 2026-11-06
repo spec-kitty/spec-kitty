@@ -429,3 +429,75 @@ def test_owned_single_branch_reads_the_owned_mission_dir(tmp_path: Path) -> None
     )
 
     assert primary_surface_dir(mission.repo, SLUG, owned=fact) == owned_root / KITTY_SPECS / SLUG
+
+
+# ---------------------------------------------------------------------------
+# Acceptance (FR-002): a lane root re-anchors to the repository root
+# ---------------------------------------------------------------------------
+
+
+def _wp01_lane(mission_dir: Path) -> str | None:
+    from specify_cli.status import wp_snapshot_state
+
+    state = wp_snapshot_state(mission_dir, "WP01") or {}
+    lane = state.get("lane")
+    return None if lane is None else str(lane)
+
+
+@pytest.mark.parametrize(
+    ("topology", "coord_state", "authority"),
+    [(LANES, NOT_APPLICABLE, ROOT), (LANES_WITH_COORD, MATERIALIZED, COORD)],
+)
+def test_lane_root_reads_write_checkout_state(
+    topology: str,
+    coord_state: str,
+    authority: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """User Story 1, scenario 2: from inside a lane checkout every entry point reads the authority.
+
+    The lane copy says ``planned``; the authority (the write checkout, or the coordination worktree
+    on a coordination Mission) says ``in_progress``.
+    """
+    mission = build_matrix_mission(tmp_path, topology, coord_state)
+    assert mission.lane_worktree is not None
+    assert mission.lane_mission_dir is not None
+    assert _wp01_lane(mission.lane_mission_dir) == "planned"
+    monkeypatch.chdir(mission.lane_worktree)
+
+    for entry in (ANCHOR, CANDIDATE, LOAD, TYPED):
+        resolved = ENTRY_POINTS[entry](mission.lane_worktree)
+        assert label(mission, resolved) == authority, entry
+        assert _wp01_lane(resolved) == "in_progress", entry
+
+
+def test_repository_root_input_unchanged(tmp_path: Path) -> None:
+    """Positive control (FR-002): a repository-root input is returned unchanged, and so is the read."""
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    mission = build_matrix_mission(tmp_path, LANES)
+
+    assert canonical_status_read_root(mission.repo) == mission.repo
+    for entry in ENTRY_POINTS:
+        assert label(mission, ENTRY_POINTS[entry](mission.repo)) == ROOT, entry
+
+
+def test_lane_root_normalizes_to_the_repository_root(tmp_path: Path) -> None:
+    """The one normalization helper re-anchors a lane root, never returning a lane path."""
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    mission = build_matrix_mission(tmp_path, LANES)
+    assert mission.lane_worktree is not None
+
+    assert canonical_status_read_root(mission.lane_worktree).resolve() == mission.repo.resolve()
+
+
+def test_root_outside_any_repository_is_unchanged(tmp_path: Path) -> None:
+    """A directory in no git repository has no worktree registry and no lane: it stays as given."""
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    plain = tmp_path / "not-a-repository"
+    plain.mkdir()
+
+    assert canonical_status_read_root(plain) == plain

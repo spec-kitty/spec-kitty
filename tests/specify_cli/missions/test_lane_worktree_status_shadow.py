@@ -309,67 +309,55 @@ def test_an_unregistered_worktree_shaped_directory_keeps_its_own_root(tmp_path: 
     assert resolved == husk / "kitty-specs" / MISSION_DIRNAME
 
 
-def test_an_unreadable_worktree_registry_keeps_the_callers_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-002: when the registry cannot be consulted the root is returned untouched.
+def _registry_unreadable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every git worktree-registry read fail, as a broken or unreadable registry does."""
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 
-    The helper must never guess a root: the pre-existing surfaces keep their own fail-closed
-    behaviour, so a lane-rooted read behaves exactly as it did before this guard.
+    def _unavailable(repo_root: Path) -> frozenset[Path]:
+        raise WorktreeRegistryUnavailable(repo_root=repo_root, detail="registry unavailable")
+
+    monkeypatch.setattr("specify_cli.coordination.surface_resolver.read_worktree_registry", _unavailable)
+
+
+def test_registry_unreadable_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rule 1: an unreadable worktree registry fails closed with a typed error (flipped on purpose).
+
+    #6884 kept the caller's root here (``test_an_unreadable_worktree_registry_keeps_the_callers_root``),
+    which answers a lane-rooted read from the lane worktree's fork-time copy. Mission
+    lane-worktree-model-hardening-01M6QY1M tightens that (spec edge case "Registry unreadable",
+    Rules and Invariants rule 1, research R-1, ADR 2026-11-06-2 "Root normalization"): without the
+    registry the read cannot tell a lane root from the repository root, so it refuses.
     """
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 
     repo = _build_mission(tmp_path / "repo", coordination=False)
     lane_worktree = _start_implementation(repo)
-    lane_copy = lane_worktree / "kitty-specs" / MISSION_DIRNAME
+    _registry_unreadable(monkeypatch)
 
-    def _boom(*_args: object, **_kwargs: object) -> None:
-        raise WorktreeRegistryUnavailable(repo_root=repo, detail="registry unavailable")
+    with pytest.raises(WorktreeRegistryUnavailable) as excinfo:
+        resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME)
 
-    monkeypatch.setattr(
-        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
-        _boom,
-    )
-
-    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == lane_copy
+    assert excinfo.value.error_code == "WORKTREE_REGISTRY_UNAVAILABLE"
 
 
-def test_a_primary_rooted_read_spends_no_worktree_registry_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The guard costs nothing on the common path: a repository root never consults git.
+def test_registry_unreadable_repository_root_caller(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control (analysis F4): a repository-root caller fails closed too when the registry is unreadable.
 
-    NFR-001: a repository-rooted status read is the overwhelmingly common case, so the guard
-    answers from ``get_main_repo_root`` and the ``.worktrees`` shape alone. Proven by making the
-    registry classifier explode: a primary-rooted read must still resolve, and a lane-rooted read
-    must fall back to the caller's root instead of raising.
+    ADR 2026-11-06-2 scopes fail-closed to every caller, repository root callers included: the
+    normalization cannot classify a root without the registry. This replaces #6884's
+    ``test_a_primary_rooted_read_spends_no_worktree_registry_call``, whose zero-registry fast path
+    for a repository root is exactly what the ADR rules out.
     """
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+
     repo = _build_mission(tmp_path / "repo", coordination=False)
-    lane_worktree = _start_implementation(repo)
-
-    calls: list[Path] = []
-
-    def _explode(path: Path, **_kwargs: object) -> None:
-        calls.append(path)
-        raise AssertionError("the worktree registry was consulted for a non-negative case")
-
-    monkeypatch.setattr(
-        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
-        _explode,
-    )
-
+    _start_implementation(repo)
     assert _lane_of(resolve_handle_to_read_path(repo, MISSION_DIRNAME)) == "in_progress"
-    assert calls == []
 
-    # A lane-rooted read does consult the classifier, and a registry failure keeps the caller's
-    # root untouched (NFR-002) rather than raising out of the read seam.
-    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    _registry_unreadable(monkeypatch)
 
-    def _unavailable(path: Path, **_kwargs: object) -> None:
-        raise WorktreeRegistryUnavailable(repo_root=path, detail="registry unavailable")
-
-    monkeypatch.setattr(
-        "specify_cli.coordination.surface_resolver.classify_worktree_topology",
-        _unavailable,
-    )
-
-    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == (lane_worktree / "kitty-specs" / MISSION_DIRNAME)
+    with pytest.raises(WorktreeRegistryUnavailable):
+        resolve_handle_to_read_path(repo, MISSION_DIRNAME)
 
 
 def test_a_relative_lane_worktree_root_is_re_anchored_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
