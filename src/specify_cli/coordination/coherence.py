@@ -600,6 +600,17 @@ def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
     )
 
 
+def _ref_exists(repo_root: Path, ref: str) -> bool:
+    """True when *ref* names an object in *repo_root* (``rev-parse --verify``; no object read)."""
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", "--end-of-options", ref],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
 def coord_incoherent_done_wps(
     coord_ref: str,
     candidate_wps: list[str],
@@ -618,9 +629,10 @@ def coord_incoherent_done_wps(
 
     The reduction reads the committed coordination-branch ref (mirroring
     ``merge.done_bookkeeping._durable_done_wps_on_coordination_ref``) and NEVER the
-    roll-backable working tree. When the coordination events cannot be read (a
-    non-coord topology, a legacy mission, or an unresolvable ref) an empty list is
-    returned — there is no strand to repair.
+    roll-backable working tree. When the coordination ref does not exist (a
+    non-coord topology, a legacy mission, or a torn-down branch) an empty list is
+    returned — there is no strand to repair. A ref that exists but cannot be read
+    raises ``StatusSurfaceRefUnreadable`` (FR-004): it is never read as genesis.
 
     Args:
         coord_ref: Fully-qualified coordination branch ref carrying the events log.
@@ -649,6 +661,11 @@ def coord_incoherent_done_wps(
     )
     from specify_cli.status import Lane
 
+    if not _ref_exists(repo_root, coord_ref):
+        # Declared arm (FR-004): a coordination ref that no longer exists (torn
+        # down, or a non-coord / legacy Mission) carries no strand to repair. A ref
+        # that exists but cannot be read raises ``StatusSurfaceRefUnreadable``.
+        return []
     events = read_event_log(
         EventLogReadContract.coordination_branch_ref(
             repo_root=repo_root,
