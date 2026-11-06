@@ -45,7 +45,11 @@ A path that cannot be resolved (an unreadable component, or a symbolic-link loop
 ``kernel.resolution.resolve_rejecting_loops`` reports as ``OSError`` on every supported
 interpreter) never escapes as an exception: a ceiling
 entry is kept as written, and the start is walked as its absolute, unresolved path, which
-is what the hand-rolled walks did.
+is what the hand-rolled walks did. Such a sequence is lexical while the ceilings are
+resolved, so a walk that fell back this way also compares each candidate's own real
+identity against the ceilings: a ceiling reached through a symbolic-link alias still ends
+the walk instead of carrying it above its own boundary. The extra comparison does not
+match a candidate that cannot itself be resolved; it only adds stops to the lexical walk.
 
 The variable is read on every call. The test harness sets it at runtime and tests
 monkeypatch it per case, so a cached read would make a walk's verdict depend on which
@@ -108,10 +112,11 @@ def iter_ancestors(
 ) -> Iterator[Path]:
     """Yield ``start`` and each of its parents, never continuing above a ceiling.
 
-    The walk yields the resolved start, then each parent in order. When a candidate is a
-    ceiling entry it is yielded and the iteration ends — see the module docstring for why
-    the ceiling directory is examined. Without a ceiling ancestor the walk ends at the
-    filesystem root.
+    The walk yields the resolved start, then each parent in order — or the absolute,
+    unresolved start when it cannot be resolved (see the module docstring). When a
+    candidate is a ceiling entry it is yielded and the iteration ends — see the module
+    docstring for why the ceiling directory is examined. Without a ceiling ancestor the
+    walk ends at the filesystem root.
 
     Args:
         start: The directory to start from; resolved once, at the start of the walk.
@@ -122,12 +127,34 @@ def iter_ancestors(
     Yields:
         Each candidate directory, nearest first.
     """
-    resolved_start = _resolved(Path(start))
+    raw_start = Path(start)
+    try:
+        resolved_start = resolve_rejecting_loops(raw_start)
+        fell_back = False
+    except OSError:
+        resolved_start = raw_start.absolute()
+        fell_back = True
+def _is_a_ceiling_alias(candidate: Path, ceilings: frozenset[Path]) -> bool:
+    """Whether *candidate*'s real identity is one of *ceilings*.
+
+    Only consulted for a walk whose start could not be resolved: that candidate sequence is
+    lexical while the ceilings are resolved, so a ceiling reached through a symbolic-link
+    alias would never compare equal. An unresolvable candidate adds no stop; the original
+    lexical comparison still applies.
+    """
+    if not ceilings:
+        return False
+    try:
+        return resolve_rejecting_loops(candidate) in ceilings
+    except OSError:
+        return False
+
+
     boundary = git_ceiling_dirs() if ceilings is None else ceilings
 
     for candidate in (resolved_start, *resolved_start.parents):
         yield candidate
-        if candidate in boundary:
+        if candidate in boundary or (fell_back and _is_a_ceiling_alias(candidate, boundary)):
             return
 
 
@@ -140,8 +167,9 @@ def find_ancestor(
     """Return the nearest ancestor of ``start`` (inclusive) that ``predicate`` accepts.
 
     The predicate is the caller's marker test — ``.git`` with a ``HEAD``, a worktree
-    pointer, a ``.kittify`` directory, a ``pyproject.toml``. It receives resolved
-    candidates and is evaluated at most once per candidate, in nearest-first order.
+    pointer, a ``.kittify`` directory, a ``pyproject.toml``. It receives each candidate as
+    the walk produced it (resolved, or the start's lexical path when the start could not be
+    resolved) and is evaluated at most once per candidate, in nearest-first order.
 
     Args:
         start: The directory to start from.
