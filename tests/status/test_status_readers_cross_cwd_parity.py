@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -164,7 +163,7 @@ def _finalize_execution_has_begun(root: Path) -> str:
 def _events_tail(root: Path) -> str:
     from specify_cli.cli.commands.events import app
 
-    result = _runner.invoke(app, ["tail", "--mission", SLUG, "--once", "--json"])
+    result = _runner.invoke(app, ["--mission", SLUG, "--once", "--json"])
     if result.exit_code != 0:
         payload = _first_json(result.output)
         return f"refused:{payload.get('error')}"
@@ -237,15 +236,11 @@ def test_status_readers_agree_across_cwd_and_coord_state(tmp_path: Path, monkeyp
 
 
 def _break_coordination_ref(mission: MatrixMission) -> None:
-    """Point the coordination branch at a blob: the branch exists, its tree cannot be read."""
-    blob = subprocess.run(
-        ["git", "-C", str(mission.repo), "hash-object", "-w", "--stdin"],
-        input="not a commit\n",
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    git(mission.repo, "update-ref", f"refs/heads/{COORD_BRANCH}", blob)
+    """Delete the coordination branch tip's commit object: the branch exists, its commit cannot be read."""
+    tip = git(mission.repo, "rev-parse", f"refs/heads/{COORD_BRANCH}")
+    loose_object = mission.repo / ".git" / "objects" / tip[:2] / tip[2:]
+    loose_object.chmod(0o644)
+    loose_object.unlink()
 
 
 @pytest.mark.parametrize(
