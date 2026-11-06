@@ -1,9 +1,9 @@
 """The run's ``tempfile`` root must sit below the harness's own git ceiling (#7076).
 
 #7022 lists the run's basetemp and the worker's isolated home in
-``GIT_CEILING_DIRECTORIES``, and #7056 moved every root walk in ``src/`` onto that
-ceiling. The ceiling only governs directories *below* a listed entry, and
-``tempfile``'s default root is the **platform** temp root — above every entry — so
+``GIT_CEILING_DIRECTORIES``, and #7056 moved the parent-enumerating root walks in
+``src/`` onto that ceiling. The ceiling only governs directories *below* a listed entry,
+and ``tempfile``'s default root is the **platform** temp root — above every entry — so
 nothing ``tempfile`` creates is bounded by the harness at all. On a shared host whose
 platform temp root has gained a stray ``.git`` (this host's did, left by parallel
 missions), a test's ``mkdtemp`` directory therefore sits inside a foreign repository:

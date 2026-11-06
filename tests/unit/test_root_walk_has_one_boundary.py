@@ -1,7 +1,7 @@
 """``GIT_CEILING_DIRECTORIES`` is the one boundary for the two root walks (#7076).
 
-Both walks already honour git's discovery ceiling (#7022), and #7056 moved every other
-walk in ``src/`` onto the same reader. ``stop=`` was the second, parallel boundary: a
+Both walks already honour git's discovery ceiling (#7022), and #7056 moved the other
+parent-enumerating walks in ``src/`` onto the same reader. ``stop=`` was the second, parallel boundary: a
 keyword only tests passed, with its own semantics to keep in sync with the ceiling, and
 no coverage the ceiling does not already give — git's ceiling bounds child processes too.
 #7076 retired it, so a caller cannot bound a walk with a mechanism the production code no
