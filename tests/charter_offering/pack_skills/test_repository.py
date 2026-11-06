@@ -177,7 +177,7 @@ def test_body_text_refuses_symlink_swapped_after_load(skill_dirs: dict[str, Path
     outside.write_text("SECRET OUTSIDE\n", encoding="utf-8")
     (skill_dir / "link.md").unlink()
     (skill_dir / "link.md").symlink_to(outside)
-    with pytest.raises(PackSkillViolation, match="escapes"):
+    with pytest.raises(PackSkillViolation, match="not contained in its skill directory"):
         repo.body_text("land-pr")
 
 
@@ -194,8 +194,14 @@ def test_body_text_refuses_escaping_body_path(skill_dirs: dict[str, Path], body_
     escaped = PackSkill.model_validate(prompt_skill("escaped", body_path=body_path))
     repo._items["escaped"] = escaped
     repo._sources["escaped"] = skill_dirs["org_a"] / "escaped.skill.yaml"
-    with pytest.raises(PackSkillViolation, match="escapes"):
+    with pytest.raises(PackSkillViolation, match="not contained in its skill directory") as raised:
         repo.body_text("escaped")
+    # The refusal carries the one pack-path finding type (#7263), not a bare string.
+    from charter.offering.pack_skills.validation import PackSkillPathEscape
+
+    assert isinstance(raised.value, PackSkillPathEscape)
+    finding = raised.value.finding
+    assert (finding.code, finding.subject, finding.path) == ("PACK_SKILL_BODY_PATH_ESCAPE", "escaped", body_path)
 
 
 def test_body_text_reads_a_nested_contained_body(skill_dirs: dict[str, Path]) -> None:

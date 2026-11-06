@@ -13,8 +13,8 @@ from kernel.errors import KittyInternalConsistencyError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:  # type-only: runtime reaches the charter layer through its activation facade
-    from charter.offering.drg.org_pack_loader import OrgDRGFragment
+if TYPE_CHECKING:  # type-only: the runtime reaches these through the charter.drg facade
+    from charter.drg import OrgDRGFragment
 
 from charter.activation.api import (
     ActiveCharterConfigError,
@@ -453,46 +453,45 @@ def _collect_synthesis_status(
     }
 
 
-def _record_body_path_escapes(
-    result: dict[str, Any], repo_root: Path, fragments: Sequence[OrgDRGFragment]
-) -> None:
+def _record_body_path_escapes(result: dict[str, Any], fragments: Sequence[OrgDRGFragment]) -> None:
     """Report each authored fragment node whose ``body_path`` escapes its pack (#6733).
 
     ``doctor charter-packs`` has reported this fault since #6418
     (``ORG_FRAGMENT_BODY_PATH_ESCAPE``); ``charter status`` did not, so the
     machine-readable ``org_layer`` block was a clean bill for a pack the doctor
-    fails. The predicate is the charter's — the registry-aware wrapper pairs
-    each loaded fragment with its own pack's effective root — so nothing here
-    restates containment.
+    fails. The predicate is the one the doctor calls, reached through the
+    ``charter.drg`` facade: each fragment is judged against the effective root it
+    carries (#6731), and every finding is a ``PackPathEscape`` (#7263), so nothing
+    here restates containment and the message is the doctor's own sentence.
 
     The finding rides the existing ``errors`` array: status renders every entry,
     so one channel serves the human and the JSON view, and no unread payload
     slot is added (the reason ``dangling_endpoints`` has no key here either).
     """
-    from charter.activation.drg_activation import find_org_body_path_escapes
+    from charter.drg import find_body_path_escapes
 
     try:
-        escapes = find_org_body_path_escapes(repo_root, fragments)
-    except Exception as exc:  # noqa: BLE001 — a check that could not RUN is not one that PASSED
+        escapes = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
+    except Exception as exc:
+        # A check that could not RUN is not a check that PASSED.
         result["errors"].append(f"org-layer body_path check failed: {exc}")
         return
     result["errors"].extend(escape.message for escape in escapes)
 
 
-def _record_asset_path_escapes(
-    result: dict[str, Any], repo_root: Path, fragments: Sequence[OrgDRGFragment]
-) -> None:
+def _record_asset_path_escapes(result: dict[str, Any], fragments: Sequence[OrgDRGFragment]) -> None:
     """Report each org asset sidecar whose ``path`` escapes its ``assets/`` root (#6733).
 
-    The asset sibling of :func:`_record_body_path_escapes`, on the same channel
-    and with the same "could not run" discipline (``ORG_ASSET_PATH_ESCAPE``,
-    #6418). One check cannot hide the other's finding.
+    The asset sibling of :func:`_record_body_path_escapes`, on the same channel,
+    with the same carried root and the same "could not run" discipline
+    (``ORG_ASSET_PATH_ESCAPE``, #6418). One check cannot hide the other's finding.
     """
-    from charter.activation.drg_activation import find_org_asset_path_escapes
+    from charter.drg import find_asset_path_escapes
 
     try:
-        escapes = find_org_asset_path_escapes(repo_root, fragments)
-    except Exception as exc:  # noqa: BLE001 — a check that could not RUN is not one that PASSED
+        escapes = [escape for fragment in fragments for escape in find_asset_path_escapes(fragment)]
+    except Exception as exc:
+        # A check that could not RUN is not a check that PASSED.
         result["errors"].append(f"org-layer asset path check failed: {exc}")
         return
     result["errors"].extend(escape.message for escape in escapes)
@@ -576,8 +575,8 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     # Before the merge: an escaping path is a pack fault in its own right, so a
     # merge that refuses or crashes must not hide it (the same ordering
     # ``doctor charter-packs`` uses, and for the same reason).
-    _record_body_path_escapes(result, repo_root, fragments)
-    _record_asset_path_escapes(result, repo_root, fragments)
+    _record_body_path_escapes(result, fragments)
+    _record_asset_path_escapes(result, fragments)
 
     # Run merge to surface collision warnings AND graph completeness. The merge
     # is the only statement in the try: the completeness check below needs an

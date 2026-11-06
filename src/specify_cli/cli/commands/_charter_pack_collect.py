@@ -781,10 +781,10 @@ def _record_body_path_escapes(result: dict[str, object], fragments: Sequence[Org
     here re-reads the pack registry. ``_render_org_layer_section`` calls the same
     predicate, so the human and ``--json`` halves cannot disagree.
     """
-    from charter.drg import BodyPathEscape, find_body_path_escapes
+    from charter.drg import PackPathEscape, find_body_path_escapes
 
     try:
-        escapes: list[BodyPathEscape] = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
+        escapes: list[PackPathEscape] = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
     except Exception as exc:
         # Diagnostics never crash, and a check that could not RUN is not a
         # check that PASSED: report it on the verdict channel.

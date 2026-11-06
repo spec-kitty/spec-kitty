@@ -22,8 +22,8 @@ import pytest
 import yaml
 
 from charter.activation.drg_activation import load_org_drg
+from charter.offering.drg.org_pack_config import PackPathEscape
 from charter.offering.drg.org_pack_loader import (
-    BodyPathEscape,
     OrgDRGFragment,
     OrgPackRootUnavailableError,
     find_body_path_escapes,
@@ -43,7 +43,7 @@ def _make_pack(pack_root: Path, nodes: list[dict[str, str]], name: str = "acme")
     return pack_root
 
 
-def _escapes(pack_root: Path, *body_paths: str | None) -> list[BodyPathEscape]:
+def _escapes(pack_root: Path, *body_paths: str | None) -> list[PackPathEscape]:
     nodes: list[dict[str, str]] = []
     for index, body_path in enumerate(body_paths):
         node = {"id": f"node-{index}", "kind": "assets", "title": f"Node {index}"}
@@ -59,7 +59,7 @@ def test_dot_dot_body_path_is_an_escape(tmp_path: Path) -> None:
 
     assert len(escapes) == 1
     escape = escapes[0]
-    assert (escape.pack, escape.node, escape.kind, escape.body_path) == ("acme", "node-0", "assets", "../../../../etc/hostname")
+    assert (escape.pack, escape.subject, escape.kind, escape.path) == ("acme", "node-0", "assets", "../../../../etc/hostname")
     assert ".." in escape.reason
     assert escape.code == "ORG_FRAGMENT_BODY_PATH_ESCAPE"
     assert escape.message == (f"org pack 'acme': node 'node-0' (assets) body_path '../../../../etc/hostname' is not contained in the pack root: {escape.reason}")
@@ -76,7 +76,7 @@ def test_dot_dot_body_path_is_an_escape(tmp_path: Path) -> None:
 def test_absolute_body_path_is_an_escape(tmp_path: Path) -> None:
     escapes = _escapes(tmp_path / "pack", "/etc/hostname")
 
-    assert [e.body_path for e in escapes] == ["/etc/hostname"]
+    assert [e.path for e in escapes] == ["/etc/hostname"]
     assert "absolute" in escapes[0].reason
 
 
@@ -84,7 +84,7 @@ def test_absolute_body_path_is_an_escape(tmp_path: Path) -> None:
 def test_windows_form_escapes_on_every_os(tmp_path: Path, body_path: str) -> None:
     escapes = _escapes(tmp_path / "pack", body_path)
 
-    assert [e.body_path for e in escapes] == [body_path]
+    assert [e.path for e in escapes] == [body_path]
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="os.symlink unavailable")
@@ -100,7 +100,7 @@ def test_symlink_resolving_outside_the_pack_is_an_escape(tmp_path: Path) -> None
 
     escapes = _escapes(pack_root, "inside.md")
 
-    assert [e.body_path for e in escapes] == ["inside.md"]
+    assert [e.path for e in escapes] == ["inside.md"]
     assert "outside" in escapes[0].reason
 
 
@@ -133,7 +133,7 @@ def test_discovered_artifact_node_is_not_checked(tmp_path: Path) -> None:
 def test_every_escaping_node_is_reported_once_in_authored_order(tmp_path: Path) -> None:
     escapes = _escapes(tmp_path / "pack", "/etc/a", "bodies/ok.md", "../b", None, "../../c")
 
-    assert [(e.node, e.body_path) for e in escapes] == [("node-0", "/etc/a"), ("node-2", "../b"), ("node-4", "../../c")]
+    assert [(e.subject, e.path) for e in escapes] == [("node-0", "/etc/a"), ("node-2", "../b"), ("node-4", "../../c")]
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ def test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root(tmp_path: Path) -
     pack_root = _make_pack(tmp_path / "pack", [{"id": "n", "kind": "assets", "body_path": "../escape.md"}])
     loaded = load_org_pack("acme", pack_root, 1)
     # Guard the premise: the loaded fragment reports the escape, so the probe can see one.
-    assert [e.node for e in find_body_path_escapes(loaded)] == ["n"]
+    assert [e.subject for e in find_body_path_escapes(loaded)] == ["n"]
 
     rebuilt = OrgDRGFragment.model_validate(loaded.model_dump())
 
@@ -191,7 +191,7 @@ def test_nul_byte_body_path_is_reported_and_does_not_hide_another_escape(tmp_pat
     """A ``body_path`` ``Path.resolve`` cannot handle (ValueError) is a finding of that node only."""
     escapes = _escapes(tmp_path / "pack", "bodies/a\x00b.md", "bodies/ok.md", "../escape.md")
 
-    assert [(e.node, e.body_path) for e in escapes] == [("node-0", "bodies/a\x00b.md"), ("node-2", "../escape.md")]
+    assert [(e.subject, e.path) for e in escapes] == [("node-0", "bodies/a\x00b.md"), ("node-2", "../escape.md")]
     assert "null" in escapes[0].reason
     assert "is not contained in the pack root" in escapes[0].message
 
@@ -209,7 +209,7 @@ def test_configured_packs_name_only_the_escaping_pack(tmp_path: Path) -> None:
 
     escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
-    assert [(e.pack, e.node) for e in escapes] == [("bad", "team-asset")]
+    assert [(e.pack, e.subject) for e in escapes] == [("bad", "team-asset")]
 
 
 def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> None:
@@ -222,7 +222,7 @@ def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> No
 
     escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
-    assert [(e.pack, e.node) for e in escapes] == [("acme", "n")]
+    assert [(e.pack, e.subject) for e in escapes] == [("acme", "n")]
 
 
 def test_configured_pack_with_a_symlinked_effective_root(tmp_path: Path) -> None:
@@ -241,4 +241,4 @@ def test_configured_pack_with_a_symlinked_effective_root(tmp_path: Path) -> None
 
     escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
-    assert [(e.pack, e.node) for e in escapes] == [("acme", "n")]
+    assert [(e.pack, e.subject) for e in escapes] == [("acme", "n")]

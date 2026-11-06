@@ -23,7 +23,8 @@ import pytest
 import yaml
 
 from charter.activation.drg_activation import load_org_drg
-from charter.offering.assets import AssetPathEscape, AssetRepository, find_asset_path_escapes
+from charter.offering.assets import AssetRepository, find_asset_path_escapes
+from charter.offering.drg.org_pack_config import PackPathEscape
 from charter.offering.drg.org_pack_loader import OrgPackRootUnavailableError, load_org_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -54,7 +55,7 @@ def test_dot_dot_asset_path_is_an_escape(tmp_path: Path) -> None:
 
     assert len(escapes) == 1
     escape = escapes[0]
-    assert (escape.code, escape.pack, escape.asset, escape.path) == ("ORG_ASSET_PATH_ESCAPE", "acme", "team-logo", _ESCAPING)
+    assert (escape.code, escape.pack, escape.subject, escape.path) == ("ORG_ASSET_PATH_ESCAPE", "acme", "team-logo", _ESCAPING)
     assert ".." in escape.reason
     assert escape.message == (f"org pack 'acme': asset 'team-logo' path '{_ESCAPING}' is not contained in the pack's assets/ root: {escape.reason}")
     assert escape.as_dict() == {
@@ -71,7 +72,7 @@ def test_absolute_asset_path_is_an_escape(tmp_path: Path) -> None:
 
     escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
-    assert [(e.asset, e.path) for e in escapes] == [("team-logo", "/etc/hostname")]
+    assert [(e.subject, e.path) for e in escapes] == [("team-logo", "/etc/hostname")]
     assert "absolute" in escapes[0].reason
 
 
@@ -83,7 +84,7 @@ def test_contained_asset_path_is_not_an_escape(tmp_path: Path, materialise: bool
         (pack_root / "assets" / "img" / "logo.png").write_bytes(b"\x89PNG")
 
     # Same fixture, positive control: the escaping sibling IS reported, the contained one is not.
-    assert [e.asset for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["bad"]
+    assert [e.subject for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["bad"]
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="os.symlink unavailable")
@@ -98,7 +99,7 @@ def test_symlink_resolving_outside_the_assets_root_is_an_escape(tmp_path: Path) 
 
     escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
-    assert [e.asset for e in escapes] == ["team-logo"]
+    assert [e.subject for e in escapes] == ["team-logo"]
     assert "outside" in escapes[0].reason
 
 
@@ -114,7 +115,7 @@ def test_built_in_asset_is_never_reported(tmp_path: Path, monkeypatch: pytest.Mo
         repo.resolve_path("shipped-bad")
     pack_root = _make_pack(tmp_path / "pack", {"team-logo": _ESCAPING})
 
-    assert [e.asset for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["team-logo"]
+    assert [e.subject for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["team-logo"]
 
 
 def test_nul_byte_path_is_reported_and_does_not_hide_another_escape(tmp_path: Path) -> None:
@@ -125,8 +126,8 @@ def test_nul_byte_path_is_reported_and_does_not_hide_another_escape(tmp_path: Pa
 
     escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
-    assert sorted(e.asset for e in escapes) == ["a-nul", "b-escape"]
-    nul = next(e for e in escapes if e.asset == "a-nul")
+    assert sorted(e.subject for e in escapes) == ["a-nul", "b-escape"]
+    nul = next(e for e in escapes if e.subject == "a-nul")
     assert "null" in nul.reason
 
 
@@ -141,7 +142,7 @@ def test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root(tmp_path: Path) -
     pack_root = _make_pack(tmp_path / "pack", {"team-logo": _ESCAPING})
     loaded = load_org_pack("acme", pack_root, 1)
     # Guard the premise: the loaded fragment judges the pack, so the probe can see a finding.
-    assert [e.asset for e in find_asset_path_escapes(loaded)] == ["team-logo"]
+    assert [e.subject for e in find_asset_path_escapes(loaded)] == ["team-logo"]
 
     rebuilt = loaded.__class__.model_validate(loaded.model_dump())
 
@@ -162,8 +163,8 @@ def test_configured_packs_name_only_the_escaping_pack(tmp_path: Path) -> None:
 
     escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
-    assert [(e.pack, e.asset) for e in escapes] == [("bad", "team-logo")]
-    assert all(isinstance(e, AssetPathEscape) for e in escapes)
+    assert [(e.pack, e.subject) for e in escapes] == [("bad", "team-logo")]
+    assert all(isinstance(e, PackPathEscape) for e in escapes)
 
 
 def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> None:
@@ -178,7 +179,7 @@ def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> No
 
     escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
-    assert [(e.pack, e.asset) for e in escapes] == [("acme", "inner-bad")]
+    assert [(e.pack, e.subject) for e in escapes] == [("acme", "inner-bad")]
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs os.symlink")
@@ -194,11 +195,11 @@ def test_symlinked_sidecar_outside_the_pack_is_reported_and_does_not_hide_anothe
 
     escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
-    assert sorted(e.asset for e in escapes) == ["a-linked", "b-escape"]
-    linked = next(e for e in escapes if e.asset == "a-linked")
+    assert sorted(e.subject for e in escapes) == ["a-linked", "b-escape"]
+    linked = next(e for e in escapes if e.subject == "a-linked")
     assert "is not inside the pack's assets/ directory" in linked.reason
     # Clause order: a genuine path escape keeps the primitive's own reason.
-    escaped = next(e for e in escapes if e.asset == "b-escape")
+    escaped = next(e for e in escapes if e.subject == "b-escape")
     assert "must not contain '..' components" in escaped.reason
 
 
@@ -217,7 +218,7 @@ def test_symlinked_assets_dir_is_judged_against_the_pack_root(tmp_path: Path, ou
     escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     if outside:
-        assert [e.asset for e in escapes] == ["team-logo"]
+        assert [e.subject for e in escapes] == ["team-logo"]
         assert "assets/ directory is not inside the pack root" in escapes[0].reason
     else:
         assert escapes == []
@@ -232,4 +233,4 @@ def test_a_shadowed_asset_id_is_attributed_to_its_own_pack(tmp_path: Path) -> No
 
     escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
-    assert [(e.pack, e.asset) for e in escapes] == [("beta", "team-logo")]
+    assert [(e.pack, e.subject) for e in escapes] == [("beta", "team-logo")]

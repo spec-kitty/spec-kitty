@@ -106,6 +106,7 @@ from charter.offering.drg.org_pack_config import (
     OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
+    PackPathEscape,
     PackRegistry,
     SourceType,
     load_pack_registry as load_pack_registry,
@@ -117,7 +118,6 @@ from charter.offering.drg.org_pack_config import (
     unregister_org_pack,
 )
 from charter.offering.drg.org_pack_loader import (
-    BodyPathEscape,
     OrgDRGFragment,
     OrgPackMissingError,
     OrgPackParseError,
@@ -151,7 +151,6 @@ __all__ = [
     "ArtifactLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
-    "BodyPathEscape",
     "OrgDRGConflict",
     "OrgDRGConflictError",
     "OrgDRGFragment",
@@ -161,6 +160,7 @@ __all__ = [
     "OrgPackRootUnavailableError",
     "OrgPackSchemaError",
     "OrgPackSubdirEscapeError",
+    "PackPathEscape",
     "Relation",
     "ResolvedContext",
     "UnknownRelationError",
