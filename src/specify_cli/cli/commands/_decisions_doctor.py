@@ -760,6 +760,64 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
     console.print_json(json.dumps(payload, indent=2))
 
 
+#: Appended to the lock refusal when ``--repair`` already rebuilt the index under
+#: an earlier hold and only the coordination-only ledger copy then timed out, so
+#: the operator is not told the rebuild was lost (#6763 review).
+_INDEX_REBUILT_NOTE = (
+    " The index rebuild finished under an earlier hold and was saved; only the coordination-only ledger copy was skipped, so retry to complete it."
+)
+
+
+def _run_repair_phases(
+    report: DecisionsReconciliationReport,
+    events_dir: Path,
+    ledger_dir: Path,
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    progress: dict[str, bool],
+) -> tuple[list[str], list[str], bool]:
+    """Run ``--repair``'s two locked phases; return ``(lossy, malformed, ledger_copied)``.
+
+    Each phase takes the decisions lock through ``decisions/lock.py`` and may
+    raise its refusal. ``progress["index_rebuilt"]`` turns true once the first
+    phase has saved, so the caller can say so if the second phase is refused.
+    """
+    forked = report.fork_report is not None and report.fork_report.forked
+    ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
+    if forked:
+        # C-003: a forked stream is NEVER auto-merged or re-sequenced -- no
+        # index rewrite for the forked decisions; the reconcile steps are
+        # printed instead (contract rule 2, US4.3).
+        lossy_ids: list[str] = []
+        malformed_ids = list(report.malformed_folds)
+    else:
+        # Positive control (US4.4): an unforked Mission still repairs a genuine
+        # orphan exactly as before.
+        lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+        progress["index_rebuilt"] = True
+    if ledger_only_coord:
+        # FR-009c / contract rule 4: additive-only, independent of the
+        # stream-fork branch above (a coordination-only ledger can exist on an
+        # otherwise unforked Mission, e.g. NFR-002 fixture (d)).
+        _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+    return lossy_ids, malformed_ids, ledger_only_coord
+
+
+def _emit_lock_refusal(exc: DecisionError, json_output: bool, *, index_rebuilt: bool) -> None:
+    """Render the decisions-lock refusal as this family's ONE document (#6763).
+
+    It lands BEFORE any report is emitted, so ``--json`` callers get exactly one
+    C2 document and human callers exactly one error line, in the same
+    ``Error: [CODE] message`` shape the owned-refusal path uses (#5445).
+    """
+    message = str(exc) + (_INDEX_REBUILT_NOTE if index_rebuilt else "")
+    if json_output:
+        console.emit_json(_json_error(exc.code.value, message))
+    else:
+        console.print(f"[red]Error:[/red] [{exc.code.value}] {message}")
+
+
 def run_decisions_reconciliation(
     repo_root: Path,
     mission: str,
@@ -817,39 +875,18 @@ def run_decisions_reconciliation(
     report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
 
     if repair and not report.clean:
+        progress: dict[str, bool] = {"index_rebuilt": False}
         try:
-            forked = report.fork_report is not None and report.fork_report.forked
-            ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
-            if forked:
-                # C-003: a forked stream is NEVER auto-merged or re-sequenced --
-                # no index rewrite for the forked decisions; the reconcile steps
-                # are printed instead (contract rule 2, US4.3).
-                lossy_ids: list[str] = []
-                malformed_ids = list(report.malformed_folds)
-            else:
-                # Positive control (US4.4): an unforked Mission still repairs a
-                # genuine orphan exactly as before.
-                lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
-            if ledger_only_coord:
-                # FR-009c / contract rule 4: additive-only, independent of the
-                # stream-fork branch above (a coordination-only ledger can exist
-                # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
-                _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+            lossy_ids, malformed_ids, ledger_only_coord = _run_repair_phases(
+                report, events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug, progress=progress
+            )
         except DecisionError as exc:
-            # #6763: only the seam's lock timeout is this command's refusal;
+            # #6763: only the decisions-lock refusal is this command's refusal;
             # any other DecisionError is not ours to reinterpret, so it keeps
             # propagating unchanged.
             if not _lock.is_lock_timeout(exc):
                 raise
-            # The refusal lands BEFORE any report is emitted, so ``--json``
-            # callers get exactly one C2 document and human callers exactly one
-            # error line.
-            if json_output:
-                console.emit_json(_json_error(exc.code.value, str(exc)))
-            else:
-                # Same ``Error: [CODE] message`` shape the owned-refusal path
-                # uses (#5445): the code is machine-matchable in both modes.
-                console.print(f"[red]Error:[/red] [{exc.code.value}] {exc}")
+            _emit_lock_refusal(exc, json_output, index_rebuilt=progress["index_rebuilt"])
             raise typer.Exit(1) from exc
         report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
         report.repaired = True

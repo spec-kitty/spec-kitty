@@ -1085,10 +1085,17 @@ def _emit_decisions_lock_timeout(exc: DecisionError, json_output: bool) -> None:
     must reach the agent control loop as a typed, retryable result (the same
     ``result``/``error_code``/``next_step`` envelope ``_emit_meta_read_error``
     uses), never as a traceback. The advancement and its lifecycle record are
-    already durable at this point and the ordered commit did not run, so the
-    ``next_step`` says a retry is safe instead of implying nothing happened.
+    already durable at this point; only the ordered commit did not run. Sending
+    the same ``--result`` again would advance the runtime a SECOND time past an
+    action the agent never saw, so the ``next_step`` sends the agent to query
+    mode instead (read-only, it shows the issued action), and the next advancing
+    call commits what this one left (``_uncommitted_lifecycle_records`` sweeps
+    up an interrupted run's records).
     """
-    remediation = "Retry the command; the advancement is already recorded and nothing was left half-committed."
+    remediation = (
+        "Do not send --result again: the advancement is already recorded. Re-run the same command without "
+        "--result (query mode, read-only) to see the issued action; the next advancing call commits it."
+    )
     if json_output:
         from specify_cli import __version__
 

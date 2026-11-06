@@ -339,10 +339,13 @@ def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str,
 def tolerated_duplicate_openings(events: Iterable[Mapping[str, Any]]) -> int:
     """How many ``DecisionPointOpened`` rows *events* holds beyond the one folded.
 
-    ``0`` means "nothing tolerated": fewer than two openings, or openings the fold
-    REFUSES (their payloads differ in a field other than
+    ``0`` means "nothing tolerated": fewer than two openings, or openings the
+    fold's OPENING rule refuses (their payloads differ in a field other than
     :data:`_OPENED_VOLATILE_FIELD`). A positive count is the number of rows
-    :func:`_select_opened_event` accepts alongside the earliest one (#4848).
+    :func:`_select_opened_event` accepts alongside the earliest one (#4848). It
+    judges the openings only: a group whose terminal rows the fold refuses can
+    still count here, so a caller reports it only for a group that folded (as
+    ``doctor decisions`` does).
 
     The tolerance rule is NOT restated here: this applies the fold's own
     :func:`_openings_identical` to the fold's own :func:`_opened_events`
