@@ -42,17 +42,14 @@ def hits() -> list[Hit]:
 def test_the_scan_covers_a_non_empty_corpus(hits: list[Hit]) -> None:
     assert hits, "the scanner found no ancestor walk at all — its own corpus is broken"
     assert any(hit.path == PRIMITIVE for hit in hits), (
-        "the primitive's own walk must be in the census; a scan that misses it is not "
-        "reading the file it is supposed to allow"
+        "the primitive's own walk must be in the census; a scan that misses it is not reading the file it is supposed to allow"
     )
 
 
 def test_only_the_primitive_and_its_exemptions_hold_a_hand_rolled_walk(hits: list[Hit]) -> None:
     violations = unexempted(hits)
 
-    assert violations == [], "hand-rolled ancestor walks must call kernel.ancestor_walk instead:\n" + "\n".join(
-        hit.describe() for hit in violations
-    )
+    assert violations == [], "hand-rolled ancestor walks must call kernel.ancestor_walk instead:\n" + "\n".join(hit.describe() for hit in violations)
 
 
 def test_a_starred_parents_walk_is_reported() -> None:
@@ -112,9 +109,7 @@ def test_every_exemption_names_a_reason() -> None:
 def test_every_exemption_still_matches_a_hit(hits: list[Hit]) -> None:
     stale = stale_exemptions(hits)
 
-    assert stale == [], "remove these exemptions (the walk was migrated or deleted):\n" + "\n".join(
-        f"{entry.path}::{entry.function}" for entry in stale
-    )
+    assert stale == [], "remove these exemptions (the walk was migrated or deleted):\n" + "\n".join(f"{entry.path}::{entry.function}" for entry in stale)
 
 
 def test_an_exemption_is_keyed_by_file_and_function() -> None:
