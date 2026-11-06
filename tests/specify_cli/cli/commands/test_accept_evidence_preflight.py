@@ -339,7 +339,14 @@ def test_diagnose_shows_the_skip_note_in_human_mode(evidence: Evidence, monkeypa
     assert manifest_path.read_text(encoding="utf-8") == "{not-json"
 
 
-@pytest.mark.parametrize("extra", [(), ("--no-commit",)])
+@pytest.mark.parametrize(
+    "extra",
+    [
+        (),
+        ("--no-commit",),
+        ("--attest-no-implementation", "WP02", "--attest-reason", "the deliverable already exists upstream"),
+    ],
+)
 def test_an_unmaterialized_coordination_worktree_refuses_with_a_typed_code(evidence: Evidence, extra: tuple[str, ...]) -> None:
     exc = _unmaterialized(evidence.harness.root)
     evidence.status_dir_error = exc
@@ -353,6 +360,8 @@ def test_an_unmaterialized_coordination_worktree_refuses_with_a_typed_code(evide
     assert payload["next_step"] == exc.next_step
     assert payload["error"].startswith("COORDINATION_WORKTREE_UNMATERIALIZED: ")
     assert "evidence" not in evidence.harness.events
+    assert evidence.recorded == []
+    assert evidence.planned == []
     assert evidence.harness.calls == []
 
 
