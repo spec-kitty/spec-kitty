@@ -1259,8 +1259,14 @@ def assert_late_window_landed(
     checkpoint_sha: str,
     target_feature_dir: Path,
     target_ref: str,
+    window_dir: str | None = None,
 ) -> None:
     """Assert EVERY change of the late window is landed on the target or excluded by a stated rule.
+
+    *window_dir* names the directory of this Mission to judge on the coordination branch, default
+    ``mission_slug``. A bare-slug Mission keeps coordination records under its composed
+    ``<slug>-<mid8>`` directory (#5651), so the caller judges that one as well, against the same
+    target directory (#7271).
 
     "Reached the target" means COMMITTED on ``target_ref``: every comparison reads the ref's blob,
     never the target working tree, which can hold uncommitted bytes that die with a reset.
@@ -1296,10 +1302,11 @@ def assert_late_window_landed(
     Raises:
         LateProjectionRefused: at least one change in the window is neither landed nor excluded.
     """
-    safe_slug = _validate_mission_slug_path_segment(mission_slug)
+    safe_slug = _validate_mission_slug_path_segment(window_dir or mission_slug)
     if not checkpoint_sha:
         return
     mission_prefix = f"{KITTY_SPECS_DIR}/{safe_slug}/"
+    target_root = f"{target_feature_dir.relative_to(main_repo).as_posix()}/"
     unlanded_events: list[str] = []
     unlanded_records: list[str] = []
     unlanded_primary: list[str] = []
@@ -1336,7 +1343,7 @@ def assert_late_window_landed(
             if _status_snapshot_is_derived(
                 main_repo=main_repo,
                 target_feature_dir=target_feature_dir,
-                mission_root=mission_prefix,
+                mission_root=target_root,
                 target_ref=target_ref,
                 target_content=target_content,
             ):

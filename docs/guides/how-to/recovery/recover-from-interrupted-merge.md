@@ -255,15 +255,14 @@ consolidation instead of refusing a landing it just completed.
 
 The window is read once, at the coordination tip the teardown opened it on. A
 commit that lands on the coordination branch while the teardown runs is not in
-that window: it is not projected, the approved tip does not move to it, and the
+that window: unless it is a status event in the worktree, which the union folds in, it is not projected, the approved tip does not move to it, and the
 teardown refuses at the projection teardown gate with the branch kept. Run
-`spec-kitty consolidate --resume` again and the next window carries it.
+`spec-kitty consolidate --resume` again, and the next window judges it: a status
+event or coordination record lands or is refused with its remedy, and a change to
+a primary artifact such as `meta.json` is refused until it is on the target.
 
 A Mission whose coordination directory is named `<slug>-<mid8>` (a bare-slug
-Mission) is the exception for now: the proof does not judge that directory yet
-(#7271). A run whose window changes it keeps the coordination tip it captured, so
-the teardown refuses at the projection teardown gate with the branch kept. Land
-the late change on the target yourself, then follow the gate's refusal.
+Mission) gets the same proof for that directory, against the target's copy.
 
 This closes the window where a verification or status write made *between* the
 gate and the teardown was refused after a landing that was already complete,

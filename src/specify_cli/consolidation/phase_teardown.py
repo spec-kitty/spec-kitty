@@ -26,6 +26,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
+from specify_cli.status import EventLogMergeError
 from kernel.git import GitCommandError
 from kernel.git import changed_paths as git_changed_paths
 from specify_cli.git.bookkeeping_commit import (
@@ -369,50 +370,52 @@ def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_re
     return sorted(set(unlanded))
 
 
-def _unjudged_mission_dir_paths(run: _MergeRunState, base: str, tip: str) -> list[str]:
-    """Paths ``base..tip`` changed under a directory of THIS Mission the late-window proof does not judge (#7271).
+def _mission_dir_names(run: _MergeRunState) -> list[str]:
+    """Every directory of THIS Mission the late-window proof judges, the Mission's own name first (#7271).
 
-    :func:`~specify_cli.consolidation.bookkeeping_projection.assert_late_window_landed` diffs only
-    ``kitty-specs/<mission_slug>/``. A bare-slug coordination Mission keeps its coordination directory under
-    the composed ``<slug>-<mid8>`` name (#5651), and :func:`_unlanded_paths_outside_mission_dir` skips that
-    directory as the Mission's own, so a change there is neither projected nor proved. Until the proof
-    judges it (#7271), such a window never advances the tip teardown approves (#7265): the projection
-    teardown gate's compare-and-swap then refuses fail-closed, as it did before #7124 / #7199.
+    A bare-slug coordination Mission keeps its coordination directory under the composed ``<slug>-<mid8>``
+    name (#5651), and :func:`_unlanded_paths_outside_mission_dir` skips that directory as the Mission's own,
+    so a change there has to be proved here or it dies with the branch.
     """
-    judged = run.mission_slug
-    other_names = ({run.target_feature_dir.name} | mission_dir_aliases(run.main_repo, run.mission_slug)) - {judged}
-    if not other_names:
-        return []
-    prefixes = tuple(sorted(f"{KITTY_SPECS_DIR}/{name}/" for name in other_names))
-    return sorted({str(path) for path in git_changed_paths(run.main_repo, base, tip, renames=False, pathspecs=prefixes)})
+    others = ({run.target_feature_dir.name} | mission_dir_aliases(run.main_repo, run.mission_slug)) - {run.mission_slug}
+    return [run.mission_slug, *sorted(others)]
 
 
-def _advance_approved_tip(run: _MergeRunState, coord_ref: str, base: str, projected_tip: str) -> None:
+def _assert_window_landed_in_every_mission_dir(run: _MergeRunState, *, base: str, projected_tip: str, branch: str, target: str) -> None:
+    """Refuse the teardown unless the window is proved in every directory of this Mission (#7198, #7271)."""
+    try:
+        for window_dir in _mission_dir_names(run):
+            assert_late_window_landed(
+                main_repo=run.main_repo,
+                mission_slug=run.mission_slug,
+                coord_ref=projected_tip,
+                checkpoint_sha=base,
+                target_feature_dir=run.target_feature_dir,
+                target_ref=target,
+                window_dir=window_dir,
+            )
+    except LateProjectionRefused as exc:
+        raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
+    except GitCommandError as exc:
+        # #7198 review: the assertion reads blobs through the failure-distinguishing reader, so a git
+        # failure is an ERROR, never a verdict. Fail closed with the triple kept -- the same recovery as
+        # the projection leg above -- instead of letting a failed read look like a landed blob.
+        raise CoordinationTeardownError(
+            f"the late window's blobs could not be read ({escape(str(exc))}); "
+            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
+
+
+def _advance_approved_tip(run: _MergeRunState, coord_ref: str, projected_tip: str) -> None:
     """Record ``projected_tip`` (T) as the tip teardown approves, once the window is proven (#6871/#7199/#7265).
 
     The projection teardown gate and the compare-and-swap branch delete anchor on
     ``coord_tip_after_projection``; leaving it at the anchor this run captured earlier would refuse the very
     commit this window just landed, on EITHER run kind. The advance is a guarded read on T: a commit that
     lands DURING the projection leaves the ref somewhere else, the anchor stays put, and the gate's own
-    compare-and-swap refuses (fail-closed) -- a foreign commit is never stamped approved. A window that changed
-    a Mission directory the proof does not judge (#7271) is not proven, so it never advances either.
+    compare-and-swap refuses (fail-closed): a commit landing during the projection is never stamped approved.
     """
-    try:
-        unjudged = _unjudged_mission_dir_paths(run, base, projected_tip)
-    except GitCommandError as exc:
-        branch = run.lanes_manifest.mission_branch
-        raise CoordinationTeardownError(
-            f"the late window's Mission directories could not be read ({escape(str(exc))}); "
-            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
-            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
-        ) from exc
-    if unjudged:
-        shown = ", ".join(unjudged[:5]) + (f" (and {len(unjudged) - 5} more)" if len(unjudged) > 5 else "")
-        console.print(
-            f"  The late coordination window changes {shown}, which the late-window proof does not judge yet (#7271); "
-            "teardown keeps the coordination tip it captured instead of approving the new one."
-        )
-        return
     if _resolve_ref_sha(run.main_repo, coord_ref) == projected_tip:
         run.coord_tip_after_projection = projected_tip
 
@@ -548,7 +551,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     # #7265: the window is read ONCE, at ``projected_tip`` (T). The projection and the proof below read
     # that SHA, never the live branch name, so a commit landing on the coordination branch mid-window is
     # neither partly projected nor judged under the wrong refusal kind: it is simply not in ``base..T``,
-    # the compare-and-swap advance below sees the live ref != T, and the projection teardown gate refuses.
+    # the guarded advance below sees the live ref != T, and the projection teardown gate refuses.
     target = run.lanes_manifest.target_branch
     try:
         if not _post_checkpoint_commit_shas(run.main_repo, base, projected_tip):
@@ -583,6 +586,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
                 checkpoint_sha=base,
             )
         )
+    except (EventLogMergeError, UnicodeDecodeError) as exc:
+        # An ordinary place to commit: a log the union cannot read must get the refusal and its
+        # remedy, not a traceback.
+        raise CoordinationTeardownError(
+            f"the coordination branch's status event log cannot be merged with the target's ({escape(str(exc))}); "
+            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Repair the malformed line in the coordination worktree's status.events.jsonl and commit it, "
+            "then run `spec-kitty consolidate --resume`."
+        ) from exc
     except GitCommandError as exc:
         raise CoordinationTeardownError(
             f"the coordination commits this teardown has to land could not be read ({escape(str(exc))}); "
@@ -597,27 +609,8 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
         console.print(f"  Projected the coordination commit(s) that {late} onto {target}")
     # #6791: whatever the seams above could not carry is REFUSED here, before the branch
     # delete, instead of dying with the branch at exit 0.
-    try:
-        assert_late_window_landed(
-            main_repo=run.main_repo,
-            mission_slug=run.mission_slug,
-            coord_ref=projected_tip,
-            checkpoint_sha=base,
-            target_feature_dir=run.target_feature_dir,
-            target_ref=target,
-        )
-    except LateProjectionRefused as exc:
-        raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
-    except GitCommandError as exc:
-        # #7198 review: the assertion reads blobs through the failure-distinguishing reader, so a git
-        # failure is an ERROR, never a verdict. Fail closed with the triple kept -- the same recovery as
-        # the projection leg above -- instead of letting a failed read look like a landed blob.
-        raise CoordinationTeardownError(
-            f"the late window's blobs could not be read ({escape(str(exc))}); "
-            f"branch {branch!r} was NOT deleted and the mission's coordination marker was left intact. "
-            "Re-run `spec-kitty consolidate --resume` once the git error is fixed."
-        ) from exc
-    _advance_approved_tip(run, coord_ref, base, projected_tip)
+    _assert_window_landed_in_every_mission_dir(run, base=base, projected_tip=projected_tip, branch=branch, target=target)
+    _advance_approved_tip(run, coord_ref, projected_tip)
 
 
 #: Printed by the repairs that ask the operator to commit ON the target (#7198 review). A commit there
@@ -625,9 +618,11 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
 #: the same continuation the unreadable-target remedy already spells out (TARGET_GATE_DOCUMENT_UNREADABLE).
 _TARGET_COMMIT_BRANCH_MOVE_CAVEAT = (
     "Committing on {target!r} yourself moves it off the verified landing, so the next resume may stop at the "
-    "branch-move guard, whose message prints the command that releases the move and clears the record. That "
-    "leaves the coordination branch, its worktree and the marker in place: review `git log {target}..<coordination "
-    "branch>` before you delete the branch by hand."
+    "branch-move guard. Its message prints a release command; run what each message names until the record clears, "
+    "which can take a release for the coordination branch and for {target!r}. `--abort` removes that branch's "
+    "worktree and keeps the branch, and `spec-kitty doctor coordination --fix` clears a stale marker. Review "
+    "`git log {target}..<coordination branch>` before you delete the branch by hand; after a squash it also lists "
+    "the merge's own commits."
 )
 
 

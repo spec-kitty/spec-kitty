@@ -590,15 +590,13 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   target's copy** (a target-authored JSON document whose `B → T` delta is on the target, a removed
   key absent); **refused** (anything else, and a deletion the target still holds). No path in the
   judged directory is exempt by filename.
-- **Directories the proof does not judge.** The proof diffs `kitty-specs/<mission_slug>/`. A
-  bare-slug coordination Mission keeps its coordination directory under the composed
-  `<slug>-<mid8>` name (#5651), which the proof does not judge yet and the outside-directory check
-  skips as the Mission's own. A window that changes any other directory of the same Mission
-  (`mission_dir_aliases`, or the primary directory's own name) is therefore not proven, and the
-  approved tip does NOT advance on either run kind: the gate's compare-and-swap refuses
-  fail-closed, as before #7124 / #7199, for that topology only. Extending the proof is #7271.
+- **Every directory of the Mission (#7271).** A bare-slug coordination Mission keeps its coordination
+  directory under the composed `<slug>-<mid8>` name (#5651), and the outside-directory check skips it as
+  the Mission's own. The proof therefore judges every directory `mission_dir_aliases` returns, plus the
+  primary directory's own name, mapping each path to the target's copy. Not advancing the tip would not
+  protect such a commit: a short-circuited resume's gate falls back to the live checkpoint.
 - **Approval.** Only a fully proven `T` becomes `coord_tip_after_projection`, on BOTH run kinds,
-  and only by compare-and-swap (the live ref still equals `T`). The projection teardown gate and
+  and only by a guarded read (the live ref still equals `T`). The projection teardown gate and
   the compare-and-swap branch delete anchor on that value, so a commit after `T` is never
   approved: the gate refuses and keeps the triple. The resume advance (#7199) is sound only
   because the proof exempts nothing it approves (#7198, and the containment above); that is why
@@ -622,8 +620,7 @@ late window (#5570, #6791, #6871) carried residual fixes one at a time. Operator
   the resolved status surface only: the target ref's committed log, and the coordination worktree's
   log the union folds. It reads no lane-branch status copy (ruling 3, slice S6 #7281; #6466,
   #6884).
-- **Residuals (named, not closed).** #7271 (the composed coordination directory is contained, not
-  proved), #7121 (a first run with no anchor), #5460 (primary artifacts are judged, never
+- **Residuals (named, not closed).** #7300 (a first run loses a commit made between the target advancing and the anchor capture), #7121 (a first run with no anchor), #5460 (primary artifacts are judged, never
   projected), #7201 (the retrospective commit's target, PR #7233, separate).
 
 ## Consequences
