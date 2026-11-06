@@ -1,7 +1,7 @@
 {
-  "event_count": 130,
-  "last_event_id": "01M6RSQ17KGVV6KK4WB9TJZ0SS",
-  "materialized_at": "2026-11-06T16:05:21.779351+00:00",
+  "event_count": 131,
+  "last_event_id": "01M6RTBQMNKDBA5XG0E7D6Z336",
+  "materialized_at": "2026-11-06T16:16:40.086021+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 3,
+    "for_review": 2,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 6
   },
@@ -381,9 +381,9 @@
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6RPJCHYP4EXREZAJ9KZMBKW",
-      "last_transition_at": "2026-11-06T15:10:23.794487+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6RTBQMNKDBA5XG0E7D6Z336",
+      "last_transition_at": "2026-11-06T16:16:40.086021+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0)."
@@ -400,14 +400,14 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T074": "planned",
-        "T075": "planned",
-        "T076": "planned",
-        "T077": "planned",
-        "T078": "planned",
-        "T079": "planned",
-        "T080": "planned",
-        "T081": "planned"
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done",
+        "T081": "done"
       }
     },
     "WP14": {
