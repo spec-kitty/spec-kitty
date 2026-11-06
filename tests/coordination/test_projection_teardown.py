@@ -791,6 +791,84 @@ def test_first_run_does_not_approve_a_tip_that_moved_during_the_projection(tmp_p
     assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unproven commit"
 
 
+def _resume_with_coord_worktree(tmp_path: Path) -> tuple[_MergeRunState, Path, str]:
+    """The gated RESUME state of the same coordination Mission (#7199).
+
+    A resume anchors its late window on the persisted pre-mutation snapshot
+    (``state.pre_mutation_coord_sha``) while the projection teardown gate compare-and-swaps
+    ``coord_tip_after_projection``, the tip its own claim or bookkeeping phase captured. The fixture
+    makes both equal to the tip read before the late commit, which is the shape a resume reaches
+    when a commit lands after that capture.
+    """
+    run, worktree, tip = _first_run_with_coord_worktree(tmp_path)
+    run.is_resume = True
+    run.state.pre_mutation_coord_sha = tip
+    assert run.coord_tip_after_projection == tip, "fixture invalid: the run's captured anchor must predate the late commit"
+    return run, worktree, tip
+
+
+def test_resume_lands_a_coordination_commit_made_after_its_own_capture(tmp_path: Path) -> None:
+    """#7199: a resume that lands a post-capture coordination commit finishes teardown.
+
+    A `--resume` keeps the anchor its claim/bookkeeping phase captured, so a coordination commit
+    that lands after that capture makes the projection teardown gate's compare-and-swap refuse the
+    very commit the resume's own late window just landed and proved ("compare-and-swap failed"),
+    and the operator has to run `--resume` again for a complete landing (#7124 deferred this as
+    reviewer finding B5). A resume window starts at the persisted pre-mutation snapshot, so it
+    covers at least the first-run window; once the assertion proves the window landed, the proven
+    tip must become the tip teardown approves, on either run kind.
+    """
+    run, worktree, tip = _resume_with_coord_worktree(tmp_path)
+    before = _rev(run.main_repo, "main")
+    rel = f"kitty-specs/{SLUG}/traces/late.md"
+    late = _commit_in_coord_worktree(worktree, rel, "late coordination record\n", "late verdict")
+
+    phase_teardown._teardown_coordination_triple(run)
+
+    assert not _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch is deleted only after the window landed"
+    assert _git(run.main_repo, "show", f"main:{rel}").stdout == "late coordination record\n", (
+        "the late record must be COMMITTED on the target, not merely in its working tree"
+    )
+    log = _git(run.main_repo, "log", "--format=%s", f"{before}..main").stdout
+    assert log.count("project coordination commits that landed after the merge captured the coordination tip") == 1, "the window lands as ONE commit"
+    meta = json.loads((_mission_dir(run.main_repo) / "meta.json").read_text(encoding="utf-8"))
+    assert "coordination_branch" not in meta
+    assert run.coord_tip_after_projection == late, "the proven tip becomes the tip teardown approved, on a resume too"
+    assert tip != late, "fixture invalid: the late commit moved the coordination branch"
+
+
+def test_resume_does_not_approve_a_tip_that_moved_during_the_projection(tmp_path: Path) -> None:
+    """#7199 fail-closed leg: the resume advance is a compare-and-swap, not a fresh read.
+
+    A concurrent commit landing WHILE the projection runs leaves the ref somewhere else, so the
+    anchor must stay at the pre-window tip and the teardown must refuse at the gate with the branch
+    kept -- a tip the assertion did not cover is never stamped approved on a resume either.
+    """
+    from specify_cli.coordination.teardown import ProjectionTeardownAbort
+
+    run, worktree, tip = _resume_with_coord_worktree(tmp_path)
+    _commit_in_coord_worktree(worktree, f"kitty-specs/{SLUG}/traces/late.md", "late\n", "late verdict")
+    real_commit = phase_teardown._commit_projection_and_carry
+    foreign_landed: list[bool] = []
+
+    def commit_then_land_a_foreign_one(target_run: object, paths: list[Path], message: str) -> None:
+        real_commit(target_run, paths, message)  # type: ignore[arg-type]
+        meta = worktree / "kitty-specs" / SLUG / "meta.json"
+        meta.write_text(json.dumps({**json.loads(meta.read_text(encoding="utf-8")), "concurrent": "emit"}) + "\n", encoding="utf-8")
+        _git(worktree, "add", "kitty-specs")
+        _git(worktree, "commit", "-q", "-m", "concurrent emit")
+        foreign_landed.append(True)
+
+    with patch.object(phase_teardown, "_commit_projection_and_carry", commit_then_land_a_foreign_one), pytest.raises(ProjectionTeardownAbort) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert foreign_landed == [True], "fixture invalid: the foreign commit was never injected (the late.md assert below proves the projection ran)"
+    assert _git(run.main_repo, "show", f"main:kitty-specs/{SLUG}/traces/late.md").stdout == "late\n", "the projection landed before the gate refused"
+    assert "compare-and-swap failed" in str(caught.value), "the gate refuses, because the anchor no longer matches the live ref"
+    assert run.coord_tip_after_projection == tip, "the anchor stays at the pre-window tip: a tip the assertion did not cover is never stamped approved"
+    assert _branch_exists(run.main_repo, run.lanes_manifest.mission_branch), "the branch keeps the unproven commit"
+
+
 def test_first_run_refuses_rather_than_skips_a_window_it_cannot_read(tmp_path: Path) -> None:
     """#6871 review: an UNREADABLE coordination ref is not an absent one.
 
