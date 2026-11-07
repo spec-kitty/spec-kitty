@@ -3319,14 +3319,18 @@ def _drop_unreviewed_merges(repo_root: Path, spine: list[str], stamps: Sequence[
     is dropped (attributes less; the verifier then REFUSEs on its own probe error).
     """
     kept: list[str] = []
+    dropped = False
     for sha in spine:
         try:
             merge = is_merge_commit(repo_root, sha)
         except GitProbeError:
+            dropped = True
             continue
         if not merge or any(sha_reachable_from(repo_root, sha, stamp) for stamp in stamps):
             kept.append(sha)
-    return spine if len(kept) == len(spine) else kept
+        else:
+            dropped = True
+    return kept if dropped else spine
 
 
 def _own_dependency_merges(

@@ -175,16 +175,13 @@ def _resolve_criterion_update(
     a re-invocation with identical inputs serializes byte-identical JSON,
     which is what makes the underlying commit resolve to ``"unchanged"``.
     """
+    text = text or CriterionText()
     candidate = replace(
         existing,
         pass_fail=result,
         proof_type=verification_method if verification_method is not None else existing.proof_type,
         verified_by=actor if actor is not None else existing.verified_by,
         evidence=evidence if evidence is not None else existing.evidence,
-    )
-    text = text or CriterionText()
-    candidate = replace(
-        candidate,
         description=text.description if text.description is not None else existing.description,
         notes=text.notes if text.notes is not None else existing.notes,
         extras=_criterion_extras(existing, result, text),

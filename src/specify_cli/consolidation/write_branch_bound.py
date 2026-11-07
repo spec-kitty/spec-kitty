@@ -108,19 +108,6 @@ def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[
     return min(after, key=lambda entry: len(entry.reach)).window.wp_id
 
 
-def _commits_outside_windows(
-    repo_root: Path,
-    *,
-    tip: str,
-    claim_base: str,
-    windows: Sequence[ApprovalWindow],
-    exempt: Iterable[str] = (),
-) -> list[str]:
-    """Commits in ``claim_base..tip`` that lie in no window of *windows* and are not in *exempt*, newest first."""
-    reaches = [_window_reach(repo_root, claim_base, window) for window in windows]
-    return _outside(repo_root, claim_base, tip, reaches, frozenset(exempt))
-
-
 def _outside(repo_root: Path, claim_base: str, tip: str, reaches: Sequence[_WindowReach], exempt: frozenset[str]) -> list[str]:
     skipped = exempt.union(*(entry.covered for entry in reaches))
     return [sha for sha in commits_in_range(repo_root, claim_base, tip) if sha not in skipped]

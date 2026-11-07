@@ -1,8 +1,10 @@
 """Stale-lane merge blocker.
 
 A lane branch is stale when:
-1. The mission branch has advanced since the lane last incorporated it.
-2. The changed files in the mission overlap with the lane's changed files.
+1. The mission branch carries commits the lane does not contain (``lane..mission``;
+   a change the lane already holds, e.g. a dependency lane merged into both, does
+   not count, #7311).
+2. The files those commits change overlap with the lane's changed files.
 
 This uses file-level intersection (git diff --name-only) rather than
 glob-level matching to avoid false positives.
