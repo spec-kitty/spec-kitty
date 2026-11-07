@@ -301,7 +301,7 @@
       "wp": "WP05"
     },
     "#7278": {
-      "evidence_ref": "S2 for_review gate on the lane branch",
+      "evidence_ref": "for_review gate reads the lane branch (WP08, approved)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -309,7 +309,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP08"
     },
     "#7279": {
