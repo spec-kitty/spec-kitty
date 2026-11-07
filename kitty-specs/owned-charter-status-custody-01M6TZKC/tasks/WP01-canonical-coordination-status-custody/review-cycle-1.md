@@ -25,7 +25,7 @@ No findings.
 
 ## Red-first proof
 
-- Test commit `89a7d0b` precedes production commit `e786baf`.
+- Test commit `7b4a507c0a2a5d0f1d81a07429c4bad47a1cd571` precedes production commit `33840e573f6ce954c4d120036c221df1a35eb7b2` after the landing rebase.
 - The new integration class was RED 1 failed / 1 passed in 57.09s, with `ActionContextError: charter Mission differs from the validated owned checkout` on the positive case.
 - Installed-CLI `[0]` was RED 1 failed in 105.34s before the fix with `MISSION_CONTEXT_CONFLICT`.
 
