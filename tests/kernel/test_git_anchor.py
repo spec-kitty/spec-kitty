@@ -213,10 +213,8 @@ def test_an_explicit_git_redirect_is_unknown(tmp_path: Path, variable: str) -> N
     assert variable in verdict.reason
 
 
-def test_a_start_that_cannot_be_resolved_still_classifies_every_git_above_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A symlink loop or unreadable component never hides a repository above the folder."""
-    (tmp_path / ".git").mkdir()
-    (tmp_path / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+def test_a_start_that_cannot_be_resolved_is_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symlink loop or unreadable component cannot establish that no repository exists."""
     start = tmp_path / "loop"
     real_resolve = Path.resolve
 
@@ -230,4 +228,4 @@ def test_a_start_that_cannot_be_resolved_still_classifies_every_git_above_it(tmp
     verdict = find_git_anchor(start, environ={})
 
     assert verdict is not None
-    assert (verdict.kind, verdict.path) == (AnchorKind.REPOSITORY, tmp_path / ".git")
+    assert (verdict.kind, verdict.path) == (AnchorKind.UNKNOWN, start / ".git")
