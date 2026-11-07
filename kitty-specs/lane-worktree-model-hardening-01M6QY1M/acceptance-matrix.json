@@ -190,13 +190,13 @@
     },
     {
       "criterion_id": "FR-033",
-      "description": "Verify FR-033 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-033 Retention policy honoured and named: `retain_branches` / `retain_worktrees` and the CLI flags to keep their precedence, and retained lanes reported as \"retained by policy\" separately from \"kept\", so that I can tell intent from refusal.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-l:tests/consolidation/test_lane_cleanup_kept_report.py::test_retained_by_policy_distinct_from_kept; lane-l:tests/consolidation/test_lane_cleanup_module.py::test_retention_is_reported_apart_from_kept; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:00.440320+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-034",
