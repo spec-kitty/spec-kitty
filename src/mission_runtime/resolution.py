@@ -2476,12 +2476,15 @@ class PlacementSeam:
         already consumes — closes that silent substitution: ``DELETED`` now
         raises :class:`~specify_cli.coordination.surface_resolver.
         CoordinationBranchDeleted` (the existing typed partition-mismatch
-        signal; no new exception type needed). Every other cell — a
+        signal; no new exception type needed). An ``UNMATERIALIZED``
+        coordination worktree raises
+        :class:`~specify_cli.coordination.surface_resolver.
+        CoordinationWorktreeUnmaterialized` (#4959, ADR 2026-09-24-2) rather
+        than substituting the primary checkout. The remaining cells — a
         PRIMARY-partition kind, a coord-less topology (AH-2), or a coord
-        topology whose worktree is genuinely ``EMPTY``/``UNMATERIALIZED``
-        (the create-window) — resolves identically to before **with respect to
-        raising**: these are the T031-enumerated SANCTIONED degrades, preserved
-        verbatim (NFR-002 forbids only *undeclared* fallbacks, not these
+        topology whose worktree is ``EMPTY`` (the create-window) — resolve the
+        declared PRIMARY home: these are the T031-enumerated SANCTIONED
+        degrades (NFR-002 forbids only *undeclared* fallbacks, not these
         declared ones).
 
         This is the READ side only (coord-artifact-single-home-01M3V4BE WP04,
@@ -2968,8 +2971,10 @@ def resolve_artifact_surface(
       PRIMARY;
     * a coord-partition kind on coord-routing topology consumes the four-state
       classifier: ``DELETED`` raises :class:`CoordinationBranchDeleted` (C3 "fail
-      loud"); ``MATERIALIZED`` resolves the coord dir, stamped COORD; ``EMPTY`` /
-      ``UNMATERIALIZED`` resolve the primary dir, stamped PRIMARY.
+      loud"); ``MATERIALIZED`` resolves the coord dir, stamped COORD;
+      ``UNMATERIALIZED`` raises :class:`CoordinationWorktreeUnmaterialized`
+      (#4959, ADR 2026-09-24-2); ``EMPTY`` resolves the primary dir, stamped
+      PRIMARY.
 
     The final path goes through :func:`translate_surface` so the ONE total
     translation is the production path, not merely a tested one. CWD-invariant: the
@@ -2979,6 +2984,8 @@ def resolve_artifact_surface(
     Raises:
         CoordinationBranchDeleted: When the declared coordination branch has been
             deleted from git (C3 fail-loud).
+        CoordinationWorktreeUnmaterialized: When the declared coordination
+            branch exists but its worktree has not been materialized (#4959).
         MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
             (propagated from handle canonicalization — no silent pick).
     """

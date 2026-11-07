@@ -289,8 +289,9 @@ def test_approving_shells_warn_when_a_code_lane_approval_has_no_lane_head(
     """#5668 / #5721: only a code lane's approval is warned about.
 
     The shells here force the approval, which is no review approval (#5721), so the line that
-    speaks is the forced-approval warning (it also says an unstamped work package refuses); a
-    ``single_branch`` lane is never bounded, so it gets no warning at all.
+    speaks is the forced-approval warning (it also says an unstamped work package refuses). This
+    ``single_branch`` fixture records no minted Mission branch, and only a Mission that lands one
+    is bounded (S8, #7283), so it gets no warning at all.
     """
     repo, mission_slug, _ = _build_mission(tmp_path, f"approve-{shell}-{topology}", topology=topology)
     _seed_canonical_wp_state(repo, mission_slug, "WP01", "for_review", actor="claude", assignee="Owner", shell_pid="1234", timestamp="2026-09-28T01:00:00Z")

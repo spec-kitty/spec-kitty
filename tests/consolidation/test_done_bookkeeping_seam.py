@@ -270,8 +270,11 @@ def test_durable_done_reduces_committed_coordination_ref(tmp_path: Path) -> None
     from types import SimpleNamespace
 
     lanes = {"WP01": Lane.DONE, "WP02": Lane.APPROVED}
+    # The ref read is mocked, so the declared ref-missing arm is pinned "present";
+    # otherwise the non-git tmp_path takes that arm before the read (FR-004).
     with (
         patch.object(db, "resolve_placement_only", return_value=SimpleNamespace(ref="kitty/mission-m")),
+        patch("specify_cli.coordination.status_service.ref_names_object", return_value=True),
         patch(
             "specify_cli.coordination.status_service.read_event_log",
             return_value=[object()],

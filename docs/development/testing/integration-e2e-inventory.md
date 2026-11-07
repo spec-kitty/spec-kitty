@@ -217,7 +217,7 @@ A dated snapshot of the 184 test files under `tests/integration` (177) and `test
 | `review/test_reject_without_force.py` | duplicate | R (done) | Verified: folded into `test_approve_without_force.py` as a parametrize over approved and planned, plus its default-lane case. |
 | `review/test_verdict_save_topologies.py` | keep | - | Multiprocessing, 19 patches, fault injection. |
 | `sparse_checkout/test_detection.py` | keep | - | Git config storage and lane registration internals. |
-| `sparse_checkout/test_doctor_finding.py` | partly | 1 (done) | Three detection cases moved to `doctor/sparse-checkout.feature`; managed-lane cases need `register_lane_sparse_checkout`. |
+| `sparse_checkout/test_doctor_finding.py` | partly | 1 (done) | Three detection cases moved to `doctor/sparse-checkout.feature`; managed-lane cases need `lanes.lane_checkout.exclude_lane_status_files`. |
 | `sparse_checkout/test_doctor_non_interactive.py` | partly | 1 (done) | The non-terminal case moved; probe rules and interactive answers stay. |
 | `sparse_checkout/test_implement_preflight_blocks.py` | scenario | 1b (done) | Moved to `implement/sparse-checkout.feature`; its `--force` case is now meaningful (`--force --note`). |
 | `sparse_checkout/test_merge_preflight_blocks.py` | scenario | 1b (done) | Moved to `consolidate/sparse-checkout.feature`; `consolidate` has no `--force`, which the scenario pins. |

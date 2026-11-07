@@ -622,6 +622,9 @@ def _execute_lane_merge(
     _refuse_hollow_or_self_reviewed_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
 
     if is_planning_artifact_only(lanes_manifest):
+        # S8 (#7283, FR-076): a single_branch Mission that lands a minted Mission branch is bounded by its
+        # approval windows; the same claim check refuses here with the reused codes, before the closeout runs.
+        _refuse_post_approval_lane_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
         _execute_planning_only_merge(
             main_repo_root,
             mission_slug,
