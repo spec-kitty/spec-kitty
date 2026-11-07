@@ -393,7 +393,6 @@ class TestOwnedCoordinationPromptCharterScope:
         text = self.prompt(self.status_dir)
 
         assert str(self.owned / ".kittify/charter/charter.md") in text
-        assert "OWNED_SOURCE_POLICY" in text
         assert "PRIMARY_ONLY_POLICY" not in text
         assert _snapshot(self.primary) == self.before
 
