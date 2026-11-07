@@ -12,3 +12,24 @@
 - **[2026-11-06][implement] Operator ruling relayed by the S11 session:** open-packs aligns with the spec-kitty-charter contracts; core becomes compatible by wiring in the charter service's generated client; following those contracts is the consumer's choice. For #7276, the open-packs doctrine is not gated on core, and the pin bump is a core-side choice. Disposition: unchanged plan; the pin bump stays a pre-PR operator question.
 - **[2026-11-06][implement WP01] Wrote ADR 2026-11-06-2 (one status read contract, FR-007, FR-061 placement) and amended ADRs 2026-06-19-1 (superseded for status reads) and 2026-07-29-1 (restated ruling 3, Assert A' kept).** Sources and invariants follow research R-1/R-2 and data-model §2; every topology x coordination state maps to one source in one table. Disposition: for review.
 - **[2026-11-06][implement] spec-kitty-events PR #215 merged (ADR 0007/0008 Proposed, mission-write 1.0.1-SNAPSHOT on events main).** C-1/C-3 (WP03, approved) already record the step 4 + 4a ordering, the destinationRef change to ADR 2026-10-27-1 D-3, and the oracle's missing-ref answer. Disposition: at docs time (WP18), retarget the C-1/C-3 links from the PR branch to events `main`. The operator accepts 0007/0008 together with C-1..C-3.
+- **[2026-11-06][implement] Closeout cleanup list (fold into a final WP or the pre-PR fix pass):**
+  - delete `write_branch_bound._commits_outside_windows` (dead after WP12 cycle 2);
+  - remove the WP13 allowlist entries once WP14 wires their callers;
+  - fix the ADR wording on the landed_worktrees printed hint (WP09);
+  - record MISSION_BRANCH_REF in ADR 2026-11-06-2 and in data-model (WP05);
+  - retarget the C-1/C-3 links to spec-kitty-events main (WP03);
+  - fix spec FR-084/C-003 wording, then re-run analyze;
+  - delete the third landed-reader copy in `phase_advance.py:264` unless WP07 does;
+  - delete or rename the remaining old enum-member docstrings.
+- **[2026-11-06][review WP13] Closeout item:** the out-of-matrix `tests/specify_cli/cli/commands` directory shows failures that reviewers attributed to xdist or the base without serial confirmation (charter-cascade, doctrine-asset, `test_activate_only_6408`, the merge-golden `--dependency-ref`, and others). Before the PR, run that directory on the consolidated branch and on origin/main and classify each red (CLAUDE.md test policy; out-of-matrix category 6).
+- **[2026-11-06][implement WP10 cycle 2] Closeout item:** add `LANE_STATUS_NOT_EXCLUDED`, `LANE_STATUS_AUTHORED`, `STATUS_WRITE_TARGETS_LANE_CHECKOUT`, `status_surface_on_ref` and `status_surface_unavailable` to `contracts/error-codes.yaml` (planning artifact; WP18/closeout).
+- [2026-11-06] Closeout additions from the WP10 c2 review: a pin test for the legacy-Mission exemption; re-run `tests/specify_cli/upgrade` on the consolidated branch (the reviewer did not re-run it in the narrowed comparison).
+- [2026-11-06][WP14 c2 review] Non-blocking nits for closeout: `_write_branch_holder` re-implements the lane-worktree exclusion; `coord_worktree_mission_names` hardcodes the `*-coord` glob; `resolve_primary_partition_dir` and `default_mission_topic_dir` overlap.
+
+- WP20 c2 approved (closeout nits): restore positive G2 mission_number assertion (==1 + baseline_merge_commit ancestry); cycle-1 commit message misnames lands_topic_branch as lanes_topic_branch.
+
+- WP17 approved (closeout): 3 reds in tests/architectural/test_no_worktree_name_guess.py at _read_path_resolver.py:2138 and topology_settlement.py:364, introduced via lane-k (WP14 f385c7e5b1) / lane-p. Must be fixed before consolidation.
+
+- WP18 approved. Closeout (ruled out of WP18): WP10 error codes into contracts/error-codes.yaml; MISSION_BRANCH_REF in ADR + data-model; WP12 ADR S8 text correction. Friction: scripts/docs checks need PYTHONPATH=<worktree>.
+
+- Merged origin/main into the topic branch (056334e235) so the WP16 lane (which merged main for #7275 guarded_landed_removal) passes the for_review kitty-specs gate. ADR 2026-10-04-5 conflict: both amendments kept. Closeout: main took orchestrator-api contract 1.24.0 (#7210); this Mission bumps to 1.25.0 (done on lane-m) — reconcile at consolidation and fix the 1.24.0 citation WP17 put in AGENTS.md/CLAUDE.md. Closeout: 8 WP15 lane_cleanup names flagged by test_no_dead_symbols; WP16 local-mode acceptance advice still raw git (follow-up); WP16 MainTodayRemover fallback for empty PASS tip (follow-up).
