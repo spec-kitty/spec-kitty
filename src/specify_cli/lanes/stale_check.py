@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.git.listing import tree_entries
-from kernel.git.runner import GitCommandError
+from kernel.git.runner import GitCommandError, decode_path, run_git
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
@@ -40,7 +40,8 @@ def check_lane_staleness(
 
     Algorithm:
     1. Find the merge-base between lane and mission branches.
-    2. Diff mission branch from merge-base → files mission has changed.
+    2. Collect the files changed by commits on the mission branch that the
+       lane does not contain (``lane..mission``) → files mission has changed.
     3. Diff lane branch from merge-base → files lane has changed.
     4. Intersect the two sets.
     5. If non-empty, the lane is stale.
@@ -60,9 +61,8 @@ def check_lane_staleness(
         # No common ancestor — branches are unrelated. Not stale.
         return StaleCheckResult(is_stale=False)
 
-    # Files changed in mission since merge-base.
-    # FR-013: advisory only — a failed diff reads as "not stale"; nothing is written or skipped on it.
-    mission_files = set(git_diff_names(repo_root, merge_base, mission_branch))
+    # Files the mission branch changed that the lane does not already contain (#7311).
+    mission_files = _mission_side_changes(repo_root, lane_branch, mission_branch, merge_base)
 
     if not mission_files:
         # Mission hasn't advanced with any file changes. Not stale.
@@ -82,6 +82,32 @@ def check_lane_staleness(
         stale_files=overlap,
         remediation=_stale_remediation(lane, lane_branch, mission_branch),
     )
+
+
+def _mission_side_changes(repo_root: Path, lane_branch: str, mission_branch: str, merge_base: str) -> set[str]:
+    """Paths changed by commits reachable from the mission branch but not from the lane (#7311).
+
+    A change the lane already contains (for example a dependency lane's commit
+    merged into both) is not mission-side work the lane lacks. A merge commit
+    contributes only what its own resolution introduced (``--diff-merges=remerge``:
+    the diff against git's automatic re-merge), so content a merge carried in from
+    a parent is attributed to that parent's commits. A failed probe falls back to
+    the whole ``merge_base..mission_branch`` diff, the strictest superset.
+    """
+    try:
+        result = run_git(
+            repo_root,
+            "log",
+            "--format=",
+            "--name-only",
+            "--no-renames",
+            "--diff-merges=remerge",
+            f"{lane_branch}..{mission_branch}",
+            "--",
+        )
+    except GitCommandError:
+        return set(git_diff_names(repo_root, merge_base, mission_branch))
+    return {decode_path(line) for line in result.stdout.splitlines() if line.strip()}
 
 
 def _filter_benign_overlaps(overlap: list[str], lane_branch: str, mission_branch: str, repo_root: Path) -> list[str]:
@@ -134,7 +160,12 @@ def _stale_remediation(lane: ExecutionLane, lane_branch: str, mission_branch: st
     is verified for the same-schema conflict this remediation targets; the
     cross-schema all-zeros edge (a log written under a different status
     schema) is out of scope and tracked separately as #3531.
+
+    A code lane's worktree may be absent (cleaned up, or never created on this
+    clone), so the remedy names the branch and how to find or recreate its
+    checkout instead of a ``cd .worktrees/*`` glob that may match nothing (#7311).
     """
+    wp = lane.wp_ids[0] if lane.wp_ids else "<WP>"
     if is_planning_lane(lane):
         return (
             f"Lane {lane.lane_id} must incorporate mission changes before merging. "
@@ -149,5 +180,7 @@ def _stale_remediation(lane: ExecutionLane, lane_branch: str, mission_branch: st
         )
     return (
         f"Lane {lane.lane_id} must incorporate mission changes before merging. "
-        f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
+        f"In the checkout of branch '{lane_branch}' (find it with: git worktree list; "
+        f"if none exists, recreate it with: spec-kitty implement {wp}), run: "
+        f"git merge {mission_branch}"
     )
