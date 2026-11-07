@@ -65,6 +65,7 @@ def pinned_placement(monkeypatch: pytest.MonkeyPatch) -> None:
     from mission_runtime import MissionTopology
     from specify_cli.coordination.status_service import ref_names_object
     from specify_cli.status import read_surface
+    import specify_cli.status as _status_pkg  # #7276: callers import the read door from the package
 
     def _committed(repo_root: Path, mission: str) -> read_surface.StatusReadSurface | None:
         if not ref_names_object(repo_root, COORD_REF):
@@ -78,7 +79,7 @@ def pinned_placement(monkeypatch: pytest.MonkeyPatch) -> None:
             ref=COORD_REF,
         )
 
-    monkeypatch.setattr(read_surface, "resolve_committed_status_read", _committed)
+    monkeypatch.setattr(_status_pkg, "resolve_committed_status_read", _committed)
 
 
 def _lanes(repo_root: Path) -> dict[str, str] | None:

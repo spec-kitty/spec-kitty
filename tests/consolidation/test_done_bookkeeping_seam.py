@@ -262,7 +262,7 @@ def test_reconcile_empty_when_no_completions(tmp_path: Path) -> None:
 def test_durable_done_empty_when_placement_unresolvable(tmp_path: Path) -> None:
     # An unresolvable placement (non-coord / legacy) yields no durable-done set,
     # so the caller falls back to the transactional on-disk check.
-    with patch("specify_cli.status.read_surface.resolve_committed_status_read", side_effect=RuntimeError("no mission")):
+    with patch("specify_cli.status.resolve_committed_status_read", side_effect=RuntimeError("no mission")):
         assert db._durable_done_wps_on_coordination_ref(repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]) == set()
 
 
@@ -273,8 +273,8 @@ def test_durable_done_reduces_committed_coordination_ref(tmp_path: Path) -> None
     # The ref read is mocked, so the declared ref-missing arm is pinned "present";
     # otherwise the non-git tmp_path takes that arm before the read (FR-004).
     with (
-        patch("specify_cli.status.read_surface.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
-        patch("specify_cli.status.read_surface.read_status_events", return_value=[object()]),
+        patch("specify_cli.status.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
+        patch("specify_cli.status.read_status_events", return_value=[object()]),
         patch(
             "specify_cli.coordination.status_service.wp_lane_actor_from_events",
             side_effect=lambda _events, wp_id: CurrentWpState(lanes[wp_id], None, None),
@@ -287,8 +287,8 @@ def test_durable_done_empty_when_committed_log_empty(tmp_path: Path) -> None:
     from types import SimpleNamespace
 
     with (
-        patch("specify_cli.status.read_surface.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
-        patch("specify_cli.status.read_surface.read_status_events", return_value=[]),
+        patch("specify_cli.status.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
+        patch("specify_cli.status.read_status_events", return_value=[]),
     ):
         assert db._durable_done_wps_on_coordination_ref(repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]) == set()
 
@@ -653,7 +653,7 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
 # --- _assert_merged_wps_reached_done ----------------------------------------
 
 
-_DOOR = "specify_cli.status.read_surface"
+_DOOR = "specify_cli.status"  # #7276: callers import the read door from the package
 
 
 def _door_patches(tmp_path: Path, *, text: str | None = "log", not_done: list[str] | Exception | None = None) -> tuple[Any, ...]:
