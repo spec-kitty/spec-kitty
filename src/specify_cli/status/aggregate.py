@@ -37,7 +37,8 @@ from specify_cli.core.paths import (
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
     from specify_cli.status import TransitionRequest
-    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
+    from specify_cli.status.read_surface import StatusReadSurface
 
 _logger = logging.getLogger(__name__)
 
@@ -159,6 +160,19 @@ class ActiveWPStatus:
     last_event: StatusEvent | None
 
 
+def _lane_from_events(events: list[StatusEvent], wp_id: str) -> Lane:
+    """``get_wp_lane``'s rules over an in-hand event list (an empty log is uninitialized)."""
+    from specify_cli.status import Lane as _Lane
+    from specify_cli.status import reduce
+
+    if not events:
+        return _Lane.UNINITIALIZED
+    wp_state = reduce(events).work_packages.get(wp_id)
+    if wp_state is None:
+        return _Lane.UNINITIALIZED
+    return _Lane(wp_state.get("lane", _Lane.GENESIS))
+
+
 # ---------------------------------------------------------------------------
 # MissionStatus — aggregate root
 # ---------------------------------------------------------------------------
@@ -175,7 +189,10 @@ class MissionStatus:
         mid8: First 8 characters of ``mission_id``, or ``""`` for legacy missions.
         topology: ``"legacy"`` when no coord worktree exists; ``"coordination"``
             when the mission carries a ``coordination_branch`` declaration.
-        read_dir: Authoritative directory containing ``status.events.jsonl``.
+        read_dir: The write anchor the transactional status shell is handed (the
+            coordination worktree, or the repository root checkout's Mission dir before
+            the coordination worktree exists). It is NOT a read source: reads go through
+            :meth:`status_read_surface`.
     """
 
     mission_slug: str
@@ -230,6 +247,10 @@ class MissionStatus:
         # 0. Guard the slug at the boundary (FR-007 / DIRECTIVE_010) before it
         #    is used to compose paths, git refs, or worktree names.
         cls._validate_mission_slug(mission_slug)
+        # FR-002: a lane root re-anchors to the repository root (#6466).
+        from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+        repo_root = canonical_status_read_root(repo_root)
 
         # 1. Load meta.json (best-effort; legacy missions may not have one) so
         #    the aggregate carries identity + coord-branch declaration. The
@@ -264,6 +285,22 @@ class MissionStatus:
             repo_root=repo_root,
             coordination_branch=coordination_branch,
         )
+
+    def status_read_surface(self) -> StatusReadSurface | None:
+        """The declared status read source (the one read door, ADR 2026-11-06-2).
+
+        Resolved on demand, so a write-only use of the aggregate (``transition``) never
+        pays for, or fails on, a read-side probe. ``None`` only in the create window with no
+        Mission directory at all (the door raises ``FileNotFoundError``).
+        ``StatusSurfaceRefUnreadable`` propagates: an unreadable coordination ref is never
+        read as an empty history (FR-004).
+        """
+        from specify_cli.status.read_surface import resolve_status_read
+
+        try:
+            return resolve_status_read(self.repo_root, self.mission_slug)
+        except FileNotFoundError:
+            return None
 
     @staticmethod
     def _is_coord_dir(read_dir: Path, *, repo_root: Path) -> bool:
@@ -584,9 +621,18 @@ class MissionStatus:
             :class:`ActiveWPStatus` with the current lane and last event.
         """
         from specify_cli.status import get_wp_lane, read_events
+        from specify_cli.status.read_surface import read_status_events
 
-        events = read_events(self.read_dir)
-        current_lane = get_wp_lane(self.read_dir, wp_id)
+        surface = self.status_read_surface()
+        source_dir = self.read_dir if surface is None else surface.path
+        if surface is not None and source_dir is None:
+            # A ref-sourced surface (ADR 2026-11-06-2): the committed log, reduced by the same rules.
+            events = read_status_events(surface)
+            current_lane = _lane_from_events(events, wp_id)
+        else:
+            assert source_dir is not None
+            events = read_events(source_dir)
+            current_lane = get_wp_lane(source_dir, wp_id)
         wp_events = [e for e in events if e.wp_id == wp_id]
         last_event = wp_events[-1] if wp_events else None
         return ActiveWPStatus(
@@ -594,6 +640,30 @@ class MissionStatus:
             current_lane=current_lane,
             last_event=last_event,
         )
+
+    def materialize(self, surface: StatusReadSurface | None = None) -> StatusSnapshot:
+        """Reduce the declared source and write ``status.json`` into its checkout, when it has one.
+
+        ``status.json`` is written (``status.reducer.materialize``) into the surface's Mission
+        directory whenever the source is a checkout path: ``WRITE_CHECKOUT`` (the repository root
+        checkout or owned checkout, including the declared pre-seed fallback), ``COORD_WORKTREE``
+        and ``CONSOLIDATED_TARGET`` (a landed Mission, on every topology: the target's copy in the
+        repository root checkout). This is the explicit regenerate path, not a status read. The
+        pure ref sources (``COORD_BRANCH_REF``, ``MISSION_BRANCH_REF``) have no checkout, so
+        nothing is written and only the reduced snapshot is returned; a command that promises a
+        write refuses on them first (``agent status materialize``). A caller that already
+        resolved *surface* passes it, so the source is read once (NFR-001).
+        """
+        from specify_cli.status import materialize as write_status_json
+        from specify_cli.status.read_surface import materialize_status
+
+        if surface is None:
+            surface = self.status_read_surface()
+        if surface is None:
+            return write_status_json(self.read_dir)
+        if surface.path is not None:
+            return write_status_json(surface.path)
+        return materialize_status(surface)
 
     def transition(self, request: TransitionRequest) -> StatusEvent:
         """Apply a lane transition by composing the transactional shell.

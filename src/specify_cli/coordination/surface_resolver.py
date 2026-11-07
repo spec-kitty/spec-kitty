@@ -13,26 +13,17 @@ here; the C-002 topology-ratchet allowlist entry that reserved them is drained
 reaching for a parallel resolution path should treat this constraint as
 load-bearing (NFR-003 compliance boundary).
 
-The coord-empty case (a materialized-but-empty coordination worktree) is an
-operator-decided **loud primary fallback** (Option B; FR-001 / FR-003 / #1716):
-the resolver falls back to the primary checkout and proceeds. For a coord
-mission WITH lanes (``MissionTopology.LANES_WITH_COORD`` — lane worktrees were
-provisioned to write there), an empty coord root is genuinely unexpected, so
-the fallback emits a single ``logging.WARNING``
-(:data:`_COORD_EMPTY_FALLBACK_WARNING`) that names the stale-surface risk AND
-both operator recovery paths — flatten (drop ``coordination_branch`` from
-``meta.json``) OR run ``spec-kitty doctor workspaces --fix``. For a solo
-coord mission with no lanes (``MissionTopology.COORD``), an empty coord root
-is the EXPECTED steady state until the mission's first coordination-branch
-write self-materializes it (#2533 / WP08 T029-T031): the fallback stays
-quiet — no warning, no manual flatten prompted for a condition that is not an
-error. It NEVER silently degrades for the genuinely unexpected case: the
-warning makes that fallback observable so an operator or orchestrating agent
-can intervene. The decision is recorded in
-``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
-to this single resolver. (The sibling coord-*deleted* case stays a hard-fail —
-:class:`CoordinationBranchDeleted`, #1848 — because a deleted branch carrying
-unmerged status is data loss, not a degraded read.)
+**The status read door is canonical** (ADR ``2026-11-06-2-one-status-read-contract``,
+Mission lane-worktree-model-hardening WP05): the source decision of a status read lives in
+:func:`specify_cli.status.read_surface.resolve_status_read`.
+:func:`resolve_status_surface_with_anchor` delegates its decision there and only projects it to
+the legacy path form for the callers WP06/WP07 have not moved onto the door yet. The former
+loud repository-root fallback for an EMPTY coordination worktree (Option B, ADR
+``2026-06-19-1``) is gone for status reads: an empty or unmaterialized coordination worktree
+reads the committed coordination branch, and only a branch that holds no log yet takes the
+declared pre-seed fallback to the write checkout. (The coord-*deleted* case stays a hard-fail
+-- :class:`CoordinationBranchDeleted`, #1848 -- because a deleted branch carrying unmerged
+status is data loss, not a degraded read.)
 
 Coord-topology resolution happens **exactly once** (FR-036). The coord-aware
 :func:`candidate_feature_dir_for_mission` resolver already returns the
@@ -123,24 +114,6 @@ def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
     the canonical predicate directly.
     """
     return routes_through_coordination(topology)
-
-
-# Option B loud primary fallback (FR-001 / FR-003 / #1716): when the coordination
-# worktree root is materialized but carries no mission dir, the resolver returns
-# the PRIMARY checkout and emits this single ``logging.WARNING`` so the fallback
-# is observable. The message names the stale-surface risk AND both operator
-# recovery paths (flatten OR `spec-kitty doctor workspaces --fix`); it is built
-# once (paula C-warning-dup) and reuses the ADR recovery text. The ``{slug}`` /
-# ``{coord_root}`` fields are filled at emit time.
-_COORD_EMPTY_FALLBACK_WARNING = (
-    "Coordination worktree for mission %(slug)r is materialized but carries no "
-    "mission dir (coord root %(coord_root)s): falling back to the PRIMARY "
-    "checkout, which may expose a stale, split-brain status surface. Recover by "
-    "EITHER (a) flattening the mission — remove the `coordination_branch` key "
-    "from meta.json so the primary checkout becomes authoritative — OR "
-    "(b) recreating/populating the coordination worktree by running "
-    "`spec-kitty doctor workspaces --fix`."
-)
 
 
 class WorktreeTopology(enum.Enum):
@@ -1155,23 +1128,15 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
 
 
 def _primary_mission_is_completed(primary_dir: Path) -> bool:
-    """Return whether PRIMARY merge evidence makes that surface authoritative.
+    """Return whether the Mission has landed (merge evidence makes PRIMARY authoritative).
 
-    Merge-marker only (squad pass 1 on PR #845): an unmerged coord mission
-    whose WPs are all terminal keeps writing to its coord worktree, so
-    re-anchoring reads to primary there would serve stale state. Non-raising:
-    corrupt primary meta (``MissionMetaReadError``) reads as not-merged and the
-    resolver falls through to its ordinary surface decision.
+    Delegates to the placement seam's one "landed" reader
+    (:func:`mission_runtime.mission_has_landed`, ADR 2026-11-06-2/-3), so this resolver and the
+    status read door never read two signals. Non-raising.
     """
-    from specify_cli.core.paths import MissionMetaReadError
-    from specify_cli.status import StoreError, is_mission_merged
+    from mission_runtime import mission_has_landed
 
-    if not (primary_dir / "meta.json").is_file():
-        return False
-    try:
-        return bool(is_mission_merged(primary_dir))
-    except (StoreError, MissionMetaReadError):
-        return False
+    return mission_has_landed(primary_dir)
 
 
 def _effective_surface_topology(
@@ -1233,24 +1198,21 @@ def resolve_status_surface(
     return resolve_status_surface_with_anchor(repo_root, mission_slug, topology, for_write=for_write).surface_path
 
 
-def _meta_unreadable_fallback(primary_dir: Path, feature_dir: Path, mission_slug: str) -> ResolvedStatusSurface:
-    """Resolve the surface when no readable ``meta.json`` was found anywhere.
+def locate_status_mission(repo_root: Path, mission: str) -> tuple[Path, str, Path]:
+    """Locate a Mission for the status read door: ``(candidate dir, dir name, PRIMARY dir)``.
 
-    Extracted verbatim from :func:`resolve_status_surface_with_anchor` (T006,
-    campsite-clean WP01) — prefers the primary dir when it exists on disk, then
-    the (possibly coord) ``feature_dir``, and fails loud when neither exists.
+    One canonicalization (F-001): the coord-aware candidate resolution lands a mid8 / ULID /
+    numeric-prefix handle on the real Mission directory, whose NAME is the canonical Mission
+    dir name; a fail-closed not-found re-anchors on its primary candidate (the coord-empty
+    ``<slug>-<mid8>`` handle case). *repo_root* must already be normalized.
     """
-    if primary_dir.exists():
-        return ResolvedStatusSurface(
-            surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=primary_dir,
-        )
-    if feature_dir.exists():
-        return ResolvedStatusSurface(
-            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=feature_dir,
-        )
-    raise FileNotFoundError(f"meta.json not found for mission {mission_slug!r} at {feature_dir}")
+    try:
+        candidate: Path = candidate_feature_dir_for_mission(repo_root, mission)
+    except StatusReadPathNotFound as exc:
+        candidate = exc.primary_candidate
+    dir_name = candidate.name
+    primary_dir: Path = _compose_primary_feature_dir(repo_root, _canonicalize_primary_read_handle(repo_root, dir_name))
+    return candidate, dir_name, primary_dir
 
 
 def resolve_status_surface_with_anchor(
@@ -1260,351 +1222,47 @@ def resolve_status_surface_with_anchor(
     *,
     for_write: bool = False,
 ) -> ResolvedStatusSurface:
-    """Resolve the canonical status surface and primary anchor in one pass.
+    """Resolve the status surface's legacy path form and its primary anchor.
 
-    Resolution is single-pass (FR-036): :func:`candidate_feature_dir_for_mission`
-    — the coord-aware primitive that ``MissionStatus`` is also built on — is
-    invoked **exactly once** and its result is carried as ``primary_anchor``.
-    The surface path is derived from that same resolution:
+    The source decision is the one read door's
+    (:func:`specify_cli.status.read_surface.decide_status_read`, ADR 2026-11-06-2); this
+    function projects it for callers that still read a path (WP06/WP07 move them onto
+    :func:`~specify_cli.status.read_surface.resolve_status_read`):
 
-    1. If the resolved dir is already inside a ``.worktrees/<m>-coord`` root, it
-       is final — the surface lives there (never re-resolve; the #1772 nesting
-       bug).
-    2. Otherwise the resolver landed in the primary checkout. When that mission
-       declares ``coordination_branch`` but the coord worktree is not yet
-       materialized, compose the coord path **directly** (one derivation, via
-       WP01's :func:`coord_feature_dir`). When the coord worktree root *is*
-       materialized but lacks the mission dir (the coord-empty state), apply
-       Option B: return the PRIMARY checkout surface. For a solo (no-lanes)
-       coord mission (``MissionTopology.COORD``) this is the EXPECTED steady
-       state pre-first-write, so the fallback is quiet — no warning (#2533 /
-       WP08). For a mission WITH lanes (``MissionTopology.LANES_WITH_COORD``,
-       lane worktrees were provisioned to write there) an empty coord root is
-       genuinely unexpected, so the fallback still emits a single loud
-       ``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) naming the
-       stale-surface risk and both recovery paths (#1716 / FR-001 / FR-003).
-       The coord-state decision routes through WP01's :func:`probe_coord_state`
-       (adopted, not re-derived); the solo-vs-lanes split reuses the
-       ``effective_topology`` already disposed above (no parallel derivation).
-       The ``CoordState.DELETED`` case still hard-fails
-       (:class:`CoordinationBranchDeleted`, #1848).
+    * ``WRITE_CHECKOUT`` / ``COORD_WORKTREE`` / ``CONSOLIDATED_TARGET``: the surface's own
+      ``status.events.jsonl``;
+    * ``COORD_BRANCH_REF`` (empty or unmaterialized coordination worktree): the composed
+      coordination path (the ref has no path; the door reads the committed branch);
+    * the declared pre-seed fallback: the repository root checkout's log.
 
-    ``for_write`` preserves coordination validation for placement callers. A
-    completed mission's primary read authority does not grant write placement
-    for artifact kinds excluded from post-consolidation writes (#4358).
-    ``for_write=True`` is **commit-ref oriented, not a write location**
-    (coord-artifact-single-home-01M3V4BE WP04, FR-017): it is reached from
-    :func:`~mission_runtime.resolution.resolve_placement_only` (via
-    ``_assemble_core_fragments(for_write=True)``) and MUST stay side-effect
-    free — it never materializes, seeds or writes anything, unlike
-    :meth:`~mission_runtime.resolution.PlacementSeam.write_dir`, the ONE
-    accessor sanctioned to do that.
+    ``primary_anchor`` is the canonical PRIMARY Mission dir (a husk surface anchors on itself).
+
+    ``for_write`` keeps the placement callers' commit-ref orientation
+    (coord-artifact-single-home-01M3V4BE WP04, FR-017): no landed check, no ref probe, never a
+    fallback to the write checkout, and no side effect.
 
     Raises FileNotFoundError when meta.json is absent.
     Raises ValueError when meta.json is malformed.
-    Raises CoordinationBranchDeleted when the coord worktree is absent AND the
-        declared coordination branch has been deleted from git (#1848 data-loss
-        carve-out — never a silent fallback).
-    Raises StatusReadPathNotFound when the coord-worktree mid8 cannot be derived
-        from any declared source (fail closed — never fabricate a mid8).
+    Raises CoordinationBranchDeleted when the coordination branch was deleted without landing.
+    Raises StatusReadPathNotFound when the coord-worktree mid8 cannot be derived.
     """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.status.read_surface import decide_status_read
+
+    # The one read door decides the source (ADR 2026-11-06-2, WP05): root normalization
+    # (lane and coordination worktree roots re-anchor; an unreadable registry fails closed),
+    # the landed check before any coordination probe, the husk rule, the stored topology,
+    # the coordination state and the declared pre-seed fallback. This function only projects
+    # that decision to the legacy path form its callers read until WP06/WP07 move them onto
+    # the door. The loud repository-root fallback for an EMPTY coordination worktree is gone
+    # (reverses coord-artifact-single-home-01M3V4BE#C-002 / #FR-017): an empty or
+    # unmaterialized coordination worktree whose branch holds the log projects to the composed
+    # coordination path, never to the repository root checkout's copy.
     try:
-        feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-    except StatusReadPathNotFound as exc:
-        # Option B (#1716 / FR-001 / FR-003): for the ``<slug>-<mid8>`` handle the
-        # canonicalizer derives mid8 from the slug, so a coord-empty topology fails
-        # closed HERE (``_resolve_not_found``) before the topology branch below runs
-        # — unlike the bare-slug handle, which canonicalizes to primary and reaches
-        # the branch directly. Recover by re-anchoring on the fail-closed
-        # diagnostic's primary candidate (the primary checkout carries meta.json);
-        # the loud coord-empty fallback then fires uniformly for BOTH handle forms.
-        # Any non-coord-empty fail-closed (e.g. a genuinely missing mission) keeps
-        # propagating, so the not-found behaviour for unresolvable handles is
-        # unchanged.
-        feature_dir = exc.primary_candidate
-    # F-001: the candidate resolution above is the single canonicalization
-    # point — a mid8 / ULID / numeric-prefix handle lands on the real mission
-    # directory, whose NAME is the canonical mission-dir name. Every downstream
-    # composition (the primary re-anchor, the coord-path assembly) consumes
-    # that canonical name; re-anchoring on the raw operator handle is exactly
-    # the wrong-but-plausible ``kitty-specs/<mid8>/`` surface this resolver
-    # must never hand back. (For unresolvable handles the candidate's name
-    # equals the raw handle, so the not-found behaviour is unchanged.)
-    mission_slug = feature_dir.name
-    primary_dir: Path = _compose_primary_feature_dir(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
-    )
-    if not for_write and _primary_mission_is_completed(primary_dir):
-        # Merge evidence makes primary authoritative — even when only the coord
-        # husk carries a status.events.jsonl (pinned by
-        # test_merged_primary_wins_even_when_only_coord_has_events): after a
-        # merge the primary tree is the record; a stale coord log must not
-        # resurrect husk reads. The primary-side empty-read seam the squad
-        # flagged is accepted and documented here — the runtime bridge's own
-        # merged gate returns terminal before any surface read matters.
-        return ResolvedStatusSurface(
-            surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=primary_dir,
-        )
-    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
-    # MissionMetaReadError instead of raw ValueError.
-    from specify_cli.core.paths import load_meta_fail_closed
-
-    meta = load_meta_fail_closed(feature_dir)
-
-    # FR-006 (structural #2062 — the surface read-leg close): the husk
-    # short-circuit below trusts the worktree's OWN ``meta.json`` (which EVERY real
-    # ``git worktree add`` checkout carries) and returns the husk surface BEFORE the
-    # stored-topology shape decision further down ever runs. For a FLATTENED mission
-    # (stored ``topology: single_branch`` / ``lanes``, NO ``coordination_branch``) a
-    # lingering registered ``-coord`` husk would then leak its stale lane state and
-    # re-open #2062. Read the mission's STORED topology from the PRIMARY meta (the
-    # authoritative ``topology`` field, via the SAME ``stored_topology_from_meta``
-    # seam the read path uses — NOT a fresh ``coordination_branch is None``
-    # re-inference): when it is coord-less, the husk is structurally not the read
-    # surface, so DO NOT short-circuit on it. Fall through to the primary re-anchor.
-    # C-006: a genuine coord mission (stored topology COORD / LANES_WITH_COORD) OR an
-    # un-backfilled legacy mission (no stored topology) keeps the husk short-circuit
-    # — a real coord worktree is still the authoritative read.
-    feature_dir_is_husk = any(part == _WORKTREES_SEGMENT for part in feature_dir.parts)
-    if meta is not None and feature_dir_is_husk and _husk_is_authoritative_surface(repo_root, mission_slug):
-        return ResolvedStatusSurface(
-            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=feature_dir,
-        )
-
-    # FR-003 cascade layer 1: config must be readable BEFORE topology can be
-    # resolved. ``coordination_branch`` lives in the PRIMARY-checkout meta.json;
-    # the coord worktree's mission dir has none. When ``candidate_feature_dir``
-    # prefers a materialized coord worktree, ``load_meta`` above silently
-    # returns None and the resolver historically handed back the coord path as
-    # ``primary_anchor`` with no coord/primary distinction — losing the config
-    # signal and flipping topology classification (the #1589/#1821 split-brain
-    # the write path then inherits via ``_identity_for_request``). Re-anchor the
-    # config read on the canonical primary dir so the surface authority is
-    # config-determined, never topology-determined-then-config-lost.
-    #
-    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
-    # FR-005): RECORDED FOUNDATION SITE 4/4, deliberately UNROUTED. This module
-    # is the canonical surface authority the status read ultimately depends on
-    # (``mission_runtime.resolution._resolve_status_surface_dir`` /
-    # ``mission_context_for`` consume ``resolve_status_surface`` from this
-    # module to assemble the execution-context workspace fragment): a raw
-    # compose here produces the topology/config signal (``coordination_branch``,
-    # husk-authority) that FEEDS that surface decision, so it must precede it,
-    # not route through it. It does not literally recurse — ``PlacementSeam.
-    # read_dir``'s ``resolve_artifact_surface`` / ``declared_read_surface``
-    # classification chokepoint never calls into this module at all (a
-    # separate call path), and this module is already whole-module sanctioned
-    # via ``_READ_SANCTIONED_MODULES``. WP08 deleted the public wrapper this
-    # site imported; calls the module-private ``_compose_primary_feature_dir``
-    # leaf directly instead.
-    #
-    # Foundation-count note: this "4/4" in-code count (``core/paths.py`` x2,
-    # ``core/git_ops.py``, this module) is a DIFFERENT grouping than the
-    # 5-entry ``_FOUNDATION_SANCTION_SEED`` machine-checked table in
-    # ``tests/architectural/test_no_read_side_bypass.py`` — that table swaps
-    # this whole-module-sanctioned entry for two individually-tracked sites
-    # (``retrospective/writer.py``, ``status/aggregate.py``) instead, per its
-    # own reconciling comment above ``_FOUNDATION_SANCTIONED``. Six underlying
-    # sites total, two different countable subsets by design — not a typo.
-    if meta is None:
-        # FR-007: fail-closed reader routing. Malformed meta surfaces typed
-        # MissionMetaReadError instead of raw ValueError.
-        from specify_cli.core.paths import load_meta_fail_closed
-
-        meta = load_meta_fail_closed(primary_dir)
-    if meta is None:
-        return _meta_unreadable_fallback(primary_dir, feature_dir, mission_slug)
-
-    # Config is now in hand. The canonical primary anchor is the topology-blind
-    # primary dir (the create→first-write window authority the transaction
-    # identity logic expects), not the coord-preferring candidate.
-    feature_dir = primary_dir
-
-    # ``coordination_branch`` is read here ONLY as the ref VALUE the coord probe
-    # and the #1848 deleted-branch error need (it is never the surface-SHAPE
-    # decision — that is the retired #2069 third derivation, SC-001). The
-    # PRIMARY-vs-coordination SHAPE is decided from the WP02 stored ``topology``
-    # (FR-004): when the caller threads it in, ``_topology_uses_coord_surface``
-    # disposes; otherwise the stored ``topology`` is READ from the (already-in-hand
-    # primary) ``meta`` via the SAME ``stored_topology_from_meta`` seam the read
-    # path uses — the relocated read site now READS the stored shape rather than
-    # relaying a parallel ``classify_topology(coord_branch, …)`` inference (randy
-    # #2 / SC-001). Only an un-backfilled legacy mission (no stored ``topology``)
-    # falls back to deriving the shape ONCE via WP01's ``classify_topology`` SSOT
-    # from the value-read. Either path lands on the same single topology authority.
-    raw_coord = meta.get("coordination_branch")
-    coord_branch: str | None = str(raw_coord) if raw_coord else None
-    effective_topology = _effective_surface_topology(topology, meta, coord_branch)
-    if not _topology_uses_coord_surface(effective_topology) or coord_branch is None:
-        # Non-coord topology → PRIMARY. The ``coord_branch is None`` arm here is a
-        # VALUE guard, not a topology decision (the shape was already disposed by
-        # ``effective_topology``): a coord-routing topology with no recoverable
-        # branch ref cannot compose a coord path or the #1848 deleted-branch error,
-        # so it degrades to the primary surface exactly as the coord-less cells do.
-        return ResolvedStatusSurface(
-            surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-            primary_anchor=feature_dir,
-        )
-
-    # Coord-routing topology: classify the coord-worktree transient STATE via WP01's
-    # shared probe (paula C2) — never re-derive the root/mission-dir/branch checks
-    # inline. The stored topology decides the coord-vs-primary SHAPE above; the
-    # probe still decides the orthogonal transient on-disk×git state (materialized
-    # / empty / deleted) — C-006: the transients are NOT subsumed into the enum.
-    # The composed coord feature dir is built once via WP01's ``coord_feature_dir``
-    # (paula C1, single grammar). The primary anchor stays the canonical primary
-    # candidate (the create→first-write window authority the transaction-identity
-    # logic expects).
-    mid8: str = _coord_mid8(meta, mission_slug, repo_root)
-    composed_coord_dir: Path = coord_feature_dir(repo_root, mission_slug, mid8)
-    coord_state = probe_coord_state(repo_root, mission_slug, mid8, coordination_branch=coord_branch)
-
-    # #1889 row R3 / #1848: the coord worktree is absent AND the declared
-    # coordination branch has been DELETED from git. A deleted coord branch with
-    # unmerged status is data loss, not a degraded read — fail closed LOUDLY with
-    # a distinct, actionable error rather than silently composing a coord path or
-    # falling back to primary (FR-005 / FR-008). This stays a hard-fail (WP05).
-    if coord_state is CoordState.DELETED:
-        # #4403: the DELETED → build-and-raise policy routes through the ONE
-        # ``CoordinationBranchDeleted.for_mission`` factory (single payload
-        # authority); only the site-specific ``primary_candidate`` is threaded.
-        raise CoordinationBranchDeleted.for_mission(
-            repo_root=repo_root,
-            mission_slug=mission_slug,
-            mid8=mid8,
-            coordination_branch=coord_branch,
-            primary_candidate=feature_dir,
-        )
-    # Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree
-    # root is materialized but its mission dir is absent (coord-empty). Reading the
-    # primary checkout may expose a stale, split-brain status surface (#1589/#1821),
-    # so emit a single loud ``logging.WARNING`` naming the risk AND both recovery
-    # paths (flatten OR `spec-kitty doctor workspaces --fix`) — making the fallback
-    # observable so an operator/orchestrating agent can intervene — then return the
-    # PRIMARY surface and proceed. Before materialization (``UNMATERIALIZED``) the
-    # composed coord path is returned as-is; the create→first-write window keeps the
-    # primary checkout authoritative one level up (the aggregate's not-yet-
-    # materialized gate).
-    if coord_state is CoordState.EMPTY:
-        raw_mission_id = meta.get("mission_id")
-        mission_id = str(raw_mission_id) if raw_mission_id else ""
-        return _empty_coord_surface(
-            feature_dir,
-            composed_coord_dir,
-            mission_slug,
-            effective_topology,
-            repo_root=repo_root,
-            coord_branch=coord_branch,
-            mission_id=mission_id,
-            for_write=for_write,
-        )
-    return ResolvedStatusSurface(
-        surface_path=composed_coord_dir / _STATUS_EVENTS_FILENAME,
-        primary_anchor=feature_dir,
-    )
-
-
-def _empty_coord_surface(
-    feature_dir: Path,
-    composed_coord_dir: Path,
-    mission_slug: str,
-    effective_topology: MissionTopology,
-    *,
-    repo_root: Path,
-    coord_branch: str,
-    mission_id: str,
-    for_write: bool,
-) -> ResolvedStatusSurface:
-    """Handle ``CoordState.EMPTY``: a materialized-but-empty coordination worktree.
-
-    Extracted verbatim from :func:`resolve_status_surface_with_anchor` (T006,
-    campsite-clean WP01) — no new side effects (no git writes, no directory
-    creation, no materialization); the warning call and its ``.parent.parent``
-    derivation reproduce exactly. Widened (coord-artifact-single-home-01M3V4BE
-    WP04, binding correction round 3 "D4 / naming fix") to take ``repo_root``
-    and ``coord_branch`` — WP01 could not pre-add them here because ruff ARG
-    would have flagged the then-unused parameters.
-
-    Option B loud primary fallback (FR-001 / FR-003 / #1716): the coord worktree
-    root is materialized but its mission dir is absent (coord-empty). Reading the
-    primary checkout may expose a stale, split-brain status surface (#1589/#1821),
-    so emit a single loud ``logging.WARNING`` naming the risk AND both recovery
-    paths (flatten OR `spec-kitty doctor workspaces --fix`) — making the fallback
-    observable so an operator/orchestrating agent can intervene — then return the
-    PRIMARY surface and proceed.
-
-    #2533: a solo (no-lanes) coord-topology mission whose coord worktree
-    never received a write is an EXPECTED empty state, not a stale
-    split-brain — routing it to PRIMARY is the correct, quiet outcome
-    (WP08 T029). Only ``MissionTopology.LANES_WITH_COORD`` implies real
-    lane worktrees were provisioned to write there; for THAT shape an
-    empty coord root is genuinely unexpected and the loud warning's
-    true-positive signal must survive (WP08 T031). ``effective_topology``
-    is the SAME value already disposed by the caller (no re-derivation, no
-    parallel ``pr_bound`` signal) — solo ``COORD`` is the only other
-    coord-routing member (``_topology_uses_coord_surface`` gated this
-    branch to exactly {COORD, LANES_WITH_COORD} already).
-
-    **Post-fix loudness (WP04, research D4/US2.7/FR-003a).** After mission
-    coord-artifact-single-home-01M3V4BE every COORD write seeds the
-    coordination surface (WP06+), so a **post-fix** mission's EMPTY worktree
-    (its coordination-branch history already carries the
-    ``Spec-Kitty-Coordination-Seed: <mission_id>`` trailer, WP03's single
-    discriminator, :func:`~specify_cli.coordination.coord_seed.
-    coord_branch_is_post_fix`) signals a regression — the Mission dir was
-    removed from an otherwise-seeded worktree — and now warns for **both**
-    coordination topologies, not only ``LANES_WITH_COORD``. A pre-fix
-    Mission (no trailer yet) keeps today's behaviour unchanged: quiet for
-    solo ``COORD`` (#2533), loud for ``LANES_WITH_COORD``.
-
-    **Dedup (binding correction round 3) — narrowed to avoid a regression.**
-    This EMPTY branch is ALSO reachable from
-    :func:`~mission_runtime.resolve_placement_only` /
-    :meth:`~mission_runtime.resolution.PlacementSeam.write_target` (via
-    ``_assemble_core_fragments(for_write=True)``), which pre-date this WP and
-    are PINNED (``tests/mission_runtime/test_status_read_path_error_contract.py``)
-    to already emit today's unconditional ``LANES_WITH_COORD`` warning on
-    THAT path too — gating the warning itself on ``not for_write`` would
-    silently remove that warning for every caller that has not migrated to
-    :meth:`~mission_runtime.resolution.PlacementSeam.write_dir` yet (none
-    have, as of this WP), a real regression, not a dedup. Only the NEW
-    post-fix trailer probe (one extra subprocess, and the only thing that
-    could newly warn a solo ``COORD`` write-side caller) is gated on
-    ``not for_write``: :func:`~specify_cli.coordination.coord_seed.
-    establish_coord_write_location` (reached ONLY through ``write_dir``, the
-    one caller that actually performs a WRITE here) already emits its OWN
-    post-fix warning, on its own logger, when it restores a post-fix
-    surface — so a ``write_dir`` caller is never left silent, and a
-    not-yet-migrated ``write_target`` caller keeps EXACTLY today's
-    LANES_WITH_COORD-only behaviour, unchanged.
-    """
-    post_fix = False
-    if not for_write:
-        from specify_cli.coordination.coord_seed import _CoordGitProbeError, coord_branch_is_post_fix
-
-        try:
-            post_fix = coord_branch_is_post_fix(repo_root, coord_branch, mission_id)
-        except _CoordGitProbeError:
-            # Decision (WP04, T021 edge case): DEGRADE, never propagate. This
-            # EMPTY branch is a read-side diagnostic -- the PRIMARY fallback
-            # below is returned regardless of post-fix-ness (C-002 keeps the
-            # read fallback unconditionally), so a git-probe failure
-            # classifying "should this warn louder" must never turn an
-            # otherwise-successful read into a crash. Degrading to ``True``
-            # (not ``False``) keeps the module's existing fail-LOUD bias
-            # (#1716/#1848: never silently hide a possible regression) -- an
-            # unclassifiable branch still warns, it just cannot claim the
-            # quiet pre-fix/solo-coord exemption.
-            post_fix = True
-    if post_fix or effective_topology is MissionTopology.LANES_WITH_COORD:
-        logger.warning(
-            _COORD_EMPTY_FALLBACK_WARNING,
-            {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
-        )
-    return ResolvedStatusSurface(
-        surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
-        primary_anchor=feature_dir,
-    )
+        decision = decide_status_read(repo_root, mission_slug, topology, for_write=for_write)
+    except StatusSurfaceRefUnreadable:
+        # The door fails closed on an unreadable coordination ref; this legacy projection
+        # keeps the path it always returned (the composed coordination path) and lets its
+        # path reader see what is on disk, until its callers migrate (WP06/WP07).
+        decision = decide_status_read(repo_root, mission_slug, topology, for_write=True)
+    return ResolvedStatusSurface(surface_path=decision.legacy_path, primary_anchor=decision.primary_anchor)

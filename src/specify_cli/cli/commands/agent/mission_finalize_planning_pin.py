@@ -79,24 +79,25 @@ def _execution_has_begun(
 ) -> bool:
     """#3311 T014: read-only "has execution begun" signal for the finalize gate.
 
-    MANDATORY reader recipe: resolve the coord-aware status read dir via
-    :func:`resolve_status_surface_with_anchor` (the same authority
-    ``implement.py`` uses, ``implement.py:1668-1680``), then read lanes
-    read-only through :func:`get_all_wp_lanes`. **Never calls
+    MANDATORY reader recipe: the one status read door
+    (:func:`~specify_cli.status.read_surface.resolve_status_read`, ADR 2026-11-06-2,
+    FR-005), which reads the committed coordination branch when the coordination
+    worktree is empty or absent, then the read-only reduced snapshot
+    (:func:`~specify_cli.status.read_surface.materialize_status`). **Never calls
     ``reducer.materialize()``** — that WRITES ``status.json`` to disk, which a
     "read" helper for a gate check must never do (C-005 / the
     read-does-not-write invariant this WP is guarded against).
 
-    ``has_event_log`` gates first: an absent event log means the mission has
-    never been finalized/bootstrapped, so execution categorically has not
-    begun (a fresh mission, or the very first finalize run).
+    An absent event log reduces to no work packages: the mission has never
+    been finalized/bootstrapped, so execution categorically has not begun (a
+    fresh mission, or the very first finalize run).
 
     Returns:
         ``True`` iff any WP's current lane is something other than
         ``planned`` (claimed, in_progress, for_review, ..., done, blocked,
         canceled). ``False`` when the event log is absent, empty, every
         seeded WP is still ``planned``, or the surface/event log cannot be
-        read at all (degrades gracefully like this module's sibling
+        read at all, except an unreadable coordination ref (degrades gracefully like this module's sibling
         ``capture_branch_tip`` — a signal-computation helper must
         never crash the whole ``finalize-tasks`` command over an unreadable
         read-only surface; a corrupted event log is a pre-existing store
@@ -107,25 +108,26 @@ def _execution_has_begun(
         CoordinationBranchDeleted,
         StatusReadPathNotFound,
     )
-    from specify_cli.status import StoreError, get_all_wp_lanes, has_event_log
+    from specify_cli.status import StoreError
+    from specify_cli.status.read_surface import materialize_status, resolve_status_read
 
     try:
-        read_dir = _resolve_status_read_dir(repo_root, mission_slug, owned=owned)
+        surface = resolve_status_read(repo_root, mission_slug, owned=owned)
     except (FileNotFoundError, ValueError, StatusReadPathNotFound, CoordinationBranchDeleted):
-        # Surface resolution failed closed (no meta.json / malformed meta / an
+        # Surface resolution failed closed (no Mission / malformed meta / an
         # unresolvable coord surface). No event log can be read from an
         # unresolvable surface either, so this degrades to the same
-        # "not begun" answer ``has_event_log``'s absence produces below.
-        return False
-    if not has_event_log(read_dir):
+        # "not begun" answer an absent log gives below. An unreadable
+        # coordination ref (``StatusSurfaceRefUnreadable``) is NOT degraded: it
+        # is never read as an empty history (FR-004), so it propagates.
         return False
     try:
-        lanes = get_all_wp_lanes(read_dir)
+        work_packages = materialize_status(surface).work_packages
     except StoreError:
         # Corrupted/malformed event log content. Degrade to "not begun"
         # rather than raise — see the docstring's graceful-degradation note.
         return False
-    return any(lane != Lane.PLANNED for lane in lanes.values())
+    return any(Lane(state.get("lane", Lane.GENESIS)) != Lane.PLANNED for state in work_packages.values())
 
 
 @dataclass(frozen=True)
