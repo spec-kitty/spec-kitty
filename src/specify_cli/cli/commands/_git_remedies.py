@@ -46,6 +46,31 @@ GIT_UNDO_ALTERNATIVES: tuple[str, ...] = (
 )
 
 
+def _file_scoped_path_args(paths: Sequence[str], *, renderer: str) -> str:
+    """Validate that ``paths`` name files and render them as shell-quoted pathspecs.
+
+    The one file-scope rule shared by every renderer here: non-empty, every entry
+    names a file (a trailing ``/`` is refused, so a directory-scoped destructive
+    command is impossible to render).
+
+    Each path is shell-quoted: the rendered line is pasted into a shell (and run via
+    ``subprocess ... shell=True`` in the shipped regression test), and
+    ``git diff --name-only`` can return a path with a space, which would otherwise
+    split into two pathspecs and silently fail to clean.
+
+    Raises:
+        ValueError: if ``paths`` is empty, if any path is blank, or if any path names a
+            directory (trailing ``/``); the message names ``renderer``.
+    """
+    cleaned = [p.strip() for p in paths]
+    if not cleaned or any(not p for p in cleaned):
+        raise ValueError(f"{renderer} requires at least one non-empty file path")
+    directoryish = [p for p in cleaned if p.endswith("/")]
+    if directoryish:
+        raise ValueError(f"{renderer} refuses a directory-scoped restore (name the offending files): {directoryish}")
+    return " ".join(shlex.quote(p) for p in cleaned)
+
+
 def restore_recipe(paths: Sequence[str], *, source: str) -> str:
     """Render a file-scoped ``git restore`` recipe line.
 
@@ -71,18 +96,32 @@ def restore_recipe(paths: Sequence[str], *, source: str) -> str:
         ValueError: if ``paths`` is empty, if any path is blank, or if any
             path names a directory (trailing ``/``).
     """
-    cleaned = [p.strip() for p in paths]
-    if not cleaned or any(not p for p in cleaned):
-        raise ValueError("restore_recipe requires at least one non-empty file path")
-    directoryish = [p for p in cleaned if p.endswith("/")]
-    if directoryish:
-        raise ValueError(f"restore_recipe refuses a directory-scoped restore (name the offending files): {directoryish}")
-    # Shell-quote each path: the rendered line is pasted into a shell (and run
-    # via ``subprocess ... shell=True`` in the shipped regression test), and
-    # ``git diff --name-only`` can return a path with a space, which would
-    # otherwise split into two pathspecs and silently fail to clean. The
-    # ``--source`` ref is intentionally NOT quoted -- callers may pass the
+    # The ``--source`` ref is intentionally NOT quoted -- callers may pass the
     # ``$(git merge-base ...)`` command-substitution fallback, which quoting
     # would neutralise.
-    path_args = " ".join(shlex.quote(p) for p in cleaned)
+    path_args = _file_scoped_path_args(paths, renderer="restore_recipe")
     return f"git restore --source {source} --staged --worktree -- {path_args}"
+
+
+def checkout_file_recipe(paths: Sequence[str]) -> str:
+    """Render a file-scoped ``git checkout -- <paths>`` recipe line (index -> working tree).
+
+    The sibling of :func:`restore_recipe` for the remedy that restores the *working-tree*
+    copy of the named files from the *index*: it keeps whatever is staged and discards only
+    the unstaged working-tree edit. :func:`restore_recipe` is NOT a substitute: its
+    ``--source <ref> --staged --worktree`` form also rewrites the index, so it would drop a
+    staged edit the caller means to keep, and with a ``HEAD`` source it fails outright for a
+    file that exists only in the index. Same file-scope rule as :func:`restore_recipe`.
+
+    Args:
+        paths: The files to restore. Must be non-empty, and every entry must name a file,
+            not a directory (a trailing ``/`` is refused).
+
+    Returns:
+        ``git checkout -- <path>...``.
+
+    Raises:
+        ValueError: if ``paths`` is empty, if any path is blank, or if any path names a
+            directory (trailing ``/``).
+    """
+    return f"git checkout -- {_file_scoped_path_args(paths, renderer='checkout_file_recipe')}"

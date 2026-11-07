@@ -19,8 +19,18 @@ from pathlib import Path
 from kernel.git_anchor import UNRESOLVABLE_START_REASON, GitAnchor
 from specify_cli.mission_metadata import TrackedMeta, UnreadableReason, read_tracked_meta
 
-#: File-restore command for notices whose tracked-state diagnostics support it.
-_RESTORE = "git checkout -- {path}"
+
+def _restore_command(path: str) -> str:
+    """The file-restore remedy for notices whose tracked-state diagnostics support it.
+
+    Rendered by the one home of destructive git advice (#3931, #7178). The import is deferred
+    because ``specify_cli.cli.commands`` imports the whole command surface, which would cycle
+    through ``upgrade`` at module load.
+    """
+    from specify_cli.cli.commands._git_remedies import checkout_file_recipe
+
+    return checkout_file_recipe([path])
+
 
 #: Stable codes of a refusal, printed in its notice and carried in ``BackfillResult.reason``.
 CODE_UNAVAILABLE = "TRACKED_META_UNAVAILABLE"
@@ -150,10 +160,7 @@ def _refusal(path: str, tracked: TrackedMeta, lead: str, repo_root: Path) -> Mis
 
 def _restore_notice(path: str) -> str:
     """The notice for a usable tracked copy that a seam is rebuilding the file from."""
-    return (
-        f"{path}: tracked meta.json is missing from the working tree; its identity comes from the copy git holds "
-        f"(restore yours with `{_RESTORE.format(path=path)}`)"
-    )
+    return f"{path}: tracked meta.json is missing from the working tree; its identity comes from the copy git holds (restore yours with `{_restore_command(path)}`)"
 
 
 def _refusal_notice(path: str, tracked: TrackedMeta, lead: str, repo_root: Path) -> str:
@@ -171,21 +178,21 @@ def _refusal_notice(path: str, tracked: TrackedMeta, lead: str, repo_root: Path)
         return (
             f"{path}: meta.json {lead} and the index copy differs from the committed one (a staged edit); "
             f"no identity was minted and your staged edit was not discarded — commit it, or unstage it with "
-            f"`git restore --staged {path}`, then restore the file with `{_RESTORE.format(path=path)}`"
+            f"`git restore --staged {path}`, then restore the file with `{_restore_command(path)}`"
         )
     if tracked.index_only:
         return (
             f"{path}: meta.json {lead} and git holds it only in the index (not committed); "
-            f"no identity was minted — restore it with `{_RESTORE.format(path=path)}` and commit it"
+            f"no identity was minted — restore it with `{_restore_command(path)}` and commit it"
         )
     if tracked.corrupt:
         # `git checkout -- <path>` would restore the same unusable bytes, so it is not the repair here.
         return (
             f"{path}: tracked meta.json {lead} and the committed copy is not a JSON object; "
             f"no identity was minted — repair the committed copy (`git show HEAD:{path}` shows it), commit the fix, "
-            f"then restore it with `{_RESTORE.format(path=path)}`"
+            f"then restore it with `{_restore_command(path)}`"
         )
-    return f"{path}: tracked meta.json {lead} and git could not produce its content; no identity was minted — restore it with `{_RESTORE.format(path=path)}`"
+    return f"{path}: tracked meta.json {lead} and git could not produce its content; no identity was minted — restore it with `{_restore_command(path)}`"
 
 
 def _anchor_tail(anchor: GitAnchor, repo_root: Path) -> str:

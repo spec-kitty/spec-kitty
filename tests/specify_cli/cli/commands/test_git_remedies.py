@@ -42,7 +42,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands._git_remedies import GIT_UNDO_ALTERNATIVES, restore_recipe
+from specify_cli.cli.commands._git_remedies import GIT_UNDO_ALTERNATIVES, checkout_file_recipe, restore_recipe
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -274,6 +274,40 @@ def test_restore_recipe_never_renders_directory_needle() -> None:
     recipe = restore_recipe(["kitty-specs/m/plan.md"], source="base")
     assert "-- kitty-specs/ " not in recipe + " "
     assert not recipe.rstrip().endswith("/")
+
+
+# --- checkout_file_recipe renderer (#7178) --------------------------------
+
+
+def test_checkout_file_recipe_renders_the_index_to_worktree_line() -> None:
+    assert checkout_file_recipe(["kitty-specs/m/meta.json"]) == "git checkout -- kitty-specs/m/meta.json"
+    assert checkout_file_recipe(["a.md", "b.md"]) == "git checkout -- a.md b.md"
+
+
+def test_checkout_file_recipe_is_not_the_restore_form() -> None:
+    """It must keep the checkout semantics (index -> worktree): the ``--staged`` form would drop a staged edit."""
+    recipe = checkout_file_recipe(["kitty-specs/m/meta.json"])
+    assert "--staged" not in recipe
+    assert "--source" not in recipe
+    assert recipe != restore_recipe(["kitty-specs/m/meta.json"], source="HEAD")
+
+
+def test_checkout_file_recipe_shell_quotes_paths_with_spaces() -> None:
+    recipe = checkout_file_recipe(["kitty-specs/m/a note.md"])
+    assert recipe == "git checkout -- 'kitty-specs/m/a note.md'"
+    assert shlex.split(recipe) == ["git", "checkout", "--", "kitty-specs/m/a note.md"]
+
+
+def test_checkout_file_recipe_refuses_directory_scope() -> None:
+    with pytest.raises(ValueError, match="checkout_file_recipe refuses a directory-scoped"):
+        checkout_file_recipe(["kitty-specs/"])
+
+
+def test_checkout_file_recipe_refuses_empty_paths() -> None:
+    with pytest.raises(ValueError, match="checkout_file_recipe requires at least one non-empty file path"):
+        checkout_file_recipe([])
+    with pytest.raises(ValueError, match="checkout_file_recipe requires at least one non-empty file path"):
+        checkout_file_recipe(["   "])
 
 
 def test_undo_alternatives_are_the_expected_git_commands() -> None:
