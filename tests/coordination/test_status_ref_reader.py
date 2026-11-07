@@ -106,7 +106,7 @@ def test_ref_reader_absent_file_reads_empty(repo: Path) -> None:
     assert read_event_stream_log(_contract(repo, BRANCH_REF, mission="other-01KXREFR")).transitions == []
 
 
-@pytest.mark.parametrize("ref", ["refs/heads/kitty/mission-deleted", "no-such-branch", "--output=/tmp/x"])
+@pytest.mark.parametrize("ref", ["refs/heads/kitty/mission-deleted", "no-such-branch", "--output=injected.txt"])
 def test_ref_reader_bad_ref_raises_typed_error(repo: Path, ref: str) -> None:
     """A missing ref (and a ``-``-prefixed name, which is never an option) raises the typed error."""
     with pytest.raises(StatusSurfaceRefUnreadable) as excinfo:
@@ -179,5 +179,5 @@ def test_ref_exists_distinguishes_missing_from_unreadable(repo: Path, tmp_path: 
     assert ref_names_object(repo, BRANCH_REF) is True
     assert ref_names_object(repo, "refs/heads/kitty/mission-corrupt") is True
     assert ref_names_object(repo, "refs/heads/kitty/mission-deleted") is False
-    assert ref_names_object(repo, "--output=/tmp/x") is False
+    assert ref_names_object(repo, "--output=injected.txt") is False
     assert ref_names_object(not_a_repo, BRANCH_REF) is False
