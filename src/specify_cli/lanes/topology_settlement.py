@@ -401,6 +401,7 @@ class _CoordPlan:
     lanes_before: bytes | None = None
 
     def commit_mission_dir(self) -> None:
+        from mission_runtime import MissionArtifactKind, placement_seam
         from specify_cli.git.commit_helpers import safe_commit
 
         root = self.ctx.repo_root
@@ -413,10 +414,15 @@ class _CoordPlan:
         if not changed:
             return
         # #7276: commit exactly the Mission directory's changed files through the commit-scope owner.
+        # The commit target comes from the placement seam: before the landing a default Mission's
+        # PRIMARY partition lives on its topic branch (FR-061); anything else refuses.
+        target = placement_seam(root, self.ctx.mission_dir_name).write_target(MissionArtifactKind.PRIMARY_METADATA)
+        if target.ref != self.ctx.topic:
+            raise _refuse(f"the Mission's planning artifacts resolve to {target.ref!r}, not its topic branch {self.ctx.topic!r}.")
         result = safe_commit(
             repo_root=root,
             worktree_root=root,
-            destination_ref=self.ctx.topic,
+            target=target,
             message=f"chore({self.ctx.mission_dir_name}): planning state before topology settlement",
             paths=tuple(Path(rel) for rel in changed),
         )
