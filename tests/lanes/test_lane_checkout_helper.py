@@ -343,15 +343,40 @@ def test_every_route_checkout_passes_the_sparse_checkout_preflight(route: str, t
 
 
 @pytest.mark.parametrize("route", ["allocation_fresh", "allocation_legacy"])
-def test_an_operator_sparse_pattern_beside_the_exclusion_stays_refused(route: str, tmp_path: Path) -> None:
-    """The status exclusion is the only sparse pattern a lane may carry; anything else is operator state."""
-    from specify_cli.git.sparse_checkout import SparseCheckoutPreflightError, require_no_sparse_checkout
+def test_an_operator_sparse_pattern_beside_the_exclusion_stays_managed(route: str, tmp_path: Path) -> None:
+    """An operator's own pattern beside the status exclusion keeps the lane managed (#7326).
+
+    The helper merges the status negations into an operator's non-cone patterns, so the
+    preflight recognises that merged set as the managed exclusion instead of refusing it.
+    """
+    from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 
     opened = _ROUTE_DRIVERS[route](tmp_path)
     sparse_file = Path(_git(opened.checkout, "rev-parse", "--git-path", "info/sparse-checkout"))
     if not sparse_file.is_absolute():
         sparse_file = opened.checkout / sparse_file
     sparse_file.write_text(sparse_file.read_text(encoding="utf-8") + "!src/\n", encoding="utf-8")
+
+    require_no_sparse_checkout(
+        opened.repo,
+        command="spec-kitty consolidate",
+        override_flag=False,
+        actor="tester",
+        mission_slug=MISSION_SLUG,
+        mission_id=MISSION_ID,
+    )
+
+
+@pytest.mark.parametrize("route", ["allocation_fresh", "allocation_legacy"])
+def test_a_sparse_pattern_list_without_the_exclusion_stays_refused(route: str, tmp_path: Path) -> None:
+    """A lane whose sparse patterns lost the status negations is operator state: refused."""
+    from specify_cli.git.sparse_checkout import SparseCheckoutPreflightError, require_no_sparse_checkout
+
+    opened = _ROUTE_DRIVERS[route](tmp_path)
+    sparse_file = Path(_git(opened.checkout, "rev-parse", "--git-path", "info/sparse-checkout"))
+    if not sparse_file.is_absolute():
+        sparse_file = opened.checkout / sparse_file
+    sparse_file.write_text("/*\n!src/\n", encoding="utf-8")
 
     with pytest.raises(SparseCheckoutPreflightError):
         require_no_sparse_checkout(
