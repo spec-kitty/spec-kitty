@@ -32,13 +32,13 @@ history:
 agent_profile: implementer-ivan
 authoritative_surface: src/specify_cli/core/
 create_intent:
-- docs/changelog/unreleased/6788.fixed.md
+- docs/changelog/unreleased/7320.fixed.md
 execution_mode: code_change
 model: kimi-k3
 owned_files:
 - src/specify_cli/core/owned_charter.py
 - tests/integration/test_owned_prompt_charter_scope.py
-- docs/changelog/unreleased/6788.fixed.md
+- docs/changelog/unreleased/7320.fixed.md
 role: implementer
 tags: []
 task_type: implement

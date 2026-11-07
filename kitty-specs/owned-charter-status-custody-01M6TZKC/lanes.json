@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "docs/changelog/unreleased/6788.fixed.md",
+        "docs/changelog/unreleased/7320.fixed.md",
         "src/specify_cli/core/owned_charter.py",
         "tests/integration/test_owned_prompt_charter_scope.py"
       ],
