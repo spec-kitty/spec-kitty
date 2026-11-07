@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,7 @@ def _snapshot(root: Path) -> dict[str, str]:
 
 class TestOwnedPromptCharterScope:
     @pytest.fixture(autouse=True)
-    def setup(self, owned_checkouts: OwnedCheckouts, monkeypatch, tmp_path: Path) -> None:
+    def setup(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         self.case = owned_checkouts
         self.owned = self.case.owned_root
         self.primary = self.case.repository_root
@@ -114,14 +115,14 @@ class TestOwnedPromptCharterScope:
         assert not (self.primary / ".kittify/charter/context-state.json").exists()
 
     @pytest.mark.parametrize("loader", ["activations", "selection"])
-    def test_default_loader_keeps_keyword_absence_and_explicit_scope(self, monkeypatch, loader: str) -> None:
+    def test_default_loader_keeps_keyword_absence_and_explicit_scope(self, monkeypatch: pytest.MonkeyPatch, loader: str) -> None:
         from charter.activation.context_renderers.activation_block import _load_governance_activations
         from charter.activation.org_pack_discovery import _load_governance_charter_config
         from charter.activation.schemas import GovernanceConfig
 
-        calls = []
+        calls: list[tuple[Path, dict[str, object]]] = []
 
-        def load(root: Path, **kwargs):
+        def load(root: Path, **kwargs: object) -> GovernanceConfig:
             calls.append((root, kwargs))
             return GovernanceConfig()
 
@@ -334,7 +335,7 @@ class TestOwnedPromptCharterScope:
 
 class TestOwnedCoordinationPromptCharterScope:
     @pytest.fixture(autouse=True)
-    def setup(self, make_owned_checkouts, monkeypatch, tmp_path: Path) -> None:
+    def setup(self, make_owned_checkouts: Callable[..., OwnedCheckouts], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from tests.integration.conftest import _git
 

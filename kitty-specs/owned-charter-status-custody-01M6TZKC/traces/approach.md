@@ -9,3 +9,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-11-07 · implementer-ivan · [implement] RED-FIRST T001: installed-CLI parameter [0] failed 1/1 in 105.34s with MISSION_CONTEXT_CONFLICT and the exact "charter Mission differs" payload at the advancing specify step. Source was unchanged, so this is current-main reproduction evidence.
 
 2026-11-07 · implementer-ivan · [implement] RED-FIRST T002: canonical lanes_with_coord prompt coverage failed positive 1 and passed foreign negative 1 in 57.09s; failure is ActionContextError at charter_scope_for_owned. Committed the real status-dir fixture/test before production code.
+
+2026-11-07 · implementer-ivan · [implement] GREEN evidence: installed-CLI [0] passed 1 in 42.77s; owned runtime 26 passed in 6.74s; owned prompt focused filter 20 passed, 2 deselected; make test-fast 2894 passed, 6 skipped. Full owned prompt file is 20 passed plus two StopIteration failures reproduced on unmodified origin/main source in 5.04s, already within #7110, not this diff.
