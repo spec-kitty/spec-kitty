@@ -1,0 +1,41 @@
+{
+  "accept_commit": "4992ba55a48904aaa8073001cb764f004472a02f",
+  "acceptance_history": [
+    {
+      "accept_commit": "2bdf32f32d4ae398258b60466e007f76a8e8a6c0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-07T23:15:07.134967+00:00",
+      "accepted_by": "claude-sonnet-5-5",
+      "accepted_from_commit": "e3f24890b437b2787446d788a7c40f8d5247983b"
+    },
+    {
+      "accept_commit": "4992ba55a48904aaa8073001cb764f004472a02f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-07T23:38:36.548027+00:00",
+      "accepted_by": "claude-sonnet-5-5",
+      "accepted_from_commit": "8235582cfcd34b8732ad99a3f9ab3aea6fbc1ca6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-07T23:38:36.548027+00:00",
+  "accepted_by": "claude-sonnet-5-5",
+  "accepted_from_commit": "8235582cfcd34b8732ad99a3f9ab3aea6fbc1ca6",
+  "contracts": "none",
+  "contracts_rationale": "Test remediation plus one internal renderer helper; no external interface, endpoint or payload shape is added or changed.",
+  "created_at": "2026-11-07T21:31:34.117553+00:00",
+  "flattened": false,
+  "friendly_name": "Cheap nightly reds remediation",
+  "mid8": "01M6VYS1",
+  "mission_id": "01M6VYS1TSBTWCFWQ0R9F6HJSW",
+  "mission_number": null,
+  "mission_slug": "nightly-reds-remediation-01M6VYS1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Six nightly issues trace to deliberate contract changes whose PRs stayed green because the failing tests live in out-of-matrix trees that only the nightly runs. Five are stale test pins that must be re-pinned at least as strongly as before; one (#7178) is a real production violation of the git-remedies gate that needs a new canonical renderer. The goal is an honest green nightly for these nodes.",
+  "purpose_tldr": "Turn the cheap red nightly nodes on main (#7177, #7178, #7111, #7181, #7182, #7183) green by re-pinning stale tests and fixing one production git-remedies violation, without weakening any guard.",
+  "slug": "nightly-reds-remediation-01M6VYS1",
+  "status_phase": "1",
+  "target_branch": "issue-7183-nightly-reds-remediation",
+  "topology": "single_branch",
+  "topology_source": "explicit"
+}
