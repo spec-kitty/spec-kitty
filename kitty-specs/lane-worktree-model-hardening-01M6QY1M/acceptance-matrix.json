@@ -330,13 +330,13 @@
     },
     {
       "criterion_id": "FR-046",
-      "description": "Verify FR-046 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-046 Per-topology exclusion rule recorded: an amendment to ADR `2026-07-29-1` (or a short new ADR) that states the restated ruling 3 for every lane topology and keeps Assert A', so that the rule is governed. The restated ruling: checkouts never show status files, lanes never change them, readers never read them, and the fork-time blob stays in lane history.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md 'Amendment 2026-11-06: lane checkouts carry no live status'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP01-adr-status-read-contract/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:11.932261+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-050",
