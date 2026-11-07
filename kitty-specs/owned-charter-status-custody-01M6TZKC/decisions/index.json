@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-07T12:30:33.252907Z",
+      "decision_id": "01M6TZTDS4GX0DVTRJWJWVJ43G",
+      "final_answer": "Confirmed by the binding task brief: the primary actor is an operator advancing a validated owned lanes_with_coord Mission; the canonical coordination STATUS_STATE directory and the primary Mission directory are the only accepted inputs, foreign directories keep MISSION_CONTEXT_CONFLICT, CharterScope remains anchored to owned_root plus mission_dir, and the CLI startup-budget failure plus #7206 are explicit non-goals. Minimal discovery is proportionate because the operator supplied exact behavior, constraints and acceptance tests.",
+      "input_key": "intent_confirmation",
+      "mission_id": "01M6TZKC596NQ6T40DS2CHNNAZ",
+      "mission_slug": "owned-charter-status-custody-01M6TZKC",
+      "opened_by": "cli",
+      "options": [
+        "Confirmed by the binding task brief",
+        "Needs changes"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the minimal owned-Mission custody scenario: advancing an owned lanes_with_coord Mission from its canonical coordination status surface must succeed, every other directory must remain refused, and startup/#7206 remain excluded.",
+      "rationale": null,
+      "resolved_at": "2026-11-07T12:32:07.339325Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-07T13:01:34.823998Z",
+      "decision_id": "01M6V1K7Q713B99959ZN7CDD9B",
+      "final_answer": "Confirmed by the binding task brief. Engineering alignment: no new dependency, API, storage, or migration; one production guard module plus its existing integration test file and a changelog fragment; preserve layer direction specify_cli -> mission_runtime -> kernel/charter; no runtime or template changes. Architect lens finds the canonical mission_context_for seam preferable to hardcoded worktree paths or widened runtime signatures. Red-first proof and focused blast radius are mandatory; full nightly matrix and startup stay out of local scope.",
+      "input_key": "engineering_alignment",
+      "mission_id": "01M6TZKC596NQ6T40DS2CHNNAZ",
+      "mission_slug": "owned-charter-status-custody-01M6TZKC",
+      "opened_by": "cli",
+      "options": [
+        "Confirmed by the binding task brief",
+        "Needs changes"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Confirm the minimal design: keep the primary fast path and charter anchor, resolve only canonical STATUS_STATE on the unequal arm with tolerate_unmaterialized_coord, refuse every other path, and validate red-first through owned prompt/installed CLI entry points.",
+      "rationale": null,
+      "resolved_at": "2026-11-07T13:02:33.884825Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.engineering-alignment",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6TZKC596NQ6T40DS2CHNNAZ",
+  "version": 1
+}

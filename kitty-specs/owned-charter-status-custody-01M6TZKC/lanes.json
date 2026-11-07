@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "owned-charter-status-custody-01M6TZKC",
+  "mission_id": "01M6TZKC596NQ6T40DS2CHNNAZ",
+  "mission_branch": "issue-6788-owned-charter-status-custody",
+  "target_branch": "issue-6788-owned-charter-status-custody",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/6788.fixed.md",
+        "src/specify_cli/core/owned_charter.py",
+        "tests/integration/test_owned_prompt_charter_scope.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-07T13:43:00.298221+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "98b2ff47e57e93ca744b521cc3e277c03127e0d0"
+}
