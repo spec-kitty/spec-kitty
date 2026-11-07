@@ -5,16 +5,17 @@ description: "Recover from Spec Kitty blocked runtime states, missing artifacts,
 
 # spk-run-blocked-recovery
 
-Use this skill when `next`, review, accept, merge, or sync output
+Use this skill when `next`, review, accept, or consolidate output
 shows a blocker.
 
 ## Flow
 
 1. Capture the exact command and blocker output.
 2. Classify the blocker: missing artifact, invalid state, guard failure,
-   worktree/git issue, sync issue, auth issue, or user decision required.
-3. Use the nearest specialist skill: setup doctor, git workflow, team sync,
-   review, accept, or merge.
+   worktree/git issue, lane recovery code, or user decision required.
+3. Use the nearest specialist skill: setup doctor, git workflow, review,
+   accept, or consolidate. For `DESTROYED_LANE`, `LANE_WORK_TIP_UNKNOWN` or a
+   stale lane, follow the command the CLI prints.
 4. Make one repair, rerun the same command, and compare output.
 5. Escalate to the user only when the command requires a product decision or
    external credential.
