@@ -390,13 +390,13 @@
     },
     {
       "criterion_id": "FR-055",
-      "description": "Verify FR-055 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-055 Materialization after settlement, nothing stranded: settlement to give the topic branch its settled role, write the lane manifest, and let lane branches and worktrees be created only by the allocation path after settlement, so that every planning artifact and status event written before settlement stays readable through the resolved surface. The topic branch becomes the Mission branch for `single_branch`, or the coordination branch for `lanes_with_coord`, under the same ref name. Settlement lands no planning commit on the target: lanes are cut from the topic branch, lane consolidation lands into it, and it lands on the target at consolidate. Before the coordination worktree checks the topic branch out, settlement moves the repository root checkout back to the branch it was on at create (recorded at create).",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_two_wp_settles_single_branch_events_readable; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_settlement_moves_root_checkout_before_coord_worktree; lane-k:tests/integration/test_default_mission_primary_placement.py::test_status_write_after_root_moved_is_readable_through_the_door; lane-p:tests/integration/test_default_mission_consolidate_lands_primary.py::test_default_mission_consolidate_detects_coord_topology_and_bakes_on_target; lane-p:tests/integration/test_default_mission_consolidate_lands_primary.py::test_resume_and_rollback_lose_no_primary_change; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize/review-cycle-2.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP20-s7-consolidate-lands-topic-branch-primary/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:42.120987+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-056",
