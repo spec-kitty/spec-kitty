@@ -150,13 +150,13 @@
     },
     {
       "criterion_id": "FR-022",
-      "description": "Verify FR-022 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-022 Single-seam gate for lane checkouts: an architectural gate that fails on any lane `git worktree add` outside the helper, with planted-violation self-tests, so that the seam holds.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-f:tests/architectural/test_lane_checkout_single_seam.py::test_no_lane_worktree_add_outside_the_helper; lane-f:tests/architectural/test_lane_checkout_single_seam.py::test_the_seam_holds_the_lane_worktree_add; lane-f:tests/architectural/test_lane_checkout_single_seam.py::test_planted_lane_worktree_add_is_flagged; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP09-s3-s6-lane-checkout-helper/review-cycle-3.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:12:39.895062+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-030",
