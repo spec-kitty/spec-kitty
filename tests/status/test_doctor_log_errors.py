@@ -179,7 +179,7 @@ def test_cli_reports_corrupt_authority_without_traceback_or_mutation(
     monkeypatch.setattr(status.console, "width", 2000)
     with (
         patch("specify_cli.runtime.doctor.run_global_checks", return_value=[]),
-        patch("specify_cli.cli.commands.agent.status._resolve_status_surface", return_value=(mission_dir, SLUG, mission_dir.parents[1])),
+        patch("specify_cli.cli.commands.agent.status._status_dir_for_command", return_value=(mission_dir, SLUG, mission_dir.parents[1])),
     ):
         result = CliRunner().invoke(app, ["doctor"] + (["--json"] if json_output else []))
 
@@ -402,7 +402,7 @@ def test_cli_reports_late_read_failure_without_partial_advice(
     late_read_failure(error)
     with (
         patch("specify_cli.runtime.doctor.run_global_checks", return_value=[]),
-        patch("specify_cli.cli.commands.agent.status._resolve_status_surface", return_value=(mission_dir, SLUG, mission_dir.parents[1])),
+        patch("specify_cli.cli.commands.agent.status._status_dir_for_command", return_value=(mission_dir, SLUG, mission_dir.parents[1])),
     ):
         result = CliRunner().invoke(app, ["doctor"] + (["--json"] if json_output else []))
 

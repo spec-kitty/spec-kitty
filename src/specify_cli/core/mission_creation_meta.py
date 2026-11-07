@@ -27,6 +27,9 @@ from specify_cli.meta_keys import (
     MISSION_ID_KEY,
     MISSION_NUMBER_KEY,
     TOPOLOGY_KEY,
+    TOPOLOGY_SETTLED_KEY,
+    TOPOLOGY_SOURCE_KEY,
+    TopologySource,
 )
 from specify_cli.core.mission_creation_errors import MissionCreationError
 from specify_cli.core.mission_creation_identity import _Purpose
@@ -39,6 +42,29 @@ _META_KEY_MISSION_TYPE = "mission_type"
 
 
 _META_KEY_CREATED_AT = "created_at"
+
+
+def _refuse_inconsistent_topology_inputs(
+    topology: MissionTopology,
+    topology_source: TopologySource | None,
+    *,
+    commit_to_target: bool,
+) -> None:
+    """Refuse the create inputs no topology rule admits, before any write.
+
+    - ``--commit-to-target`` needs an explicit ``single_branch`` (FR-060): a create
+      without ``--topology`` stores ``single_branch`` provisionally, which is not that.
+    - A default create (S7 #7282) is stored as ``single_branch``; any other topology
+      with ``topology_source: default`` is a caller error.
+    """
+    is_default = topology_source is TopologySource.DEFAULT
+    if commit_to_target and (topology is not MissionTopology.SINGLE_BRANCH or is_default):
+        shown = "none (default)" if is_default else topology.value
+        raise MissionCreationError(
+            f"--commit-to-target is only valid for a single_branch mission (got topology '{shown}'). Pass --topology single_branch, or drop --commit-to-target."
+        )
+    if is_default and topology is not MissionTopology.SINGLE_BRANCH:
+        raise MissionCreationError(f"A create without --topology is stored as single_branch, not '{topology.value}'.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +115,7 @@ def _build_create_meta(
     topology: MissionTopology,
     force_recreate_coordination_branch: bool,
     created_at: str | None = None,
+    topology_source: TopologySource | None = None,
 ) -> _MetaBuild:
     """Assemble ``meta.json`` and mint the coordination branch for it (not persisted).
 
@@ -109,6 +136,10 @@ def _build_create_meta(
     ``created_at``: the injected creation stamp, or ``None`` to read the
     clock (:func:`kernel.clock.now_utc_iso`) here, exactly when the stamp was
     always taken. An existing ``meta.json`` value still wins (``setdefault``).
+
+    ``topology_source`` (S7 #7282): written as ``topology_source`` when given; a
+    default create also records ``topology_settled: false`` (the provisional
+    representation, ADR 2026-11-06-3 Decision 4). ``None`` writes neither key.
     """
     from specify_cli.core import mission_creation as _mc
 
@@ -184,6 +215,10 @@ def _build_create_meta(
             )
     meta[TOPOLOGY_KEY] = topology.value
     meta.setdefault(FLATTENED_KEY, False)
+    if topology_source is not None:
+        meta[TOPOLOGY_SOURCE_KEY] = topology_source.value
+        if topology_source is TopologySource.DEFAULT:
+            meta[TOPOLOGY_SETTLED_KEY] = False
 
     return _MetaBuild(
         meta=meta,

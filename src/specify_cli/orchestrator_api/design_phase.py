@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 import typer
 
 from mission_runtime import MissionTopology
+from specify_cli.meta_keys import TOPOLOGY_HELP
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
 
@@ -173,9 +174,7 @@ def specify(
     topology: MissionTopology | None = typer.Option(
         None,
         "--topology",
-        help=(
-            "Create-time mission shape: single_branch | lanes | coord | lanes_with_coord. Default: context-derived (matches the host CLI's own --topology default)."
-        ),
+        help=TOPOLOGY_HELP,
     ),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
 ) -> None:
