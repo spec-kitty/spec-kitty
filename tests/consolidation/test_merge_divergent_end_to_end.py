@@ -345,11 +345,17 @@ def _assert_workspace_contexts_tombstoned(mission: DivergentMission, workspace_n
         )
 
 
-def _assert_no_orphans(mission: DivergentMission, workspace_names: dict[str, str]) -> None:
+def _assert_no_orphans(mission: DivergentMission, workspace_names: dict[str, str], *, kept_lanes: frozenset[str] = frozenset()) -> None:
     """SC-002: no created lane branch/worktree survives, and each lane's
     workspace context (seeded via :func:`_seed_workspace_contexts`) is
-    tombstoned."""
+    tombstoned. Lanes in ``kept_lanes`` (work that never landed, which cleanup
+    keeps) are left out of the check."""
+    kept_paths = {mission.lanes[lane_id][0] for lane_id in kept_lanes}
+    kept_branches = {mission.lanes[lane_id][1] for lane_id in kept_lanes}
     branches, worktrees = _created_lane_branches_and_worktrees(mission)
+    branches = [b for b in branches if b not in kept_branches]
+    worktrees = [w for w in worktrees if w not in kept_paths]
+    workspace_names = {lane_id: name for lane_id, name in workspace_names.items() if lane_id not in kept_lanes}
     for branch in branches:
         assert not _branch_exists(mission.repo_root, branch), f"lane branch {branch!r} was left behind after a successful merge"
     for worktree_path in worktrees:
@@ -438,8 +444,9 @@ def test_divergent_shape_merge_orphans_and_retention_default(shape_name: str, tm
 
 def test_backfilled_legacy_canceled_lane_survivor_still_merges(tmp_path: Path) -> None:
     """US1 AS2: a canceled lane alongside a surviving approved lane still
-    merges end to end; the survivor's commit reaches the target and no
-    orphaned branch/worktree remains for either lane."""
+    merges end to end; the survivor's commit reaches the target and leaves no
+    orphaned branch/worktree. The canceled lane's work never landed, so cleanup
+    keeps its branch (#7316 landing): deleting it left that commit on no ref."""
     mission = shape_backfilled_legacy(tmp_path, with_canceled_lane=True, canceled_lane_status="canceled")
     # Only lane-a survives; lane-b's WP is canceled and its content must NOT
     # reach the target, so the reachability check is scoped to lane-a alone
@@ -448,11 +455,16 @@ def test_backfilled_legacy_canceled_lane_survivor_still_merges(tmp_path: Path) -
     workspace_names = _seed_workspace_contexts(mission)
     _assert_workspace_contexts_present(mission, workspace_names)
 
+    canceled_branch = mission.lanes["lane-b"][1]
+    canceled_tip = _git(mission.repo_root, "rev-parse", canceled_branch).stdout.strip()
+
     with _run_real_merge(mission):
         pass
 
     _assert_all_lane_commits_reachable(mission, lane_blobs)
-    _assert_no_orphans(mission, workspace_names)
+    _assert_no_orphans(mission, workspace_names, kept_lanes=frozenset({"lane-b"}))
+    assert _branch_exists(mission.repo_root, canceled_branch), f"canceled lane branch {canceled_branch!r} holds work that never landed and must be kept"
+    assert _git(mission.repo_root, "rev-parse", canceled_branch).stdout.strip() == canceled_tip
 
 
 def test_mismatched_mid8_retention_keeps_exactly_created_names(tmp_path: Path) -> None:
