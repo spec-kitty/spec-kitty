@@ -18,6 +18,8 @@ from mission_runtime import MissionTopology
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import (
+    BRANCH_CHECKED_OUT,
+    BRANCH_TIP_MOVED,
     DESTRUCTIVE_OP_ONLY_COPY,
     DISCARD_INTENT,
     LANDED_INTENT,
@@ -81,6 +83,16 @@ def _branch_with_commit(root: Path, name: str) -> str:
 
 def _spec_kitty_refs(root: Path) -> list[str]:
     return _git(root, "for-each-ref", "--format=%(refname) %(objectname)", "refs/spec-kitty/").splitlines()
+
+
+def _advance_branch(root: Path, branch: str, name: str) -> str:
+    """A new commit on ``branch`` (a concurrent actor moving the ref); returns its SHA."""
+    _git(root, "checkout", "-q", branch)
+    (root / f"{name}.txt").write_text(name, encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", name)
+    _git(root, "checkout", "-q", "main")
+    return _git(root, "rev-parse", branch).strip()
 
 
 # --- force=False removal ----------------------------------------------------------
@@ -192,7 +204,7 @@ def test_landed_intent_deletes_a_branch_found_on_another_local_ref_without_a_rec
     tip = _branch_with_commit(root, "landed")
     _git(root, "update-ref", other_ref, tip)
 
-    assert guarded_branch_delete(root, "landed", creation_base=None, operator_intent=LANDED_INTENT) is None
+    assert guarded_branch_delete(root, "landed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) is None
 
     assert _git(root, "for-each-ref", "refs/heads/landed") == ""
     assert _spec_kitty_refs(root) == []
@@ -204,7 +216,7 @@ def test_landed_intent_records_a_tip_held_only_by_a_remote_tracking_ref(tmp_path
     tip = _branch_with_commit(root, "landed")
     _git(root, "update-ref", "refs/remotes/origin/main", tip)
 
-    assert guarded_branch_delete(root, "landed", creation_base=None, operator_intent=LANDED_INTENT) == tip
+    assert guarded_branch_delete(root, "landed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) == tip
 
     assert _git(root, "for-each-ref", "refs/heads/landed") == ""
     assert _spec_kitty_refs(root) == [f"refs/spec-kitty/discarded/landed {tip}"]
@@ -251,7 +263,7 @@ def test_landed_intent_records_a_unique_tip_before_deleting(tmp_path: Path) -> N
     root = _repo(tmp_path)
     tip = _branch_with_commit(root, "squashed")
 
-    assert guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT) == tip
+    assert guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) == tip
 
     assert _git(root, "for-each-ref", "refs/heads/squashed") == ""
     assert _spec_kitty_refs(root) == [f"refs/spec-kitty/discarded/squashed {tip}"]
@@ -264,9 +276,10 @@ def test_landed_intent_refuses_and_keeps_the_branch_when_the_tip_cannot_be_recor
     _git(root, "update-ref", "refs/spec-kitty/discarded/x", "HEAD")
     _branch_with_commit(root, "tmp")
     _git(root, "branch", "-m", "tmp", "x/y")
+    tip = _git(root, "rev-parse", "x/y").strip()
 
     with pytest.raises(DestructiveOpRefused) as info:
-        guarded_branch_delete(root, "x/y", creation_base=None, operator_intent=LANDED_INTENT)
+        guarded_branch_delete(root, "x/y", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)
 
     assert info.value.error_code == DESTRUCTIVE_OP_ONLY_COPY
     assert _git(root, "for-each-ref", "refs/heads/x/y") != ""
@@ -279,3 +292,106 @@ def test_an_unknown_operator_intent_still_raises(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="landed"):
         guarded_branch_delete(root, "keep-me", creation_base=None, operator_intent="pruned")
     assert _git(root, "for-each-ref", "refs/heads/keep-me") != ""
+
+
+# --- LANDED_INTENT is a compare-and-swap (issue #7212) ------------------------------
+
+
+def test_landed_intent_requires_the_approved_tip(tmp_path: Path) -> None:
+    """A LANDED delete that names no tip is refused before any git call: it cannot be bound."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+
+    with pytest.raises(ValueError, match="expected_tip"):
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT)
+
+    assert _git(root, "rev-parse", "squashed").strip() == tip
+    assert _spec_kitty_refs(root) == [], "nothing recorded for a refused call"
+
+
+@pytest.mark.parametrize("intent", [None, DISCARD_INTENT])
+def test_an_expected_tip_outside_the_landed_intent_is_refused_not_ignored(tmp_path: Path, intent: str | None) -> None:
+    """A bound-tip argument on a path that ignores it would read as a guarantee it does not give."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+
+    with pytest.raises(ValueError, match="expected_tip"):
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=intent, expected_tip=tip)
+
+    assert _git(root, "rev-parse", "squashed").strip() == tip
+
+
+def test_landed_intent_refuses_a_branch_that_moved_past_the_approved_tip(tmp_path: Path) -> None:
+    """The approved tip was proven absorbed; the commit now on the branch was not."""
+    root = _repo(tmp_path)
+    approved = _branch_with_commit(root, "squashed")
+    moved = _advance_branch(root, "squashed", "late")
+    assert moved != approved
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=approved)
+
+    assert info.value.error_code == BRANCH_TIP_MOVED
+    assert _git(root, "rev-parse", "squashed").strip() == moved
+    assert _spec_kitty_refs(root) == [], "a refused delete records nothing"
+
+
+def test_landed_intent_refuses_a_branch_checked_out_in_a_worktree(tmp_path: Path) -> None:
+    """``update-ref -d`` bypasses git's checked-out protection, so the guard keeps it explicitly."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+    worktree = tmp_path / "wt-checked-out"
+    _git(root, "worktree", "add", "-q", str(worktree), "squashed")
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)
+
+    assert info.value.error_code == BRANCH_CHECKED_OUT
+    assert _git(root, "rev-parse", "squashed").strip() == tip
+    # The keep-record is written before the delete (crash safety), so this refusal
+    # may leave one behind; it must hold the approved tip and nothing else.
+    assert [line for line in _spec_kitty_refs(root) if not line.endswith(f" {tip}")] == []
+
+
+def test_landed_intent_maps_a_compare_and_swap_refusal_to_the_moved_tip_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The window past the guard's own check: the ref moves between it and the CAS, so git refuses."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+    moved: list[str] = []
+    real = destructive_guard.ref_advance.delete_branch_ref
+
+    def move_then_delete(repo_root: Path, branch: str, expected_sha: str, *, env: dict[str, str] | None = None) -> None:
+        moved.append(_advance_branch(root, branch, "raced"))
+        real(repo_root, branch, expected_sha, env=env)
+
+    monkeypatch.setattr(destructive_guard.ref_advance, "delete_branch_ref", move_then_delete)
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip)
+
+    assert info.value.error_code == BRANCH_TIP_MOVED
+    assert moved and _git(root, "rev-parse", "squashed").strip() == moved[0]
+
+
+def test_landed_intent_never_deletes_through_a_symbolic_branch(tmp_path: Path) -> None:
+    """A branch that is a symref must not take its target (e.g. a checked-out primary) with it."""
+    root = _repo(tmp_path)
+    tip = _git(root, "rev-parse", "main").strip()
+    _git(root, "branch", "squashed", "main")
+    _git(root, "symbolic-ref", "refs/heads/squashed", "refs/heads/main")
+
+    assert guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) is None
+
+    assert _git(root, "for-each-ref", "refs/heads/squashed") == ""
+    assert _git(root, "rev-parse", "main").strip() == tip, "the symref's target must survive"
+
+
+def test_landed_intent_compare_and_swap_deletes_the_branch_at_the_approved_tip(tmp_path: Path) -> None:
+    """Positive control for the two refusals above: the same fixture deletes when the ref did not move."""
+    root = _repo(tmp_path)
+    tip = _branch_with_commit(root, "squashed")
+
+    assert guarded_branch_delete(root, "squashed", creation_base=None, operator_intent=LANDED_INTENT, expected_tip=tip) == tip
+
+    assert _git(root, "for-each-ref", "refs/heads/squashed") == ""
+    assert _spec_kitty_refs(root) == [f"refs/spec-kitty/discarded/squashed {tip}"]

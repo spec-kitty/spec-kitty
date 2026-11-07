@@ -379,6 +379,26 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-06T19:05:17.948261Z",
+      "decision_id": "01M6S40GBWB6JD0FFTMQ2F6NW7",
+      "final_answer": "Defer the gate entirely: this Mission migrates only the consolidation readers (WP07 re-scoped); the single-door gate and the remaining legacy migration go to a follow-up Mission.",
+      "input_key": "s1_gate_scope",
+      "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",
+      "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
+      "opened_by": "claude",
+      "options": [],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "S1: the empty-allowlist single-door gate needs ~53 legacy read sites (~140 call sites behind path-typed APIs) migrated. How is it landed?",
+      "rationale": "Operator answer, stijn-dejongh, 2026-11-06 (scope growth found by WP07).",
+      "resolved_at": "2026-11-06T19:05:20.462879Z",
+      "resolved_by": "stijn-dejongh",
+      "slot_key": "plan.s1.single-door-gate-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",

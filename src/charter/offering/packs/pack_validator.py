@@ -48,7 +48,7 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``drg_external_endpoint``, ``drg_builtin_unavailable``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
-``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
+``body_path_escape``, ``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
 ``pack_sanction``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
@@ -116,6 +116,7 @@ from charter.offering.drg.override_policy import (
     pack_sanction_present,
     sanction_reason_missing,
 )
+from charter.offering.drg.org_pack_config import ORG_ASSET_PATH_ESCAPE, PackPathEscape, path_containment_fault
 from charter.offering.drg.org_pack_loader import (
     ORG_PLURAL_TO_SINGULAR_KIND,
     OrgPackMissingError,
@@ -123,6 +124,7 @@ from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackSchemaError,
     augmentation_plural_kinds,
+    find_body_path_escapes,
     load_org_pack,
 )
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
@@ -172,6 +174,10 @@ class ValidationIssue:
     * ``intent_conflict`` — both ``enhances`` and ``overrides`` declared on one artifact.
     * ``asset_path_escape`` — an ASSET manifest's ``path`` resolves outside the
       pack's ``assets/`` root (absolute, ``..``-escape, or symlink escape).
+    * ``body_path_escape`` — an authored ``drg/fragment.yaml`` node's ``body_path``
+      is not contained in the pack root (absolute, ``..``-escape, or symlink
+      escape), judged by the same predicate ``doctor charter-packs`` uses
+      (``find_body_path_escapes``, #6418/#6733).
     * ``asset_mime_invalid`` — an ASSET manifest's ``mime`` is not a well-formed
       ``type/subtype`` value, or disagrees with the path extension's guessed type.
     * ``profile_skipped`` — an agent-profile file was recorded by
@@ -502,6 +508,12 @@ def validate_pack(
 
     org_fragment, org_errors = _validate_org_fragment(pack_dir)
     errors.extend(org_errors)
+
+    # #6733: the fragment half of the containment rule. ``doctor charter-packs``
+    # has reported this since #6418 (``ORG_FRAGMENT_BODY_PATH_ESCAPE``); this
+    # surface — the author's own pre-share gate — reported only the asset half.
+    if org_fragment is not None:
+        errors.extend(_validate_fragment_body_paths(pack_dir, org_fragment))
 
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
@@ -893,11 +905,35 @@ def _validate_org_fragment(pack_dir: Path) -> tuple[OrgDRGFragment | None, list[
     fragment = pack_drg_fragment(pack_dir)
     if fragment.exists():
         try:
-            loaded = load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+            loaded = load_org_pack(pack_name=pack_dir.resolve().name, pack_root=pack_dir, layer_index=1)
         except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError) as exc:
             return None, [_org_load_finding(exc, fallback_file=fragment)]
         return loaded, []
     return None, _validate_org_governance_profiles(pack_dir)
+
+
+def _validate_fragment_body_paths(pack_dir: Path, fragment: OrgDRGFragment) -> list[ValidationIssue]:
+    """Report each authored fragment node whose ``body_path`` escapes the pack root (#6733).
+
+    Delegates containment to :func:`charter.offering.drg.org_pack_loader.find_body_path_escapes` —
+    the predicate ``doctor charter-packs`` and ``charter status`` report through — over the *loaded*
+    fragment, judged against the effective root it carries (#6731; never a re-validated copy: the
+    loader's copy caveat keeps a discovered node from being judged as authored). Each escape is a
+    ``PackPathEscape`` (#7263). The message is the finding's own, so the validator and the doctor say
+    the same sentence, and category ``body_path_escape`` sits beside the existing ``asset_path_escape``.
+    """
+    fragment_file = pack_drg_fragment(pack_dir)
+    return [
+        ValidationIssue(
+            severity="error",
+            artifact_type="drg",
+            artifact_id=escape.subject,
+            file=str(fragment_file),
+            message=escape.message,
+            category="body_path_escape",
+        )
+        for escape in find_body_path_escapes(fragment)
+    ]
 
 
 def _validate_org_governance_profiles(pack_dir: Path) -> list[ValidationIssue]:
@@ -972,7 +1008,7 @@ def _validate_pack_sanction(
     """
     sanction_file = pack_dir / PACK_POLICY_FILENAME
     try:
-        policy = load_pack_sanction(pack_dir.name, pack_dir)
+        policy = load_pack_sanction(pack_dir.resolve().name, pack_dir)
     except OverridePolicyError as exc:
         return [_sanction_issue("error", sanction_file, None, str(exc))], []
 
@@ -1397,7 +1433,13 @@ def _validate_asset_manifests(
     if not asset_manifests:
         return errors, advisories
 
-    assets_root = (pack_dir / "assets").resolve(strict=False)
+    assets_root = pack_dir / "assets"
+    # An ``assets/`` that itself resolves outside the pack (a symlink) would let every
+    # sidecar pass its own check, so it is judged once and reported per asset, as
+    # ``doctor charter-packs`` does (#6418, #7263).
+    assets_dir_fault = path_containment_fault(pack_dir, "assets")
+    if assets_dir_fault is not None:
+        assets_dir_fault = f"the pack's assets/ directory is not inside the pack root: {assets_dir_fault}"
     for artifact_id in sorted(asset_manifests):
         data, source_file = asset_manifests[artifact_id]
         raw_path = data.get("path")
@@ -1405,7 +1447,9 @@ def _validate_asset_manifests(
             continue  # defensive guard: schema already enforces non-empty path
 
         escape_error = _check_asset_path_containment(
+            pack_name=pack_dir.resolve().name,
             assets_root=assets_root,
+            assets_dir_fault=assets_dir_fault,
             artifact_id=artifact_id,
             raw_path=raw_path,
             source_file=source_file,
@@ -1430,42 +1474,53 @@ def _validate_asset_manifests(
     return errors, advisories
 
 
+def _sidecar_location_fault(assets_root: Path, source_file: Path) -> str | None:
+    """Why a sidecar does not live inside ``assets/`` (a symlink to a file outside), or ``None``."""
+    try:
+        relative = source_file.relative_to(assets_root)
+    except ValueError:
+        return None
+    fault = path_containment_fault(assets_root, relative.as_posix())
+    return None if fault is None else f"the sidecar is not inside the pack's assets/ directory: {fault}"
+
+
 def _check_asset_path_containment(
     *,
+    pack_name: str,
     assets_root: Path,
+    assets_dir_fault: str | None,
     artifact_id: str,
     raw_path: str,
     source_file: Path,
 ) -> ValidationIssue | None:
-    """Reuse the shared containment primitive to enforce path safety.
+    """Judge one sidecar's blob ``path`` with the shared containment primitive.
 
-    Delegates to
-    :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root` —
-    the same primitive :meth:`OrgPackConfig.effective_root` uses for
-    ``subdir`` containment — rather than a sixth hand-rolled
-    resolve-then-``relative_to`` implementation.
+    The verdict comes from
+    :func:`charter.offering.drg.org_pack_config.path_containment_fault` (the finding
+    form of :func:`~charter.offering.drg.org_pack_config.resolve_relative_path_within_root`)
+    and the message from :class:`~charter.offering.drg.org_pack_config.PackPathEscape`
+    (code ``ORG_ASSET_PATH_ESCAPE``), so ``charter org validate`` says the sentence
+    ``doctor charter-packs`` and ``charter status`` say (#7263). A path the resolver
+    cannot handle at all (a NUL byte) is a finding, never a crash.
 
     Returns an ``asset_path_escape`` error issue when *raw_path* is absolute,
     contains a ``..`` component, or resolves (symlink-aware) outside
-    *assets_root*; ``None`` when containment holds.
+    *assets_root*, when *assets_dir_fault* says ``assets/`` itself is outside
+    the pack, or when the sidecar itself lives outside ``assets/``; ``None`` when
+    containment holds.
     """
-    from charter.offering.drg.org_pack_config import (
-        OrgPackSubdirEscapeError,
-        resolve_relative_path_within_root,
+    reason = assets_dir_fault or _sidecar_location_fault(assets_root, source_file) or path_containment_fault(assets_root, raw_path)
+    if reason is None:
+        return None
+    escape = PackPathEscape(code=ORG_ASSET_PATH_ESCAPE, pack=pack_name, subject=artifact_id, path=raw_path, reason=reason)
+    return ValidationIssue(
+        severity="error",
+        artifact_type="assets",
+        artifact_id=artifact_id,
+        file=str(source_file),
+        message=escape.message,
+        category="asset_path_escape",
     )
-
-    try:
-        resolve_relative_path_within_root(assets_root, raw_path)
-    except OrgPackSubdirEscapeError as exc:
-        return ValidationIssue(
-            severity="error",
-            artifact_type="assets",
-            artifact_id=artifact_id,
-            file=str(source_file),
-            message=(f"asset path {raw_path!r} escapes the pack's assets/ root: {exc}"),
-            category="asset_path_escape",
-        )
-    return None
 
 
 def _check_asset_mime(

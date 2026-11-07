@@ -456,13 +456,25 @@ def _single_branch_refusal_text(mission_slug: str, lines: Sequence[str]) -> str:
     return f"Mission {mission_slug}: single_branch work packages cannot be landed as reviewed:\n{body}"
 
 
+#: #7210: the finalize route that works. With no pin recorded, plain finalize-tasks derives one from git;
+#: ``--refresh-planning-commit`` records the live target tip, which leaves an empty window.
+_FINALIZE_PIN_RECOVERY = (
+    "run plain `spec-kitty agent mission finalize-tasks` (no flags) to record the planning commit: with none recorded it derives one "
+    "from git, the target-branch commit before the Mission's tasks/WP*.md first appeared there. Do not use `--refresh-planning-commit` "
+    "for this: it records the live target tip, which leaves an empty window. Then re-run. If finalize-tasks still warns that it kept the "
+    "recorded pin unchanged, the task files are not in the target branch's history, or a lane branch does not contain that commit: "
+    "escalate to the operator instead of writing a "
+    "planning commit into lanes.json by hand."
+)
+
+
 def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, approved: Sequence[str], window: tuple[str, str] | None) -> str | None:
     if window is None:
         line = (
             f"{SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window "
             "(planning_commit..mission_branch) cannot be computed for this single_branch mission "
             f"(no recorded planning commit), {_CANNOT_VERIFY} "
-            "Recovery: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
+            f"Recovery: {_FINALIZE_PIN_RECOVERY}"
         )
         scan.mark(approved, SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE)
         return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
@@ -489,7 +501,7 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
 
 _RECOVERY: Mapping[str, str] = {
     EVIDENCE_WINDOW_UNCOMPUTABLE: (
-        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run. "
+        f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: {_FINALIZE_PIN_RECOVERY} "
         "For a Mission with no `lanes.json` (a `--skip-lanes` direct-on-target Mission) that command records nothing this gate reads: "
         "commit the Mission's planning artifacts (`kitty-specs/<slug>/`) on the target branch so its start is in history and the window is resolvable, then re-run."
     ),
