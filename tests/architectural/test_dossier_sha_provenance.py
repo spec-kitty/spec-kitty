@@ -95,7 +95,10 @@ _BR = ShaProvenance.BRANCH_RELATIVE
 #: it means.
 DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     # consolidation/baseline.py: local HEAD after consolidation, and the target
-    # tip before it. Both are written before the pull request exists.
+    # tip before it, both written before the pull request exists. On the pull
+    # request route baseline_merge_commit is the landing commit's first parent
+    # (PrMergeEvidence), which is on the target; the field is mixed provenance,
+    # so it stays branch-relative, the class that promises nothing.
     ("meta.json", "merged_commit"): _BR,
     ("meta.json", "baseline_merge_commit"): _BR,
     # consolidation/baseline.py (accept --mode pr --merge-commit,
