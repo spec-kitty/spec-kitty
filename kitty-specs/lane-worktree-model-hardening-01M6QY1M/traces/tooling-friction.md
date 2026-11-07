@@ -98,3 +98,16 @@ This overlap is real. Lane-f's WP09 review-cycle commit 4a1d8e7a1d edits that fi
 lane-l, and lane-l's own f50df2bb07 edits it too. The rollback restored the mission branch
 (7e650a6 -> a4e3426). The new remedy text (#7311/WP17 wording) is correct. Closeout stopped:
 refreshing lane-l means merging in content from another WP, not a pure dependency merge.
+
+## [closeout 2026-11-07] all lanes merge; squash projection refuses TARGET_BRANCH_CONTENT_CONFLICT
+
+Topic branch d1d3f99d03. Every lane (e … o) merged into the mission branch with no stale refusal;
+the run built mission commit 117c4ec. The default squash onto `issue-7276-lane-worktree-hardening`
+then refused with `TARGET_BRANCH_CONTENT_CONFLICT` on `src/specify_cli/lanes/stale_check.py` and
+`tests/lanes/test_stale_check.py`. This is the expected #7311 (on the target) against WP17
+(lane-n) overlap, but it surfaces before the squash, as a refusal, not as an editable conflict.
+The remediation reads "Update the mission branch against the current target branch". Since every
+failed run rolls the mission branch back to a4e3426 and rebuilds it from the lanes, the update has
+to live in a lane (lane-n), so WP17 needs a refresh and a new approval. CONTRACT_VERSION did not
+conflict: `git merge-tree` of target against 117c4ec reports only these two paths.
+Closeout stopped, as ruled ("if anything refuses, stop and report").
