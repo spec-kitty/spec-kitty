@@ -51,6 +51,8 @@ from tests.integration.coord_topology_fixture import (
     SENTINEL_HUSK_MISSION_TYPE,
     CoordTopologyContext,
     FlatTopologyContext,
+    _git,
+    build_flat_topology_mission,
     record_wp01_implementation,
 )
 
@@ -507,26 +509,13 @@ def test_flat_topology_materialize_is_noop(
     assert topo.mission_slug == ctx.slug
 
 
-def test_flat_topology_forecast_is_noop(
-    flat_topology_mission: FlatTopologyContext,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """On a flat mission the dry-run forecast reads the single-surface lanes.json."""
+def _flat_forecast_payload(repo_root: Path, ctx: FlatTopologyContext, capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
+    """Run the dry-run forecast for the flat Mission from *repo_root* and return its JSON."""
     from specify_cli.consolidation import forecast
     from specify_cli.consolidation.config import MergeStrategy
 
-    ctx = flat_topology_mission
-    # #5385: a flat (coordination-less) mission's done bookkeeping lands on its
-    # target, and this fixture's target is the protected ``main``, so the dry-run
-    # now reports PROTECTED_BRANCH_REFUSED up front. This test is about which
-    # surface lanes.json is read from, so declare ``main`` unprotected.
-    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    # Empty the (single-surface) event log so the review-artifact preflight
-    # materialises cleanly.
-    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
     forecast.run_dry_run_forecast(
-        repo_root=ctx.repo,
+        repo_root=repo_root,
         resolved_feature=ctx.slug,
         resolved_target_branch="main",
         resolved_strategy=MergeStrategy.SQUASH,
@@ -535,21 +524,74 @@ def test_flat_topology_forecast_is_noop(
         push=False,
         json_output=True,
     )
-    payload = json.loads(capsys.readouterr().out.strip())
+    payload: dict[str, Any] = json.loads(capsys.readouterr().out.strip())
+    return payload
+
+
+def test_flat_topology_forecast_is_noop(
+    flat_topology_mission: FlatTopologyContext,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """On a flat mission the dry-run forecast succeeds and reports the one repo-root lane.
+
+    A neutrality control: a flat Mission has a single surface, so this cannot tell which
+    surface was read. ``test_dry_run_forecast_returns_primary_wp_set`` pins the routing on a
+    coordination Mission, and the linked-checkout test below pins the read off the checkout.
+
+    The fixture is a real single_branch Mission (#7224): its one repo-root ``lane-planning``
+    lane holds WP01, and the forecast's claim holds WP01 once it is implemented in the write
+    checkout and approved by an independent reviewer (#6715).
+    """
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    ctx = flat_topology_mission
+    # Empty the (single-surface) event log so the review-artifact preflight
+    # materialises cleanly.
+    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    _seed_approved_single_branch_wp01(ctx)
+
+    payload = _flat_forecast_payload(ctx.repo, ctx, capsys)
     forecast_wps = {wp for lane in payload.get("lanes", []) for wp in lane["wp_ids"]}
 
+    assert "error" not in payload, payload
     assert forecast_wps == {"WP01"}
-    assert "error" not in payload
+    assert {lane["lane_id"] for lane in payload["lanes"]} == {PLANNING_LANE_ID}
 
 
-def test_flat_topology_recovery_is_noop(
+def test_flat_topology_forecast_ignores_a_linked_checkouts_manifest(
     flat_topology_mission: FlatTopologyContext,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
-    """On a flat mission ``scan_recovery_state`` resolves lane→WP off the only surface."""
+    """Run from a linked checkout, the forecast reads PRIMARY's lanes.json, not the local copy."""
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
+
+    ctx = flat_topology_mission
+    (ctx.primary_feature_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    _seed_approved_single_branch_wp01(ctx)
+    linked = tmp_path / "linked-checkout"
+    _git(ctx.repo, "worktree", "add", "-q", "-b", "linked-checkout", str(linked))
+    decoy_path = linked / "kitty-specs" / ctx.slug / "lanes.json"
+    decoy = json.loads(decoy_path.read_text(encoding="utf-8"))
+    decoy["lanes"][0]["lane_id"] = "lane-decoy"
+    decoy_path.write_text(json.dumps(decoy), encoding="utf-8")
+
+    payload = _flat_forecast_payload(linked, ctx, capsys)
+
+    assert "error" not in payload, payload
+    assert {lane["lane_id"] for lane in payload["lanes"]} == {PLANNING_LANE_ID}
+
+
+def test_flat_topology_recovery_is_noop(tmp_path: Path) -> None:
+    """On a flat mission ``scan_recovery_state`` resolves lane→WP off the only surface.
+
+    Recovery maps lane branches to WPs, so this uses the coordination-less ``lanes``
+    variant: a real single_branch Mission has no lane branch (#7224).
+    """
     from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.recovery import scan_recovery_state
 
-    ctx = flat_topology_mission
+    ctx = build_flat_topology_mission(tmp_path, topology="lanes")
     lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
@@ -599,6 +641,51 @@ def _seed_approved_wp01(ctx: CoordTopologyContext) -> None:
                 policy_metadata={"lane_head": head},
             )
             for idx, (frm, to, actor, head) in enumerate(hops)
+        ],
+    )
+
+
+def _seed_approved_single_branch_wp01(ctx: FlatTopologyContext) -> None:
+    """#6715: model WP01 as implemented in the single_branch write checkout and independently approved.
+
+    A single_branch Mission has no lane branch: its evidence window is the recorded planning
+    commit up to the write branch (``main`` here), so the owned change is committed straight
+    onto the write checkout after the planning pin. The implementer and the approving reviewer
+    are distinct identities.
+    """
+    from specify_cli.status.models import Lane, StatusEvent
+
+    from tests._support.status_seed import seed_status_events
+    from tests.terminus.conftest import record_evidence_prerequisites
+
+    record_evidence_prerequisites(ctx.repo, ctx.primary_feature_dir, globs=("src/wp01/**",))
+    impl = ctx.repo / "src" / "wp01" / "impl.py"
+    impl.parent.mkdir(parents=True)
+    impl.write_text("VALUE = 1\n", encoding="utf-8")
+    _git(ctx.repo, "add", "--", "src/wp01/impl.py")
+    _git(ctx.repo, "commit", "-qm", "feat(WP01): implement in the write checkout")
+    hops = [
+        (Lane.PLANNED, Lane.CLAIMED, "implementer-ivan"),
+        (Lane.CLAIMED, Lane.IN_PROGRESS, "implementer-ivan"),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "implementer-ivan"),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, "reviewer-renata"),
+        (Lane.IN_REVIEW, Lane.APPROVED, "reviewer-renata"),
+    ]
+    seed_status_events(
+        ctx.primary_feature_dir,
+        [
+            StatusEvent(
+                event_id=f"01KW2E7AFC0000000000SBAP0{idx}",
+                mission_slug=ctx.slug,
+                wp_id="WP01",
+                from_lane=frm,
+                to_lane=to,
+                at=f"2026-06-26T00:0{idx + 1}:00+00:00",
+                actor=actor,
+                force=False,
+                execution_mode="direct_repo",
+            )
+            for idx, (frm, to, actor) in enumerate(hops)
         ],
     )
 

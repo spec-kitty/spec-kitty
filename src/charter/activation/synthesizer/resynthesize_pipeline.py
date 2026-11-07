@@ -31,6 +31,8 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 
 from __future__ import annotations
 
+import dataclasses
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -43,6 +45,7 @@ from kernel.charter_pack_paths import project_pack_root
 from .manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
+    _synthesized_urns,
     load_yaml as load_manifest,
 )
 from .reconcile import REACH_ONLY_KINDS as _REACH_ONLY_KINDS
@@ -51,7 +54,7 @@ from .reconcile import legacy_applies_edges as _legacy_applies_edges
 from .reconcile import legacy_strip_notice as _legacy_strip_notice
 from .reconcile import synthesized_node_urns as _synthesized_node_urns
 from .reconcile import rewrite_manifest as _rewrite_manifest
-from .request import SynthesisRequest, SynthesisTarget
+from .request import SynthesisRequest, SynthesisTarget, additive_snapshot as _additive_snapshot
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
@@ -210,9 +213,11 @@ def run(
            If absent → raise ``FileNotFoundError``.
         2. Load all provenance sidecars → build lookup maps.
         3. Call ``topic_resolver.resolve(topic, ...)`` → ``ResolvedTopic``.
-           Empty targets (EC-4) → return current manifest unchanged + diagnostic.
+           Empty targets (EC-4), or only hand-written ones → return current
+           manifest unchanged + diagnostic.
         4. Construct bounded ``SynthesisRequest`` objects for each target.
-        5. Call ``synthesize_pipeline.run_all()`` → ``[(body, prov), ...]``.
+        5. Call ``synthesize_pipeline.run_all()`` → ``[(body, prov), ...]``. Targets
+           it did not generate are dropped; none left → return as in step 3.
         6. Build the authoritative merged manifest: regenerated entries get
            fresh hashes; untouched entries retain prior ``content_hash``
            (FR-017).
@@ -322,6 +327,17 @@ def run(
             ),
         )
 
+    # #6768: a hand-written artifact has no generator, so running the pipeline for it
+    # could only fail on some unrelated missing input. Report it before any model call.
+    if all(_is_hand_authored(_repo_root, t) for t in resolved.targets):
+        names = ", ".join(t.urn for t in resolved.targets)
+        return ResynthesisResult(
+            manifest=existing_manifest,
+            resolved_topic=resolved,
+            is_noop=True,
+            diagnostic=f"Nothing to regenerate: {names} is hand-written, so synthesis has nothing to generate for it. Edit its file directly.",
+        )
+
     # ------------------------------------------------------------------
     # Step 4: Compute bounded target slugs + new run_id
     # ------------------------------------------------------------------
@@ -347,6 +363,20 @@ def run(
     # ------------------------------------------------------------------
     all_new_results = _run_bounded(bounded_request, adapter, target_slugs)
 
+    # #6768: a topic target the pipeline did not generate gets no write, so it must not
+    # reach the additive-only check or the "regenerated" report.
+    generated_slugs = frozenset(prov.artifact_slug for _, prov in all_new_results)
+    generated_targets = [t for t in resolved.targets if t.slug in generated_slugs]
+    if not generated_targets:
+        names = ", ".join(t.urn for t in resolved.targets)
+        return ResynthesisResult(
+            manifest=existing_manifest,
+            resolved_topic=resolved,
+            is_noop=True,
+            diagnostic=f"Nothing to regenerate: the current interview and activated directives do not produce {names}. No files changed.",
+        )
+    resolved = dataclasses.replace(resolved, targets=generated_targets)
+
     # ------------------------------------------------------------------
     # Step 6: Build final merged manifest (FR-017: untouched entries retain
     # prior hash). It is passed into promote() so bounded resynthesis does not
@@ -359,6 +389,8 @@ def run(
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
+    # #6768: the additive-only check reads the additive layer; the validation gate
+    # below keeps the reference universe.
     built_in_drg = _built_in_drg_from_request(request)
 
     # Org-aware re-emission base (#4121, MAJOR 2), shared by the emit and the
@@ -395,7 +427,11 @@ def run(
                 topic_scoped=True,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
+        _validate_project_graph(
+            staged_dir.root,
+            _built_in_drg_from_request_snapshot(request.drg_snapshot),
+            org_drg=org_drg,
+        )
 
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
         written_manifest = _write_pipeline.promote(
@@ -430,6 +466,20 @@ def run(
 # ---------------------------------------------------------------------------
 # Internal helpers for loading project state
 # ---------------------------------------------------------------------------
+
+
+def _is_hand_authored(repo_root: Path, target: SynthesisTarget) -> bool:
+    """Whether *target*'s sidecar is a direct-write registration synthesis does not also own.
+
+    ``charter activate`` re-records a synthesized directive as direct-write too, so the
+    sidecar alone does not decide it (``manifest._synthesized_sidecar_urn``).
+    """
+    from .provenance import load_yaml as load_provenance  # noqa: PLC0415
+
+    sidecar = repo_root / _KITTIFY_DIRNAME / "charter" / "provenance" / f"{target.kind}-{target.slug}.yaml"
+    if not sidecar.is_file() or load_provenance(sidecar).adapter_id != "project-direct-write":
+        return False
+    return target.urn not in _synthesized_urns(repo_root, target.kind)
 
 
 def _load_project_artifacts_from_provenance(
@@ -531,8 +581,18 @@ def _load_merged_drg(
 
 
 def _built_in_drg_from_request(request: SynthesisRequest) -> DRGGraph:
-    """Build the built-in-layer DRGGraph from the request snapshot."""
-    snapshot = dict(request.drg_snapshot)
+    """Build the additive-layer DRGGraph the FR-020 / EC-6 check runs against.
+
+    Reads ``request.additive_drg_snapshot`` when the request carries one and
+    falls back to ``request.drg_snapshot`` otherwise (#6768): the fallback is
+    what every pre-#6768 caller and test relies on.
+    """
+    return _built_in_drg_from_request_snapshot(_additive_snapshot(request))
+
+
+def _built_in_drg_from_request_snapshot(snapshot_input: Mapping[str, Any]) -> DRGGraph:
+    """Normalize one request snapshot mapping into a validate-able ``DRGGraph``."""
+    snapshot = dict(snapshot_input)
     snapshot.setdefault("nodes", [])
     snapshot.setdefault("edges", [])
     snapshot["schema_version"] = "1.0"

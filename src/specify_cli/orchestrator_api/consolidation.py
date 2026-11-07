@@ -415,7 +415,7 @@ def _apply_lane_merge_cleanup(
     compare-and-swap at the tip read here (#5570); a refusal raises
     :class:`MergeTeardownRefused` before any lane is touched, so the lanes stay as evidence.
     After that the lane legs never raise: a lane the remover cannot remove after the landing is
-    reported in ``data.lane_cleanup`` (contract 1.24.0) and the envelope stays a success.
+    reported in ``data.lane_cleanup`` (contract 1.25.0) and the envelope stays a success.
     NOTE: unlike the executor's ``_teardown_coordination_triple``, this path does NOT flatten the
     ``coordination_branch`` marker or remove the coord worktree (pre-existing orchestrator-api
     limitation, tracked separately).
@@ -1037,7 +1037,7 @@ def consolidate_mission(
         "target_branch": preflight.target_branch,
         "strategy": strategy,
         "worktree_removed": False,
-        # contract 1.24.0 (S5, FR-039a): one object per code lane, removed / kept / retained_by_policy.
+        # contract 1.25.0 (S5, FR-039a): one object per code lane, removed / kept / retained_by_policy.
         "lane_cleanup": lane_cleanup_report.to_json(main_repo_root),
     }
     if origin.warnings:

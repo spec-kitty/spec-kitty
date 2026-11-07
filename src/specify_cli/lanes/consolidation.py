@@ -183,9 +183,16 @@ class MissionConsolidationResult:
 
 @dataclass(frozen=True)
 class MissionIntegrationPreview:
-    """Read-only readiness result for mission-to-target branch integration."""
+    """Read-only readiness result for mission-to-target branch integration.
+
+    ``squashed_tree`` is the tree id the clean squash staged on the target (#7244): the
+    content the landing would leave on the target from the mission branch, which the
+    forecast hands to the squash content check. ``None`` when nothing was simulated
+    (not a squash, a missing branch) or the squash conflicted.
+    """
 
     conflicting_paths: tuple[str, ...] = ()
+    squashed_tree: str | None = None
 
 
 class _SquashMergeConflict(RuntimeError):
@@ -1352,7 +1359,15 @@ def preview_mission_target_integration(
             )
         except _SquashMergeConflict as exc:
             return MissionIntegrationPreview(exc.conflicting_paths)
-    return MissionIntegrationPreview()
+        return MissionIntegrationPreview(squashed_tree=_write_index_tree(tmp_path, env))
+
+
+def _write_index_tree(worktree: Path, env: dict[str, str]) -> str:
+    """Write the *worktree*'s staged index as a tree object and return its id (no ref moves)."""
+    written = subprocess.run(["git", "write-tree"], cwd=str(worktree), capture_output=True, text=True, env=env)
+    if written.returncode != 0:
+        raise RuntimeError(f"Failed to read the squash preview's staged tree: {written.stderr.strip()}")
+    return written.stdout.strip()
 
 
 def _merge_branch_into(

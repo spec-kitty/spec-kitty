@@ -29,11 +29,9 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
 from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
 from specify_cli.consolidation.reconciliation import (
-    Divergence,
     MergeOutcomeVerifier,
-    VerifyResult,
+    VerifyStatus,
     _lane_branch_for,
-    _with_attribution_hint,
     build_approved_wp_set,
     claim_integrity_refusal,
 )
@@ -312,18 +310,26 @@ def _refuse_unattributable_in_forecast(
     lanes_manifest: LanesManifest,
     dependency_refs: tuple[str, ...],
     json_output: bool,
+    squashed_tree: str | None = None,
 ) -> None:
-    """Run the closed-world window scan the real run will run, before any ref moves (#6771).
+    """Run the content check the real run will run, before any ref moves (#6771, #7244).
 
     The pre-#6771 forecast terminated before reconciliation ever ran, so a mission whose lane
     merged a dependency branch's newer head previewed green and refused on the real run. This
-    builds the SAME claim (so a mis-declaration refuses here too) and runs the SAME per-commit
-    closed-world filter (:meth:`MergeOutcomeVerifier._unattributable_in`) over the refs the
-    landing WOULD introduce: the mission branch and the target. Only that axis is forecast —
-    the merge-only reachability axes cannot be judged before the landing exists.
+    builds a claim from the same builder (so a mis-declaration refuses here too) and runs the
+    content check for the real run's strategy (:meth:`MergeOutcomeVerifier.forecast_content_verdict`):
 
-    A refusal calls :func:`_emit_dry_run_error` (so ``--json`` stays valid JSON) and exits 1.
-    Nothing is mutated: the claim build and the scan are read-only.
+    * squash, with the tree the squash preview staged (*squashed_tree*): the squash-sound
+      blob attribution over that tree, because the per-commit scan of the mission branch
+      refused landings the real run makes (#7244); lane refs still get the per-commit scan,
+      because the preview does not fold lanes in (#7268);
+    * merge / rebase (or a squash with nothing previewed, e.g. a missing mission branch): the
+      per-commit closed-world scan over the refs the landing WOULD introduce — the mission
+      branch, its lane branches and the target.
+
+    Only the content axis is forecast — the reachability axes cannot be judged before the
+    landing exists. A refusal calls :func:`_emit_dry_run_error` (so ``--json`` stays valid
+    JSON) and exits 1. Nothing is mutated: the claim build and the checks are read-only.
     """
     main_repo = get_main_repo_root(repo_root)
     dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs, json_output=json_output)
@@ -364,7 +370,7 @@ def _refuse_unattributable_in_forecast(
             *(_lane_branch_for(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes),
             resolved_target_branch,
         )
-        unattributable = MergeOutcomeVerifier(main_repo)._unattributable_in(landing_refs, claim)
+        result = MergeOutcomeVerifier(main_repo).forecast_content_verdict(landing_refs, claim, squashed_tree=squashed_tree)
     except GitProbeError as exc:
         _emit_dry_run_error(
             error_msg=f"the closed-world reconciliation window could not be read ({exc}); the forecast cannot prove the landing is attributable (fail-closed).",
@@ -372,11 +378,20 @@ def _refuse_unattributable_in_forecast(
             error_code=CLAIM_REFUSED_FORECAST,
         )
         raise typer.Exit(1) from exc
-    if not unattributable:
+    if result.status is VerifyStatus.PASS:
         return
+    if result.status is VerifyStatus.REFUSE:
+        reason = (result.refusal_reason or "unknown refusal").rstrip(".")
+        _emit_dry_run_error(
+            error_msg=(
+                f"Reconciliation would REFUSE (fail-closed): {reason}. The real run refuses this landing and restores its pre-run refs; this dry run moved nothing."
+            ),
+            json_output=json_output,
+            error_code=CLAIM_REFUSED_FORECAST,
+        )
+        raise typer.Exit(1)
     # The SAME clause rendering and the SAME recovery hint the real run prints: one authority
-    # (``Divergence.describe`` + ``_with_attribution_hint``), so the two surfaces agree.
-    result = _with_attribution_hint(VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable))), claim)
+    # (``Divergence.describe`` + the verifier's attribution hint), so the two surfaces agree.
     detail = result.divergence.describe().rstrip(".") if result.divergence is not None else "unknown divergence"
     hint = f" {result.attribution_hint}" if result.attribution_hint else ""
     _emit_dry_run_error(
@@ -536,8 +551,8 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
-    # #6771: predict the closed-world refusal the real run would hit, on the content this
-    # landing would introduce — before this preview reports anything as ready.
+    # #6771 / #7244: predict the content refusal the real run's strategy would hit, on the
+    # content this landing would introduce — before this preview reports anything as ready.
     _refuse_unattributable_in_forecast(
         repo_root=repo_root,
         resolved_feature=resolved_feature,
@@ -545,6 +560,7 @@ def run_dry_run_forecast(
         lanes_manifest=lanes_manifest,
         dependency_refs=dependency_refs,
         json_output=json_output,
+        squashed_tree=integration_preview.squashed_tree if resolved_strategy is MergeStrategy.SQUASH else None,
     )
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)

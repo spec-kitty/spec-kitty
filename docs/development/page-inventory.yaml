@@ -1400,6 +1400,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -5145,6 +5151,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/2026-10-31-migration-project-admission.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-11-06-lane-worktree-friction-research.md
   tag: current
   divio_type: none
   owning_workstream: none

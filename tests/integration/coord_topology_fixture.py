@@ -22,6 +22,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -176,11 +177,12 @@ def _make_git_repo(parent: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _write_wp_task(tasks_dir: Path, wp_id: str) -> None:
-    """Write a minimal WP task file to *tasks_dir*."""
+def _write_wp_task(tasks_dir: Path, wp_id: str, *, execution_mode: str | None = None) -> None:
+    """Write a minimal WP task file to *tasks_dir* (``execution_mode`` declared when given)."""
+    mode = f"execution_mode: {execution_mode}\n" if execution_mode is not None else ""
     content = (
         f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} fixture task\n"
-        f"subtasks: []\n---\n# {wp_id}\n"
+        f"{mode}subtasks: []\n---\n# {wp_id}\n"
     )
     (tasks_dir / f"{wp_id}.md").write_text(content, encoding="utf-8")
 
@@ -215,6 +217,34 @@ def _write_lanes_json(feature_dir: Path, *, slug: str, mission_id: str) -> None:
     (feature_dir / "lanes.json").write_text(
         json.dumps(payload, indent=2), encoding="utf-8"
     )
+
+
+def _write_single_branch_lanes_json(feature_dir: Path, *, slug: str, mission_id: str, mission_branch: str | None = None) -> None:
+    """Write the ``lanes.json`` a real ``single_branch`` Mission carries (#7224).
+
+    Built by the canonical finalize computation (``compute_lanes`` with
+    ``topology=SINGLE_BRANCH``): ONE repo-root ``lane-planning`` lane holding every
+    WP, ``mission_branch`` equal to the target unless a recorded write branch is
+    passed (the protected-target mint). There is no code lane and no lane branch, so the fixture never trips
+    ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``.
+    """
+    from mission_runtime import MissionTopology
+    from specify_cli.lanes.compute import compute_lanes
+    from specify_cli.lanes.persistence import write_lanes_json
+    from specify_cli.ownership.models import OwnershipManifest, WorkProductKind
+
+    manifest = compute_lanes(
+        dependency_graph={"WP01": []},
+        ownership_manifests={
+            "WP01": OwnershipManifest(execution_mode=WorkProductKind.CODE_CHANGE, owned_files=(), authoritative_surface="")
+        },
+        mission_slug=slug,
+        target_branch="main",
+        mission_id=mission_id,
+        topology=MissionTopology.SINGLE_BRANCH,
+        mission_branch=mission_branch,
+    )
+    write_lanes_json(feature_dir, manifest)
 
 
 def _write_meta(
@@ -533,26 +563,43 @@ def coord_topology_mission_tasks_husk(tmp_path: Path) -> CoordTopologyContext:
     )
 
 
-@pytest.fixture()
-def flat_topology_mission(tmp_path: Path) -> FlatTopologyContext:
-    """Materialise a flat (single-branch) mission for neutrality tests.
+#: The flat fixture's Mission slug (``<human-slug>-<mid8>``).
+FLAT_TOPOLOGY_SLUG = "flat-topo-fixture-01KW2E7B"
+
+
+def build_flat_topology_mission(
+    tmp_path: Path,
+    *,
+    topology: Literal["single_branch", "lanes"] = "single_branch",
+    mission_branch: str | None = None,
+) -> FlatTopologyContext:
+    """Materialise a flat (coordination-less) mission for neutrality tests.
 
     Shape on disk:
 
     * ``<repo>/kitty-specs/<slug>/`` (PRIMARY only — no coord worktree):
-      - ``meta.json``  — ``topology=single_branch``, no ``coordination_branch``
-      - ``tasks/WP01.md``
+      - ``meta.json``  — ``topology=<topology>``, no ``coordination_branch``
+      - ``tasks/WP01.md`` (``execution_mode: code_change`` on single_branch)
       - ``lanes.json``
       - ``status.events.jsonl``
 
+    ``topology="single_branch"`` (the default, #7224) writes the manifest a real
+    single_branch Mission carries: one repo-root ``lane-planning`` lane, no code lane
+    and no lane branch. ``create`` gives such a Mission on protected ``main`` one of two
+    shapes, and so does this builder: by default ``commit_to_target`` (``--commit-to-target``),
+    or with ``mission_branch`` a write branch distinct from the ``main`` target (the
+    protected-target mint) in both ``meta.json`` and ``lanes.json``; the branch itself is
+    not created. ``topology="lanes"`` keeps a
+    coordination-less mission with one ``lane-a`` code lane, for tests whose subject
+    is lane-branch or lane-worktree behaviour.
+
     Both ``candidate_feature_dir_for_mission`` and
     ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` should return the
-    primary dir for this topology.
+    primary dir for either topology.
     """
     mission_id = "01KW2E7BFC0000000000000001"
     mid8 = "01KW2E7B"
-    human_slug = "flat-topo-fixture"
-    slug = f"{human_slug}-{mid8}"
+    slug = FLAT_TOPOLOGY_SLUG
 
     # Use a distinct subdir to avoid colliding with coord_topology_mission's repo.
     repo = _make_git_repo(tmp_path / "flat")
@@ -564,15 +611,28 @@ def flat_topology_mission(tmp_path: Path) -> FlatTopologyContext:
         primary_feature_dir,
         slug=slug,
         mission_id=mission_id,
-        topology="single_branch",
+        topology=topology,
         coordination_branch=None,
     )
 
     tasks_dir = primary_feature_dir / "tasks"
     tasks_dir.mkdir()
-    _write_wp_task(tasks_dir, "WP01")
-
-    _write_lanes_json(primary_feature_dir, slug=slug, mission_id=mission_id)
+    if topology == "single_branch":
+        # A single_branch lane is a repo-root lane, so "does this Mission carry code" is
+        # read from the WP kind; a finalized code WP declares it.
+        _write_wp_task(tasks_dir, "WP01", execution_mode="code_change")
+        _write_single_branch_lanes_json(primary_feature_dir, slug=slug, mission_id=mission_id, mission_branch=mission_branch)
+        meta_path = primary_feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if mission_branch is None:
+            meta["commit_to_target"] = True
+        else:
+            meta["mission_branch"] = mission_branch
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    else:
+        assert mission_branch is None, "mission_branch is a single_branch knob"
+        _write_wp_task(tasks_dir, "WP01")
+        _write_lanes_json(primary_feature_dir, slug=slug, mission_id=mission_id)
 
     status_events_path = primary_feature_dir / "status.events.jsonl"
     status_events_path.write_text(
@@ -591,6 +651,12 @@ def flat_topology_mission(tmp_path: Path) -> FlatTopologyContext:
         primary_feature_dir=primary_feature_dir,
         status_events_path=status_events_path,
     )
+
+
+@pytest.fixture()
+def flat_topology_mission(tmp_path: Path) -> FlatTopologyContext:
+    """A real single_branch mission (#7224); see :func:`build_flat_topology_mission`."""
+    return build_flat_topology_mission(tmp_path)
 
 
 def record_wp01_implementation(ctx: CoordTopologyContext) -> tuple[str, str]:
@@ -701,7 +767,9 @@ __all__ = [
     "SENTINEL_HUSK_MISSION_ID",
     "SENTINEL_HUSK_MISSION_TYPE",
     "CoordTopologyContext",
+    "FLAT_TOPOLOGY_SLUG",
     "FlatTopologyContext",
+    "build_flat_topology_mission",
     "assert_both_legs",
     "assert_reads_primary",
     "assert_status_from_coord",

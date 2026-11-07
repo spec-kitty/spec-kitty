@@ -48,6 +48,15 @@ _VERDICT_STYLE = {
 }
 
 
+def _prune_command(remote: str) -> str:
+    """The prune command that repeats the remote in force, so a printed remedy stays runnable."""
+    from specify_cli.workspace.landed_worktrees import DEFAULT_REMOTE
+
+    if remote == DEFAULT_REMOTE:
+        return PRUNE_COMMAND
+    return f"{PRUNE_COMMAND} --remote {remote}"
+
+
 def _shown_path(path: Path, repo_root: Path) -> str:
     """*path* relative to the repository root when inside it, absolute otherwise."""
     resolved = path.resolve(strict=False)
@@ -106,7 +115,8 @@ def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) ->
     """
     from specify_cli.git.destructive_guard import discarded_ref
     from specify_cli.git.ref_advance import bookkeeping_ref_write_args
-    from specify_cli.workspace.landed_worktrees import Reason, shell_command
+    from specify_cli.git.destructive_guard import shell_command
+    from specify_cli.workspace.landed_worktrees import Reason
 
     if verdict.reason is not Reason.PROCESS_PROOF_UNAVAILABLE:
         return []
@@ -122,7 +132,14 @@ def _manual_commands(verdict: WorktreeVerdict, repo_root: Path, primary: str) ->
     return lines
 
 
-def _render_verdict(verdict: WorktreeVerdict, repo_root: Path, primary: str, *, prune: bool) -> None:
+def _render_verdict(
+    verdict: WorktreeVerdict,
+    repo_root: Path,
+    primary: str,
+    *,
+    prune: bool,
+    prune_command: str = PRUNE_COMMAND,
+) -> None:
     value = verdict.verdict.value
     label = escape(_branch_label(verdict.branch, verdict.tip))
     line = (
@@ -137,7 +154,7 @@ def _render_verdict(verdict: WorktreeVerdict, repo_root: Path, primary: str, *, 
     for manual in _manual_commands(verdict, repo_root, primary):
         _print(f"{_INDENT * 2}{escape(manual)}")
     if verdict.removable and not prune:
-        _print(f"{_INDENT * 2}remove with: {PRUNE_COMMAND}")
+        _print(f"{_INDENT * 2}remove with: {prune_command}")
 
 
 def _render_assessment(assessment: WorktreeAssessment, repo_root: Path, *, prune: bool) -> None:
@@ -145,33 +162,39 @@ def _render_assessment(assessment: WorktreeAssessment, repo_root: Path, *, prune
     if assessment.error is not None:
         _print(f"[red]Error:[/red] {escape(assessment.error)}")
         return
-    primary = escape(assessment.primary_ref or "origin/<primary>")
+    primary = escape(assessment.primary_ref or _DEFAULT_PRIMARY)
     _print(f"[bold]Worktrees[/bold] (proven against the local {primary}; nothing is fetched)")
     shown = _shown_verdicts(assessment)
     if not shown:
         _print(f"{_INDENT}No linked worktrees to assess.")
+    prune_command = _prune_command(assessment.remote)
     for verdict in shown:
-        _render_verdict(verdict, repo_root, _primary_label(assessment.primary_ref), prune=prune)
+        _render_verdict(
+            verdict,
+            repo_root,
+            _primary_label(assessment.primary_ref),
+            prune=prune,
+            prune_command=prune_command,
+        )
     landed = sum(1 for verdict in shown if verdict.removable)
     _print(f"{landed} landed, {len(shown) - landed} kept")
     if assessment.uninspected_processes > 0:
         _print(f"{assessment.uninspected_processes} process(es) could not be inspected for a working directory inside a worktree; they were skipped.")
 
 
-def _refusal_hint(outcome: PruneOutcome, primary: str) -> str | None:
+def _refusal_hint(outcome: PruneOutcome, primary: str, prune_command: str = PRUNE_COMMAND) -> str | None:
     """What the operator does next for a prune refusal that is not the guard's own (``None`` for the guard's)."""
-    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED
+    from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED, shell_command
     from specify_cli.workspace.landed_worktrees import (
         BRANCH_DELETE_FAILED,
         BRANCH_MOVED,
         NOT_REGISTERED,
         TIP_MOVED,
         WORKTREE_REMOVE_FAILED,
-        shell_command,
     )
 
     if outcome.refusal in (TIP_MOVED, NOT_REGISTERED):
-        return f"the worktree changed after it was assessed; run `{PRUNE_COMMAND}` again"
+        return f"the worktree changed after it was assessed; run `{prune_command}` again"
     if outcome.refusal == WORKTREE_REMOVE_FAILED:
         return f"the removal could not run; inspect it, then `{shell_command('git', 'worktree', 'remove', str(outcome.path))}` (no --force)"
     if outcome.refusal == WORKTREE_PARTIALLY_REMOVED:
@@ -185,13 +208,18 @@ def _refusal_hint(outcome: PruneOutcome, primary: str) -> str | None:
     return None
 
 
-def _print_hint(outcome: PruneOutcome, primary: str) -> None:
-    hint = _refusal_hint(outcome, primary)
+def _print_hint(outcome: PruneOutcome, primary: str, prune_command: str = PRUNE_COMMAND) -> None:
+    hint = _refusal_hint(outcome, primary, prune_command)
     if hint is not None:
         _print(f"{_INDENT}{escape(hint)}")
 
 
-def _render_outcome(outcome: PruneOutcome, repo_root: Path, primary: str) -> None:
+def _render_outcome(
+    outcome: PruneOutcome,
+    repo_root: Path,
+    primary: str,
+    prune_command: str = PRUNE_COMMAND,
+) -> None:
     from specify_cli.git.destructive_guard import WORKTREE_PARTIALLY_REMOVED
 
     path = escape(_shown_path(outcome.path, repo_root))
@@ -199,28 +227,36 @@ def _render_outcome(outcome: PruneOutcome, repo_root: Path, primary: str) -> Non
     head = f"{path} ({where} at {_short(outcome.tip)})"
     if not outcome.removed:
         _print(f"[yellow]Kept[/yellow] {head}: refused ({escape(outcome.refusal or 'unknown')})")
-        _print_hint(outcome, primary)
+        _print_hint(outcome, primary, prune_command)
         return
     _print(f"[green]Removed[/green] {head}")
     _print(f"{_INDENT}recreate: {escape(outcome.recreate)}")
     if outcome.kept_ref is not None:
         _print(f"{_INDENT}tip kept at {escape(outcome.kept_ref)}")
+    for kept in outcome.kept_commits:
+        _print(f"{_INDENT}reflog-only commit kept at {escape(kept)}")
     if outcome.refusal is not None:
         label = "partly removed" if outcome.refusal == WORKTREE_PARTIALLY_REMOVED else "branch kept"
         _print(f"{_INDENT}[yellow]{label}:[/yellow] {escape(outcome.refusal)}")
-        _print_hint(outcome, primary)
+        _print_hint(outcome, primary, prune_command)
 
 
-def _render_prune(outcomes: Sequence[PruneOutcome], repo_root: Path, primary: str) -> None:
+def _render_prune(
+    outcomes: Sequence[PruneOutcome],
+    repo_root: Path,
+    primary: str,
+    prune_command: str = PRUNE_COMMAND,
+) -> None:
     if not outcomes:
         _print("No landed worktrees to prune.")
         return
     for outcome in outcomes:
-        _render_outcome(outcome, repo_root, primary)
+        _render_outcome(outcome, repo_root, primary, prune_command)
 
 
 def _payload(assessment: WorktreeAssessment, outcomes: Sequence[PruneOutcome], *, prune: bool) -> dict[str, object]:
     payload: dict[str, object] = {
+        "remote": assessment.remote,
         "worktrees": [verdict.to_json() for verdict in assessment.verdicts],
         "uninspected_processes": assessment.uninspected_processes,
     }
@@ -236,7 +272,7 @@ def _exit_code(assessment: WorktreeAssessment, outcomes: Sequence[PruneOutcome])
 
     Keeping the primary branch (``BRANCH_IS_PRIMARY``) is the rule, not a refusal.
     """
-    from specify_cli.workspace.landed_worktrees import BRANCH_IS_PRIMARY
+    from specify_cli.git.destructive_guard import BRANCH_IS_PRIMARY
 
     refused = any(outcome.refusal not in (None, BRANCH_IS_PRIMARY) for outcome in outcomes)
     if assessment.error is not None or refused:
@@ -250,22 +286,30 @@ def run_worktree_section(
     current_dir: Path,
     prune: bool,
     json_output: bool,
+    remote: str | None = None,
 ) -> tuple[dict[str, object], int]:
     """Assess (and with *prune* remove) landed worktrees; ``(json keys, exit code)``.
 
     In text mode the section is printed here; in JSON mode the caller merges
-    the returned keys into the husk payload.
+    the returned keys into the husk payload. *remote* is the remote whose
+    primary ref proves a landing (``None`` = ``DEFAULT_REMOTE``).
     """
     from specify_cli.workspace import process_probe
-    from specify_cli.workspace.landed_worktrees import ProbeFn, assess_worktrees, prune_landed
+    from specify_cli.workspace.landed_worktrees import DEFAULT_REMOTE, ProbeFn, assess_worktrees, prune_landed
 
+    handled = DEFAULT_REMOTE if remote is None else remote
     probe: ProbeFn = process_probe.processes_with_cwd_under
-    assessment = assess_worktrees(repo_root, current_dir=current_dir, probe=probe)
+    assessment = assess_worktrees(repo_root, current_dir=current_dir, probe=probe, remote=handled)
     outcomes: list[PruneOutcome] = []
     if prune:
-        outcomes = prune_landed(repo_root, current_dir=current_dir, probe=probe, assessment=assessment)
+        outcomes = prune_landed(repo_root, current_dir=current_dir, probe=probe, assessment=assessment, remote=handled)
     if not json_output:
         _render_assessment(assessment, repo_root, prune=prune)
         if prune and assessment.error is None:
-            _render_prune(outcomes, repo_root, _primary_label(assessment.primary_ref))
+            _render_prune(
+                outcomes,
+                repo_root,
+                _primary_label(assessment.primary_ref),
+                _prune_command(handled),
+            )
     return _payload(assessment, outcomes, prune=prune), _exit_code(assessment, outcomes)
