@@ -23,7 +23,7 @@ shape. Per worktree the outcome is exactly one of:
 * ``skipped_mid_operation`` -- a merge, rebase or cherry-pick is in progress;
 * ``refused_sparse_cone`` -- the worktree is a cone-mode sparse checkout, which
   cannot hold the exclusion; it is left untouched (#7276);
-* ``failed`` -- applying the exclusion raised; the lane is reported and the run
+* ``failed`` -- the lane copy could not be read, or applying the exclusion raised; the lane is reported and the run
   is not recorded as a success, so it runs again (#7276);
 * ``already_excluded`` -- the exclusion is in place (a re-run is a no-op, NFR-005);
 * ``skipped_legacy_mission`` -- the Mission is genuinely legacy (no coordination
@@ -55,6 +55,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from kernel.git import GitCommandError
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
@@ -237,7 +239,14 @@ def _classify_copy(project_path: Path, worktree: Path, lane_id: str, mission: st
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     status_paths = (f"kitty-specs/{mission_dir_name}/{_EVENTS_FILENAME}", f"kitty-specs/{mission_dir_name}/status.json")
-    if not _dirty(worktree, status_paths):
+    try:
+        dirty = _dirty(worktree, status_paths)
+    except GitCommandError as exc:
+        # An unreadable copy is not a clean one: reporting it excluded would hide any lane-only events (C-009).
+        return LaneCheckoutMigrationItem(
+            worktree, lane_id, LaneCheckoutOutcome.FAILED, reason=f"the lane copy's status could not be read ({exc}); worktree left untouched"
+        )
+    if not dirty:
         return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.EXCLUDED)
     lane_keys = _event_keys(_read_text(worktree / status_paths[0]))
     try:
@@ -283,12 +292,14 @@ def _mid_operation(worktree: Path) -> bool:
 
 
 def _dirty(worktree: Path, status_paths: tuple[str, str]) -> bool:
-    from kernel.git import GitCommandError, status_entries
+    """Whether the status files of *worktree* are modified or untracked.
 
-    try:
-        return bool(status_entries(worktree, pathspecs=status_paths, untracked="all"))
-    except GitCommandError:
-        return False  # an unreadable checkout reads clean, as the porcelain probe did
+    Raises:
+        GitCommandError: git could not read the checkout (never read as clean).
+    """
+    from kernel.git import status_entries
+
+    return bool(status_entries(worktree, pathspecs=status_paths, untracked="all"))
 
 
 def _event_keys(text: str) -> list[str]:
