@@ -39,7 +39,6 @@ from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     PROCESS_IN_WORKTREE,
     DestructiveOpRefused,
-    NOT_LANDED_ON_NAMED_REMOTE,
     LandedRemoval,
     guarded_branch_delete,
     guarded_landed_removal,
@@ -435,10 +434,8 @@ class GuardedLaneRemover:
                 absorbed=self._absorbed,
             )
         except DestructiveOpRefused as refusal:
-            if refusal.error_code == NOT_LANDED_ON_NAMED_REMOTE and isinstance(landing, LocalTargetAtPass):
-                # A lane consolidate did not land (all its WPs canceled): today's guarded primitives keep
-                # its only copy under a discarded-tip ref (interim, recorded follow-up).
-                return self._fallback.remove(item, landing=landing)
+            # A lane consolidate did not land (all its WPs canceled, or absorption unprovable) is kept
+            # with the guard's code: falling back to the older remover deleted its only copy (#7316 landing).
             return _kept(item, refusal.error_code, refusal.remediation, detail=_refusal_detail(refusal, item.worktree))
         if self._after_worktree_removed is not None:
             self._after_worktree_removed()
