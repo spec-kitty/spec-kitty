@@ -145,3 +145,52 @@ def test_unlanded_topic_primary_paths_empty_once_landed(topic_repo: tuple[Path, 
     _write(repo, "meta.json", json.dumps({"mission_number": 1, "friendly_name": "Q", "extra": "x", "baseline_merge_commit": "abc"}) + "\n")
     _commit(repo, "land")
     assert unlanded_topic_primary_paths(repo, _SLUG, base=base, topic_ref="topic", target_ref="main") == []
+
+
+def _topic_run(repo: Path, *, is_resume: bool) -> Any:
+    """A minimal run with NO usable anchor: no checkpoint (fresh) / no persisted coord tip (resume)."""
+    return SimpleNamespace(
+        main_repo=repo,
+        mission_slug=_SLUG,
+        is_resume=is_resume,
+        coord_checkpoint=None,
+        state=SimpleNamespace(pre_mutation_coord_sha=None),
+        lanes_manifest=SimpleNamespace(mission_branch="topic", target_branch="main", mission_slug=_SLUG),
+    )
+
+
+@pytest.mark.parametrize("is_resume", [False, True], ids=["fresh-run", "resume"])
+def test_topic_primary_window_falls_back_to_merge_base(topic_repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch, is_resume: bool) -> None:
+    """FR-062: no checkpoint / no persisted tip must not skip the check; it starts at merge-base(topic, target)."""
+    from specify_cli.consolidation import phase_teardown
+
+    repo, base = topic_repo
+    monkeypatch.setattr("specify_cli.lanes.single_branch_landing.lands_topic_branch", lambda _repo, _manifest: True)
+    window = phase_teardown._topic_primary_window(_topic_run(repo, is_resume=is_resume))
+    assert window == (base, "refs/heads/topic", "main")
+
+
+def test_topic_primary_window_refuses_without_any_base(topic_repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """No anchor and no merge base: refuse (branch kept) instead of failing open."""
+    from specify_cli.consolidation import phase_teardown
+    from specify_cli.consolidation.run_state import CoordinationTeardownError
+
+    repo, _base = topic_repo
+    _git(repo, "checkout", "-q", "--orphan", "unrelated")
+    _git(repo, "rm", "-rqf", ".")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "unrelated root")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "branch", "-f", "topic", "unrelated")
+    monkeypatch.setattr("specify_cli.lanes.single_branch_landing.lands_topic_branch", lambda _repo, _manifest: True)
+    with pytest.raises(CoordinationTeardownError, match="merge base"):
+        phase_teardown._topic_primary_window(_topic_run(repo, is_resume=False))
+
+
+def test_topic_primary_window_none_when_topic_branch_gone(topic_repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing to guard once the topic branch is gone: no fallback, no refusal."""
+    from specify_cli.consolidation import phase_teardown
+
+    repo, _base = topic_repo
+    _git(repo, "branch", "-D", "topic")
+    monkeypatch.setattr("specify_cli.lanes.single_branch_landing.lands_topic_branch", lambda _repo, _manifest: True)
+    assert phase_teardown._topic_primary_window(_topic_run(repo, is_resume=False)) is None

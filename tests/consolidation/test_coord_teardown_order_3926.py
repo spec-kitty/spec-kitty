@@ -116,6 +116,7 @@ def _run_state(repo: Path) -> ex._MergeRunState:
     lanes_manifest = SimpleNamespace(
         target_branch="main",
         mission_branch=_MISSION_BRANCH,
+        mission_slug=_SLUG,
         lanes=[],
     )
     return ex._MergeRunState(
