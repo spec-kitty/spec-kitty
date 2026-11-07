@@ -46,10 +46,9 @@ from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult, declared_
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+#: The synthetic pair's ``target_version``: no later than the installed package version, so the
+#: CLI command's default target includes it and the operator-facing witness needs no ``--target``.
 _TARGET = "4.0.0rc8"
-#: The pair's ``target_version``: the installed package version, so the CLI command's DEFAULT
-#: target includes it and the operator-facing witness needs no ``--target`` flag.
-_PAIR_TARGET_VERSION = _TARGET
 _PREDECESSOR = "9.9.9_writes_marker"
 _DEPENDENT = "9.9.9_reads_marker"
 
@@ -117,11 +116,6 @@ def _tree_digest(project: Path) -> dict[str, str]:
             continue
         digest[relative] = hash_content(path.read_bytes().decode("utf-8", "surrogateescape"))
     return digest
-
-
-def _local_config(project: Path, key: str) -> str | None:
-    result = subprocess.run(["git", "config", "--local", "--get", key], cwd=project, capture_output=True, text=True, check=False)
-    return result.stdout.strip() if result.returncode == 0 else None
 
 
 # --------------------------------------------------------------------------- #
@@ -320,15 +314,22 @@ def _declarations() -> list[tuple[str, tuple[str, ...]]]:
     return [(migration.migration_id, declared_predecessors(migration)) for migration in MigrationRegistry.get_all() if declared_predecessors(migration)]
 
 
-def test_the_retired_issue_matrix_pair_leaves_no_declaration() -> None:
-    """#7217: a declaration whose predecessor is superseded can never fire.
-
-    ``3.2.6_issue_matrix_driver_repoint`` declared ``3.2.6_gate_artifact_merge_drivers``; the gate
-    migration is now a recorded no-op, so the declaration was retired with its writer. This pin
-    keeps it from coming back, and tells the next author to re-anchor the audit below when a real
-    declaration lands.
-    """
-    assert _declarations() == [], "a shipped declaration landed: re-anchor the reported-pair proof"
+def _declaration_faults(
+    declarations: list[tuple[str, tuple[str, ...]]],
+    order: dict[str, int],
+    registered: set[str],
+) -> list[str]:
+    """Every declared predecessor that can never fire: unknown, unordered, or ordered after its declarer."""
+    faults: list[str] = []
+    for declarer, predecessors in declarations:
+        for predecessor in predecessors:
+            if predecessor not in registered:
+                faults.append(f"{declarer} declares unknown predecessor {predecessor}")
+            elif predecessor not in order:
+                faults.append(f"{declarer} declares {predecessor}, which order_manifest.txt does not order")
+            elif order[predecessor] >= order.get(declarer, -1):
+                faults.append(f"{declarer} declares {predecessor}, which the manifest orders after it")
+    return faults
 
 
 def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
@@ -337,16 +338,29 @@ def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
     The declaration asserts "this predecessor's write happens before my ``detect()`` reads
     it", so the id must exist in the registry (or the dry run can never match it) and be
     ordered BEFORE its declarer by ``order_manifest.txt`` (or the dry run matches it only
-    after the dependent has already been decided).
+    after the dependent has already been decided). No shipped migration declares a
+    predecessor today (#7217 retired the only one with the writer it named), so the audit's
+    teeth are proven on synthetic declarations in the next test.
     """
+    declarations = _declarations()
     order = {migration_id: position for position, migration_id in enumerate(load_order_manifest())}
     registered = {migration.migration_id for migration in MigrationRegistry.get_all()}
-    # No shipped migration declares a predecessor today (#7217 retired the only pair); the loop
-    # still enforces the invariant for the first one that does.
-    declarations = _declarations()
 
-    for declarer, predecessors in declarations:
-        for predecessor in predecessors:
-            assert predecessor in registered, f"{declarer} declares unknown predecessor {predecessor}"
-            assert predecessor in order, f"{declarer} declares {predecessor}, which order_manifest.txt does not order"
-            assert order[predecessor] < order[declarer], f"{declarer} declares {predecessor}, which the manifest orders after it"
+    assert _declaration_faults(declarations, order, registered) == []
+
+
+@pytest.mark.parametrize(
+    ("predecessor", "fault"),
+    [
+        ("9.9.9_typo", "declares unknown predecessor 9.9.9_typo"),
+        ("unordered", "which order_manifest.txt does not order"),
+        ("later", "which the manifest orders after it"),
+    ],
+)
+def test_the_declaration_audit_reports_a_declaration_that_can_never_fire(predecessor: str, fault: str) -> None:
+    order = {"earlier": 0, "declarer": 1, "later": 2}
+    registered = {"earlier", "declarer", "later", "unordered"}
+
+    assert _declaration_faults([("declarer", ("earlier",))], order, registered) == []
+    faults = _declaration_faults([("declarer", (predecessor,))], order, registered)
+    assert len(faults) == 1 and fault in faults[0], faults
