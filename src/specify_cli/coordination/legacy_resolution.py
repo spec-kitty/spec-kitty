@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -170,7 +171,17 @@ def _warrants_legacy_warning(repo_root: Path, mission_slug: str, mid8: str) -> b
     unrecognised value warns rather than silently passing) AND the mission
     is not ``flattened``.
     """
-    meta = _load_mission_meta(repo_root, mission_slug, mid8)
+    return meta_is_genuinely_legacy(_load_mission_meta(repo_root, mission_slug, mid8))
+
+
+def meta_is_genuinely_legacy(meta: Mapping[str, Any] | None) -> bool:
+    """The one genuinely-legacy classification, over an already-read ``meta.json``.
+
+    ``None`` (no readable ``meta.json``) is never legacy. Otherwise legacy iff
+    ``coordination_branch`` is falsy AND the stored topology is ``None`` (absent
+    or malformed) AND the mission is not ``flattened``. The warning, the write
+    routing and the lane status exclusion all read this one predicate.
+    """
     if meta is None:
         return False
     # belt-and-suspenders: call site sits inside `if legacy_mode:` (which requires
