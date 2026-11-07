@@ -13,7 +13,7 @@
       "wp": "WP01"
     },
     "#7061": {
-      "evidence_ref": "Commit c2d98001a9; red-first 3 failed -> 3 passed; matrix 4 passed; owning file 102 passed; nightly on merged commit still pending.",
+      "evidence_ref": "Commit ccf064df7b; red-first 3 failed -> 3 passed; matrix 4 passed; owning file 102 passed; nightly on merged commit still pending.",
       "fr": "FR-001",
       "nfr": "NFR-001",
       "repo": "spec-kitty/spec-kitty",
