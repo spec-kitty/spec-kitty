@@ -1128,7 +1128,9 @@ class MergeOutcomeVerifier:
         widens attribution on its own (see
         :func:`resolve_external_dependency_refs`).
 
-        NON-content commits are never flagged: merge commits (empty patch-id) and
+        NON-content commits are never flagged: a merge commit that adds nothing beyond
+        its parents (empty ``--remerge-diff``, #7307; a merge with its own content is
+        content, attributable only as an approved lane's reviewed dependency merge) and
         spec-kitty housekeeping commits (status/meta/matrix/retrospective
         projections — every changed path is bookkeeping) are excluded from the
         content set so a legitimate merge never false-fails (NFR-004). Bounded to
@@ -3198,6 +3200,35 @@ def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, obj
     return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
 
 
+def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, object]], presence: _PresenceScope | None) -> tuple[str, ...]:
+    """The approval stamps of *lane*'s WPs that are in an approved membership lane (#7307); canceled WPs never count."""
+    if presence is None:
+        return ()
+    stamps: list[str] = []
+    for wp in getattr(lane, "wp_ids", ()):
+        stamp = presence.approval_stamps.get(wp)
+        if stamp and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES:
+            stamps.append(stamp)
+    return tuple(stamps)
+
+
+def _drop_unreviewed_merges(repo_root: Path, spine: list[str], stamps: Sequence[str]) -> list[str]:
+    """*spine* less every merge commit no approval stamp in *stamps* reaches (#7307).
+
+    Returns *spine* itself when nothing is dropped. A merge whose parents cannot be read
+    is dropped (attributes less; the verifier then REFUSEs on its own probe error).
+    """
+    kept: list[str] = []
+    for sha in spine:
+        try:
+            merge = is_merge_commit(repo_root, sha)
+        except GitProbeError:
+            continue
+        if not merge or any(sha_reachable_from(repo_root, sha, stamp) for stamp in stamps):
+            kept.append(sha)
+    return spine if len(kept) == len(spine) else kept
+
+
 def _own_dependency_merges(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -3686,6 +3717,8 @@ class _PresenceScope:
     carried: frozenset[str] | None
     lane_bases: Mapping[str, str | None]
     canceled: frozenset[str]
+    #: Each WP's newest approval stamp (:func:`approval_stamp`), ``None`` when unstamped (#7307).
+    approval_stamps: Mapping[str, str | None] = field(default_factory=dict)
 
 
 def _presence_scope(
@@ -3704,7 +3737,8 @@ def _presence_scope(
         carried = None
     lane_bases = {lane.lane_id: first_governed_open_stamp(events, frozenset(lane.wp_ids)) for lane in lanes_manifest.lanes} if events is not None else {}
     canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base)
-    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled)
+    stamps = {wp: approval_stamp(events, wp) for lane in lanes_manifest.lanes for wp in lane.wp_ids} if events is not None else {}
+    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps)
 
 
 def _presence_range_unreadable_refusal(
@@ -3870,6 +3904,13 @@ def _collect_authored(
         first_parent = _lane_first_parent_spine(repo_root, base, branch)
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
         full_blobs, full_deletions = _final_authored_walk(repo_root, full_authored)
+        # #7307 review: a merge on the spine counts toward this lane's authorship only
+        # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
+        # tip). A merge made after the approval is the lane's unreviewed work: the
+        # approved bound skips merges, so it is left out here and the verifier judges
+        # what it adds beyond its parents (a clean merge carries nothing; any own
+        # content FAILs), on the closed-world and the squash blob axes alike.
+        reviewed = full_authored if is_planning_lane(lane) else _drop_unreviewed_merges(repo_root, full_authored, _approved_stamps(lane, work_packages, presence))
         # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
         # spine, unchanged — approved content must be PRESENT on the target.
         if not is_planning_lane(lane):
@@ -3906,24 +3947,24 @@ def _collect_authored(
         # content (e.g. when its first-claim stamp was recorded at a later tip
         # rather than the creation base). Gating on ``depends_on_lanes`` keeps
         # the fix to the exact shape it closes.
-        authored = full_authored
-        lane_blobs, lane_deletions = full_blobs, full_deletions
+        authored = reviewed
+        lane_blobs, lane_deletions = (full_blobs, full_deletions) if reviewed is full_authored else _final_authored_walk(repo_root, reviewed)
         lane_own_base = presence.lane_bases.get(lane.lane_id) if (presence is not None and not is_planning_lane(lane) and lane.depends_on_lanes) else None
         if lane_own_base is not None:
-            own = lane_own_commits(repo_root, base, full_authored, [lane_own_base])
-            if len(own) != len(full_authored):
-                authored = [sha for sha in full_authored if sha in own]
+            own = lane_own_commits(repo_root, base, reviewed, [lane_own_base])
+            if len(own) != len(reviewed):
+                authored = [sha for sha in reviewed if sha in own]
                 lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
         for sha in authored:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
-        # #7307: the lane's own dependency merges stay its authorship by SHA even
-        # when the #5968 own-base bound above drops them (they predate the first
-        # claim stamp). Only the SHA: the verifier judges what the merge adds
-        # beyond its parents, and its blobs stay the dependency's (#5968).
-        shas |= _own_dependency_merges(repo_root, lanes_manifest, lane, work_packages, full_authored)
+        # #7307: the lane's own REVIEWED dependency merges (``reviewed`` holds only
+        # merges an approval stamp reaches) stay its authorship by SHA even when the
+        # #5968 own-base bound above drops them (they predate the first claim stamp).
+        # Only the SHA: their blobs stay the dependency's (#5968).
+        shas |= _own_dependency_merges(repo_root, lanes_manifest, lane, work_packages, reviewed)
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)

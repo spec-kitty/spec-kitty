@@ -421,11 +421,19 @@ whose parents both touched one region.
   carries no content of its own, and its parents' commits are judged on their own. A
   resolution is content, also one that kept one side (an empty `--cc` diff, which the old skip
   let through).
-- **A lane's own dependency merge is attributed to that lane.** A first-parent spine commit of
-  an approved lane whose every non-first parent is reachable from a declared dependency lane
-  (`depends_on_lanes`) that is not fully canceled is added to the authorship by SHA
-  (`wp_attribution.lane_dependency_merges`), past the own-base bound. Only the SHA: its blobs
-  stay the dependency's, so the #5968 squash bound is unchanged.
+- **A lane's own reviewed dependency merge is attributed to that lane.** A first-parent spine
+  commit of an approved lane whose every non-first parent is reachable from a declared
+  dependency lane (`depends_on_lanes`) that is not fully canceled is added to the authorship by
+  SHA (`wp_attribution.lane_dependency_merges`), past the own-base bound, but only when an
+  approval stamp of one of the lane's approved work packages reaches it: it was in a reviewed
+  tip. Only the SHA: its blobs stay the dependency's, so the #5968 squash bound is unchanged.
+- **A merge after the approval is not reviewed work (closed in review).** The approved bound
+  (#5668) skips merge commits, so a dependency merge made after the approval, with content
+  folded in, would have shipped unreviewed under the SHA exemption. Every merge on an approved
+  code lane's spine that no approval stamp reaches is left out of that lane's authorship
+  (`reconciliation._drop_unreviewed_merges`), for the SHA, patch-id and blob axes alike. The
+  verifier then judges it by its remerge-diff: a clean one carries nothing, one with its own
+  content FAILs, under merge, rebase and squash. A canceled WP's stamp never counts.
 - **Still refused.** A merge with a resolution of its own that is not a lane's own dependency
   merge, and any foreign commit, stay un-attributable and FAIL.
 - **Fail-closed.** `--remerge-diff` needs git 2.36 or newer. An older or unreadable git, or a
