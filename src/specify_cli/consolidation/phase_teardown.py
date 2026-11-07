@@ -24,6 +24,7 @@ from rich.markup import escape
 from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.vcs.git import git_merge_base
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
@@ -867,16 +868,28 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
 
 
 def _topic_primary_window(run: _MergeRunState) -> tuple[str, str, str] | None:
-    """``(base, topic_ref, target)`` for a default Mission whose topic branch still exists, else ``None``."""
+    """``(base, topic_ref, target)`` for a default Mission whose topic branch still exists, else ``None``.
+
+    With no recorded anchor (no checkpoint on a fresh run, no persisted pre-mutation tip on a
+    ``--resume``) the window starts at ``merge-base(topic, target)`` instead of being skipped;
+    no merge base refuses (:class:`CoordinationTeardownError`, branch kept) rather than failing open.
+    """
     from specify_cli.lanes.single_branch_landing import lands_topic_branch
 
-    base = _topic_primary_window_base(run)
     branch = run.lanes_manifest.mission_branch
-    if base is None or not lands_topic_branch(run.main_repo, run.lanes_manifest):
+    target = run.lanes_manifest.target_branch
+    if not lands_topic_branch(run.main_repo, run.lanes_manifest):
         return None
     if not _resolve_ref_sha(run.main_repo, f"refs/heads/{branch}"):
         return None
-    return base, f"refs/heads/{branch}", run.lanes_manifest.target_branch
+    base = _topic_primary_window_base(run) or git_merge_base(run.main_repo, f"refs/heads/{branch}", target)
+    if base is None:
+        raise CoordinationTeardownError(
+            f"topic branch {branch!r} has no recorded anchor and no merge base with {target!r}, so its PRIMARY changes cannot be "
+            f"compared; the branch was NOT deleted. Review `git diff {target} {branch}`, land them on {target!r}, then run "
+            "`spec-kitty consolidate --resume`."
+        )
+    return base, f"refs/heads/{branch}", target
 
 
 def _topic_primary_window_base(run: _MergeRunState) -> str | None:
