@@ -470,13 +470,13 @@
     },
     {
       "criterion_id": "FR-071",
-      "description": "Verify FR-071 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-071 Content after the last approval refuses: consolidate to refuse `LANE_MOVED_AFTER_APPROVAL` at claim time when the Mission branch carries content committed after the newest approval stamp, so that late content never lands under the verified banner.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-i:tests/consolidation/test_write_branch_bound.py::test_commit_after_the_last_approval_refuses; lane-i:tests/integration/test_single_branch_approval_windows.py::test_late_commit_after_last_approval_refuses; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:21.118939+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-072",
