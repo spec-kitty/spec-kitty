@@ -306,10 +306,7 @@ def test_real_home_fingerprint_constants_match_java_literals() -> None:
 
     assert prompt_literal == SPEC_KITTY_PROMPT_NAMESPACE, f"Java literal {prompt_literal!r} does not match production constant {SPEC_KITTY_PROMPT_NAMESPACE!r}"
 
-    # For gate-locks, we check against the string used in pre_review_gate.py
-    # Since it's not defined as a constant, we extract it from the usage
-    # We can't easily get the actual path without constructing it, but we know
-    # the string literal should be "gate-locks" based on the usage in line 282
-    # Instead, we'll verify that the Java literal matches what we expect from the source
-    expected_gate_locks = "gate-locks"
-    assert gate_literal == expected_gate_locks, f"Java literal {gate_literal!r} does not match expected gate-locks string {expected_gate_locks!r}"
+    gate_lock_owner = REPO_ROOT / "src" / "specify_cli" / "review" / "pre_review_gate.py"
+    assert f'"{gate_literal}"' in gate_lock_owner.read_text(encoding="utf-8"), (
+        f"Java literal {gate_literal!r} no longer matches the gate-lock directory used by {gate_lock_owner}"
+    )
