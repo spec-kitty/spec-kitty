@@ -22,23 +22,22 @@ break the workflow.
 
 ## The Core Boundary
 
-**Python handles infrastructure git** — worktrees, lane commits, merges,
-cleanup. **Agents handle content git** — implementation commits, rebases,
+**Python handles infrastructure git** — worktrees, status commits, lane
+consolidation, cleanup. **Agents handle content git** — implementation commits, rebases,
 conflict resolution.
 
 | Git Operation | Who Does It | When |
 |---|---|---|
 | `git worktree add` | Python | `spec-kitty implement WP##` |
 | `git commit` (planning artifacts) | Python | Before worktree creation |
-| `git commit` (lane transitions) | Python | WP moves through claimed/in_progress/for_review/in_review |
+| `git commit` (status events) | Python | Every lifecycle command, on the resolved status surface (never a lane branch) |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
-| `git merge`/auto-rebase (stale lane sync) | Python or **Agent** | When stale checks classify the lane as recoverable |
-| `git merge` (lane → mission → target) | Python | `spec-kitty merge` |
-| `git push` | Python (opt-in) | `spec-kitty merge --push` only |
-| `git push` | **Agent** | Any other push scenario |
-| Conflict resolution | **Agent** | During rebase or manual merge |
-| `git worktree remove` | Python | After successful merge |
-| `git branch -d` (cleanup) | Python | After successful merge |
+| Auto-rebase (stale lane refresh) | Python | `spec-kitty consolidate`, and the lane sync point `spec-kitty agent action implement` runs |
+| Lane consolidation (lane → mission → target) | Python | `spec-kitty consolidate` (local only; no `--push`) |
+| `git push` | **Agent** | Only when the user asks (a topic branch, never `main`) |
+| Conflict resolution | **Agent** | When an auto-rebase stops on a conflict |
+| `git worktree remove` | Python | Consolidation's final step, after the verified landing, under the destructive-operation guard |
+| `git branch -d` (cleanup) | Python | Consolidation's final step, same guard |
 
 ---
 
@@ -99,44 +98,43 @@ work-in-progress:
 3. Commit
 4. Pop stash to restore previous staging
 
-### 4. Status Event Log (No Auto-Commit)
+### 4. Status Event Log (Written by the CLI)
 
-`emit_status_transition()` appends to `status.events.jsonl`, updates
-`status.json`, and modifies WP frontmatter — but does **NOT** auto-commit
-these files. They accumulate as uncommitted changes until the next lane
-transition auto-commit or the agent commits them.
+Every lifecycle command writes its status event to the resolved status surface
+(the coordination branch for coordination topologies, otherwise the Mission
+branch) and commits it there itself. Lane checkouts carry no status files.
+Status files are never committed by hand; read status with
+`spec-kitty agent tasks status --mission <slug>`.
 
-This is by design — status changes happen frequently and committing each
-one would create excessive git noise.
+### 5. Consolidation
 
-### 5. Merge Execution
+Run `spec-kitty accept --mission 042-mission` before consolidation once every
+WP is approved. Acceptance is a readiness nudge and artifact check;
+consolidation still owns the final mission-close transition.
 
-Run `spec-kitty accept --mission 042-mission` before merge once every WP is
-approved. Acceptance is a readiness nudge and artifact check; merge still owns
-the final mission-close transition.
+`spec-kitty consolidate --mission 042-mission` consolidates each lane branch
+into the mission branch (auto-rebasing a stale lane first), lands the mission
+branch on the target branch with the selected strategy, verifies the landing,
+and then, as its final step, removes the lane and coordination checkouts and
+branches. It prints a cleanup report: `Removed`, `Kept` (a guard refused the
+removal; the line names the code) or `Retained` (retained by policy). A `Kept`
+lane does not fail the run once the landing verified.
 
-`spec-kitty merge --mission 042-mission` runs the full merge sequence:
-
-Python creates a detached merge worktree from the target branch, merges lane
-branches into the mission branch, merges the mission ref using the selected
-strategy, advances the target branch ref to the detached result, then removes
-merged lane worktrees and branches.
-
-Merge order follows the dependency graph (topological sort).
+Consolidation order follows the dependency graph (topological sort).
 
 Supports 3 strategies: `squash` (default), `merge` (--no-ff), `rebase`.
 
-`--push` is opt-in — without it, the merge is local only.
+Consolidation is local only; it never publishes to the remote.
 
 ### 6. Pre-flight Validation (Read-Only)
 
-Before merge, Python validates:
+Before consolidation, Python validates:
 1. All expected WPs have worktrees
 2. All worktrees are clean (`git status --porcelain`)
 3. Target branch is not behind origin (`git rev-list --left-right --count`)
 4. WPs in done lane with missing worktrees are skipped (already merged)
 
-If any check fails, merge is blocked with specific error messages.
+If any check fails, consolidation is blocked with specific error messages.
 
 ---
 
@@ -155,25 +153,22 @@ git commit -m "feat(WP01): implement auth middleware"
 ```
 
 **Validation:** When the agent tries to move WP to `for_review`, spec-kitty
-checks that the worktree has commits ahead of the base branch
-(`git rev-list --count <base>..HEAD`). If zero commits, the transition is
+checks that the lane branch has commits ahead of its base
+(`git rev-list --count <base>..refs/heads/<lane>`, from the repository root),
+so the check works with no lane checkout. If zero commits, the transition is
 rejected.
 
 ### 2. Refreshing a Stale Lane Workspace
 
-If a lane branch has advanced while you were away:
+The CLI refreshes a stale lane, not the agent. Re-run
+`spec-kitty agent action implement WP## --mission 042-mission`: it runs the
+lane sync point, which auto-rebases the lane onto the mission branch. When
+`spec-kitty consolidate` reports a stale lane, run the command it prints.
+Resolve conflicts by hand only when the CLI stops on one, in the lane checkout
+it names.
 
-```bash
-cd .worktrees/042-mission-lane-a
-spec-kitty implement WP## --mission 042-mission
-```
-
-Let the stale-check and auto-merge classifier decide whether the lane can be
-refreshed automatically from the mission branch. Only perform a manual rebase
-when the CLI reports a conflict that requires agent resolution.
-
-Python displays the lane workspace and branch, but the agent resolves conflicts
-and completes the rebase manually when needed.
+If `implement` refuses with `DESTROYED_LANE` or `LANE_WORK_TIP_UNKNOWN` (the
+lane's branch is gone), follow the command the CLI prints.
 
 ### 3. Multi-Dependency Work
 
@@ -183,13 +178,13 @@ merge sibling lane outputs to reconstruct the lane.
 
 ### 4. Pushing
 
-`spec-kitty merge` only pushes with `--push`. All other pushing is the
-agent's responsibility.
+`spec-kitty consolidate` never pushes. Push a topic branch only when the user
+asks; never push to `main`.
 
 ### 5. Conflict Resolution
 
-If `spec-kitty merge` encounters conflicts, the agent must resolve them.
-Python does not attempt automatic conflict resolution.
+If an auto-rebase stops on a conflict, the agent resolves it in the lane
+checkout the CLI names, commits, and re-runs the command.
 
 ---
 
@@ -228,16 +223,15 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
    → auto-commit: "chore: Start WP01 review"
    → reviewer checks the diff
 
-4. MERGED
+4. CONSOLIDATED
    spec-kitty accept --mission 042-mission
-   spec-kitty merge --mission 042-mission
-   → detached merge worktree validates and advances target branch
-   → git worktree remove .worktrees/042-mission-lane-a --force
-   → git branch -d kitty/mission-042-mission-lane-a
-   → .kittify/workspaces/042-mission-lane-a.json removed
+   spec-kitty consolidate --mission 042-mission
+   → lanes consolidated, landing on the target branch verified
 
-5. CLEANED UP
-   Worktree directory gone, branch deleted, workspace context removed
+5. CLEANED UP (consolidation's final step)
+   → lane checkout and branch removed under the destructive-operation guard
+   → .kittify/workspaces/042-mission-lane-a.json removed
+   → cleanup report: Removed / Kept / Retained
 ```
 
 ---
@@ -260,7 +254,7 @@ edit `.git/hooks/` by hand; use the CLI repair path when hook state is stale.
    for planning artifacts only.
 
 3. **Agent pushes without being asked** — Never auto-push. Only push when
-   the user explicitly requests it or when using `spec-kitty merge --push`.
+   the user explicitly requests it.
 
 4. **Agent modifies other WPs from a worktree** — Each worktree is isolated
    to one WP. Don't modify files belonging to other WPs.
