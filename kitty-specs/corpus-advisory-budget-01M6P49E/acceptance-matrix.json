@@ -1,0 +1,79 @@
+{
+  "mission_slug": "corpus-advisory-budget-01M6P49E",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_nightly_timeout_headroom.py::test_packs_corpus_timeout_cap_meets_recorded_headroom + ::test_packs_corpus_target_reports_a_low_cap_and_a_missing_record (30 < required 31); red on timeout-minutes: 20 before the fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:11.340895+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "workflow # headroom (#5378): max-suite>=19:55 ... directly above timeout-minutes: 31; missing-record branch asserted by tests/ci/test_nightly_timeout_headroom.py::test_packs_corpus_target_reports_a_low_cap_and_a_missing_record",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:16.439098+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "timeout-minutes: 31 = ceil((19:55 + 0:30) x 1.5); tests/ci/test_corpus_suite_budget.py::test_the_recorded_maximum_is_within_the_acceptance_ratio",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:21.654904+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "suite step timeout-minutes: 28 < job 31; tests/ci/test_corpus_suite_budget.py::test_a_missing_step_budget_is_reported + ::test_a_step_budget_at_or_above_the_job_cap_is_reported + ::test_a_step_budget_below_the_measured_p95_is_reported",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:27.150514+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "notice wording INCOMPLETE/advisory/not a test failure; tests/ci/test_corpus_suite_budget.py::test_a_notice_missing_its_wording_is_reported[INCOMPLETE|advisory|not a test failure] + ::test_a_notice_that_cannot_fire_on_a_timeout_is_reported",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:31.958988+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pre-existing live guards re-run green: tests/ci/test_corpus_blocking_home.py (49 passed), tests/architectural/test_ci_corpus_trigger_completeness.py + test_no_duplicate_suite_execution.py (84 passed 1 skipped), tests/ci/test_contracts_routing.py; targeted diff shows no --deselect/-m/continue-on-error/needs/if change",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:36.203348+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/development/reference/ci-gate-mechanics.md advisory-budget bullet + the workflow rationale comment + docs/changelog/unreleased/7206-corpus-advisory-budget.fixed.md",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T15:59:40.181456+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

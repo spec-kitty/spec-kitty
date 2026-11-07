@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "corpus-advisory-budget-01M6P49E",
+  "mission_id": "01M6P49EBJZ15Q06S9XYQE61HX",
+  "mission_branch": "kitty/mission-corpus-advisory-budget-01M6P49E",
+  "target_branch": "issue-7206-corpus-advisory-budget",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/packs.yml",
+        "tests/ci/test_corpus_suite_budget.py",
+        "tests/ci/test_nightly_timeout_headroom.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7206-corpus-advisory-budget.fixed.md",
+        "docs/development/reference/ci-gate-mechanics.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-05T15:15:35.843258+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "f6b18d4aadb6bed0be324d69aca30900cf27b057"
+}

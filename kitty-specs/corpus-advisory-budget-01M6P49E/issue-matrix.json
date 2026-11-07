@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3008": {
+      "evidence_ref": "Context-only: #3008 is why the advisory lane must select corpus tests tree-wide, so no path shard was introduced; nothing owed to it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4437": {
+      "evidence_ref": "Context-only epic: this mission makes one of its residual modes legible (a budget expiry reports INCOMPLETE/advisory, never a pass), it does not close the epic.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5378": {
+      "evidence_ref": "Context-only: reuses the #5378 recorded-headroom convention (formula and comment shape), adds no work to that issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7206": {
+      "evidence_ref": "WP01: timeout-minutes 20->31 derived from the recorded max-suite>=19:55 (#5378 formula), cap guard extended, suite step budget 28 + INCOMPLETE/advisory notice",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
