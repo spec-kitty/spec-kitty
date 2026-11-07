@@ -167,8 +167,10 @@ def primary_surface_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout
         # coordination surface and refuse a fresh, not-yet-materialised mission.)
         return owned.mission_dir
     from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
 
-    return _primary_runtime_feature_dir(repo_root, mission_slug)
+    # FR-002: a lane root re-anchors to the repository root (#6466).
+    return _primary_runtime_feature_dir(canonical_status_read_root(repo_root), mission_slug)
 
 
 def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> Path | None:
