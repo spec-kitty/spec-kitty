@@ -1,7 +1,7 @@
 """#6954 — the command-globalization decision reads the project stamp first.
 
-Scope: unit tests for ``_SafeGlobalizeCommandsBase`` only — no ``upgrade`` run, no
-subprocess. The end-to-end behaviour lives in
+Scope: unit tests for the project-stamped successor migration only — no
+``upgrade`` run, no subprocess. The end-to-end behaviour lives in
 ``tests/upgrade/test_empty_home_command_migrations.py``.
 """
 
@@ -12,14 +12,15 @@ from pathlib import Path
 import pytest
 
 from specify_cli.upgrade.migrations.m_3_1_2_globalize_commands import (
+    _HOLD,
     _KEEP,
     _REMOVE,
-    _HOLD,
     GlobalizeCommandsMigration,
 )
-from specify_cli.upgrade.migrations.m_3_2_0a4_safe_globalize_commands import (
-    SafeGlobalizeCommandsMigration,
+from specify_cli.upgrade.migrations.m_4_0_0rc8_stamp_globalize_commands import (
+    StampGlobalizeCommandsMigration,
 )
+from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
 
 pytestmark = pytest.mark.fast
 
@@ -63,21 +64,15 @@ def _command_file(project: Path, content: str = _MARKED) -> Path:
 def test_boundary_is_decided_by_the_project_stamp(tmp_path: Path, stamp: str | None, expected: bool) -> None:
     """Only a readable stamp at or above the target version is "already global"."""
     project = _project(tmp_path, version=stamp)
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     assert migration._is_past_globalization_boundary(project) is expected
 
 
-def test_residue_safe_sibling_uses_its_own_target_version(tmp_path: Path) -> None:
-    """The threshold comes from ``self.target_version``, so the sibling inherits it."""
-    migration = SafeGlobalizeCommandsMigration()
-
-    below = _project(tmp_path / "below", version="'3.2.0a3'")
-    at = _project(tmp_path / "at", version="'3.2.0a4'")
-
-    assert migration.target_version == "3.2.0a4"
-    assert migration._is_past_globalization_boundary(below) is False
-    assert migration._is_past_globalization_boundary(at) is True
+def test_successor_supersedes_the_shipped_migration() -> None:
+    """The frozen predecessor is a registry no-op; this migration carries the repair."""
+    assert SUPERSEDED_MIGRATIONS[GlobalizeCommandsMigration.migration_id] == StampGlobalizeCommandsMigration.migration_id
+    assert StampGlobalizeCommandsMigration.predecessor_id == GlobalizeCommandsMigration.migration_id
 
 
 def test_dated_project_removes_without_asking_the_machine(tmp_path: Path) -> None:
@@ -89,7 +84,7 @@ def test_dated_project_removes_without_asking_the_machine(tmp_path: Path) -> Non
     """
     project = _project(tmp_path, version="'4.0.0rc8'")
     target = _command_file(project)
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     action, reason = migration._classify(
         target=target,
@@ -106,7 +101,7 @@ def test_undated_project_keeps_the_historical_answer(tmp_path: Path) -> None:
     """No stamp means the machine still decides, exactly as before the fix."""
     project = _project(tmp_path, version=None)
     target = _command_file(project)
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     action, reason = migration._classify(
         target=target,
@@ -124,7 +119,7 @@ def test_unmarked_file_is_held_even_on_a_dated_project(tmp_path: Path) -> None:
     """The user-customisation rule outranks the stamp: no marker means hold."""
     project = _project(tmp_path, version="'4.0.0rc8'")
     target = _command_file(project, _UNMARKED)
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     action, _reason = migration._classify(
         target=target,
@@ -152,7 +147,7 @@ def test_global_replacement_is_asked_of_the_canonical_owner(tmp_path: Path, monk
     (global_dir / "spec-kitty.specify.md").write_text(_MARKED, encoding="utf-8")
     monkeypatch.setattr(agent_commands, "get_global_command_dir", lambda _key: global_dir)
 
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     assert migration._global_command_file_present(".opencode", "commands", "spec-kitty.specify.md")
     assert not migration._global_command_file_present(".opencode", "commands", "spec-kitty.not-a-command.md")
@@ -164,7 +159,7 @@ def test_root_without_an_agent_key_keeps_the_hand_built_shape(tmp_path: Path) ->
     There is no agent key to ask the canonical owner about, so the historical
     ``~/<agent_root>/<subdir>/<file>`` probe is retained rather than guessed away.
     """
-    migration = GlobalizeCommandsMigration()
+    migration = StampGlobalizeCommandsMigration()
 
     # ``.codex`` has no agent key on this tree; the probe must not raise either way.
     assert migration._global_command_file_present(".codex", "prompts", "spec-kitty.definitely-absent.md") is False

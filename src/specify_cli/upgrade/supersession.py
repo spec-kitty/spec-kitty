@@ -49,6 +49,10 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     # after 3.1.2 and wrote 14 files back while the retirees were skipped.
     "2.1.4_enforce_command_file_state": "3.2.0a4_safe_globalize_commands",  # #6547
     "3.0.2_restore_prompt_commands": "3.2.0a4_safe_globalize_commands",  # #6547
+    # The shipped migration decided keep/remove from the operator's home. The
+    # successor reads the project's stamp first and leaves the shipped bytes
+    # frozen (#6954).
+    "3.1.2_globalize_commands": "4.0.0rc8_stamp_globalize_commands",
 }
 
 #: Class attributes the substitute carries over from the shipped class.

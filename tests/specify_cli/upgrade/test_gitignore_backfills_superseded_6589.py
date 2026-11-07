@@ -38,6 +38,7 @@ from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import Consistency
 from specify_cli.upgrade.migrations.m_2_1_4_enforce_command_file_state import EnforceCommandFileStateMigration
 from specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands import RestorePromptCommandsMigration302
 from specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json import NormalizeStatusJsonMigration
+from specify_cli.upgrade.migrations.m_3_1_2_globalize_commands import GlobalizeCommandsMigration
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import AgentsSkillsGitignoreBackfillMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_narrow_agent_gitignore import NarrowAgentGitignoreMigration
@@ -54,7 +55,7 @@ NARROW = NarrowAgentGitignoreMigration.migration_id
 TARGET = "4.0.0rc8"
 
 #: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills, the #6669 residue-aware
-#: pairs and the #6547 pre-globalize command writers).
+#: pairs, the #6547 pre-globalize command writers and the #6954 command-globalization predecessor).
 SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
     cls.migration_id: cls
     for cls in (
@@ -67,6 +68,7 @@ SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
         UnifyCharterActivationMigration,
         EnforceCommandFileStateMigration,
         RestorePromptCommandsMigration302,
+        GlobalizeCommandsMigration,
     )
 }
 
