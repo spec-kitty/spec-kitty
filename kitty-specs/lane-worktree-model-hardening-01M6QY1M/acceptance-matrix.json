@@ -120,13 +120,13 @@
     },
     {
       "criterion_id": "FR-014",
-      "description": "Verify FR-014 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-014 Honest refusal text and option-safe refs: the \"no commits\" refusal to name the branch and base without asking me to commit in a lane worktree, and a ref beginning with `-` never to be read as an option, so that the remedy is true and the probe is safe.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-e:tests/specify_cli/lanes/test_for_review_gate_parity.py::test_no_commit_refusal_names_branch_not_worktree; lane-e:tests/lanes/test_lane_branch_commit_probe.py::test_dash_prefixed_ref_not_option; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP08-s2-for-review-gate-on-lane-branch/review-cycle-3.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:12:24.621474+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-020",
