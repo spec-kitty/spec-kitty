@@ -19,6 +19,7 @@ from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.cli import selector_resolution
+from specify_cli.core.mission_creation import MissionCreationResult
 from specify_cli.cli.commands.agent.mission import app as agent_mission_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.cli.commands.lifecycle import tasks as lifecycle_tasks
@@ -391,6 +392,23 @@ def test_mission_current_feature_with_mission_rejected(tmp_path: Path) -> None:
     assert "no such option" in result.output.lower()
 
 
+def _new_thing_result(feature_dir: Path) -> MissionCreationResult:
+    """A real ``MissionCreationResult`` so new result fields cannot drift the fakes."""
+    return MissionCreationResult(
+        feature_dir=feature_dir,
+        mission_slug="new-thing",
+        mission_number=77,
+        meta={
+            "mission_type": "software-dev",
+            "slug": "new-thing",
+            "friendly_name": "New Thing",
+            "created_at": "2026-04-08T00:00:00Z",
+        },
+        target_branch="main",
+        current_branch="main",
+    )
+
+
 def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "new-thing"
     feature_dir.mkdir(parents=True)
@@ -398,25 +416,7 @@ def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
 
     def _fake_create_mission_core(**kwargs):
         captured.update(kwargs)
-        return SimpleNamespace(
-            mission_slug="new-thing",
-            mission_number="077",
-            meta={
-                "mission_type": "software-dev",
-                "slug": "new-thing",
-                "friendly_name": "New Thing",
-                "created_at": "2026-04-08T00:00:00Z",
-            },
-            feature_dir=feature_dir,
-            target_branch="main",
-            current_branch="main",
-            origin_binding_attempted=False,
-            origin_binding_succeeded=False,
-            origin_binding_error=None,
-            owned_checkout=None,
-            created_files=[],
-            uncommitted_files=[],
-        )
+        return _new_thing_result(feature_dir)
 
     with (
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
@@ -441,25 +441,7 @@ def test_agent_mission_create_alias_succeeds_with_warning(
 
     def _fake_create_mission_core(**kwargs):
         captured.update(kwargs)
-        return SimpleNamespace(
-            mission_slug="new-thing",
-            mission_number="077",
-            meta={
-                "mission_type": "software-dev",
-                "slug": "new-thing",
-                "friendly_name": "New Thing",
-                "created_at": "2026-04-08T00:00:00Z",
-            },
-            feature_dir=feature_dir,
-            target_branch="main",
-            current_branch="main",
-            origin_binding_attempted=False,
-            origin_binding_succeeded=False,
-            origin_binding_error=None,
-            owned_checkout=None,
-            created_files=[],
-            uncommitted_files=[],
-        )
+        return _new_thing_result(feature_dir)
 
     with (
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),

@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.23.0`
+- `CONTRACT_VERSION`: `1.24.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -227,6 +227,25 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   must handle it. The code appears in `data.preflight_error_code(s)` and
   `data.evidence_error_codes`, so the contract-visible error-code set grows, a minor bump; no field
   or `error_code` is removed or renamed.
+- `1.24.0` — one bump for three additive fields (Mission lane-worktree-model-hardening, DM
+  `01M6R0BJQ6Q1MV6492EH6HB66H`):
+  - `consolidate-mission` success `data` gains `lane_cleanup`, one object per code lane (see
+    [`data.lane_cleanup`](#consolidate-mission-datalane_cleanup)). The mission branch is deleted
+    first, then the lanes go through the same lane-cleanup module `spec-kitty consolidate` uses.
+    A lane that cannot be removed after the landing is reported there as `kept` and the envelope
+    stays `success: true`; it used to fail the call (a `PREFLIGHT_FAILED` or a raw
+    `DestructiveOpRefused` envelope after the target had moved). `data.teardown_error_code` is now
+    coordination-only.
+  - `specify` gains `topology_source` (`explicit` \| `owned_checkout` \| `default`) and
+    `topology_provisional` (`true` when no `--topology` was given: the topology is settled at the
+    first `tasks`) and `target_replacement` (`null`, or the implicit target replaced because it was
+    another Mission's branch).
+  - `tasks` gains `topology_decision`, the finalize-tasks settlement record (`settled_this_run`,
+    `topology_source`, `provisional_topology`, `settled_topology`, `rule`, `wp_count`,
+    `code_lane_count`, `target_protected`, `preview`).
+
+  Additive fields, and a call that used to fail after a landing now succeeds, so a minor bump; no
+  field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -234,7 +253,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.23.0",
+  "contract_version": "1.24.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -470,8 +489,16 @@ spec-kitty orchestrator-api specify \
 |---|---|---|
 | `--mission` | yes | Mission slug to create. |
 | `--mission-type` | yes | Blueprint key (e.g. `software-dev`). |
-| `--topology` | no | Create-time mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`. Defaults to the context-derived default (matches the host CLI's own `--topology` default) when omitted. |
+| `--topology` | no | Mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`, settled at create. When omitted, create mints one Mission topic branch on any target and the first `tasks` settles `single_branch` or `lanes_with_coord` by size; `lanes` and `coord` are explicit-only (same default as the host CLI). |
 | `--policy` | yes | Policy metadata JSON (see [Required Flags](#required-flags)). |
+
+Response `data` (contract >= 1.24.0) also carries:
+
+| Key | Meaning |
+|---|---|
+| `topology_source` | `explicit` (`--topology` given), `owned_checkout`, or `default` (no `--topology`). |
+| `topology_provisional` | `true` when no `--topology` was given: `topology` is provisional and is settled at the first `tasks` (see `topology_decision` there). `false` otherwise. |
+| `target_replacement` | `null`, or, when no `--topology` was given and the checked-out branch is another Mission's branch, the replacement the create made: `replaced_branch`, `owning_mission`, `target_branch` (the target chosen instead) and `remedy` (pass `--target-branch`). |
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_ALREADY_EXISTS` (the mission-creation delegate refused a duplicate —
@@ -523,6 +550,20 @@ spec-kitty orchestrator-api tasks \
   --mission 090-orchestrator-driven-mission \
   --policy '{"orchestrator_id":"ci","orchestrator_version":"1.0.0","agent_family":"ci-bot","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}'
 ```
+
+Response `data` (contract >= 1.24.0) also carries `topology_decision`, present on every successful
+run and on `--validate-only`:
+
+| Key | Meaning |
+|---|---|
+| `settled_this_run` | `true` when this run settled a provisional topology; `false` when it was already settled (explicit, owned checkout, legacy, or an earlier `tasks`). |
+| `topology_source` | `explicit` \| `owned_checkout` \| `default` \| `null` (legacy `meta.json`). |
+| `provisional_topology` | The provisional topology before this run; `null` when `settled_this_run` is `false`. |
+| `settled_topology` | The stored topology after this run; a default settlement yields only `single_branch` or `lanes_with_coord`. |
+| `rule` | `wp_count_le_2` \| `code_lanes_le_1` \| `lanes_with_coord` \| `null`. |
+| `wp_count` / `code_lane_count` | Non-canceled work packages (planning-artifact ones included) / code lanes (without `lane-planning`). |
+| `target_protected` | Informational: the outcome is the same on an unprotected target. |
+| `preview` | `true` under `--validate-only`: nothing was written. |
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `TASKS_FINALIZE_FAILED` (delegate call failed with no
@@ -1147,6 +1188,26 @@ then contacts no remote, never refuses on freshness, and carries one warning in
 `data.origin_warnings` and on stderr saying that origin was not checked and stale evidence is
 accepted. Use it only where you cannot reach the remote and accept that a teammate's newer
 status events or lane commits go unseen: a rejection pushed to origin can then land as done.
+
+### `consolidate-mission`: `data.lane_cleanup`
+
+(contract >= 1.24.0) On success, `data.lane_cleanup` lists every code lane of the Mission in
+`lanes.json` order. Cleanup runs after the landing, mission branch first, then the lanes; it
+never fails the envelope.
+
+| Key | Meaning |
+|---|---|
+| `lane_id` | The lane, e.g. `lane-a`. |
+| `branch` | The lane branch (`kitty/mission-<slug>-<lane>`). |
+| `worktree` | The lane worktree, relative to the repository root (`.worktrees/<slug>-<lane>`). |
+| `outcome` | `removed`, `kept` (the cleanup could not prove the removal safe) or `retained_by_policy` (`retain_worktrees` / `retain_branches` in `meta.json`). |
+| `code` | When `kept`: the refusal code, e.g. `MERGE_UNSAFE_WORKTREE_DIRTY`, `BRANCH_HAS_UNIQUE_COMMITS`, `WORKTREE_REMOVE_REFUSED_BY_GIT`, `PROCESS_IN_WORKTREE`, `PROCESS_PROOF_UNAVAILABLE` (running processes cannot be checked on this platform). `null` otherwise. |
+| `remedy` | When `kept`: what to do first. |
+| `command` | When `kept`: the command to run afterwards, `spec-kitty doctor workspaces --prune`. |
+| `recreate` | When `removed` and a branch was deleted: `git branch <branch> <sha>` restores it. |
+
+`spec-kitty consolidate` prints the same outcomes in its "Lane cleanup" block and exits 0 after a
+verified landing whatever they are.
 
 ### `consolidate-mission`: `data.teardown_error_code`
 

@@ -9,8 +9,8 @@ Public surface:
   (``error_code = "COORDINATION_WORKTREE_BRANCH_MISMATCH"``)
 - :func:`lane_sparse_checkout_patterns` — pure helper returning the pattern
   lines that lane worktrees use
-- :func:`register_lane_sparse_checkout` — apply the sparse-checkout policy
-  to a newly created lane worktree
+  (``specify_cli.lanes.lane_checkout.exclude_lane_status_files`` applies
+  them; it is the one way to do so)
 
 The coordination worktree is the single writer of ``status.events.jsonl`` /
 ``status.json``. Lane worktrees use git ``sparse-checkout`` (non-cone mode)
@@ -46,7 +46,6 @@ from specify_cli.coordination.workspace import (
     CoordinationWorkspace,
     CoordinationWorkspaceBranchMismatch,
     lane_sparse_checkout_patterns,
-    register_lane_sparse_checkout,
 )
 
 __all__ = [
@@ -56,7 +55,6 @@ __all__ = [
     "CoordinationWorkspace",
     "CoordinationWorkspaceBranchMismatch",
     "lane_sparse_checkout_patterns",
-    "register_lane_sparse_checkout",
     # Policy (WP05)
     "WorkflowMutationPolicy",
     # Transaction (WP05)

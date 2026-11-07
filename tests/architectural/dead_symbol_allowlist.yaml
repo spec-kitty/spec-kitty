@@ -350,7 +350,16 @@ categories:
       and by the WP06 reconciliation test suite (tests/consolidation/test_reconciliation.py), not yet
       imported from a second src/ module. External consumers land with the Epic #5001 follow-ups.'
     requires_issue: false
+  category_c_topology_settlement_7282:
+    rationale: 'C. Topology settlement helpers (#7282, ADR 2026-11-06-3, Mission lane-worktree-model-hardening
+      WP13). ``count_code_lanes`` is the size rule''s code-lane count; its src/ caller is the first-finalize
+      settlement WP14 adds. Burns down when WP14 lands.'
+    requires_issue: true
 entries:
+- module: specify_cli.lanes.compute_and_persist
+  name: count_code_lanes
+  category: category_c_topology_settlement_7282
+  issue: '#7282'
 - module: charter.activation._catalog_miss
   name: CharterCatalogMissError
   category: category_a_slice_f_deferred
@@ -1207,6 +1216,11 @@ widened_grandfathered_470:
     rescued by an intra-module reference.'
   issue: '#633'
   entries:
+  # lane-worktree-model-hardening WP13 (#7282, ADR 2026-11-06-3): the settlement writer that
+  # re-stamps a default Mission's topic branch as its coordination branch. Its src/ caller is
+  # the first-finalize settlement WP14 adds; the entry is removed when WP14 lands.
+  - module: specify_cli.mission_metadata
+    name: restamp_topic_branch_as_coordination
   # issue-6164-remove-hosted-from-core (#6164): these three kept-core, non-__all__ public
   # seams lost their sole in-core caller when the SaaS-first origin-binding chain
   # (tracker/origin.py + tracker/origin_consumer.py + tracker/saas_service.py) was removed.
@@ -1310,10 +1324,6 @@ widened_grandfathered_470:
     name: count_wp_section_subtask_rows
   - module: specify_cli.core.subtask_rows
     name: uncheck_wp_section_subtask_rows
-  - module: specify_cli.core.worktree
-    name: create_feature_worktree
-  - module: specify_cli.core.worktree
-    name: create_wp_workspace
   - module: specify_cli.doc_analysis.doc_state
     name: ensure_documentation_state
   - module: specify_cli.doc_analysis.doc_state

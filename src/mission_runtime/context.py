@@ -48,6 +48,12 @@ class MissionTopology(enum.Enum):
     member: it is a historical/metadata provenance flag, never a shape value — a
     mission that was COORD and had its coordination_branch dropped is now
     SINGLE_BRANCH/LANES + a `flattened` provenance mark (see spec Domain Language).
+
+    A Mission created without ``--topology`` is stored as SINGLE_BRANCH on its
+    Mission topic branch while it is provisional (``meta.json``
+    ``topology_source: default``, ``topology_settled: false``); its first
+    ``finalize-tasks`` settles it once, to SINGLE_BRANCH or LANES_WITH_COORD
+    (ADR 2026-11-06-3). LANES and COORD come only from an explicit ``--topology``.
     """
 
     SINGLE_BRANCH = "single_branch"  # no coord, no lanes
