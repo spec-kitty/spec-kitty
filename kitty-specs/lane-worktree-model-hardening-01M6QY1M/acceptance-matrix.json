@@ -200,13 +200,13 @@
     },
     {
       "criterion_id": "FR-034",
-      "description": "Verify FR-034 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-034 Lane-tip ref cleared only after a confirmed delete: a lane-tip ref cleared only once its branch deletion is confirmed, so that the last reference to an unabsorbed lane survives a missing branch.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-l:tests/consolidation/test_lane_cleanup_module.py::test_missing_branch_keeps_its_lane_tip_ref; lane-l:tests/consolidation/test_lane_cleanup_module.py::test_unique_commits_keep_the_branch_and_its_tip; lane-l:tests/consolidation/test_lane_cleanup_kept_report.py::test_missing_branch_keeps_lane_tip_ref; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:05.966777+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-035",
