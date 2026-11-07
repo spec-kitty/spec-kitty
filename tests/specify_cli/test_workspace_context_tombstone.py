@@ -354,7 +354,7 @@ def test_merge_completion_keeps_context_when_keep_worktree_requested(tmp_path: P
 # #6450 item (4): a TRACKED workspace context must be COMMITTED when tombstoned
 # ---------------------------------------------------------------------------
 #
-# ``_remove_lane_worktrees`` runs AFTER ``_phase_commit_and_assert`` (the run's
+# The lane legs (``_lane_cleanup_report``, S5) run AFTER ``_phase_commit_and_assert`` (the run's
 # only bookkeeping commit), so in a project that tracks
 # ``.kittify/workspaces/<slug>-<lane>.json`` the tombstone used to leave a
 # tracked-file deletion in the working tree of a run that reported success.
@@ -388,8 +388,10 @@ def _run_tombstones(run: _executor._MergeRunState) -> None:
     with (
         patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
+        # The ``cleanup_started`` marker persists the run's record; this seam test has none on disk.
+        patch.object(phase_teardown, "save_state"),
     ):
-        phase_teardown._remove_lane_worktrees(run)
+        phase_teardown._lane_cleanup_report(run)
 
 
 def _subject_and_paths(repo: Path) -> tuple[str, list[str]]:

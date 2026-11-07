@@ -462,7 +462,7 @@ def test_remove_lane_worktrees_removes_created_worktree_and_tombstones_context(t
     context_path.write_text("{}", encoding="utf-8")
 
     run = _run(mission, _state(mission))
-    phase_teardown._remove_lane_worktrees(run)
+    phase_teardown._lane_cleanup_report(run)
 
     assert not wt_path.exists(), "the allocator-CREATED worktree must be removed"
     assert not context_path.exists(), "the lane's workspace-context JSON must be tombstoned"
@@ -475,7 +475,7 @@ def test_delete_lane_branches_deletes_created_branch(tmp_path: Path) -> None:
     assert _branch_exists(mission.repo_root, branch)
 
     run = _run(mission, _state(mission))
-    phase_teardown._delete_lane_branches(run)
+    phase_teardown._lane_cleanup_report(run)
 
     assert not _branch_exists(mission.repo_root, branch), "the allocator-CREATED branch must be deleted"
 
@@ -483,7 +483,7 @@ def test_delete_lane_branches_deletes_created_branch(tmp_path: Path) -> None:
 def test_delete_lane_branches_skips_planning_lane(tmp_path: Path) -> None:
     mission = shape_backfilled_legacy(tmp_path, with_planning_lane=True)
     run = _run(mission, _state(mission))
-    phase_teardown._delete_lane_branches(run)  # no raise; target branch ("main") is untouched
+    phase_teardown._lane_cleanup_report(run)  # no raise; target branch ("main") is untouched
     assert _branch_exists(mission.repo_root, mission.manifest.target_branch)
 
 
@@ -499,8 +499,7 @@ def test_cleanup_full_run_removes_no_orphans(tmp_path: Path) -> None:
 
     run = _run(mission, _state(mission))
     run.baseline_mission_id = mission.mission_id  # the pre-fix orphaning input
-    phase_teardown._remove_lane_worktrees(run)
-    phase_teardown._delete_lane_branches(run)
+    phase_teardown._lane_cleanup_report(run)  # S5: the lane legs, worktree then branch, per lane
 
     assert not wt_path.exists()
     assert not _branch_exists(mission.repo_root, branch)
