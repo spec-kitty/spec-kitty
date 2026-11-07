@@ -38,6 +38,7 @@ class StatusReadSource(StrEnum):
     COORD_WORKTREE = "coord_worktree"          # coord / lanes_with_coord, worktree materialized
     COORD_BRANCH_REF = "coord_branch_ref"      # coord / lanes_with_coord, worktree empty or absent
     CONSOLIDATED_TARGET = "consolidated_target"
+    MISSION_BRANCH_REF = "mission_branch_ref"  # topology_source: default, no usable checkout holds the topic branch (WP05)
 
 @dataclass(frozen=True)
 class StatusReadSurface:
@@ -46,7 +47,7 @@ class StatusReadSurface:
     mission_dir_name: str           # kitty-specs/<dir>
     path: Path | None               # set for WRITE_CHECKOUT, COORD_WORKTREE, CONSOLIDATED_TARGET; must exist
     repo_root: Path                 # normalized main repository root (never a lane root)
-    ref: str | None                 # refs/heads/<coord> for COORD_BRANCH_REF
+    ref: str | None                 # refs/heads/<coord> for COORD_BRANCH_REF, refs/heads/<mission_branch> for MISSION_BRANCH_REF
     fallback_reason: str | None     # set only for the declared pre-seed WRITE_CHECKOUT fallback
 ```
 

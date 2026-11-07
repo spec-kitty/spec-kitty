@@ -292,8 +292,12 @@ lane, and no reader reads them. The fork-time blob stays in lane history and is 
   `coord`, `lanes_with_coord`), is created by the one lane-checkout helper
   (`lanes/lane_checkout.py::open_lane_checkout`), which registers the sparse exclusion of
   `status.events.jsonl` and `status.json` (FR-040). This widens the exclusion described in the
-  Context above, which only coordination-topology lanes registered, and covers every creation route:
-  allocation, crash recovery, lifecycle sync, the review checkout and the printed recreate command.
+  Context above, which only coordination-topology lanes registered, and covers every route by which
+  Spec Kitty creates a lane checkout: allocation, crash recovery, lifecycle sync, the review checkout
+  and `implement --recover`. The recreate command that `doctor workspaces` prints
+  (`workspace/landed_worktrees.py`) is a `git worktree add` for the operator to run, not a Spec Kitty
+  route, so it does not register the exclusion; a checkout made that way shows the status files until
+  `doctor sparse-checkout` reports it (`LANE_STATUS_NOT_EXCLUDED`).
 - **Lanes never change them.** The status write seam refuses a write whose target is inside a lane
   checkout, classified through the worktree registry and not by path shape
   (`STATUS_WRITE_TARGETS_LANE_CHECKOUT`, FR-041). Spec Kitty-owned lane commits, the deliverable

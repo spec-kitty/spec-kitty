@@ -95,6 +95,7 @@ writers keep the write seam.
 | `coord`, `lanes_with_coord` | unmaterialized (branch exists, no worktree) | `COORD_BRANCH_REF` |
 | `coord`, `lanes_with_coord` | branch exists but holds no log yet (pre-seed) | `WRITE_CHECKOUT`, `fallback_reason` set |
 | `coord`, `lanes_with_coord` | deleted | raise `CoordinationBranchDeleted` (unchanged) |
+| provisional or settled default Mission (`topology_source: default`) | no usable checkout holds the topic branch | `MISSION_BRANCH_REF` |
 
 - **`WRITE_CHECKOUT`** is the working tree of the repository root checkout, or the validated owned
   checkout when `owned` is given. It is never a ref: appends there are not committed yet, so a ref
@@ -104,6 +105,11 @@ writers keep the write seam.
 - **`COORD_BRANCH_REF`** is `refs/heads/<coord>:kitty-specs/<dir>/status.events.jsonl`, read with
   `git cat-file --batch`. Owned checkouts of a coordination Mission follow the same rule instead of
   raising (FR-003).
+- **`MISSION_BRANCH_REF`** is `refs/heads/<mission_branch>:kitty-specs/<dir>/status.events.jsonl`, for a
+  `topology_source: default` Mission whose topic branch no usable checkout holds (for example the
+  repository root checkout was switched to another branch). When a checkout does hold the topic
+  branch, that checkout is the `WRITE_CHECKOUT` instead. Read like `COORD_BRANCH_REF`; a command that
+  needs a file refuses with the door's remedy (`status_surface_on_ref`).
 - **Pre-seed fallback.** When the coordination branch exists but carries no log at that path, the door
   returns `WRITE_CHECKOUT` with `fallback_reason` set. The rule is declared, scoped to coordination
   topologies, and visible on the surface, so it is not silent. It covers the explicit-topology create
