@@ -14,7 +14,7 @@
         "WP04"
       ],
       "write_scope": [
-        "docs/changelog/unreleased/7183-nightly-reds.internal.md",
+        "docs/changelog/unreleased/7340.internal.md",
         "src/specify_cli/cli/commands/_git_remedies.py",
         "src/specify_cli/upgrade/tracked_meta_notice.py",
         "tests/integration/test_charter_status_freshness.py",
