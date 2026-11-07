@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-07'
 related:
 - context/charter
 - context/identity
@@ -617,6 +617,19 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is `spec-kitty consolidate`'s local lane consolidation — use [Lane Consolidation](#lane-consolidation). The concept is the `git merge` branch-integration step — use [Branch Integration / Git Merge](#branch-integration--git-merge). |
 | **Related terms** | [Lane Consolidation](#lane-consolidation), [Branch Integration / Git Merge](#branch-integration--git-merge), [primary branch](#primary-branch) |
+
+---
+
+### Branch-relative provenance
+
+| | |
+|---|---|
+| **Definition** | The meaning of a commit SHA a Mission dossier records (`merged_commit`, `baseline_merge_commit`, `accept_commit`, `accepted_from_commit`, `lane_head`, `planning_commit_sha`, `base_commit`, and any SHA cited in hand-authored evidence such as `issue-matrix.json` `evidence_ref`): it names a commit on the branch the Mission was built on, as that branch stood when the value was written. After a rebase merge it may resolve only through the pull request's head ref, or not at all, and it is never repointed. The only exception is a field classified `LANDED` (today `pr_merge_commit`), whose writer verifies the commit is on the target branch. The classification lives in `DOSSIER_SHA_FIELDS` (`tests/architectural/test_dossier_sha_provenance.py`); ADR [2026-11-07-1](../adr/4.x/2026-11-07-1-dossier-commit-shas-are-branch-relative-provenance.md). |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the commit that landed a Mission on `main`: that is `pr_merge_commit` where it was recorded, or the pull request's landed commit. Do not call an unreachable branch-relative SHA "stale" or "corrupt", and never ask for an archive-freeze exception to correct one. |
+| **Related terms** | [Publish to origin/main](#publish-to-originmain), [Lane Consolidation](#lane-consolidation), [Evidence gate](#evidence-gate) |
 
 ---
 
