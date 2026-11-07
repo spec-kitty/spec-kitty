@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6260": {
+      "evidence_ref": "Cited only as provenance: #7026 was reported from the #6260 binding mission (PR #7032). This mission does not touch #6260's scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7026": {
+      "evidence_ref": "Mission acceptance-real-home-shared-host-01M6EJXK: RealHomeFingerprint lands the narrowed comparison (WP01), ScenarioLifecycle wires it (WP02), docs+fragment (WP03)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
