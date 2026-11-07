@@ -34,7 +34,6 @@ from specify_cli.lanes.branch_naming import (
     code_lane_branch_name,
     lane_id_for_worktree_dir,
     parse_lane_worktree_dir,
-    resolve_mid8,
 )
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.mission_metadata import load_meta
@@ -259,34 +258,34 @@ def _policy_from_meta(raw: dict[str, object] | None) -> _ManagedLanePolicy | Non
     """Build a managed-lane policy from one Mission's ``meta.json``, or ``None``.
 
     The single gate for "this Mission has lane policy": a non-empty
-    ``coordination_branch`` string, a non-empty ``mission_slug`` and a
-    ``mission_id`` of at least 8 characters. Both policy sources (the
-    repository-root checkout's ``kitty-specs/`` and a lane worktree's own tree)
-    route through it, so the managed pattern set has exactly one definition and
-    a Mission without coordination topology can never be classified as managed.
+    ``mission_slug`` and, for a coordination topology (a non-empty
+    ``coordination_branch``), a ``mission_id`` of at least 8 characters. Every
+    topology with code lanes is covered (Mission WP09, FR-040): the one
+    lane-checkout helper writes the status exclusion on ``lanes`` and
+    ``lanes_with_coord`` alike, so both must read as Mission-managed. Both
+    policy sources (the repository-root checkout's ``kitty-specs/`` and a lane
+    worktree's own tree) route through it, and the expected patterns come from
+    the same derivation the helper writes with
+    (:func:`~specify_cli.lanes.lane_checkout.lane_mission_dir_name_from_meta` and
+    :func:`~specify_cli.coordination.workspace.lane_status_exclusion_patterns`),
+    so the managed pattern set has exactly one definition.
     """
     if raw is None:
         return None
 
-    try:
-        from specify_cli.coordination.workspace import lane_sparse_checkout_patterns
-    except ImportError:
-        return None
+    from specify_cli.coordination.workspace import lane_status_exclusion_patterns
+    from specify_cli.lanes.lane_checkout import lane_mission_dir_name_from_meta
 
-    coord_branch = raw.get("coordination_branch")
     mission_slug = raw.get("mission_slug") or raw.get("slug")
-    mission_id = raw.get("mission_id")
-    if not (
-        isinstance(coord_branch, str) and coord_branch and isinstance(mission_slug, str) and mission_slug and isinstance(mission_id, str) and len(mission_id) >= 8
-    ):
+    if not (isinstance(mission_slug, str) and mission_slug):
         return None
-    # Route through the canonical resolver (FR-001): the guard above
-    # guarantees a full str ``mission_id`` (>= 8) and a str ``mission_slug``,
-    # so this is byte-identical to the prior ``mission_id[:8]``.
-    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    coord_branch = raw.get("coordination_branch")
+    mission_id = raw.get("mission_id")
+    if isinstance(coord_branch, str) and coord_branch and not (isinstance(mission_id, str) and len(mission_id) >= 8):
+        return None
     return _ManagedLanePolicy(
         mission_slug=mission_slug,
-        expected_patterns=frozenset(lane_sparse_checkout_patterns(mission_slug, mid8)),
+        expected_patterns=frozenset(lane_status_exclusion_patterns(lane_mission_dir_name_from_meta(mission_slug, raw))),
     )
 
 
@@ -402,7 +401,9 @@ def _classify_worktree_state(
     present = _read_patterns(state.pattern_file_path)
     if present is None:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
-    if candidates[0].expected_patterns.issubset(present):
+    # Exactly the status exclusion: it is the only sparse pattern a lane may
+    # carry, so an operator's own pattern beside it stays legacy/unknown state.
+    if candidates[0].expected_patterns == present:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.MANAGED_LANE)
     return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
 

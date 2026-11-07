@@ -51,21 +51,11 @@ class TestStructuredErrorSubclass:
 
 
 class TestAdoptedFamiliesInheritBase:
-    """The three families adopted in #1893 reparent onto StructuredError."""
+    """The families adopted in #1893 reparent onto StructuredError.
 
-    def test_git_preflight_error_adopts_base(self) -> None:
-        from specify_cli.core.git_preflight import GitPreflightError
-
-        assert issubclass(GitPreflightError, StructuredError)
-        err = GitPreflightError("bad repo", error_code="NOT_A_GIT_REPOSITORY")
-        assert err.error_code == "NOT_A_GIT_REPOSITORY"
-        # Inherited default ``to_dict`` now available for free.
-        assert err.to_dict() == {
-            "error_code": "NOT_A_GIT_REPOSITORY",
-            "message": "bad repo",
-        }
-        # Family-specific behaviour preserved.
-        assert err.is_deterministic is True
+    ``GitPreflightError`` was retired with its only user, the legacy
+    ``core/worktree.py`` workspace creator (Mission WP09).
+    """
 
     def test_mission_runtime_error_adopts_base(self) -> None:
         from runtime.next._internal_runtime.schema import (
