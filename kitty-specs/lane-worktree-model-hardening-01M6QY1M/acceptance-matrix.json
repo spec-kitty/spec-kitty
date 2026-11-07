@@ -130,13 +130,13 @@
     },
     {
       "criterion_id": "FR-020",
-      "description": "Verify FR-020 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-020 ADR `2026-04-03-1` amendment: Core Decision 3 amended so that a lane branch is long-lived and a lane checkout is held for one workflow action. The amendment must also record: the acquire and release points; that releasing commits or refuses; that the tip is recorded before a guarded removal; attached checkouts; re-entry; harness working directories across turns; the review lock outside the checkout; auto-rebase without a held checkout; migration; and confirmation criteria. The lease implementation is recorded as a follow-up, so that ruling 5 is governed before it is built.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/3.x/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md 'Amendment 2026-11-06: lane branches are long-lived, lane checkouts belong to one workflow action'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:12:29.843531+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-021",
