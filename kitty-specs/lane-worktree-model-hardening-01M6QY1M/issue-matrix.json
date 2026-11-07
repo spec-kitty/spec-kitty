@@ -337,7 +337,7 @@
       "wp": "WP16"
     },
     "#7281": {
-      "evidence_ref": "S6 restated ruling 3: WP09/WP10",
+      "evidence_ref": "restated ruling 3 delivered in WP09/WP10, approved",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -345,7 +345,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP10"
     },
     "#7282": {
