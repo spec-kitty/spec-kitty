@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ import pytest
 from specify_cli.consolidation import git_probes
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import (
+    ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     VerifyStatus,
     build_approved_wp_set,
@@ -273,3 +275,98 @@ def test_remerge_diff_available_version_gate(monkeypatch: pytest.MonkeyPatch, ve
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert merge_tree_probe.remerge_diff_available(Path(".")) is expected
+
+
+# --- Review blocker: a dependency merge made AFTER the lane's approval (#7307) ---------------
+
+_EVIL = "u/evil.txt"
+
+
+def _build_post_approval_merge(tmp_path: Path, *, canceled_dependency: bool) -> tuple[Path, Path, LanesManifest, str, str]:
+    """lane-b (depends on lane-c) is approved at ``b``; lane-c then moves to ``c2``; lane-b
+    merges lane-c with a hand-written ``u/evil.txt`` folded into the merge, after approval.
+
+    Returns ``(repo, feature_dir, manifest, base, evil_merge_sha)``; ``target-merge`` is a
+    merge-strategy landing and ``target-squash`` a squash landing of lane-c then lane-b.
+    """
+    repo, feature_dir, manifest, base = _init_repo(tmp_path)
+    manifest.lanes = [_lane("lane-c", "WP03"), _lane("lane-b", "WP02", ("lane-c",))]
+    (feature_dir / "tasks" / "WP01-work.md").unlink()
+    write_lanes_json(feature_dir, manifest)
+    base = _commit(repo, "two lanes")
+    _git(repo, "checkout", "-q", "-b", _branch("lane-c"), base)
+    _write(repo, "u/c.txt", "c1\n")
+    c1 = _commit(repo, "WP03: c1")
+    _git(repo, "checkout", "-q", "-b", _branch("lane-b"), c1)
+    _write(repo, "u/wp02/own.txt", "two\n")
+    b_tip = _commit(repo, "WP02: work")
+    _git(repo, "checkout", "-q", _branch("lane-c"))
+    _write(repo, "u/c.txt", "c2\n")
+    c2 = _commit(repo, "WP03: c2")
+    _git(repo, "checkout", "-q", _branch("lane-b"))
+    _git(repo, "merge", "--no-ff", "--no-commit", _branch("lane-c"))
+    _write(repo, _EVIL, "unreviewed\n")
+    evil = _commit(repo, "Merge dependency lane lane-c into lane-b")
+
+    events: list[dict[str, object]] = []
+    if canceled_dependency:
+        _approve_chain(events, "WP03", claim_stamp=base, approve_stamp=c2)
+        events[-1]["to_lane"] = "canceled"
+        events[-1]["force"] = True
+    else:
+        _approve_chain(events, "WP03", claim_stamp=base, approve_stamp=c2)
+    _approve_chain(events, "WP02", claim_stamp=c1, approve_stamp=b_tip)
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
+
+    _git(repo, "checkout", "-q", "-b", "target-merge", base)
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-c"))
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-b"))
+    _git(repo, "checkout", "-q", "-b", "target-squash", base)
+    _git(repo, "merge", "--squash", _branch("lane-c"))
+    _commit(repo, "squash lane-c")
+    _git(repo, "merge", "--squash", _branch("lane-b"))
+    _commit(repo, "squash lane-b")
+    return repo, feature_dir, manifest, base, evil
+
+
+def _claim(repo: Path, feature_dir: Path, manifest: LanesManifest, base: str, *, canceled: tuple[str, ...] = ()) -> ApprovedWpCommitSet:
+    return build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=base, excluded_canceled_wp_ids=canceled)
+
+
+def test_post_approval_dependency_merge_with_own_content_fails_under_merge(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+    claim = _claim(repo, feature_dir, manifest, base)
+    if claim.refusal is not None:
+        return  # refused at claim time: fail-closed, acceptable
+    verifier = MergeOutcomeVerifier(repo)
+    assert evil in {sha for sha, _pid in verifier._unattributable_content("target-merge", claim)}
+    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
+
+
+def test_post_approval_dependency_merge_with_own_content_fails_under_squash(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+    claim = _claim(repo, feature_dir, manifest, base)
+    if claim.refusal is not None:
+        return
+    result = MergeOutcomeVerifier(repo).verify("target-squash", replace(claim, verify_reachability=False))
+    assert result.status is not VerifyStatus.PASS, f"unreviewed {_EVIL} landed under squash"
+
+
+def test_post_approval_merge_of_canceled_dependency_fails(tmp_path: Path) -> None:
+    repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=True)
+    claim = _claim(repo, feature_dir, manifest, base, canceled=("WP03",))
+    if claim.refusal is not None:
+        return
+    verifier = MergeOutcomeVerifier(repo)
+    assert verifier.verify("target-merge", claim).status is not VerifyStatus.PASS
+    assert verifier.verify("target-squash", replace(claim, verify_reachability=False)).status is not VerifyStatus.PASS
+
+
+def test_clean_post_approval_dependency_merge_carries_nothing(tmp_path: Path) -> None:
+    """A post-approval dependency merge with an empty remerge-diff adds no content of its own."""
+    repo, _fd, _m, _base, evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+    _git(repo, "checkout", "-q", _branch("lane-b"))
+    _git(repo, "reset", "-q", "--hard", f"{evil}^1")
+    _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-c"))
+    clean = _git(repo, "rev-parse", "HEAD")
+    assert git_probes.merge_own_changed_paths(repo, clean) == []
