@@ -550,13 +550,13 @@
     },
     {
       "criterion_id": "FR-080",
-      "description": "Verify FR-080 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-080 Core ADR C-1: the coordination branch is written by commit: a Proposed ADR stating that the coordination branch stays the lifecycle home and is written by commit with no coordination worktree, so that step 4 has a governed target. It must cover every coordination-partition kind (events, notes, trace, issue matrix, decision artefacts), `status.json`, the ref read contract, the retired refusal codes and the drain-and-remove migration under the destructive guard. Open choices are presented as options with a recommendation.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md (Proposed); approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:00.199454+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-081",
