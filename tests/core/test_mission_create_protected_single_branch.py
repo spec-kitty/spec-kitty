@@ -339,6 +339,12 @@ def test_expected_write_branch_is_topology_gated() -> None:
 def _finalized_protected_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, **create_overrides: object) -> tuple[Path, str, str, Path]:
     """Protected single_branch mission with one code WP, finalized, checkout on mission_branch."""
     repo = _seed_repo(tmp_path, name=name)
+    # #7283: the WP's pre-existing file lives on the target before the Mission branch is minted, so
+    # the Mission branch carries no content outside a work package's approval window.
+    (repo / "src").mkdir(exist_ok=True)
+    (repo / "src" / "wp01.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "seed src/wp01.py on the target")
     result = make_mission(repo, f"{name}-mission", topology=MissionTopology.SINGLE_BRANCH, target_branch="main", **create_overrides)
     slug, feature_dir = result.mission_slug, result.feature_dir
     minted = str(result.meta["mission_branch"])
@@ -352,8 +358,6 @@ def _finalized_protected_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         "authoritative_surface: src/wp01.py\nsubtasks: [T001]\n---\n\n# WP01\n",
         encoding="utf-8",
     )
-    (repo / "src").mkdir(exist_ok=True)
-    (repo / "src" / "wp01.py").write_text("VALUE = 1\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", f"seed mission {slug}")
     monkeypatch.chdir(repo)

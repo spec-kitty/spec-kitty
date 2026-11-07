@@ -17,6 +17,7 @@ import pytest
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.executor import _run_lane_based_consolidation
 from specify_cli.status.emit import emit_status_transition
+from specify_cli.status import ReviewResult
 from typer.testing import CliRunner
 
 from specify_cli import app as root_app
@@ -45,8 +46,22 @@ def _approved_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
     (repo / "src" / "wp01.py").write_text("VALUE = 100\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "feat(WP01): deliverable")
-    for lane in ("for_review", "in_review", "approved"):
-        emit_status_transition(feature_dir=feature_dir, mission_slug=slug, wp_id="WP01", to_lane=lane, actor="wp08-e2e", force=True, reason="e2e seed")
+    # #7283: a minted single_branch Mission's approved claim is bounded by the approval stamp, so the
+    # seed records a real review approval (unforced review claim + approved review_result), which the
+    # status pipeline stamps with the Mission branch head. A forced seed carries no stamp and is
+    # refused (APPROVAL_STAMP_MISSING), which is the replaced behaviour this fixture used to rely on.
+    emit_status_transition(feature_dir=feature_dir, mission_slug=slug, wp_id="WP01", to_lane="for_review", actor="wp08-e2e", force=True, reason="e2e seed")
+    emit_status_transition(feature_dir=feature_dir, mission_slug=slug, wp_id="WP01", to_lane="in_review", actor="wp08-e2e", reason="e2e review claim")
+    review = {"reviewer": "wp08-e2e", "verdict": "approved", "reference": "review-WP01"}
+    emit_status_transition(
+        feature_dir=feature_dir,
+        mission_slug=slug,
+        wp_id="WP01",
+        to_lane="approved",
+        actor="wp08-e2e",
+        evidence={"review": review},
+        review_result=ReviewResult(**review),
+    )
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "chore: approve WP01")
     assert _git(repo, "branch", "--show-current") == minted
