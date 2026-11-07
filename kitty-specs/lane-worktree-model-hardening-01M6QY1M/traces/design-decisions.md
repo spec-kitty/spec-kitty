@@ -97,3 +97,17 @@ The orchestrator ruled (HANDOVER rule 3) that the sparse state in lanes d, g and
 Mission's own managed status exclusion (only `status.events.jsonl` / `status.json` hidden),
 which the CLI's legacy sparse preflight misreads. Consolidate runs with
 `--allow-sparse-checkout`; no `doctor sparse-checkout --fix` was run.
+
+## [closeout 2026-11-07] ruling: refresh falsely-stale lanes with a clean mission-branch merge
+
+The orchestrator ruled that the lane-f "stale" refusal is a false positive. The overlap is
+lane-e's WP08 commit bcc5274731, which lane-f already contains, measured from the old merge
+base 98c5abb99f. The fix authorized: merge the current mission branch into each flagged lane,
+only when the merge is clean (no conflicts, empty `git show --remerge-diff`), then push and
+re-run consolidate.
+Outcome for lane-f: not applicable. The lane-f worktree was recreated at its canonical path
+(no new branch). `git merge kitty/mission-lane-worktree-model-hardening-01M6QY1M` reported
+"Already up to date": after the rollback the mission branch (a4e3426) is already an ancestor
+of lane-f (6217017). No commit was made and nothing was pushed. The stale check compares lane-f
+with the mid-run mission tip, which already has lane-e and lane-a merged (921bb30); the rollback
+removes that tip, so a refresh cannot make lane-f pass. Closeout stopped for a further ruling.
