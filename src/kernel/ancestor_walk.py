@@ -33,17 +33,22 @@ there; it is the reading #7022 shipped, and matching git exactly would change
 ``resolve_canonical_root``'s observable behaviour for every consumer. Relative entries
 are ignored (as git ignores them) and every absolute entry is resolved (git leaves
 entries after an empty entry unresolved). ``tests/kernel/test_ancestor_walk.py`` pins
-each of those choices. :func:`git_ceiling_dirs` can reproduce that second rule on request
-(``resolve_after_empty=False``) for the one caller that must not report absence from a
-boundary git would not have stopped at; every other caller keeps the resolved reading.
+each of those choices. For negative Git-context evidence, :func:`git_ceiling_dirs` leaves
+post-empty entries unresolved on request (``resolve_after_empty=False``). It also drops an
+entry whose spelling ``Path`` rewrites, such as a trailing ``/.`` or doubled separator,
+rather than turn it into a boundary Git did not match. This platform-local spelling check
+is conservative, not a portable Git parser: it can also drop entries Git would honour.
+Removing a stop only broadens this walk's search and may refuse a legitimate absence;
+it cannot invent one. Every other caller keeps the resolved reading.
 
 Where the two readings disagree, the walk normally sees *more* than git: it examines the
 ceiling directory, which git does not. One disagreement runs the other way. git ignores a
 ceiling entry that *is* the directory the search starts in -- such an entry bounds only a
 search that starts below it -- while this walk stops at the start. A caller cannot infer
 absence from a walk that sees less than git did, so negative Git evidence has to drop that
-start-equal entry before it concludes anything, and treat a start it cannot resolve as
-unknown rather than absent; the Mission identity reader (``mission_metadata``) does this
+start-equal entry before it concludes anything, decline lossy post-empty spellings in the
+kernel parser, and treat a start it cannot resolve as unknown rather than absent; the
+Mission identity reader (``mission_metadata``) does this
 when Git did not establish a worktree context. Everywhere the walk instead sees more
 than git, that means refusing, never minting an identity over a copy git
 holds (#6673 NFR-002). This module's default readings are unchanged for every other
@@ -98,10 +103,10 @@ def git_ceiling_dirs(
             explicitly only in tests or when a caller owns the child environment.
         resolve_after_empty: Whether absolute entries listed *after* an empty entry are
             resolved. Defaults to ``True``, the general root-walk reading: each absolute
-            entry compares physically with the resolved walk. ``False`` reproduces git's own
-            rule -- an empty entry ends the resolution, so the entries that follow are kept
-            as written -- for negative Git-context evidence, where a boundary stricter than
-            git's own search would claim an absence git never asserted.
+            entry compares physically with the resolved walk. ``False`` is the conservative
+            negative-Git-evidence reading: entries after an empty entry stay unresolved,
+            and those whose spelling ``Path`` rewrites are dropped. Removing such stops can
+            refuse an absence, but cannot claim one from a boundary Git never honoured.
 
     Returns:
         The absolute entries. Empty and relative entries are dropped.
@@ -116,7 +121,10 @@ def git_ceiling_dirs(
         path = Path(part)
         if not path.is_absolute():
             continue
-        resolved.add(_resolved(path) if resolve else path)
+        if resolve:
+            resolved.add(_resolved(path))
+        elif str(path) == part:
+            resolved.add(path)
     return frozenset(resolved)
 
 
