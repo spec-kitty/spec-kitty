@@ -606,24 +606,45 @@ spec-kitty doctor workspaces
 spec-kitty doctor workspaces --prune
 ```
 
-- **`git fetch origin` first.** The check reads your local `origin/<primary>`
-  (for example `origin/main`) and never fetches. The primary branch comes from
-  `origin/HEAD`, or from a branch named `main`, `master` or `develop`; when it
-  cannot be told, every worktree is unproven (set it with
-  `git remote set-head origin <branch>`). The check assumes `origin` is the
-  canonical repository, as in a maintainer clone of `spec-kitty/spec-kitty`.
-  It does not read `upstream`. In a clone where `origin` is a fork, every
-  landing worktree stays "not landed"; remove those by hand (see
-  [Known gaps](#known-gaps)). Remote selection is tracked in #7214.
+A clone whose `origin` is a fork proves against the canonical repository
+instead; `upstream` is the remote the steps above fetch the PR and `main` from
+(#7214):
+
+```bash
+git fetch upstream
+spec-kitty doctor workspaces --remote upstream
+spec-kitty doctor workspaces --prune --remote upstream
+```
+
+- **`git fetch <remote>` first.** The check reads your local `<remote>/<primary>`
+  ref (for example `origin/main`) and never fetches. The remote is `origin`
+  unless `--remote` names another; the primary branch comes from that remote's
+  `HEAD`, or from a branch named `main`, `master` or `develop`; when it cannot
+  be told, every worktree is unproven (set it with
+  `git remote set-head <remote> <branch>`). Only the named remote's primary ref
+  is read, never another remote's copy of the same commit. A blank value
+  (`--remote "$UNSET"`) is refused rather than falling back to `origin`, and a
+  name the clone does not configure exits 1 with the names it does have, so a
+  mistyped remote never reads as "nothing landed". A clone with no remotes at all
+  reports `unproven` instead.
 - **`spec-kitty doctor workspaces`** writes nothing. It gives every registered
   worktree a verdict with a reason: landed, not landed, unproven, or
   Mission-owned. "Landed" means the worktree's commits are on
-  `origin/<primary>` and nothing uncommitted or running is in it. Merge commits
-  count. Rebase and squash merges count with git 2.38 or newer. The report also
-  lists the ignored files a removal would delete, such as `.venv/` or `.env`.
+  `<remote>/<primary>` and nothing uncommitted or running is in it. Merge
+  commits count. Rebase and squash merges count with git 2.38 or newer. The
+  report also lists the ignored files a removal would delete, such as `.venv/`
+  or `.env`. A remote name the repository does not configure is an error, not
+  an all-unproven report.
 - **`--prune`** removes only the landed worktrees, then their local branches.
-  It never uses `--force`. It checks each worktree again right before it
-  removes it.
+  It never uses `--force`. Every step it takes discharges the proof obligations
+  of [ADR 2026-11-06-1](../../adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md).
+  It checks each worktree again right before it
+  removes it, against the same `--remote`, and deletes the branch only while it
+  still points at the tip it proved landed (a compare-and-swap), so a branch
+  that moves in the meantime is kept and reported as `BRANCH_MOVED`. Before it
+  removes anything it reads the worktree's `HEAD` reflog and the branch reflog,
+  and records every commit that only those still reached
+  (see [Restore a removed worktree](#restore-a-removed-worktree)).
 
 `--fix` is unchanged: it still removes only unregistered husks.
 
@@ -637,7 +658,7 @@ spec-kitty doctor workspaces --prune
 - a worktree with a nested repository (a `.git`, `.hg`, `.jj` or `.svn`
   entry, or a bare or renamed git directory) under an ignored path;
 - a locked worktree;
-- a worktree whose committed content is not on `origin/<primary>`;
+- a worktree whose committed content is not on `<remote>/<primary>`;
 - a worktree a running process of yours is standing in;
 - Mission lane and coordination worktrees (reported only; `consolidate` owns them);
 - the main worktree, and the worktree you run the command from.
@@ -645,7 +666,7 @@ spec-kitty doctor workspaces --prune
 Some worktrees are kept and reported for you to decide:
 
 - **No commits of its own** (`NO_OWN_COMMITS`). The branch tip is on
-  `origin/<primary>`, but its reflog shows no commit made on it. A pull, a
+  `<remote>/<primary>`, but its reflog shows no commit made on it. A pull, a
   fast-forward merge or a rebase is not a commit of its own. Remove it by
   hand if you are done with it. A branch with no reflog at all is unproven
   (`REFLOG_MISSING`).
@@ -660,7 +681,7 @@ Some worktrees are kept and reported for you to decide:
   (#7216). For a worktree unproven only for that reason, the report prints the
   hand commands, with paths quoted for your shell. Run them only after you have
   checked that nothing runs in the worktree and its content is on
-  `origin/<primary>`: `git worktree remove <path>` (never `--force`), then
+  `<remote>/<primary>`: `git worktree remove <path>` (never `--force`), then
   `git update-ref refs/spec-kitty/discarded/<branch> <sha> ''` to keep the tip
   (the empty old value makes it refuse to overwrite an earlier record), then
   `git branch -D <branch>`.
@@ -671,7 +692,7 @@ Some worktrees are kept and reported for you to decide:
   inspect. Close editors and shells in the worktree first.
 - Ignored files (for example `.venv/`, or an ignored `.env`) are deleted with
   the worktree. The report lists them first.
-- A stale `origin/<primary>` usually only hides a merge. It can also vouch for
+- A stale `<remote>/<primary>` usually only hides a merge. It can also vouch for
   content that was later rewritten off the remote's primary branch. That is
   why `--prune` keeps any tip that no local branch or tag reaches (see below).
 - Commits that only the worktree's HEAD reflog or the branch reflog still
@@ -681,9 +702,10 @@ Some worktrees are kept and reported for you to decide:
 ### A merge that happens after the session ends
 
 The operator often merges after the landing session is over. Nothing has to
-remember the worktree. On Linux, the next `git fetch origin` and
-`spec-kitty doctor workspaces --prune`, from any later session, finds it
-landed and removes it. Until then it is reported as not landed and kept. On
+remember the worktree. On Linux, the next `git fetch <remote>` and
+`spec-kitty doctor workspaces --prune` (plus `--remote <name>` when the
+canonical repository is not `origin`), from any later session, finds it landed
+and removes it. Until then it is reported as not landed and kept. On
 macOS and Windows, remove it by hand (see [Known gaps](#known-gaps)).
 
 ### Restore a removed worktree
@@ -715,6 +737,33 @@ Removed .worktrees/pr-<N>-landing (branch pr-<N>-local at 1a2b3c4d5e6f)
   example on a read-only directory under `.venv/`), the report prints a
   `partly removed` line, keeps the branch and exits 1. Run
   `spec-kitty doctor workspaces --fix` to clear the leftover directory.
+- A commit that only a destroyed reflog still reached gets its own line and its
+  own ref:
+
+  ```text
+    reflog-only commit kept at refs/spec-kitty/discarded/reflog/<sha>
+  ```
+
+  `git worktree remove` deletes the worktree `HEAD` reflog and
+  `git branch -D` deletes the branch reflog, so a commit made while the worktree
+  was detached, or one dropped with `git reset --hard`, would otherwise be
+  reachable from nothing and could be collected by `git gc`. The prune records
+  it under `refs/spec-kitty/discarded/reflog/<sha>` **before** it removes the
+  worktree; restore it with
+  `git branch <name> refs/spec-kitty/discarded/reflog/<sha>`.
+
+  Two things are deliberately not recorded: a commit that a local branch, tag
+  or `refs/spec-kitty/` ref still reaches (a remote-tracking ref does not count:
+  the next fetch can rewrite it), and one the prune can **prove** is already on `<remote>/<primary>`.
+  "Prove" is narrow: replaying each commit that would be lost onto the primary
+  must change nothing, byte for byte (whitespace included, so `git cherry`'s
+  patch-id is not used), and none of them may be a merge, a root or an empty
+  commit. That proof is what keeps a rebase landing from adding a ref per
+  superseded commit. Anything it cannot prove is recorded, so a merge commit
+  in that position always is: no patch carries a merge's own resolution. The `--json` payload names the refs in the
+  `kept_commits` key of each `pruned` entry. If a ref cannot be written, the
+  prune removes nothing and reports it. A failed `tip kept at` record happens after
+  the removal: the worktree is gone and the output says the branch was kept.
 
 ### `upgrade` leaves landing worktrees alone
 
@@ -901,8 +950,8 @@ been fixed, the end-state is stated instead of the trap.
   (for example `test_charter_agrees_with_live_collection` and
   `test_every_registry_module_agrees_with_live_collection`) drift. This is the one
   count-pinning anchor the general "recapture a drifted count anchor" advice does
-  **not** apply to, for any module. Per PR the drift is a non-blocking
-  `ShardTimingsDriftWarning`, not a failure. The strict exact-count gate lives in
+  **not** apply to, for any module. Per PR the drift is a warning from the
+  module-tests select step, not a failure, and those two tests are skipped (#7288). The strict exact-count gate lives in
   `ci-shard-recapture.yml` (`schedule` + `workflow_dispatch`, no PR/push trigger, so
   it cannot run on a PR or block merge). Its `recapture-shard-timings` job counts
   every module's tests on each scheduled run on the primary branch (`main`),

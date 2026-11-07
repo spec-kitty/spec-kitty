@@ -1,0 +1,85 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M6EQNYN0RBZ3WTGB72395P44",
+  "materialized_at": "2026-11-02T18:17:24.896900+00:00",
+  "mission_number": "",
+  "mission_slug": "orchestrator-error-code-prose-guard-01M6EJQS",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "pi",
+      "agent": "pi:opus-4.5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6EM1HX60CGJ2SZES7KG9HMY",
+      "last_transition_at": "2026-11-02T17:13:50.758169+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guard lands red against today's docs (anchor absence); with anchors wrapped temporarily it names the drift. Fail-closed and duplicate paths green.",
+        "Review passed. Guard verified against FR-001..FR-005/008/010: parses only the anchored region, compares both directions with sorted per-surface diffs, reports duplicates, fails closed on missing/duplicated anchor, empty region and unparseable lines. RED confirmed on the unmodified docs, and with anchors wrapped around today's lists (uncommitted) it names the drift. TestAllowedErrorCodes untouched, contract JSON untouched, no gate relaxed, ruff+format clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 622934,
+      "shell_pid_created_at": "1793638738.28",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6EQNYN0RBZ3WTGB72395P44",
+      "last_transition_at": "2026-11-02T18:17:24.896900+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Both prose enumerations complete and guard green; half-by-half reds captured",
+        "Review round 1: approved after one accuracy fix. Checked: both surfaces parse to exactly 80 unique contract codes (set difference empty both ways); anchors delimit only the enumeration with the preflight/teardown/origin-freshness tables outside; no contract JSON, CHANGELOG.md or WP01 assertion touched; FR-006/FR-007 covered by the two parametrized tests reading the real files; FR-009 by region bounding; half-by-half reds reproduced (22 named for the API reference, 23 for the skill table); docs freshness errors=0; ruff/format clean; changelog fragment style+spelling clean. Fixed in this round: DESIGN_LOCK_TIMEOUT also reaches artifact-read and DESIGN_RECEIPT_UNREADABLE also reaches design-validate; both surfaces corrected."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 794279,
+      "shell_pid_created_at": "1793639653.17",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    }
+  }
+}

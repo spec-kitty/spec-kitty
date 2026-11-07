@@ -42,10 +42,10 @@ from specify_cli.status.store import read_events, read_events_from_text
 from tests.integration.coord_topology_fixture import (
     FlatTopologyContext,
     _git,
+    build_flat_topology_mission,
     _make_git_repo,
     _write_lanes_json,
     _write_meta,
-    _write_wp_task,
 )
 from tests.status.conftest import seed_wp_to_planned
 
@@ -59,44 +59,17 @@ pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
 
 @pytest.fixture
 def flat_mission(tmp_path: Path) -> FlatTopologyContext:
-    """A flat/single-branch mission with ``lane-a``/``WP01`` in ``lanes.json``.
+    """A coordination-less ``lanes`` Mission with ``lane-a``/``WP01`` in ``lanes.json``.
 
-    Mirrors ``tests.integration.coord_topology_fixture.flat_topology_mission``
-    exactly (that fixture is registered for ``tests/specify_cli/`` only, via
-    its ``conftest.py``, so it is not reachable by name here) -- reuses its
-    canonical builder helpers rather than re-deriving the mission shape.
+    ``lane_head`` is stamped only for code lanes, so this uses the shared builder's
+    ``lanes`` variant (#7224); a real single_branch Mission has no lane branch. The
+    builder's seeded ``claimed`` event is removed: these tests drive WP01's lane hops
+    themselves, starting with no status log.
     """
-    mission_id = "01LANEHEADFC00000000000001"
-    mid8 = "01LANEHE"
-    human_slug = "lane-head-fixture"
-    slug = f"{human_slug}-{mid8}"
-
-    repo = _make_git_repo(tmp_path / "flat")
-    primary_feature_dir = repo / "kitty-specs" / slug
-    primary_feature_dir.mkdir(parents=True)
-    _write_meta(
-        primary_feature_dir,
-        slug=slug,
-        mission_id=mission_id,
-        topology="single_branch",
-        coordination_branch=None,
-    )
-    tasks_dir = primary_feature_dir / "tasks"
-    tasks_dir.mkdir()
-    _write_wp_task(tasks_dir, "WP01")
-    _write_lanes_json(primary_feature_dir, slug=slug, mission_id=mission_id)
-
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "feat: lane-head fixture mission")
-
-    return FlatTopologyContext(
-        repo=repo,
-        slug=slug,
-        mid8=mid8,
-        mission_id=mission_id,
-        primary_feature_dir=primary_feature_dir,
-        status_events_path=primary_feature_dir / "status.events.jsonl",
-    )
+    ctx = build_flat_topology_mission(tmp_path, topology="lanes")
+    _git(ctx.repo, "rm", "-q", "--", str(ctx.status_events_path.relative_to(ctx.repo)))
+    _git(ctx.repo, "commit", "-qm", "test: start WP01 with no status log")
+    return ctx
 
 
 def _create_lane_branch(repo: Path, slug: str, *, lane_id: str = "lane-a") -> str:
@@ -472,7 +445,8 @@ def _read_coord_branch_events(repo: Path, mission_dirname: str) -> list[StatusEv
         capture_output=True,
         text=True,
     ).stdout
-    return read_events_from_text(repo / "kitty-specs" / mission_dirname, content)
+    events: list[StatusEvent] = read_events_from_text(repo / "kitty-specs" / mission_dirname, content)
+    return events
 
 
 def test_transactional_shell_stamps_lane_head(coord_repo: Path) -> None:

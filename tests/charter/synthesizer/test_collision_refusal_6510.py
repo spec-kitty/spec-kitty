@@ -29,6 +29,7 @@ from typer.testing import CliRunner, Result
 from charter.activation.synthesizer.errors import DuplicateTargetError, ProjectDRGValidationError
 from charter.activation.synthesizer.manifest import MANIFEST_PATH
 from specify_cli.cli.commands.charter import app
+from kernel.activation_ledger_store import activation_ledger_path
 from tests._factories.activation_ledger import seed_activation_ledger
 from tests._support.charter_cwd import CHARTER_FIND_REPO_ROOT
 
@@ -107,11 +108,12 @@ def test_upstream_node_says_built_in_or_org(tmp_path: Path) -> None:
 
 
 @pytest.mark.unit
-def test_non_directive_urn_is_upstream(tmp_path: Path) -> None:
+def test_project_profile_collision_names_the_profile_remedy(tmp_path: Path) -> None:
     text = collision_remedy(tmp_path, _error("agent_profile:researcher-ryan"))
 
     assert text is not None
-    assert "built-in or org" in text
+    assert "profile-id" in text
+    assert "report the clash" not in text
 
 
 @pytest.mark.unit
@@ -264,10 +266,17 @@ def test_synthesis_owned_directive_is_not_called_unowned(project: Path) -> None:
 @pytest.mark.integration
 @pytest.mark.git_repo
 def test_synthesize_json_refusal_carries_remedy(project: Path) -> None:
+    """The refusal also keeps a hand-edited directive: synthesis never overwrites what it did not create (#6768)."""
     _lose_ownership_record(project)
+    directive = next((project / ".kittify" / "charter-packs" / "directive").glob(f"{_OWN_STEM}*.directive.yaml"))
+    body = yaml.safe_load(directive.read_text(encoding="utf-8"))
+    body["intent"] = "Hand-written intent."
+    hand_written = yaml.safe_dump(body)
+    directive.write_text(hand_written, encoding="utf-8")
 
     result = _invoke("synthesize", "--json")
 
+    assert directive.read_text(encoding="utf-8") == hand_written
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
     warnings = payload["warnings"]
@@ -275,6 +284,25 @@ def test_synthesize_json_refusal_carries_remedy(project: Path) -> None:
     remedy = [w for w in warnings if _MANIFEST in w and "synthesis did not create" in w]
     assert remedy, warnings
     assert _NO_DEACTIVATE in remedy[0]
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_synthesize_refuses_over_an_unowned_directive_with_no_allow_list(project: Path) -> None:
+    """A hand-written directive is kept although no ``activated_directives`` key names it (#6768)."""
+    _lose_ownership_record(project)
+    ledger = activation_ledger_path(project)
+    keys = yaml.safe_load(ledger.read_text(encoding="utf-8"))
+    del keys["activated_directives"]
+    ledger.write_text(yaml.safe_dump(keys), encoding="utf-8")
+    directive = next((project / ".kittify" / "charter-packs" / "directive").glob(f"{_OWN_STEM}*.directive.yaml"))
+    hand_written = directive.read_text(encoding="utf-8").replace("Serve the outcome.", "Hand-written intent.")
+    directive.write_text(hand_written, encoding="utf-8")
+
+    result = _invoke("synthesize", "--json")
+
+    assert result.exit_code == 1, result.output
+    assert directive.read_text(encoding="utf-8") == hand_written
 
 
 @pytest.mark.integration

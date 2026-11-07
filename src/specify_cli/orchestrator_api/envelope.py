@@ -189,7 +189,10 @@ from kernel.clock import now_utc_iso
 # it is now refused with the new code, and no attestation lifts it. A new ``error_code`` value on
 # existing verbs and a changed code on previously-refused calls, so a minor bump; no field is
 # removed or renamed.
-# 1.24.0 (Mission lane-worktree-model-hardening, one bump for three additive fields):
+# 1.24.0: the ``planning_commit.action`` vocabulary of the ``tasks`` verb gains ``"derived"``:
+# finalize-tasks records a planning commit read from git for a ``lanes.json`` with none (#7210).
+# Purely additive.
+# 1.25.0 (Mission lane-worktree-model-hardening, one bump for three additive fields):
 # ``consolidate-mission`` success ``data`` gains ``lane_cleanup`` (one object per code lane:
 # ``removed`` / ``kept`` / ``retained_by_policy`` with code, remedy, command and recreate hint,
 # S5 #7280); a lane the cleanup cannot remove after the landing is reported there and no longer
@@ -197,7 +200,7 @@ from kernel.clock import now_utc_iso
 # ``topology_source`` / ``topology_provisional`` and ``tasks`` gains ``topology_decision``
 # (provisional topology settled at the first finalize). Additive fields plus a previously-failing
 # call that now succeeds, so a minor bump; no field or ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.24.0"
+CONTRACT_VERSION = "1.25.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

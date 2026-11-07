@@ -452,10 +452,40 @@ def test_accept_diagnose_json_blocks_corrupt_lanes_json(feature_repo: Path, miss
     assert payload["ok"] is False
     assert any(item["check"] == "lanes_manifest" for item in payload["blocked_checks"])
     assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
+    evidence_skips = [item for item in payload["skipped_checks"] if item["check"] == "implementation_evidence"]
+    assert len(evidence_skips) == 1
+    assert evidence_skips[0]["detail"].startswith("implementation_evidence skipped: EVIDENCE_WINDOW_UNCOMPUTABLE: ")
     assert any("lanes.json" in item for item in payload["recommended_fix_order"])
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before_meta
     status = run(["git", "status", "--short"], cwd=feature_repo)
     assert status.stdout == ""
+
+
+def test_accept_diagnose_json_refuses_corrupt_status_log(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A persistent parser failure must refuse before the real collector rereads the same log."""
+    from tests.lane_test_utils import write_single_lane_manifest
+    from tests.utils import run
+
+    _write_acceptance_meta(feature_repo, mission_slug)
+    mission_dir = feature_repo / "kitty-specs" / mission_slug
+    write_single_lane_manifest(mission_dir)
+    (mission_dir / "status.events.jsonl").write_text("{torn-json\n", encoding="utf-8")
+    run(["git", "branch", "-M", "main"], cwd=feature_repo)
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Seed corrupt canonical status"], cwd=feature_repo)
+    run(["git", "checkout", "-b", f"kitty/mission-{mission_slug}"], cwd=feature_repo)
+    before_head = run(["git", "rev-parse", "HEAD"], cwd=feature_repo).stdout
+    monkeypatch.chdir(feature_repo)
+
+    result = runner.invoke(cli_app, ["accept", "--mission", mission_slug, "--diagnose", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["error_code"] == "EVIDENCE_STATUS_UNREADABLE"
+    assert payload["error_codes"] == ["EVIDENCE_STATUS_UNREADABLE"]
+    assert "skipped_checks" not in payload, "no partial readiness report is promised for an unreadable log"
+    assert run(["git", "rev-parse", "HEAD"], cwd=feature_repo).stdout == before_head
+    assert run(["git", "status", "--short"], cwd=feature_repo).stdout == ""
 
 
 def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:

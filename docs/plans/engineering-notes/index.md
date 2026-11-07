@@ -2,7 +2,7 @@
 title: Engineering notes
 description: 'Internal engineering notes for Spec Kitty: field reports, design notes, architectural reviews, and the historical record of closed investigations and missions.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-11-06'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -43,6 +43,8 @@ pages are kept as a record and are not current guidance. The active cycle is 4.0
   compatibility shims.
 
 ## Live
+
+- [Lane and worktree friction research](2026-11-06-lane-worktree-friction-research.md) — how much recent friction the lane, worktree and coordination model causes, why, and the recommended direction.
 
 - [Approved implementation reopen feedback](2026-10-31-approved-reopen-feedback.md) — supplied references and explicit actor identity through canonical transitions.
 

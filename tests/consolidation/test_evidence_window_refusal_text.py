@@ -163,6 +163,19 @@ def test_uncomputable_window_leads_with_the_code_and_names_both_remedies(tmp_pat
     assert "on the target branch" in report.refusal
 
 
+def test_the_finalize_remedy_names_the_route_that_works(tmp_path: Path) -> None:
+    """#7210: plain finalize-tasks derives a missing pin; --refresh-planning-commit records an empty window."""
+    repo, feature_dir, _base = _build_repo(tmp_path)
+
+    report = _evaluate(repo, feature_dir, _manifest(planning_commit_sha=None))
+
+    assert report.refusal is not None
+    assert "run plain `spec-kitty agent mission finalize-tasks` (no flags)" in report.refusal
+    assert "derives one from git" in report.refusal
+    assert "Do not use `--refresh-planning-commit` for this" in report.refusal
+    assert "escalate to the operator" in report.refusal
+
+
 def test_the_line_no_longer_claims_a_lanes_json_that_need_not_exist(tmp_path: Path) -> None:
     """The line says the commit is not recorded *or resolvable*: this topology has no lanes.json."""
     repo, feature_dir, _base = _build_repo(tmp_path)

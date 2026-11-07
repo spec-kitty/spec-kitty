@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from rich.markup import escape
 from rich.table import Table
 
 from charter.activation.api import ActiveCharterConfigError
@@ -368,7 +369,8 @@ def _render_org_layer(org_layer: dict[str, Any]) -> None:
     else:
         console.print("  org: [dim](no packs configured)[/dim]")
     for err in org_layer.get("errors") or ():
-        console.print(f"  [red]Error:[/red] {err}")
+        # An error can quote a pack author's path; escape it so it is printed, never parsed as markup.
+        console.print(f"  [red]Error:[/red] {escape(str(err))}")
 
 
 _FRESHNESS_STYLES = {

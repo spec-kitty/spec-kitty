@@ -263,6 +263,7 @@ def _run_mission_repair(
     """Execute the --fix dispatch arm: repair repo and emit the manifest."""
     from specify_cli.migration.mission_state import (
         LANES_REBUILT_ACTION,
+        LANES_REBUILT_WITH_TARGET_TIP_ACTION,
         MissionStateRepairError,
         RepairReport,
         repair_repo,
@@ -320,6 +321,16 @@ def _run_mission_repair(
             console.print("[green]Rebuilt lanes.json from the event log for:[/green]")
             for mission_result in lanes_rebuilt:
                 console.print(f"  - {mission_result.mission_slug}", soft_wrap=True)
+        # #7210: a rebuild with no derivable planning base records the live target tip, an
+        # empty evidence window for work already committed there. Say so, never silently.
+        tip_pinned = [m for m in report.missions if LANES_REBUILT_WITH_TARGET_TIP_ACTION in m.meta_actions]
+        for mission_result in tip_pinned:
+            console.print(
+                f"[yellow]⚠[/yellow] {mission_result.mission_slug}: no planning commit could be derived from git (the "
+                "Mission's tasks/WP*.md are not in the target branch's history), so the rebuilt lanes.json records the "
+                "live target-branch tip; work already committed there falls outside the evidence window.",
+                soft_wrap=True,
+            )
         # #4928 WP03: the audit trail (manifest + any quarantine) now lives at a
         # git-TRACKED path so it survives ``git clean``. --fix writes only — it
         # never commits (C-002/NFR-001); tell the operator to commit it so the

@@ -15,6 +15,9 @@ pack-skill rules the base cannot express:
 
 from __future__ import annotations
 
+import errno
+import os
+import stat
 import warnings
 from pathlib import Path
 
@@ -31,6 +34,7 @@ from charter.offering.pack_skills.validation import (
     PackSkillViolation,
     Tier,
     apply_enhancement,
+    resolve_body_path,
     validate_pack_skill,
 )
 
@@ -165,12 +169,42 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         return self._provenance.get(skill_id)
 
     def body_text(self, skill_id: str) -> str | None:
-        """Return the prompt body of a loaded prompt-form skill, or ``None``."""
+        """Return the prompt body of a loaded prompt-form skill, or ``None``.
+
+        The body path is resolved through the shared containment authority
+        (:func:`charter.offering.pack_skills.validation.resolve_body_path`,
+        anchored at the skill's own ``*.skill.yaml`` directory): a ``body_path``
+        that escapes the skill directory — an absolute path, a ``..``
+        component, or a symlink resolving outside — raises
+        :class:`PackSkillViolation` instead of reading the outside file, so a
+        symlink swapped after load, before this call, cannot serve content from
+        outside the pack skill (#6734). The read opens the resolved real path
+        without following a symlink and only as a regular file, so a leaf swapped
+        in after that resolution, or a FIFO, is refused rather than read or waited
+        on; a parent directory swapped in that window is not caught (#7299). ``None``
+        is reserved for an unknown id, a missing source, or a skill with no
+        ``body_path``.
+        """
         skill = self._items.get(skill_id)
         source = self._sources.get(skill_id)
         if skill is None or source is None or not skill.body_path:
             return None
-        return (source.parent / skill.body_path).read_text(encoding="utf-8")
+        return _read_regular_file(resolve_body_path(skill, source), skill_id)
+
+
+def _read_regular_file(path: Path, skill_id: str) -> str:
+    """Read *path* as text, refusing a symlink or anything that is not a regular file."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise PackSkillViolation(f"skill {skill_id!r}: body file changed while it was being read") from exc
+        raise
+    with os.fdopen(descriptor, encoding="utf-8") as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise PackSkillViolation(f"skill {skill_id!r}: body file is not a regular file")
+        return handle.read()
 
 
 __all__ = ["PackSkillConflictError", "PackSkillRepository"]

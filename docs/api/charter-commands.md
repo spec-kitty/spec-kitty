@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-29'
+updated: '2026-11-06'
 related:
 - context/charter-overview
 - context/governance-files
@@ -297,6 +297,8 @@ Selector forms:
 - `testing-philosophy` — regenerate all artifacts from that interview section
 
 Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids, the synthesis lock (`CHARTER_SYNTHESIS_LOCK_HELD`) and legacy `applies` edges replaced on the artifacts it regenerates.
+
+A directive the project authored itself has nothing to regenerate: the command reports that and exits 0, and you amend the directive by editing its file. A target with the id of a directive synthesis did not create, of an activated org directive or of shipped doctrine is refused, and so is a project agent profile that reuses a shipped `profile-id`.
 
 | Flag | Description | Default |
 | --- | --- | --- |
@@ -1031,6 +1033,27 @@ these lists, and an asset sidecar that does not parse is skipped here;
 `spec-kitty charter pack validate` checks both. A sidecar file that lives outside the pack's
 `assets/` directory (for example through a symlink), and every asset of a pack whose `assets/`
 directory itself resolves outside the pack, are reported as `ORG_ASSET_PATH_ESCAPE`.
+
+#### The same rule on `charter status` and `charter org validate`
+
+Since #6733 the other two surfaces that report on an org pack also report a fragment `body_path` or an asset
+that leaves the pack. `charter status` reports these findings but still exits 0; the other two exit 1. A pack
+skill's `body_path` is refused when the skill is activated and isn't reported on these surfaces (#7299).
+
+| Surface | Where the finding appears | What names it |
+| --- | --- | --- |
+| `spec-kitty charter status` | `org_layer.errors`, and the human organisation-layer section | the same message the doctor writes: the pack, the node or asset, the path |
+| `spec-kitty charter org validate` | one error issue per escape, exit 1 | category `body_path_escape` for a fragment node, `asset_path_escape` for an asset sidecar; `artifact_id` is the node or asset id, `file` is the file that declares it |
+
+`charter status` adds no JSON key: the finding rides the existing `org_layer.errors` array, the
+channel it already uses for a dangling edge endpoint. If a containment check cannot run, the array
+says so (`org-layer body_path check failed: ...`) rather than reading as "no escapes".
+
+All three commands write the same sentence for a fragment `body_path`, an asset `path` and an `assets/` directory outside the pack. `charter org validate` checks a
+pack directory rather than a registered pack, so it names the pack by its directory name, while
+`doctor charter-packs` and `charter status` use the name from `.kittify/config.yaml`. The validator
+also reports every asset of a pack whose `assets/` directory itself resolves outside the pack, as
+the doctor does.
 
 ### `spec-kitty migrate activation-ledger`
 
