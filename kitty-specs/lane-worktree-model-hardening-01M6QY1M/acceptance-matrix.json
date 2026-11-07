@@ -600,13 +600,13 @@
     },
     {
       "criterion_id": "FR-090",
-      "description": "Verify FR-090 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-090 Core command skills teach the shipped model: the core command skills to teach the shipped model, so that I follow what the CLI does. That means: `consolidate`, not `merge`; status read through the CLI; no manual stale-lane recipe; no hand status commits; cleanup as consolidation's last step; the lane-branch commit count; and pointers for `DESTROYED_LANE` / `LANE_WORK_TIP_UNKNOWN`.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-n:tests/charter_offering/test_command_skill_text_guard.py::test_six_skill_files_are_scanned; lane-n:tests/charter_offering/test_command_skill_text_guard.py::test_skill_carries_no_forbidden_text; lane-n:src/charter/offering/skills/{spec-kitty-git-workflow,spec-kitty-implement-review,spec-kitty-mission-review,spec-kitty-program-orchestrate,spk-gate-consolidate,spk-run-blocked-recovery}/SKILL.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP17-s11-skills-stale-remedy-guard/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:24.993206+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-091",
