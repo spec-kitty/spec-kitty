@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_validation import _DependencyResolution
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+    from specify_cli.lanes.topology_settlement import SettlementHandle
 from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceGuard, StatusSurfaceLeftover
 from specify_cli.cli.commands.agent.mission_finalize_branch_contract import TargetBranchPersistOutcome
 from specify_cli.cli.commands.agent.mission_finalize_seams import FINALIZE_TASKS_COMMAND_NAME, META_JSON_FILENAME, logger
@@ -1209,6 +1210,36 @@ def _undo_finalize_write_scope(
     ledger = ledger or active_write_ledger() or FinalizeWriteLedger()
     leftover = _restore_status_surface(guard)
     kept = _restore_mission_write_scope_beside_status(guard, snapshot, mission_dir, written=ledger.written)
+    if owned_derived_dir is not None:
+        kept.extend(_restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir, written=ledger.written, lock_dir=mission_dir))
+    return leftover, kept
+
+
+def _undo_finalize_with_settlement(
+    settlement: SettlementHandle | None,
+    guard: StatusSurfaceGuard,
+    snapshot: dict[Path, bytes],
+    mission_dir: Path,
+    *,
+    owned_derived_snapshot: dict[Path, bytes],
+    owned_derived_dir: Path | None,
+) -> tuple[StatusSurfaceLeftover | None, list[Path]]:
+    """:func:`_undo_finalize_write_scope`, undoing this run's topology settlement in between (S7, NFR-003).
+
+    Order: the status commits on the settled surface first, then the settlement (the
+    coordination worktree's Mission directory back to its settled bytes, ``lanes.json`` and
+    ``meta.json`` restored, the coordination worktree removed, the repository root
+    checkout back on the topic branch, the topic tip back where it was), then the
+    pre-settlement Mission directory writes in the repository root checkout.
+    """
+    if settlement is None:
+        return _undo_finalize_write_scope(guard, snapshot, mission_dir, owned_derived_snapshot=owned_derived_snapshot, owned_derived_dir=owned_derived_dir)
+    ledger = active_write_ledger() or FinalizeWriteLedger()
+    leftover = guard.restore()
+    failed = settlement.compensate()
+    if failed:
+        logger.warning("topology settlement compensation could not undo: %s", ", ".join(failed))
+    kept = _restore_mission_write_scope(snapshot, mission_dir, written=ledger.written)
     if owned_derived_dir is not None:
         kept.extend(_restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir, written=ledger.written, lock_dir=mission_dir))
     return leftover, kept
