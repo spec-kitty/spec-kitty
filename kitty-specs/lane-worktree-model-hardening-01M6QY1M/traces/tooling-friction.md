@@ -89,3 +89,12 @@ stale: overlapping files ['src/specify_cli/lanes/for_review_gate.py'] ... Run: c
 rollback authority restored the mission branch (921bb30 -> a4e3426) and rebaselined the record;
 the target was unchanged. The dry run did not forecast this staleness either. The suggested
 remedy commits to an approved lane after approval, so closeout stopped for a ruling.
+
+## [closeout 2026-11-07] after #7311: lane-l stale (genuine overlap)
+
+With #7311 merged (topic 82bde0c406), consolidate passed lane-f and merged lanes e, a, f and h,
+then refused on lane-l (WP15): stale, overlapping `tests/specify_cli/git/test_guarded_site_routing_misc.py`.
+This overlap is real. Lane-f's WP09 review-cycle commit 4a1d8e7a1d edits that file and is not in
+lane-l, and lane-l's own f50df2bb07 edits it too. The rollback restored the mission branch
+(7e650a6 -> a4e3426). The new remedy text (#7311/WP17 wording) is correct. Closeout stopped:
+refreshing lane-l means merging in content from another WP, not a pure dependency merge.
