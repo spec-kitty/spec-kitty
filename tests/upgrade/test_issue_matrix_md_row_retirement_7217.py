@@ -65,6 +65,16 @@ def _initialized_project(tmp_path: Path) -> Path:
     return project
 
 
+def _initialized_project_without_retired_row(tmp_path: Path) -> Path:
+    """An initialized project whose committed attributes never contained the retired row."""
+    project = _initialized_project(tmp_path)
+    attributes = project / ".gitattributes"
+    attributes.write_bytes(b"".join(line for line in attributes.read_bytes().splitlines(keepends=True) if line.rstrip(b"\r\n") != RETIRED_ENTRY.encode("ascii")))
+    _git(project, "add", ".gitattributes")
+    _git(project, "commit", "--allow-empty", "-qm", "committed attributes without the retired row")
+    return project
+
+
 def _fresh_clone(project: Path, tmp_path: Path) -> Path:
     """A ``git clone`` of *project*: the tracked half only, so the clone-local ledger is absent."""
     clone = tmp_path / "clone"
@@ -104,6 +114,21 @@ def test_a_fresh_clones_first_upgrade_leaves_gitattributes_byte_identical(tmp_pa
 
     assert (clone / ".gitattributes").read_bytes() == before, output
     assert RETIRED_ENTRY not in _lines(clone)
+    assert _git(clone, "status", "--porcelain") == ""
+
+
+def test_an_upgrade_leaves_committed_attributes_without_the_stale_row_untouched(tmp_path: Path) -> None:
+    """The reported repository shape: a clean clone with no historical row must stay byte-identical."""
+    clone = _fresh_clone(_initialized_project_without_retired_row(tmp_path), tmp_path)
+    attributes = clone / ".gitattributes"
+    before = attributes.read_bytes()
+    head_before = _git(clone, "rev-parse", "HEAD")
+    assert RETIRED_ENTRY not in _lines(clone), "fixture drift: the committed file must lack the retired row"
+
+    output = _upgrade(clone)
+
+    assert attributes.read_bytes() == before, output
+    assert _git(clone, "rev-parse", "HEAD") == head_before, "a no-op upgrade must not create a commit"
     assert _git(clone, "status", "--porcelain") == ""
 
 
