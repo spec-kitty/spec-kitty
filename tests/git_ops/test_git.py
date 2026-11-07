@@ -136,6 +136,12 @@ class TestRepositoryOperations:
         assert (new_repo / ".git").exists()
 
 
+def _add_worktree(repo, path, branch):
+    """A plain worktree on a new branch (the VCS layer no longer creates workspaces)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "-b", branch, str(path)], cwd=repo, capture_output=True, check=True)
+
+
 # =============================================================================
 # Workspace Operations Tests
 # =============================================================================
@@ -144,23 +150,8 @@ class TestRepositoryOperations:
 class TestWorkspaceOperations:
     """Tests for workspace (worktree) operations."""
 
-    def test_create_workspace(self, git_repo, git_vcs):
-        """create_workspace should create a git worktree."""
-        workspace_path = git_repo / ".worktrees" / "test-lane-a"
-
-        result = git_vcs.create_workspace(
-            workspace_path,
-            "test-lane-a",
-            repo_root=git_repo,
-        )
-
-        assert result.success is True, f"Failed: {result.error}"
-        assert result.error is None
-        assert workspace_path.exists()
-        assert (workspace_path / ".git").exists()
-
-    def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
-        """create_workspace should support branching from a base branch."""
+    def test_raw_git_worktree_add_with_base_branch(self, git_repo, git_vcs):
+        """A raw `git worktree add -b` can branch from a named base branch."""
         # First, get the current branch name (main or master)
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -210,24 +201,10 @@ class TestWorkspaceOperations:
         # The workspace should have the feature file from the base branch
         assert (workspace_path / "feature.txt").exists()
 
-    def test_create_workspace_returns_error_on_failure(self, tmp_path, git_vcs):
-        """create_workspace should return error for non-repo path."""
-        workspace_path = tmp_path / ".worktrees" / "test-lane-a"
-
-        result = git_vcs.create_workspace(
-            workspace_path,
-            "test-lane-a",
-        )
-
-        # Git worktree add should fail in non-repo
-        assert result.success is False
-        assert result.error is not None
-
     def test_get_workspace_info(self, git_repo, git_vcs):
         """get_workspace_info should return workspace details."""
         workspace_path = git_repo / ".worktrees" / "test-info"
-        create_result = git_vcs.create_workspace(workspace_path, "test-info", repo_root=git_repo)
-        assert create_result.success is True, f"Create failed: {create_result.error}"
+        _add_worktree(git_repo, workspace_path, "test-info")
 
         info = git_vcs.get_workspace_info(workspace_path)
 
@@ -249,10 +226,8 @@ class TestWorkspaceOperations:
         # Create two workspaces
         ws1 = git_repo / ".worktrees" / "wp01"
         ws2 = git_repo / ".worktrees" / "wp02"
-        r1 = git_vcs.create_workspace(ws1, "wp01", repo_root=git_repo)
-        r2 = git_vcs.create_workspace(ws2, "wp02", repo_root=git_repo)
-        assert r1.success is True, f"wp01 failed: {r1.error}"
-        assert r2.success is True, f"wp02 failed: {r2.error}"
+        _add_worktree(git_repo, ws1, "wp01")
+        _add_worktree(git_repo, ws2, "wp02")
 
         workspaces = git_vcs.list_workspaces(git_repo)
 

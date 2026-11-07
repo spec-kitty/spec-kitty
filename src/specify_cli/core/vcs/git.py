@@ -29,12 +29,10 @@ from .types import (
     OperationInfo,
     VCSBackend,
     VCSCapabilities,
-    WorkspaceCreateResult,
     WorkspaceInfo,
 )
 
 # Import existing git helpers where they provide reusable functionality
-from ..git_preflight import run_git_preflight
 from ..git_ops import get_current_branch, is_git_repo
 
 
@@ -88,110 +86,6 @@ class GitVCS:
     # =========================================================================
     # Workspace Operations
     # =========================================================================
-
-    def create_workspace(
-        self,
-        workspace_path: Path,
-        workspace_name: str,
-        base_branch: str | None = None,
-        base_commit: str | None = None,
-        repo_root: Path | None = None,
-    ) -> WorkspaceCreateResult:
-        """
-        Create a new git worktree for a work package.
-
-        Creates a full-checkout worktree. All files are visible in the
-        workspace; access control is handled at the ownership layer.
-
-        Args:
-            workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace branch (e.g., "015-feature-lane-a")
-            base_branch: Branch to base the workspace on
-            base_commit: Specific commit to base on (alternative to branch)
-            repo_root: Root of the git repository (auto-detected if not provided)
-
-        Returns:
-            WorkspaceCreateResult with workspace info or error
-        """
-        try:
-            # Ensure parent directory exists
-            workspace_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Find repo root to run git commands from
-            if repo_root is None:
-                repo_root = self.get_repo_root(workspace_path.parent)
-                if repo_root is None:
-                    return WorkspaceCreateResult(
-                        success=False,
-                        workspace=None,
-                        error="Could not find git repository root",
-                    )
-
-            preflight = run_git_preflight(repo_root, check_worktree_list=True)
-            if not preflight.passed:
-                issue = preflight.first_error
-                detail = issue.message if issue else "Git preflight failed."
-                if issue and issue.command:
-                    detail = f"{detail} Run: {issue.command}"
-                return WorkspaceCreateResult(
-                    success=False,
-                    workspace=None,
-                    error=detail,
-                    error_code=issue.code if issue else "GIT_PREFLIGHT_FAILED",
-                )
-
-            # Build the git worktree add command
-            cmd = ["git", "worktree", "add"]
-
-            # Determine the base point for the new branch
-            if base_commit:
-                # Branch from specific commit
-                cmd.extend(["-b", workspace_name, str(workspace_path), base_commit])
-            elif base_branch:
-                # Branch from specified branch
-                cmd.extend(["-b", workspace_name, str(workspace_path), base_branch])
-            else:
-                # Default: branch from current HEAD
-                cmd.extend(["-b", workspace_name, str(workspace_path)])
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=60,
-                cwd=str(repo_root),
-            )
-
-            if result.returncode != 0:
-                return WorkspaceCreateResult(
-                    success=False,
-                    workspace=None,
-                    error=result.stderr.strip() or "Failed to create worktree",
-                )
-
-            # Get workspace info for the newly created workspace
-            workspace_info = self.get_workspace_info(workspace_path)
-
-            return WorkspaceCreateResult(
-                success=True,
-                workspace=workspace_info,
-                error=None,
-            )
-
-        except subprocess.TimeoutExpired:
-            return WorkspaceCreateResult(
-                success=False,
-                workspace=None,
-                error="Worktree creation timed out",
-            )
-        except OSError as e:
-            return WorkspaceCreateResult(
-                success=False,
-                workspace=None,
-                error=f"OS error: {e}",
-            )
 
     def _get_git_dir(self, workspace_path: Path) -> Path | None:
         """
