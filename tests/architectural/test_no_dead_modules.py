@@ -290,6 +290,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_retire_rtk_search_tooling",  # auto-discovered (#3009)
+        # The #7217 successor that supersedes the gate-artifact seeding migration, keeps the two
+        # .json gate-artifact drivers and removes the retired issue-matrix.md row. Auto-discovered
+        # via pkgutil.iter_modules + @MigrationRegistry.register; never statically imported by
+        # runtime code -- same sibling shape as the entries above.
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_issue_matrix_md_row",
         # The generic consumer-retirement sweep for the retired/renamed/
         # re-kinded single-owner doctrine ids, built on the same shared engine
         # (_retired_activation.py) as the rtk-retirement migration directly
