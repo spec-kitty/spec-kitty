@@ -200,13 +200,10 @@ def _canonical_coord_mission_slug(
 
 def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
     """The non-lane checkout holding *destination_ref*, else *repo_root* (FR-061, N1)."""
-    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
-    from specify_cli.status.read_surface import checkout_holding_branch
+    from specify_cli.status.read_surface import non_lane_checkout_holding_branch
 
-    holder: Path | None = checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
+    holder: Path | None = non_lane_checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
     if holder is None or holder.resolve() == repo_root.resolve():
-        return repo_root
-    if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
         return repo_root
     return holder
 

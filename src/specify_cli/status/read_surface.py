@@ -545,12 +545,8 @@ def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str
     * the holder carries no Mission directory (review cycle 1, N3: no quiet fallback to the
       root's copy).
     """
-    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
-
-    holder = _checkout_holding_branch(repo_root, topic)
+    holder = non_lane_checkout_holding_branch(repo_root, topic)
     if holder is None:
-        return None
-    if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
         return None
     held_dir = holder / _KITTY_SPECS / mission_dir_name
     return held_dir if held_dir.is_dir() else None
@@ -559,6 +555,16 @@ def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str
 def checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
     """Public face of the one "which checkout holds *branch*" probe (FR-061)."""
     return _checkout_holding_branch(repo_root, branch)
+
+
+def non_lane_checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
+    """The checkout holding *branch*, or ``None`` when none does or a registered lane worktree does (FR-061, N2)."""
+    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
+
+    holder = _checkout_holding_branch(repo_root, branch)
+    if holder is None or classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
+        return None
+    return holder
 
 
 def topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str) -> Path | None:
