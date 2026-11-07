@@ -34,6 +34,7 @@ from specify_cli.lanes.worktree_allocator import (
     predict_lane_worktree,
 )
 from specify_cli.mission_metadata import set_vcs_lock
+from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext
 
@@ -137,7 +138,7 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
         f"kitty-specs/{mission_slug}/meta.json",
         f"kitty-specs/{mission_slug}/mission-events.jsonl",
         ".kittify/",
-        ".spec-kitty/",
+        f"{RUNTIME_STATE_DIR_NAME}/",
         "kitty-ops/",
     )
 

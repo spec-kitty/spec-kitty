@@ -39,6 +39,7 @@ Spec IDs: FR-010 (T021), FR-013, SC-002 (second-pass remediation)
 
 from __future__ import annotations
 
+import ast
 import importlib
 import io
 import os
@@ -166,7 +167,7 @@ def test_resolver_nudge_is_suppressed_for_json_invocations(
 _GLOBAL_STATE_SCAN_ROOTS = ("src/specify_cli", "src/kernel")
 
 # Files that may legitimately contain a ``.spec-kitty`` (or asset-home) literal:
-#   * the keystone resolver itself — the ONE place the default home is computed,
+#   * the kernel owner of the shared runtime directory name,
 #   * asset-home modules (``.kittify`` — a different root, never ``.spec-kitty``),
 #   * Windows migration code (moves legacy data; must name the legacy dir).
 #
@@ -174,11 +175,11 @@ _GLOBAL_STATE_SCAN_ROOTS = ("src/specify_cli", "src/kernel")
 # own ``".spec-kitty"`` literal for the repository-LOCAL runtime directory (the
 # status lock's bare non-git fallback and the worktree review lock — #6367) and were
 # allowlisted for it (#6582). Both now take the name from the runtime-state path
-# authority (``specify_cli.paths.RUNTIME_STATE_DIR_NAME``), so the guard scans them
-# again; an allowlist entry for either one is a regression, not a fix.
+# authority (``kernel.paths.RUNTIME_STATE_DIR_NAME``, re-exported through
+# ``specify_cli.paths``), so the guard scans them again; an allowlist entry for
+# either one is a regression, not a fix.
 _HOME_LITERAL_ALLOWLIST = frozenset(
     {
-        "src/specify_cli/paths/windows_paths.py",
         "src/specify_cli/runtime/home.py",
         "src/kernel/paths.py",
         "src/specify_cli/paths/windows_migrate.py",
@@ -191,6 +192,9 @@ _HOME_LITERAL_ALLOWLIST = frozenset(
 # metadata), which carry a ``~/`` prefix and a trailing ``/...`` and are stripped
 # at runtime by the authoritative resolver.
 _BARE_SPEC_KITTY_LITERAL = re.compile(r"""['"]\.spec-kitty['"]""")
+# The repository-local consumers also spell the name as a git-prefix literal
+# (``.spec-kitty/``), which the consumer-only single-owner guard must catch.
+_RUNTIME_STATE_DIR_LITERAL = re.compile(r"""['"]\.spec-kitty/?['"]""")
 
 
 def _line_has_bare_spec_kitty_literal(line: str) -> bool:
@@ -255,42 +259,59 @@ def test_home_literal_guard_is_non_vacuous() -> None:
     """
     repo_root = pathlib.Path(__file__).resolve().parents[2]
     detected = _scan_global_state_for_home_literal(repo_root, frozenset())
-    keystone = "src/specify_cli/paths/windows_paths.py"
+    keystone = "src/kernel/paths.py"
     assert any(v.startswith(keystone + ":") for v in detected), (
-        'Guard no longer detects the keystone\'s `Path.home() / ".spec-kitty"` '
+        'Guard no longer detects the kernel owner\'s `RUNTIME_STATE_DIR_NAME = ".spec-kitty"` '
         "literal — it would pass vacuously and miss a real re-scatter.\n"
         f"Detected: {detected!r}"
     )
 
 
-def test_repo_local_lock_modules_carry_no_literal_even_without_the_allowlist() -> None:
-    """The #6516 pin: a drained exemption cannot be restored silently.
+def test_runtime_state_dir_name_has_one_owner_and_consumers_derive_it() -> None:
+    """The #6516 pin: only kernel owns the name, independently of the allowlist.
 
-    ``_HOME_LITERAL_ALLOWLIST`` is bypassed here on purpose (``frozenset()``), so
-    the first assertion fails the moment a ``.spec-kitty`` literal comes back to
-    either repository-local lock module — independently of any allowlist entry.
-    The loop that follows closes the other half: restoring the *entry* on its own
-    puts the module back outside the FR-010 guard. Together they cover the "blind
-    allowlist" shape #6582 landed and #6516 rejects.
+    The AST assertion permits exactly one ``.spec-kitty`` string in
+    ``kernel/paths.py``: the ``RUNTIME_STATE_DIR_NAME`` assignment. In particular,
+    a second literal inside ``get_runtime_state_root()`` fails even though the
+    whole module is allowlisted by the broader home-literal scan. The consumer
+    scan bypasses that allowlist too and also catches the git-exclude shape
+    ``.spec-kitty/``, so neither lanes module can restore its hard-coded prefix.
 
     The shrink-only allowlist discipline this pins is owned by tactic
     ``architectural-gate-non-vacuity``.
     """
     repo_root = pathlib.Path(__file__).resolve().parents[2]
-    drained_modules = (
+    owner = "src/kernel/paths.py"
+    consumers = (
+        "src/specify_cli/paths/windows_paths.py",
         "src/specify_cli/status/locking.py",
         "src/specify_cli/review/lock.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/lanes/implement_support.py",
     )
-    detected = _scan_global_state_for_home_literal(repo_root, frozenset())
-    offenders = [violation for violation in detected if violation.split(":", 1)[0] in drained_modules]
+
+    owner_tree = ast.parse((repo_root / owner).read_text(encoding="utf-8"))
+    owner_assignments = [
+        node
+        for node in owner_tree.body
+        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "RUNTIME_STATE_DIR_NAME" for target in node.targets)
+    ]
+    assert len(owner_assignments) == 1, "kernel.paths must declare RUNTIME_STATE_DIR_NAME exactly once"
+    owner_assignment = owner_assignments[0]
+    assert isinstance(owner_assignment.value, ast.Constant) and owner_assignment.value.value == ".spec-kitty"
+    owner_literals = [node for node in ast.walk(owner_tree) if isinstance(node, ast.Constant) and node.value == ".spec-kitty"]
+    assert owner_literals == [owner_assignment.value], "The runtime-state name literal appears outside its kernel owner assignment"
+
+    offenders: list[str] = []
+    for module in consumers:
+        assert module not in _HOME_LITERAL_ALLOWLIST, f"{module} hides behind the home-literal allowlist instead of deriving the shared name"
+        for line_number, line in enumerate((repo_root / module).read_text(encoding="utf-8").splitlines(), start=1):
+            if not COMMENT.match(line) and _RUNTIME_STATE_DIR_LITERAL.search(line):
+                offenders.append(f"{module}:{line_number}: {line.strip()}")
     assert not offenders, (
-        "A repository-local lock module types the runtime-directory name again; take it "
-        "from `specify_cli.paths.RUNTIME_STATE_DIR_NAME` instead of re-allowlisting it:\n  " + "\n  ".join(offenders)
+        "A runtime-state consumer types the directory name again; derive it from "
+        "`kernel.paths.RUNTIME_STATE_DIR_NAME` (re-exported by `specify_cli.paths`):\n  " + "\n  ".join(offenders)
     )
-    for module in drained_modules:
-        assert module not in _HOME_LITERAL_ALLOWLIST, (
-            f"{module} was drained from the allowlist by #6516; re-adding the exemption hides the module from the FR-010 guard instead of fixing the literal."
-        )
 
 
 def test_bare_spec_kitty_literal_matcher_precision() -> None:
