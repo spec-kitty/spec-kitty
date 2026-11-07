@@ -610,13 +610,13 @@
     },
     {
       "criterion_id": "FR-091",
-      "description": "Verify FR-091 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-091 Stale-lane remedy is a CLI command: the CLI's stale-lane remediation to print a `spec-kitty` command, never `cd .worktrees/...` and never `git merge`, so that doctrine and CLI agree.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-n:tests/lanes/test_stale_remediation_cli_command.py::test_stale_remediation_has_no_git_merge_or_worktrees_cd; lane-n:tests/lanes/test_stale_remediation_cli_command.py::test_stale_remediation_without_handle_names_placeholder; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP17-s11-skills-stale-remedy-guard/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:29.830808+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-092",
