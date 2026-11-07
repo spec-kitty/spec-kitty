@@ -129,6 +129,11 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 # main it is the gate's baseline and the entry is dead weight: remove it in a
 # follow-up so the byte-freeze covers the corrected file again (#4956 drained the
 # previous entries).
+#
+# A commit SHA that a rebase merge left unreachable from main is NOT corrupt: a
+# dossier SHA is branch-relative provenance unless it is classified LANDED, and it
+# is never repointed (ADR 2026-11-07-1, #7322; the classification and its gate are
+# test_dossier_sha_provenance.py). Never sanction a correction for one.
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset()
 
 
