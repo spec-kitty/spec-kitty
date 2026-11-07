@@ -33,6 +33,7 @@ from specify_cli.status import LANE_HEAD_KEY, StatusEvent, is_migration_actor
 from .git_probes import (
     GitProbeError,
     changed_paths_of,
+    commit_parents,
     commits_in_range,
     first_parent_commits_in_range,
     is_merge_commit,
@@ -679,6 +680,36 @@ def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[s
     return None
 
 
+def lane_dependency_merges(repo_root: Path, spine: Iterable[str], dependency_tips: Sequence[str]) -> frozenset[str]:
+    """The lane's OWN dependency merges on its first-parent *spine* (#7307).
+
+    A spine commit with two or more parents whose non-first parent is reachable from a
+    declared dependency lane's tip (*dependency_tips*), every non-first parent alike: the implement allocator's
+    ``Merge dependency lane X into Y`` (``lanes/worktree_allocator.py``), or an operator's
+    hand-made merge of the same dependency. Such a merge is the lane's work: whatever it
+    adds beyond its parents (a conflict resolution) is attributed to this lane, while the
+    commits it brings in are judged through the dependency lane's own spine.
+
+    Claim-builder tolerance (like :func:`lane_own_commits`' callers): a commit whose
+    parents cannot be read is left out, which only attributes less, so the verifier
+    judges it and REFUSEs on its own probe error. A merge from anything that is not a
+    dependency lane (a carrier merge, a foreign branch) is never returned.
+    """
+    if not dependency_tips:
+        return frozenset()
+    merges: set[str] = set()
+    for sha in spine:
+        try:
+            parents = commit_parents(repo_root, sha)
+        except GitProbeError:
+            continue
+        if len(parents) < 2:
+            continue
+        if all(any(sha_reachable_from(repo_root, parent, tip) for tip in dependency_tips) for parent in parents[1:]):
+            merges.add(sha)
+    return frozenset(merges)
+
+
 def lane_exempt_commits(repo_root: Path, coord_base_ref: str, anchors: Iterable[str]) -> frozenset[str]:
     """Commits after *coord_base_ref* that predate a lane's own work (the lane-base authority).
 
@@ -960,6 +991,7 @@ __all__ = [
     "first_governed_open_stamp",
     "is_migration_event",
     "lacks_lane_head_stamps",
+    "lane_dependency_merges",
     "lane_exempt_commits",
     "lane_never_started",
     "lane_own_commits",
