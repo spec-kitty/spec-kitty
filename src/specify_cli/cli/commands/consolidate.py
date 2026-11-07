@@ -920,7 +920,7 @@ def _run_real_merge(
         # would send the operator away from a stranded coord worktree/branch.
         # #5570/#5613: a branch that moved after landing reports its own exit code
         # (``exc.exit_code``, 75); every other teardown refusal stays 1.
-        console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
+        console.print(f"[red]Error:[/red] coordination teardown incomplete: {escape(str(exc))}")
         raise typer.Exit(exc.exit_code) from exc
     except CoordTeardownKeptOnlyCopy as exc:
         # #5965: the landing is done and verified (teardown runs after the rollback door, so nothing
@@ -1089,7 +1089,7 @@ def consolidate(
     ),
     push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
     target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing; does not check that the mission branch exists"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from the last incomplete WP"),

@@ -240,17 +240,20 @@ def run_workspaces(
     *,
     prune: bool = False,
     current_dir: Path | None = None,
+    remote: str | None = None,
 ) -> None:
     """Entry point for ``doctor workspaces`` (0 clean / 1 husks, refusal or error).
 
     *repo_root* is resolved + injected by the ``doctor.py`` command shell. The
     husk section runs first and is unchanged; in a git repository the
     landed-worktree section (#7173) follows, and with *prune* removes the
-    worktrees proven landed. A project root that is not inside a git work
-    tree has no worktrees, so it keeps the husk-only path; a project root
-    inside a larger repository (a monorepo subproject, no ``.git`` of its
-    own) gets the worktree section. ``healthy`` in the JSON payload follows
-    the exit code, so a worktree refusal makes it ``false``.
+    worktrees proven landed. *remote* names the remote whose primary ref proves
+    a landing (``None`` = the module default, ``origin``, #7214). A project
+    root that is not inside a git work tree has no worktrees, so it keeps the
+    husk-only path; a project root inside a larger repository (a monorepo
+    subproject, no ``.git`` of its own) gets the worktree section. ``healthy``
+    in the JSON payload follows the exit code, so a worktree refusal makes it
+    ``false``.
     """
     from specify_cli.core.git_ops import is_git_repo
 
@@ -269,6 +272,7 @@ def run_workspaces(
         current_dir=current_dir if current_dir is not None else Path.cwd(),
         prune=prune,
         json_output=json_output,
+        remote=remote,
     )
     exit_code = husk_code | worktree_code
     payload = {**husk_payload, **worktree_payload}

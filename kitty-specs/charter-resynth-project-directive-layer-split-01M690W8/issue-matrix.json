@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4226": {
+      "evidence_ref": "Closed by the #6510 ownership filter (f5413ee0c5); this mission fixes the remaining activated-project-directive case it could not",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6442": {
+      "evidence_ref": "Cited as prior art for the shipped-DRG reference universe (targets._shipped_drg_urns); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6510": {
+      "evidence_ref": "Its ownership filter (f5413ee0c5, synthesis_owned_directive_ids) is kept; this mission fixes the activated-project-directive case that filter cannot cover",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6768": {
+      "evidence_ref": "WP01 red proof: tests/charter/synthesizer/test_project_directive_layer_split_6768.py reproduces the reported FR-020/EC-6 refusal",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

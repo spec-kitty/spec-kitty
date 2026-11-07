@@ -81,6 +81,20 @@ def test_forecast_refuses_the_undeclared_dependency_merge(tmp_path: Path) -> Non
     assert "--dependency-ref" in result.stdout, "the forecast must name the declaration that resolves it"
 
 
+def test_squash_forecast_refuses_the_lane_content_the_real_squash_run_refuses(tmp_path: Path) -> None:
+    """#7244: the squash forecast previews only the mission branch, so lanes keep the per-commit scan."""
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6771K")
+    _plant_dependency_branch(mission, tmp_path)
+    args = ["consolidate", "--mission", mission.slug, "--strategy", "squash"]
+
+    forecast_run = run_terminus(mission, [*args, "--dry-run"])
+    real_run = run_terminus(mission, args)
+
+    assert forecast_run.returncode != 0, forecast_run.stdout[-2000:]
+    assert "un-attributable" in forecast_run.stdout
+    assert real_run.returncode != 0, "the forecast must agree with a real run that refuses"
+
+
 def test_forecast_passes_once_the_dependency_is_declared(tmp_path: Path) -> None:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6771G")
     _plant_dependency_branch(mission, tmp_path)

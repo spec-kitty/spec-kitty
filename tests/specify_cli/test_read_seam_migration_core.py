@@ -49,6 +49,7 @@ from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from tests.integration.coord_topology_fixture import (
     FlatTopologyContext,
     _git,
+    build_flat_topology_mission,
     _make_git_repo,
     _status_event_line,
     _write_lanes_json,
@@ -193,12 +194,14 @@ def test_seam_parity_worktree_topology_materialize_resolves_primary(
 
 
 def test_seam_parity_resolve_feature_worktree_resolves_lanes_on_flat_topology(
-    flat_topology_mission: FlatTopologyContext,
+    tmp_path: Path,
 ) -> None:
     """``workspace.context.resolve_feature_worktree`` (LANE_STATE), flat mission.
 
-    The fixture's ``lanes.json`` (written by ``_write_lanes_json``) declares a
-    single ``lane-a`` lane. Materializing the on-disk lane worktree at the
+    A lane worktree exists only for a code lane, so this uses the coordination-less
+    ``lanes`` variant (#7224: the default flat fixture is a real single_branch
+    Mission, which has no lane worktree). Its ``lanes.json`` (written by
+    ``_write_lanes_json``) declares a single ``lane-a`` lane. Materializing the on-disk lane worktree at the
     exact path ``lanes/branch_naming.worktree_path`` computes proves the
     LANE_STATE read resolved the PRIMARY ``lanes.json`` (not a stub/no-op)
     without raising (the migration's fail-loud branch is NOT triggered on a
@@ -208,7 +211,7 @@ def test_seam_parity_resolve_feature_worktree_resolves_lanes_on_flat_topology(
     from specify_cli.lanes.branch_naming import worktree_path as _seam_worktree_path
     from specify_cli.workspace.context import resolve_feature_worktree
 
-    ctx = flat_topology_mission
+    ctx = build_flat_topology_mission(tmp_path, topology="lanes")
     expected_lane_worktree = _seam_worktree_path(ctx.repo, ctx.slug, lane_id="lane-a")
     expected_lane_worktree.mkdir(parents=True)
 

@@ -22,6 +22,7 @@ from charter.activation.synthesizer.evidence import EvidenceBundle
 __all__ = [
     "SynthesisRequest",
     "SynthesisTarget",
+    "additive_snapshot",
     "compute_inputs_hash",
     "short_hash",
 ]
@@ -145,6 +146,30 @@ class SynthesisRequest:
     run_id: str  # ULID — excluded from fixture hash
     adapter_hints: Mapping[str, str] | None = None
     evidence: EvidenceBundle | None = None
+    #: The graph the FR-020 / EC-6 additive-only check runs against: the shipped DRG
+    #: (``charter.offering.drg.loader.load_built_in_graph``), every node of
+    #: ``drg_snapshot`` and every project directive synthesis did not create, so a target
+    #: that would overwrite one of them refuses (#6768).
+    #: ``drg_snapshot`` keeps its own role: the reference universe a target's
+    #: ``source_urns`` may name (EC-2) and the lower layer the validation gate resolves
+    #: against. ``None`` means "use ``drg_snapshot``", the behaviour every pre-#6768
+    #: caller expects. It is deliberately EXCLUDED from
+    #: :func:`normalize_request_for_hash`: the shipped graph is a function of the
+    #: installed CLI, not of project input, and the fixture-hash contract is frozen
+    #: (ADR-2026-04-17-1).
+    additive_drg_snapshot: Mapping[str, Any] | None = None
+
+
+def additive_snapshot(request: SynthesisRequest) -> Mapping[str, Any]:
+    """Return the additive-only layer *request* declares, or its reference snapshot.
+
+    The sole owner of the "absent means unchanged" rule (#6768): every additive-only
+    consumer reads its layer through here, and a request built without the new field
+    keeps the exact behaviour it had before the field existed.
+    """
+    if request.additive_drg_snapshot is not None:
+        return request.additive_drg_snapshot
+    return request.drg_snapshot
 
 
 # ---------------------------------------------------------------------------

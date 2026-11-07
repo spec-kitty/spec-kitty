@@ -38,7 +38,14 @@ from charter.offering.pack_skills.models import (
     SkillExpansion,
     skill_namespace_violation,
 )
-from charter.offering.pack_skills.validation import RESERVED_PREFIXES, Tier, rendered_description, rendered_name, skill_limit_violation
+from charter.offering.pack_skills.validation import (
+    RESERVED_PREFIXES,
+    PackSkillPathEscape,
+    Tier,
+    rendered_description,
+    rendered_name,
+    skill_limit_violation,
+)
 
 __all__ = [
     # Wrapper-target prefixes, re-exported so specify_cli reaches them through
@@ -156,7 +163,12 @@ def _prepare_one(
     limit = skill_limit_violation(skill, name)
     if limit is not None:
         raise SkillPreparationError(limit)
-    body = source.body_text(skill_id)
+    try:
+        body = source.body_text(skill_id)
+    except PackSkillPathEscape as exc:
+        # The renderer consumes the one pack-path finding (#6734, #7263): it refuses the skill,
+        # naming the finding's own sentence, and nothing outside the skill directory is rendered.
+        raise SkillPreparationError(f"activated skill {skill_id!r} is refused: {exc.finding.message}") from exc
     requires = _requires(graph, skill_id)
     return PreparedSkill(
         id=skill_id,

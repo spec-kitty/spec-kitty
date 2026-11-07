@@ -1,0 +1,8 @@
+id,finding,source,confidence,notes
+E1,"Tracers: 32% of 1169 entries are lane/worktree/coordination related; 9.5% need a persistent lane checkout",research/tracer-summary.md,medium,"rule-based classification; 85-90% hand agreement"
+E2,"Issues: 24% of 1365 labelled issues lane related (37% in catfooding); 6.9% need a persistent lane checkout",research/issue-summary.md,medium-high,"93% holdout agreement on lane vs not"
+E3,"PRs: lane related PRs are 12.7% of merged PRs and 19.9% of src PR churn",research/pr-churn-summary.md,medium,"one code per PR"
+E4,"Six recurring mechanisms across named issues",research/named-examples.md,high,"full read of 23 issues"
+E5,"Doctrine lacks a status-surface rule and mixes three worktree concepts",research/doctrine-scan.md,high,"open-packs 23686fb"
+E6,"One resolver body with 8+ wrappers; no owner for Mission worktrees after PR landing",research/mechanisms-and-options.md,high,"file:line citations in source"
+E7,"Integrity gates read refs, not lane checkouts",research/mechanisms-and-options.md,high,"section 1(iv)"

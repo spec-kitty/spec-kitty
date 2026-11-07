@@ -126,6 +126,19 @@ def test_refuses_a_moved_packed_ref(repo: Path) -> None:
     assert _branch_tip(repo, _BRANCH) == late
 
 
+def test_a_symbolic_branch_deletes_the_symref_not_its_target(repo: Path) -> None:
+    """``update-ref -d`` dereferences a symref; ``--no-deref`` keeps ``git branch -D``'s semantics (#7212)."""
+    _git(repo, "branch", _BRANCH)
+    target_before = _branch_tip(repo, "main")
+    assert target_before is not None
+    _git(repo, "symbolic-ref", f"refs/heads/{_BRANCH}", "refs/heads/main")
+
+    delete_branch_ref(repo, _BRANCH, target_before)
+
+    assert _branch_tip(repo, _BRANCH) is None
+    assert _branch_tip(repo, "main") == target_before, "the symref's target must survive"
+
+
 def test_refuses_a_branch_checked_out_in_a_worktree(repo: Path, tmp_path: Path) -> None:
     """``update-ref -d`` ignores checkouts; the helper keeps ``git branch -D``'s protection (#3926)."""
     _git(repo, "branch", _BRANCH)
