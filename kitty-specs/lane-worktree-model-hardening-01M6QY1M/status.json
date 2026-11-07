@@ -1,21 +1,21 @@
 {
-  "event_count": 112,
-  "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
-  "materialized_at": "2026-11-06T14:55:31.142819+00:00",
+  "event_count": 139,
+  "last_event_id": "01M6RXCW09HM4VZ7R051EYTQXE",
+  "materialized_at": "2026-11-06T17:09:43.049603+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 8,
+    "approved": 10,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 1,
-    "planned": 9
+    "in_progress": 0,
+    "in_review": 2,
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -157,44 +157,66 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "planned",
-      "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
-      "last_transition_at": "2026-11-06T14:55:31.142819+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6RR3ZFRHEQBHMK5ZV6MPCJN",
+      "last_transition_at": "2026-11-06T15:37:28.824101+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object."
+        "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object.",
+        "- 2026-11-06T15:20:02Z – claude::python-pedro – Review cycle 1 acknowledged: B1 fixed (CLI case with topic branch held by another checkout; mutation-proven red without the routing hunk). N2/N3/N5/N6 folded with tests. N1 (WP14), N4 (WP06/WP07), N7 (WP06 DoD) left to their owners.",
+        "Cycle 2: B1 CLI case with another checkout holding the topic branch (mutation-proven); N2 lane-worktree holder skipped to MISSION_BRANCH_REF; N3 holder without Mission dir reads MISSION_BRANCH_REF; N5 runtime bridge delegates to mission_has_landed; N6 one StatusReadSource enum; stale R2' test rewritten.",
+        "Review passed (cycle 2): B1 fixed and mutation-proven (removing the FR-061 routing hunk fails the new CLI case); N2/N3 route lane-worktree holders and dir-less holders to MISSION_BRANCH_REF (ruling 8); N5 runtime bridge delegates to mission_has_landed; N6 one StatusReadSource enum; R2' test follows ADR 2026-11-06-2 pre-seed rule. Red-first verified (4 new door tests red at 494d42ecb0). Dead-symbol gate 37 passed. Non-blocking: stale docstrings in status_service.py (lines ~71/77/102/321) and tests/consolidation/test_done_bookkeeping_rollback_coherence.py:19 still name old enum members; consolidation/phase_advance.py:264 is a pre-existing third landed-reader copy; a coord-worktree holder is accepted as WRITE_CHECKOUT; pre-existing mypy no-any-return at status_service.py:345/352."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-1.md",
-        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP05-s1-read-door-declared-sources/review-cycle-1.md",
-        "reviewer": "claude::reviewer-renata",
-        "verdict": "changes_requested"
+        "reference": "auto-approval:WP05:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
       },
       "role": "reviewer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "shell_pid": 8679,
+      "shell_pid_created_at": "1793978639.48",
       "subtasks": {
-        "T024": "planned",
-        "T025": "planned",
-        "T026": "planned",
-        "T027": "planned",
-        "T028": "planned",
-        "T029": "planned"
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
       }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6R1ZRKZ5TV4YGFYYK7N2ZV9",
-      "last_transition_at": "2026-11-06T09:10:42.047043+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_review",
+      "last_event_id": "01M6RX371DR23Q3BYFJQC9J5QY",
+      "last_transition_at": "2026-11-06T17:04:26.669426+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T034 partial by orchestrator decision: support.py, mission_runtime STATUS_STATE arm (+callers), finalize pin, status_transition and aggregate._resolve_read_dir transferred to WP07 (single-door gate owner). See traces/design-decisions.md."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 869,
+      "shell_pid_created_at": "1793984661.94",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
     },
     "WP07": {
       "actor": "finalize-tasks",
@@ -277,11 +299,32 @@
       }
     },
     "WP10": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6R1ZYSGBM50C8V41NNNP8R6",
-      "last_transition_at": "2026-11-06T09:10:48.368952+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_review",
+      "last_event_id": "01M6RX3PY7ZTR4B7H80A1SYNWP",
+      "last_transition_at": "2026-11-06T17:04:42.951626+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3965,
+      "shell_pid_created_at": "1793984677.53",
+      "subtasks": {
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done",
+        "T059": "done",
+        "T060": "done"
+      }
     },
     "WP11": {
       "actor": "claude",
@@ -319,48 +362,76 @@
       }
     },
     "WP12": {
-      "actor": "claude::python-pedro",
-      "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
-      "force_count": 0,
-      "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6RB60JWKTZF79GJ3QSZ9X7X",
-      "last_transition_at": "2026-11-06T11:51:23.982709+00:00",
-      "model": "__resolved_model_absent__",
-      "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 31071,
-      "shell_pid_created_at": "1793965875.96"
-    },
-    "WP13": {
       "actor": "claude",
       "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M6RN29JNK7120SQZMJ6ZKEDV",
-      "last_transition_at": "2026-11-06T14:44:07.894017+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6RW0BCM8DX86P295JQ2SZP2",
+      "last_transition_at": "2026-11-06T16:45:24.244465+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0)."
+        "S8 per-WP approval windows: tier 1+2 claim arm (write_branch_bound.py), gate re-check via lane->branch map, orchestrator planning-only preflight (reused codes), strict-xfail commit-to-target residual",
+        "Cycle 2: dead-symbol gate green (37 passed); ApprovalWindow/approval_windows out of __all__, commits_outside_windows private, stamp_refusal out of __all__, ADR residuals added",
+        "Review passed (cycle 2): dead-symbol gate green serially (37 passed); ApprovalWindow/approval_windows/stamp_refusal out of __all__, commits_outside_windows private; moved tests pin the degrade via check_write_branch (refusals==() with early commit + INFO log text) and stamped-open refusal of the pre-claim commit; ADR residual states missing/rebased O_k hide case. Nit: _commits_outside_windows now has no caller, delete it in a follow-up."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP12:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
-      "shell_pid": 29074,
-      "shell_pid_created_at": "1793976243.08",
+      "shell_pid": 20081,
+      "shell_pid_created_at": "1793983060.91",
       "subtasks": {
-        "T074": "done",
-        "T075": "done",
-        "T076": "done",
-        "T077": "done",
-        "T078": "done",
-        "T079": "done",
-        "T080": "done",
-        "T081": "done"
+        "T067": "done",
+        "T068": "done",
+        "T069": "done",
+        "T070": "done",
+        "T071": "done",
+        "T072": "done",
+        "T073": "done"
+      }
+    },
+    "WP13": {
+      "actor": "claude",
+      "agent": null,
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "planned",
+      "last_event_id": "01M6RXCW09HM4VZ7R051EYTQXE",
+      "last_transition_at": "2026-11-06T17:09:43.049603+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0).",
+        "Cycle 1 fixes: B1 dead-symbol gate green (coord_topology_reachable deleted; count_code_lanes/restamp allowlisted with WP14 exit; lane_cleanup __all__ trimmed), B2 create routes through switch_write_checkout (core/write_checkout_switch.py), B3 completion manifest regenerated, R1 target_replacement notice+JSON+help, R2 coord factory explicit topology only, nit dirty wording"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP13-s7-provenance-and-topic-branch-create/review-cycle-2.md",
+        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP13-s7-provenance-and-topic-branch-create/review-cycle-2.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T074": "planned",
+        "T075": "planned",
+        "T076": "planned",
+        "T077": "planned",
+        "T078": "planned",
+        "T079": "planned",
+        "T080": "planned",
+        "T081": "planned"
       }
     },
     "WP14": {

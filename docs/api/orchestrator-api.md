@@ -238,7 +238,8 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
     coordination-only.
   - `specify` gains `topology_source` (`explicit` \| `owned_checkout` \| `default`) and
     `topology_provisional` (`true` when no `--topology` was given: the topology is settled at the
-    first `tasks`).
+    first `tasks`) and `target_replacement` (`null`, or the implicit target replaced because it was
+    another Mission's branch).
   - `tasks` gains `topology_decision`, the finalize-tasks settlement record (`settled_this_run`,
     `topology_source`, `provisional_topology`, `settled_topology`, `rule`, `wp_count`,
     `code_lane_count`, `target_protected`, `preview`).
@@ -488,7 +489,7 @@ spec-kitty orchestrator-api specify \
 |---|---|---|
 | `--mission` | yes | Mission slug to create. |
 | `--mission-type` | yes | Blueprint key (e.g. `software-dev`). |
-| `--topology` | no | Create-time mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`. Defaults to the context-derived default (matches the host CLI's own `--topology` default) when omitted. |
+| `--topology` | no | Mission shape: `single_branch` \| `lanes` \| `coord` \| `lanes_with_coord`, settled at create. When omitted, create mints one Mission topic branch on any target and the first `tasks` settles `single_branch` or `lanes_with_coord` by size; `lanes` and `coord` are explicit-only (same default as the host CLI). |
 | `--policy` | yes | Policy metadata JSON (see [Required Flags](#required-flags)). |
 
 Response `data` (contract >= 1.24.0) also carries:
@@ -497,6 +498,7 @@ Response `data` (contract >= 1.24.0) also carries:
 |---|---|
 | `topology_source` | `explicit` (`--topology` given), `owned_checkout`, or `default` (no `--topology`). |
 | `topology_provisional` | `true` when no `--topology` was given: `topology` is provisional and is settled at the first `tasks` (see `topology_decision` there). `false` otherwise. |
+| `target_replacement` | `null`, or, when no `--topology` was given and the checked-out branch is another Mission's branch, the replacement the create made: `replaced_branch`, `owning_mission`, `target_branch` (the target chosen instead) and `remedy` (pass `--target-branch`). |
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_ALREADY_EXISTS` (the mission-creation delegate refused a duplicate —

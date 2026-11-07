@@ -54,7 +54,10 @@ LEAF_NAMES = tuple(path.stem for path in LEAVES)
 # import and patch surface (the public surface). Captured once.
 # A removal (for example when a name is de-routed) updates this
 # tuple in the same commit with a reason. Removed: ``_target_is_protected``
-# (an unused one-shot wrapper over ``_ProtectionProbe``; no caller after the split).
+# (an unused one-shot wrapper over ``_ProtectionProbe``; no caller after the split);
+# ``_gather_and_decide_protected_mint``, ``_check_out_minted_branch`` and
+# ``_dirty_outside_scaffold`` (WP13 review B2, #7282: create's occupancy, dirty and
+# switch steps now go through ``switch_write_checkout``, the one switch core).
 _FROZEN_FACADE_ATTRIBUTES = (
     "Any", "CasReset", "CommitFailureKind", "CommitTarget", "Delete", "GitCommandError", "GitPath",
     "GuardCapability", "KEBAB_CASE_PATTERN", "KITTY_SPECS_DIR", "Mint", "MissionAlreadyExistsError",
@@ -66,11 +69,11 @@ _FROZEN_FACADE_ATTRIBUTES = (
     "WriteLocation", "_BOOTSTRAP_META_COMMIT_SKIPS", "_COORDINATION_BRANCH_GLOB", "_CommitOutcome",
     "_CoordCreateRollbackContext", "_CoordCreateSeed", "_CreateRoots", "_Governance",
     "_META_KEY_CREATED_AT", "_META_KEY_MISSION_TYPE", "_MetaBuild", "_Purpose", "_Scaffold",
-    "_build_create_meta", "_build_create_result", "_check_out_minted_branch",
+    "_build_create_meta", "_build_create_result",
     "_commit_coord_create_events", "_commit_create_scaffold", "_commit_failure_kind",
     "_commit_feature_file", "_consume_pending_origin_if_present", "_create_mission_core_impl",
-    "_dirty_outside_scaffold", "_emit_create_events", "_failure_is_disposable_create_refusal",
-    "_find_live_duplicate_mission", "_gather_and_decide_protected_mint", "_list_coordination_branches",
+    "_emit_create_events", "_failure_is_disposable_create_refusal",
+    "_find_live_duplicate_mission", "_list_coordination_branches",
     "_list_mission_scaffolds", "_local_branch_exists", "_mint_protected_branch_for_topology",
     "_mint_protected_single_branch_mission_branch", "_path_is_tracked_by_git",
     "_plan_orphan_scaffold_removal", "_prior_mission_is_abandoned", "_protected_mint_applies",
@@ -800,12 +803,15 @@ def test_planted_control_flags_the_write_before_the_mint() -> None:
     assert len(violations) == 1 and violations[0].startswith("orchestrator order"), violations
 
 
+_PROBE_LINE = "    protection = _ProtectionProbe(write_root, mints_on_every_target=topology_source is TopologySource.DEFAULT)\n"
+
+
 def test_planted_control_flags_an_early_protection_resolution() -> None:
     trees = _family_trees(
         (
             "mission_creation",
-            "    protection = _ProtectionProbe(write_root)\n",
-            "    protection = _ProtectionProbe(write_root)\n    protection.is_protected(planning_branch)\n",
+            _PROBE_LINE,
+            _PROBE_LINE + "    protection.is_protected(planning_branch)\n",
         )
     )
     assert _orchestrator_order_violations(trees) == ["orchestrator resolves protection itself (is_protected call)"]

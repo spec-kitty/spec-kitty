@@ -11,8 +11,10 @@ The #2533 split-brain (and the B16-clause-2 "cross-contamination" appearance,
 research D-002) came from ``--pr-bound`` unconditionally minting a ``coord``
 topology — stranding a ``kitty/mission-<slug>-<mid8>`` coordination branch even
 when coordination routing was never reachable (unprotected primary target). WP02
-keys the create-time default on :func:`coord_topology_reachable`, so a pr-bound
-mission created off an unprotected primary defaults away from ``coord``. WP06
+keyed the create-time default on a reachability predicate (since deleted, S7
+#7282: a create without ``--topology`` is now always a provisional
+``single_branch``), so a pr-bound mission created off an unprotected primary
+defaulted away from ``coord``. WP06
 (#2602, binding decision #5100 comment 5870360497) re-keyed that unreachable
 arm from ``single_branch`` to ``lanes`` — ``single_branch`` is now
 explicit-only (``--topology single_branch`` or ``--owned-checkout``) — so the
@@ -135,36 +137,43 @@ def _kitty_branches(repo: Path) -> list[str]:
     return [line.strip().lstrip("* ").strip() for line in out.splitlines() if line.strip()]
 
 
-def test_pr_bound_unprotected_primary_mints_lanes_no_coord(tmp_path: Path) -> None:
-    """pr-bound + unprotected primary → LANES, no coord branch minted (#2533, re-keyed WP06/#2602).
+def _assert_topic_branch_only(payload: dict[str, object]) -> None:
+    """S7 #7282: a provisional ``single_branch`` with its topic branch, never a coordination branch."""
+    assert payload["topology"] == "single_branch", payload
+    assert payload["topology_provisional"] is True, payload
+    assert payload.get("coordination_branch") is None, payload
+    assert payload.get("coordination_branch_created") is False, payload
 
-    Was ``SINGLE_BRANCH`` before the #5100 binding decision (comment
-    5870360497): ``single_branch`` is now explicit-only, so the unreachable
-    arm defaults to ``lanes`` instead.
+
+def test_pr_bound_unprotected_primary_mints_no_coord(tmp_path: Path) -> None:
+    """pr-bound + unprotected primary → no coord branch minted (#2533).
+
+    Re-keyed by S7 (#7282, ADR 2026-11-06-3): with no ``--topology`` the create is a
+    provisional ``single_branch`` whose only new branch is its Mission topic branch
+    (formerly ``lanes`` under WP06/#2602, ``single_branch`` before that).
     """
     _init_repo_unprotected(tmp_path)
 
     payload = _create_pr_bound(tmp_path, "no-strand-single")
 
-    # The mint DECISION: coordination routing is unreachable, so no coord topology.
-    assert payload["topology"] == "lanes", payload
-    assert payload.get("coordination_branch") is None, payload
-    assert payload.get("coordination_branch_created") is False, payload
-    # No stranded/mislabelled coordination branch exists on disk.
-    assert _kitty_branches(tmp_path) == [], _kitty_branches(tmp_path)
+    _assert_topic_branch_only(payload)
+    # The topic branch is the one ``kitty/*`` branch; nothing stranded or mislabelled.
+    assert _kitty_branches(tmp_path) == [payload["mission_branch"]], _kitty_branches(tmp_path)
 
 
 def test_two_concurrent_pr_bound_missions_strand_no_coord_branch(tmp_path: Path) -> None:
-    """Two concurrent pr-bound missions on an unprotected primary strand no coord branch."""
+    """Two pr-bound missions on an unprotected primary strand no coord branch."""
     _init_repo_unprotected(tmp_path)
 
     first = _create_pr_bound(tmp_path, "no-strand-concurrent-a")
+    # The first create left the checkout on its topic branch with the spec
+    # scaffold untracked; commit it, as /spec-kitty.specify would.
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "spec")
     second = _create_pr_bound(tmp_path, "no-strand-concurrent-b")
 
     for payload in (first, second):
-        assert payload["topology"] == "lanes", payload
-        assert payload.get("coordination_branch") is None, payload
-        assert payload.get("coordination_branch_created") is False, payload
+        _assert_topic_branch_only(payload)
 
-    # Neither mission left a stranded (or cross-labelled) ``kitty/*`` coord branch.
-    assert _kitty_branches(tmp_path) == [], _kitty_branches(tmp_path)
+    # Only the two topic branches exist under ``kitty/*``.
+    assert sorted(_kitty_branches(tmp_path)) == sorted([first["mission_branch"], second["mission_branch"]]), _kitty_branches(tmp_path)
