@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.coordination import register_lane_sparse_checkout
+from specify_cli.lanes.lane_checkout import exclude_lane_status_files, lane_mission_dir_name
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
     SparseCheckoutKind,
@@ -100,7 +100,7 @@ def _init_coordination_lane_repo(repo: Path) -> Path:
             COORD_BRANCH,
         ],
     )
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
     return lane_path
 
 
@@ -171,7 +171,7 @@ def _init_lane_repo_with_mission_free_branch(repo: Path) -> tuple[Path, str]:
     _commit_mission_specs(repo)
     _run(["git", "-C", str(repo), "branch", COORD_BRANCH])
     lane_path = _add_lane_worktree(repo, f"{MISSION_SLUG}-lane-a", start_point=COORD_BRANCH)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
     return lane_path, MISSION_FREE_BRANCH
 
 
@@ -367,7 +367,7 @@ class TestEndToEndDetection:
                 COORD_BRANCH,
             ],
         )
-        register_lane_sparse_checkout(manual_path, MISSION_SLUG, MID8)
+        exclude_lane_status_files(manual_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
         report = scan_repo(repo)
         manual_state = next(w for w in report.worktrees if w.path == manual_path)
@@ -474,7 +474,7 @@ class TestManagedLaneIsBranchIndependent:
         _run(["git", "-C", str(repo), "branch", "-D", f"{COORD_BRANCH}-lane-a"])
 
         orphan = _add_lane_worktree(repo, f"{MISSION_SLUG}-lane-a", start_point=mission_free)
-        register_lane_sparse_checkout(orphan, MISSION_SLUG, MID8)
+        exclude_lane_status_files(orphan, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
         assert not (orphan / "kitty-specs" / MISSION_SLUG / "meta.json").exists()
 
         report = scan_repo(repo)

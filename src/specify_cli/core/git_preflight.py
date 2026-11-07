@@ -7,50 +7,13 @@ from pathlib import Path
 import shlex
 import subprocess
 
-from specify_cli.core.errors import StructuredError
 
 __all__ = [
     "GitPreflightIssue",
     "GitPreflightResult",
-    "GitPreflightError",
     "run_git_preflight",
     "build_git_preflight_failure_payload",
 ]
-
-
-# Preflight issue codes whose failures are *deterministic*: the legacy
-# direct-git fallback cannot recover from them (untrusted repository, missing
-# repository, or worktree-enumeration failure), so callers must surface them
-# rather than retry. Module-private: external callers branch on
-# ``GitPreflightError.is_deterministic`` (the canonical API) rather than
-# testing membership in this set directly (NFR-007).
-_DETERMINISTIC_PREFLIGHT_CODES: frozenset[str] = frozenset(
-    {
-        "NOT_A_GIT_REPOSITORY",
-        "UNTRUSTED_REPOSITORY",
-        "WORKTREE_LIST_FAILED",
-    }
-)
-
-
-class GitPreflightError(StructuredError):
-    """Raised when workspace creation fails a deterministic git preflight check.
-
-    Carries a stable ``error_code`` (NFR-007, #1893) drawn from the originating
-    :class:`GitPreflightIssue` code so consumers branch on the typed value /
-    ``error_code`` rather than substring-matching the human-readable message.
-    The code is threaded through ``__init__`` (per-instance, not a class
-    constant) so a single class spans the deterministic code set.
-    """
-
-    def __init__(self, message: str, *, error_code: str) -> None:
-        super().__init__(message)
-        self.error_code = error_code
-
-    @property
-    def is_deterministic(self) -> bool:
-        """True when the failure cannot be recovered by a direct-git fallback."""
-        return self.error_code in _DETERMINISTIC_PREFLIGHT_CODES
 
 
 @dataclass

@@ -1,21 +1,21 @@
 {
-  "event_count": 79,
-  "last_event_id": "01M6RC6TVYT7F78VTJG461TC5B",
-  "materialized_at": "2026-11-06T12:09:19.486281+00:00",
+  "event_count": 112,
+  "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
+  "materialized_at": "2026-11-06T14:55:31.142819+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 5,
+    "approved": 8,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 1,
     "in_review": 1,
-    "planned": 11
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -123,21 +123,28 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 1,
+      "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M6RAZ4EE9Q3DSR0BGPBF8X42",
-      "last_transition_at": "2026-11-06T11:47:38.574599+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6RFFWZVG0WVY4KPVXWXYSPY",
+      "last_transition_at": "2026-11-06T13:06:42.299536+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S1 slice 1: #6884 carried (red-first test first, -x, Co-authored-by Ivan Melck); tidy; status read matrix; red-first FR-002/FR-004 tests; fail-closed canonical_status_read_root wired into 6 root-taking entries; typed ref reader (RefRead / StatusSurfaceRefUnreadable, one cat-file --batch). #6884's unreadable-registry test flipped on purpose.",
-        "Re-claimed with full implementer identity (identity correction); code unchanged since 4b93e01b7b."
+        "Re-claimed with full implementer identity (identity correction); code unchanged since 4b93e01b7b.",
+        "Cycle 2 fix: _durable_coordination_lanes takes the declared ref-missing arm (None/on-disk fallback for a missing ref or non-repository root; an existing unreadable ref still raises). ref_exists now lives once in status_service beside read_status_ref; coherence imports it. Red 9a5a55eebe, fix 8ac755576c. TestEventDedupGuard 6/6; blast radius incl. test_merge_recovery and test_done_bookkeeping_rollback_coherence green.",
+        "Review passed (cycle 2): _durable_coordination_lanes now takes a declared ref-missing arm (ref_exists False -> None, on-disk fallback); an existing unreadable ref still raises StatusSurfaceRefUnreadable. TestEventDedupGuard 6/6. Red-first verified at 9a5a55eebe (4 failed + import error), green at 8ac755576c. One shared status_service.ref_exists in __all__; coherence copy removed. Caller sweep complete: read_event_log/read_status_ref callers are coherence (ref_exists arm), done_bookkeeping (ref_exists arm), status_transition (pre-existing _branch_exists declared arm, existing-ref reads raise); canonical_status_read_root callers are surface_resolver, aggregate, committed_authority, _read_path_resolver x3, all fail closed per ADR 2026-11-06-2. The seam-test ref_exists=True patch is legitimate: the read is mocked, the assertions are unchanged, and the absent arm is covered by real-git tests. The 3 mypy no-any-return errors exist on base (status_service 184/206, coherence 735). Non-blocking: (a) status_service.ref_exists shares a name with lanes._git.ref_exists, whose semantics differ (^{commit} peel, False for a missing object); consider a distinct name. (b) ref_exists collapses any rev-parse failure (e.g. a corrupt repository) into the missing-ref fallback. Residual to record: a missing tree object (commit present, tree/subtree absent) makes cat-file answer 'missing', which reads as RefRead.ABSENT, i.e. an empty history."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
-      "shell_pid": 26878,
-      "shell_pid_created_at": "1793965653.05",
+      "shell_pid": 31506,
+      "shell_pid_created_at": "1793968978.9",
       "subtasks": {
         "T017": "done",
         "T018": "done",
@@ -149,11 +156,38 @@
       }
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
+      "actor": "claude",
+      "agent": null,
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
       "lane": "planned",
-      "last_event_id": "01M6R1ZPVQ2PW2C15EDYWEGMKF",
-      "last_transition_at": "2026-11-06T09:10:40.247111+00:00"
+      "last_event_id": "01M6RNQ4T61SRTPASR7DR1P2GR",
+      "last_transition_at": "2026-11-06T14:55:31.142819+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "One status read door (resolve_status_read) with declared sources per topology/coord state; anchor delegates; loud root fallback removed; FR-061 resolve_primary_partition_dir wired into context resolve/check-prerequisites; landed reader mission_runtime.mission_has_landed; normalization memoized; ref_exists renamed ref_names_object."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty/kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-1.md",
+        "reference": "review-cycle://lane-worktree-model-hardening-01M6QY1M/WP05-s1-read-door-declared-sources/review-cycle-1.md",
+        "reviewer": "claude::reviewer-renata",
+        "verdict": "changes_requested"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
@@ -205,20 +239,42 @@
       }
     },
     "WP09": {
-      "actor": "claude::python-pedro",
-      "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 0,
+      "force_count": 2,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6R8QM43NAZCM33BP5F6ZFNQ",
-      "last_transition_at": "2026-11-06T11:08:35.320817+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6RMH6Q6ZXPFK5V3PJX84Q95",
+      "last_transition_at": "2026-11-06T14:34:47.910300+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "One lane-checkout helper (lanes/lane_checkout.py::open_lane_checkout) on every route: allocation fresh/legacy/recovery, lifecycle_sync recreate, review checkout, implement --recover recreate; status exclusion on every topology incl. lanes; single-seam gate; dirty status rows kept. landed_worktrees printed hint left as git command (no WP-free re-entry). Out-of-map: recovery.py, consolidation.py (index-based status.json regeneration in sparse lanes), 3 test files.",
+        "- 2026-11-06T13:39:04Z – claude::python-pedro – Review cycle 1 addressed (a0cb24fb50 red, 4a1d8e7a1d green): (1) sparse policy covers every topology, exact match to the helper's patterns; (2) index-only status.json regenerated with meta.json + stage-2 snapshot, byte-identical to in-place; (3) dead WP worktree creators deleted, empty lane allowlist; (4) workspace.py registrars deleted, exclude_lane_status_files is the one authority. Gate budget stays CPU time, justified (7.4 s wall clock under -n 8).",
+        "Cycle 1 fixed: managed sparse policy on every topology (exact match), faithful index snapshot regen, dead lane-checkout creators deleted (empty allowlist), single exclusion authority. Red a0cb24fb50, green 4a1d8e7a1d.",
+        "Cycle 3: removed LANE_BRANCH_MISSING/LANE_NO_COMMIT_BEYOND_BASE from for_review_gate __all__ (out-of-map); test_no_dead_symbols.py 37 passed; renamed stale raw-git test",
+        "Review passed (cycle 3): 6217017a4d drops LANE_BRANCH_MISSING/LANE_NO_COMMIT_BEYOND_BASE from __all__ (kept as module constants, used by evaluate_for_review_gate); test_no_dead_symbols.py 37 passed serially; no star imports, tests compare string literals only; test rename to test_raw_git_worktree_add_with_base_branch matches its body; mypy --strict + ruff check/format clean; diff since 4a1d8e7a1d is only mission bookkeeping plus the fix. Non-blocking carry-overs from cycle 2: ADR 'printed recreate command' wording; CI length-agreement timings."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 8631,
-      "shell_pid_created_at": "1793963304.04"
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3249,
+      "shell_pid_created_at": "1793975409.2",
+      "subtasks": {
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done"
+      }
     },
     "WP10": {
       "actor": "finalize-tasks",
@@ -279,11 +335,33 @@
       "shell_pid_created_at": "1793965875.96"
     },
     "WP13": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6R20328C5A676W53QE9CAKE",
-      "last_transition_at": "2026-11-06T09:10:52.744757+00:00"
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "in_review",
+      "last_event_id": "01M6RN29JNK7120SQZMJ6ZKEDV",
+      "last_transition_at": "2026-11-06T14:44:07.894017+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "S7 create half: topic-branch-only default create with topology_source/topology_settled/create_return_branch, TOPOLOGY_HELP, #5676 typed occupancy/dirty switch refusals, IC-13 target guard, count_code_lanes and restamp helper for WP14; JSON fields only (WP15 owns 1.24.0)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 29074,
+      "shell_pid_created_at": "1793976243.08",
+      "subtasks": {
+        "T074": "done",
+        "T075": "done",
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done",
+        "T081": "done"
+      }
     },
     "WP14": {
       "actor": "finalize-tasks",
@@ -294,22 +372,30 @@
     },
     "WP15": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 1,
-      "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M6RC6TVYT7F78VTJG461TC5B",
-      "last_transition_at": "2026-11-06T12:09:19.486281+00:00",
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6RF9THEBDQQFPK3VTVT66YC",
+      "last_transition_at": "2026-11-06T13:03:23.182405+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S5: one lane-cleanup module (plan/apply/MainTodayRemover) shared by consolidate, orchestrator-api and mission close --discard; coord first then lanes then record; kept lanes reported with exit 0; retained_by_policy distinct; tip ref cleared only after confirmed delete; process proof (NFR-008); cleanup_started resume; contract 1.24.0 documented incl. WP13/WP14 topology fields."
+        "S5: one lane-cleanup module (plan/apply/MainTodayRemover) shared by consolidate, orchestrator-api and mission close --discard; coord first then lanes then record; kept lanes reported with exit 0; retained_by_policy distinct; tip ref cleared only after confirmed delete; process proof (NFR-008); cleanup_started resume; contract 1.24.0 documented incl. WP13/WP14 topology fields.",
+        "Re-claimed with full implementer identity; code unchanged since 99ffeab125.",
+        "Review passed: one lane_cleanup module shared by executor/orchestrator-api/mission close --discard (no duplicate teardown, no new raw git ops); order coord->lanes->record; kept lanes reported exit 0; retained_by_policy distinct; clear_tip only after confirmed delete; probe-unavailable keeps (tested); 1.24.0 bump + docs + contract test done; red-first verified (6/6 red at 41d5d87dfe, module test ImportError). Non-blocking: (a) kill between coordination teardown and cleanup_started marker -> --resume refuses 'Missing mission branch' (no data loss, lanes intact; set the marker before coord teardown); (b) contract's consolidate --json lane_cleanup key not emitted, run.lane_cleanup stored but unread; (c) orchestrator LocalTargetAtPass.passed_sha is a live read, not a PASS anchor (WP16 binding); (d) claim_base.on_wp_terminal still clears a fully-canceled lane's tip while its branch exists (pre-existing, outside FR-034 cleanup scope)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 20898,
-      "shell_pid_created_at": "1793960031.46",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP15:20261106",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1528,
+      "shell_pid_created_at": "1793967181.29",
       "subtasks": {
         "T091": "done",
         "T092": "done",
