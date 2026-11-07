@@ -595,9 +595,9 @@
     },
     "WP20": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent": "claude::python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
@@ -605,7 +605,8 @@
       "last_transition_at": "2026-11-07T00:14:46.192076+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "S7: late topic-branch PRIMARY changes land before coordination teardown (or refuse, triple kept); resume anchors on pre_mutation_coord_sha; post-landing PRIMARY anchor = target; lands_topic_branch predicate; projection not widened. Commits 14ad4d8f61 (red), 893dc2bbdd."
+        "S7: late topic-branch PRIMARY changes land before coordination teardown (or refuse, triple kept); resume anchors on pre_mutation_coord_sha; post-landing PRIMARY anchor = target; lands_topic_branch predicate; projection not widened. Commits 14ad4d8f61 (red), 893dc2bbdd.",
+        "Cycle 2: second landing path removed; teardown refuses (CoordinationTeardownError, triple kept) on unlanded topic PRIMARY; Window B/resume pins red on base 55fb46379a; orchestrator-api characterization pin"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
