@@ -352,7 +352,8 @@ def test_mark_wp_merged_done_emits_done_when_lane_is_approved(
 
     assert len(emit_calls) == 1
     assert emit_calls[0].to_lane == "done"
-    assert emit_calls[0].actor == "merge"
+    # #6722 (3c0a8f3453): the done transition writes the structured 4-key system actor, not a plain string.
+    assert emit_calls[0].actor == {"tool": "merge", "role": "system", "profile": None, "model": None}
 
 
 def test_mark_wp_merged_done_skips_when_already_done(
