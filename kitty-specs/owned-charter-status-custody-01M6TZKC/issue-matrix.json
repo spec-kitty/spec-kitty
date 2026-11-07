@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6788": {
-      "evidence_ref": "Owned coordination-status custody slice only; startup budget and #7206 excluded.",
+      "evidence_ref": "Reviewer Renata: canonical-status integration red\u2192green, installed-CLI [0] green, owned runtime 26 passed. All-20 nightly matrix and umbrella startup remain pending.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,44 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
+    },
+    "#7206": {
+      "evidence_ref": "Excluded context/reference only; independently owned and no work owed by WP01.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7273": {
+      "evidence_ref": "Excluded context/reference only; independently owned and no work owed by WP01.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7287": {
+      "evidence_ref": "Excluded context/reference only; independently owned and no work owed by WP01.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
