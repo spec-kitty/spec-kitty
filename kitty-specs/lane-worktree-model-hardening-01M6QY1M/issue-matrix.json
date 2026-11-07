@@ -325,7 +325,7 @@
       "wp": "WP09"
     },
     "#7280": {
-      "evidence_ref": "S5 cleanup seam (WP15); guard binding WP16 gated on #7275",
+      "evidence_ref": "cleanup seam (WP15) + guard binding (WP16), both approved",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -333,8 +333,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP15"
+      "verdict": "fixed",
+      "wp": "WP16"
     },
     "#7281": {
       "evidence_ref": "S6 restated ruling 3: WP09/WP10",
