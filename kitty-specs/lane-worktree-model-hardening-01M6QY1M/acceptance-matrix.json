@@ -340,13 +340,13 @@
     },
     {
       "criterion_id": "FR-050",
-      "description": "Verify FR-050 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-050 Topology ADR: an ADR that supersedes #5100 item 2 and amends ADR `2026-06-22-1` Decision 2 to \"stored at create, settled once at the first finalize, read thereafter\", so that the reversal is governed. It must state: the size rule; the mapping of \"lanes otherwise\" to `lanes_with_coord` on every target with the topic branch as the coordination branch (A-3, DM `01M6R0B954ZPQN5NV4R1ZRE7NY`); deferred materialization; `topology_source`; decide-once; and the S8 dependency.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md (Proposed); docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md 'Amendment 2026-11-06: topology stored at create, settled once at the first finalize'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP02-adr-topology-settlement-and-s8-windows/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:17.111239+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-051",
