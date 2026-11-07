@@ -40,7 +40,6 @@ jobs:
               - 'tests/test_test_venv_bootstrap.py'
               - 'tests/cli/test_agent_status_messaging.py'
               - 'tests/cli/test_migrate_cmd_messaging.py'
-              - 'tests/core/test_worktree_symlink_fallback.py'
               - 'tests/kernel/test_paths_unified_windows_root.py'
               - 'tests/lanes/test_acceptance_matrix.py'
               - 'tests/mission/test_active_mission_handle_windows.py'

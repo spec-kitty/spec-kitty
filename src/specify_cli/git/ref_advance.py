@@ -915,11 +915,18 @@ def delete_branch_ref(
     """Delete ``refs/heads/<branch>`` only while it still points at ``expected_sha``.
 
     The delete-side counterpart of :func:`advance_branch_ref`: one
-    compare-and-swap ``git update-ref -d <ref> <expected_sha>`` (3-arg), so a
+    compare-and-swap ``git update-ref --no-deref -d <ref> <expected_sha>``, so a
     commit that landed after the caller approved ``expected_sha`` is never made
     unreachable (#5570). It never falls back to an unconditional delete, never
     retries, and never restores the ref -- a refusal leaves the branch exactly as
     found and the caller decides what to tell the operator.
+
+    ``--no-deref`` deletes the ref THIS call names, never the ref a symbolic ref
+    points at (``refs/heads/<branch>`` may itself be a symref, e.g.
+    ``git symbolic-ref refs/heads/x refs/heads/main``). Without it ``update-ref
+    -d`` resolves the symref and deletes its target -- possibly a checked-out
+    primary branch -- while the checked-out probe below looked at the branch
+    name. ``git branch -D`` has always deleted only the named ref (#7212).
 
     ``update-ref -d`` bypasses git's checked-out-branch protection, so the
     protection ``git branch -D`` gave (#3926) is kept explicitly: a branch that
@@ -941,7 +948,7 @@ def delete_branch_ref(
     for entry in _list_worktrees(repo_root, env):
         if entry.branch == ref:
             raise RefDeleteCheckedOutError(branch=branch, worktree_path=entry.path)
-    result = _run_git(repo_root, ["update-ref", "-d", ref, expected_sha], env=env)
+    result = _run_git(repo_root, ["update-ref", "--no-deref", "-d", ref, expected_sha], env=env)
     if result.returncode == 0:
         return
     probe = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)

@@ -28,6 +28,7 @@ import json
 from typing import TYPE_CHECKING
 
 from rich.console import Console
+from rich.markup import escape
 
 from charter.drg import ArtifactKind
 from specify_cli.cli.console import console
@@ -300,44 +301,48 @@ def _render_escape_findings(console: Console, label: str, summary: str, messages
         return
     console.print(f"  [red]{label}:[/red] {len(messages)} {summary}")
     for message in messages[:_ORG_FINDINGS_SHOWN]:
-        console.print(f"    [red]•[/red] {message}")
+        # The message quotes a pack author's path verbatim; escape it so text such as
+        # ``[/x]`` is printed, not parsed as Rich markup (which would crash the render).
+        console.print(f"    [red]•[/red] {escape(message)}")
     if len(messages) > _ORG_FINDINGS_SHOWN:
         console.print(f"    … and {len(messages) - _ORG_FINDINGS_SHOWN} more (run spec-kitty doctor charter-packs --json for the full list)")
 
 
-def _render_org_body_path_escapes(console: Console, repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+def _render_org_body_path_escapes(console: Console, fragments: Sequence[OrgDRGFragment]) -> None:
     """Render authored fragment nodes whose ``body_path`` escapes their pack (#6418).
 
-    Calls the same charter predicate as ``_collect_org_layer_data`` so the human
-    and ``--json`` halves of the command agree, and keeps "not checked" apart
-    from "none" exactly as the dangling-endpoint line does. The label names the
-    fragment nodes, so "none" is not read as a whole-pack verdict.
+    Calls the same offering predicate as ``_collect_org_layer_data`` — through the
+    ``charter.drg`` facade, judged against each fragment's carried effective root
+    (#6731) — so the human and ``--json`` halves of the command agree. Keeps "not
+    checked" apart from "none" exactly as the dangling-endpoint line does. The
+    label names the fragment nodes, so "none" is not read as a whole-pack verdict.
     """
-    from charter.activation.drg_activation import find_org_body_path_escapes
+    from charter.drg import find_body_path_escapes
 
     label = "fragment body_path escapes"
     try:
-        escapes = find_org_body_path_escapes(repo_root, fragments)
+        escapes = [finding for fragment in fragments for finding in find_body_path_escapes(fragment)]
     except Exception as exc:
         # Diagnostics never crash; say the check did not run rather than "none".
-        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
         return
     _render_escape_findings(console, label, "fragment node(s) point outside their pack", [e.message for e in escapes])
 
 
-def _render_org_asset_path_escapes(console: Console, repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+def _render_org_asset_path_escapes(console: Console, fragments: Sequence[OrgDRGFragment]) -> None:
     """Render org asset sidecars whose ``path`` escapes their pack's ``assets/`` root (#6418, FR-007).
 
     The human half of ``_collect_org_layer_data``'s ``asset_path_escapes``, with
-    the same "not checked" / "none" split as the ``body_path`` line.
+    the same "not checked" / "none" split as the ``body_path`` line and the same
+    carried effective root (#6731).
     """
-    from charter.activation.drg_activation import find_org_asset_path_escapes
+    from charter.drg import find_asset_path_escapes
 
     label = "asset path escapes"
     try:
-        escapes = find_org_asset_path_escapes(repo_root, fragments)
+        escapes = [finding for fragment in fragments for finding in find_asset_path_escapes(fragment)]
     except Exception as exc:
-        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({escape(str(exc))})")
         return
     _render_escape_findings(console, label, "asset sidecar(s) point outside their pack's assets/ root", [e.message for e in escapes])
 
@@ -390,8 +395,8 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
 
     # Before the merge, as in ``_collect_org_layer_data``: an escaping
     # body_path is reported even when the merge below refuses the graph.
-    _render_org_body_path_escapes(console, repo_root, fragments)
-    _render_org_asset_path_escapes(console, repo_root, fragments)
+    _render_org_body_path_escapes(console, fragments)
+    _render_org_asset_path_escapes(console, fragments)
 
     # Merge with the built-in layer to surface collision warnings AND graph
     # completeness. Both findings lists are truncated per the WP07 risk table

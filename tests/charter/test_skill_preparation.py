@@ -370,3 +370,20 @@ def test_project_preparation_refuses_a_project_skill_without_a_namespace(tmp_pat
 
     with pytest.raises(SkillPreparationError, match=_PROJECT_NAMESPACE_CONFIG_PATH.replace(".", r"\.")):
         prepare_project_skill_activations(tmp_path)
+
+
+def test_a_body_path_escape_at_read_time_refuses_the_skill_with_the_finding() -> None:
+    """The renderer consumes the one pack-path finding type (#6734, #7263)."""
+    from charter.offering.drg.org_pack_config import PACK_SKILL_BODY_PATH_ESCAPE, PackPathEscape
+    from charter.offering.pack_skills.validation import PackSkillPathEscape
+
+    finding = PackPathEscape(code=PACK_SKILL_BODY_PATH_ESCAPE, pack="/packs/org/skills", subject="a", path="../x.md", reason="outside")
+
+    class _EscapingSource(FakeSource):
+        def body_text(self, skill_id: str) -> str | None:
+            raise PackSkillPathEscape(finding)
+
+    source = _EscapingSource().add(_skill("a"), "org")
+    with pytest.raises(SkillPreparationError, match="activated skill 'a' is refused: skill 'a' body_path '../x.md'") as excinfo:
+        _prepare(source, ["a"])
+    assert isinstance(excinfo.value.__cause__, PackSkillPathEscape)

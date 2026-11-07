@@ -881,8 +881,15 @@ def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tu
     residue). Every genuine PRIMARY deliverable (code, ``tasks/WP*.md``) is
     preserved. Withdrawn Trigger A is respected: this NEVER touches the
     status->coord routing, only status->LANE.
+
+    FR-042 (Mission lane-worktree-model-hardening WP10): a Mission status file
+    (``kitty-specs/<dir>/status.events.jsonl`` / ``status.json``) is dropped on
+    EVERY topology by name, not through the topology-defaulted residue
+    classifier: a lane never changes status. Dropping is pathspec exclusion
+    only; the fork-time blob stays in the lane index (C-008).
     """
     from specify_cli.coordination.coherence import is_coord_residue_churn
+    from specify_cli.lanes.lane_checkout import is_mission_status_file
 
     kept: list[Path] = []
     for path in paths:
@@ -890,7 +897,7 @@ def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tu
             rel = path.relative_to(worktree_path).as_posix()
         except ValueError:
             rel = path.name
-        if is_coord_residue_churn(rel):
+        if is_mission_status_file(rel) or is_coord_residue_churn(rel):
             continue
         kept.append(path)
     return tuple(kept)

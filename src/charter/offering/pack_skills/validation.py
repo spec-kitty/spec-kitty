@@ -16,6 +16,13 @@ from ruamel.yaml.error import YAMLError
 
 from kernel.pack_tiers import BUILT_IN, PackTier
 
+from charter.offering.drg.org_pack_config import (
+    PACK_SKILL_BODY_PATH_ESCAPE,
+    OrgPackSubdirEscapeError,
+    PackPathEscape,
+    resolve_relative_path_within_root,
+)
+
 from charter.offering.pack_skills.models import (
     MAX_SKILL_DESCRIPTION_LENGTH,
     MAX_SKILL_NAME_LENGTH,
@@ -40,6 +47,20 @@ _FRONTMATTER_FENCE = "---"
 
 class PackSkillViolation(ValueError):
     """A pack skill breaks a tier, trust or augmentation rule."""
+
+
+class PackSkillPathEscape(PackSkillViolation):
+    """A pack skill's ``body_path`` is not contained in its skill directory (#6734).
+
+    Carries the :class:`~charter.offering.drg.org_pack_config.PackPathEscape`
+    finding (code ``PACK_SKILL_BODY_PATH_ESCAPE``), the one pack-path finding type
+    the doctor, ``charter status`` and ``charter org validate`` report (#7263); the
+    message is the finding's own.
+    """
+
+    def __init__(self, finding: PackPathEscape) -> None:
+        super().__init__(finding.message)
+        self.finding = finding
 
 
 def rendered_name(skill_id: str, namespace: str | None) -> str:
@@ -110,11 +131,39 @@ def validate_pack_skill(
         _check_frontmatter(skill, body_text)
 
 
+def resolve_body_path(skill: PackSkill, skill_file: Path) -> Path:
+    """Resolve a prompt-form skill's ``body_path`` inside its skill directory.
+
+    Containment is judged by
+    :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root`
+    — the single containment authority — anchored at the declaring
+    ``*.skill.yaml`` file's directory, so the load-time validation
+    (:func:`validate_pack_skill`) and the read-time accessor
+    (:meth:`~charter.offering.pack_skills.repository.PackSkillRepository.body_text`)
+    cannot drift apart. An absolute path (POSIX, Windows or UNC), a ``..``
+    component, a symlink resolving outside the directory, or a path that cannot
+    be resolved at all raises :class:`PackSkillPathEscape` (a
+    :class:`PackSkillViolation` carrying the ``PackPathEscape`` finding); existence
+    is NOT checked here (callers report a missing body separately).
+    """
+    skill_dir = skill_file.parent
+    body_path = skill.body_path or ""
+    try:
+        resolved: Path = resolve_relative_path_within_root(skill_dir, body_path)
+    except (OrgPackSubdirEscapeError, ValueError, OSError) as exc:
+        finding = PackPathEscape(
+            code=PACK_SKILL_BODY_PATH_ESCAPE,
+            pack=str(skill_dir),
+            subject=skill.id,
+            path=body_path,
+            reason=str(exc),
+        )
+        raise PackSkillPathEscape(finding) from exc
+    return resolved
+
+
 def _read_body(skill: PackSkill, skill_file: Path) -> str:
-    base = skill_file.parent.resolve()
-    body_file = (base / (skill.body_path or "")).resolve()
-    if not body_file.is_relative_to(base):
-        raise PackSkillViolation(f"skill {skill.id!r}: body_path {skill.body_path!r} escapes the skill directory")
+    body_file = resolve_body_path(skill, skill_file)
     if not body_file.is_file():
         raise PackSkillViolation(f"skill {skill.id!r}: body file {skill.body_path!r} not found")
     return body_file.read_text(encoding="utf-8")
@@ -233,11 +282,13 @@ def _require_narrowing(base: SkillInvocation, enhancer: SkillInvocation) -> None
 
 __all__ = [
     "RESERVED_PREFIXES",
+    "PackSkillPathEscape",
     "PackSkillViolation",
     "Tier",
     "apply_enhancement",
     "rendered_description",
     "rendered_name",
+    "resolve_body_path",
     "skill_limit_violation",
     "validate_pack_skill",
 ]

@@ -450,6 +450,11 @@ class TestAcceptJsonDiagnose:
         still emitted; it now discloses the cannot-evaluate honestly.
         """
         repo_root, mission_slug = coord_repo
+        mission_dir = repo_root / "kitty-specs" / mission_slug
+        status_log = mission_dir / "status.events.jsonl"
+        before_events = status_log.read_bytes()
+        before_meta = (mission_dir / "meta.json").read_bytes()
+        before_head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, check=True, capture_output=True, text=True).stdout
         payload = self._run(repo_root, mission_slug)
 
         assert payload["diagnose"] is True
@@ -465,6 +470,12 @@ class TestAcceptJsonDiagnose:
         assert any(
             "SURFACE_CANNOT_HOLD_FACT" in c["detail"] for c in payload["blocked_checks"]
         ), payload["blocked_checks"]
+        evidence_skips = [item for item in payload["skipped_checks"] if item["check"] == "implementation_evidence"]
+        assert len(evidence_skips) == 1
+        assert "COORDINATION_WORKTREE_UNMATERIALIZED" in evidence_skips[0]["detail"]
+        assert status_log.read_bytes() == before_events
+        assert (mission_dir / "meta.json").read_bytes() == before_meta
+        assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, check=True, capture_output=True, text=True).stdout == before_head
 
 
 # ---------------------------------------------------------------------------

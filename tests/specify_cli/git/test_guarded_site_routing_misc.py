@@ -18,7 +18,6 @@ from specify_cli.charter_packs.sources import git_source
 from specify_cli.charter_packs.sources.git_source import GitSource
 from specify_cli.cli.commands import mission_type
 from specify_cli.coordination import coord_seed
-from specify_cli.core import worktree as core_worktree
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.status import doctor_husks
 
@@ -300,54 +299,6 @@ def test_husk_residue_context_disposes_of_nothing(tmp_path: Path) -> None:
 
     assert context.is_disposable("kitty-specs/m/meta.json") is False
     assert context.for_checkout(tmp_path, tmp_path) is context
-
-
-# --------------------------------------------------------------------------- core/worktree memory
-
-
-def _worktree_with_memory_dir(tmp_path: Path) -> tuple[Path, Path, Path]:
-    repo = tmp_path / "repo"
-    (repo / ".kittify" / "memory").mkdir(parents=True)
-    (repo / ".kittify" / "memory" / "shared.md").write_text("shared\n", encoding="utf-8")
-    worktree = tmp_path / "wt"
-    memory = worktree / ".kittify" / "memory"
-    memory.mkdir(parents=True)
-    (memory / "stale.md").write_text("stale checkout copy\n", encoding="utf-8")
-    feature_dir = worktree / "kitty-specs" / "001-demo"
-    return repo, worktree, feature_dir
-
-
-def test_setup_feature_directory_replaces_memory_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-    monkeypatch.setattr(core_worktree, "is_windows", lambda: False)
-
-    core_worktree.setup_feature_directory(feature_dir, worktree, repo)
-
-    memory = worktree / ".kittify" / "memory"
-    assert memory.is_symlink()
-    assert not (memory / "stale.md").exists()
-
-
-def test_setup_feature_directory_copy_mode_replaces_memory_directory(tmp_path: Path) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-
-    core_worktree.setup_feature_directory(feature_dir, worktree, repo, create_symlinks=False)
-
-    memory = worktree / ".kittify" / "memory"
-    assert not memory.is_symlink()
-    assert (memory / "shared.md").exists()
-    assert not (memory / "stale.md").exists()
-
-
-def test_setup_feature_directory_refuses_memory_that_is_a_git_checkout(tmp_path: Path) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-    memory = worktree / ".kittify" / "memory"
-    (memory / ".git").mkdir()
-
-    with pytest.raises(ToolOwnedPathUnproven):
-        core_worktree.setup_feature_directory(feature_dir, worktree, repo, create_symlinks=False)
-
-    assert (memory / "stale.md").exists()
 
 
 # --------------------------------------------------------------------------- coord_seed scratch

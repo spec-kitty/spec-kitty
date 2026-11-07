@@ -151,9 +151,9 @@ def _config_value(cwd: Path, key: str) -> str | None:
     return result.stdout.decode("utf-8", "replace").strip() or None
 
 
-def configured_remotes(cwd: Path) -> list[str]:
+def configured_remotes(cwd: Path, *, env: dict[str, str] | None = None) -> list[str]:
     """Names of the remotes configured in *cwd*'s repository (``git remote``); local config read, no network."""
-    listed = run_git(cwd, "remote", check=False)
+    listed = run_git(cwd, "remote", check=False, env=env)
     if listed.returncode != 0:
         return []
     return [line.strip() for line in listed.stdout.decode("utf-8", "replace").splitlines() if line.strip()]

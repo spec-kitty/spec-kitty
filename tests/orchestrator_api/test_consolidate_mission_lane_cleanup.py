@@ -1,7 +1,7 @@
-"""``orchestrator-api consolidate-mission`` reports per-lane cleanup outcomes (S5, FR-039a, SC-012, contract 1.24.0).
+"""``orchestrator-api consolidate-mission`` reports per-lane cleanup outcomes (S5, FR-039a, SC-012, contract 1.25.0).
 
 The orchestrator path and ``spec-kitty consolidate`` share one lane-cleanup module, so the same
-Mission shape yields the same per-lane outcome on both (the 1.24.0 value itself is pinned in
+Mission shape yields the same per-lane outcome on both (the 1.25.0 value itself is pinned in
 ``tests/specify_cli/orchestrator_api/test_contract_version.py``). Driven through the REAL CLI over real git.
 """
 
