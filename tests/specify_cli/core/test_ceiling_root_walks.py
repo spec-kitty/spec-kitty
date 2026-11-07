@@ -12,11 +12,14 @@ case here.
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 import typer
+
+from kernel.git_anchor import AnchorKind, find_git_anchor
 
 from specify_cli.bootstrap.env_file import _find_repo_root as env_file_repo_root
 from specify_cli.context import middleware as context_middleware
@@ -31,7 +34,6 @@ from specify_cli.core.paths import (
 )
 from specify_cli.gitignore_manager import _has_git_control_path
 from specify_cli.migration.legacy_charter_gate import find_checkout_root
-from specify_cli.mission_metadata import _has_no_git_anchor
 from specify_cli.task_utils.support import find_repo_root
 from tests._support.git_cli import git_out
 
@@ -123,19 +125,22 @@ def test_checkout_identity_does_not_adopt_a_repo_above_the_ceiling(ambient_repo:
 def test_mission_metadata_has_no_git_anchor_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
     _outer, work = ambient_repo
 
-    assert _has_no_git_anchor(work) is True
+    assert find_git_anchor(work) is None
 
 
 def test_mission_metadata_sees_a_git_anchor_below_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:
     _outer, work = ambient_repo
     (work / ".git").mkdir()
+    (work / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
 
-    assert _has_no_git_anchor(work) is False
+    anchor = find_git_anchor(work)
+
+    assert anchor is not None and anchor.kind is AnchorKind.REPOSITORY
 
 
 @pytest.mark.parametrize("unreadable_at", ["anchor", "start-loop"])
 def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, unreadable_at: str) -> None:
-    """Fail-closed: an unreadable marker or unresolvable start cannot prove absence."""
+    """Fail closed when a marker or the start cannot be inspected (#7056, #7262)."""
     _outer, work = ambient_repo
     if unreadable_at == "start-loop":
         loop = work / "loop"
@@ -144,18 +149,21 @@ def test_mission_metadata_treats_an_unreadable_ancestor_as_an_anchor(ambient_rep
         except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
             pytest.skip("platform cannot create directory symlinks")
         monkeypatch.setenv(CEILING_ENV, str(work))
-        assert _has_no_git_anchor(loop / "child") is False
+        anchor = find_git_anchor(loop / "child", environ={})
+        assert anchor is not None and anchor.kind is AnchorKind.UNKNOWN
         return
-    real_exists = Path.exists
+    real_lstat = Path.lstat
 
-    def _raising_exists(self: Path) -> bool:
+    def _raising_lstat(self: Path) -> os.stat_result:
         if self.name == ".git":
             raise OSError("unreadable ancestor")
-        return real_exists(self)
+        return real_lstat(self)
 
-    monkeypatch.setattr(Path, "exists", _raising_exists)
+    monkeypatch.setattr(Path, "lstat", _raising_lstat)
 
-    assert _has_no_git_anchor(work) is False
+    anchor = find_git_anchor(work)
+
+    assert anchor is not None and anchor.kind is AnchorKind.UNKNOWN
 
 
 def test_legacy_charter_gate_does_not_adopt_a_checkout_above_the_ceiling(ambient_repo: tuple[Path, Path]) -> None:

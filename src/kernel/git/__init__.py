@@ -5,7 +5,8 @@ Split of responsibilities (mission git-paths-are-data, #5392/#5400):
 * **How** lives here: :func:`run_git` (one subprocess seam), NUL-delimited
   (``-z``) output for every path listing, one lossless decode rule, the
   :class:`GitPath` value type with component-wise relations, and typed
-  entries.
+  entries. :func:`refuses_ownership` classifies git's refusal diagnosis here;
+  trusting a checkout remains an explicit operator decision.
 * **What** is asked by intent through the listing queries
   (:func:`status_entries`, :func:`tree_paths`, :func:`changed_paths`, ...).
   Domain decisions (for example "would a reset clobber this local file")
@@ -59,7 +60,7 @@ from kernel.git.remote import (
     resolve_remote,
     tracking_ref,
 )
-from kernel.git.runner import GitCommandError, GitResult, decode_path, run_git
+from kernel.git.runner import GitCommandError, GitResult, decode_path, refuses_ownership, run_git
 
 __all__ = [
     "CLONE_TIMEOUT",
@@ -94,6 +95,7 @@ __all__ = [
     "log_paths",
     "no_prompt_env",
     "numstat_entries",
+    "refuses_ownership",
     "remote_heads",
     "resolve_remote",
     "run_git",

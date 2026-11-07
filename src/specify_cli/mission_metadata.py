@@ -16,7 +16,6 @@ always either the old version or the new version, never a partial write.
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -24,11 +23,11 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from charter.activation.api import read_mission_type
-from kernel.ancestor_walk import find_ancestor, git_ceiling_dirs
+
 from kernel.clock import now_utc_iso
-from kernel.git import GitCommandError, blob_at, is_tracked, run_git
+from kernel.git_anchor import AnchorKind, GitAnchor, find_git_anchor
+from kernel.git import GitCommandError, blob_at, is_tracked, refuses_ownership, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
-from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import resolve_mid8
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
@@ -47,17 +46,12 @@ _UTF8: str = "utf-8"
 _UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
 _HEAD: str = "HEAD"
 
-# A failed git probe under an explicit repository/index/object redirect does not
-# prove that no tracked identity exists, even when discovery stops at a ceiling.
-# Successful redirects retain their existing behavior; #7262 owns their classifier.
-_GIT_CONTEXT_REDIRECTS = (
-    "GIT_DIR",
-    "GIT_COMMON_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-)
+#: Why git could not answer what it holds for a Mission's ``meta.json`` (#7131). One cause per
+#: refusal shape, so the one shared notice can name the repair class instead of guessing.
+#: ``"anchor"`` and ``"git-not-run"`` come from the ``.git`` classifier (#7262): a ``.git`` that is
+#: neither a repository nor harmless residue, and a git that could not be started at all while a
+#: repository sits above the folder.
+UnreadableReason = Literal["repository", "ownership", "objects", "anchor", "git-not-run"]
 
 
 def baseline_slug_fields(slug: str) -> dict[str, str]:
@@ -506,6 +500,21 @@ class TrackedMeta:
     index blob is different (a staged edit, or a staged deletion): restoring ``HEAD``'s
     bytes would silently discard it, and ``git checkout --`` would restore another copy.
     All three only shape the operator message.
+
+    ``unreadable_reason`` is the fourth sub-case, and the one where git could not answer
+    *at all* (#7131): ``"ownership"`` when git refuses this checkout's ownership trust,
+    ``"repository"`` when it cannot identify a repository here (an unreadable or garbled
+    ``.git``, a ``GIT_DIR``/``GIT_WORK_TREE`` naming elsewhere), and ``"objects"`` when
+    the repository answered but the committed blob could not be read. Unlike the three
+    flags, it means *whether the path is tracked is unknown*, so a notice carrying it must
+    never claim a tracked copy is missing or offer ``git checkout --``; it is set only
+    together with ``unavailable``. ``"anchor"`` means the ``.git`` itself could not be
+    classified as a repository or as harmless residue (#7262), and ``"git-not-run"`` that git
+    could not be started while a repository sits above the folder.
+
+    ``anchor`` is the ``.git`` classifier's verdict behind such a refusal
+    (:class:`kernel.git_anchor.GitAnchor`): which ``.git`` it is about and why, so the notice can
+    name the path. ``None`` whenever git itself answered.
     """
 
     meta: dict[str, Any] | None
@@ -513,6 +522,8 @@ class TrackedMeta:
     index_only: bool = False
     corrupt: bool = False
     staged_differs: bool = False
+    unreadable_reason: UnreadableReason | None = None
+    anchor: GitAnchor | None = None
 
 
 def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
@@ -536,7 +547,9 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
         ``TrackedMeta(None, unavailable=False)`` when git holds nothing for the path
         (a pre-identity Mission, a folder outside any work tree, or git unavailable);
         ``TrackedMeta(None, unavailable=True)`` when git knows the path but its content
-        cannot be produced or parsed.
+        cannot be produced or parsed, and ``unavailable=True`` with
+        :attr:`TrackedMeta.unreadable_reason` set when git could not answer for the
+        repository or the object at all (#7131).
 
     Raises:
         GitCommandError: only when git timed out; a timeout is a real failure and is
@@ -546,8 +559,8 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
     """
     try:
         prefix = _meta_checkout_prefix(feature_dir)
-    except _GitRefuses:
-        return TrackedMeta(None, unavailable=True)
+    except _GitRefuses as exc:
+        return TrackedMeta(None, unavailable=True, unreadable_reason=_refusal_reason(exc), anchor=exc.anchor)
     if prefix is None:
         return TrackedMeta(None, unavailable=False)
     try:
@@ -555,7 +568,7 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
     except GitCommandError as exc:
         if exc.timed_out:
             raise
-        return TrackedMeta(None, unavailable=True)
+        return TrackedMeta(None, unavailable=True, unreadable_reason=_unreadable_reason(exc.stderr, repository_identified=True))
     if tracked_bytes is not None:
         if _index_meta_bytes(feature_dir) != tracked_bytes:
             return TrackedMeta(None, unavailable=True, staged_differs=True)
@@ -596,15 +609,57 @@ def restore_tracked_meta(feature_dir: Path) -> bool:
 
 
 class _GitRefuses(Exception):
-    """git did not answer "this is not a work tree", so the tracked copy is unknown (#6673)."""
+    """git did not answer "this is not a work tree", so the tracked copy is unknown (#6673).
+
+    ``stderr`` is kept only so :func:`_unreadable_reason` can name the cause; no caller
+    prints it, because git's own refusal text carries paths and, in a remote URL, possibly
+    credentials (#7131). ``anchor`` is the classifier's verdict on the ``.git`` that made the
+    answer untrustworthy (#7262), ``None`` when git failed to run for another reason and no
+    ``.git`` names the cause; ``git_not_run`` marks a git that could not be started at all.
+    """
+
+    def __init__(self, stderr: str, anchor: GitAnchor | None, *, git_not_run: bool = False) -> None:
+        super().__init__(stderr)
+        self.stderr = stderr
+        self.anchor = anchor
+        self.git_not_run = git_not_run
+
+
+def _unreadable_reason(stderr: str, *, repository_identified: bool) -> UnreadableReason:
+    """Name the cause of a refusal git gave but could not explain to the caller (#7131).
+
+    Recognize ownership's explicit diagnosis or exception hint first. Otherwise,
+    distinguish repository discovery from committed-content access: a repository that
+    answered does not by itself establish that a later read failed because of damage.
+    """
+    if refuses_ownership(stderr):
+        return "ownership"
+    return "objects" if repository_identified else "repository"
+
+
+def _refusal_reason(exc: _GitRefuses) -> UnreadableReason:
+    """The cause a :class:`_GitRefuses` names (#7262).
+
+    Git's ownership diagnosis wins: it is positive evidence that git found a repository, and a
+    nearer ``.git`` git walked past cannot be the cause. Otherwise a ``.git`` the classifier
+    cannot rule out is named before git's generic answer.
+    """
+    if refuses_ownership(exc.stderr):
+        return "ownership"
+    if exc.anchor is not None and exc.anchor.kind is AnchorKind.UNKNOWN:
+        return "anchor"
+    if exc.git_not_run:
+        return "git-not-run"
+    return _unreadable_reason(exc.stderr, repository_identified=False)
 
 
 def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     """``rev-parse --show-prefix`` of *feature_dir* (``""`` at the checkout root), or ``None``.
 
-    ``None`` means "nothing is tracked here": git is not installed, or a query that did not
-    establish a worktree context has no ``.git`` anchor in Git's effective search domain
-    and its configuration is readable.
+    ``None`` means "nothing is tracked here": git answered (or could not be run) and every
+    ``.git`` at or above *feature_dir*, up to ``GIT_CEILING_DIRECTORIES``, is absent or harmless
+    residue (:func:`kernel.git_anchor.find_git_anchor`, #7262). A failed git query also needs
+    a quiet configuration witness before it can establish that absence (#7056).
 
     The trailing newline git prints is removed -- and only that. ``strip()`` would also eat a
     leading space that is part of the first path component, silently missing the blob and
@@ -612,62 +667,30 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
 
     A git that *runs and refuses* (dubious ownership, an unreadable or garbled ``.git``, a
     misconfigured ``GIT_DIR``) exits non-zero too, with the same "not a git repository"
-    message. Message text cannot separate those, so a ``.git`` anchor above *feature_dir*
-    raises :class:`_GitRefuses`: the caller refuses instead of falling back to fabricating an
-    identity over a copy git does hold (NFR-002).
+    message. Message text cannot separate those, so a ``.git`` above *feature_dir* that is a
+    repository, or that the classifier cannot rule out (*unknown*), raises
+    :class:`_GitRefuses`: the caller refuses instead of falling back to fabricating an
+    identity over a copy git does hold (NFR-002). The same holds when git cannot be started at
+    all (operator ruling on #7262): only an absent or residue ``.git`` lets that read as
+    "nothing tracked".
     """
     try:
         result = run_git(feature_dir, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
     except GitCommandError as exc:
         if exc.timed_out:
             raise
-        if exc.not_run:
-            return None  # git is not installed: nothing is tracked here
-        raise _GitRefuses(str(exc)) from exc
+        anchor = find_git_anchor(feature_dir)
+        if exc.not_run and anchor is None:
+            return None  # git cannot run and nothing above could hold a copy
+        raise _GitRefuses(str(exc), anchor, git_not_run=exc.not_run) from exc
     lines = result.stdout.decode(_UTF8, "replace").split("\n")
     if result.returncode == 0 and len(lines) >= 2 and lines[0].strip() == "true":
         return lines[1].removesuffix("\n")
-    if result.returncode != 0 and any(name in os.environ for name in _GIT_CONTEXT_REDIRECTS):
-        raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
-    if _has_no_git_anchor(feature_dir):
+    anchor = find_git_anchor(feature_dir)
+    if anchor is None:
         _require_readable_git_config(feature_dir)
         return None
-    raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
-
-
-def _has_git_anchor(candidate: Path) -> bool:
-    """Whether *candidate* carries a ``.git`` directory, file or worktree marker.
-
-    Fail-closed: an ancestor that cannot be read counts as an anchor, so the caller
-    refuses (``_GitRefuses``) rather than falling back to minting an identity over a copy
-    git does hold (NFR-002). The caller's negative-evidence walk follows Git's effective
-    ceilings, ignoring entries equal to its starting directory; an ambient repository
-    above a boundary that actually applies is not an anchor (#7056).
-    """
-    try:
-        return (candidate / ".git").exists()
-    except OSError:
-        return True
-
-
-def _has_no_git_anchor(feature_dir: Path) -> bool:
-    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*.
-
-    Use the canonical walk with git's no-realpath rule for entries after an empty entry.
-    This negative evidence must not stop below an anchor git's own search reached and
-    refused: that would turn an unknown tracked identity into permission to mint one.
-
-    git ignores a ceiling entry that *is* its starting directory (it bounds only a search
-    that starts below it), so that one entry is dropped before this walk runs; the
-    start-equal stop stays the general reading for every other caller. A start that cannot
-    be resolved leaves the question open -- unknown is a refusal here, never an absence.
-    """
-    try:
-        start = resolve_rejecting_loops(feature_dir)
-    except OSError:
-        return False
-    ceilings = git_ceiling_dirs(resolve_after_empty=False) - {start}
-    return find_ancestor(start, _has_git_anchor, ceilings=ceilings) is None
+    raise _GitRefuses(result.stderr.decode(_UTF8, "replace"), anchor)
 
 
 def _require_readable_git_config(feature_dir: Path) -> None:
@@ -684,9 +707,9 @@ def _require_readable_git_config(feature_dir: Path) -> None:
     except GitCommandError as exc:
         if exc.timed_out:
             raise
-        raise _GitRefuses(str(exc)) from exc
+        raise _GitRefuses(str(exc), None) from exc
     if probe.returncode not in (0, 1) or probe.stderr:
-        raise _GitRefuses(probe.stderr.decode(_UTF8, "replace"))
+        raise _GitRefuses(probe.stderr.decode(_UTF8, "replace"), None)
 
 
 def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:
