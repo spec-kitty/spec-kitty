@@ -100,7 +100,8 @@ def _mission_side_changes(repo_root: Path, lane_branch: str, mission_branch: str
     merged into both) is not mission-side work the lane lacks. A merge commit
     contributes only what its own resolution introduced (``--diff-merges=remerge``:
     the diff against git's automatic re-merge), so content a merge carried in from
-    a parent is attributed to that parent's commits. A failed probe falls back to
+    a parent is attributed to that parent's commits (an octopus merge, which git skips
+    under ``remerge``, contributes its full diff against its first parent). A failed probe falls back to
     the whole ``merge_base..mission_branch`` diff, the strictest superset.
     """
     try:

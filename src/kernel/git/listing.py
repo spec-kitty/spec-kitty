@@ -456,13 +456,20 @@ def log_paths(
 ) -> tuple[GitPath, ...]:
     """Every path touched by a commit in *rev_range* (renames split), first-seen order, no duplicates.
 
-    With *remerge_merges* a merge commit contributes only what its own resolution
+    With *remerge_merges* a two-parent merge contributes only what its own resolution
     introduced (``--diff-merges=remerge``: its diff against git's automatic re-merge);
-    without it a merge lists nothing (git's default for ``log``).
+    without it a merge lists nothing (git's default for ``log``). git skips an octopus
+    merge (3 or more parents) under ``remerge``, so with *remerge_merges* each octopus
+    merge contributes its full diff against its first parent instead: a superset of its
+    own changes, never an under-count.
     """
     merges = ["--diff-merges=remerge"] if remerge_merges else []
-    args = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames", *merges, rev_range]
-    return tuple(dict.fromkeys(parse_paths_z(_git(cwd, args, pathspecs, glob=glob, env=env, timeout=timeout))))
+    base = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames"]
+    raw = _git(cwd, [*base, *merges, rev_range], pathspecs, glob=glob, env=env, timeout=timeout)
+    if remerge_merges:
+        octopus = ["--min-parents=3", "--diff-merges=first-parent"]
+        raw += _git(cwd, [*base, *octopus, rev_range], pathspecs, glob=glob, env=env, timeout=timeout)
+    return tuple(dict.fromkeys(parse_paths_z(raw)))
 
 
 def tracked_paths(
