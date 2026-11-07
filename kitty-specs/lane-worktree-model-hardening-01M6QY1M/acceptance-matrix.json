@@ -420,13 +420,13 @@
     },
     {
       "criterion_id": "FR-058",
-      "description": "Verify FR-058 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-058 Preview and report the decision: `finalize-tasks --validate-only` to preview the decision without writing anything, `finalize-tasks --json` to report the decision (rule, WP count, code-lane count, provisional and settled topology), and `create --json` to mark a provisional topology, so that the decision is visible and scriptable.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_validate_only_previews_and_writes_nothing; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_finalize_json_reports_decision; lane-j:tests/specify_cli/cli/commands/agent/test_mission_create_provisional_topology.py::test_create_json_marks_provisional; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP13-s7-provenance-and-topic-branch-create/review-cycle-3.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:56.778366+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-059",
