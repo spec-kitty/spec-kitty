@@ -373,7 +373,7 @@
       "wp": "WP12"
     },
     "#7284": {
-      "evidence_ref": "S9 core ADRs C-1/C-2/C-3 + D-6 amendment; events ADRs in spec-kitty-events PR #215",
+      "evidence_ref": "core ADRs (WP03, approved) + events ADRs in spec-kitty-events PR #215 (merged)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -381,7 +381,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP03"
     },
     "#7285": {
