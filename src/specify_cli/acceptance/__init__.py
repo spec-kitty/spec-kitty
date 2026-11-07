@@ -2019,7 +2019,7 @@ def pr_mode_lane_cleanup(
     *,
     probe: Callable[[Sequence[Path]], ProcessProbeResult] | None = None,
 ) -> LaneCleanupReport | None:
-    """FR-036 / SC-006: remove every code lane the pushed PR head absorbs, before the PR merges.
+    """FR-036 / SC-006: remove every code lane the pushed PR head absorbs, before the PR merges (unless the Mission retains it).
 
     The landing proof is the PR head's tracking ref ``refs/remotes/<remote>/<branch>``; each lane goes
     through the lane-cleanup module bound to ``guarded_landed_removal``. A lane the pushed head does
@@ -2028,18 +2028,23 @@ def pr_mode_lane_cleanup(
     """
     from specify_cli.consolidation import lane_cleanup
     from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
+    from specify_cli.core.paths import resolve_merge_retention
     from specify_cli.lanes.persistence import read_lanes_json
     from specify_cli.workspace.process_probe import processes_with_cwd_under
 
     manifest = read_lanes_json(feature_dir)
     if manifest is None:
         return None
+    # The Mission's own retention policy (meta.json) governs, exactly as it does for consolidate; a
+    # corrupt meta.json raises (MissionMetaReadError) before any lane is touched.
+    decision = resolve_merge_retention(feature_dir, explicit_delete_branch=None, explicit_remove_worktree=None)
+    retention = lane_cleanup.LaneRetention(remove_worktree=decision.remove_worktree, delete_branch=decision.delete_branch)
     items = lane_cleanup.plan_lane_cleanup(manifest, repo_root=repo_root)
     remote = _pr_head_remote(repo_root, branch)
     landing = lane_cleanup.RemoteRef(remote=remote, ref=f"refs/remotes/{remote}/{branch}")
     context = residue_context_or_strictest(repo_root, manifest.mission_slug, CheckoutRole.LANE)
     remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under)
-    return lane_cleanup.apply(items, remover, landing=landing, retention=lane_cleanup.LaneRetention())
+    return lane_cleanup.apply(items, remover, landing=landing, retention=retention)
 
 
 def _pr_mode_cleanup_lines(summary: AcceptanceSummary, branch: str) -> list[str]:
