@@ -8,7 +8,7 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/consolidation/test_wp_evidence.py::test_branch_ref_absent_reads_only_a_definite_absence; tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/consolidation/test_wp_evidence.py::test_a_pruned_lane_without_a_landing_commit_names_the_ref_and_the_merge_commit_scope; teeth: branch_ref_absent `returncode == 1` -> `!= 0` failed 4 named tests (incl. the two above that pin exit-128 as not absent); move-task `if wp_evidence.branch_ref_absent(...)` -> `if False` failed 3 (git_ops never-created + sibling, integration CLI); both reverted",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_branch_ref_absent_reads_only_a_definite_absence; tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/consolidation/test_wp_evidence.py::test_a_pruned_lane_without_a_landing_commit_names_the_ref_and_the_merge_commit_scope; teeth: branch_ref_absent `returncode == 1` -> `!= 0` failed 4 tests, the four named on FR-007 (only test_branch_ref_absent_reads_only_a_definite_absence is also named here); move-task `if wp_evidence.branch_ref_absent(...)` -> `if False` failed 3 (git_ops never-created + sibling, integration CLI); both reverted",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-11-05T12:04:23.042645+00:00",

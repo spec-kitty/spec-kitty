@@ -22,7 +22,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: tests/integration/
 create_intent:
-- tests/integration/test_7120_lane_window_never_created.py
+- tests/integration/test_move_task_absent_lane_window_refusal.py
 execution_mode: code_change
 model: ''
 owned_files:
