@@ -260,7 +260,7 @@ class TestLoadCoordUnavailableFailsClosed:
 
         Previously this hard-failed with ``CoordAuthorityUnavailable``. Under the
         operator-decided Option B the canonical surface returns the primary
-        checkout + emits a loud warning, and the aggregate inherits that PRIMARY
+        checkout, and the aggregate inherits that PRIMARY
         with NO aggregate code change (``_resolve_read_dir`` delegates to the
         surface). The fallback is observable (the surface logs at
         ``logging.WARNING``); the inverted assertion proves coord-empty no longer
@@ -298,12 +298,16 @@ class TestLoadCoordUnavailableFailsClosed:
 
         # Option B: the aggregate inherits the PRIMARY checkout (no hard-fail).
         assert ms.read_dir.resolve() == primary_dir.resolve()
-        # The fallback is loud (NFR-003): the surface emitted a WARNING.
-        assert any(
+        # #7276 WP05 deleted the loud empty-coordination fallback: the read door
+        # (``status/read_surface.py::resolve_status_read``) now decides an empty
+        # coordination worktree deterministically (the committed coordination ref,
+        # or the repository root checkout while that ref holds no log yet), so no
+        # fallback WARNING is emitted any more (#7282).
+        assert not any(
             r.name == "specify_cli.coordination.surface_resolver"
             and r.levelno == logging.WARNING
             for r in caplog.records
-        ), "coord-empty Option B must surface a logging.WARNING (no silent fallback)"
+        )
 
     def test_corrupt_meta_fails_closed_instead_of_legacy_fallback(self, tmp_path: Path) -> None:
         """Existing but corrupt meta.json cannot degrade to a primary-checkout read."""

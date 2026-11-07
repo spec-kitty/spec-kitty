@@ -400,7 +400,8 @@ class TestTwoSidedProof:
     def test_bad_root_without_canonicalization_would_leak_into_the_worktree(
         self, mission_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """With BOTH safety nets removed (bad root + stubbed canonicalization),
+        """With EVERY safety net removed (bad root + stubbed canonicalization +
+        stubbed lane-root re-anchor),
         the annotation genuinely leaks into the worktree-cwd-derived copy --
         proving the "no write under the decoy cwd" assertions in the classes
         above are capable of failing, not vacuously true.
@@ -416,6 +417,14 @@ class TestTwoSidedProof:
             patch(
                 "specify_cli.status.emit.canonicalize_feature_dir",
                 side_effect=lambda feature_dir: feature_dir,
+            ),
+            # #7276/#7282 (#6466): the read path now re-anchors a lane worktree
+            # root to the main worktree root before resolving any surface -- a
+            # third safety net. Bypass it too so the control still reproduces
+            # the unhealed leak the guard tests above must be able to detect.
+            patch(
+                "specify_cli.missions._read_path_resolver.canonical_status_read_root",
+                side_effect=lambda repo_root: repo_root,
             ),
         ):
             result = _invoke_append_history("bad-root note (unhealed)")

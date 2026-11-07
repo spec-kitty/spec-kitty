@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -1741,6 +1742,8 @@ class TestMergeMission:
             ),
             patch(
                 "specify_cli.orchestrator_api.consolidation._execute_lane_merge",
+                # #7276 S5 (contract 1.25.0): the lane merge returns its lane-cleanup report.
+                return_value=LaneCleanupReport(results=()),
             ) as execute_merge,
         ):
             result = runner.invoke(
@@ -1785,6 +1788,8 @@ class TestMergeMission:
             ),
             patch(
                 "specify_cli.orchestrator_api.consolidation._execute_lane_merge",
+                # #7276 S5 (contract 1.25.0): the lane merge returns its lane-cleanup report.
+                return_value=LaneCleanupReport(results=()),
             ) as execute_merge,
         ):
             result = runner.invoke(
@@ -1848,6 +1853,13 @@ class TestMergeMission:
             patch(
                 "specify_cli.lanes.persistence.require_lanes_json",
                 return_value=manifest,
+            ),
+            # #7276 S8 (#7283, FR-076): the planning-only path now runs the
+            # approved-bound claim check first; it reads git, which this
+            # non-git fixture does not have. Its refusals are pinned in
+            # tests/consolidation; this test pins the closeout's stdout hygiene.
+            patch(
+                "specify_cli.orchestrator_api.consolidation._refuse_post_approval_lane_content",
             ),
             patch(
                 "specify_cli.cli.commands.consolidate._run_lane_based_consolidation",
