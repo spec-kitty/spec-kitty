@@ -288,7 +288,7 @@ Nothing else in this record changes.
 - **events ADR-0007** `docs/adr/0007-write-service-commits-coordination-status-by-ref.md`: the write service commits coordination status onto the branch ref by compare-and-swap.
 - **events ADR-0008** `docs/adr/0008-read-service-reads-coordination-ledger-from-git-objects.md`: the read service reads a coordination ledger from git objects.
 
-The two events records live in [`spec-kitty/spec-kitty-events`](https://github.com/spec-kitty/spec-kitty-events), branch `issue-7284-coordination-ref-write-adrs`, pull request [spec-kitty/spec-kitty-events#215](https://github.com/spec-kitty/spec-kitty-events/pull/215) (placement rule of [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) D-1: Java service internals and the `mission-write` contract are decided there).
+The two events records live in [`spec-kitty/spec-kitty-events`](https://github.com/spec-kitty/spec-kitty-events), branch `main` (merged from `issue-7284-coordination-ref-write-adrs`), pull request [spec-kitty/spec-kitty-events#215](https://github.com/spec-kitty/spec-kitty-events/pull/215) (placement rule of [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) D-1: Java service internals and the `mission-write` contract are decided there).
 
 **Mapping.** Each D-6 bullet, quoted, maps to exactly one record:
 
