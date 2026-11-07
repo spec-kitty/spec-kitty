@@ -8,6 +8,7 @@ the repository's actual owned-checkout fixture and canonical minter.
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 from pathlib import Path
 
@@ -16,7 +17,7 @@ import pytest
 from charter.activation.context import build_charter_context, build_charter_context_include, build_charter_context_json
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.scope import CharterScope
-from mission_runtime import ActionContextError
+from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 from runtime.next.prompt_builder import build_prompt
 from specify_cli.cli.commands.charter._fresh_project_layer import _synthesize_project_layer
 from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
@@ -328,4 +329,75 @@ class TestOwnedPromptCharterScope:
         assert result.returncode == 0, result.stdout + result.stderr
         assert "Manual-memory surfaces must preserve memory safety" in result.stdout
         assert "PRIMARY_ONLY_POLICY" not in result.stdout
+        assert _snapshot(self.primary) == self.before
+
+
+class TestOwnedCoordinationPromptCharterScope:
+    @pytest.fixture(autouse=True)
+    def setup(self, make_owned_checkouts, monkeypatch, tmp_path: Path) -> None:
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+        from tests.integration.conftest import _git
+
+        self.case = make_owned_checkouts(topology="lanes_with_coord")
+        self.owned = self.case.owned_root
+        self.primary = self.case.repository_root
+        fixture = Path(__file__).parents[1] / "fixtures/owned-charter-scope"
+        shutil.copytree(fixture, self.owned / ".kittify", dirs_exist_ok=True)
+        (self.owned / ".kittify/config.yaml").write_text("charter: .kittify/charter/charter.yaml\n", encoding="utf-8")
+        companion = self.owned / ".kittify/charter/charter.md"
+        companion.write_text("# Owned governing policy\n\nOWNED_SOURCE_POLICY\n", encoding="utf-8")
+        result = _synthesize_project_layer(self.owned, dry_run=False)
+        assert result is not None and result["success"], result
+        primary_dir = self.primary / ".kittify/charter"
+        primary_dir.mkdir(exist_ok=True)
+        self.primary_charter = primary_dir / "charter.yaml"
+        self.primary_charter.write_text("schema_version: 2.0.0\ngovernance:\n  doctrine:\n    selected_directives: [PRIMARY_RETIRED_POLICY]\n", encoding="utf-8")
+        (primary_dir / "charter.md").write_text("# Protected primary\n\nPRIMARY_ONLY_POLICY\n", encoding="utf-8")
+        self.before = _snapshot(self.primary)
+        branch = CoordinationWorkspace.branch_name(self.case.mission_slug, self.case.mid8)
+        meta_path = self.case.mission_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["coordination_branch"] = branch
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        _git(self.owned, "add", str(meta_path.relative_to(self.owned)))
+        _git(self.owned, "commit", "-qm", "declare coordination branch")
+        self.fact = resolve_owned_mission(self.primary, self.owned, self.case.mission_slug, allowed_topologies=NEXT_OWNED_TOPOLOGIES)
+        _git(self.primary, "branch", branch, self.case.target_branch)
+        CoordinationWorkspace.resolve(self.primary, self.case.mission_slug, self.case.mid8)
+        context = mission_context_for(
+            self.primary,
+            self.case.mission_slug,
+            owned=self.fact,
+            tolerate_unmaterialized_coord=True,
+        )
+        self.status_dir = context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        assert self.status_dir.is_dir()
+        assert self.status_dir.resolve() != self.fact.mission_dir.resolve()
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-state"))
+
+    def prompt(self, feature_dir: Path) -> str:
+        text, path = build_prompt(
+            "specify",
+            feature_dir,
+            self.case.mission_slug,
+            None,
+            "codex",
+            self.primary,
+            "software-dev",
+            owned=self.fact,
+        )
+        assert path.is_file()
+        return text
+
+    def test_materialized_coordination_status_uses_owned_charter(self) -> None:
+        text = self.prompt(self.status_dir)
+
+        assert str(self.owned / ".kittify/charter/charter.md") in text
+        assert "OWNED_SOURCE_POLICY" in text
+        assert "PRIMARY_ONLY_POLICY" not in text
+        assert _snapshot(self.primary) == self.before
+
+    def test_coordination_fixture_still_refuses_foreign_mission(self, tmp_path: Path) -> None:
+        with pytest.raises(ActionContextError, match="charter Mission differs"):
+            self.prompt(tmp_path / "foreign-mission")
         assert _snapshot(self.primary) == self.before
