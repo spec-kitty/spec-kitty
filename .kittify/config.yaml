@@ -5,6 +5,7 @@ agents:
   - claude
   - codex
   - cursor
+  - opencode
   auto_commit: false
   lint_on_edit: true
 project:
