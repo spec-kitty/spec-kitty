@@ -111,3 +111,19 @@ failed run rolls the mission branch back to a4e3426 and rebuilds it from the lan
 to live in a lane (lane-n), so WP17 needs a refresh and a new approval. CONTRACT_VERSION did not
 conflict: `git merge-tree` of target against 117c4ec reports only these two paths.
 Closeout stopped, as ruled ("if anything refuses, stop and report").
+
+## [closeout 2026-11-07] self-hosting crash: the CLI imports the checkout it consolidates into
+
+Topic branch 7c887b0a83. Every lane merged (mission commit 782b50a), and the squash landed
+2ddd297 on `issue-7276-lane-worktree-hardening`. During "Recording merged work packages as done",
+the CLI (`.venv/bin/spec-kitty`, an editable install of this repository root checkout's `src/`)
+lazily imported `specify_cli.lanes.worktree_allocator` from the just-updated checkout. That module
+needs `lane_status_exclusion_patterns` from `specify_cli.coordination.workspace`, which was
+already loaded at its pre-landing version, so the import failed with `ImportError: cannot import name
+'lane_status_exclusion_patterns'`. The rollback authority restored the target (2ddd297 -> 7c887b0)
+and the mission branch (782b50a -> a4e3426) and rebaselined the record. Nothing landed.
+Cause: the consolidating CLI runs from the same working tree it lands the Mission into, so a Mission
+that changes the CLI's own modules can mix old and new versions inside one process.
+Candidate remedy: run consolidate from a code copy that does not move, for example a detached
+worktree of 7c887b0a83 on `PYTHONPATH`, or a separate non-editable install.
+The run also printed (WARN) `issue_matrix_verdict_terminality`: #7277-#7285 still `in-mission`.
