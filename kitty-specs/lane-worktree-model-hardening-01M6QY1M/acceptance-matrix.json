@@ -290,13 +290,13 @@
     },
     {
       "criterion_id": "FR-042",
-      "description": "Verify FR-042 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-042 Spec Kitty lane commits never change status files: the deliverable auto-commit and every Spec Kitty-owned lane commit to leave the Mission status files unstaged on every topology, so that lanes never change them.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-g:tests/specify_cli/cli/commands/agent/test_deliverable_autocommit_status_unstaged.py::test_deliverable_autocommit_never_stages_status_files; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:51.891209+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-043",
