@@ -956,6 +956,7 @@ pages:
     - {slug: "option-2-one-worktree-per-execution-lane", text: "Option 2: One worktree per execution lane", level: 3}
     - {slug: "option-3-one-worktree-per-mission", text: "Option 3: One worktree per mission", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-11-06-lane-branches-are-long-lived-lane-checkouts-belong-to-one-workflow-action", text: "Amendment 2026-11-06: lane branches are long-lived, lane checkouts belong to one workflow action", level: 2}
   - path: "docs/adr/3.x/2026-04-03-2-review-approval-and-integration-completion-are-distinct.md"
     title: "Review Approval and Integration Completion Are Distinct"
     divio_type: "none"
@@ -2056,6 +2057,7 @@ pages:
     divio_type: "none"
     abstract: "Reads of an empty coordination worktree fall back loudly to the repository-root checkout; writes establish the coordination surface (amended 2026-10-01)."
     anchors:
+    - {slug: "amendment-2026-11-06-superseded-by-the-one-status-read-contract", text: "Amendment 2026-11-06: superseded by the one status read contract", level: 2}
     - {slug: "amendment-2026-10-01-mission-coord-artifact-single-home-01m3v4be", text: "Amendment (2026-10-01 — mission `coord-artifact-single-home-01M3V4BE`)", level: 2}
     - {slug: "status-of-this-amendment", text: "Status of this amendment", level: 3}
     - {slug: "amended-decision-writes-never-substitute-the-repository-root-checkout", text: "Amended decision: writes never substitute the repository root checkout", level: 3}
@@ -2106,6 +2108,7 @@ pages:
     - {slug: "negative-risks", text: "Negative / risks", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+    - {slug: "amendment-2026-11-06-topology-stored-at-create-settled-once-at-the-first-finalize", text: "Amendment 2026-11-06: topology stored at create, settled once at the first finalize", level: 2}
   - path: "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"
     title: "ADR: Kind- and Topology-Aware Artifact Placement — One Partition, Read/Write Symmetry"
     divio_type: "none"
@@ -2616,6 +2619,7 @@ pages:
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "erratum-2026-10-04-5627", text: "Erratum (2026-10-04, #5627)", level: 2}
+    - {slug: "amendment-2026-11-06-lane-checkouts-carry-no-live-status", text: "Amendment 2026-11-06: lane checkouts carry no live status", level: 2}
   - path: "docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md"
     title: "ADR: CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology"
     divio_type: "none"
@@ -3327,6 +3331,7 @@ pages:
     - {slug: "amendment-2026-10-22-canceled-content-is-judged-line-by-line-6309", text: "Amendment 2026-10-22: canceled content is judged line by line (#6309)", level: 2}
     - {slug: "follow-up-2026-10-27-an-unreadable-carrier-spine-refuses-6313", text: "Follow-up 2026-10-27: an unreadable carrier spine REFUSEs (#6313)", level: 2}
     - {slug: "amendment-2026-10-31-an-operator-declared-dependency-ref-is-inherited-history-6771", text: "Amendment 2026-10-31: an operator-declared dependency ref is inherited history (#6771)", level: 2}
+    - {slug: "amendment-2026-11-07-a-lane-s-own-dependency-merges-are-its-work-7307", text: "Amendment 2026-11-07: a lane's own dependency merges are its work (#7307)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
@@ -3532,6 +3537,7 @@ pages:
     - {slug: "amendment-2026-10-31-a-pruned-lane-is-judged-on-the-pull-request-s-own-side-of-the-landing-merge-6780", text: "Amendment 2026-10-31 — a pruned lane is judged on the pull request's own side of the landing merge (#6780)", level: 3}
     - {slug: "amendment-2026-11-03-unresolved-ownership-is-its-own-verdict-not-a-missing-implementation-7149", text: "Amendment 2026-11-03 — unresolved ownership is its own verdict, not a missing implementation (#7149)", level: 3}
     - {slug: "amendment-2026-11-05-a-base-derived-from-git-stands-in-for-a-planning-commit-finalize-never-recorded-7209-7210", text: "Amendment 2026-11-05 — a base derived from git stands in for a planning commit finalize never recorded (#7209, #7210)", level: 3}
+    - {slug: "amendment-2026-11-06-per-wp-approval-windows-for-single-branch-7283", text: "Amendment 2026-11-06: per-WP approval windows for single_branch (#7283)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -3955,6 +3961,7 @@ pages:
     - {slug: "a-resident-java-write-service-per-repository-chosen", text: "A resident Java write service per repository (chosen)", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
+    - {slug: "amendment-2026-11-06-d-6-records-and-step-4a", text: "Amendment 2026-11-06: D-6 records and step 4a", level: 2}
   - path: "docs/adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md"
     title: "ADR: at done, every issue-matrix row is judged, cited or not"
     divio_type: "none"
@@ -4117,6 +4124,130 @@ pages:
     - {slug: "why-not-the-others", text: "Why not the others", level: 3}
     - {slug: "scope", text: "Scope", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-2-one-status-read-contract.md"
+    title: "ADR: One status read contract"
+    divio_type: "none"
+    abstract: "Every status read resolves through one door to one declared source per topology and coordination state; never a lane checkout, a missing path or a silent fallback."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "the-door", text: "The door", level: 3}
+    - {slug: "sources", text: "Sources", level: 3}
+    - {slug: "root-normalization", text: "Root normalization", level: 3}
+    - {slug: "ref-reader", text: "Ref reader", level: 3}
+    - {slug: "invariants", text: "Invariants", level: 3}
+    - {slug: "reverses", text: "Reverses", level: 3}
+    - {slug: "primary-placement-for-default-missions", text: "PRIMARY placement for default Missions", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "b-keep-the-loud-repository-root-fallback", text: "B. Keep the loud repository-root fallback", level: 3}
+    - {slug: "c-materialize-the-coordination-worktree-on-read", text: "C. Materialize the coordination worktree on read", level: 3}
+    - {slug: "d-raise-on-an-unmaterialized-coordination-worktree", text: "D. Raise on an unmaterialized coordination worktree", level: 3}
+    - {slug: "open-points", text: "Open points", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
+    title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
+    divio_type: "none"
+    abstract: "Create without --topology mints one topic branch; the first finalize-tasks settles single_branch or lanes_with_coord by size, once, and only then materializes it."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "decision-1-create-without-topology-mints-one-topic-branch-and-nothing-else", text: "Decision 1: create without `--topology` mints one topic branch and nothing else", level: 3}
+    - {slug: "decision-2-the-size-rule", text: "Decision 2: the size rule", level: 3}
+    - {slug: "decision-3-deferred-materialization", text: "Decision 3: deferred materialization", level: 3}
+    - {slug: "decision-4-the-provisional-representation-and-topology-source", text: "Decision 4: the provisional representation and `topology_source`", level: 3}
+    - {slug: "decision-5-the-primary-partition-of-a-default-mission-lives-on-the-topic-branch-until-consolidate", text: "Decision 5: the PRIMARY partition of a default Mission lives on the topic branch until `consolidate`", level: 3}
+    - {slug: "decision-6-decided-once-before-any-wp-starts", text: "Decision 6: decided once, before any WP starts", level: 3}
+    - {slug: "decision-7-settlement-is-compensated", text: "Decision 7: settlement is compensated", level: 3}
+    - {slug: "decision-8-pr-bound-and-commit-to-target", text: "Decision 8: `--pr-bound` and `--commit-to-target`", level: 3}
+    - {slug: "decision-9-s8-before-or-with-s7-c-010", text: "Decision 9: S8 before or with S7 (C-010)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-1-deferred-materialization-one-settlement-path", text: "Option 1: deferred materialization, one settlement path", level: 3}
+    - {slug: "option-2-provisional-lanes-coord-re-stamped-to-single-branch", text: "Option 2: provisional `lanes`/`coord`, re-stamped to `single_branch`", level: 3}
+    - {slug: "option-3-a-topology-provisional-enum-value", text: "Option 3: a `topology: provisional` enum value", level: 3}
+    - {slug: "option-4-pre-settlement-writes-by-commit-no-checkout", text: "Option 4: pre-settlement writes by commit, no checkout", level: 3}
+    - {slug: "option-5-the-write-checkout-holds-the-topic-branch-for-a-lanes-mission-s-life", text: "Option 5: the write checkout holds the topic branch for a `lanes` Mission's life", level: 3}
+    - {slug: "option-6-land-planning-commits-on-an-unprotected-target-at-settlement-and-settle-to-lanes", text: "Option 6: land planning commits on an unprotected target at settlement and settle to `lanes`", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md"
+    title: "ADR: a coordination branch is written by commit, not through a coordination worktree"
+    divio_type: "none"
+    abstract: "Proposed: the coordination branch stays the lifecycle home and the write service commits to it with no coordination worktree; every coordination kind, status.json and migration."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-the-coordination-branch-stays-the-lifecycle-home-and-is-written-by-commit-ruled", text: "D-1: the coordination branch stays the lifecycle home and is written by commit *(ruled)*", level: 3}
+    - {slug: "d-2-this-is-a-new-storage-adapter-in-adr-2026-10-22-1-d-6-s-sense-derived", text: "D-2: this is a new storage adapter in ADR 2026-10-22-1 D-6's sense *(derived)*", level: 3}
+    - {slug: "d-3-every-coordination-partition-kind-has-a-rule-derived-the-artefact-rule-is-open-with-a-recommendation", text: "D-3: every coordination-partition kind has a rule *(derived; the artefact rule is open with a recommendation)*", level: 3}
+    - {slug: "d-4-status-json-on-the-coordination-branch-open-with-a-recommendation", text: "D-4: `status.json` on the coordination branch *(open with a recommendation)*", level: 3}
+    - {slug: "d-5-the-read-contract-is-read-the-ref-derived", text: "D-5: the read contract is \"read the ref\" *(derived)*", level: 3}
+    - {slug: "d-6-the-events-side-contract-this-record-relies-on-cites-events-adr-0007-d-7", text: "D-6: the events-side contract this record relies on *(cites events ADR-0007 D-7)*", level: 3}
+    - {slug: "d-7-destinationref-becomes-required-for-the-coordination-surface-derived-amends-adr-2026-10-27-1-d-3", text: "D-7: `destinationRef` becomes required for the coordination surface *(derived; amends ADR 2026-10-27-1 D-3)*", level: 3}
+    - {slug: "d-8-the-cli-side-codes-retire-with-the-worktree-at-step-4a-not-now-derived", text: "D-8: the CLI-side codes retire with the worktree, at step 4a, not now *(derived)*", level: 3}
+    - {slug: "d-9-existing-coordination-worktrees-are-drained-then-removed-under-the-destructive-guard-derived", text: "D-9: existing coordination worktrees are drained, then removed under the destructive guard *(derived)*", level: 3}
+    - {slug: "d-10-rollout-ordering-steps-4-and-4a-ship-together-derived-from-events-adr-0007-s-precondition-this-record-owns-the-ordering", text: "D-10: rollout ordering: steps 4 and 4a ship together *(derived from events ADR-0007's precondition; this record owns the ordering)*", level: 3}
+    - {slug: "d-11-what-stays-open-open", text: "D-11: what stays open *(open)*", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "1-written-by-commit-through-the-service-chosen", text: "1. Written by commit through the service (chosen)", level: 3}
+    - {slug: "2-a-coordination-worktree-owned-by-the-service", text: "2. A coordination worktree owned by the service", level: 3}
+    - {slug: "3-retire-the-coordination-branch", text: "3. Retire the coordination branch", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-5-gates-over-worktree-less-coordination.md"
+    title: "ADR: consolidation gates hold over a coordination branch with no worktree"
+    divio_type: "none"
+    abstract: "Proposed: ref-reading gates are unchanged, the late window reads a pinned ref, the write fence is the compare-and-swap, and resume and rollback lose the coordination checkout role."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-ref-reading-gates-are-unchanged-derived", text: "D-1: ref-reading gates are unchanged *(derived)*", level: 3}
+    - {slug: "d-2-the-lane-head-stamp-keeps-its-meaning-derived", text: "D-2: the `lane_head` stamp keeps its meaning *(derived)*", level: 3}
+    - {slug: "d-3-the-late-window-reads-a-pinned-ref-derived-cites-s10", text: "D-3: the late window reads a pinned ref *(derived; cites S10)*", level: 3}
+    - {slug: "d-4-the-write-fence-is-the-compare-and-swap-open-recommendation-option-1", text: "D-4: the write fence is the compare-and-swap *(open; recommendation: option 1)*", level: 3}
+    - {slug: "d-5-resume-and-rollback-lose-the-coordination-checkout-role-derived", text: "D-5: resume and rollback lose the coordination checkout role *(derived)*", level: 3}
+    - {slug: "d-6-what-stays-open-open", text: "D-6: what stays open *(open)*", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "1-the-compare-and-swap-alone-recommended", text: "1. The compare-and-swap alone (recommended)", level: 3}
+    - {slug: "2-refuse-writes-while-a-consolidation-record-holds-the-mission", text: "2. Refuse writes while a consolidation record holds the Mission", level: 3}
+    - {slug: "3-consolidation-writes-through-the-service", text: "3. Consolidation writes through the service", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-06-6-committed-ledger-is-the-coordination-blob.md"
+    title: "ADR: the committed ledger of a coordination Mission is the blob on its coordination branch"
+    divio_type: "none"
+    abstract: "Proposed: for coordination Missions the publication seam and the read API pull read the event log blob at the coordination ref; events tail cursors name their commit."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-the-publication-seam-of-a-coordination-mission-is-the-blob-at-its-ref-derived-amends-adr-2026-10-13-2-d-2", text: "D-1: the publication seam of a coordination Mission is the blob at its ref *(derived; amends ADR 2026-10-13-2 D-2)*", level: 3}
+    - {slug: "d-2-the-read-api-s-pull-reads-git-objects-for-coordination-missions-derived-amends-adr-2026-10-01-2-d-3-d-6", text: "D-2: the read API's pull reads git objects for coordination Missions *(derived; amends ADR 2026-10-01-2 D-3, D-6)*", level: 3}
+    - {slug: "d-3-a-missing-ref-is-a-typed-error-in-both-languages-derived-oracle-fallback-parity", text: "D-3: a missing ref is a typed error, in both languages *(derived; oracle fallback parity)*", level: 3}
+    - {slug: "d-4-the-events-tail-cursor-names-its-source-open-recommendation-option-1", text: "D-4: the `events tail` cursor names its source *(open; recommendation: option 1)*", level: 3}
+    - {slug: "d-5-retention-is-unchanged-derived", text: "D-5: retention is unchanged *(derived)*", level: 3}
+    - {slug: "d-6-jgit-or-a-subprocess-open-not-ruled-here", text: "D-6: JGit or a subprocess *(open; not ruled here)*", level: 3}
+    - {slug: "d-7-what-stays-open-open", text: "D-7: what stays open *(open)*", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "1-the-cursor-names-the-commit-recommended", text: "1. The cursor names the commit (recommended)", level: 3}
+    - {slug: "2-the-cursor-names-the-blob", text: "2. The cursor names the blob", level: 3}
+    - {slug: "3-no-change", text: "3. No change", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4963,6 +5094,7 @@ pages:
     - {slug: "error-codes", text: "Error Codes", level: 2}
     - {slug: "consolidate-mission-data-preflight-error-code", text: "`consolidate-mission`: `data.preflight_error_code`", level: 3}
     - {slug: "accept-mission-and-consolidate-mission-origin-freshness", text: "`accept-mission` and `consolidate-mission`: origin freshness", level: 3}
+    - {slug: "consolidate-mission-data-lane-cleanup", text: "`consolidate-mission`: `data.lane_cleanup`", level: 3}
     - {slug: "consolidate-mission-data-teardown-error-code", text: "`consolidate-mission`: `data.teardown_error_code`", level: 3}
     - {slug: "provider-rules", text: "Provider Rules", level: 2}
     - {slug: "migration-notes", text: "Migration Notes", level: 2}
@@ -5753,6 +5885,7 @@ pages:
     anchors:
     - {slug: "core-rules", text: "Core Rules", level: 2}
     - {slug: "workspace-resolution-contract", text: "Workspace Resolution Contract", level: 2}
+    - {slug: "lane-checkouts-status-and-cleanup", text: "Lane Checkouts, Status and Cleanup", level: 2}
     - {slug: "naming", text: "Naming", level: 2}
     - {slug: "why-this-replaced-per-wp-worktrees", text: "Why This Replaced Per-WP Worktrees", level: 2}
     - {slug: "parallelism-preservation", text: "Parallelism Preservation", level: 2}
@@ -5821,7 +5954,8 @@ pages:
     - {slug: "create-a-new-worktree", text: "Create a New Worktree", level: 3}
     - {slug: "remove-a-worktree", text: "Remove a Worktree", level: 3}
     - {slug: "clean-up-stale-worktrees", text: "Clean Up Stale Worktrees", level: 3}
-    - {slug: "full-checkouts", text: "Full Checkouts", level: 2}
+    - {slug: "worktree-vocabulary", text: "Worktree Vocabulary", level: 2}
+    - {slug: "lane-checkouts-hide-status", text: "Lane checkouts hide status", level: 2}
     - {slug: "common-issues", text: "Common Issues", level: 2}
     - {slug: "worktree-already-exists", text: "\"Worktree already exists\"", level: 3}
     - {slug: "branch-is-already-checked-out", text: "\"Branch is already checked out\"", level: 3}
@@ -11435,10 +11569,12 @@ pages:
   - path: "docs/context/topology.md"
     title: "Context: Topology"
     divio_type: "none"
-    abstract: "Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package."
+    abstract: "Topology glossary: the four topologies, size default, topic branch, write checkout, repo-root and code lanes, mission branch, lane work tip, started work package."
     anchors:
     - {slug: "context-topology", text: "Context: Topology", level: 2}
     - {slug: "topology", text: "Topology", level: 3}
+    - {slug: "size-default", text: "Size default", level: 3}
+    - {slug: "topic-branch", text: "Topic branch", level: 3}
     - {slug: "write-checkout", text: "Write checkout", level: 3}
     - {slug: "repo-root-lane", text: "Repo-root lane", level: 3}
     - {slug: "code-lane", text: "Code lane", level: 3}
@@ -13067,6 +13203,7 @@ pages:
     - {slug: "when-a-mission-defines-no-contracts", text: "When a Mission Defines No Contracts", level: 3}
     - {slug: "when-the-project-layout-differs", text: "When the Project Layout Differs", level: 3}
     - {slug: "negative-invariants-that-assert-the-consolidated-post-state", text: "Negative Invariants That Assert the Consolidated Post-State", level: 3}
+    - {slug: "deferred-criteria", text: "Deferred Criteria", level: 3}
     - {slug: "deferred-invariants-and-the-post-consolidation-gate", text: "Deferred Invariants and the Post-Consolidation Gate", level: 3}
     - {slug: "consolidate-into-the-target-branch", text: "Consolidate into the target branch", level: 2}
     - {slug: "when-local-main-is-not-publishable", text: "When Local `main` Is Not Publishable", level: 3}
