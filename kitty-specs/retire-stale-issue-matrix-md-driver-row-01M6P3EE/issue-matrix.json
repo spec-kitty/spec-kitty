@@ -85,7 +85,7 @@
       "wp": null
     },
     "#7217": {
-      "evidence_ref": "PR #7234; tests/upgrade/test_issue_matrix_md_row_retirement_7217.py (7 passed)",
+      "evidence_ref": "PR #7234; tests/upgrade/test_issue_matrix_md_row_retirement_7217.py (6 passed; rebased head c0868b4173be9f7467121b253e668c450e00ce0a)",
       "fr": null,
       "nfr": null,
       "repo": null,

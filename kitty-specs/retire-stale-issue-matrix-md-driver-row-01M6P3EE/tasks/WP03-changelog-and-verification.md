@@ -12,7 +12,7 @@ planning_base_branch: issue-7217-retire-stale-issue-matrix-md-driver-row
 merge_target_branch: issue-7217-retire-stale-issue-matrix-md-driver-row
 branch_strategy: Planning artifacts for this mission were generated on issue-7217-retire-stale-issue-matrix-md-driver-row. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7217-retire-stale-issue-matrix-md-driver-row unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-retire-stale-issue-matrix-md-driver-row-01M6P3EE
-base_commit: 7a5d0d194871c08408935148d070bb025d780ca2
+base_commit: 0a0ae6bccac0bbd0aef4fbcbb930bde2620e7e44
 created_at: '2026-11-05T15:55:45.800044+00:00'
 subtasks:
 - T001
