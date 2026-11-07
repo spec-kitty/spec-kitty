@@ -1,4 +1,4 @@
-"""Ambiguous selections report skips; mandatory policy prevents generation."""
+"""A declared id whose file name another layer uses for a different id is refused; mandatory policy prevents generation."""
 
 import json
 from pathlib import Path
@@ -17,7 +17,24 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 @pytest.mark.parametrize("required", [False, True])
-def test_ambiguous_directive_keeps_siblings_and_reports_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, required: bool) -> None:
+def test_colliding_directive_selection_refuses_the_interview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, required: bool) -> None:
+    """a8dd1812 (Decision ``file_name_collision``): the interview refuses a colliding declared id.
+
+    History: this test pinned the older warn-and-skip flow (exit 0, a ``promotion_warnings`` entry,
+    the resolvable siblings kept). A declared id whose file name another layer uses for a different
+    id is now a pack-content error and every writer, the interview included, refuses it: exit 1,
+    naming both files. Only UNKNOWN selection ids are still warned and skipped. The sibling-preserving
+    promotion is pinned by ``tests/specify_cli/upgrade/test_unify_charter_activation_migration.py::
+    test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling`` and the collision refusal
+    end to end by ``tests/charter/activation/test_stored_spelling_6527.py``.
+
+    The ``generate`` legs of the old test stay reachable and are kept: with the refused interview's
+    saved answers generate succeeds (``required=False``), and with no answers it refuses the same
+    collision (``required=True``).
+
+    The interview's ``--json`` error keeps its own ``{result, success, error}`` shape (``_emit_error``);
+    #6557's typed ``{ok, error:{code, message}}`` envelope belongs to ``charter status`` only.
+    """
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / ".kittify").mkdir()
     packs = [tmp_path / "company", tmp_path / "team"]
@@ -51,29 +68,60 @@ def test_ambiguous_directive_keeps_siblings_and_reports_json(tmp_path: Path, mon
     args = ["interview", "--mission-type", "software-dev", "--profile", "minimal", "--defaults", "--json"]
     if not required:
         args += ["--selected-directives", "TEAM-SEC,DIRECTIVE_001", "--selected-paradigms", paradigm]
+    config_before = (tmp_path / ".kittify/config.yaml").read_bytes()
     result = CliRunner().invoke(app, args)
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
-    assert payload["promotion_warnings"], payload
-    assert any("TEAM-SEC" in warning for warning in payload["promotion_warnings"])
-    saved = yaml.load((tmp_path / ".kittify/config.yaml").read_text())
-    assert saved["activated_directives"] == ["001-architectural-integrity-standard"]
-    assert paradigm in saved["activated_paradigms"]
+    assert payload["result"] == "error"
+    assert payload["success"] is False
+    error = " ".join(payload["error"].split())
+    assert "Cannot store directive 'TEAM-SEC'" in error
+    assert "used by files in more than one layer that declare different IDs" in error
+    assert "team/directives/security.directive.yaml declares 'TEAM-SEC'" in error
+    assert "company/directives/security.directive.yaml declares 'COMPANY-SEC'" in error
     if required:
-        assert tactic in saved["activated_tactics"]
+        # The org-required pre-fill refuses before the answers are saved.
+        assert "The interview answers were saved" not in error
+    else:
+        # Selection-driven: the answers are saved, nothing is activated.
+        assert "The interview answers were saved; no activation list was written." in error
+    # The refusal activated nothing: not the id, and not the other layer's id under its guise.
+    assert (tmp_path / ".kittify/config.yaml").read_bytes() == config_before
     delivered = build_active_charter_service(tmp_path).directives
-    assert "DIRECTIVE_001" in delivered
     assert "TEAM-SEC" not in delivered
     assert "COMPANY-SEC" not in delivered
-    config_before = (tmp_path / ".kittify/config.yaml").read_bytes()
-    generated = CliRunner().invoke(app, ["generate", "--from-interview", "--json"])
+    # The generate leg of the same fixture.
+    charter_yaml = tmp_path / ".kittify/charter/charter.yaml"
     if required:
-        assert generated.exit_code != 0, generated.output
-        assert "TEAM-SEC" in generated.output
+        # No answers exist (the pre-fill refused first), so generate runs without an interview and
+        # refuses the same collision: nothing is stored and no charter.yaml is written.
+        generated = CliRunner().invoke(app, ["generate", "--no-from-interview", "--mission-type", "software-dev", "--json"])
+        assert generated.exit_code == 1, generated.output
+        assert "Cannot store directive 'TEAM-SEC'" in " ".join(generated.output.split())
         assert (tmp_path / ".kittify/config.yaml").read_bytes() == config_before
-        assert not (tmp_path / ".kittify/charter/charter.yaml").exists()
+        assert not charter_yaml.exists()
     else:
+        # The refused interview kept its answers, so generate can read them and succeeds.
+        generated = CliRunner().invoke(app, ["generate", "--from-interview", "--json"])
         assert generated.exit_code == 0, generated.output
+        generated_payload = json.loads(generated.stdout)
+        assert charter_yaml.exists()
+        # Neither colliding id is selected or delivered by generate either.
+        assert "TEAM-SEC" not in generated_payload["selected_directives"]
+        assert "COMPANY-SEC" not in generated_payload["selected_directives"]
+        # Characterization of today's behavior, not an endorsement: after the refused interview
+        # generate reports NO selections at all, dropping even the resolvable DIRECTIVE_001 and the
+        # paradigm that the interview saved. Re-pin if that silent drop is ever fixed.
+        assert generated_payload["selected_directives"] == []
+        assert generated_payload["selected_paradigms"] == []
+        # generate records its own charter.yaml tracking in config.yaml, so compare the activation
+        # lists (still the empty seeds), not the raw bytes.
+        saved = yaml.load((tmp_path / ".kittify/config.yaml").read_text())
+        assert saved["activated_directives"] == []
+        assert saved["activated_paradigms"] == []
+        delivered_after = build_active_charter_service(tmp_path).directives
+        assert "TEAM-SEC" not in delivered_after
+        assert "COMPANY-SEC" not in delivered_after
 
 
 def test_generate_rejects_ambiguous_required_directive_without_interview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

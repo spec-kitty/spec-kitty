@@ -205,26 +205,34 @@ def test_freshness_state_fresh_when_all_artifacts_aligned(tmp_path: Path) -> Non
     assert freshness["synthesized_drg"]["state"] == "fresh"
 
 
-def test_freshness_state_invalid_when_charter_yaml_unparseable(tmp_path: Path) -> None:
-    """Re-pinned (WP06 / Landmine 2): the retired charter.md-hash-mismatch
-    ``"stale"`` mechanism is replaced by ``charter.yaml`` being present but
-    unparseable, which reads ``"invalid"`` — the only non-``fresh``,
-    non-``missing`` state ``charter_source`` can report post-retirement.
+def test_unparseable_charter_yaml_refuses_status_with_typed_code(tmp_path: Path) -> None:
+    """#6557 (9bee2389): ``charter status`` runs the charter.yaml soundness gate BEFORE freshness.
 
-    Re-pinned again (charter-preflight-remediation WP03/WP05 — narrow,
-    out-of-map fix to a pre-existing stale assertion this file's owner did
-    not touch): WP03 proved no write path can repair unparseable YAML and
-    declared ``invalid`` exempt (C-EFF-2), so ``computer.py`` now emits
-    ``remediation=None`` here rather than the ineffective ``charter sync``
-    string this test used to assert. This was already red on this branch
-    before WP05 touched anything — confirmed by running it pre-edit."""
+    History: this test first pinned ``freshness.charter_source.state == "invalid"`` for a present
+    but unparseable ``charter.yaml`` (WP06 / Landmine 2; ``remediation=None`` since
+    charter-preflight-remediation WP03/WP05). The CLI route to that state is gone: status now
+    refuses first, exit 1 with ``ACTIVE_CHARTER_CONFIG_INVALID``, so there is no freshness payload
+    to read. The computer-level ``invalid`` state stays pinned by
+    ``tests/specify_cli/charter_freshness/test_computer.py``; the refusal is pinned in depth by
+    ``tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py`` and here at the
+    integration level with this file's own fixture and patch trio."""
+    from specify_cli.cli.commands.charter import app as charter_app
+
     _seed_minimum_repo(tmp_path)
     _write_charter_and_metadata(tmp_path, invalid_charter_yaml=True)
-    payload = _invoke_status_json(tmp_path)
-    freshness = payload["freshness"]
-    assert freshness["charter_source"]["state"] == "invalid"
-    assert freshness["charter_source"]["remediation"] is None
-    assert freshness["charter_source"]["detail"]
+    with (
+        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.charter.ensure_charter_bundle_fresh", return_value=_make_sync_result_stub(tmp_path)),
+        patch("specify_cli.cli.commands.charter._assert_bundle_compatible", return_value=None),
+    ):
+        result = runner.invoke(charter_app, ["status", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert "freshness" not in payload
+    assert payload["error"]["code"] == "ACTIVE_CHARTER_CONFIG_INVALID"
+    assert "charter.yaml" in payload["error"]["message"]
 
 
 def test_freshness_missing_detail_distinguishes_no_charter_from_legacy_bundle(

@@ -58,6 +58,17 @@ def _config(project_root: Path) -> dict:
     return read_activation_ledger(project_root)
 
 
+def _seed_present_lists(project_root: Path, *keys: str) -> None:
+    """Seed PRESENT (empty) activation lists before an activate that must write.
+
+    #6685 (09bca55275): a first ``charter activate`` on a keyless project writes no allow list for a
+    kind whose absent key already puts every artifact in force (it would freeze the kind, #6408, or
+    narrow it, #4253). The tests below pin the WRITE path (and what a cascade or its absence leaves
+    untouched), so they start from present, empty lists and the activation appends into them.
+    """
+    seed_activation_ledger(project_root, **{key: [] for key in keys})
+
+
 def _activate(project_root: Path, *args: str) -> object:
     return runner.invoke(
         charter_app,
@@ -173,6 +184,7 @@ class TestLayerAwareActivation:
         assert listed.exit_code == 0, listed.output
         assert "900-org-only-directive" in listed.output
 
+        _seed_present_lists(project_root, "activated_directives")
         activated = _activate(project_root, "directive", "900-org-only-directive")
         assert activated.exit_code == 0, activated.output
         data = _config(project_root)
@@ -196,6 +208,7 @@ class TestLayerAwareActivation:
         assert listed.exit_code == 0, listed.output
         assert "950-project-only-directive" in listed.output
 
+        _seed_present_lists(project_root, "activated_directives")
         activated = _activate(project_root, "directive", "950-project-only-directive")
         assert activated.exit_code == 0, activated.output
         data = _config(project_root)
@@ -210,6 +223,7 @@ class TestLayerAwareActivation:
 class TestCascadeScope:
     def test_cascade_all_activates_referenced_kinds(self, project_root: Path) -> None:
         """``--cascade all`` activates referenced directives AND tactics."""
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_tactics")
         result = _activate(
             project_root,
             "--cascade",
@@ -227,6 +241,7 @@ class TestCascadeScope:
 
     def test_cascade_scope_limits_to_selected_kind(self, project_root: Path) -> None:
         """``--cascade directive`` activates directives only, NOT tactics."""
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_tactics")
         result = _activate(
             project_root,
             "--cascade",
@@ -244,6 +259,7 @@ class TestCascadeScope:
 
     def test_cascade_scope_is_not_collapsed_to_bool(self, project_root: Path) -> None:
         """A multi-kind scope is honored distinctly from 'all' (no bool collapse)."""
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_paradigms", "activated_tactics")
         result = _activate(
             project_root,
             "--cascade",
@@ -260,6 +276,8 @@ class TestCascadeScope:
 
     def test_bad_cascade_token_exits_1(self, project_root: Path) -> None:
         """An unknown kind token in the scope fails with a structured error."""
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_tactics")
+        before = _config(project_root)
         result = _activate(
             project_root,
             "--cascade",
@@ -268,8 +286,9 @@ class TestCascadeScope:
             _CASCADE_SOURCE_ID,
         )
         assert result.exit_code == 1
-        # No mutation on a bad scope.
+        # No mutation on a bad scope (the seeded lists are still empty, nothing was written).
         assert "not-a-kind" not in str(_config(project_root))
+        assert _config(project_root) == before
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +299,7 @@ class TestCascadeScope:
 class TestNoCascadeWarning:
     def test_absent_cascade_warns_about_referenced(self, project_root: Path) -> None:
         """Without --cascade, referenced artifacts are reported as a warning (FR-013)."""
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_tactics")
         result = _activate(project_root, _CASCADE_SOURCE_KIND, _CASCADE_SOURCE_ID)
         assert result.exit_code == 0, result.output
         # Direct activation still happened.
@@ -293,8 +313,12 @@ class TestNoCascadeWarning:
 
     def test_no_cascade_does_not_activate_referenced(self, project_root: Path) -> None:
         """Absent --cascade never means 'all' (Contract C3.3)."""
-        _activate(project_root, _CASCADE_SOURCE_KIND, _CASCADE_SOURCE_ID)
+        _seed_present_lists(project_root, "activated_agent_profiles", "activated_directives", "activated_tactics")
+        result = _activate(project_root, _CASCADE_SOURCE_KIND, _CASCADE_SOURCE_ID)
+        assert result.exit_code == 0, result.output
         data = _config(project_root)
+        # Direct activation happened, so the "not cascaded" assertions below are not vacuous.
+        assert _CASCADE_SOURCE_ID in (data.get("activated_agent_profiles") or [])
         assert not data.get("activated_tactics")
         assert not data.get("activated_directives")
 
