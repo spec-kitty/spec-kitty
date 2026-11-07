@@ -90,6 +90,7 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
         "post-empty-lexical-ownership",
         "start-ceiling-ownership",
         "config-error",
+        "config-warning",
     ],
 )
 def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -146,13 +147,16 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         # must not become an absence merely because the general walk stops at the start.
         monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
-    elif tracked_state == "config-error":
-        # A git that runs and cannot parse its configuration is unknown, not an absence.
-        # The ceiling sits below the repository, so this walk reaches no anchor and the
-        # configuration witness is what has to refuse: a start-equal ceiling is dropped by
-        # the absence helper, which is the ownership case above.
+    elif tracked_state in {"config-error", "config-warning"}:
+        # The strict-parent ceiling hides the anchor, so the configuration witness must
+        # refuse both a fatal parse error and a diagnostic-only, otherwise-unset lookup.
         assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
-        monkeypatch.setenv("GIT_CONFIG_COUNT", "invalid")
+        if tracked_state == "config-error":
+            monkeypatch.setenv("GIT_CONFIG_COUNT", "invalid")
+        else:
+            global_config = tmp_path / "global-config-directory"
+            global_config.mkdir()
+            monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir.parent))
 
     result = backfill_mission(mission_dir)
