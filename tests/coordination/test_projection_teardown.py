@@ -530,7 +530,7 @@ def _coord_run_state(repo: Path, coord_branch: str, projected_tip: str) -> _Merg
     meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
 
     feature_dir = _mission_dir(repo)
-    lanes_manifest = SimpleNamespace(target_branch="main", mission_branch=coord_branch, lanes=[])
+    lanes_manifest = SimpleNamespace(target_branch="main", mission_branch=coord_branch, mission_slug=SLUG, lanes=[])
     run = ex._MergeRunState(
         main_repo=repo,
         mission_slug=SLUG,
