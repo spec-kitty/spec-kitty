@@ -620,13 +620,15 @@
     },
     {
       "criterion_id": "FR-092",
-      "description": "Verify FR-092 is satisfied",
-      "proof_type": "automated_test",
+      "description": "FR-092 Pack doctrine in `spec-kitty-open-packs`: the S11 pack doctrine (the status-surface rule, the worktree vocabulary and glossary terms, the `consolidate` wording, a `lane-recovery` tactic, and the rows whose behaviour this Mission ships) landed in `spec-kitty-open-packs`, so that consumers are taught the shipped model. Delivered outside this Mission by open-packs PR #128 (merged, open-packs `main` 9013b34), applied by the S11 sibling session; this Mission ships no patch file (WP19 is canceled). Whether this Mission bumps core's `packs/built-in.source.yaml` pin (`spec-kitty charter pack vendor`, `make sync-packs`, `charter pack regenerate-graph`) is an open operator decision taken at pre-PR time; this spec does not promise the bump.",
+      "proof_type": "operator_ruling",
       "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "pass_fail": "deferred",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:34.716734+00:00",
+      "notes": "Deferred by operator ruling; see reason.",
+      "deferral_reason": "Pack doctrine landed in spec-kitty-open-packs PR #128 (main 9013b34). The core pin bump is deferred by operator closeout ruling 2026-11-06 'leave the open-packs pin as is; a separate PR bumps it'; WP19 canceled.",
+      "deferral_follow_up": "spec-kitty-open-packs PR #128 @ 9013b34; core pin bump in a separate PR (operator closeout ruling 2026-11-06, traces/design-decisions.md)"
     },
     {
       "criterion_id": "FR-093",
