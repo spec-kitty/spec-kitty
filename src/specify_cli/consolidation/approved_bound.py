@@ -574,5 +574,4 @@ __all__ = [
     "refusal_codes",
     "render_refusals",
     "resolves_commit",
-    "stamp_refusal",
 ]

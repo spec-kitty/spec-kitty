@@ -1000,7 +1000,7 @@ def test_approval_warnings_never_fail_on_an_event_they_cannot_classify() -> None
 
 
 def test_approval_warnings_are_silent_outside_a_code_lane(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A planning or single_branch lane is never bounded, so neither warning prints for it (#5721)."""
+    """A lane that is not bounded (a ``lanes`` planning lane, or a ``single_branch`` Mission with no minted Mission branch) gets neither warning (#5721, #7283)."""
     holder = _Repo(Path("."))
     event = _forced_event(holder, **_forced_from("in_progress"))
 
