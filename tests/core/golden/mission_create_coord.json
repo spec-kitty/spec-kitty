@@ -1,5 +1,5 @@
 {
-  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "base_commit": "f26efc0f26c4127761012d99b87bde9223c34c41",
   "cells": {
     "coord/documentation": {
       "outcome": {
@@ -38,6 +38,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-coord-documentation-<MID8#1>/spec.md"
           ]
@@ -221,6 +222,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-force-recreate-<MID8#1>/spec.md"
           ]
@@ -395,6 +397,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-coord-plain-<MID8#1>/spec.md"
           ]
@@ -570,6 +573,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-coord-pr-bound-<MID8#1>/spec.md"
           ]
@@ -748,6 +752,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-coord-retention-<MID8#1>/spec.md"
           ]
@@ -926,6 +931,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-coord-summary-<MID8#1>/spec.md"
           ]
@@ -1100,6 +1106,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/spec.md"
           ]
@@ -1283,6 +1290,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/spec.md"
           ]
@@ -1458,6 +1466,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/spec.md"
           ]
@@ -1636,6 +1645,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/spec.md"
           ]
@@ -1814,6 +1824,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/spec.md"
           ]

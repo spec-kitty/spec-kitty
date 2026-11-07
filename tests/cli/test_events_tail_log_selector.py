@@ -50,12 +50,9 @@ def _invoke(*args: str, repo_root: Path | None = None) -> Result:
 @pytest.fixture(autouse=True)
 def _surface_is_the_handed_dir() -> Iterator[None]:
     """Hermetic surface resolution: the resolved surface IS the handed mission
-    dir. Tests that need a failing-closed surface patch it again in-body."""
-    with patch.object(
-        events_cli,
-        "resolve_surface_dir_or_typed_error",
-        side_effect=lambda _repo_root, _slug, *, on_missing_meta: on_missing_meta,
-    ):
+    dir (the one status read door finding no Mission falls back to it, WP06). Tests
+    that need a failing-closed surface patch it again in-body."""
+    with patch.object(events_cli, "resolve_status_read", side_effect=FileNotFoundError("no mission")):
         yield
 
 
@@ -306,7 +303,7 @@ def test_decisions_kind_still_refuses_on_failing_status_surface(tmp_path: Path) 
         )
 
     with (
-        patch.object(events_cli, "resolve_surface_dir_or_typed_error", side_effect=_fail_closed),
+        patch.object(events_cli, "resolve_status_read", side_effect=_fail_closed),
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(tmp_path)),
     ):
         result = _invoke(
@@ -358,7 +355,7 @@ def test_project_scoped_kind_ignores_a_failing_status_surface(tmp_path: Path) ->
         )
 
     with (
-        patch.object(events_cli, "resolve_surface_dir_or_typed_error", side_effect=_fail_closed),
+        patch.object(events_cli, "resolve_status_read", side_effect=_fail_closed),
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(tmp_path)),
     ):
         result = _invoke(
@@ -389,7 +386,7 @@ def test_status_kind_still_refuses_on_failing_status_surface(tmp_path: Path) -> 
         )
 
     with (
-        patch.object(events_cli, "resolve_surface_dir_or_typed_error", side_effect=_fail_closed),
+        patch.object(events_cli, "resolve_status_read", side_effect=_fail_closed),
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(tmp_path)),
     ):
         result = _invoke(

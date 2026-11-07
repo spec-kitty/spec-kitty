@@ -16,7 +16,6 @@ from .types import (
     ConflictInfo,
     VCSBackend,
     VCSCapabilities,
-    WorkspaceCreateResult,
     WorkspaceInfo,
 )
 
@@ -47,36 +46,6 @@ class VCSProtocol(Protocol):
     # =========================================================================
     # Workspace Operations (Core - Required)
     # =========================================================================
-
-    def create_workspace(
-        self,
-        workspace_path: Path,
-        workspace_name: str,
-        base_branch: str | None = None,
-        base_commit: str | None = None,
-        repo_root: Path | None = None,
-    ) -> WorkspaceCreateResult:
-        """
-        Create a new workspace for a work package.
-
-        Creates a full-checkout workspace. Sparse checkout is not supported;
-        all files are visible in every workspace. Access control is handled at
-        the ownership layer.
-
-        Args:
-            workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace (e.g., "015-feature-lane-a")
-            base_branch: Branch to base the workspace on
-            base_commit: Specific commit to base on (alternative to branch)
-            repo_root: Repository root for command execution when caller already knows it
-
-        Returns:
-            WorkspaceCreateResult with workspace info or error
-
-        Implementation notes:
-            - Git: Uses `git worktree add`
-        """
-        ...
 
     def get_workspace_info(self, workspace_path: Path) -> WorkspaceInfo | None:
         """

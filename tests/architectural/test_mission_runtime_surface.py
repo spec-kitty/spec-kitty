@@ -197,6 +197,7 @@ _PUBLIC_SURFACE = sorted(
         # re-exports both names verbatim.
         "mid8_from_slug",
         "mission_context_for",
+        "mission_has_landed",
         "placement_seam",
         "resolve_action_context",
         # WP02: the affirmative, stamped surface→filesystem seam (the true schema

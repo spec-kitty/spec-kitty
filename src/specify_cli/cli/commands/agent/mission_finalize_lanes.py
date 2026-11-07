@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.lanes.compute import LaneMembershipFrozenError
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
+    from specify_cli.lanes.topology_settlement import SettlementHandle, TopologyDecision
 
 
 def _cause_detail(cause: BaseException) -> str:
@@ -574,3 +575,124 @@ def _scaffold_acceptance_matrix_if_lane_based(
         except ValueError:
             rel = acceptance_matrix_path
         _mf.console.print(f"[info] Scaffolded {rel}")
+
+
+# ---------------------------------------------------------------------------
+# S7 settlement at the first finalize (#7282, Mission lane-worktree-model-hardening WP14)
+# ---------------------------------------------------------------------------
+
+
+def _count_code_lanes_for_settlement(
+    mission_slug: str,
+    meta: dict[str, object] | None,
+    target_branch: str,
+    *,
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    lane_wp_dependencies: dict[str, list[str]],
+    lane_wp_bodies: dict[str, str],
+) -> int:
+    """The code lanes the WPs would form under ``lanes_with_coord`` (read-only dry run)."""
+    from specify_cli.lanes.compute import compute_lanes
+    from specify_cli.lanes.compute_and_persist import count_code_lanes
+
+    if not lane_wp_manifests:
+        return 0
+    raw_mission_id = (meta or {}).get("mission_id")
+    raw_branch = (meta or {}).get("mission_branch")
+    manifest = compute_lanes(
+        dependency_graph=lane_wp_dependencies,
+        ownership_manifests=lane_wp_manifests,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        wp_bodies=lane_wp_bodies,
+        mission_id=raw_mission_id if isinstance(raw_mission_id, str) else None,
+        topology=MissionTopology.LANES_WITH_COORD,
+        mission_branch=raw_branch if isinstance(raw_branch, str) else None,
+    )
+    code_lanes: int = count_code_lanes(manifest)
+    return code_lanes
+
+
+def _target_is_protected(repo_root: Path, target_branch: str) -> bool:
+    """Informational only (the outcome is the same on every target, DM 01M6R0B954ZPQN5NV4R1ZRE7NY)."""
+    try:
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        return bool(ProtectionPolicy.resolve(repo_root).is_protected(target_branch))
+    except Exception:  # noqa: BLE001 -- an informational field never fails finalize
+        logger.debug("target protection probe failed for %s", target_branch, exc_info=True)
+        return False
+
+
+def _decide_topology_by_size(
+    repo_root: Path,
+    mission_slug: str,
+    meta: dict[str, object] | None,
+    target_branch: str,
+    *,
+    eligible_wp_ids: frozenset[str],
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    lane_wp_dependencies: dict[str, list[str]],
+    lane_wp_bodies: dict[str, str],
+) -> TopologyDecision | None:
+    """FR-053: the size decision for a provisional Mission, ``None`` when it is already settled.
+
+    ``eligible_wp_ids`` are the non-canceled WPs, planning-artifact WPs included.
+    """
+    from specify_cli.lanes.topology_settlement import decide_topology_by_size, is_provisional
+
+    if not is_provisional(meta or {}):
+        return None
+    code_lanes = _count_code_lanes_for_settlement(
+        mission_slug,
+        meta,
+        target_branch,
+        lane_wp_manifests=lane_wp_manifests,
+        lane_wp_dependencies=lane_wp_dependencies,
+        lane_wp_bodies=lane_wp_bodies,
+    )
+    return decide_topology_by_size(
+        meta or {},
+        wp_count=len(eligible_wp_ids),
+        code_lane_count=code_lanes,
+        target_protected=_target_is_protected(repo_root, target_branch),
+    )
+
+
+def _apply_topology_settlement(
+    repo_root: Path,
+    planning_dir: Path,
+    mission_slug: str,
+    meta: dict[str, object],
+    decision: TopologyDecision,
+    target_branch: str,
+    *,
+    lane_wp_manifests: dict[str, OwnershipManifest],
+    lane_wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    lane_wp_bodies: dict[str, str],
+) -> SettlementHandle:
+    """FR-055: settle *decision*; the returned handle names the Mission dir later phases use."""
+    from specify_cli.lanes.compute_and_persist import compute_and_write_lanes
+    from specify_cli.lanes.topology_settlement import settle_topology
+
+    raw_mission_id = meta.get("mission_id")
+    raw_branch = meta.get("mission_branch")
+
+    def _write_lanes(mission_dir: Path) -> None:
+        compute_and_write_lanes(
+            mission_dir,
+            repo_root,
+            mission_slug,
+            lane_wp_manifests,
+            lane_wp_dependencies,
+            wp_frontmatters,
+            lane_wp_bodies,
+            target_branch,
+            planning_commit_sha=None,
+            mission_id=raw_mission_id if isinstance(raw_mission_id, str) else None,
+            topology=MissionTopology.LANES_WITH_COORD,
+            mission_branch=raw_branch if isinstance(raw_branch, str) else None,
+        )
+
+    return settle_topology(repo_root, planning_dir, meta, decision, write_lanes=_write_lanes)

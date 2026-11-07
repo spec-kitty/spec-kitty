@@ -8,6 +8,15 @@ consolidation (D-2/D-3 of ``plan.md``) recover which commits a WP's
 implementation/review windows actually covered, even after the lane branch
 has moved on.
 
+**single_branch Missions (S8, #7283, FR-070):** a Mission whose STORED topology is
+``single_branch`` and whose write branch is a minted Mission branch (``meta.mission_branch``,
+distinct from the target) stamps every work package's transitions with that branch's head,
+whatever lane ``lanes.json`` assigns. The decision reads ``meta.json`` only, never
+``is_planning_lane`` or ``execution_mode: direct_repo``, and never ``lane_created_branch``
+of ``lane-planning`` (which resolves to the target). The planning lane of a ``lanes`` Mission
+stays unstamped; a commit-to-target ``single_branch`` Mission keeps the lane-map behaviour
+(unbounded residual, FR-078).
+
 **Best-effort, never blocking (C-1):** :func:`probe_lane_head` never raises.
 Any absence (no ``lanes.json``, unknown WP, planning lane, missing branch) or
 git/read error resolves to ``None`` -- "no stamp" -- so a status transition is
@@ -61,6 +70,9 @@ class LaneHeadProbe(Protocol):
 def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
     """Return *wp_id*'s lane branch HEAD sha, or ``None`` when unavailable.
 
+    For a ``single_branch`` Mission with a minted write branch the sha is that branch's
+    head instead (S8, FR-070), for every work package.
+
     ``None`` covers every non-exceptional "no stamp" case (no ``lanes.json``,
     corrupt ``lanes.json``, *wp_id* unassigned, the planning lane, or the
     lane branch not existing in *repo_root*) as well as any unexpected error
@@ -100,6 +112,10 @@ _NO_STAMP_WARNING = (
 )
 
 
+#: What the no-stamp warning names as the "lane" of a ``single_branch`` Mission's work package.
+_WRITE_BRANCH_LANE = "the Mission write branch"
+
+
 def _branch_head(repo_root: Path, branch: str) -> str | None:
     """``refs/heads/<branch>`` sha, ``None`` when the branch does not exist."""
     from specify_cli.core.git_ops import run_command
@@ -120,6 +136,20 @@ def _warn_no_stamp(mission_slug: str, wp_id: str, lane_id: str, why: str) -> Non
     logger.warning(_NO_STAMP_WARNING, mission_slug, wp_id, lane_id, why)
 
 
+def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_branch: str) -> str | None:
+    """S8 (#7283, FR-070): the head of a ``single_branch`` Mission's minted write branch, or ``None``.
+
+    Every work package of such a Mission is stamped with this one branch's head, whatever
+    lane ``lanes.json`` puts it in. A missing branch is logged at WARNING and yields no stamp;
+    a git error propagates to :func:`probe_lane_head`, which swallows it (C-1). Either way
+    ``consolidate`` then treats the approval as unstamped (FR-074).
+    """
+    sha = _branch_head(repo_root, write_branch)
+    if sha is None:
+        _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, f"Mission branch {write_branch} does not exist")
+    return sha
+
+
 def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
     """Unguarded lanes.json resolution; exceptions are the caller's (:func:`probe_lane_head`) to catch.
 
@@ -130,7 +160,11 @@ def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned:
 
     from specify_cli.lanes.compute import is_planning_lane, lane_created_branch
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+    from specify_cli.lanes.single_branch_landing import minted_write_branch
 
+    write_branch = minted_write_branch(repo_root, mission_slug, owned=owned)
+    if write_branch is not None:
+        return _write_branch_head(repo_root, mission_slug, wp_id, write_branch)
     planning_dir = owned.mission_dir if owned is not None else placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     try:
         manifest = read_lanes_json(planning_dir)

@@ -830,6 +830,21 @@ def _validate_repo_root_workspace(
     return False, [decision.reason]
 
 
+def _lane_ref_gate_verdict(main_repo_root: Path, mission_slug: str, wp_id: str, target_lane: str) -> tuple[bool, list[str]] | None:
+    """Shared ``for_review`` gate verdict for a WP whose lane checkout is absent.
+
+    ``None`` falls through to the caller's success result (not a ``for_review`` move, or the
+    gate passes); otherwise ``(False, [reason])``. No dirty-checkout refusal lives here (C-006).
+    """
+    if str(getattr(target_lane, "value", target_lane)) != "for_review":
+        return None
+
+    from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
+
+    decision = evaluate_for_review_gate(main_repo_root, mission_slug, wp_id)
+    return None if decision.passed else (False, [decision.reason])
+
+
 def _validate_worktree_state(
     *,
     repo_root: Path,
@@ -886,7 +901,9 @@ def _validate_worktree_state(
     )
 
     if not worktree_path.exists():
-        return None
+        # S2 (#7278): no lane checkout is not "nothing to check" -- the shared gate reads the lane
+        # branch ref from the repository root, so this surface gives the verdict the other two give.
+        return _lane_ref_gate_verdict(main_repo_root, mission_slug, wp_id, target_lane)
 
     health = _check_worktree_health(worktree_path, wp_id, target_lane)
     if health is not None:

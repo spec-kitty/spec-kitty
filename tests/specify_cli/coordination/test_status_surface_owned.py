@@ -468,7 +468,7 @@ def test_hunk_c_skips_owned_shortcut_for_a_coordination_routing_topology(
 
     # The bug hunk (c) used to have: EVERY owned identity took
     # primary_checkout(feature_dir, owned=fact), regardless of topology.
-    assert not (contract.source == StatusReadSource.PRIMARY_CHECKOUT and contract.owned is fact)
+    assert not (contract.source == StatusReadSource.WRITE_CHECKOUT and contract.owned is fact)
 
 
 @pytest.mark.integration

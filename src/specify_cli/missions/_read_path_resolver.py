@@ -26,7 +26,9 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 import enum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -861,6 +863,9 @@ def read_primary_meta(
     from specify_cli.core.paths import load_meta_fail_closed
 
     primary_dir = _compose_primary_feature_dir(repo_root, handle)
+    # FR-061 (WP14): a settled default Mission's PRIMARY meta lives in the checkout that
+    # holds its topic branch, not in the repository root checkout.
+    primary_dir = default_mission_topic_dir(repo_root, primary_dir) or primary_dir
     # FR-007 / #3162: routed through the ONE fail-closed reader — a missing
     # primary meta still reads as the empty mapping (the legacy/coord-only
     # arm below); a corrupt or non-object one raises the typed
@@ -1030,6 +1035,98 @@ def mission_dir_aliases(repo_root: Path, mission_slug: str) -> frozenset[str]:
     return names | {composed} if _is_safe_segment(composed) else names
 
 
+def _is_git_entry(dot_git: Path) -> bool:
+    """True for a linked checkout's ``.git`` file or a ``.git`` directory holding ``HEAD``.
+
+    A bare ``.git`` directory without ``HEAD`` is not a repository to git either
+    (``git`` answers "not a git repository"), so it has no registry to read.
+    """
+    return dot_git.is_file() or (dot_git / "HEAD").is_file()
+
+
+def _inside_git_repository(path: Path) -> bool:
+    """True when *path* or one of its ancestors carries a git entry (shape only, no git)."""
+    return any(_is_git_entry(candidate / ".git") for candidate in (path, *path.parents))
+
+
+_NORMALIZED_STATUS_READ_ROOTS: ContextVar[frozenset[Path]] = ContextVar("_NORMALIZED_STATUS_READ_ROOTS", default=frozenset())
+"""Roots already normalized in the current call (WP05 memo; see :func:`normalized_status_read_root`)."""
+
+
+@contextmanager
+def normalized_status_read_root(repo_root: Path) -> Iterator[Path]:
+    """Normalize *repo_root* once and let nested status reads in this call reuse it.
+
+    The status read door and the surface resolver normalize and then call primitives that
+    normalize again (``candidate_feature_dir_for_mission``). Inside this scope
+    :func:`canonical_status_read_root` returns an already-normalized root unchanged without a
+    second ``git worktree list`` (WP04 review nit, Mission lane-worktree-model-hardening WP05).
+    The memo is scoped to the ``with`` block, so a later call re-reads the registry.
+    """
+    root = canonical_status_read_root(repo_root)
+    token = _NORMALIZED_STATUS_READ_ROOTS.set(_NORMALIZED_STATUS_READ_ROOTS.get() | {root.resolve(strict=False)})
+    try:
+        yield root
+    finally:
+        _NORMALIZED_STATUS_READ_ROOTS.reset(token)
+
+
+def canonical_status_read_root(repo_root: Path) -> Path:
+    """Return the repository root a status read must be anchored at (#6466, FR-002).
+
+    The ONE root normalization every root-taking status entry point applies
+    first (ADR 2026-11-06-2 "Root normalization"; carried forward from PR #6884).
+
+    A lane worktree carries a fork-time *copy* of ``kitty-specs/<mission>/``
+    (``status.events.jsonl``, and the derived ``status.json`` once the fork
+    post-dates the first snapshot). That copy is never a status surface: the
+    authority is the resolved surface. Answering a read from the copy is the
+    split-brain #6466 reports: the work package reads as its fork-time lane
+    (``planned``) while the Mission has moved on (``in_progress``).
+
+    So a root that the worktree registry *disposes* as a lane worktree is
+    re-anchored to the repository's main worktree root before any surface is
+    composed. The classification is the single existing authority
+    (:func:`classify_worktree_topology`, C-SEAM-1); path shape never decides.
+
+    Fail closed (Rules and Invariants rule 1, research R-1): when the worktree
+    registry cannot be read, :class:`WorktreeRegistryUnavailable` propagates
+    for EVERY caller, repository root callers included, because without the
+    registry a lane root cannot be told from the repository root. This
+    deliberately tightens #6884, which kept the caller's root. The cost is one
+    ``git worktree list`` per normalization, repository-rooted reads included.
+
+    Returned unchanged: the repository root checkout, the coordination worktree
+    (the authority on a coordination Mission), an independent clone, a husk
+    (under ``.worktrees`` but unregistered), a linked checkout outside
+    ``.worktrees``, and a directory in no git repository at all (it has no
+    registry to read and cannot be a lane worktree). A lane root is never
+    returned.
+
+    Raises:
+        WorktreeRegistryUnavailable: the root lives in a git repository whose
+            worktree registry git cannot read.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeTopology,
+        classify_worktree_topology,
+        read_worktree_registry,
+    )
+    from specify_cli.core.paths import get_main_repo_root
+
+    # Judged on the resolved path: a caller may hand in a relative root
+    # (``Path(".")`` from inside the lane worktree).
+    resolved_root = repo_root.resolve(strict=False)
+    if resolved_root in _NORMALIZED_STATUS_READ_ROOTS.get():
+        return repo_root
+    if not _inside_git_repository(resolved_root):
+        return repo_root
+    registry = read_worktree_registry(resolved_root)
+    if classify_worktree_topology(resolved_root, registry=registry) is not WorktreeTopology.LANE_WORKTREE:
+        return repo_root
+    return get_main_repo_root(resolved_root)
+
+
 def resolve_handle_to_read_path(
     repo_root: Path,
     handle: str,
@@ -1047,6 +1144,10 @@ def resolve_handle_to_read_path(
 
     Body (the prototype pattern, in order):
 
+    0. ``canonical_status_read_root(repo_root)`` — a lane worktree is never a
+       status-surface root (#6466): its fork-time copy of the mission directory
+       would answer every step below from stale state, so the root is normalized
+       to the repository's main worktree root FIRST.
     1. ``assert_safe_path_segment(handle)`` — the traversal guard fires FIRST,
        before any ``KITTY_SPECS_DIR`` join (FR-004 / NFR-002).
     2. Read the primary ``meta.json`` (:func:`read_primary_meta`) to learn the
@@ -1082,7 +1183,11 @@ def resolve_handle_to_read_path(
     ``UNMATERIALIZED`` keeps the #1718 create-window primary read.
 
     Args:
-        repo_root: Absolute repository root (primary checkout).
+        repo_root: Repository root. Normalized by
+            :func:`canonical_status_read_root` when it is a lane worktree; the
+            primary checkout, a coordination worktree and an independent clone
+            are used as handed in. An unreadable worktree registry raises
+            :class:`WorktreeRegistryUnavailable` (fail closed).
         handle: Mission handle — bare slug, ``<slug>-<mid8>``, full ``mission_id``,
             bare ``mid8``, or numeric prefix.
         require_exists: Forwarded to :func:`_resolve_mission_read_path`; when
@@ -1114,6 +1219,15 @@ def resolve_handle_to_read_path(
 
     # 1. Guard FIRST — before any KITTY_SPECS_DIR join / primary-meta probe.
     assert_safe_path_segment(handle)
+
+    # 1a. A lane worktree is never a status-surface root (#6466): its
+    #     ``kitty-specs/<mission>/`` copy is fork-time, so anchoring here would
+    #     answer every downstream read — primary-meta probe, mid8 cascade,
+    #     topology classification and the composed surface — from that stale
+    #     copy. Normalise to the repository's main worktree root once, before
+    #     anything is composed. The coordination worktree and an independent
+    #     clone are returned untouched; an unreadable registry fails closed.
+    repo_root = canonical_status_read_root(repo_root)
 
     # 1b. Bare human slug → composed ``<slug>-<mid8>`` dir name (#2050 read mirror,
     #     FR-004 bare-human-slug quirk): when the operator typed a bare human slug
@@ -1304,6 +1418,7 @@ def resolve_surface_dir_or_typed_error(
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
 
+    repo_root = canonical_status_read_root(repo_root)
     try:
         surface: Path = resolve_status_surface(repo_root, mission_slug)
     except (FileNotFoundError, ValueError):
@@ -1362,6 +1477,9 @@ def candidate_feature_dir_for_mission(
     the same way the guarded seam does. ``None`` preserves historical behaviour.
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
+
+    # FR-002: a lane root is never a status-surface root (#6466).
+    repo_root = canonical_status_read_root(repo_root)
 
     # FR-006: read the WP02 stored topology ONCE from primary meta so a coord-less
     # mission resolves PRIMARY before any on-disk husk probe can land on the
@@ -1630,7 +1748,8 @@ def resolve_planning_read_dir(
         canonical = _canonicalize_primary_read_handle(
             repo_root, mission_slug, resolver=resolver
         )
-        return _compose_primary_feature_dir(repo_root, canonical)
+        composed = _compose_primary_feature_dir(repo_root, canonical)
+        return default_mission_topic_dir(repo_root, composed) or composed
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
@@ -1949,6 +2068,7 @@ __all__ = [
     "MissionSelectorAmbiguous",
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
+    "canonical_status_read_root",
     "coord_feature_dir",
     "literal_primary_meta",
     "mission_dir_aliases",
@@ -1962,3 +2082,58 @@ __all__ = [
     "resolve_subtasks_gate_dir",
     "resolve_surface_dir_or_typed_error",
 ]
+
+
+def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
+    """FR-061 / analyze-3 H1: where a ``topology_source: default`` Mission's PRIMARY partition lives.
+
+    The one topic-holder locator: the planning-read resolver, :func:`read_primary_meta` and the
+    Mission listing (``context.mission_resolver``) all ask it. Until the Mission lands, its
+    PRIMARY partition is on its topic branch (``meta.mission_branch``): the Mission directory in
+    the checkout that holds that branch. After a ``lanes_with_coord`` settlement the repository
+    root checkout is back on ``create_return_branch`` and carries no Mission directory; the
+    coordination worktree (the topic branch's only checkout) then holds it, so its
+    ``meta.json`` is read when the root has none. Returns ``None`` -- keep *composed* -- for
+    every explicit-topology or legacy Mission, a landed one (the one "landed" signal,
+    :func:`mission_runtime.mission_has_landed`), and when no non-lane checkout holding the
+    topic branch carries the Mission directory. ``meta.json`` is read through the one
+    fail-closed reader (FR-007 / #3162); a corrupt one answers ``None`` here so the caller's own
+    fail-closed meta read keeps the corruption verdict (the posture of
+    :func:`mission_runtime.mission_has_landed`).
+    """
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    meta_dir = composed if (composed / "meta.json").is_file() else _coord_worktree_mission_dir(repo_root, composed.name)
+    if meta_dir is None:
+        return None
+    try:
+        meta = load_meta_fail_closed(meta_dir)
+    except MissionMetaReadError:
+        return None
+    topic = meta.get("mission_branch") if meta else None
+    if not meta or meta.get("topology_source") != "default" or not isinstance(topic, str) or not topic:
+        return None
+    from mission_runtime import mission_has_landed
+
+    if meta_dir == composed and mission_has_landed(composed):
+        return None
+    from specify_cli.status.read_surface import topic_holder_mission_dir
+
+    held = topic_holder_mission_dir(repo_root, topic, composed.name)
+    if held is None or held.resolve() == composed.resolve():
+        return None
+    return held
+
+
+def coord_worktree_mission_names(repo_root: Path) -> list[str]:
+    """Mission directory names that only a coordination worktree carries (settled default Missions)."""
+    worktrees = repo_root / ".worktrees"
+    if not worktrees.is_dir():
+        return []
+    return sorted({child.name for coord in worktrees.glob("*-coord") for child in (coord / "kitty-specs").glob("*") if (child / "meta.json").is_file()})
+
+
+def _coord_worktree_mission_dir(repo_root: Path, dir_name: str) -> Path | None:
+    """The coordination worktree's copy of Mission *dir_name*, or ``None`` when it has none."""
+    candidate = repo_root / ".worktrees" / f"{dir_name}-coord" / "kitty-specs" / dir_name
+    return candidate if (candidate / "meta.json").is_file() else None

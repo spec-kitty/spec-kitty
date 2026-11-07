@@ -1391,7 +1391,7 @@
    "deprecated": false
   },
   "specify": {
-   "help": "Create a feature scaffold in kitty-specs/.",
+   "help": "Create a Mission scaffold in kitty-specs/.",
    "hidden": false,
    "deprecated": false
   },

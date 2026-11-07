@@ -21,11 +21,9 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import RetentionDecision
-from specify_cli.git import destructive_guard
-from specify_cli.git.destructive_guard import RemoveResult
-from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.lanes.branch_naming import worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.orchestrator_api import consolidation as orchestrator_consolidation
 from specify_cli.orchestrator_api.consolidation import _apply_lane_merge_cleanup
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -93,34 +91,38 @@ def _land_commit_on_mission_branch(repo: Path) -> str:
 
 
 def test_unmoved_mission_branch_is_deleted(repo: Path) -> None:
-    _apply_lane_merge_cleanup(repo, SLUG, _manifest(), retention=_retention(), mission_branch_deletable=True)
+    _apply_lane_merge_cleanup(repo, _manifest(), retention=_retention(), mission_branch_deletable=True)
 
     assert _branch_tip(repo) is None
 
 
 def test_mission_branch_that_moved_during_cleanup_is_kept_and_the_merge_fails(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    real_remove = destructive_guard.guarded_worktree_remove
+    """S5 (FR-031): the mission branch now comes down FIRST, so the window is between its tip read and its delete."""
+    real_tip = orchestrator_consolidation._branch_tip_sha
     landed: list[str] = []
 
-    def remove_after_late_commit(worktree: Path, *, retain: bool, context: ResidueClassifier) -> RemoveResult:
-        landed.append(_land_commit_on_mission_branch(repo))
-        return real_remove(worktree, retain=retain, context=context)
+    def tip_then_late_commit(main_repo_root: Path, branch: str) -> str | None:
+        tip = real_tip(main_repo_root, branch)
+        if branch == MISSION_BRANCH and not landed:
+            landed.append(_land_commit_on_mission_branch(repo))
+        return tip
 
-    monkeypatch.setattr(destructive_guard, "guarded_worktree_remove", remove_after_late_commit)
+    monkeypatch.setattr(orchestrator_consolidation, "_branch_tip_sha", tip_then_late_commit)
 
     with pytest.raises(RuntimeError) as raised:  # merge_mission envelopes a RuntimeError as a failure
-        _apply_lane_merge_cleanup(repo, SLUG, _manifest(), retention=_retention(), mission_branch_deletable=True)
+        _apply_lane_merge_cleanup(repo, _manifest(), retention=_retention(), mission_branch_deletable=True)
 
     assert landed, "the injection never ran"
     assert _branch_tip(repo) == landed[0], "the late commit must stay reachable on the kept branch"
     assert MISSION_BRANCH in str(raised.value)
     assert f"git log main..{MISSION_BRANCH}" in str(raised.value)
+    assert worktree_path(repo, SLUG, lane_id="lane-a").is_dir(), "a refused mission-branch delete leaves every lane as evidence"
 
 
 def test_retained_mission_branch_is_never_touched(repo: Path) -> None:
     before = _branch_tip(repo)
 
-    _apply_lane_merge_cleanup(repo, SLUG, _manifest(), retention=_retention(), mission_branch_deletable=False)
+    _apply_lane_merge_cleanup(repo, _manifest(), retention=_retention(), mission_branch_deletable=False)
 
     assert _branch_tip(repo) == before
 
@@ -128,6 +130,6 @@ def test_retained_mission_branch_is_never_touched(repo: Path) -> None:
 def test_mission_branch_already_gone_is_not_an_error(repo: Path) -> None:
     _git(repo, "branch", "-D", MISSION_BRANCH)
 
-    _apply_lane_merge_cleanup(repo, SLUG, _manifest(), retention=_retention(), mission_branch_deletable=True)
+    _apply_lane_merge_cleanup(repo, _manifest(), retention=_retention(), mission_branch_deletable=True)
 
     assert _branch_tip(repo) is None

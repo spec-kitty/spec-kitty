@@ -18,7 +18,7 @@
   "friendly_name": "Lane and worktree model hardening",
   "mid8": "01M6QY1M",
   "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",
-  "mission_number": null,
+  "mission_number": 251,
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "pr_bound": true,

@@ -12,7 +12,6 @@ import json
 import subprocess
 import sys
 from collections.abc import Callable, Collection
-from dataclasses import replace
 from pathlib import Path
 from types import CodeType, FrameType, SimpleNamespace
 from typing import Any, TypeVar
@@ -668,9 +667,10 @@ def test_select_workspace_reads_lanes_json_from_the_lanes_surface_not_the_status
     preflight = implement_phases.claim_preflight(ctx, "WP01")
     assert preflight.lanes_feature_dir == mission.feature_dir
 
-    coord_dir = tmp_path / "coord" / "kitty-specs" / SLUG
-    coord_dir.mkdir(parents=True)
-    selection = implement_phases.select_workspace(ctx, "WP01", replace(preflight, status_feature_dir=coord_dir))
+    # The claim preflight carries no status directory (WP06: the status read is the one read
+    # door's), so the only surface ``select_workspace`` can read lanes.json from is the lanes one.
+    assert not hasattr(preflight, "status_feature_dir")
+    selection = implement_phases.select_workspace(ctx, "WP01", preflight)
 
     assert selection.lane is not None
     assert selection.lane.lane_id == "lane-a"

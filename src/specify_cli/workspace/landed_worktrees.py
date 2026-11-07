@@ -23,7 +23,10 @@ verdict rule (``data-model.md``, first match wins):
    the same as the main and current worktrees.
 5. a Mission branch (``parse_mission_slug_from_branch``) -> ``mission_owned``
    (report-only: ``consolidate``, ``retain_worktrees``, ``DESTROYED_LANE`` /
-   ``LANE_WORK_TIP_UNKNOWN`` own those worktrees, C-004)
+   ``LANE_WORK_TIP_UNKNOWN`` own those worktrees, C-004), except a lane of a
+   consolidated or pr-accepted Mission with no active consolidation record and
+   no retention (:func:`released_mission_lane`, FR-039): it goes on to the
+   steps below like any other worktree
 6. locked -> ``not_landed`` (``LOCKED``)
 7. local state -> ``not_landed``: dirty by the guard's own predicate (tracked
    or untracked, nothing is residue), or an index entry flagged
@@ -98,6 +101,7 @@ failure #7214 fixed.
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -441,11 +445,56 @@ def _structural(entry: WorktreeEntry, is_main: bool, ctx: _Context) -> WorktreeV
         return _verdict(entry, Verdict.EXCLUDED, Reason.MAIN_WORKTREE, "a bare repository entry")
     if entry.branch is None and not _resolved(entry.path).is_relative_to(ctx.worktrees_dir):
         return _verdict(entry, Verdict.EXCLUDED, Reason.DETACHED_OUTSIDE_WORKTREES, _DETACHED_OUTSIDE_DETAIL)
-    if entry.branch is not None and parse_mission_slug_from_branch(entry.branch) is not None:
+    if entry.branch is not None and parse_mission_slug_from_branch(entry.branch) is not None and not released_mission_lane(ctx.repo_root, entry.branch):
         return _verdict(entry, Verdict.MISSION_OWNED, Reason.MISSION_LANE, "a Mission branch; consolidate owns its worktree")
     if entry.locked:
         return _verdict(entry, Verdict.NOT_LANDED, Reason.LOCKED, "the worktree is locked")
     return None
+
+
+def _mission_meta_for_lane(repo_root: Path, branch: str) -> dict[str, Any] | None:
+    """The ``meta.json`` of the Mission whose lane ``branch`` is, matched by mid8 (new form) or slug (legacy); ``None`` when not exactly one."""
+    parsed = parse_mission_slug_from_branch(branch)
+    if parsed is None or parsed.lane_id is None:
+        return None
+    matches: list[dict[str, Any]] = []
+    for meta_path in sorted((repo_root / "kitty-specs").glob("*/meta.json")):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(meta, dict):
+            continue
+        mission_id = str(meta.get("mission_id") or "")
+        if (parsed.mid8_token is not None and mission_id[:8] == parsed.mid8_token) or (parsed.mid8_token is None and meta_path.parent.name == parsed.slug):
+            matches.append(meta)
+    return matches[0] if len(matches) == 1 else None
+
+
+def _is_released(meta: dict[str, Any]) -> bool:
+    """Consolidated (``merged_at``) or accepted in pr mode."""
+    if str(meta.get("merged_at") or "").strip():
+        return True
+    return bool(str(meta.get("accepted_at") or "").strip()) and meta.get("acceptance_mode") == "pr"
+
+
+def released_mission_lane(repo_root: Path, branch: str) -> bool:
+    """FR-039: a lane of a consolidated or pr-accepted Mission with no active consolidation record and no retention.
+
+    Such a lane leaves the report-only ``mission_owned`` scope and is judged by the same proofs as any
+    landed worktree (absorption, local state, process probe, the guard). Anything unreadable, an
+    active record (``.kittify/runtime/merge/<mission_id>/state.json``) or a declared retention
+    (``retain_worktrees`` / ``retain_branches`` present and not ``false``: a malformed value retains) keeps it report-only.
+    """
+    meta = _mission_meta_for_lane(repo_root, branch)
+    if meta is None or not _is_released(meta):
+        return False
+    if any(key in meta and meta[key] is not False for key in ("retain_worktrees", "retain_branches")):
+        return False
+    mission_id = str(meta.get("mission_id") or "").strip()
+    if not mission_id:
+        return False
+    return not os.path.lexists(repo_root / ".kittify" / "runtime" / "merge" / mission_id / "state.json")
 
 
 def _flagged_index_paths(worktree: Path) -> list[str]:

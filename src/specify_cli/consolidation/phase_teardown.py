@@ -1,7 +1,8 @@
-"""Teardown phase: lane worktrees and branches, then the coordination triple.
+"""Teardown phase: the coordination triple, then the lane legs (S5, FR-031).
 
-Lane worktree removal (through the destructive-op guard) and lane branch deletion,
-the topology-aware mission/coordination cleanup, the coordination triple
+The lane legs (worktrees and branches) go through the one lane-cleanup module
+(``consolidation.lane_cleanup``) and are reported, never raised, after the verified landing; the
+topology-aware mission/coordination cleanup, the coordination triple
 (worktree -> compare-and-swap branch delete -> marker flatten, INV-2 / #3926),
 the projection teardown gate construction, and the late-landing projection of
 coordination commits that arrived during teardown (#5570) -- on a resumed run
@@ -43,18 +44,15 @@ from specify_cli.git.ref_advance import (
     RefDeleteMismatchError,
     delete_branch_ref,
 )
-from specify_cli.git.destructive_guard import (
-    DestructiveOpRefused,
-    guarded_branch_delete,
-    guarded_worktree_remove,
-)
 from specify_cli.consolidation.git_probes import _paths_have_status_changes
-from specify_cli.lanes.single_branch_landing import worktree_lanes
-
-# Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
-# (single canonical home in ``lanes.compute`` — see its docstrings), imported
-# under the historical private names this module's call sites use.
-from specify_cli.lanes.compute import lane_created_branch as _created_lane_branch
+from specify_cli.consolidation import lane_cleanup
+from specify_cli.consolidation.lane_cleanup import (
+    LaneCleanupReport,
+    LaneRetention,
+    LocalTargetAtPass,
+    GuardedLaneRemover,
+    plan_lane_cleanup,
+)
 from specify_cli.consolidation._constants import (
     COORD_LATE_PROJECTION_REFUSED_SUFFIX,
     COORD_MOVED_AFTER_LANDING_SUFFIX,
@@ -71,13 +69,13 @@ from specify_cli.consolidation.bookkeeping_projection import (
     assert_alias_events_preserved,
     assert_late_window_landed,
     project_late_gate_matrix_commits,
+    unlanded_topic_primary_paths,
 )
 from specify_cli.consolidation.state import (
     save_state,
 )
 from specify_cli.consolidation.workspace import _worktree_removal_delay
 from specify_cli.consolidation.run_state import (
-    _created_lane_worktree,
     CoordMovedAfterLanding,
     CoordinationTeardownError,
     _MergeRunState,
@@ -859,6 +857,71 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
     return approved_branch_tip
 
 
+def _topic_primary_window(run: _MergeRunState) -> tuple[str, str, str] | None:
+    """``(base, topic_ref, target)`` for a default Mission whose topic branch still exists, else ``None``."""
+    from specify_cli.lanes.single_branch_landing import lands_topic_branch
+
+    base = _topic_primary_window_base(run)
+    branch = run.lanes_manifest.mission_branch
+    if base is None or not lands_topic_branch(run.main_repo, run.lanes_manifest):
+        return None
+    if not _resolve_ref_sha(run.main_repo, f"refs/heads/{branch}"):
+        return None
+    return base, f"refs/heads/{branch}", run.lanes_manifest.target_branch
+
+
+def _topic_primary_window_base(run: _MergeRunState) -> str | None:
+    """The topic tip the PRIMARY comparison starts at: the checkpoint, or on a ``--resume`` the persisted pre-mutation tip.
+
+    A resume's in-memory checkpoint is read at resume start, after the interrupted run's late
+    commits, so it would hide them; the persisted ``state.pre_mutation_coord_sha`` does not.
+    """
+    if run.is_resume:
+        resume_base: str | None = run.state.pre_mutation_coord_sha
+        return resume_base
+    checkpoint = run.coord_checkpoint
+    return None if checkpoint is None else str(checkpoint.sha)
+
+
+def _unlanded_topic_primary(run: _MergeRunState, window: tuple[str, str, str]) -> list[str]:
+    """The window's unlanded PRIMARY paths; an unreadable diff refuses (branch kept)."""
+    base, topic_ref, target = window
+    try:
+        unlanded: list[str] = unlanded_topic_primary_paths(run.main_repo, run.mission_slug, base=base, topic_ref=topic_ref, target_ref=target)
+    except GitCommandError as exc:
+        raise CoordinationTeardownError(
+            f"the PRIMARY changes on topic branch {run.lanes_manifest.mission_branch!r} could not be compared with {target!r} "
+            f"({escape(str(exc))}); the branch was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
+        ) from exc
+    return unlanded
+
+
+def _refuse_unlanded_topic_primary(run: _MergeRunState) -> None:
+    """FR-062: refuse the coordination teardown while a default Mission's topic branch holds unlanded PRIMARY changes.
+
+    A ``topology_source: default`` Mission settled to ``lanes_with_coord`` keeps its PRIMARY
+    partition on its topic branch, which is also the coordination branch this teardown deletes.
+    The landing (``integrate_mission_into_target``, the one landing authority) carried the topic
+    tip it read; a PRIMARY commit made after that read is excluded from the coordination
+    projection (G2) and used to die with the branch at exit 0. This is a pure check: anything
+    unlanded REFUSES through :class:`CoordinationTeardownError` (exit 1) with the coordination
+    triple kept, and nothing is written. Explicit and legacy Missions are unchanged.
+    """
+    window = _topic_primary_window(run)
+    if window is None:
+        return
+    unlanded = _unlanded_topic_primary(run, window)
+    if not unlanded:
+        return
+    target = window[2]
+    branch = run.lanes_manifest.mission_branch
+    raise CoordinationTeardownError(
+        f"topic branch {branch!r} still holds PRIMARY change(s) the target {target!r} does not carry: {', '.join(unlanded[:20])}. "
+        f"Branch {branch!r}, its worktree and the coordination marker were NOT removed. "
+        f"Review them with `git diff {target} {branch}`, land them on {target!r}, then run `spec-kitty consolidate --resume`."
+    )
+
+
 def _teardown_coordination_triple(run: _MergeRunState) -> None:
     """Coord branch + marker-flatten + coord-worktree -- ONE atomic unit.
 
@@ -883,6 +946,7 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     # #5570: the delete is a compare-and-swap at the tip approved BEFORE the
     # window opens -- the gate's tip when one ran, else the tip read now, ahead of
     # the persist/worktree-destroy legs. A commit landing in between survives.
+    _refuse_unlanded_topic_primary(run)
     _land_late_coordination_commits(run)
     _fold_coord_status_before_flatten(run)
     pre_teardown_tip = _mission_branch_tip(run)
@@ -988,60 +1052,24 @@ def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
         _teardown_coord_worktree(run)
 
 
-def _remove_lane_worktrees(run: _MergeRunState) -> None:
-    """T005/T012 (#4753, C-003): remove every lane worktree + tombstone its context.
+def _tombstone_removed_lane_contexts(run: _MergeRunState, report: LaneCleanupReport) -> None:
+    """FR-005/LC-6 (#1842 WP03): tombstone the workspace context of each lane whose worktree is gone.
 
-    Extracted (tidy-first, WP02/T034) out of
-    :func:`_phase_cleanup_worktrees_and_branches`, behaviour-preserving. Routed
-    through the shared :func:`~specify_cli.git.destructive_guard.guarded_worktree_remove`
-    chokepoint instead of a raw ``git worktree remove --force``. The T010
-    preflight has already fail-closed on any dirty lane worktree BEFORE any
-    ref advance, so every worktree reaching this loop is known-clean; the
-    guard call here is defense-in-depth against a race between preflight and
-    cleanup, not the primary safety mechanism. ``retain=False`` because this
-    function only runs when ``run.remove_worktree`` is True (removal
-    requested) — ``--keep-worktree`` already makes ``run.remove_worktree``
-    False and skips this function entirely (ADVISORY-3: do not map the
-    operator retain flag onto the guard's ``retain`` parameter here).
+    Nested under ``remove_worktree`` as before: the context JSON *describes* the worktree, so a
+    retained worktree keeps it, and so does a KEPT lane (its worktree survived). The filename
+    is the created worktree's name, the string ``save_context`` wrote.
     """
     from specify_cli.workspace import delete_context, get_context_path
 
-    lanes_manifest = run.lanes_manifest
-    delay = _worktree_removal_delay()
-    # #5965 / #5966: the guard decides disposability from the checkout ROLE and the Mission's
-    # STORED topology, so a lane worktree holding uncommitted rework refuses before the
-    # coordination teardown ever runs.
-    context = residue_context_or_strictest(run.main_repo, run.target_feature_dir.name, CheckoutRole.LANE)
-    for idx, lane in enumerate(worktree_lanes(lanes_manifest)):
-        # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
-        # worktree (never keyed by ``run.baseline_mission_id``), so a
-        # divergent-identity mission's worktree is never orphaned.
-        wt_path = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id)
-        if wt_path.exists():
-            guarded_worktree_remove(wt_path, retain=False, context=context)
-            console.print(f"  Removed worktree: {wt_path.name}")
-            if delay > 0 and idx < len(worktree_lanes(lanes_manifest)) - 1:
-                time.sleep(delay)
-        else:
-            logger.debug("Worktree %s does not exist, skipping removal", wt_path)
-
-    # FR-005/LC-6 (#1842 WP03): tombstone each lane's workspace-context
-    # JSON when its worktree is removed at merge completion. The tombstone
-    # is deliberately nested under ``remove_worktree``: the context JSON
-    # *describes* the worktree, so the two are torn down together — a
-    # ``--no-remove-worktree`` merge intentionally keeps BOTH the worktree
-    # and its context (never orphaning one from the other).
-    # ``delete_context`` itself is a pure, order-independent unlink — it
-    # targets the legacy ``<slug>-<lane>`` filename ``save_context`` always
-    # writes, and silently no-ops for a lane that never saved a context
-    # (e.g. a planning-artifact lane) or one already tombstoned. The
-    # filename MUST equal ``_created_lane_worktree(...).name`` (the string
-    # ``save_context`` wrote) — never independently composed.
+    if not run.remove_worktree:
+        return
     tombstoned: list[Path] = []
-    for lane in worktree_lanes(lanes_manifest):
-        workspace_name = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id).name
-        context_path = get_context_path(run.main_repo, workspace_name)
-        if delete_context(run.main_repo, workspace_name):
+    for result in report.results:
+        worktree = result.item.worktree
+        if worktree is None or worktree.exists():
+            continue
+        context_path = get_context_path(run.main_repo, worktree.name)
+        if delete_context(run.main_repo, worktree.name):
             tombstoned.append(context_path)
     _commit_tombstoned_workspace_contexts(run, tombstoned)
 
@@ -1074,7 +1102,7 @@ def _commit_tombstoned_workspace_contexts(run: _MergeRunState, tombstoned: list[
     if not deleted:
         return
     try:
-        commit_merge_bookkeeping(
+        landed = commit_merge_bookkeeping(
             repo_root=run.main_repo,
             worktree_root=run.main_repo,
             mission_slug=run.mission_slug,
@@ -1088,81 +1116,61 @@ def _commit_tombstoned_workspace_contexts(run: _MergeRunState, tombstoned: list[
         logger.warning("Could not commit tombstoned workspace contexts (%s): %s", names, exc)
         console.print(f"  [yellow]Warning:[/yellow] tombstoned workspace context(s) {escape(names)} were not committed: {escape(str(exc))}")
         return
+    # FR-035: a ``--resume`` after a kill here must still recognise the verified landing.
+    _carry_pass_anchor_over_own_commit(run, landed.sha)
 
 
-def _delete_lane_branch_guarded(run: _MergeRunState, branch_name: str) -> bool:
-    """Delete one landed lane branch through the guard (FR-009); ``False`` (branch kept) when it refuses.
-
-    The creation base is the lane tip snapshotted before this run mutated anything: the
-    reconciliation gate verified the landing against exactly that content, so commits up to it
-    are absorbed (a squash leaves them unreachable from any ref) and only a commit made AFTER
-    the snapshot is unique work. A refusal keeps the branch with a warning and never fails the
-    landed consolidation.
-    """
-    try:
-        guarded_branch_delete(run.main_repo, branch_name, creation_base=run.state.pre_mutation_refs.get(branch_name))
-    except DestructiveOpRefused as refusal:
-        console.print(f"  [yellow]Kept lane branch {escape(branch_name)}:[/yellow] {escape(refusal.remediation)}")
-        return False
-    except RuntimeError as exc:  # git refused the delete (e.g. still checked out): the old best-effort contract
-        logger.debug("Lane branch %s was not deleted: %s", branch_name, exc)
-        return False
-    return True
+def _mark_cleanup_started(run: _MergeRunState) -> None:
+    """FR-035: persisted before the first lane leg, so a ``--resume`` after a kill goes straight to cleanup."""
+    if not run.state.cleanup_started:
+        run.state.cleanup_started = True
+        save_state(run.state, run.main_repo)
 
 
-def _delete_lane_branches(run: _MergeRunState) -> None:
-    """T005/#3131 T008: delete every non-planning lane branch, retry-tolerant.
-
-    Extracted (tidy-first, WP02/T034) out of
-    :func:`_phase_cleanup_worktrees_and_branches`, behaviour-preserving. Lane
-    branches stay keyed to the plain ``delete_branch`` gate regardless of
-    topology — only the MISSION/coordination branch
-    (:func:`_cleanup_mission_branch_and_coordination`) is topology-aware and
-    coupled to ``teardown_coordination`` for a coord mission.
-    """
-    from specify_cli.lanes.compute import is_planning_lane
-    from specify_cli.lanes.lane_tip import clear_tip
-
+def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
+    """The lane legs (S5): one module, kept lanes reported, never raised after the verified landing."""
     lanes_manifest = run.lanes_manifest
-    deleted = 0
-    for lane in lanes_manifest.lanes:
-        if is_planning_lane(lane):
-            continue
-        # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
-        # branch (never a Mission-identity form).
-        branch_name = _created_lane_branch(lanes_manifest, lane.lane_id)
-        ret, _, _ = run_command(
-            ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
-            capture=True,
-            check_return=False,
-            cwd=run.main_repo,
-        )
-        kept = False
-        if ret == 0:
-            if _delete_lane_branch_guarded(run, branch_name):
-                deleted += 1
-            else:
-                kept = True
-        else:
-            logger.debug("Branch %s does not exist, skipping deletion", branch_name)
-        # #5115/WP07 (sibling-owned, one line): the lane-tip ref outlives the
-        # branch it was keyed on -- clear it here too, or a future recut of
-        # the SAME branch name would inherit a stale tip. A KEPT branch keeps its tip record.
-        if not kept:
-            clear_tip(run.main_repo, branch_name)
-    if deleted:
-        console.print(f"  Cleaned up {deleted} lane branch(es)")
+    items = plan_lane_cleanup(lanes_manifest, repo_root=run.main_repo, expected_tips=run.state.pre_mutation_refs)
+    retention = LaneRetention(remove_worktree=run.remove_worktree, delete_branch=run.delete_branch)
+    if not items:
+        return LaneCleanupReport(results=())
+    _mark_cleanup_started(run)
+    delay = _worktree_removal_delay()
+    # #5965 / #5966: the guard decides disposability from the checkout ROLE and the Mission's
+    # STORED topology, so a lane worktree holding uncommitted rework is kept, not destroyed.
+    context = residue_context_or_strictest(run.main_repo, run.target_feature_dir.name, CheckoutRole.LANE)
+    remover = GuardedLaneRemover(run.main_repo, context=context, after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None)
+    landing = LocalTargetAtPass(target_ref=lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
+    report = lane_cleanup.apply(items, remover, landing=landing, retention=retention)
+    _tombstone_removed_lane_contexts(run, report)
+    return report
+
+
+def _print_lane_cleanup(report: LaneCleanupReport) -> None:
+    for line in report.render_lines():
+        console.print(line, markup=False, soft_wrap=True)
+
+
+def _coordination_refused_report(run: _MergeRunState) -> LaneCleanupReport:
+    """Every lane, untouched, after a coordination teardown refusal (FR-031: lanes stay as evidence)."""
+    items = plan_lane_cleanup(run.lanes_manifest, repo_root=run.main_repo)
+    return lane_cleanup.kept_after_coordination_refusal(items)
 
 
 def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
-    """Worktree removal + lane/mission branch deletion + coordination teardown."""
-    if run.remove_worktree:
-        _remove_lane_worktrees(run)
+    """Coordination teardown first, then the lane legs (FR-031); the record is cleared after this phase.
 
-    if run.delete_branch:
-        _delete_lane_branches(run)
-
+    A coordination refusal keeps its own exception and exit code (S10 owns them); every lane is
+    then left in place and reported as kept. After the coordination triple came down, the lane
+    legs never raise: a lane the remover cannot remove is kept and reported (FR-032).
+    """
     # -- #3131 T008: MISSION/coordination branch + marker + worktree --
     # Topology-aware and (for coord) coupled under ``teardown_coordination``;
     # see ``_cleanup_mission_branch_and_coordination`` for the INV-2 rationale.
-    _cleanup_mission_branch_and_coordination(run)
+    try:
+        _cleanup_mission_branch_and_coordination(run)
+    except Exception:
+        _print_lane_cleanup(_coordination_refused_report(run))
+        raise
+    run.lane_cleanup = _lane_cleanup_report(run)
+    _print_lane_cleanup(run.lane_cleanup)

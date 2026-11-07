@@ -178,15 +178,16 @@ Use `spec-kitty-implement-review` as your loop engine. Per-WP pattern:
 4. On `rejected`, read the review cycle file, dispatch a focused
    remediation agent with the exact blocker list, then re-review.
 
-### 2f. Phase 5 — Accept and Merge
+### 2f. Phase 5 — Accept and Consolidate
 
 Run `spec-kitty accept --mission <slug>` after all WPs are approved. Treat it
 as a pre-merge readiness nudge for the orchestrator and the human operator.
-If it passes, run `spec-kitty merge --mission <slug>`. Expect potential
-stale-lane errors when many WPs touched overlapping files. The rebase pattern
-is: `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>`,
-resolve conflicts (usually union-merge on TOML/imports/comments), commit, retry
-the outer merge. See issue #771 for planned auto-rebase support.
+If it passes, run `spec-kitty consolidate --mission <slug>`. It auto-rebases a
+stale lane (many WPs touched overlapping files) before consolidating it; when
+the auto-rebase stops, run the command consolidate prints, resolve any
+conflict in the lane checkout it names, and re-run consolidate. Consolidation
+removes lane and coordination checkouts as its final step and prints a
+`Removed` / `Kept` / `Retained` report.
 
 ### 2g. Phase 6 — Move WPs Done (workaround for the invariant check)
 
@@ -340,7 +341,7 @@ the workaround ready in your dispatch prompts.
 | Friction | When it hits | Workaround | Upstream |
 |---|---|---|---|
 | Test-DB collisions across parallel lanes | Django-backed projects with ≥2 concurrent lane runs | `DJANGO_TEST_DATABASE_NAME=test_<proj>_lane_<letter> <project-test-command> --create-db` | #770 |
-| Stale lane on merge | Missions where multiple WPs touched `pyproject.toml` / `urls.py` / shared `__init__.py` | `cd .worktrees/<slug>-lane-<letter> && git merge kitty/mission-<slug>` per stale lane, resolve, retry outer merge | #771 |
+| Stale lane on consolidate | Missions where multiple WPs touched `pyproject.toml` / `urls.py` / shared `__init__.py` | Consolidate auto-rebases; when it stops, run the command consolidate prints, resolve, re-run consolidate | — |
 | Post-merge invariant check on `.worktrees/` | Every successful merge | `mv .worktrees /tmp/park && move-task WP## --to done && mv back` | #772 |
 | Silent repo fallback when target isn't initialized | Phase 1 on a repo without `.kittify/` scaffold | Detect via `ls <target>/kitty-specs/` after the status commit phase; if empty and another repo got the artifacts, relocate + `spec-kitty init --ai <agent>` in the real target | #773 |
 | `spec-kitty decision` not found | Sub-agents referencing the `decision` command group | Use `spec-kitty agent decision ...` | #774 |

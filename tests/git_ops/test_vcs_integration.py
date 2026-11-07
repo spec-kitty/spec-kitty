@@ -67,6 +67,12 @@ def mock_git_only():
 # =============================================================================
 
 
+def _add_worktree(repo, path, branch):
+    """A plain worktree on a new branch (the VCS layer no longer creates workspaces)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "worktree", "add", "-b", branch, str(path)], cwd=repo, capture_output=True, check=True)
+
+
 class TestVCSDetection:
     # TODO(conventions): retrofit test bodies
     """Integration tests for VCS detection."""
@@ -89,62 +95,8 @@ class TestVCSDetection:
 # =============================================================================
 
 
-class TestWorkspaceCreation:
-    """Integration tests for workspace creation."""
-
-    def test_create_workspace(self, git_repo, mock_git_only):
-        """Should create workspace successfully."""
-        vcs = get_vcs(git_repo)
-        workspace_path = git_repo / ".worktrees" / "test-lane-a"
-
-        result = vcs.create_workspace(
-            workspace_path=workspace_path,
-            workspace_name="test-lane-a",
-            repo_root=git_repo,
-        )
-
-        assert result.success, f"Create failed: {result.error}"
-        assert workspace_path.exists()
-        assert (workspace_path / ".git").exists()
-
-    def test_create_workspace_with_base_branch(self, git_repo, mock_git_only):
-        """Should create workspace from base branch."""
-        vcs = get_vcs(git_repo)
-
-        # Create a feature branch first
-        subprocess.run(
-            ["git", "checkout", "-b", "feature-base"],
-            cwd=git_repo,
-            capture_output=True,
-            check=True,
-        )
-        (git_repo / "feature.txt").write_text("feature content")
-        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "Feature commit"],
-            cwd=git_repo,
-            capture_output=True,
-        )
-
-        # Go back to main
-        subprocess.run(
-            ["git", "checkout", "-"],
-            cwd=git_repo,
-            capture_output=True,
-        )
-
-        # Create workspace from feature-base
-        workspace_path = git_repo / ".worktrees" / "test-lane-b"
-        result = vcs.create_workspace(
-            workspace_path=workspace_path,
-            workspace_name="test-lane-b",
-            base_branch="feature-base",
-            repo_root=git_repo,
-        )
-
-        assert result.success, f"Create failed: {result.error}"
-        # Workspace should have the feature file
-        assert (workspace_path / "feature.txt").exists()
+class TestWorkspaceListing:
+    """Integration tests for workspace listing."""
 
     def test_list_workspaces(self, git_repo, mock_git_only):
         """Should list all workspaces."""
@@ -153,8 +105,8 @@ class TestWorkspaceCreation:
         # Create two workspaces
         ws1 = git_repo / ".worktrees" / "wp01"
         ws2 = git_repo / ".worktrees" / "wp02"
-        vcs.create_workspace(ws1, "wp01", repo_root=git_repo)
-        vcs.create_workspace(ws2, "wp02", repo_root=git_repo)
+        _add_worktree(git_repo, ws1, "wp01")
+        _add_worktree(git_repo, ws2, "wp02")
 
         workspaces = vcs.list_workspaces(git_repo)
 
@@ -237,12 +189,7 @@ class TestFullWorkflow:
 
         # Step 1: Create workspace (simulates implement)
         workspace_path = git_repo / ".worktrees" / "feature-lane-a"
-        result = vcs.create_workspace(
-            workspace_path=workspace_path,
-            workspace_name="kitty/mission-feature-lane-a",
-            repo_root=git_repo,
-        )
-        assert result.success
+        _add_worktree(git_repo, workspace_path, "kitty/mission-feature-lane-a")
 
         # Step 2: Make changes in workspace
         (workspace_path / "feature_code.py").write_text("# Feature code")
@@ -259,41 +206,6 @@ class TestFullWorkflow:
         info = vcs.get_workspace_info(workspace_path)
         assert info is not None
         assert info.name == "feature-lane-a"
-
-    def test_create_workspace_from_explicit_base_branch(self, git_repo, mock_git_only):
-        """VCS layer can create a worktree from an explicitly supplied base branch."""
-        vcs = get_vcs(git_repo)
-
-        # Create lane-a
-        wp01_path = git_repo / ".worktrees" / "feature-lane-a"
-        result = vcs.create_workspace(
-            workspace_path=wp01_path,
-            workspace_name="kitty/mission-feature-lane-a",
-            repo_root=git_repo,
-        )
-        assert result.success
-
-        # Add some code in lane-a
-        (wp01_path / "wp01_code.py").write_text("# WP01 code")
-        subprocess.run(["git", "add", "."], cwd=wp01_path, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "WP01 implementation"],
-            cwd=wp01_path,
-            capture_output=True,
-        )
-
-        # Create lane-b from the lane-a branch
-        wp02_path = git_repo / ".worktrees" / "feature-lane-b"
-        result = vcs.create_workspace(
-            workspace_path=wp02_path,
-            workspace_name="kitty/mission-feature-lane-b",
-            base_branch="kitty/mission-feature-lane-a",
-            repo_root=git_repo,
-        )
-        assert result.success
-
-        # WP02 should have WP01's code
-        assert (wp02_path / "wp01_code.py").exists()
 
 
 # =============================================================================

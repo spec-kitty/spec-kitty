@@ -24,7 +24,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.paths import RetentionDecision
-from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.lanes.branch_naming import worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api.consolidation import _apply_lane_merge_cleanup
@@ -109,15 +108,15 @@ def test_cleanup_refuses_dirty_lane_worktree(
     original = tracked_file.read_text(encoding="utf-8")
     tracked_file.write_text(original + "uncommitted operator work\n", encoding="utf-8")
 
-    with pytest.raises(DestructiveOpRefused):
-        _apply_lane_merge_cleanup(
-            repo,
-            SLUG,
-            manifest,
-            retention=_retention(remove_worktree=True),
-            mission_branch_deletable=False,
-        )
+    # S5 (FR-032): after the landing a refusal is reported as a kept lane, never raised.
+    report = _apply_lane_merge_cleanup(
+        repo,
+        manifest,
+        retention=_retention(remove_worktree=True),
+        mission_branch_deletable=False,
+    )
 
+    assert [(result.outcome.value, result.code) for result in report.results] == [("kept", "MERGE_UNSAFE_WORKTREE_DIRTY")]
     assert wt_path.exists(), "dirty lane worktree must survive the refusal"
     assert tracked_file.read_text(encoding="utf-8") == original + "uncommitted operator work\n"
 
@@ -131,7 +130,6 @@ def test_cleanup_removes_clean_lane_worktree(
 
     _apply_lane_merge_cleanup(
         repo,
-        SLUG,
         manifest,
         retention=_retention(remove_worktree=True),
         mission_branch_deletable=False,
@@ -150,7 +148,6 @@ def test_cleanup_skips_worktree_removal_when_retention_resolves_no_removal(
 
     _apply_lane_merge_cleanup(
         repo,
-        SLUG,
         manifest,
         retention=_retention(remove_worktree=False),
         mission_branch_deletable=False,
