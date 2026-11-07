@@ -118,10 +118,10 @@
       "criterion_id": "FR-012",
       "description": "An internal changelog fragment exists and the per-Mission guard-cost follow-up is drafted (not filed).",
       "proof_type": "manual_qa",
-      "evidence": "docs/changelog/unreleased/7183-nightly-reds.internal.md exists (commit 96fd210b1c); the per-Mission guard-cost follow-up is drafted, not filed, in kitty-specs/nightly-reds-remediation-01M6VYS1/traces/tooling-friction.md (filing is the operator's call). Inspected by file read, no automated node.",
+      "evidence": "docs/changelog/unreleased/7340.internal.md exists (renamed from 7183-nightly-reds.internal.md after PR #7340 was opened, per the unreleased README); the per-Mission guard-cost follow-up is drafted, not filed, in kitty-specs/nightly-reds-remediation-01M6VYS1/traces/tooling-friction.md (filing is the operator's call). Inspected by file read, no automated node.",
       "pass_fail": "pass",
       "verified_by": "claude-sonnet-5-5",
-      "verified_at": "2026-11-07T23:36:32.660306+00:00",
+      "verified_at": "2026-11-07T23:41:29.690815+00:00",
       "notes": null
     }
   ],
