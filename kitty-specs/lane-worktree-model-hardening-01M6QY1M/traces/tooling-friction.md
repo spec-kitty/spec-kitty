@@ -154,3 +154,5 @@ landed (d757d96 and the number 251 are gone with it).
   ce9e5f8a5e introduced it. Not fixed (closeout scope).
 - `tests/consolidation/test_forecast_squash_parity.py::test_forecast_renders_a_content_refuse_as_a_claim_refusal`
   fails as expected: it patches `forecast.resolve_status_surface`, which WP07 removed. Not fixed.
+
+- [2026-11-07][closeout] Operator instruction: subagents run targeted tests only (failing tests + touched modules); full/heavy suites (architectural battery, corpus, contract dir, integration sweeps, make test-full) are left to CI.
