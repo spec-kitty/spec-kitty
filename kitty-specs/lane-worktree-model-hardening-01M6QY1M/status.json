@@ -1,19 +1,19 @@
 {
-  "event_count": 222,
-  "last_event_id": "01M6TTN7QC8TH6EP9NF66AHE98",
-  "materialized_at": "2026-11-07T11:00:20.332197+00:00",
+  "event_count": 223,
+  "last_event_id": "01M6TTNDW1X01C017G1S6ATQAV",
+  "materialized_at": "2026-11-07T11:00:26.625264+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 16,
+    "approved": 15,
     "blocked": 0,
     "canceled": 1,
     "claimed": 0,
     "done": 0,
     "for_review": 3,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -242,7 +242,8 @@
       "notes": [
         "- 2026-11-06T18:26:26Z – claude::python-pedro – shell_pid=12194 – Blocked (stopped per orchestrator instruction): the empty-allowlist single-door gate needs ~53 legacy status read sites in ~35 files migrated (32 read_dir(STATUS_STATE), 8 resolve_status_surface, 2 resolve_status_surface_with_anchor, 5 read_event_log/stream, 5 private resolvers) plus 31 status.events.jsonl joins classified, and downstream Path-typed APIs (get_wp_lane 52, has_event_log 26, WorkPackage.status_dir 20, reconstruct_wp_view 15). Not achievable in one WP; no code committed, no allowlist. Census returned to orchestrator.",
         "Re-scoped per DM 01M6S40GBWB6JD0FFTMQ2F6NW7: consolidation readers (done_bookkeeping x2 + durable committed-ref, forecast, phase_advance, preflight) on resolve_status_read; door gains resolve_committed_status_read; phase_advance landed check delegates to mission_has_landed. No gate/allowlist. Lane-d 7aefc19f88.",
-        "Review passed: consolidation readers (done_bookkeeping x2, forecast, phase_advance via mission_has_landed, preflight) read through resolve_status_read; resolve_committed_status_read gives durable lanes an explicit committed-ref entry; no gate/allowlist per DM 01M6S40GBWB6JD0FFTMQ2F6NW7. Red-first f97116759a (43 pins). tests/consolidation+coordination+door 3515 passed; dead-symbols 37 passed; ruff clean; mypy 3 untyped-decorator errors pre-existing on base. Nit: _read_path_resolver left Path-typed, recorded as deferred T034 (consistent with the ruling's deferral of mission_runtime callers); forecast now refuses CLAIM_REFUSED_FORECAST on ref sources (recorded)."
+        "Review passed: consolidation readers (done_bookkeeping x2, forecast, phase_advance via mission_has_landed, preflight) read through resolve_status_read; resolve_committed_status_read gives durable lanes an explicit committed-ref entry; no gate/allowlist per DM 01M6S40GBWB6JD0FFTMQ2F6NW7. Red-first f97116759a (43 pins). tests/consolidation+coordination+door 3515 passed; dead-symbols 37 passed; ruff clean; mypy 3 untyped-decorator errors pre-existing on base. Nit: _read_path_resolver left Path-typed, recorded as deferred T034 (consistent with the ruling's deferral of mission_runtime callers); forecast now refuses CLAIM_REFUSED_FORECAST on ref sources (recorded).",
+        "Rework: consolidation refresh merge (auto-merged file content needs an approval stamp covering it, reconciliation 2026-11-07); --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -636,11 +637,11 @@
       "agent": "claude::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
-      "force_count": 0,
+      "force_count": 1,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "approved",
-      "last_event_id": "01M6SSV33DFJ8HJ7ZVYHVYEA6T",
-      "last_transition_at": "2026-11-07T01:26:49.197111+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M6TTNDW1X01C017G1S6ATQAV",
+      "last_transition_at": "2026-11-07T11:00:26.625264+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Docs pages (topology size default, topic branch, lane checkouts/status read door/cleanup, worktree vocabulary + migration outcomes) and 12 changelog fragments #7277-#7285",
