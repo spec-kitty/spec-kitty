@@ -4,7 +4,8 @@ A characterization of the directory every root-taking status entry point resolve
 cell, on real git fixtures (no resolver is patched). The entry points are
 ``resolve_status_surface_with_anchor``, ``candidate_feature_dir_for_mission``,
 ``MissionStatus.load``, ``resolve_surface_dir_or_typed_error`` and
-``committed_authority.primary_surface_dir``.
+``committed_authority.primary_surface_dir``, plus the one read door
+``resolve_status_read`` (WP05).
 
 Each Mission carries a registered lane worktree (for ``lanes`` / ``lanes_with_coord``) whose
 ``kitty-specs/<mission>/`` copy is the fork-time shadow (``planned``) while the authority has
@@ -244,6 +245,9 @@ CANDIDATE = "candidate_feature_dir_for_mission"
 LOAD = "MissionStatus.load"
 TYPED = "resolve_surface_dir_or_typed_error"
 COMMITTED = "primary_surface_dir"
+DOOR = "resolve_status_read"
+REF = "REF"
+"""The door's label for a ref-sourced surface (``COORD_BRANCH_REF``): no path, the committed branch."""
 
 
 def _anchor(root: Path) -> Path:
@@ -276,17 +280,31 @@ def _committed(root: Path) -> Path:
     return primary_surface_dir(root, SLUG)
 
 
+_REF_SENTINEL = Path("/status-read-door/ref-sourced")
+
+
+def _door(root: Path) -> Path:
+    """The one read door (WP05): its path, or a sentinel the label maps to ``REF``."""
+    from specify_cli.status.read_surface import resolve_status_read
+
+    surface = resolve_status_read(root, SLUG)
+    return surface.path if surface.path is not None else _REF_SENTINEL
+
+
 ENTRY_POINTS: dict[str, Callable[[Path], Path]] = {
     ANCHOR: _anchor,
     CANDIDATE: _candidate,
     LOAD: _load,
     TYPED: _typed,
     COMMITTED: _committed,
+    DOOR: _door,
 }
 
 
 def label(mission: MatrixMission, path: Path) -> str:
     """Name the surface ``path`` points at, with a ``(missing)`` suffix when it does not exist."""
+    if path == _REF_SENTINEL:
+        return REF
     candidates = {
         ROOT: mission.root_mission_dir,
         LANE_COPY: mission.lane_mission_dir,
@@ -321,6 +339,14 @@ def _all(value: str) -> dict[str, str]:
     return dict.fromkeys(ENTRY_POINTS, value)
 
 
+def _cell(door: str, **others: str) -> dict[str, str]:
+    """A cell whose five legacy entry points read ``others`` and whose door reads ``door``."""
+    return {**others, DOOR: door}
+
+
+# The DOOR column is the one read door (WP05, FR-001/FR-003): one declared source per
+# (topology, coordination state), the same from every cwd. The five legacy entry points keep
+# their characterized values until WP06/WP07 move their callers onto the door.
 MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     (SINGLE_BRANCH, NOT_APPLICABLE, CWD_ROOT): _all(ROOT),
     (LANES, NOT_APPLICABLE, CWD_ROOT): _all(ROOT),
@@ -329,43 +355,33 @@ MATRIX: dict[tuple[str, str, str], dict[str, str]] = {
     (LANES, NOT_APPLICABLE, CWD_LANE): _all(ROOT),
     (LANES_WITH_COORD, MATERIALIZED, CWD_ROOT): {**_all(COORD), COMMITTED: ROOT},
     (LANES_WITH_COORD, MATERIALIZED, CWD_LANE): {**_all(COORD), COMMITTED: ROOT},
-    # A coordination worktree root composes a nested coordination path today.
-    # changes in WP05/WP06 (FR-001, cross-cwd parity)
-    (LANES_WITH_COORD, MATERIALIZED, CWD_COORD): {
-        ANCHOR: NESTED_MISSING,
-        CANDIDATE: COORD,
-        LOAD: ROOT,
-        TYPED: NESTED_MISSING,
-        COMMITTED: ROOT,
-    },
-    # Empty coordination worktree: the loud repository-root fallback.
-    (LANES_WITH_COORD, EMPTY, CWD_ROOT): _all(ROOT),  # changes in WP05 (FR-003)
-    (LANES_WITH_COORD, EMPTY, CWD_LANE): _all(ROOT),  # changes in WP05 (FR-003)
-    # changes in WP05/WP06 (FR-001, FR-003, cross-cwd parity)
-    (LANES_WITH_COORD, EMPTY, CWD_COORD): {
-        ANCHOR: NESTED_MISSING,
-        CANDIDATE: COORD_MISSING,
-        LOAD: ROOT,
-        TYPED: NESTED_MISSING,
-        COMMITTED: ROOT,
-    },
-    # Unmaterialized coordination worktree: a composed path that does not exist, or the
-    # repository root checkout's stale copy. changes in WP05 (FR-003)
-    (LANES_WITH_COORD, UNMATERIALIZED, CWD_ROOT): {
-        ANCHOR: COORD_MISSING,
-        CANDIDATE: ROOT,
-        LOAD: ROOT,
-        TYPED: COORD_MISSING,
-        COMMITTED: ROOT,
-    },
-    # changes in WP05 (FR-003)
-    (LANES_WITH_COORD, UNMATERIALIZED, CWD_LANE): {
-        ANCHOR: COORD_MISSING,
-        CANDIDATE: ROOT,
-        LOAD: ROOT,
-        TYPED: COORD_MISSING,
-        COMMITTED: ROOT,
-    },
+    # A coordination worktree root composes a nested coordination path in the legacy entry
+    # points. The door (and the anchor, which delegates to it) re-anchors it (WP05).
+    # changes in WP06 (cross-cwd parity) for the others.
+    (LANES_WITH_COORD, MATERIALIZED, CWD_COORD): _cell(
+        COORD,
+        **{ANCHOR: COORD, CANDIDATE: COORD, LOAD: COORD, TYPED: COORD, COMMITTED: ROOT},
+    ),
+    # Empty coordination worktree whose branch holds no log yet: the declared pre-seed
+    # WRITE_CHECKOUT fallback (WP05, FR-003; the surface carries ``fallback_reason``).
+    (LANES_WITH_COORD, EMPTY, CWD_ROOT): _all(ROOT),
+    (LANES_WITH_COORD, EMPTY, CWD_LANE): _all(ROOT),
+    # changes in WP06 (cross-cwd parity) for the legacy entry points
+    (LANES_WITH_COORD, EMPTY, CWD_COORD): _cell(
+        ROOT,
+        **{ANCHOR: ROOT, CANDIDATE: COORD_MISSING, LOAD: ROOT, TYPED: ROOT, COMMITTED: ROOT},
+    ),
+    # Unmaterialized coordination worktree: the door reads the committed branch (WP05, FR-003);
+    # the legacy entry points still compose a missing path or read the root's stale copy
+    # until WP06/WP07 migrate their callers.
+    (LANES_WITH_COORD, UNMATERIALIZED, CWD_ROOT): _cell(
+        REF,
+        **{ANCHOR: COORD_MISSING, CANDIDATE: ROOT, LOAD: ROOT, TYPED: COORD_MISSING, COMMITTED: ROOT},
+    ),
+    (LANES_WITH_COORD, UNMATERIALIZED, CWD_LANE): _cell(
+        REF,
+        **{ANCHOR: COORD_MISSING, CANDIDATE: ROOT, LOAD: ROOT, TYPED: COORD_MISSING, COMMITTED: ROOT},
+    ),
 }
 
 _MISSIONS: dict[tuple[str, str], MatrixMission] = {}

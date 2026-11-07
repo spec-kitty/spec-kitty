@@ -26,7 +26,9 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 import enum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -1044,6 +1046,28 @@ def _inside_git_repository(path: Path) -> bool:
     return any(_is_git_entry(candidate / ".git") for candidate in (path, *path.parents))
 
 
+_NORMALIZED_STATUS_READ_ROOTS: ContextVar[frozenset[Path]] = ContextVar("_NORMALIZED_STATUS_READ_ROOTS", default=frozenset())
+"""Roots already normalized in the current call (WP05 memo; see :func:`normalized_status_read_root`)."""
+
+
+@contextmanager
+def normalized_status_read_root(repo_root: Path) -> Iterator[Path]:
+    """Normalize *repo_root* once and let nested status reads in this call reuse it.
+
+    The status read door and the surface resolver normalize and then call primitives that
+    normalize again (``candidate_feature_dir_for_mission``). Inside this scope
+    :func:`canonical_status_read_root` returns an already-normalized root unchanged without a
+    second ``git worktree list`` (WP04 review nit, Mission lane-worktree-model-hardening WP05).
+    The memo is scoped to the ``with`` block, so a later call re-reads the registry.
+    """
+    root = canonical_status_read_root(repo_root)
+    token = _NORMALIZED_STATUS_READ_ROOTS.set(_NORMALIZED_STATUS_READ_ROOTS.get() | {root.resolve(strict=False)})
+    try:
+        yield root
+    finally:
+        _NORMALIZED_STATUS_READ_ROOTS.reset(token)
+
+
 def canonical_status_read_root(repo_root: Path) -> Path:
     """Return the repository root a status read must be anchored at (#6466, FR-002).
 
@@ -1090,6 +1114,8 @@ def canonical_status_read_root(repo_root: Path) -> Path:
     # Judged on the resolved path: a caller may hand in a relative root
     # (``Path(".")`` from inside the lane worktree).
     resolved_root = repo_root.resolve(strict=False)
+    if resolved_root in _NORMALIZED_STATUS_READ_ROOTS.get():
+        return repo_root
     if not _inside_git_repository(resolved_root):
         return repo_root
     registry = read_worktree_registry(resolved_root)

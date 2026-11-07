@@ -646,12 +646,12 @@ def coord_incoherent_done_wps(
     from specify_cli.coordination.status_service import (
         EventLogReadContract,
         read_event_log,
-        ref_exists,
+        ref_names_object,
         wp_lane_actor_from_events,
     )
     from specify_cli.status import Lane
 
-    if not ref_exists(repo_root, coord_ref):
+    if not ref_names_object(repo_root, coord_ref):
         # Declared arm (FR-004): a coordination ref that no longer exists (torn
         # down, or a non-coord / legacy Mission) carries no strand to repair. A ref
         # that exists but cannot be read raises ``StatusSurfaceRefUnreadable``.

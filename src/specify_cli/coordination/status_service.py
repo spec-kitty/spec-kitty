@@ -40,6 +40,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+# The ONE status read-source enum (review cycle 1, N6): the read door's declared sources. A
+# ``primary_checkout`` contract reads ``WRITE_CHECKOUT``, a ``coordination_worktree`` contract
+# ``COORD_WORKTREE`` and a ``coordination_branch_ref`` contract ``COORD_BRANCH_REF``.
+from specify_cli.status.read_surface import StatusReadSource
+
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
@@ -49,14 +54,6 @@ if TYPE_CHECKING:
         InnerStateChanged,
         StatusEvent,
     )
-
-
-class StatusReadSource(enum.StrEnum):
-    """Explicit status read source."""
-
-    PRIMARY_CHECKOUT = "primary_checkout"
-    COORDINATION_WORKTREE = "coordination_worktree"
-    COORDINATION_BRANCH_REF = "coordination_branch_ref"
 
 
 class EventLogWriteTarget(enum.StrEnum):
@@ -84,11 +81,11 @@ def _validate_read_labels(contract: EventLogReadContract) -> None:
         primary_read_targets_coord_worktree,
     )
 
-    owned = contract.owned if contract.source == StatusReadSource.PRIMARY_CHECKOUT else None
+    owned = contract.owned if contract.source == StatusReadSource.WRITE_CHECKOUT else None
     targets_coord = primary_read_targets_coord_worktree(contract.feature_dir, owned=owned)
-    if contract.source == StatusReadSource.PRIMARY_CHECKOUT and targets_coord:
+    if contract.source == StatusReadSource.WRITE_CHECKOUT and targets_coord:
         raise StatusContractError("primary_checkout reads must not target coordination worktree paths")
-    if contract.source == StatusReadSource.COORDINATION_WORKTREE and not targets_coord:
+    if contract.source == StatusReadSource.COORD_WORKTREE and not targets_coord:
         raise StatusContractError("coordination_worktree reads require a coordination worktree path")
 
 
@@ -118,11 +115,11 @@ class EventLogReadContract:
 
     @classmethod
     def primary_checkout(cls, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> EventLogReadContract:
-        return cls(source=StatusReadSource.PRIMARY_CHECKOUT, feature_dir=feature_dir, owned=owned)
+        return cls(source=StatusReadSource.WRITE_CHECKOUT, feature_dir=feature_dir, owned=owned)
 
     @classmethod
     def coordination_worktree(cls, feature_dir: Path) -> EventLogReadContract:
-        return cls(source=StatusReadSource.COORDINATION_WORKTREE, feature_dir=feature_dir)
+        return cls(source=StatusReadSource.COORD_WORKTREE, feature_dir=feature_dir)
 
     @classmethod
     def coordination_branch_ref(
@@ -134,7 +131,7 @@ class EventLogReadContract:
         parser_feature_dir: Path,
     ) -> EventLogReadContract:
         return cls(
-            source=StatusReadSource.COORDINATION_BRANCH_REF,
+            source=StatusReadSource.COORD_BRANCH_REF,
             feature_dir=feature_dir,
             repo_root=repo_root,
             destination_ref=destination_ref,
@@ -264,8 +261,12 @@ def _run_cat_file_batch(repo_root: Path, request: bytes, *, ref: str, path: str)
     return result.stdout
 
 
-def ref_exists(repo_root: Path, ref: str) -> bool:
+def ref_names_object(repo_root: Path, ref: str) -> bool:
     """True when *ref* names an object in *repo_root* (``rev-parse --verify``; no object read).
+
+    Named apart from ``specify_cli.lanes._git.ref_exists``, which peels to a commit
+    (``<ref>^{commit}``) and so answers ``False`` for a ref naming a missing object; this one
+    answers ``True`` there, so the object read reports the corruption (renamed in WP05).
 
     The one home of the declared ref-missing arm (FR-004) that a status read door
     checks before :func:`read_status_ref`: a ref that does not resolve, and a
@@ -337,13 +338,13 @@ def read_event_log(contract: EventLogReadContract) -> list[StatusEvent]:
         raise StatusContractError("read_event_log requires EventLogReadContract")
 
     if contract.source in {
-        StatusReadSource.PRIMARY_CHECKOUT,
-        StatusReadSource.COORDINATION_WORKTREE,
+        StatusReadSource.WRITE_CHECKOUT,
+        StatusReadSource.COORD_WORKTREE,
     }:
         _validate_read_labels(contract)
         return read_events(contract.feature_dir)
 
-    if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
+    if contract.source == StatusReadSource.COORD_BRANCH_REF:
         text = _read_ref_events_text(contract)
         if text is None:
             return []
@@ -370,13 +371,13 @@ def read_event_stream_log(contract: EventLogReadContract) -> EventStream:
         raise StatusContractError("read_event_stream_log requires EventLogReadContract")
 
     if contract.source in {
-        StatusReadSource.PRIMARY_CHECKOUT,
-        StatusReadSource.COORDINATION_WORKTREE,
+        StatusReadSource.WRITE_CHECKOUT,
+        StatusReadSource.COORD_WORKTREE,
     }:
         _validate_read_labels(contract)
         return read_event_stream(contract.feature_dir)
 
-    if contract.source == StatusReadSource.COORDINATION_BRANCH_REF:
+    if contract.source == StatusReadSource.COORD_BRANCH_REF:
         text = _read_ref_events_text(contract)
         if text is None:
             return EventStream()
@@ -510,6 +511,6 @@ __all__ = [
     "merge_append_preserving_coordination_event_log_bytes",
     "read_event_log",
     "read_event_stream_log",
-    "ref_exists",
+    "ref_names_object",
     "wp_lane_actor_from_events",
 ]
