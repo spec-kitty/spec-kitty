@@ -229,9 +229,10 @@ def test_guard_internal_modules_exist() -> None:
 # sites are not merely "absent because the file doesn't exist".
 # ---------------------------------------------------------------------------
 _ROUTED_WORKTREE_REMOVE_SITES: tuple[str, ...] = (
-    "specify_cli/consolidation/phase_teardown.py",
+    # S5 (#7280): the consolidate executor, orchestrator-api and ``mission close --discard`` lane
+    # legs all go through the one lane-cleanup module.
+    "specify_cli/consolidation/lane_cleanup.py",
     "specify_cli/coordination/workspace.py",
-    "specify_cli/orchestrator_api/consolidation.py",
 )
 
 

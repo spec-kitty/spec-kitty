@@ -95,8 +95,9 @@ def _lane_recheck_verdict(run: _MergeRunState, claim: ApprovedWpCommitSet) -> Ve
     The lane tips and anchor SHAs were captured before this run mutated anything
     (``phase_claim``); a live branch name would not do, because every lane was merged
     into the mission branch with a no-ff merge and the live mission branch therefore
-    reaches the very commit this looks for. A probe error is a REFUSE, as the
-    verifier reports one.
+    reaches the very commit this looks for. A ``single_branch`` Mission's lane is read
+    through the claim's lane-to-branch map, i.e. its Mission branch (S8, #7283). A probe
+    error is a REFUSE, as the verifier reports one.
     """
     approved_by_lane = {lane.lane_id: [wp for wp in lane.wp_ids if wp in claim.approved] for lane in run.lanes_manifest.lanes}
     try:
@@ -107,6 +108,7 @@ def _lane_recheck_verdict(run: _MergeRunState, claim: ApprovedWpCommitSet) -> Ve
             anchor_shas=run.bound_anchor_shas,
             planning_prefix=claim.planning_prefix,
             approved_wp_ids=approved_by_lane,
+            lane_branches=dict(claim.bound_lane_branches),
         )
     except GitProbeError as exc:
         return VerifyResult.refused(f"a git probe failed while re-checking the lane tips against their approval: {exc}")

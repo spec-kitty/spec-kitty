@@ -12,3 +12,13 @@
 - **[2026-11-06][implement] Operator ruling relayed by the S11 session:** open-packs aligns with the spec-kitty-charter contracts; core becomes compatible by wiring in the charter service's generated client; following those contracts is the consumer's choice. For #7276, the open-packs doctrine is not gated on core, and the pin bump is a core-side choice. Disposition: unchanged plan; the pin bump stays a pre-PR operator question.
 - **[2026-11-06][implement WP01] Wrote ADR 2026-11-06-2 (one status read contract, FR-007, FR-061 placement) and amended ADRs 2026-06-19-1 (superseded for status reads) and 2026-07-29-1 (restated ruling 3, Assert A' kept).** Sources and invariants follow research R-1/R-2 and data-model §2; every topology x coordination state maps to one source in one table. Disposition: for review.
 - **[2026-11-06][implement] spec-kitty-events PR #215 merged (ADR 0007/0008 Proposed, mission-write 1.0.1-SNAPSHOT on events main).** C-1/C-3 (WP03, approved) already record the step 4 + 4a ordering, the destinationRef change to ADR 2026-10-27-1 D-3, and the oracle's missing-ref answer. Disposition: at docs time (WP18), retarget the C-1/C-3 links from the PR branch to events `main`. The operator accepts 0007/0008 together with C-1..C-3.
+- **[2026-11-06][implement] Closeout cleanup list (fold into a final WP or the pre-PR fix pass):**
+  - delete `write_branch_bound._commits_outside_windows` (dead after WP12 cycle 2);
+  - remove the WP13 allowlist entries once WP14 wires their callers;
+  - fix the ADR wording on the landed_worktrees printed hint (WP09);
+  - record MISSION_BRANCH_REF in ADR 2026-11-06-2 and in data-model (WP05);
+  - retarget the C-1/C-3 links to spec-kitty-events main (WP03);
+  - fix spec FR-084/C-003 wording, then re-run analyze;
+  - delete the third landed-reader copy in `phase_advance.py:264` unless WP07 does;
+  - delete or rename the remaining old enum-member docstrings.
+- **[2026-11-06][review WP13] Closeout item:** the out-of-matrix `tests/specify_cli/cli/commands` directory shows failures that reviewers attributed to xdist or the base without serial confirmation (charter-cascade, doctrine-asset, `test_activate_only_6408`, the merge-golden `--dependency-ref`, and others). Before the PR, run that directory on the consolidated branch and on origin/main and classify each red (CLAUDE.md test policy; out-of-matrix category 6).

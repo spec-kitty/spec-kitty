@@ -18,7 +18,6 @@ from specify_cli.charter_packs.sources import git_source
 from specify_cli.charter_packs.sources.git_source import GitSource
 from specify_cli.cli.commands import mission_type
 from specify_cli.coordination import coord_seed
-from specify_cli.core import worktree as core_worktree
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.status import doctor_husks
 
@@ -108,13 +107,14 @@ def test_delete_lane_branches_keeps_lane_with_only_copy(tmp_path: Path) -> None:
     _commit_file(repo, "lane-work.txt")
     _git(repo, "checkout", "-q", "main")
     manifest = SimpleNamespace(
+        mission_slug=_SLUG,
         mission_branch="kitty/mission-demo",
         target_branch="main",
         lanes=[SimpleNamespace(lane_id="lane-a")],
     )
 
     with pytest.raises(DestructiveOpRefused):
-        mission_type._delete_lane_branches(repo, _SLUG, manifest)
+        mission_type._discard_lanes(repo, manifest)
 
     assert _git(repo, "branch", "--list", lane_branch) != ""
 
@@ -197,14 +197,14 @@ def _mission_repo_with_lane_worktree(tmp_path: Path) -> tuple[Path, Path, Simple
 
     worktree = repo / ".worktrees" / worktree_dir_name(_SLUG, lane_id="lane-a")
     _git(repo, "worktree", "add", "-q", "-b", "lane-a-branch", str(worktree))
-    manifest = SimpleNamespace(lanes=[SimpleNamespace(lane_id="lane-a")])
+    manifest = SimpleNamespace(mission_slug=_SLUG, mission_branch="main", target_branch="main", lanes=[SimpleNamespace(lane_id="lane-a")])
     return repo, worktree, manifest
 
 
 def test_remove_lane_worktrees_clean_worktree_is_removed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     repo, worktree, manifest = _mission_repo_with_lane_worktree(tmp_path)
 
-    mission_type._remove_lane_worktrees(repo, _SLUG, manifest)
+    mission_type._discard_lanes(repo, manifest)
 
     assert not worktree.exists()
 
@@ -214,7 +214,7 @@ def test_remove_lane_worktrees_refuses_untracked_only_copy(tmp_path: Path) -> No
     (worktree / "operator-notes.txt").write_text("only copy\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused):
-        mission_type._remove_lane_worktrees(repo, _SLUG, manifest)
+        mission_type._discard_lanes(repo, manifest)
 
     assert (worktree / "operator-notes.txt").read_text(encoding="utf-8") == "only copy\n"
 
@@ -224,7 +224,7 @@ def test_remove_lane_worktrees_leaves_unregistered_empty_directory(tmp_path: Pat
     _git(repo, "worktree", "remove", "--force", str(worktree))
     worktree.mkdir()
 
-    mission_type._remove_lane_worktrees(repo, _SLUG, manifest)
+    mission_type._discard_lanes(repo, manifest)
 
     assert worktree.exists()
 
@@ -236,7 +236,7 @@ def test_remove_lane_worktrees_refuses_unregistered_directory_with_files(tmp_pat
     (worktree / "stray.txt").write_text("not a worktree\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused):
-        mission_type._remove_lane_worktrees(repo, _SLUG, manifest)
+        mission_type._discard_lanes(repo, manifest)
 
     assert (worktree / "stray.txt").exists()
 
@@ -299,54 +299,6 @@ def test_husk_residue_context_disposes_of_nothing(tmp_path: Path) -> None:
 
     assert context.is_disposable("kitty-specs/m/meta.json") is False
     assert context.for_checkout(tmp_path, tmp_path) is context
-
-
-# --------------------------------------------------------------------------- core/worktree memory
-
-
-def _worktree_with_memory_dir(tmp_path: Path) -> tuple[Path, Path, Path]:
-    repo = tmp_path / "repo"
-    (repo / ".kittify" / "memory").mkdir(parents=True)
-    (repo / ".kittify" / "memory" / "shared.md").write_text("shared\n", encoding="utf-8")
-    worktree = tmp_path / "wt"
-    memory = worktree / ".kittify" / "memory"
-    memory.mkdir(parents=True)
-    (memory / "stale.md").write_text("stale checkout copy\n", encoding="utf-8")
-    feature_dir = worktree / "kitty-specs" / "001-demo"
-    return repo, worktree, feature_dir
-
-
-def test_setup_feature_directory_replaces_memory_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-    monkeypatch.setattr(core_worktree, "is_windows", lambda: False)
-
-    core_worktree.setup_feature_directory(feature_dir, worktree, repo)
-
-    memory = worktree / ".kittify" / "memory"
-    assert memory.is_symlink()
-    assert not (memory / "stale.md").exists()
-
-
-def test_setup_feature_directory_copy_mode_replaces_memory_directory(tmp_path: Path) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-
-    core_worktree.setup_feature_directory(feature_dir, worktree, repo, create_symlinks=False)
-
-    memory = worktree / ".kittify" / "memory"
-    assert not memory.is_symlink()
-    assert (memory / "shared.md").exists()
-    assert not (memory / "stale.md").exists()
-
-
-def test_setup_feature_directory_refuses_memory_that_is_a_git_checkout(tmp_path: Path) -> None:
-    repo, worktree, feature_dir = _worktree_with_memory_dir(tmp_path)
-    memory = worktree / ".kittify" / "memory"
-    (memory / ".git").mkdir()
-
-    with pytest.raises(ToolOwnedPathUnproven):
-        core_worktree.setup_feature_directory(feature_dir, worktree, repo, create_symlinks=False)
-
-    assert (memory / "stale.md").exists()
 
 
 # --------------------------------------------------------------------------- coord_seed scratch

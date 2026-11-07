@@ -124,8 +124,14 @@ def test_lifecycle_sync_clean_rebase_updates_lane_worktree(tmp_path: Path) -> No
     assert (worktree / "kitty-specs" / "sync-clean" / "status.events.jsonl").exists()
 
 
-def test_lifecycle_sync_recreates_missing_lane_worktree(tmp_path: Path) -> None:
-    repo, feature_dir, coordination_branch, _lane_branch = _init_repo(
+def test_lifecycle_sync_recreate_has_no_status_files(tmp_path: Path) -> None:
+    """The recreate goes through the one lane-checkout helper (Mission WP09, FR-040).
+
+    The recreated checkout is attached to the lane branch and never shows the
+    Mission's status files, while the lane branch tree still carries the log
+    the coordination merge brought in (C-008: no lane-side deletion).
+    """
+    repo, feature_dir, coordination_branch, lane_branch = _init_repo(
         tmp_path,
         "sync-missing-worktree",
     )
@@ -162,12 +168,9 @@ def test_lifecycle_sync_recreates_missing_lane_worktree(tmp_path: Path) -> None:
     assert report is not None
     assert report.succeeded is True
     assert (worktree / ".git").exists()
-    assert (
-        worktree
-        / "kitty-specs"
-        / "sync-missing-worktree"
-        / "status.events.jsonl"
-    ).exists()
+    status_path = "kitty-specs/sync-missing-worktree/status.events.jsonl"
+    assert not (worktree / status_path).exists()
+    _run(["git", "cat-file", "-e", f"{lane_branch}:{status_path}"], repo)
 
 
 def test_lifecycle_sync_conflict_refuses_and_preserves_lane_state(tmp_path: Path) -> None:

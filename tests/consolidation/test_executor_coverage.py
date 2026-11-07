@@ -31,6 +31,7 @@ from specify_cli.post_merge.stale_assertions import (
 )
 from specify_cli.consolidation import (
     coord_strand,
+    lane_cleanup,
     phase_advance,
     phase_bookkeeping,
     phase_claim,
@@ -920,8 +921,10 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
         patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
         patch_executor_family("run_command", side_effect=_fake_cmd),
-        patch.object(phase_teardown, "guarded_worktree_remove") as guarded_remove_mock,
-        patch.object(phase_teardown, "guarded_branch_delete") as guarded_branch_delete_mock,
+        # S5: the lane legs moved into the one lane-cleanup module.
+        patch.object(lane_cleanup, "guarded_worktree_remove") as guarded_remove_mock,
+        patch.object(lane_cleanup, "guarded_branch_delete") as guarded_branch_delete_mock,
+        patch.object(lane_cleanup, "_branch_tip", side_effect=["a" * 40, None]),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
         # WP04 (#2119): coordination teardown now routes through the shared
         # ``teardown_coordination_topology`` seam. Patch the seam's real destroy

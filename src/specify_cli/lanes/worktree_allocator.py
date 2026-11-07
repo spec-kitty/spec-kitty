@@ -10,9 +10,12 @@ first lane worktree is allocated.
 #1348 (WP04): when the mission carries a ``coordination_branch`` field
 in ``meta.json`` (new-topology missions, WP03+), the lane branch is
 parented on the coordination branch rather than the legacy
-``mission_branch`` field, and the lane worktree gets a sparse-checkout
-policy registered so it cannot see ``status.events.jsonl`` or
-``status.json`` (FR-024 / FR-025 / FR-029).
+``mission_branch`` field (FR-024 / FR-025 / FR-029).
+
+Mission WP09 (FR-021, FR-040): every lane checkout this module creates goes
+through :func:`specify_cli.lanes.lane_checkout.open_lane_checkout`, which
+registers the sparse exclusion of ``status.events.jsonl`` and ``status.json``
+on every topology with code lanes.
 """
 
 from __future__ import annotations
@@ -26,7 +29,6 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
@@ -50,6 +52,7 @@ from specify_cli.lanes.consolidation import (
     _make_merge_env,
     reconcile_derived_status_snapshot_conflicts,
 )
+from specify_cli.lanes.lane_checkout import LaneCheckoutRequest, LaneCheckoutRoute, lane_mission_dir_name, open_lane_checkout
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, read_tip, record_tip, tip_ref
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
@@ -1214,22 +1217,29 @@ def allocate_lane_worktree(
     # #1348 (WP04): pick the parent branch.
     #
     #   New-topology missions (meta.json has ``coordination_branch``):
-    #     parent the lane on the coordination branch and register the
-    #     status-files sparse-checkout exclusion.
+    #     parent the lane on the coordination branch.
     #
     #   Legacy missions (no ``coordination_branch``): fall back to the
-    #     ``mission_branch`` field. No sparse-checkout. WP08 will harden
-    #     the legacy path further; for now we preserve existing behaviour.
+    #     ``mission_branch`` field.
+    #
+    # Every route registers the status-files sparse exclusion through the one
+    # lane-checkout helper (Mission WP09, FR-040), whatever the topology.
     #
     # #2514 (WP04): hoisted above the crash-recovery branch below so BOTH the
-    # recovery path and the fresh-create path see the same two values without
-    # recomputing them twice — see ``_register_sparse_checkout_if_coord``.
+    # recovery path and the fresh-create path see the same values without
+    # recomputing them twice.
     coordination_branch = _read_coordination_branch(repo_root, mission_slug)
     # Route through the authoritative resolver (WP03 / FR-009, F-1). The
     # former raising ``mid8`` + try/except is replaced by resolve_mid8's
     # decline-to-``""`` contract; ``or None`` preserves the prior ``None``
     # behaviour so the downstream registration guard is unchanged.
     short_id = resolve_mid8(mission_slug, mission_id=lanes_manifest.mission_id) or None
+    # WP09 (FR-040): the Mission dir the lane tree carries, for the status
+    # exclusion every lane checkout now gets (``lanes`` topology included).
+    mission_dir_name = lane_mission_dir_name(
+        mission_slug,
+        coordination_mid8=short_id if coordination_branch is not None else None,
+    )
 
     # #2512: crash-recovery path — branch exists but worktree directory was
     # lost (e.g. agent process killed by OS idle-sleep).  Re-attach the
@@ -1248,15 +1258,16 @@ def allocate_lane_worktree(
             wp_id=wp_id,
         )
         guarded_worktree_prune(repo_root)
-        _recover_lane_worktree(repo_root, worktree_path, branch)
-        # #2514: re-register the sparse-checkout exclusion on recovery too —
-        # a recovered coord-topology lane worktree must not re-leak
-        # status.events.jsonl / status.json (Scenario 2).
-        _register_sparse_checkout_if_coord(
+        # #2514 / WP09 (FR-040): the one lane-checkout helper re-registers the
+        # status exclusion on recovery too, on every topology -- a recovered
+        # lane checkout must not re-leak status.events.jsonl / status.json.
+        _recover_lane_worktree(
+            repo_root,
             worktree_path,
-            mission_slug,
-            coordination_branch,
-            short_id,
+            branch,
+            mission_slug=mission_slug,
+            mission_dir_name=mission_dir_name,
+            lane_id=lane.lane_id,
         )
         # FR-009 (#2993) crash-recovery self-heal: the seam validates the
         # re-attached worktree (``refuse-dirty``) and merges the recorded
@@ -1335,21 +1346,17 @@ def allocate_lane_worktree(
             coordination_branch,
             lanes_manifest.target_branch,
         )
+        # The helper registers the status exclusion, so the lane filesystem
+        # does NOT contain status.events.jsonl / status.json.
         _create_lane_worktree(
             repo_root,
             worktree_path,
             branch,
             decision.parent_ref,
-        )
-        # Register the sparse-checkout policy so the lane filesystem does
-        # NOT contain status.events.jsonl / status.json. Only meaningful
-        # when we have a mid8; new-topology missions always do because
-        # WP03 mints the coord branch only when mission_id is present.
-        _register_sparse_checkout_if_coord(
-            worktree_path,
-            mission_slug,
-            coordination_branch,
-            short_id,
+            mission_slug=mission_slug,
+            mission_dir_name=mission_dir_name,
+            lane_id=lane.lane_id,
+            route=LaneCheckoutRoute.ALLOCATION_FRESH,
         )
     else:
         decision = resolve_lane_base_or_refuse(
@@ -1373,6 +1380,10 @@ def allocate_lane_worktree(
             worktree_path,
             branch,
             decision.parent_ref,
+            mission_slug=mission_slug,
+            mission_dir_name=mission_dir_name,
+            lane_id=lane.lane_id,
+            route=LaneCheckoutRoute.ALLOCATION_LEGACY,
         )
 
     # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
@@ -1847,32 +1858,6 @@ def _merge_dependency_lane_tips(
                 raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
 
 
-def _register_sparse_checkout_if_coord(
-    worktree_path: Path,
-    mission_slug: str,
-    coordination_branch: str | None,
-    short_id: str | None,
-) -> None:
-    """Register the status-files sparse-checkout exclusion, if applicable.
-
-    #2514 (WP04): the single call site for the coord-topology sparse-checkout
-    guard — both the fresh-create path and the crash-recovery path
-    (:func:`allocate_lane_worktree`) route through here instead of
-    maintaining two independently-drifting copies of the same guard. A
-    recovered coord-topology lane worktree must not re-leak
-    ``status.events.jsonl`` / ``status.json`` any more than a freshly-created
-    one does.
-
-    Both guards are preserved exactly as explicit ``is not None`` checks
-    (never weakened to implicit truthiness): ``coordination_branch`` is
-    ``None`` for legacy (no-coord) missions, and ``short_id`` is ``None``
-    when ``resolve_mid8`` declines to resolve a mid8. Either ``None`` makes
-    this a no-op — byte-identical to the pre-WP04 non-coord path.
-    """
-    if coordination_branch is not None and short_id is not None:
-        register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
-
-
 def _stored_topology_for_fail_closed_guard(repo_root: Path, mission_slug: str) -> MissionTopology | None:
     """Read *mission_slug*'s EXPLICITLY stored topology for the T022 guard, or ``None``.
 
@@ -2104,44 +2089,66 @@ def _create_lane_worktree(
     worktree_path: Path,
     branch: str,
     base_branch: str,
+    *,
+    mission_slug: str,
+    mission_dir_name: str,
+    lane_id: str,
+    route: LaneCheckoutRoute,
 ) -> None:
-    """Create a git worktree for a lane branch."""
-    worktree_path.parent.mkdir(parents=True, exist_ok=True)
+    """Create a lane branch from ``base_branch`` and its checkout, through the one helper.
 
-    result = subprocess.run(
-        ["git", "worktree", "add", "-b", branch, str(worktree_path), base_branch],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
+    ``base_branch`` stays the 4th positional parameter: the allocation
+    single-seam gate traces it to ``resolve_lane_base_or_refuse``.
+
+    Raises:
+        RuntimeError: (``LaneCheckoutError``) if the checkout cannot be created.
+    """
+    open_lane_checkout(
+        LaneCheckoutRequest(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mission_dir_name=mission_dir_name,
+            lane_id=lane_id,
+            branch=branch,
+            worktree_path=worktree_path,
+            create_branch_from=base_branch,
+            route=route,
+        )
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to create lane worktree at {worktree_path}: {result.stderr.strip()}")
 
 
 def _recover_lane_worktree(
     repo_root: Path,
     worktree_path: Path,
     existing_branch: str,
+    *,
+    mission_slug: str,
+    mission_dir_name: str,
+    lane_id: str,
+    route: LaneCheckoutRoute = LaneCheckoutRoute.RECOVERY,
 ) -> None:
-    """Recreate worktree from existing branch (recovery mode).
+    """Recreate a checkout on an existing lane branch (recovery mode), through the one helper.
 
-    Uses ``git worktree add <path> <branch>`` WITHOUT ``-b`` to attach
-    to an already-existing branch. This is the recovery path for when
-    the agent process crashed and the branch survived but the worktree
-    was lost.
+    Attaches to the already-existing branch (``git worktree add <path>
+    <branch>``, never ``-b``). This is the recovery path for when the agent
+    process crashed and the branch survived but the worktree was lost.
 
     Raises:
-        RuntimeError: If the git worktree add command fails.
+        RuntimeError: (``LaneCheckoutError``) if the branch is not a local
+            branch or the git worktree add command fails.
     """
-    worktree_path.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        ["git", "worktree", "add", str(worktree_path), existing_branch],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
+    open_lane_checkout(
+        LaneCheckoutRequest(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            mission_dir_name=mission_dir_name,
+            lane_id=lane_id,
+            branch=existing_branch,
+            worktree_path=worktree_path,
+            create_branch_from=None,
+            route=route,
+        )
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to recover worktree at {worktree_path}: {result.stderr.strip()}")
 
 
 def _remove_lane_worktree(repo_root: Path, worktree_path: Path, mission_slug: str) -> None:

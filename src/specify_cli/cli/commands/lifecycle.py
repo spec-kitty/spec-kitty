@@ -20,6 +20,7 @@ from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.cli.commands.agent import mission as agent_feature
 from specify_cli.core.paths import locate_project_root
+from specify_cli.meta_keys import TOPOLOGY_HELP
 from specify_cli.workspace.assert_initialized import (
     SPEC_KITTY_REPO_NOT_INITIALIZED,
     SpecKittyNotInitialized,
@@ -162,24 +163,13 @@ def specify(
     topology: MissionTopology | None = typer.Option(
         None,
         "--topology",
-        help=(
-            # Out-of-map edit (WP06 review cycle 1, issue 2): `specify` shares
-            # `_resolve_default_topology_phase` with `agent mission create`
-            # (via `agent_feature.create_mission`), so its help text must
-            # mirror `mission_create.py`'s --topology help verbatim.
-            "Create-time mission shape: single_branch | lanes | coord | "
-            "lanes_with_coord. Coordination-bearing shapes (coord, "
-            "lanes_with_coord) mint a coordination branch; branch-flat shapes "
-            "(single_branch, lanes) do not. Default: "
-            "context-derived (#2581, #2602) — coord on the primary "
-            "branch or with --pr-bound when coordination is reachable; "
-            "lanes otherwise. single_branch only when requested "
-            "explicitly (or via --owned-checkout)."
-        ),
+        # FR-059: the one shared help text (`agent mission create` and
+        # `orchestrator-api specify` use the same constant).
+        help=TOPOLOGY_HELP,
     ),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
-    """Create a feature scaffold in kitty-specs/."""
+    """Create a Mission scaffold in kitty-specs/."""
     _enforce_initialized(require_specs=False, json_output=json_output)
     slug = _slugify_feature_input(mission)
     resolved_mission_type = mission_type

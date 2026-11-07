@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Concatenate, ParamSpec, cast
 
 
 if TYPE_CHECKING:
+    from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
     from specify_cli.lanes.models import LanesManifest
 
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
@@ -346,6 +347,8 @@ class _MergeRunState:
     # pre-move tip only while its claim-time tip is still the post-step tip. Any
     # other movement (another actor) gets the ordinary classification.
     own_pre_claim_moves: dict[str, rollback.OwnMove] = field(default_factory=dict)
+    # S5 (#7280): the per-lane outcomes of the cleanup that follows a verified landing.
+    lane_cleanup: LaneCleanupReport | None = None
 
 
 _P = ParamSpec("_P")
@@ -547,4 +550,24 @@ def _resume_reconciliation_already_passed(run: _MergeRunState) -> bool:
     """
     if not run.is_resume:
         return False
-    return bool(reconciliation_passed_for_tip(run.state, _resolve_ref_sha(run.main_repo, run.lanes_manifest.target_branch)))
+    return landing_verified_for_resume(run.main_repo, run.state)
+
+
+def landing_verified_for_resume(main_repo: Path, state: ConsolidationState) -> bool:
+    """True when the record proves this run's landing was verified, so a resume only finishes cleanup.
+
+    Either the PASS anchor is the target's current tip (#5021), or the cleanup after that PASS had
+    started (``state.cleanup_started``, S5 FR-035) and the anchor is still in the target's
+    history: cleanup's own commits sit on top of the verified landing, and the lane branches the
+    gate would read may already be gone.
+    """
+    tip = _resolve_ref_sha(main_repo, state.target_branch)
+    if not tip:
+        return False
+    if reconciliation_passed_for_tip(state, tip):
+        return True
+    anchor = state.reconciliation_passed_target_sha
+    if not (state.cleanup_started and anchor):
+        return False
+    ret, _out, _err = run_command(["git", "merge-base", "--is-ancestor", anchor, tip], capture=True, check_return=False, cwd=main_repo)
+    return int(ret) == 0
