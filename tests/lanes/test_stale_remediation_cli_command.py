@@ -114,11 +114,7 @@ def test_reentry_refreshes_stale_lane(tmp_path: Path) -> None:
 
 
 def _commit_workflow_change_calls(func: ast.FunctionDef) -> list[ast.Call]:
-    return [
-        node
-        for node in ast.walk(func)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "_commit_workflow_change"
-    ]
+    return [node for node in ast.walk(func) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "_commit_workflow_change"]
 
 
 def test_implement_resume_path_runs_the_lane_sync_point() -> None:

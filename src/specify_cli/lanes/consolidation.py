@@ -235,7 +235,7 @@ def _try_auto_rebase_if_stale(
 
     report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
     if report.succeeded:
-        return check_lane_staleness(lane, branch, mission_branch, repo_root)
+        return check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
     return stale
 
 
@@ -302,7 +302,7 @@ def consolidate_lane_into_mission(
             errors=[f"Lane branch {branch} does not exist"],
         )
 
-    stale = check_lane_staleness(lane, branch, mission_branch, repo_root)
+    stale = check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
     stale = _try_auto_rebase_if_stale(
         stale,
         lane,
