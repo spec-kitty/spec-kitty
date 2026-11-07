@@ -1,3 +1,6 @@
+# Superseded scope (operator ruling 2026-11-07): this review covered the pre-split head,
+# including slice (b) (Op-commit Co-Authored-By), which did not land here and moved to #7315.
+# Checks and findings about slice (b) are historical, not verification of this PR.
 mission: op-record-model-and-coauthor-01M6EJV5
 work_package: WP01
 round: 1
