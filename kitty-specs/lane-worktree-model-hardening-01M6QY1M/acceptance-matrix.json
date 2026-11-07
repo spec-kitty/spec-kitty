@@ -560,13 +560,13 @@
     },
     {
       "criterion_id": "FR-081",
-      "description": "Verify FR-081 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-081 Core ADR C-2: gates over a worktree-less coordination branch: a Proposed ADR recording that ref-reading gates are unchanged and that the late window reads a pinned ref, citing S10's pass and not re-deciding it, so that consolidation stays sound without a coordination checkout. It must also cover the fence between service writes and consolidation, and how resume and rollback lose the coordination checkout role.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-5-gates-over-worktree-less-coordination.md (Proposed); approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:05.171464+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-082",
