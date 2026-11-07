@@ -370,13 +370,13 @@
     },
     {
       "criterion_id": "FR-053",
-      "description": "Verify FR-053 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-053 Size rule: a provisional Mission settled by size: `single_branch` when it has at most 2 non-canceled WPs or at most one code lane; otherwise `lanes_with_coord` on any target, protected or not, with the topic branch as the coordination branch (DM `01M6R0B954ZPQN5NV4R1ZRE7NY`), so that small work stays cheap. Plain `lanes` and `coord` are explicit-only (`--topology`).",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_two_wp_settles_single_branch_events_readable; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_five_wp_one_code_lane_settles_single_branch; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_three_lanes_protected_settles_lanes_with_coord_topic_is_coord; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_three_lanes_unprotected_settles_lanes_with_coord_topic_is_coord; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_canceled_wps_not_counted_planning_wps_counted; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:32.039915+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-054",
