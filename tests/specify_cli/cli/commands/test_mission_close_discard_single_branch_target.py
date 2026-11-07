@@ -45,6 +45,12 @@ def _manifest(mission_branch: str, target_branch: str) -> LanesManifest:
     )
 
 
+def _discard(repo: Path, manifest: LanesManifest) -> None:
+    """The lane legs (S5 lane-cleanup module), then the Mission's own branch, as ``mission close --discard`` runs them."""
+    mission_type._discard_lanes(repo, manifest)
+    mission_type._delete_discarded_mission_branch(repo, manifest)
+
+
 def _repo(tmp_path: Path, target: str, *, mint: bool) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -74,7 +80,7 @@ def test_unprotected_single_branch_discard_keeps_target_branch_and_commits(tmp_p
     manifest = _manifest("feat/x", "feat/x")
     write_lanes_json(feature_dir, manifest)
 
-    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+    _discard(repo, manifest)
 
     assert _exists(repo, "feat/x")
     assert _git(repo, "rev-parse", "feat/x") == tip
@@ -87,7 +93,7 @@ def test_unprotected_single_branch_discard_succeeds_with_head_on_target(tmp_path
     manifest = _manifest("feat/x", "feat/x")
     write_lanes_json(feature_dir, manifest)
 
-    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+    _discard(repo, manifest)
 
     # No spurious leak: the residual check must not expect the target branch gone.
     leaked = [b for b in mission_type._expected_discard_branches(feature_dir, _SLUG, feature_dir / "meta.json") if _exists(repo, b)]
@@ -101,7 +107,7 @@ def test_protected_mint_branch_is_still_deleted_on_discard(tmp_path: Path) -> No
     write_lanes_json(feature_dir, manifest)
 
     assert _MINTED in mission_type._expected_discard_branches(feature_dir, _SLUG, feature_dir / "meta.json")
-    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+    _discard(repo, manifest)
 
     assert not _exists(repo, _MINTED)
     assert _exists(repo, "main")
@@ -113,7 +119,7 @@ def test_discard_reports_only_branches_it_actually_deleted(tmp_path: Path, capsy
     manifest = _manifest("feat/x", "feat/x")
     write_lanes_json(feature_dir, manifest)
 
-    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+    _discard(repo, manifest)
 
     assert "Deleted" not in capsys.readouterr().out
 
@@ -123,7 +129,7 @@ def test_discard_reports_the_mission_branch_it_deleted(tmp_path: Path, capsys: p
     manifest = _manifest(_MINTED, "main")
     write_lanes_json(feature_dir, manifest)
 
-    mission_type._delete_lane_branches(repo, _SLUG, manifest)
+    _discard(repo, manifest)
 
     out = capsys.readouterr().out
     assert "Deleted mission/coordination branch" in out
