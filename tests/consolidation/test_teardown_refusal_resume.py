@@ -288,7 +288,10 @@ def test_rollback_authority_refuses_to_undo_a_verified_landing(idle_coord_missio
 
 
 def _lane_cleanup_run(mission: CoordMission) -> _MergeRunState:
-    """The slice of ``_MergeRunState`` that ``_remove_lane_worktrees`` reads, over a real LANES Mission."""
+    """The slice of ``_MergeRunState`` the lane legs (``_lane_cleanup_report``) read, over a real LANES Mission.
+
+    The worktree leg only: the branch leg is retained, and ``cleanup_started`` is already set so no record is written.
+    """
     from types import SimpleNamespace
 
     from specify_cli.lanes.persistence import require_lanes_json
@@ -300,6 +303,9 @@ def _lane_cleanup_run(mission: CoordMission) -> _MergeRunState:
             mission_slug=mission.slug,
             target_feature_dir=mission.feature_dir,
             lanes_manifest=require_lanes_json(mission.feature_dir),
+            remove_worktree=True,
+            delete_branch=False,
+            state=SimpleNamespace(pre_mutation_refs={}, reconciliation_passed_target_sha=None, cleanup_started=True),
         ),
     )
 
@@ -318,10 +324,13 @@ def _materialize_lane_worktree(mission: CoordMission, lane_id: str = "lane-a") -
     return Path(path)
 
 
-def test_lane_worktree_with_uncommitted_rework_refuses_before_the_coordination_teardown(tmp_path: Path) -> None:
-    """The lane leg runs BEFORE the coordination teardown, so it judges a lane checkout by the LANE role (spec edge case)."""
-    from specify_cli.consolidation.phase_teardown import _remove_lane_worktrees
-    from specify_cli.git.destructive_guard import DestructiveOpRefused
+def test_lane_worktree_with_uncommitted_rework_is_kept_and_reported(tmp_path: Path) -> None:
+    """S5 (FR-031/FR-032): the lane legs run AFTER the coordination teardown and judge a lane by the LANE role.
+
+    A lane checkout holding uncommitted rework is kept and reported with its code, never raised.
+    """
+    from specify_cli.consolidation.lane_cleanup import LaneCleanupOutcome
+    from specify_cli.consolidation.phase_teardown import _lane_cleanup_report
     from tests.terminus.lanes_fixture import build_lanes_mission
 
     mission = build_lanes_mission(tmp_path, wps=("WP01",), target_branch="develop", mid8="01M5965E")
@@ -330,21 +339,21 @@ def test_lane_worktree_with_uncommitted_rework_refuses_before_the_coordination_t
     rework.parent.mkdir(parents=True, exist_ok=True)
     rework.write_text(_TRACE_NOTES, encoding="utf-8")
 
-    with pytest.raises(DestructiveOpRefused) as refused:
-        _remove_lane_worktrees(_lane_cleanup_run(mission))
+    report = _lane_cleanup_report(_lane_cleanup_run(mission))
 
-    assert "notes.md" in str(refused.value)
+    (kept,) = report.kept
+    assert kept.outcome is LaneCleanupOutcome.KEPT and kept.code == "MERGE_UNSAFE_WORKTREE_DIRTY", kept
     assert rework.read_text(encoding="utf-8") == _TRACE_NOTES and lane.is_dir()
 
 
 def test_clean_lane_worktree_is_removed(tmp_path: Path) -> None:
-    from specify_cli.consolidation.phase_teardown import _remove_lane_worktrees
+    from specify_cli.consolidation.phase_teardown import _lane_cleanup_report
     from tests.terminus.lanes_fixture import build_lanes_mission
 
     mission = build_lanes_mission(tmp_path, wps=("WP01",), target_branch="develop", mid8="01M5965F")
     _materialize_lane_worktree(mission)
     assert _lane_worktrees(mission)
 
-    _remove_lane_worktrees(_lane_cleanup_run(mission))
+    _lane_cleanup_report(_lane_cleanup_run(mission))
 
     assert not _lane_worktrees(mission)
