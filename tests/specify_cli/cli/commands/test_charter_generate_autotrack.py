@@ -347,10 +347,12 @@ def test_status_json_error_is_parseable() -> None:
 
     payload = json.loads(result.stdout)
     assert result.exit_code != 0
+    # #6557 (9bee2389): ``charter status`` refuses with the typed ``{ok, error:{code, message}}``
+    # envelope (``specify_cli.cli.json_contract.json_error``), not the retired
+    # ``{error, result, success}`` shape; a TaskCliError maps to CHARTER_STATUS_FAILED.
     assert payload == {
-        "error": "repo root unavailable",
-        "result": "error",
-        "success": False,
+        "ok": False,
+        "error": {"code": "CHARTER_STATUS_FAILED", "message": "repo root unavailable"},
     }
 
 
