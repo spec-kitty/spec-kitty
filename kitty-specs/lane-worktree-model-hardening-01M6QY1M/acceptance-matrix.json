@@ -430,13 +430,13 @@
     },
     {
       "criterion_id": "FR-059",
-      "description": "Verify FR-059 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-059 Help text and docs describe the size default: the `--topology` help for `create`, `specify` and `orchestrator-api specify` to come from one shared text, and `docs/context/topology.md`, `docs/architecture/execution-lanes.md` and CLAUDE.md to describe the size default and the topic branch, never explicit-only, so that I am told what actually happens. The docs must also state that the coordination branch shares the Mission branch's name.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Shared help text: lane-j:src/specify_cli/meta_keys.py TOPOLOGY_HELP used by mission_create.py, lifecycle.py (specify) and orchestrator_api/design_phase.py; docs: lane-o:docs/context/topology.md '### Size default', lane-o:docs/architecture/execution-lanes.md (first finalize / topic branch), lane-o:AGENTS.md (CLAUDE.md symlink) 'Create-time topology (size default, ADR 2026-11-06-3)'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP13-s7-provenance-and-topic-branch-create/review-cycle-3.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP17-s11-skills-stale-remedy-guard/review-cycle-1.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP18-s11-docs-and-changelog/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:01.617748+00:00",
+      "notes": "No dedicated test asserts the three --topology options share TOPOLOGY_HELP; verified by inspecting the lane-j source imports."
     },
     {
       "criterion_id": "FR-060",
