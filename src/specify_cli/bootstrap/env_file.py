@@ -140,7 +140,7 @@ def _find_repo_root(start: Path) -> Path | None:
     resolver in ``specify_cli.core.paths`` (not importable here -- see the
     module docstring): this only needs to know where the per-repo
     ``.kitty.env`` tier and the ``config.yaml`` pointer would live. The ancestor
-    walk itself is shared with every other root walk (``kernel.ancestor_walk``,
+    walk itself is shared with the other migrated parent-enumerating root walks (``kernel.ancestor_walk``,
     stdlib-only by design), so this also stops at ``GIT_CEILING_DIRECTORIES``
     (#7056).
     """
