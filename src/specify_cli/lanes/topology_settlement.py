@@ -109,8 +109,9 @@ def decide_topology_by_size(
     """The FR-053 size rule, or ``None`` when the Mission is already settled (FR-054 / FR-057).
 
     Pure. ``wp_count`` counts the non-canceled WPs, planning-artifact WPs included;
-    ``code_lane_count`` excludes ``lane-planning``. Two WPs or two code lanes is a
-    tie and settles ``single_branch``; zero code lanes settles ``single_branch``.
+    ``code_lane_count`` excludes ``lane-planning``. At most two WPs, or at most one
+    code lane (zero included), settles ``single_branch``; three or more WPs on two or
+    more code lanes settle ``lanes_with_coord``.
     """
     if not is_provisional(meta):
         return None
