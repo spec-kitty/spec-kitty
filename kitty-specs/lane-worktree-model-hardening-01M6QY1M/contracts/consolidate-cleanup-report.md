@@ -30,11 +30,11 @@ Exit code **0** when the landing is verified, whatever the lane outcomes (NFR-00
 ]
 ```
 
-## `orchestrator-api consolidate-mission`: contract **1.24.0** (minor, FR-039a)
+## `orchestrator-api consolidate-mission`: contract **1.25.0** (minor, FR-039a)
 
 - `data.lane_cleanup` is the array above (same objects).
 - `data.teardown_error_code` stays for coordination teardown only. A lane refusal no longer fills it and no longer fails the envelope after a verified landing.
-- `CONTRACT_VERSION` moves `1.23.0 → 1.24.0` (`src/specify_cli/orchestrator_api/envelope.py`). `docs/api/orchestrator-api.md` documents the field.
+- `CONTRACT_VERSION` moves `1.24.0 → 1.25.0` (`src/specify_cli/orchestrator_api/envelope.py`). `docs/api/orchestrator-api.md` documents the field.
 - The same bump also adds `topology_source` / `topology_provisional` to `orchestrator-api specify` and `topology_decision` to `orchestrator-api tasks` (DM `01M6R0BJQ6Q1MV6492EH6HB66H`).
 
 ## `accept --mode pr` (FR-036, after #7275)

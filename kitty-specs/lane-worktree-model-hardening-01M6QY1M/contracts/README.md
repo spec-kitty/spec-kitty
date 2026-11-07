@@ -4,9 +4,9 @@ Only the CLI and JSON contract **deltas** are listed. All are additive unless ma
 
 | File | Surface | Kind | Version impact |
 |---|---|---|---|
-| [finalize-tasks-json.md](./finalize-tasks-json.md) | `spec-kitty agent mission finalize-tasks --json` (and `--validate-only`) | additive `topology_decision` object | none for the agent CLI; mirrored on `orchestrator-api tasks` under contract 1.24.0 (DM `01M6R0BJQ6Q1MV6492EH6HB66H`) |
-| [mission-create-json.md](./mission-create-json.md) | `spec-kitty agent mission create --json`, `specify --json`, `orchestrator-api specify` | additive `topology_source`, `topology_provisional`; the `topology` value is `single_branch` while provisional | none for the agent CLI; on `orchestrator-api specify` under contract 1.24.0 (DM `01M6R0BJQ6Q1MV6492EH6HB66H`) |
-| [consolidate-cleanup-report.md](./consolidate-cleanup-report.md) | `spec-kitty consolidate` text and `--json`; `orchestrator-api consolidate-mission`; `accept --mode pr --json` | per-lane cleanup outcomes; exit 0 after a verified landing with kept lanes | **orchestrator-api 1.23.0 → 1.24.0 (minor, the Mission's one bump; it also carries the topology fields, DM `01M6R0BJQ6Q1MV6492EH6HB66H`)** |
+| [finalize-tasks-json.md](./finalize-tasks-json.md) | `spec-kitty agent mission finalize-tasks --json` (and `--validate-only`) | additive `topology_decision` object | none for the agent CLI; mirrored on `orchestrator-api tasks` under contract 1.25.0 (DM `01M6R0BJQ6Q1MV6492EH6HB66H`) |
+| [mission-create-json.md](./mission-create-json.md) | `spec-kitty agent mission create --json`, `specify --json`, `orchestrator-api specify` | additive `topology_source`, `topology_provisional`; the `topology` value is `single_branch` while provisional | none for the agent CLI; on `orchestrator-api specify` under contract 1.25.0 (DM `01M6R0BJQ6Q1MV6492EH6HB66H`) |
+| [consolidate-cleanup-report.md](./consolidate-cleanup-report.md) | `spec-kitty consolidate` text and `--json`; `orchestrator-api consolidate-mission`; `accept --mode pr --json` | per-lane cleanup outcomes; exit 0 after a verified landing with kept lanes | **orchestrator-api 1.24.0 → 1.25.0 (minor, the Mission's one bump; it also carries the topology fields, DM `01M6R0BJQ6Q1MV6492EH6HB66H`)** |
 | [for-review-gate-refusal.md](./for-review-gate-refusal.md) | `agent status emit`, `move-task`, `orchestrator-api transition` | refusal text; envelope shape unchanged | none |
 | [error-codes.yaml](./error-codes.yaml) | all | new and reused codes, with where they surface | see entries |
 

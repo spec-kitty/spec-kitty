@@ -93,7 +93,7 @@ spec-kitty consolidate --mission payments-refactor
 ```
 
 - With `--retain-worktrees` set at create, lanes show `Retained ... retained by policy` instead.
-- `orchestrator-api consolidate-mission` returns the same per-lane list in `data.lane_cleanup` (contract 1.24.0).
+- `orchestrator-api consolidate-mission` returns the same per-lane list in `data.lane_cleanup` (contract 1.25.0).
 - After #7275 merges, landing through a pull request also cleans up without waiting for the merge:
 
 ```bash

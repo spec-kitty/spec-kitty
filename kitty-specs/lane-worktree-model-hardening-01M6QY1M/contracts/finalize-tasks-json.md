@@ -30,7 +30,7 @@ The repository root checkout moves to `create_return_branch`, then the coordinat
 
 ## orchestrator-api
 
-`orchestrator-api tasks` passes the `finalize_tasks` payload through, so `topology_decision` appears in its `data` under contract 1.24.0, the Mission's one bump (DM `01M6R0BJQ6Q1MV6492EH6HB66H`).
+`orchestrator-api tasks` passes the `finalize_tasks` payload through, so `topology_decision` appears in its `data` under contract 1.25.0, the Mission's one bump (DM `01M6R0BJQ6Q1MV6492EH6HB66H`).
 
 ## Not decided here
 

@@ -105,7 +105,7 @@ A provisional Mission is stored as (DM `01M6R0BDYC29D6XMDY72R22CP9`):
 | `create_return_branch` | the branch the write checkout was on before create switched it | New. Read only by settlement to `lanes_with_coord`; kept afterwards for audit, never read once settled. |
 | `topology_decision` | absent | Written once at settlement: `{rule, wp_count, code_lane_count, from, to, target_protected, decided_at}`. `target_protected` is informational. Write-once. |
 
-`create --json` reports `topology: single_branch` with `topology_provisional: true` until finalize; `finalize-tasks --json` reports the decision and `--validate-only` previews it without writing (FR-058). These fields reach `orchestrator-api` in one additive contract bump, 1.23.0 to 1.24.0, together with the S5 cleanup report (DM `01M6R0BJQ6Q1MV6492EH6HB66H`); no release ships 1.24.0 without all of them.
+`create --json` reports `topology: single_branch` with `topology_provisional: true` until finalize; `finalize-tasks --json` reports the decision and `--validate-only` previews it without writing (FR-058). These fields reach `orchestrator-api` in one additive contract bump, 1.24.0 to 1.25.0 (main took 1.24.0 for #7210 meanwhile), together with the S5 cleanup report (DM `01M6R0BJQ6Q1MV6492EH6HB66H`); no release ships 1.25.0 without all of them.
 
 ### Decision 5: the PRIMARY partition of a default Mission lives on the topic branch until `consolidate`
 

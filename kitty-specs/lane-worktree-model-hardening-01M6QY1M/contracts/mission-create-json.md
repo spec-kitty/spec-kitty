@@ -29,4 +29,4 @@ Side effects: exactly one new branch (the topic branch), checked out in the writ
 
 ## orchestrator-api
 
-The two new fields appear on `orchestrator-api specify` under contract 1.24.0, the Mission's one bump (DM `01M6R0BJQ6Q1MV6492EH6HB66H`).
+The two new fields appear on `orchestrator-api specify` under contract 1.25.0, the Mission's one bump (DM `01M6R0BJQ6Q1MV6492EH6HB66H`).
