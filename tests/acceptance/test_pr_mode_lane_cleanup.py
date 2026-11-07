@@ -9,6 +9,7 @@ reported (``NOT_LANDED_ON_NAMED_REMOTE``). No raw ``git worktree remove`` /
 
 from __future__ import annotations
 
+import json
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
@@ -19,6 +20,7 @@ import pytest
 
 from specify_cli.acceptance import _build_acceptance_instructions, pr_mode_lane_cleanup
 from specify_cli.consolidation.lane_cleanup import LaneCleanupOutcome
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.git.destructive_guard import NOT_LANDED_ON_NAMED_REMOTE
 from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -128,3 +130,27 @@ def test_no_raw_worktree_remove_advice(tmp_path: Path) -> None:
     assert "git worktree remove" not in text
     assert "git branch -d" not in text
     assert "spec-kitty doctor workspaces --prune" in text
+
+
+def _write_meta(feature_dir: Path, **fields: object) -> None:
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": _SLUG, **fields}), encoding="utf-8")
+
+
+@pytest.mark.parametrize("flag", [True, "true"], ids=["boolean", "non-boolean-fails-toward-retention"])
+def test_pr_mode_honours_meta_lane_retention(mission: tuple[Path, Path, dict[str, Path]], flag: object) -> None:
+    root, feature_dir, worktrees = mission
+    _write_meta(feature_dir, retain_worktrees=flag, retain_branches=flag)
+    report = pr_mode_lane_cleanup(root, feature_dir, _PR_HEAD, probe=_idle)
+    assert report is not None
+    by_lane = {result.item.lane_id: result for result in report.results}
+    assert by_lane["lane-a"].outcome is LaneCleanupOutcome.RETAINED_BY_POLICY
+    assert worktrees["lane-a"].exists()
+    assert _git(root, "branch", "--list", lane_created_branch(_manifest(), "lane-a"))
+
+
+def test_pr_mode_corrupt_meta_removes_nothing(mission: tuple[Path, Path, dict[str, Path]]) -> None:
+    root, feature_dir, worktrees = mission
+    (feature_dir / "meta.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(MissionMetaReadError):
+        pr_mode_lane_cleanup(root, feature_dir, _PR_HEAD, probe=_idle)
+    assert worktrees["lane-a"].exists()
