@@ -61,3 +61,6 @@ GitHub MCP tools, the cloud-session harness.
 - [2026-11-06][WP07 review] `agent action review` rejects `--allow-sparse-checkout` as an unknown option; the review claim works without it.
 - [2026-11-06][WP10 review] Running a broad blast-radius suite on the lane and the base at the same time timed out, so its reds could not be attributed; run lane and base comparisons one after the other.
 - [2026-11-06][WP14] After a lanes_with_coord settlement the root checkout has no Mission directory, so every reader that builds the path from the root breaks.
+
+- 2026-11-07 closeout: `spec-kitty accept` refuses only on "Acceptance matrix verdict is 'pending'": `acceptance-matrix.json` holds 63 auto-generated placeholder criteria (FR-001.. "TODO: replace with a real acceptance criterion", evidence null). Nothing earlier in the workflow prompted for them; filling them is real verification work, so closeout stopped here.
+- 2026-11-07 closeout: `consolidate --dry-run` forecasts a reconciliation FAIL on two lane-to-lane dependency merge commits, 013cf94cff (lane-c into lane-k, `_baselines.yaml` conflict resolution) and d1e9235fe4 (lane-d into lane-n), reported as "belongs to NO approved WP". The remedy text points at `--dependency-ref`, but that flag refuses Mission-authored refs, so it does not fit an intra-Mission dependency merge.
