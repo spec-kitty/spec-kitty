@@ -6,13 +6,13 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-001 One read entry point per topology: every status read to resolve through one entry point that returns a declared source so that every command reports the same WP states. The source is: the write checkout for `single_branch`, `lanes` and provisional Missions; the coordination branch for `coord` / `lanes_with_coord` (its worktree file when materialized, the committed branch otherwise); and the repository root checkout of the target once consolidated.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-b:tests/status/test_read_surface_door.py::test_write_checkout_topologies_read_the_write_checkout; lane-b:tests/status/test_read_surface_door.py::test_materialized_coord_reads_the_worktree_file; lane-b:tests/status/test_read_surface_door.py::test_unmaterialized_coord_reads_branch_events; lane-b:tests/status/test_read_surface_door.py::test_preseed_window_declares_write_checkout_source; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:11:07.303262+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-002",
