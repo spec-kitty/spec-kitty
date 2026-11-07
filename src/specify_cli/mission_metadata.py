@@ -659,20 +659,21 @@ def _has_no_git_anchor(feature_dir: Path) -> bool:
 
 
 def _require_readable_git_config(feature_dir: Path) -> None:
-    """Require usable configuration before a failed discovery probe can mean absence.
+    """Require a quiet configuration witness before failed discovery can mean absence.
 
-    The same-environment, same-directory query also works outside a repository. It prints
-    only key names; stdout is discarded. Nonzero and not-run answers refuse, while timeout
-    keeps the existing GitCommandError contract. This checks configuration readability,
-    not ownership or the broader Git-context taxonomy.
+    This same-environment, same-directory lookup works outside a repository and discards
+    the value of one standard key. Status 0 (set) or 1 (unset) is accepted only without
+    diagnostics: even a non-fatal warning leaves this witness unproven. Other answers and
+    not-run queries refuse; timeouts keep the existing GitCommandError contract. This is
+    conservative evidence of readability, not ownership or the broader Git-context taxonomy.
     """
     try:
-        probe = run_git(feature_dir, "config", "--list", "--name-only", check=False)
+        probe = run_git(feature_dir, "config", "--get", "core.bare", check=False)
     except GitCommandError as exc:
         if exc.timed_out:
             raise
         raise _GitRefuses(str(exc)) from exc
-    if probe.returncode != 0:
+    if probe.returncode not in (0, 1) or probe.stderr:
         raise _GitRefuses(probe.stderr.decode(_UTF8, "replace"))
 
 
