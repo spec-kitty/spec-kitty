@@ -249,7 +249,7 @@ def _run_lock_acquire_timeout_scenario(
 
     from kernel.locks import machine_file_lock
 
-    lock_path = pre_review_gate.get_runtime_root().base / "gate-locks" / pre_review_gate._SCOPED_RUN_LOCK_FILENAME
+    lock_path = pre_review_gate.get_runtime_root().base / pre_review_gate.GATE_LOCK_DIRECTORY / pre_review_gate._SCOPED_RUN_LOCK_FILENAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     contender = machine_file_lock(lock_path, blocking=True)
     contender.__enter__()
