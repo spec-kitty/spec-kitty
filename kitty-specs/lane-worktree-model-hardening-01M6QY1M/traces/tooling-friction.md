@@ -76,3 +76,16 @@ worktree-scoped `core.sparseCheckout=true` (`extensions.worktreeConfig` on) and 
 The dry run did not report this, so the sparse preflight is a real-run-only gate.
 Closeout stopped: the offered remedies (`doctor sparse-checkout --fix`, a mutating
 doctor, and `--allow-sparse-checkout`, an override) both need an operator ruling.
+
+- Follow-up: `consolidate --dry-run` does not run the legacy sparse-checkout preflight at all,
+  so a clean dry run (exit 0) did not predict this refusal.
+
+## [closeout 2026-11-07] consolidate refused: lane-f stale against the mission branch
+
+With `--allow-sparse-checkout`, consolidate merged lane-e and lane-a into
+`kitty/mission-lane-worktree-model-hardening-01M6QY1M`, then refused on lane-f: "Lane lane-f is
+stale: overlapping files ['src/specify_cli/lanes/for_review_gate.py'] ... Run: cd
+.worktrees/*-lane-f && git merge kitty/mission-lane-worktree-model-hardening-01M6QY1M". The
+rollback authority restored the mission branch (921bb30 -> a4e3426) and rebaselined the record;
+the target was unchanged. The dry run did not forecast this staleness either. The suggested
+remedy commits to an approved lane after approval, so closeout stopped for a ruling.

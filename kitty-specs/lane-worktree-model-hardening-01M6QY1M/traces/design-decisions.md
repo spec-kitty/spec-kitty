@@ -90,3 +90,10 @@ The operator rulings (stijn-dejongh, 2026-11-06) are recorded as resolved Decisi
 
 - [2026-11-07][closeout] Operator ruling: deferred FRs (FR-006, deferred part of FR-005, FR-092) are recorded with a new non-blocking `deferred` criterion verdict (core change, #7308, in this PR).
 - [2026-11-07][closeout] Operator ruling: fix the closed-world attribution of allocator dependency-lane merges in core in this PR (#7307); no lane rewrite, no --dependency-ref.
+
+## [closeout 2026-11-07] ruling: --allow-sparse-checkout for lanes d, g, k
+
+The orchestrator ruled (HANDOVER rule 3) that the sparse state in lanes d, g and k is this
+Mission's own managed status exclusion (only `status.events.jsonl` / `status.json` hidden),
+which the CLI's legacy sparse preflight misreads. Consolidate runs with
+`--allow-sparse-checkout`; no `doctor sparse-checkout --fix` was run.
