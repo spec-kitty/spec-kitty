@@ -530,13 +530,13 @@
     },
     {
       "criterion_id": "FR-077",
-      "description": "Verify FR-077 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-077 ADR `2026-10-04-5` amendment: an amendment that narrows the \"planning lanes and `single_branch`\" residual to per-WP windows, so that the remaining residuals are explicit. It records: the commit-to-target and direct-on-target unbounded residual; the missing-`O_k` degrade; the commit-during-review residual; and refuse-plus-attest.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md '## Amendment 2026-11-06: per-WP approval windows for single_branch (#7283)'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP02-adr-topology-settlement-and-s8-windows/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:50.450373+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-078",
