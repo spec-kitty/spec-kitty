@@ -30,6 +30,11 @@ which:
 
 A project whose ``.gitattributes`` is already correct is left byte-identical: that is what makes
 the first upgrade on a fresh clone a no-op for the tracked file.
+
+Scope limit: the superseded migration is now a recorded no-op at any target, while this
+successor targets ``4.0.0rc8``. An upgrade capped below that (``spec-kitty upgrade --target
+3.2.6rc1``) therefore seeds neither gate-artifact driver; the next upgrade to the installed
+version does.
 """
 
 from __future__ import annotations
@@ -69,17 +74,15 @@ def _retired_row_present(project_path: Path) -> bool:
 def _without_retired_row(project_path: Path) -> int:
     """Drop every line whose stripped text is the retired mapping; return how many went.
 
-    Only that one mapping is removed: the file's other lines, their order and its trailing
-    newline are preserved byte for byte, so a project that never carried the row keeps its file
-    identical.
+    Only that one mapping is removed. Every other line keeps its bytes, line ending included
+    (a CRLF file stays CRLF), and a file without the row is not rewritten at all.
     """
     attributes_path = project_path / ".gitattributes"
-    text = attributes_path.read_text(encoding="utf-8")
-    lines = text.splitlines()
+    lines = attributes_path.read_bytes().decode("utf-8").splitlines(keepends=True)
     kept = [line for line in lines if line.strip() != RETIRED_ENTRY]
     if len(kept) == len(lines):
         return 0
-    attributes_path.write_text("\n".join(kept) + "\n" if kept else "", encoding="utf-8")
+    attributes_path.write_bytes("".join(kept).encode("utf-8"))
     return len(lines) - len(kept)
 
 
