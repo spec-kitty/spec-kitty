@@ -279,7 +279,7 @@ def test_ownership_check_fails_when_a_later_rule_overrides_the_scenarios(owners_
     assert set(mismatches) == {"tests/scenarios/init/init.feature", "tests/scenarios/absorption-ledger.json"}
 
 
-def test_real_home_fingerprint_constants_match_java_literals():
+def test_real_home_fingerprint_constants_match_java_literals() -> None:
     """Test that Java literals in RealHomeFingerprint match production constants.
 
     This test ensures that if the Python constants are renamed, the Java literals
