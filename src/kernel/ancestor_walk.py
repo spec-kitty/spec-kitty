@@ -18,7 +18,8 @@ it lands separately, once it can start without an exemption list (#7304, ADR
 It lives at the ``kernel`` floor because ``charter`` and ``runtime`` need it and may not
 import ``specify_cli`` (``tests/architectural/test_layer_rules.py``); ``kernel/paths.py``
 reads its environment variable at the same floor for the same reason. It imports only
-the standard library — ``specify_cli.bootstrap.env_file`` calls it during a bare
+the standard library and ``kernel.resolution`` (itself stdlib-only) —
+``specify_cli.bootstrap.env_file`` calls it during a bare
 ``import specify_cli`` and that import must stay cheap and silent.
 
 The module holds no decision logic. A caller supplies its own marker predicate; this
