@@ -321,7 +321,7 @@ def test_assert_merged_wps_reached_done_allows_done_snapshot(
     # per-WP reduction to an all-done snapshot.
     from specify_cli.consolidation import done_bookkeeping
 
-    monkeypatch.setattr("specify_cli.status.read_surface.read_status_text", lambda *_a, **_kw: "log")
+    monkeypatch.setattr("specify_cli.status.read_status_text", lambda *_a, **_kw: "log")
     monkeypatch.setattr(done_bookkeeping, "_not_done_wps", lambda *_a, **_kw: [])
 
     _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])
