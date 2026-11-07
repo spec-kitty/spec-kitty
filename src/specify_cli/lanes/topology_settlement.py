@@ -449,9 +449,13 @@ class _CoordPlan:
         self.coord_dir = worktree / _KITTY_SPECS / self.ctx.mission_dir_name
 
     def remove_coord_worktree(self) -> None:
-        from specify_cli.coordination.workspace import CoordinationWorkspace
+        # The one teardown seam (FR-004). The undo discards a coordination worktree this very
+        # settlement materialized: no retrospective to persist and no ledger to protect, like the
+        # create-time rollback callers. The seam removes the worktree only and keeps the branch
+        # (the topic branch); a worktree holding the only copy of files still refuses.
+        from specify_cli.coordination.teardown import teardown_coordination_topology
 
-        CoordinationWorkspace.teardown(self.ctx.repo_root, self.ctx.mission_dir_name, self.ctx.mid8)
+        teardown_coordination_topology(self.ctx.repo_root, self.ctx.mission_dir_name, self.ctx.mid8, persist=False, check_ledger=False)
 
     def restamp_meta(self) -> None:
         from specify_cli.mission_metadata import restamp_topic_branch_as_coordination
