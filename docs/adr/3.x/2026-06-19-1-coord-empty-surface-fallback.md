@@ -16,6 +16,24 @@ date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-
 
 ---
 
+## Amendment 2026-11-06: superseded by the one status read contract
+
+**Newest amendment first, as in this file; the amendments below are unchanged history.**
+Mission `lane-worktree-model-hardening-01M6QY1M` (S1, #7277), Proposed until the operator accepts
+[ADR 2026-11-06-2](../4.x/2026-11-06-2-one-status-read-contract.md).
+
+- **Read side superseded for status reads.** An empty or unmaterialized coordination worktree no
+  longer falls back to the repository root checkout, loudly or otherwise. The one status read door
+  reads the committed coordination branch (`COORD_BRANCH_REF`); a missing or unreadable ref raises
+  `StatusSurfaceRefUnreadable`.
+- **Reversed requirements.** `coord-artifact-single-home-01M3V4BE#C-002` (keep the read-side fallback)
+  and the "retained read-side fallback" part of `#FR-017` are reversed by ADR 2026-11-06-2.
+- **Unchanged.** `CoordinationBranchDeleted` for a deleted coordination branch, and the write side of
+  the 2026-10-01 amendment (single home, `write_dir`).
+- Do not implement the read-side fallback from the amendments below.
+
+---
+
 ## Amendment (2026-10-01 — mission `coord-artifact-single-home-01M3V4BE`)
 
 **Newest amendment first; the 2026-06-21 amendment below is unchanged history.**

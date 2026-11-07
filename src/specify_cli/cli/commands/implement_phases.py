@@ -364,9 +364,7 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
     implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
 
-    from specify_cli.coordination.surface_resolver import (
-        resolve_status_surface_with_anchor as _resolve_status_surface,
-    )
+    from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
 
     # FR-003 layer 4: read WP-lane status through the SAME canonical,
     # config-determined surface authority the status WRITE path
@@ -377,7 +375,7 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     # the write and saw genesis ("WP not finalized"). The anchor authority
     # derives mid8 from meta and carries the fail-closed coord semantics
     # (StatusReadPathNotFound) — one authority, C-STAT-1.
-    _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
+    _status_feature_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     # ``lanes.json`` (LANE_STATE) is a PRIMARY-partition artifact with INV-5
     # read/write symmetry, so its dir resolves through the kind-aware
     # placement seam (PRIMARY surface) — a DIFFERENT surface than the coord
