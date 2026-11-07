@@ -197,3 +197,12 @@ band-aid.
 - Epics: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716) (single surface authority), [#2007](https://github.com/Priivacy-ai/spec-kitty/issues/2007), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619) (execution-context)
 - Transient-state carve-outs preserved: [#1718](https://github.com/Priivacy-ai/spec-kitty/issues/1718) (create-window), [#1848](https://github.com/Priivacy-ai/spec-kitty/issues/1848) (coord-deleted)
 - Canonical seams: [`src/mission_runtime/context.py`](../../../src/mission_runtime/context.py) (`MissionExecutionContext`, `CommitTargetKind`), [`src/mission_runtime/resolution.py`](../../../src/mission_runtime/resolution.py) (`build_execution_context`, retired derivation), [`src/runtime/next/runtime_bridge.py`](../../../src/runtime/next/runtime_bridge.py) (retired second derivation)
+
+## Amendment 2026-11-06: topology stored at create, settled once at the first finalize
+
+Decision 2 now reads: **the topology is stored at create, settled once at the first finalize, and read thereafter.** [ADR 2026-11-06-3](../4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md) records the change ([#7282](https://github.com/spec-kitty/spec-kitty/issues/7282)); the text above is kept as history.
+
+- A Mission created without `--topology` stores a provisional value: `topology: single_branch` on a minted topic branch, with `topology_source: default` and `topology_settled: false`. The first `finalize-tasks` settles it by size, once, to `single_branch` or `lanes_with_coord`, before any work package is claimed, and writes `topology_decision`.
+- `--topology` and `--owned-checkout` record `topology_source: explicit` or `owned_checkout` and are settled at create, as before.
+- A Mission with no `topology_source` (every Mission created before this change) is settled. It is never re-decided, and `spec-kitty migrate backfill-topology` is unchanged.
+- The rest of this record holds: settlement writes the stored value through the shell and nothing re-infers the topology from disk. Re-finalize, the legacy `tasks-finalize` repair path and doctor rebuilds read the stored value and never re-decide.
