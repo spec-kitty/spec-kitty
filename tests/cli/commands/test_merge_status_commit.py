@@ -11,7 +11,6 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 import typer
@@ -80,24 +79,14 @@ class TestAssertMergedWpsReachedDoneAbsentLog:
         import typer
 
         from specify_cli.cli.commands.consolidate import _assert_merged_wps_reached_done
-        from specify_cli.status import CanonicalStatusNotFoundError
 
         mission_slug = "068-no-canonical-log"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
 
-        with (
-            patch(
-                "specify_cli.consolidation.done_bookkeeping.resolve_status_surface",
-                return_value=feature_dir / "status.json",
-            ),
-            patch(
-                "specify_cli.status.get_wp_lane",
-                side_effect=CanonicalStatusNotFoundError("no event log"),
-            ),
-            # Deliberate typer.Exit, NOT an uncaught CanonicalStatusNotFoundError.
-            pytest.raises(typer.Exit),
-        ):
+        # The status read door finds the Mission dir with no event log in it (WP07):
+        # a deliberate typer.Exit, NOT an uncaught error.
+        with pytest.raises(typer.Exit):
             _assert_merged_wps_reached_done(tmp_path, mission_slug, ["WP01"])
 
 

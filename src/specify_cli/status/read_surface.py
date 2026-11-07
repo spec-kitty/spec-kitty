@@ -53,6 +53,7 @@ __all__ = [
     "read_status_stream",
     "read_status_text",
     "ref_source_remedy",
+    "resolve_committed_status_read",
     "resolve_primary_partition_dir",
     "resolve_status_read",
 ]
@@ -194,6 +195,43 @@ def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout |
         )
     root = owned.repository_root if owned is not None else repo_root
     return decide_status_read(root, mission).surface()
+
+
+def resolve_committed_status_read(repo_root: Path, mission: str) -> StatusReadSurface | None:
+    """The committed coordination ref of *mission*, read explicitly (never the worktree file).
+
+    For a durable-history reader (consolidation resume progress, FR-007) that must not count
+    roll-backable worktree bytes. Returns a ``COORD_BRANCH_REF`` surface whatever the
+    coordination worktree's state, or ``None`` when there is no committed history to read:
+    no readable ``meta.json``, a topology without coordination, or a coordination ref that
+    names no object (absent branch, or *repo_root* not a git repository). A ref that exists but
+    cannot be read raises ``StatusSurfaceRefUnreadable`` from the read functions (FR-004).
+    """
+    from specify_cli.coordination.status_service import ref_names_object
+    from specify_cli.coordination.surface_resolver import _coord_mid8
+    from specify_cli.core.paths import load_meta_fail_closed
+    from specify_cli.missions._read_path_resolver import coord_feature_dir, normalized_status_read_root
+
+    with normalized_status_read_root(_reanchor_coordination_worktree(repo_root)) as root:
+        _candidate, dir_name, primary_dir = _locate_mission(root, mission)
+        meta = load_meta_fail_closed(primary_dir) if primary_dir.is_dir() else None
+        if meta is None:
+            return None
+        facts = _facts(root, dir_name, primary_dir, meta, None)
+        if not routes_through_coordination(facts.topology) or facts.coord_branch is None:
+            return None
+        ref = f"{_HEADS_PREFIX}{facts.coord_branch}"
+        if not ref_names_object(root, ref):
+            return None
+        coord_dir: Path = coord_feature_dir(root, dir_name, _coord_mid8(dict(meta), dir_name, root))
+        return StatusReadSurface(
+            topology=facts.topology,
+            source=StatusReadSource.COORD_BRANCH_REF,
+            mission_dir_name=coord_dir.name,
+            path=None,
+            repo_root=root,
+            ref=ref,
+        )
 
 
 def decide_status_read(
