@@ -64,3 +64,15 @@ GitHub MCP tools, the cloud-session harness.
 
 - 2026-11-07 closeout: `spec-kitty accept` refuses only on "Acceptance matrix verdict is 'pending'": `acceptance-matrix.json` holds 63 auto-generated placeholder criteria (FR-001.. "TODO: replace with a real acceptance criterion", evidence null). Nothing earlier in the workflow prompted for them; filling them is real verification work, so closeout stopped here.
 - 2026-11-07 closeout: `consolidate --dry-run` forecasts a reconciliation FAIL on two lane-to-lane dependency merge commits, 013cf94cff (lane-c into lane-k, `_baselines.yaml` conflict resolution) and d1e9235fe4 (lane-d into lane-n), reported as "belongs to NO approved WP". The remedy text points at `--dependency-ref`, but that flag refuses Mission-authored refs, so it does not fit an intra-Mission dependency merge.
+
+## [closeout 2026-11-07] consolidate refused: legacy sparse-checkout on three lane worktrees
+
+`accept` succeeded (acceptance commit 7c7b9e22ba, status commit 242beb5). The real
+`consolidate --keep-branch --keep-worktree` then refused (exit 1) with "legacy
+sparse-checkout state detected" for lanes d, g and k. Each of those worktrees has a
+worktree-scoped `core.sparseCheckout=true` (`extensions.worktreeConfig` on) and an
+`info/sparse-checkout` written 2026-11-06 ~19:58-19:59 excluding only this Mission's
+`status.events.jsonl` and `status.json`. The repository root checkout is not sparse.
+The dry run did not report this, so the sparse preflight is a real-run-only gate.
+Closeout stopped: the offered remedies (`doctor sparse-checkout --fix`, a mutating
+doctor, and `--allow-sparse-checkout`, an override) both need an operator ruling.
