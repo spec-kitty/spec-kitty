@@ -75,7 +75,9 @@ landing (ADR `2026-10-04-5`, ADR `2026-09-29-1`), where the raw branch SHA is ex
    and `acceptance-matrix.json`.
    The gate there fails when one of those files records a full SHA under an unclassified key path, so
    a writer that starts recording a new SHA field classifies it in the same change. Today every entry
-   is `BRANCH_RELATIVE` except `pr_merge_commit`, which is `LANDED`.
+   is `BRANCH_RELATIVE` except `pr_merge_commit`, which is `LANDED`. `baseline_merge_commit` is mixed
+   provenance (on the pull request route it is the landing commit's first parent, on the target), so it
+   stays `BRANCH_RELATIVE`, the class that promises nothing.
 4. **`LANDED` is the only class that promises ancestry of the target.** A `LANDED` field is written
    only after landing, by a writer that verifies the commit is on the target branch before it records
    it (`verify_pr_merge_evidence` for `pr_merge_commit`, reached through
@@ -105,6 +107,11 @@ landing (ADR `2026-10-04-5`, ADR `2026-09-29-1`), where the raw branch SHA is ex
   the same freeze boundary as #7313; deciding that boundary is #7313's scope.
 - The gate does not prove that a branch-relative SHA ever existed: that evidence goes when GitHub
   prunes a pull request's refs.
+- The gate checks that a key is classified, not that its class is honest: moving a field to `LANDED`
+  stays green without an ancestry-checking writer, so review owns that rule (Decision 4). It also
+  sees only full 40-hex values (a SHA inside a composite value such as `review:WP06:<sha>` is not
+  matched) and runs on `kitty-specs/**` changes, so a new writer field is caught when the first
+  dossier carrying it lands, not when the writer changes.
 - Abbreviated SHAs are not scanned (short hex runs collide with ordinary values); every tool writer
   records the full id.
 
