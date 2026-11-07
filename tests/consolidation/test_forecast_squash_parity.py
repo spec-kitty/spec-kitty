@@ -133,7 +133,11 @@ def test_forecast_renders_a_content_refuse_as_a_claim_refusal(monkeypatch: pytes
     monkeypatch.setattr(forecast, "get_main_repo_root", lambda root: root)
     monkeypatch.setattr(forecast, "_declared_with_recorded", lambda *args, **kwargs: ((), {}))
     monkeypatch.setattr(forecast, "resolve_commit", lambda repo, ref: "b" * 40)
-    monkeypatch.setattr(forecast, "resolve_status_surface", lambda repo, slug: tmp_path / "status.events.jsonl")
+    from types import SimpleNamespace
+
+    from specify_cli.status import read_surface
+
+    monkeypatch.setattr(read_surface, "resolve_status_read", lambda repo, mission: SimpleNamespace(path=tmp_path, ref=None))
     monkeypatch.setattr(forecast, "build_approved_wp_set", lambda *args, **kwargs: claim)
     monkeypatch.setattr(MergeOutcomeVerifier, "forecast_content_verdict", _verdict)
 

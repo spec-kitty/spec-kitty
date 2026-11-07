@@ -454,3 +454,22 @@ def test_worktree_dir_name_golden_is_verbatim() -> None:
 def test_lane_branch_name_lane_planning_golden() -> None:
     """``lane-planning`` returns the planning base branch, not a mission-prefixed name."""
     assert bn.lane_branch_name("057-foo", "lane-planning", target_branch="release/3.x") == "release/3.x"
+
+
+def test_coord_worktree_helpers_compose_the_coord_suffix(tmp_path) -> None:
+    from specify_cli.lanes.branch_naming import coord_dir_name, coord_worktree_glob, coord_worktree_path_for_dir
+
+    assert coord_worktree_glob() == "*-coord"
+    path = coord_worktree_path_for_dir(tmp_path, "my-mission-01KNXQS9")
+    assert path == tmp_path / ".worktrees" / "my-mission-01KNXQS9-coord"
+    assert path.name == coord_dir_name("my-mission-01KNXQS9", mid8="01KNXQS9")
+
+
+def test_lane_branch_ref_glob_matches_code_lane_branch_names() -> None:
+    from fnmatch import fnmatch
+
+    from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_ref_glob
+
+    topic = "kitty/mission-my-mission-01KNXQS9"
+    assert lane_branch_ref_glob(topic) == f"refs/heads/{topic}-lane-*"
+    assert fnmatch(f"refs/heads/{code_lane_branch_name('my-mission-01KNXQS9', 'lane-a')}", lane_branch_ref_glob(topic))
