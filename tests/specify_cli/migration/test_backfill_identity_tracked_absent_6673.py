@@ -79,32 +79,8 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
     assert restored["mission_id"] == _MISSION_ID, "backfill_mission minted over a tracked identity"
 
 
-@pytest.mark.parametrize(
-    "tracked_state",
-    [
-        "usable",
-        "corrupt",
-        "staged-edit",
-        "redirect-ceiling",
-        "post-empty-ownership",
-        "post-empty-lexical-ownership",
-        "start-ceiling-ownership",
-        "config-error",
-        "config-warning",
-        "missing-head",
-        "dangling-head",
-        "garbled-head",
-    ],
-)
-def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A usable tracked copy gives its id back; any unknown tracked identity refuses, never mints.
-
-    Ownership refusal is exercised with unresolved post-empty alias/lexical spellings and a
-    ceiling equal to git's starting directory: none stops git reaching the held identity.
-    Configuration failure and damaged HEADs are separate evidence that a failed query cannot
-    establish absence.
-    """
-    root = _repo(tmp_path)
+def _mission_with_lost_identity(root: Path, tracked_state: str) -> tuple[Path, str]:
+    """Build the committed Mission whose working ``meta.json`` has lost its id."""
     mission_dir = _mission(root)
     without_id = {
         "mission_slug": _SLUG,
@@ -123,6 +99,32 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         (mission_dir / "meta.json").write_text(json.dumps({**without_id, "mission_id": _MISSION_ID}) + "\n", encoding="utf-8")
         _git(root, "add", "-A")
     (mission_dir / "meta.json").write_text(lost, encoding="utf-8")
+    return mission_dir, lost
+
+
+@pytest.mark.parametrize(
+    "tracked_state",
+    [
+        "usable",
+        "corrupt",
+        "staged-edit",
+        "redirect-ceiling",
+        "post-empty-ownership",
+        "post-empty-lexical-ownership",
+        "start-ceiling-ownership",
+        "config-error",
+        "config-warning",
+    ],
+)
+def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A usable tracked copy gives its id back; any unknown tracked identity refuses, never mints.
+
+    Ownership refusal is exercised with unresolved post-empty alias/lexical spellings and a
+    ceiling equal to git's starting directory: none stops git reaching the held identity.
+    Configuration failure is separate evidence that a failed query cannot establish absence.
+    """
+    root = _repo(tmp_path)
+    mission_dir, lost = _mission_with_lost_identity(root, tracked_state)
     if tracked_state == "redirect-ceiling":
         # Git cannot answer for an explicit redirect. The discovery ceiling must not
         # turn that unknown tracked identity into permission to mint a replacement.
@@ -162,25 +164,9 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
             global_config.mkdir()
             monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir.parent))
-    head = root / ".git" / "HEAD"
-    saved_head = head.read_bytes()
-    damaged_head = tracked_state in {"missing-head", "dangling-head", "garbled-head"}
-    if damaged_head:
-        head.unlink()
-        if tracked_state == "dangling-head":
-            head.symlink_to(root / "missing-head-target")
-        elif tracked_state == "garbled-head":
-            head.write_text("not a ref\n", encoding="utf-8")
-    try:
-        result = backfill_mission(mission_dir)
-    finally:
-        if damaged_head:
-            head.unlink(missing_ok=True)
-            head.write_bytes(saved_head)
 
-    if damaged_head:
-        recovered = json.loads(_git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json"))
-        assert recovered["mission_id"] == _MISSION_ID, "the original identity must remain recoverable"
+    result = backfill_mission(mission_dir)
+
     written = json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))
     if tracked_state == "usable":
         assert result.action == "wrote"
@@ -194,12 +180,35 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
     assert f"[{expected_code}]" in result.reason
     assert (mission_dir / "meta.json").read_bytes() == lost.encode("utf-8"), "refused backfill changed the working metadata"
     assert "mission_id" not in written, "backfill_mission minted over an identity git holds"
-    assert (mission_dir / "meta.json").read_text(encoding="utf-8") == lost, "refusal must not change metadata"
-    if damaged_head:
-        # #7131 / #7262: git could not answer, so no file restore is offered; a lost HEAD names the `.git`.
-        assert "git checkout --" not in result.reason
-        if tracked_state != "garbled-head":
-            assert ".git` is " in result.reason and "repair it" in result.reason
+
+
+@pytest.mark.parametrize("tracked_state", ["missing-head", "dangling-head", "garbled-head"])
+def test_a_damaged_head_refuses_and_preserves_the_recoverable_identity(tmp_path: Path, tracked_state: str) -> None:
+    """#7131 / #7262: a damaged repository never mints, and the refusal names its real repair."""
+    root = _repo(tmp_path)
+    mission_dir, lost = _mission_with_lost_identity(root, tracked_state)
+    head = root / ".git" / "HEAD"
+    saved_head = head.read_bytes()
+    head.unlink()
+    if tracked_state == "dangling-head":
+        head.symlink_to(root / "missing-head-target")
+    elif tracked_state == "garbled-head":
+        head.write_text("not a ref\n", encoding="utf-8")
+    try:
+        result = backfill_mission(mission_dir)
+    finally:
+        head.unlink(missing_ok=True)
+        head.write_bytes(saved_head)
+
+    recovered = json.loads(_git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json"))
+    assert recovered["mission_id"] == _MISSION_ID, "the original identity must remain recoverable"
+    assert result.action == "skip"
+    assert result.mission_id is None
+    assert result.reason is not None and "[TRACKED_META_UNAVAILABLE]" in result.reason
+    assert (mission_dir / "meta.json").read_bytes() == lost.encode("utf-8"), "refusal must not change metadata"
+    assert "git checkout --" not in result.reason
+    if tracked_state != "garbled-head":
+        assert ".git` is " in result.reason and "repair it" in result.reason
 
 
 def test_an_untracked_copy_without_identity_is_still_minted(tmp_path: Path) -> None:
