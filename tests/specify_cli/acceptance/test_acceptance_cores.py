@@ -550,7 +550,7 @@ class TestEvaluateAcceptanceMatrix:
         matrix's ``criteria`` and the coord-resolved status surface into
         :func:`~specify_cli.acceptance.matrix.populate_criteria_from_review_
         evidence` BEFORE the verdict is read, when ``mutate_matrix=True``."""
-        original_criteria = [SimpleNamespace(criterion_id="AC-001")]
+        original_criteria = [SimpleNamespace(criterion_id="AC-001", pass_fail="pending")]
         populated_criteria = [SimpleNamespace(criterion_id="AC-001", pass_fail="pass")]
         matrix = SimpleNamespace(criteria=original_criteria, negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
@@ -577,7 +577,7 @@ class TestEvaluateAcceptanceMatrix:
         """Diagnose mode (``mutate_matrix=False``) never mutates the matrix --
         the population call must not fire either, symmetric with the
         negative-invariants arm."""
-        original_criteria = [SimpleNamespace(criterion_id="AC-001")]
+        original_criteria = [SimpleNamespace(criterion_id="AC-001", pass_fail="pending")]
         matrix = SimpleNamespace(criteria=original_criteria, negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
@@ -593,7 +593,7 @@ class TestEvaluateAcceptanceMatrix:
         assert matrix.criteria is original_criteria
 
     def test_negative_invariants_skipped_when_mutate_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
+        matrix = SimpleNamespace(criteria=[], negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
 
@@ -616,7 +616,7 @@ class TestEvaluateAcceptanceMatrix:
         ],
     )
     def test_verdict_fail_and_pending_become_activity_issues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verdict: str, expected_fragment: str) -> None:
-        matrix = SimpleNamespace(negative_invariants=[], overall_verdict=verdict)
+        matrix = SimpleNamespace(criteria=[], negative_invariants=[], overall_verdict=verdict)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
         # WP04 / T016 (#2318): the gate now persists the recomputed verdict
@@ -637,7 +637,7 @@ class TestEvaluateAcceptanceMatrix:
         assert any(expected_fragment in issue for issue in activity_issues)
 
     def test_verdict_pass_is_silent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        matrix = SimpleNamespace(negative_invariants=[], overall_verdict="pass")
+        matrix = SimpleNamespace(criteria=[], negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
         # WP04 / T016: see the comment in the parametrized test above.

@@ -214,6 +214,12 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             # owned-only mission's criterion verdict is recorded on its own
             # checkout instead of searching the repository root.
             "--owned-checkout",
+            # #7308: a justified `deferred` criterion verdict (--reason,
+            # --follow-up) and criterion-mode text replacement (--notes; the
+            # existing --description also applies to a criterion).
+            "--reason",
+            "--follow-up",
+            "--notes",
         }
     ),
 }

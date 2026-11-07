@@ -162,6 +162,24 @@ live** against the working tree at accept time — it does not trust a stored
   lane branch (see `NegativeInvariant.scope`) or express it as a `custom_command`
   that is meaningful pre-consolidation.
 
+### Deferred Criteria
+
+When the Mission agrees to postpone one acceptance criterion, record it as
+`deferred` instead of leaving it `pending`:
+
+```bash
+spec-kitty agent acceptance-verdict --mission <slug> --criterion FR-004 \
+  --result deferred --reason "needs the read service" --follow-up "#7400"
+```
+
+`--reason` and `--follow-up` (an issue number, URL or ruling id) are both
+required; a deferral without them is refused. A justified deferral does not
+block `overall_verdict` (`pass` plus `deferred` reads `pass`), but it is never
+silent: `spec-kitty accept` lists each one under "Deferred criteria" in the
+console and as a `criteria_deferred` entry in `skipped_checks` in `--json`.
+`--description` and `--notes` replace a criterion's scaffolded text in the same
+command.
+
 ### Deferred Invariants and the Post-Consolidation Gate
 
 A scoped `grep_absence` invariant whose subject does not exist yet — because it

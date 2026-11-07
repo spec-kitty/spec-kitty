@@ -24,6 +24,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import fields
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -882,6 +883,7 @@ class TestConcurrentVerdictLostUpdateCriterionMode:
             verification_method: str | None,
             actor: str | None,
             evidence: str | None,
+            **kwargs: Any,
         ) -> AcceptanceCriterion:
             nonlocal driven
             if not driven:
@@ -904,6 +906,7 @@ class TestConcurrentVerdictLostUpdateCriterionMode:
                 verification_method=verification_method,
                 actor=actor,
                 evidence=evidence,
+                **kwargs,
             )
 
         monkeypatch.setattr(av_command, "_resolve_criterion_update", _wrapper)
