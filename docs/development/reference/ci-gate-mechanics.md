@@ -106,6 +106,24 @@ these things about that pipeline are worth knowing before you read a red check:
   `tests (status)`, `tests (consolidation)` and `tests (corpus)` no longer exist;
   the `cli`, `status` and `consolidation` module rows in `ci-modules.yml` are now
   their only homes.
+- **That advisory lane's budget is derived, not picked** ([#7206](https://github.com/spec-kitty/spec-kitty/issues/7206)).
+  Over 55 advisory-job runs the job's p95 was 20.3 min against the retired 20-minute cap —
+  102 % of it — and four runs were killed at the budget with no failing test, so an unrelated
+  PR read red. A PR run is mostly fixed cost: the whole `tests/` tree is collected
+  in every worker (1 624 corpus items come from 103 of 4 429 modules, ~8 min), the
+  content-addressed wall-clock policy scan has no cache on PR runs by design (~3.5 min), and
+  execution is ~6.3 min. Both fixed costs are architectural, so the cap is not bought with
+  coverage: a path shard or matrix would narrow the lane, which
+  `tests/ci/test_corpus_blocking_home.py` (tree-wide corpus reach, #3008) and
+  `tests/ci/test_contracts_routing.py` (exactly one pytest invocation) forbid. Instead the job
+  records its measured maximum and the cap follows the #5378 rule
+  (`ceil((max-suite + 0:30) × 1.5)` = 31), enforced by `tests/ci/test_nightly_timeout_headroom.py`;
+  the recorded maximum must stay within 75 % of the cap,
+  `tests/ci/test_corpus_suite_budget.py` holds that and the expiry behaviour: the suite step has
+  its own budget below the job cap, so a killed run still reaches a notice saying the run is
+  INCOMPLETE and advisory rather than reading as a failing test
+  ([#4437](https://github.com/spec-kitty/spec-kitty/issues/4437)). Selection semantics — the
+  marker, the deselects, the `continue-on-error` and the trigger — are unchanged.
 - **A nightly backstop runs the whole battery.** `ci-nightly.yml` job
   `architectural-backstop` executes the full base selection with no partition
   plugin, so a green nightly means the battery ran (see the amendment to
