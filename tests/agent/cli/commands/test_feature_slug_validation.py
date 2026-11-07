@@ -70,33 +70,39 @@ def test_mission_slug_with_uppercase_rejected():
     assert "lowercase" in result.stdout.lower()
 
 
-def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
-    """Valid kebab-case slugs should be accepted."""
-    # Arrange
-    monkeypatch.chdir(tmp_path)
-    # The repo is created on ``main`` (protected); each accepted slug commits its
-    # mission meta.json there. The operator-owned-repo escape hatch is the ONE
-    # sanctioned waiver (#3673 made the protected-branch refusal fail loud rather
-    # than the pre-fix contextlib.suppress that let create silently no-op).
-    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
-    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "checkout", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
-    kittify_dir = tmp_path / ".kittify"
+def _init_protected_main_repo(root):
+    root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "checkout", "-b", "main"], cwd=root, check=True, capture_output=True)
+    kittify_dir = root / ".kittify"
     kittify_dir.mkdir()
     (kittify_dir / "config.yaml").write_text(
         "agents:\n  available: []\nmission_type_activations:\n  - software-dev\n"
     )
     (kittify_dir / "metadata.yaml").write_text("project_name: test\n")
-    (tmp_path / "kitty-specs").mkdir()
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=tmp_path, check=True, capture_output=True)
+    (root / "kitty-specs").mkdir()
+    subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=root, check=True, capture_output=True)
+
+
+def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
+    """Valid kebab-case slugs should be accepted."""
+    # The repo is created on ``main`` (protected). The operator-owned-repo escape
+    # hatch is the ONE sanctioned waiver (#3673 made the protected-branch refusal
+    # fail loud rather than the pre-fix contextlib.suppress that let create
+    # silently no-op).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     valid_slugs = ["user-auth", "fix-bug-123", "new-dashboard", "a", "test-feature-2"]
-    # Assumption check
-    assert all("-" not in s or s.replace("-", "").replace("0123456789", "").isalpha() or True for s in valid_slugs)
-    # Act / Assert
-    for slug in valid_slugs:
+    # Act / Assert. Each slug gets its own repository: since #7276/#7282 (ADR
+    # 2026-11-06-3) a default create checks out its Mission topic branch and
+    # leaves the spec scaffold uncommitted, so a second create in the same write
+    # checkout refuses WRITE_CHECKOUT_DIRTY (#5676) -- unrelated to slug grammar.
+    for index, slug in enumerate(valid_slugs):
+        repo = tmp_path / f"repo-{index}"
+        _init_protected_main_repo(repo)
+        monkeypatch.chdir(repo)
         result = runner.invoke(app, ["create", slug, "--json"])
         assert result.exit_code == 0, f"Valid slug '{slug}' should be accepted. Output: {result.stdout}"
 

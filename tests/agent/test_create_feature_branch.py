@@ -202,6 +202,9 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
+    # #7276/#7282 (ADR 2026-11-06-3): a default create mints the Mission topic
+    # branch from the target on every target, so the target must exist.
+    run_command(["git", "branch", "2.x"], cwd=repo)
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
