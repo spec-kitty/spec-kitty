@@ -242,7 +242,7 @@ def _try_auto_rebase_if_stale(
 
     report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
     if report.succeeded:
-        return check_lane_staleness(lane, branch, mission_branch, repo_root)
+        return check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
     return stale
 
 
@@ -309,7 +309,7 @@ def consolidate_lane_into_mission(
             errors=[f"Lane branch {branch} does not exist"],
         )
 
-    stale = check_lane_staleness(lane, branch, mission_branch, repo_root)
+    stale = check_lane_staleness(lane, branch, mission_branch, repo_root, mission_slug=mission_slug)
     stale = _try_auto_rebase_if_stale(
         stale,
         lane,
@@ -991,7 +991,7 @@ def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, s
     resolve OR any unmerged path is a non-derived (genuinely divergent) artifact —
     in which case the caller MUST fail closed (no green-washing of a real conflict).
     """
-    from specify_cli.status import SNAPSHOT_FILENAME, reconcile_status_snapshot
+    from specify_cli.status import SNAPSHOT_FILENAME
 
     unmerged = _unmerged_paths(worktree, env)
     if not unmerged:
@@ -1000,24 +1000,82 @@ def reconcile_derived_status_snapshot_conflicts(worktree: Path, env: dict[str, s
         return False
     for rel in unmerged:
         # Fail closed if the snapshot was NOT actually regenerated: git leaves
-        # conflict markers in an unmerged file, and `reconcile_status_snapshot`
-        # no-ops (returns False) when it has no authoritative event log to derive
-        # from — e.g. the log is absent, or sparse-excluded from a coord lane
-        # worktree (status files are skip-worktree there). Staging in that case
-        # would commit conflict markers, so refuse and let the caller abort.
-        if not reconcile_status_snapshot((worktree / rel).parent):
-            return False
-        add = subprocess.run(
-            ["git", "add", "--", rel],
-            cwd=str(worktree),
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        if add.returncode != 0:
+        # conflict markers in an unmerged file, and there may be no authoritative
+        # event log to derive from (absent, empty, or itself unmerged). In a lane
+        # checkout the log is sparse-excluded from disk (Mission WP09), so it is
+        # read from its merged index entry instead. Staging a non-regenerated
+        # snapshot would commit conflict markers, so refuse and let the caller abort.
+        if not _regenerate_snapshot(worktree, rel, env):
             return False
     # Never trust the add alone: only report success when the index is clean.
     return not _unmerged_paths(worktree, env)
+
+
+def _regenerate_snapshot(worktree: Path, rel: str, env: dict[str, str]) -> bool:
+    """Regenerate one unmerged ``status.json`` and stage it; ``False`` leaves it unmerged.
+
+    When the merged event log is on disk, regenerate in place and ``git add``.
+    In a lane checkout the status files are sparse-excluded (Mission WP09,
+    FR-040, every topology with code lanes): the union-merged log is then a
+    stage-0 index entry with no file on disk. Regenerate from that index blob
+    in a scratch directory and stage the result through the index only, so
+    the lane checkout keeps showing no status file.
+    """
+    from specify_cli.status import EVENTS_FILENAME, reconcile_status_snapshot
+
+    if (worktree / rel).parent.joinpath(EVENTS_FILENAME).exists():
+        return reconcile_status_snapshot((worktree / rel).parent) and _git_in(worktree, ["add", "--", rel], env)
+    return _regenerate_snapshot_in_index(worktree, rel, env)
+
+
+def _regenerate_snapshot_in_index(worktree: Path, rel: str, env: dict[str, str]) -> bool:
+    """Stage a ``status.json`` regenerated from the index's merged event log, never touching disk.
+
+    The snapshot is reduced in a scratch Mission directory of the same name
+    that carries what an in-place regeneration would read beside the log: the
+    Mission's ``meta.json`` (``mission_type`` / ``mission_number`` come from
+    it) and the lane's own pre-merge snapshot (stage 2, whose recorded
+    ``schema_version`` the reducer keys on). Nothing is written to disk in the
+    checkout and no write is reported for the scratch path: the status-owned
+    :func:`~specify_cli.status.materialize_snapshot` /
+    :func:`~specify_cli.status.materialize_to_json` render it in memory.
+    """
+    import tempfile
+
+    from specify_cli.status import EVENTS_FILENAME, materialize_snapshot, materialize_to_json
+
+    mission_rel = Path(rel).parent
+    log = _index_blob(worktree, f":0:{(mission_rel / EVENTS_FILENAME).as_posix()}", env)
+    # No merged log, or an empty one: no authoritative state to reduce (fail closed).
+    if log is None or not log.strip():
+        return False
+    with tempfile.TemporaryDirectory(prefix="spec-kitty-status-") as scratch:
+        scratch_dir = Path(scratch) / mission_rel.name
+        scratch_dir.mkdir()
+        (scratch_dir / EVENTS_FILENAME).write_bytes(log)
+        _seed_scratch(scratch_dir, "meta.json", _index_blob(worktree, f":0:{(mission_rel / 'meta.json').as_posix()}", env))
+        _seed_scratch(scratch_dir, Path(rel).name, _index_blob(worktree, f":2:{rel}", env))
+        snapshot = materialize_to_json(materialize_snapshot(scratch_dir)).encode("utf-8")
+    blob = subprocess.run(["git", "hash-object", "-w", "--stdin"], cwd=str(worktree), input=snapshot, capture_output=True, env=env, check=False)
+    if blob.returncode != 0:
+        return False
+    sha = blob.stdout.decode().strip()
+    if not _git_in(worktree, ["update-index", "--cacheinfo", f"100644,{sha},{rel}"], env):
+        return False
+    # The conflicted copy git wrote to disk goes; the path stays excluded (skip-worktree).
+    (worktree / rel).unlink(missing_ok=True)
+    return _git_in(worktree, ["update-index", "--skip-worktree", "--", rel], env)
+
+
+def _index_blob(worktree: Path, spec: str, env: dict[str, str]) -> bytes | None:
+    """The bytes of one index entry (``:<stage>:<path>``), or ``None`` when there is none."""
+    result = subprocess.run(["git", "show", spec], cwd=str(worktree), capture_output=True, env=env, check=False)
+    return result.stdout if result.returncode == 0 else None
+
+
+def _seed_scratch(scratch_dir: Path, name: str, content: bytes | None) -> None:
+    if content is not None:
+        (scratch_dir / name).write_bytes(content)
 
 
 def _git_in(worktree: Path, args: list[str], env: dict[str, str]) -> bool:
