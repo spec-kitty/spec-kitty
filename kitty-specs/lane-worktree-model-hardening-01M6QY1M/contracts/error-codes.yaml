@@ -28,6 +28,36 @@ new:
     fires: first finalize cannot settle (precondition, create_return_branch missing or checked out elsewhere, coordination worktree not materializable, failed git step); compensated, root checkout back on the topic branch, Mission stays provisional
     surfaces: [agent mission finalize-tasks (--json error_code)]
     requirement: FR-056, NFR-003
+  - code: LANE_STATUS_NOT_EXCLUDED
+    kind: doctor finding
+    fires: a registered lane worktree still shows the Mission status files (managed sparse exclusion absent)
+    surfaces: [spec-kitty doctor]
+    requirement: FR-044
+  - code: status_surface_on_ref
+    kind: --json error_code
+    fires: a command that needs a status file finds the status read door sourced from a ref (no checkout holds the log)
+    surfaces: [agent tasks status --json, agent status commands (non-zero exit)]
+    requirement: FR-004
+  - code: status_surface_unavailable
+    kind: --json error_code (cause names the door's own code)
+    fires: the status read door failed closed (unreadable coordination ref, deleted coordination branch, worktree on the wrong branch, unreadable worktree registry)
+    surfaces: [agent tasks status --json, agent status commands (non-zero exit)]
+    requirement: FR-004
+  - code: LANE_CLEANUP_FAILED
+    kind: lane cleanup Kept reason
+    fires: the lane remover failed unexpectedly; the lane is kept and nothing more is attempted
+    surfaces: [consolidate (text, --json lane_cleanup), orchestrator-api consolidate-mission data.lane_cleanup]
+    requirement: FR-031
+  - code: COORDINATION_TEARDOWN_REFUSED
+    kind: lane cleanup Kept reason
+    fires: the coordination teardown before lane cleanup refused, so every lane is left in place
+    surfaces: [consolidate (text, --json lane_cleanup), orchestrator-api consolidate-mission data.lane_cleanup]
+    requirement: FR-031
+  - code: LOCAL_TARGET_OFF_GATE_TIP
+    kind: destructive-guard refusal (O3-local)
+    fires: the local target is not a refs/heads/ branch that still contains the gate-passed tip; nothing is removed
+    surfaces: [consolidate lane cleanup, doctor workspaces --prune]
+    requirement: FR-033
 reused:
   - {code: CoordinationBranchDeleted, fires: coordination branch gone (DEL), unchanged}
   - {code: WRITE_CHECKOUT_OCCUPIED, fires: settlement or create switch needs an occupied write checkout, new call sites: [finalize-tasks, create]}
@@ -36,7 +66,7 @@ reused:
   - {code: APPROVAL_STAMP_MISSING, fires: single_branch approved WP without a stamp (legacy), lifted_by: --attest-approved-reviewed}
   - {code: APPROVAL_STAMP_NOT_ON_LANE, fires: single_branch Mission branch rewritten after approval}
   - {code: PROTECTED_BRANCH_REFUSED, fires: unchanged}
-  - {codes: [MERGE_UNSAFE_WORKTREE_DIRTY, WORKTREE_REMOVE_REFUSED_BY_GIT, WORKTREE_PARTIALLY_REMOVED, BRANCH_HAS_UNIQUE_COMMITS], fires: lane cleanup kept (now reported, not raised)}
-  - {codes: [PROCESS_IN_WORKTREE, PROCESS_PROOF_UNAVAILABLE, WORKTREE_TIP_MOVED, BRANCH_TIP_MOVED, BRANCH_CHECKED_OUT, NOT_LANDED_ON_NAMED_REMOTE, BRANCH_IS_PRIMARY], fires: lane cleanup kept after the #7275 binding}
+  - {codes: [MERGE_UNSAFE_WORKTREE_DIRTY, WORKTREE_REMOVE_REFUSED_BY_GIT, WORKTREE_PARTIALLY_REMOVED, BRANCH_HAS_UNIQUE_COMMITS], fires: "lane cleanup kept (now reported, not raised)"}
+  - {codes: [PROCESS_IN_WORKTREE, PROCESS_PROOF_UNAVAILABLE, WORKTREE_TIP_MOVED, BRANCH_TIP_MOVED, BRANCH_CHECKED_OUT, NOT_LANDED_ON_NAMED_REMOTE, BRANCH_IS_PRIMARY], fires: "lane cleanup kept after the #7275 binding"}
 unchanged_exits:
   - {codes: [COORD_MOVED_AFTER_LANDING, PROJECTION_TEARDOWN_ABORTED, COORD_LATE_PROJECTION_REFUSED], owner: S10}
