@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-empty-home-command-migrations-01M6EJQR",
+  "mission_id": "01M6EJQR37WFRDJ7JV2NHM84SZ",
+  "mission_branch": "kitty/mission-upgrade-empty-home-command-migrations-01M6EJQR",
+  "target_branch": "issue-6954-upgrade-empty-home-command-migrations",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/upgrade/test_empty_home_command_migrations.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py",
+        "tests/upgrade/test_globalize_commands_stamp_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/*.fixed.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-02T17:07:14.263100+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "a540ce15d01bac2190fde61a9177a8275ea49b0b"
+}
