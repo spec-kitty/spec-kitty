@@ -1,1 +1,0 @@
-- **ADRs for coordination without a worktree** (#7284). ADRs `2026-11-06-4` (the coordination branch written by commit), `2026-11-06-5` (gates over worktree-less coordination) and `2026-11-06-6` (the committed ledger is the coordination blob) are recorded as Proposed; they change no behavior yet.
