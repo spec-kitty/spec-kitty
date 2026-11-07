@@ -132,3 +132,5 @@ Stopped at lane-j: merging 1bc83bb conflicts in `tests/architectural/_baselines.
 84 vs 83) and `tests/architectural/dead_symbol_allowlist.yaml` (lane-j/WP13 adds the category
 `category_c_topology_settlement_7282`, the mission side adds the WP05 `category_c_status_read_door_7277`).
 The merge was aborted, and lane-j is unchanged. Per the ruling this needs option (b) rework.
+
+- [2026-11-07][closeout] WP13 rework for the lane-j refresh conflict: approved->in_progress (no force), refresh merge 26fcda81d2 resolving _baselines.yaml (allowlist_entries 233, widened 84) and dead_symbol_allowlist.yaml (both categories). Orchestrator ruling: --force on the in_progress->for_review move only, to bypass the lane-behind-target freshness check (merging the topic branch into a lane would bring main and kitty-specs/ content into it). Pre-review gate: no new failures. Friction: implement cannot rework an approved WP whose refresh conflicts; for_review refuses a lane behind the target even for a consolidation refresh.

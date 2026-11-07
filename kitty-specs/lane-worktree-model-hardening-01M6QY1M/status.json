@@ -456,7 +456,8 @@
         "Cycle 1 fixes: B1 dead-symbol gate green (coord_topology_reachable deleted; count_code_lanes/restamp allowlisted with WP14 exit; lane_cleanup __all__ trimmed), B2 create routes through switch_write_checkout (core/write_checkout_switch.py), B3 completion manifest regenerated, R1 target_replacement notice+JSON+help, R2 coord factory explicit topology only, nit dirty wording",
         "Cycle 3: B4 fixed; selector-resolution create fakes built from a real MissionCreationResult (2 failed -> 39 passed)",
         "Review passed (cycle 3): B4 fixed in 545700f54e. The selector-resolution create fakes now return a real MissionCreationResult via _new_thing_result(), and no assertion changed. No other create-result stand-in in tests/ lacks target_replacement. The other create_mission_core monkeypatches either raise or use real results. bf83480cce..HEAD touches only that test file plus kitty-specs bookkeeping from the lane-planning merge. Tests: test_selector_resolution -p no:xdist 39 passed; create-related files 77 passed; test_no_dead_symbols -p no:xdist 37 passed.",
-        "Rework: #7276 consolidation refresh of lane-j with mission commit 1bc83bb conflicts in architectural baselines; resolution adds post-approval content"
+        "Rework: #7276 consolidation refresh of lane-j with mission commit 1bc83bb conflicts in architectural baselines; resolution adds post-approval content",
+        "Rework: refresh merge 26fcda81d2 (allowlist union) for consolidation; --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
