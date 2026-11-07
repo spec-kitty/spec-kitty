@@ -12,7 +12,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, NoReturn, assert_never
+from typing import Any, NoReturn
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from mission_runtime import (
@@ -21,7 +21,6 @@ from mission_runtime import (
 from specify_cli.core.mission_creation_decisions import (
     Mint,
     NoMint,
-    ProtectedMintDecision,
     ProtectedMintFacts,
     ProtectedTargetPolicy,
     Refuse,
@@ -32,7 +31,6 @@ from specify_cli.core.mission_creation_decisions import (
 from specify_cli.core.paths import (
     read_commit_to_target,
 )
-from kernel.git import GitPath, status_entries
 from specify_cli.lanes.branch_naming import (
     mission_branch_name,
 )
@@ -41,7 +39,10 @@ from specify_cli.core.mission_creation_errors import (
     MissionBranchExistsError,
     MissionCreationError,
     ProtectedMintRefusedError,
+    TargetReplacement,
+    WriteCheckoutSwitchDirtyError,
 )
+from specify_cli.core.write_checkout_switch import switch_write_checkout
 
 
 def _target_has_commit(write_root: Path, target_branch: str) -> bool:
@@ -75,14 +76,23 @@ class _ProtectionProbe:
     first point, as before.
     """
 
-    __slots__ = ("_write_root", "_facts")
+    __slots__ = ("_write_root", "_facts", "_mints_on_every_target")
 
-    def __init__(self, write_root: Path) -> None:
+    def __init__(self, write_root: Path, *, mints_on_every_target: bool = False) -> None:
         self._write_root = write_root
         self._facts: tuple[ProtectedTargetPolicy, str] | None = None
+        # S7 #7282 (FR-051): a create without ``--topology`` mints its Mission topic
+        # branch on every target, so the mint gate reads every target as one that
+        # mints and protection itself is never resolved.
+        self._mints_on_every_target = mints_on_every_target
 
     def is_protected(self, target_branch: str) -> bool:
-        """True when *target_branch* is a protected target under the #5100 rule (C-002)."""
+        """True when *target_branch* is a protected target under the #5100 rule (C-002).
+
+        Always ``True`` for the probe of a create without ``--topology``.
+        """
+        if self._mints_on_every_target:
+            return True
         if self._facts is None:
             self._facts = self._resolve()
         policy, primary_branch = self._facts
@@ -143,6 +153,7 @@ def _mint_protected_single_branch_mission_branch(
     target_branch: str,
     meta: dict[str, Any],
     protection: _ProtectionProbe | None = None,
+    repository_root: Path | None = None,
 ) -> None:
     """Mint + check out the mission branch for a protected single_branch target.
 
@@ -151,7 +162,10 @@ def _mint_protected_single_branch_mission_branch(
     (:meth:`~specify_cli.git.protection_policy.ProtectionPolicy.is_protected_target`,
     C-002: the single protection authority). When it fires:
 
-    1. Refuses if the write checkout (*write_root*) has uncommitted
+    0. Refuses ``WRITE_CHECKOUT_OCCUPIED`` when another ``single_branch``
+       Mission has a WP ``in_progress`` in the write checkout (#5676; the
+       occupancy rule ``implement`` applies, #5550 included).
+    1. Refuses ``WRITE_CHECKOUT_DIRTY`` if the write checkout (*write_root*) has uncommitted
        changes outside this mission's own (still-untracked) scaffold --
        switching branches under the operator's unrelated dirty work would be
        unsafe (mirrors FR-009's write-checkout dirty refusal, scoped here to
@@ -165,54 +179,9 @@ def _mint_protected_single_branch_mission_branch(
 
     Mutates *meta* in place; raises on any refusal (fail-closed, no partial
     mutation of *meta* on the refusal paths -- the git branch/checkout writes
-    only happen after both refusal checks pass).
-    """
-    decision = _gather_and_decide_protected_mint(
-        write_root,
-        mission_slug_formatted,
-        mission_id=mission_id,
-        target_branch=target_branch,
-        protection=protection,
-    )
-    match decision:
-        case NoMint():
-            return
-        case Refuse():
-            _raise_refusal(decision)
-        case Mint(branch_name=branch_name):
-            _check_out_minted_branch(write_root, branch_name, target_branch=target_branch, meta=meta)
-        case _:
-            assert_never(decision)  # fail closed: an unknown decision must never read as "no mint"
-
-
-def _check_out_minted_branch(write_root: Path, branch_name: str, *, target_branch: str, meta: dict[str, Any]) -> None:
-    """Create *branch_name* at *target_branch*'s tip, check it out, and record it in *meta*."""
-    create_result = subprocess.run(
-        ["git", "-C", str(write_root), "checkout", "-b", branch_name, target_branch],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if create_result.returncode != 0:
-        detail = (create_result.stderr or create_result.stdout or "").strip()
-        raise MissionCreationError(f"Failed to create and check out mission branch {branch_name!r} from {target_branch!r}: {detail}")
-    meta["mission_branch"] = branch_name
-
-
-def _gather_and_decide_protected_mint(
-    write_root: Path,
-    mission_slug_formatted: str,
-    *,
-    mission_id: str,
-    target_branch: str,
-    protection: _ProtectionProbe | None = None,
-) -> ProtectedMintDecision:
-    """Gather the protected-mint facts in today's probe order, stopping at the deciding one.
-
-    Each probe runs only when :func:`decide_protected_mint` is still undecided,
-    so a probe that raises (``git status`` raises ``GitCommandError``) raises at
-    the same point as before the decision was extracted. *protection*
-    is the create's shared probe (``None``: a one-shot probe).
+    only happen after every refusal check passed). Steps 0, 1 and 3 are
+    :func:`switch_write_checkout`, the one switch core; steps 1 and 2 are decided by
+    :func:`decide_protected_mint` in its probe order.
     """
     probe = protection if protection is not None else _ProtectionProbe(write_root)
     facts = ProtectedMintFacts(
@@ -224,16 +193,46 @@ def _gather_and_decide_protected_mint(
     if decision is None:
         facts = replace(facts, target_has_commit=_target_has_commit(write_root, target_branch))
         decision = decide_protected_mint(facts)
-    if decision is None:
-        facts = replace(facts, dirty_outside_scaffold=_dirty_outside_scaffold(write_root, mission_slug_formatted))
-        decision = decide_protected_mint(facts)
-    if decision is None:
-        branch_name = mission_branch_name(mission_slug_formatted, mission_id=mission_id)
-        facts = replace(facts, branch_name=branch_name, branch_exists=_local_branch_exists(write_root, branch_name))
-        decision = decide_protected_mint(facts)
-    if decision is None:  # unreachable: every fact is gathered by now
-        raise MissionCreationError(f"Protected-mint decision for {target_branch!r} is incomplete.")
-    return decision
+    match decision:
+        case NoMint():
+            return
+        case Refuse():
+            _raise_refusal(decision)
+        case None:
+            pass
+        case _:  # fail closed: a Mint before the dirty and branch facts is impossible
+            raise MissionCreationError(f"Protected-mint decision for {target_branch!r} is premature: {decision!r}.")
+    branch_name = mission_branch_name(mission_slug_formatted, mission_id=mission_id)
+    switch_write_checkout(
+        write_root,
+        branch_name,
+        start_point=target_branch,
+        repository_root=repository_root if repository_root is not None else write_root,
+        owned_paths=_scaffold_owned_paths(mission_slug_formatted),
+        decide=lambda dirty: _decide_mint_switch(write_root, replace(facts, dirty_outside_scaffold=dirty, branch_name=branch_name)),
+    )
+    meta["mission_branch"] = branch_name
+
+
+def _decide_mint_switch(write_root: Path, facts: ProtectedMintFacts) -> None:
+    """Decide the mint from the dirty fact, then the branch-exists fact; raise its refusal.
+
+    The *decide* step of :func:`switch_write_checkout` for create: it runs after the
+    occupancy refusal and before any git write, so the probe order stays
+    applies, target has a commit, occupied, dirty, branch exists, mint.
+    """
+    decision = decide_protected_mint(facts)
+    if isinstance(decision, Refuse):
+        raise WriteCheckoutSwitchDirtyError(decision.message)
+    if decision is None and facts.branch_name is not None:
+        decision = decide_protected_mint(replace(facts, branch_exists=_local_branch_exists(write_root, facts.branch_name)))
+    match decision:
+        case Mint():
+            return
+        case Refuse():
+            _raise_refusal(decision)
+        case _:  # unreachable: every fact is gathered by now; fail closed
+            raise MissionCreationError(f"Protected-mint decision for {facts.target_branch!r} is incomplete.")
 
 
 def _local_branch_exists(write_root: Path, branch_name: str) -> bool:
@@ -248,25 +247,18 @@ def _local_branch_exists(write_root: Path, branch_name: str) -> bool:
     )
 
 
-def _dirty_outside_scaffold(write_root: Path, mission_slug_formatted: str) -> tuple[str, ...]:
-    """Probe: the write checkout's uncommitted paths outside this mission's own scaffold."""
-    # This mission's own (still-untracked) scaffold is never "dirty" here --
-    # only the operator's unrelated uncommitted work is. A bidirectional
-    # component-wise overlap (unlike ``lanes.checkout_occupancy.dirty_paths``'s
-    # one-directional ``_is_owned_path``) is required: on a freshly-scaffolded
-    # ``kitty-specs/`` (this mission is the first ever created), git's default
-    # ``--untracked-files=normal`` collapses the whole new directory to the
-    # single line ``kitty-specs/`` -- an ANCESTOR of, not a match for, the
-    # mission-scoped path below.
-    owned_paths = (GitPath.parse(".kittify"), GitPath.parse(f"{KITTY_SPECS_DIR}/{mission_slug_formatted}"))
-    dirty: list[str] = []
-    # Guard: a failed ``git status`` raises ``GitCommandError`` (a ``RuntimeError``,
-    # as the helper this replaces raised) rather than reading as "clean".
-    for entry in status_entries(write_root, untracked=None):
-        if any(owned.overlaps(entry.path) for owned in owned_paths):
-            continue
-        dirty.append(str(entry.path))
-    return tuple(dirty)
+def _scaffold_owned_paths(mission_slug_formatted: str) -> tuple[str, ...]:
+    """The paths a create owns in the write checkout: ``.kittify`` and this Mission's own scaffold.
+
+    Only the operator's unrelated uncommitted work is "dirty" for the switch. The
+    overlap test of :func:`~specify_cli.core.write_checkout_switch.switch_write_checkout` is bidirectional and component-wise
+    (unlike ``lanes.checkout_occupancy.dirty_paths``'s one-directional
+    ``_is_owned_path``): on a freshly-scaffolded ``kitty-specs/`` (this Mission is
+    the first ever created), git's default ``--untracked-files=normal`` collapses
+    the whole new directory to the single line ``kitty-specs/`` -- an ANCESTOR of,
+    not a match for, the Mission-scoped path.
+    """
+    return (".kittify", f"{KITTY_SPECS_DIR}/{mission_slug_formatted}")
 
 
 def _refuse_protected_recreate(
@@ -316,6 +308,7 @@ def _mint_protected_branch_for_topology(
     planning_branch: str,
     meta: dict[str, Any],
     protection: _ProtectionProbe | None = None,
+    repository_root: Path | None = None,
 ) -> str | None:
     """Step 6.7: protected-target mission branch (#5100 FR-007/FR-012, WP08 / IC-05).
 
@@ -326,7 +319,8 @@ def _mint_protected_branch_for_topology(
     SINGLE_BRANCH only (COORD/LANES_WITH_COORD already mint their OWN,
     unconditional coordination branch; LANES keeps committing straight to
     target_branch per its own contract). Returns the minted branch name, or
-    ``None`` when no mint fired.
+    ``None`` when no mint fired. A create without ``--topology`` passes a
+    :class:`_TopicBranchProbe`, so its topic branch is minted on every target (S7 #7282).
     """
     # Two guards, in this order: ``read_commit_to_target`` (which refuses a
     # non-boolean value) must run only for a single_branch create.
@@ -341,8 +335,93 @@ def _mint_protected_branch_for_topology(
         target_branch=planning_branch,
         meta=meta,
         protection=protection,
+        repository_root=repository_root,
     )
     minted_branch = meta.get("mission_branch")
     if isinstance(minted_branch, str) and minted_branch:
         return minted_branch
     return None
+
+
+# ---------------------------------------------------------------------------
+# Create-time target resolution guard (S7 #7282 IC-13, research R-6 risk)
+# ---------------------------------------------------------------------------
+
+
+def _recorded_mission_branches(write_root: Path) -> dict[str, tuple[str, str | None]]:
+    """Every ``mission_branch`` / ``coordination_branch`` a Mission in *write_root* records.
+
+    Maps each to its owning Mission's directory name and ``target_branch`` (``None``
+    when unrecorded). A branch equal to the Mission's own ``target_branch`` is not a
+    Mission branch. A Mission whose ``meta.json`` cannot be read is skipped.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+    from specify_cli.meta_keys import COORDINATION_BRANCH_KEY
+
+    specs = write_root / KITTY_SPECS_DIR
+    if not specs.is_dir():
+        return {}
+    recorded: dict[str, tuple[str, str | None]] = {}
+    for feature_dir in specs.iterdir():
+        try:
+            meta = load_meta_fail_closed(feature_dir) if feature_dir.is_dir() else None
+        except MissionMetaReadError:
+            continue
+        if not meta:
+            continue
+        target = meta.get("target_branch")
+        for key in ("mission_branch", COORDINATION_BRANCH_KEY):
+            value = meta.get(key)
+            if isinstance(value, str) and value and value != target:
+                recorded[value] = (feature_dir.name, target if isinstance(target, str) and target else None)
+    return recorded
+
+
+def _resolve_planning_branch(write_root: Path, target_branch: str | None, current_branch: str, *, guard: bool) -> tuple[str, TargetReplacement | None]:
+    """The create's target: the explicit ``--target-branch``, else the checked-out branch.
+
+    IC-13 guard (*guard*: a create without ``--topology``): a default create leaves the
+    write checkout on its Mission topic branch, so a second default create run from
+    there would record that topic branch as its target (research R-6 risk). An implicit
+    target that another Mission records as its ``mission_branch`` or
+    ``coordination_branch`` is replaced by the Primary Branch (resolved without the
+    checked-out-branch bias), or, when that too is a Mission branch (a repository with
+    no common primary name), by the owning Mission's own ``target_branch``. An explicit
+    ``--target-branch`` always wins, and an explicit ``--topology`` keeps today's
+    resolution (FR-052).
+
+    Returns the target and, when the guard replaced the checked-out branch, the
+    :class:`TargetReplacement` the create reports to the operator (``None`` otherwise).
+    """
+    if target_branch:
+        return target_branch, None
+    if not guard:
+        return current_branch, None
+    recorded = _recorded_mission_branches(write_root)
+    if current_branch not in recorded:
+        return current_branch, None
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    owning_mission, owner_target = recorded[current_branch]
+    primary: str = resolve_primary_branch(write_root, bias=False)
+    chosen = primary if primary not in recorded else owner_target
+    if chosen is None or chosen in recorded:
+        raise MissionCreationError(
+            f"The checked-out branch {current_branch!r} is another Mission's branch, and no target outside "
+            "the Missions' branches could be resolved. Pass --target-branch <branch>."
+        )
+    return chosen, TargetReplacement(replaced_branch=current_branch, owning_mission=owning_mission, target_branch=chosen)
+
+
+def _record_create_return_branch(meta: dict[str, Any], *, minted_branch: str | None, return_branch: str | None) -> None:
+    """Record ``create_return_branch`` for a default create that switched the write checkout.
+
+    Written only when the topic branch was minted and the checkout was on a branch
+    (never a detached ``HEAD``); settlement to ``lanes_with_coord`` moves the
+    repository root checkout back to it (ADR 2026-11-06-3 Decision 3).
+    """
+    from specify_cli.meta_keys import CREATE_RETURN_BRANCH_KEY
+
+    if minted_branch is None or not return_branch or return_branch == "HEAD":
+        return
+    meta[CREATE_RETURN_BRANCH_KEY] = return_branch

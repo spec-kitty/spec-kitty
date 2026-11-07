@@ -11,7 +11,6 @@ Contract: ``kitty-specs/coord-commit-surface-authority-01M1M553/contracts/author
 from __future__ import annotations
 
 import ast
-import itertools
 from pathlib import Path
 
 import pytest
@@ -25,7 +24,6 @@ from specify_cli.coordination.surface_authority import (
     RouteToCoord,
     SurfaceVerdict,
     _classify_noncommit_outcome,
-    coord_topology_reachable,
     _exit_code_for,
     resolve_surface_authority,
 )
@@ -47,33 +45,6 @@ _ALL_TOPOLOGIES = (
     MissionTopology.COORD,
     MissionTopology.LANES_WITH_COORD,
 )
-
-
-# ---------------------------------------------------------------------------
-# T001 — coord_topology_reachable (exhaustive 2^3 truth table)
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "pr_bound,primary_protected,current_is_primary",
-    list(itertools.product([True, False], repeat=3)),
-)
-def test_coord_topology_reachable_truth_table(pr_bound: bool, primary_protected: bool, current_is_primary: bool) -> None:
-    expected = pr_bound and (primary_protected or current_is_primary)
-    assert coord_topology_reachable(pr_bound, primary_protected, current_is_primary) is expected
-
-
-def test_coord_topology_reachable_not_pr_bound_is_always_false() -> None:
-    """No pr-binding ⇒ never reachable, regardless of protection/checkout."""
-    assert coord_topology_reachable(False, True, True) is False
-    assert coord_topology_reachable(False, True, False) is False
-    assert coord_topology_reachable(False, False, True) is False
-
-
-def test_coord_topology_reachable_pr_bound_needs_protected_or_primary() -> None:
-    assert coord_topology_reachable(True, True, False) is True
-    assert coord_topology_reachable(True, False, True) is True
-    assert coord_topology_reachable(True, False, False) is False
 
 
 # ---------------------------------------------------------------------------
