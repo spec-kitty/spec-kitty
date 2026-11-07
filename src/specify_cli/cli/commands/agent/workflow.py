@@ -2294,35 +2294,47 @@ def _create_review_worktree(
 
     An existing local branch is checked out as is. A missing branch is created
     with ``-b``; *start_point* (a ref) is where it is cut from, ``None`` meaning
-    the current HEAD.
+    the current HEAD. The checkout comes from the one lane-checkout helper
+    (Mission WP09, FR-021), so it is attached, hooked and shows no Mission
+    status files (FR-040).
     """
-    workspace_path = workspace.worktree_path
-    # Ensure .worktrees directory exists
-    (main_repo_root / ".worktrees").mkdir(parents=True, exist_ok=True)
+    from specify_cli.lanes.lane_checkout import (
+        LaneCheckoutError,
+        LaneCheckoutRequest,
+        LaneCheckoutRoute,
+        open_lane_checkout,
+        resolve_lane_mission_dir_name,
+    )
 
+    workspace_path = workspace.worktree_path
     branch_name = workspace.branch_name
     if branch_name is None:
         print(f"Error: cannot create review workspace {workspace_path} for {wp_id}: resolved workspace has no branch name.")
         raise typer.Exit(1)
-    if _git_capture(["git", "rev-parse", "--verify", branch_name], main_repo_root).returncode == 0:
-        worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
-    else:
-        worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
-        if start_point is not None:
-            worktree_cmd.append(start_point)
-    result = _git_capture(worktree_cmd, main_repo_root)
-    if result.returncode != 0:
-        print(
-            f"Error: could not create review workspace {workspace_path} for {wp_id}: "
-            f"`{' '.join(worktree_cmd)}` failed: {result.stderr.strip()}"
+    branch_exists = _git_capture(["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"], main_repo_root).returncode == 0
+    create_from = None if branch_exists else (start_point or "HEAD")
+    try:
+        open_lane_checkout(
+            LaneCheckoutRequest(
+                repo_root=main_repo_root,
+                mission_slug=workspace.mission_slug,
+                mission_dir_name=resolve_lane_mission_dir_name(main_repo_root, workspace.mission_slug),
+                lane_id=workspace.lane_id,
+                branch=branch_name,
+                worktree_path=workspace_path,
+                create_branch_from=create_from,
+                route=LaneCheckoutRoute.REVIEW,
+            )
         )
-        raise typer.Exit(1)
+    except LaneCheckoutError as exc:
+        print(f"Error: could not create review workspace {workspace_path} for {wp_id}: {exc}")
+        raise typer.Exit(1) from exc
 
     print(f"✓ Created workspace: {workspace_path}")
     if not workspace.exists:
         print(f"Error: workspace creation reported success but {workspace_path} is not a git worktree.")
         raise typer.Exit(1)
-    if start_point is not None and "-b" in worktree_cmd:
+    if start_point is not None and not branch_exists:
         print(f"Created review workspace from {start_point.removeprefix('refs/remotes/')}")
 
 
