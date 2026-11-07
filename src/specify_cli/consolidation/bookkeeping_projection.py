@@ -21,7 +21,7 @@ from pathlib import Path
 
 from kernel.git import changed_paths as git_changed_paths
 from kernel.git import run_git, tracked_paths
-from mission_runtime import MissionArtifactKind, kind_for_mission_file, placement_seam
+from mission_runtime import MissionArtifactKind, is_primary_artifact_kind, kind_for_mission_file, placement_seam
 
 from specify_cli.coordination.coherence import is_coordination_kind_file
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
@@ -29,6 +29,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
+from specify_cli.meta_keys import COORDINATION_KEYS, MISSION_NUMBER_KEY
 from specify_cli.consolidation._constants import (
     _STATUS_EVENTS_FILENAME,
     _STATUS_FILENAME,
@@ -755,6 +756,87 @@ def _post_checkpoint_mission_paths(
             continue
         paths.append(candidate)
     return paths
+
+
+_META_JSON_FILENAME = "meta.json"
+#: ``meta.json`` keys the consolidation run authors on the TARGET: a topic-branch change to one
+#: of them is stale by construction and never counts as an unlanded PRIMARY change (G2).
+_TARGET_AUTHORED_META_KEYS: frozenset[str] = frozenset({MISSION_NUMBER_KEY, "baseline_merge_commit", "status_phase", "mission_branch", *COORDINATION_KEYS})
+
+
+def _topic_changed_meta_keys(before: Mapping[str, object], topic: Mapping[str, object]) -> set[str]:
+    """Keys the topic branch changed since the checkpoint, less the target-authored ones."""
+    changed = {key for key in before.keys() | topic.keys() if before.get(key) != topic.get(key)}
+    return {key for key in changed if key not in _TARGET_AUTHORED_META_KEYS and not key.startswith("merged_")}
+
+
+def _is_primary_mission_path(candidate: str, mission_slug: str) -> bool:
+    """True for a PRIMARY-partition Mission file (``meta.json`` or a primary artifact kind)."""
+    if Path(candidate).name == _META_JSON_FILENAME:
+        return True
+    kind = kind_for_mission_file(candidate, mission_slug=mission_slug)
+    return kind is not None and is_primary_artifact_kind(kind)
+
+
+def _json_mapping_at(main_repo: Path, ref: str, repo_rel_path: str) -> dict[str, object]:
+    """The JSON object at ``ref:repo_rel_path``; ``{}`` when absent or not a JSON object."""
+    raw = _read_git_blob_bytes(main_repo, ref, repo_rel_path)
+    if raw is None:
+        return {}
+    try:
+        loaded = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _meta_change_landed(main_repo: Path, path: str, *, base: str, topic_ref: str, target_ref: str) -> bool:
+    """True when every ``meta.json`` key the topic branch changed since *base* holds the topic's value on the target.
+
+    Only keys the topic branch itself changed are compared, so a value the target authored for
+    itself (the ``mission_number`` bake, the ``baseline_merge_commit`` stamp, ``merged_*``) is
+    never read as an unlanded change, and never overwritten.
+    """
+    before = _json_mapping_at(main_repo, base, path)
+    topic = _json_mapping_at(main_repo, topic_ref, path)
+    target = _json_mapping_at(main_repo, target_ref, path)
+    return all(topic.get(key) == target.get(key) for key in _topic_changed_meta_keys(before, topic))
+
+
+def unlanded_topic_primary_paths(
+    main_repo: Path,
+    mission_slug: str,
+    *,
+    base: str,
+    topic_ref: str,
+    target_ref: str,
+) -> list[str]:
+    """PRIMARY Mission paths the topic branch changed since *base* that the target does not carry (FR-062).
+
+    Pure read (no write, no projection): the coordination teardown of a default Mission (whose
+    topic branch is its coordination branch and holds its PRIMARY partition) asks it before
+    deleting the branch. A path counts as landed when its bytes on *target_ref* equal those on
+    *topic_ref*; ``meta.json`` is compared key by key over the keys the topic changed
+    (:func:`_meta_change_landed`). It does NOT widen
+    :func:`project_post_checkpoint_commits_to_target`: PRIMARY content reaches the target only
+    through the one landing seam, and an unlanded change makes the teardown refuse.
+    ``GitCommandError`` propagates (an unreadable diff never reads as "nothing unlanded").
+    """
+    mission_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
+    unlanded: list[str] = []
+    for changed in git_changed_paths(main_repo, base, topic_ref, pathspecs=(mission_prefix,)):
+        candidate = str(changed)
+        if not candidate.startswith(mission_prefix) or not _is_primary_mission_path(candidate, mission_slug):
+            continue
+        if Path(candidate).name == _META_JSON_FILENAME:
+            landed = _meta_change_landed(main_repo, candidate, base=base, topic_ref=topic_ref, target_ref=target_ref)
+        else:
+            topic_blob: bytes | None = _read_git_blob_bytes(main_repo, topic_ref, candidate)
+            target_blob: bytes | None = _read_git_blob_bytes(main_repo, target_ref, candidate)
+            landed = topic_blob == target_blob
+        if not landed:
+            unlanded.append(candidate)
+    return unlanded
 
 
 def project_post_checkpoint_commits_to_target(
