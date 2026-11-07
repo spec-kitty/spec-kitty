@@ -127,3 +127,19 @@ that changes the CLI's own modules can mix old and new versions inside one proce
 Candidate remedy: run consolidate from a code copy that does not move, for example a detached
 worktree of 7c887b0a83 on `PYTHONPATH`, or a separate non-editable install.
 The run also printed (WARN) `issue_matrix_verdict_terminality`: #7277-#7285 still `in-mission`.
+
+## [closeout 2026-11-07] frozen-CLI rerun: reconciliation FAIL, un-attributable merge-produced blobs
+
+From a frozen detached worktree of 9ffb3b5f03 on `PYTHONPATH` (confirmed `specify_cli` loaded from it;
+`make sync-packs` run there). Every lane merged, the squash landed d757d96 and mission_number=251 was
+assigned. The reconciliation gate then FAILED. Three files on the target have a blob no approved WP
+authored:
+- `consolidation/bookkeeping_projection.py` (964c288aaa) and `consolidation/phase_teardown.py`
+  (6a8c39638b) first appear in lane-p's refresh merge 00b834666f.
+- `coordination/status_service.py` (fed761c875) first appears in lane-g's refresh merge 621c3c1d60.
+These are clean (empty remerge-diff) auto-merges that combine two lanes' edits to the same file, so
+the blob equals neither parent. Lanes g (WP10) and p (WP20) were refreshed but not re-approved, so
+their approval stamps predate the merges and the merges are not reviewed dependency merges
+(#7307). Lanes c, k and m were re-approved on their refresh merges and are not flagged.
+The rollback restored target, mission and coordination branches and rebaselined the record; nothing
+landed (d757d96 and the number 251 are gone with it).

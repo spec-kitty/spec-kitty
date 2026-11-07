@@ -158,3 +158,12 @@ also change `dead_symbol_allowlist.yaml`, so each is likely to need the same rew
 - [2026-11-07][closeout] Rework reviews approved: WP06 (79519b2eee; 530 + 37 passed), WP14 (3a56a83f2f; 322 + 37), WP16 (c226d5a622; 496 + 37). Approvals recorded by the orchestrator with --force (freshness check only), each a forced hop out of an unforced in_review with an approved review_result, stamping the refresh merge. Lanes p (00b834666f), n (6261e9007e), o (fd9450991b) refreshed clean (empty remerge-diff), no status change.
 
 - [2026-11-07][closeout] WP17 rework approved (fcc8e08040, topic branch merged into lane-n for stale_check.py with #7311; 1221 + 37 passed); approval recorded with --force (freshness check only).
+
+## [closeout 2026-11-07] issue-matrix verdicts set before the frozen-CLI rerun
+
+Using `spec-kitty agent issue-verdict` (orchestrator ruling: only where approved WPs deliver the slice):
+#7278 fixed (WP08), #7279 fixed (WP09), #7280 fixed (WP16), #7281 fixed (WP10), #7282 fixed (WP14),
+#7283 fixed (WP12), #7284 fixed (WP03; events ADRs via spec-kitty-events PR #215, merged).
+Left `in-mission` as not clear-cut: #7277 (FR-005/FR-006 partly delivered, rest deferred to #7310)
+and #7285 (FR-092 core pin bump deferred). The `issue_matrix_verdict_terminality` WARN remains for
+those two.
