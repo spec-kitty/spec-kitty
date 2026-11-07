@@ -43,15 +43,18 @@ enforce_negative_invariants` engine (never reimplemented here), recording its
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.markup import escape
 
 from specify_cli.acceptance.matrix import (
+    CRITERION_DEFERRED,
     CRITERION_VERDICTS,
+    DEFERRAL_FOLLOW_UP_KEY,
+    DEFERRAL_REASON_KEY,
     AcceptanceCriterion,
     AcceptanceMatrix,
     NegativeInvariant,
@@ -134,6 +137,26 @@ def _matrix_write_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckou
     return location.path
 
 
+@dataclass(frozen=True)
+class CriterionText:
+    """#7308: optional criterion fields the command can set besides the verdict."""
+
+    description: str | None = None
+    notes: str | None = None
+    reason: str | None = None
+    follow_up: str | None = None
+
+
+def _criterion_extras(existing: AcceptanceCriterion, result: str, text: CriterionText) -> dict[str, Any]:
+    """Set the deferral evidence on a ``deferred`` row; drop it on any other verdict."""
+    extras = {k: v for k, v in existing.extras.items() if k not in (DEFERRAL_REASON_KEY, DEFERRAL_FOLLOW_UP_KEY)}
+    if result != CRITERION_DEFERRED:
+        return extras
+    extras[DEFERRAL_REASON_KEY] = text.reason if text.reason is not None else existing.extras.get(DEFERRAL_REASON_KEY)
+    extras[DEFERRAL_FOLLOW_UP_KEY] = text.follow_up if text.follow_up is not None else existing.extras.get(DEFERRAL_FOLLOW_UP_KEY)
+    return extras
+
+
 def _resolve_criterion_update(
     existing: AcceptanceCriterion,
     *,
@@ -141,6 +164,7 @@ def _resolve_criterion_update(
     verification_method: str | None,
     actor: str | None,
     evidence: str | None,
+    text: CriterionText | None = None,
 ) -> AcceptanceCriterion:
     """Compute the updated row, bumping ``verified_at`` only on a real change (FR-012).
 
@@ -157,6 +181,13 @@ def _resolve_criterion_update(
         proof_type=verification_method if verification_method is not None else existing.proof_type,
         verified_by=actor if actor is not None else existing.verified_by,
         evidence=evidence if evidence is not None else existing.evidence,
+    )
+    text = text or CriterionText()
+    candidate = replace(
+        candidate,
+        description=text.description if text.description is not None else existing.description,
+        notes=text.notes if text.notes is not None else existing.notes,
+        extras=_criterion_extras(existing, result, text),
     )
     if candidate == existing:
         return existing
@@ -307,6 +338,19 @@ def _emit_write_outcome(write_result: WriteSeamResult, *, mission_slug: str, jso
         raise typer.Exit(1)
 
 
+def _validate_deferral_flags(result: str, text: CriterionText, *, json_output: bool) -> None:
+    """#7308: ``deferred`` needs --reason and --follow-up; other verdicts take neither."""
+    if result == CRITERION_DEFERRED:
+        for flag, value in (("--reason", text.reason), ("--follow-up", text.follow_up)):
+            if value is None or not value.strip():
+                _emit_error(f"{flag} is required with --result {CRITERION_DEFERRED}", json_output=json_output)
+                raise typer.Exit(2)
+        return
+    if text.reason is not None or text.follow_up is not None:
+        _emit_error(f"--reason and --follow-up apply only to --result {CRITERION_DEFERRED}", json_output=json_output)
+        raise typer.Exit(2)
+
+
 def _validate_mode_selection(
     *,
     criterion: str | None,
@@ -315,6 +359,7 @@ def _validate_mode_selection(
     description: str | None,
     verification_method: str | None,
     json_output: bool,
+    text: CriterionText | None = None,
 ) -> None:
     """Validate the flag SHAPE before any repo/mission resolution.
 
@@ -344,6 +389,7 @@ def _validate_mode_selection(
             allowed = ", ".join(sorted(CRITERION_VERDICTS))
             _emit_error(f"--result must be one of {allowed}; got {result!r}", json_output=json_output)
             raise typer.Exit(2)
+        _validate_deferral_flags(result, text or CriterionText(), json_output=json_output)
     if negative_invariant is not None:
         if description is None:
             _emit_error("--description is required with --negative-invariant", json_output=json_output)
@@ -369,6 +415,7 @@ def _run_criterion_mode(
     evidence: str | None,
     json_output: bool,
     owned: OwnedCheckout | None = None,
+    text: CriterionText | None = None,
 ) -> None:
     index_by_id = {c.criterion_id: idx for idx, c in enumerate(matrix.criteria)}
     if criterion not in index_by_id:
@@ -391,6 +438,7 @@ def _run_criterion_mode(
         verification_method=verification_method,
         actor=actor,
         evidence=evidence,
+        text=text,
     )
 
     fresh_matrix, raw_write_result = locked_reread_splice_and_write(
@@ -411,6 +459,7 @@ def _run_criterion_mode(
         "mission": mission_slug,
         "criterion": criterion,
         "result": result,
+        "deferral": _deferral_payload(updated),
         "overall_verdict": fresh_matrix.overall_verdict,
         "write_status": write_result.status,
         "destination_surface": write_result.destination_surface,
@@ -425,6 +474,12 @@ def _run_criterion_mode(
         console.print(
             f"[green]✓[/green] {criterion}={result} recorded for {mission_slug} (overall_verdict={fresh_matrix.overall_verdict}, write={write_result.status})"
         )
+
+
+def _deferral_payload(row: AcceptanceCriterion) -> dict[str, Any] | None:
+    if row.pass_fail != CRITERION_DEFERRED:
+        return None
+    return {"reason": row.extras.get(DEFERRAL_REASON_KEY), "follow_up": row.extras.get(DEFERRAL_FOLLOW_UP_KEY)}
 
 
 def _run_negative_invariant_mode(
@@ -521,7 +576,7 @@ def acceptance_verdict(
             help="Acceptance criterion id (e.g. FR-001); mutually exclusive with --negative-invariant",
         ),
     ] = None,
-    result: Annotated[str | None, typer.Option("--result", help="pass | fail | pending (required with --criterion)")] = None,
+    result: Annotated[str | None, typer.Option("--result", help="pass | fail | pending | deferred (required with --criterion)")] = None,
     verification_method: Annotated[
         str | None,
         typer.Option(
@@ -544,7 +599,16 @@ def acceptance_verdict(
     ] = None,
     description: Annotated[
         str | None,
-        typer.Option("--description", help="Negative invariant description (required with --negative-invariant)"),
+        typer.Option(
+            "--description",
+            help="Negative invariant description (required with --negative-invariant); criterion mode: replaces the criterion description",
+        ),
+    ] = None,
+    notes: Annotated[str | None, typer.Option("--notes", help="Criterion mode: replaces the criterion notes")] = None,
+    reason: Annotated[str | None, typer.Option("--reason", help="Why the criterion is deferred (required with --result deferred)")] = None,
+    follow_up: Annotated[
+        str | None,
+        typer.Option("--follow-up", help="Follow-up reference: issue number/URL or ruling id (required with --result deferred)"),
     ] = None,
     verification_command: Annotated[
         str | None,
@@ -567,6 +631,7 @@ def acceptance_verdict(
     """Record an acceptance-criterion verdict, or register/execute a negative
     invariant (FR-007/FR-008) — exactly one of ``--criterion``/
     ``--negative-invariant``, both routed through the WP03 write seam."""
+    text = CriterionText(description=description, notes=notes, reason=reason, follow_up=follow_up)
     _validate_mode_selection(
         criterion=criterion,
         negative_invariant=negative_invariant,
@@ -574,6 +639,7 @@ def acceptance_verdict(
         description=description,
         verification_method=verification_method,
         json_output=json_output,
+        text=text,
     )
 
     try:
@@ -644,6 +710,7 @@ def acceptance_verdict(
             evidence=evidence,
             json_output=json_output,
             owned=owned,
+            text=text,
         )
     except FeatureStatusLockTimeoutError as exc:
         # #4858 (C-012/FR-015): fail CLOSED on a lock-acquisition timeout —
