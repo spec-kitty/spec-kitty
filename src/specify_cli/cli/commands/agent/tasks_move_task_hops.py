@@ -353,16 +353,16 @@ def _mt_hop_records_binding(st: _MoveTaskState, target: Lane | str) -> bool:
 
     A pick-up always records it, explicit absence included, so a later bare
     pick-up clears the previous actor's slots (SC-011). A verdict hop is not a
-    pick-up (#6630): without ``--profile``/``--model``/``--invocation-id`` it
-    records no binding, and the claim's binding carries forward. With one of
-    those flags the caller asked for the binding to be recorded, so it is. A
-    verdict that hands the WP to a different ``--agent`` records it too: the
-    claim's binding belongs to the previous agent, so explicit absence is the
-    honest value for the new one.
+    pick-up (#6630): without ``--profile``/``--invocation-id`` it records no
+    binding, and the claim's binding carries forward. With one of those flags
+    the caller asked for the binding to be recorded, so it is. A verdict that
+    hands the WP to a different ``--agent`` records it too: the claim's binding
+    belongs to the previous agent, so explicit absence is the honest value for
+    the new one.
     """
     if resolve_lane_alias(target) not in _VERDICT_LANES:
         return True
-    if st.profile is not None or st.model is not None or st.invocation_id is not None:
+    if st.profile is not None or st.invocation_id is not None:
         return True
     return bool(st.agent) and _actor_key(st.agent) != _actor_key(st.current_agent)
 

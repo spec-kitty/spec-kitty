@@ -954,7 +954,7 @@ class TestVerdictHopRecordsNoBinding:
     def test_verdict_without_flags_records_nothing(self, lane: Lane | str) -> None:
         assert _mt_hop_records_binding(_make_state(), lane) is False
 
-    @pytest.mark.parametrize("flag", [{"profile": "reviewer-renata"}, {"model": "m"}, {"invocation_id": "01M5S2404XWJ9MHY5SH8629VYJ"}])
+    @pytest.mark.parametrize("flag", [{"profile": "reviewer-renata"}, {"invocation_id": "01M5S2404XWJ9MHY5SH8629VYJ"}])
     def test_verdict_with_a_dispatch_flag_records_it(self, flag: dict[str, str]) -> None:
         assert _mt_hop_records_binding(_make_state(**flag), Lane.APPROVED) is True
 

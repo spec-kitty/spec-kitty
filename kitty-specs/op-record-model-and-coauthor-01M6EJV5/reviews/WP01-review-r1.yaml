@@ -1,0 +1,66 @@
+mission: op-record-model-and-coauthor-01M6EJV5
+work_package: WP01
+round: 1
+reviewer: reviewer-renata (pi)
+verdict: changes_requested
+scope: git diff origin/main..HEAD -- src/ tests/
+findings:
+  - id: R01
+    severity: high
+    category: contract
+    location: tests/contract/test_mission_status_ops.py:1804
+    summary: >
+      test_the_started_record_is_served_or_left_out_field_by_field pins the local
+      OpStartedEvent to exactly served ∪ FIVE_LEFT_OUT ∪ {event}, and FIVE_LEFT_OUT
+      still contains model_id, so removing the field reds the pinned mission-status
+      contract corpus (1 failing test).
+    disposition: fixed
+    fix: >
+      FIVE_LEFT_OUT is the *service* vocabulary (the bundled OpsInvocation schema
+      description still names model_id, and row13 asserts against that bundle), so
+      it stays. The local-model pin now compares against the same vocabulary minus
+      the retired field and adds an explicit assertion that the record declares no
+      model identifier — exactness kept, plus a stronger #7013 pin.
+  - id: R02
+    severity: low
+    category: clarity
+    location: src/specify_cli/invocation/executor.py:_commit_op_record
+    summary: >
+      The local parameter `explicit_trailer` is reassigned with the configured
+      trailer, so the name lies about the value it holds after resolution.
+    disposition: fixed
+    fix: Renamed the local to `trailer` and kept `explicit_trailer` as the
+      argument name (it is what the caller passes).
+  - id: R03
+    severity: low
+    category: coverage
+    location: tests/specify_cli/invocation/test_op_commit_attribution.py
+    summary: >
+      The resolver-level tests cover an unparseable config file, but no test drives
+      that case through complete_invocation, so the refusal-to-commit wiring for a
+      broken YAML config is unpinned.
+    disposition: withdrawn-after-investigation
+    fix: >
+      Not reachable through the close path: an unparseable .kittify/config.yaml is
+      refused first by the charter-activation ledger with
+      ACTIVE_CHARTER_CONFIG_INVALID, before any Op code runs. The executor-level
+      InvalidCoAuthor guard stays as defence in depth for a config that parses for
+      the ledger but not for this key (pinned by the resolver unit tests), and no
+      test pretends the unreachable path is the production one.
+  - id: R04
+    severity: low
+    category: docs
+    location: docs/architecture/trail-model.md
+    summary: >
+      The operator reference still lists model_id as a field a mission-scoped
+      dispatcher records.
+    disposition: deferred
+    deferred_to: WP02 (T009)
+  - id: R05
+    severity: info
+    category: verification
+    location: src/specify_cli/cli/commands/profile_invocation.py
+    summary: >
+      `--co-author` changes the command's completion-manifest node; the manifest was
+      regenerated and the manifest test passes.
+    disposition: no-action

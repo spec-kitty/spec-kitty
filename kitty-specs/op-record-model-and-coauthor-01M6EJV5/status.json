@@ -1,0 +1,90 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6EXETPC9VVBG1CFED226HJJ",
+  "materialized_at": "2026-11-02T19:58:22.924631+00:00",
+  "mission_number": "248",
+  "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6EXETC35C8BP5GTPG5AF384",
+      "last_transition_at": "2026-11-02T19:58:22.595999+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T17:54:43Z – pi – shell_pid=705151 – Half-by-half proof: reintroducing model_id in record.py+invoke() reds the 3 schema tests; removing only the trailer append reds 7 attribution tests; both restored green. make test-fast green (2786 passed) on the second run; the first run's single architectural red (test_no_retired_import_targets_exist) does not reproduce serially, in the architectural dir under -n auto, or on the rerun.",
+        "Model identifier removed from the record schema; claim seam narrowed; Op auto-commit attributed on both paths",
+        "Review round 1 passed (reviewer-renata): R01 contract pin exactness and R02 naming fixed in-round; R03 withdrawn with evidence; R04 deferred to WP02 T009."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 705151,
+      "shell_pid_created_at": "1793639279.94",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6EXETPC9VVBG1CFED226HJJ",
+      "last_transition_at": "2026-11-02T19:58:22.924631+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-02T19:51:00Z – pi – shell_pid=1447984 – Regenerated the two generated references only partially: a full build re-wraps unrelated command panels (the generator renders at the invoking process width, so it is environment-dependent). Spliced only the sections whose help text this mission changed, and noted the pre-existing migrate activation-ledger HELP-DRIFT in Deferred. check_docs_freshness --ci errors=0; check_changelog_style errors=0; spelling clean; test_no_legacy_terminology 98 passed.",
+        "Docs, config reference, generated CLI reference and changelog fragments ready",
+        "Review round 1 passed (reviewer-renata): R03 fixed; R01 accepted and declared in Blast radius; R02 documented in Deferred."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1447984,
+      "shell_pid_created_at": "1793643331.46",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

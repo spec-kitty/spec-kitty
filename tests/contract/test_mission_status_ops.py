@@ -1803,7 +1803,16 @@ def test_a_url_that_the_parser_refuses_is_not_a_url() -> None:
 
 def test_the_started_record_is_served_or_left_out_field_by_field() -> None:
     served = {"invocation_id", "profile_id", "action", "actor", "mode_of_work", "started_at", "mission_id", "wp_id"}
-    assert set(OpStartedEvent.model_fields) == served | set(FIVE_LEFT_OUT) | {"event"}
+    # FIVE_LEFT_OUT is the *service* vocabulary: the bundled OpsInvocation schema
+    # description still names all five, and row13 asserts against that bundle. The
+    # local record no longer declares model_id (#7013), so the field-by-field pin
+    # compares against the same vocabulary minus the retired field, and asserts the
+    # retirement explicitly — every declared field is still classified, and exactly
+    # one of them is gone on purpose rather than unnoticed.
+    left_out_on_the_record = set(FIVE_LEFT_OUT) - {"model_id"}
+    declared = set(OpStartedEvent.model_fields)
+    assert declared == served | left_out_on_the_record | {"event"}
+    assert "model_id" not in declared
 
 
 def test_the_cursor_round_trips_only_for_its_own_filter() -> None:

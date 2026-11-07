@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
+  "mission_id": "01M6EJV5624QS97J7FANWT7MCB",
+  "mission_branch": "kitty/mission-op-record-model-and-coauthor-01M6EJV5",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/api/configuration.md",
+        "docs/api/profile-invocation.md",
+        "docs/architecture/trail-model.md",
+        "docs/changelog/unreleased/",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/profile_invocation.py",
+        "src/specify_cli/git/commit_attribution.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/propagator.py",
+        "src/specify_cli/invocation/record.py",
+        "src/specify_cli/invocation/writer.py",
+        "tests/specify_cli/invocation/test_executor.py",
+        "tests/specify_cli/invocation/test_op_commit_attribution.py",
+        "tests/specify_cli/invocation/test_record.py",
+        "tests/specify_cli/status/test_resolved_binding_linkage.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-02T17:06:33.563909+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "9aed3a8012cb5eb22c0128b14d525039f95fea7a"
+}
