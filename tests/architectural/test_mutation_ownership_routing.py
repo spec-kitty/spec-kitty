@@ -663,6 +663,9 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # guard_destructive_removal (known-fork hash proof) and replaced only
         # after guard_destructive_overwrite proves the same.
         "upgrade/migrations/m_4_0_0rc8_retire_stale_mission_template_forks.py",
+        # #6954: proven generated command files and empty command directories
+        # are removed through the guard, preserving every unproven user file.
+        "upgrade/migrations/m_4_0_0rc8_stamp_globalize_commands.py",
     }
 )
 

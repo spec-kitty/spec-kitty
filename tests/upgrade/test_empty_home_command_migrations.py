@@ -8,7 +8,8 @@ measure them:
 
 * ``m_2_1_3_restore_prompt_commands._get_runtime_command_templates_dir()``
 * ``m_2_1_4_enforce_command_file_state._get_runtime_command_templates_dir()``
-* ``m_3_1_2_globalize_commands._SafeGlobalizeCommandsBase``
+* ``m_3_1_2_globalize_commands._SafeGlobalizeCommandsBase`` (superseded by
+  ``m_4_0_0rc8_stamp_globalize_commands``)
 
 This module measures all three at the **real** ``upgrade`` command (the same
 ``typer.Typer`` test app + ``CliRunner`` harness as ``test_upgrade_integration.py``),
@@ -27,9 +28,10 @@ behaviour under an empty home is reachable — and asserts the resulting record.
 
 The two command-file migrations are pinned, not changed: their template resolution asks
 the packaged doctrine tree first and reaches the home only as a last-resort fallback, so
-a working install never consults it. ``3.1.2`` is different: it decides *keep* versus
+a working install never consults it. ``3.1.2`` is different: its shipped implementation decides *keep* versus
 *remove* from ``~/.kittify/missions`` and from ``Path.home()/<agent_root>/<subdir>``, so
-the same commit can take two paths on two machines.
+the same commit can take two paths on two machines. Its project-stamped successor
+carries the repair while the shipped module stays byte-frozen.
 """
 
 from __future__ import annotations
@@ -75,6 +77,7 @@ TARGET_MIGRATIONS = (
 #: ``3.2.0a4`` shape is the residue-safe sibling of ``3.1.2`` and shares the base class,
 #: so it must be re-evaluated too for the removal to be reachable.
 GLOBALIZATION_MIGRATIONS = ("3.1.2_globalize_commands", "3.2.0a4_safe_globalize_commands")
+GLOBALIZATION_SUCCESSOR = "4.0.0rc8_stamp_globalize_commands"
 
 _COMMAND_FILE = "spec-kitty.specify.md"
 
@@ -103,7 +106,7 @@ def _seed_ledger(root: Path, *, skipped: tuple[str, ...]) -> None:
 
 
 def _default_skipped() -> tuple[str, ...]:
-    """The records this fixture leaves re-evaluable: the three targets plus the sibling."""
+    """Leave the targets and sibling re-evaluable so the successor's predecessor is unsettled."""
     return tuple(dict.fromkeys(TARGET_MIGRATIONS + GLOBALIZATION_MIGRATIONS))
 
 
@@ -220,7 +223,8 @@ def test_dated_project_removes_marked_command_file_under_an_empty_home(tmp_path:
     assert _head(project) != base, "the auto-commit must carry the removal"
     assert any(row.split("\t")[-1].endswith(_COMMAND_FILE) for row in _changed_paths(project, base)), f"removal of {_COMMAND_FILE} must appear in the auto-commit"
     after = _ledger_results(project)
-    assert after["3.1.2_globalize_commands"] == "success"
+    assert after[GLOBALIZATION_SUCCESSOR] == "success"
+    assert after["3.1.2_globalize_commands"] == "skipped", "the superseded predecessor stays a recorded no-op"
 
 
 @pytest.mark.usefixtures("canonical_home")  # R1b (#3121): the ONE owner of SPEC_KITTY_HOME

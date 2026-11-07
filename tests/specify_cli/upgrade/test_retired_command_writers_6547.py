@@ -46,6 +46,7 @@ TARGET = "4.0.0rc8"
 ENFORCE = "2.1.4_enforce_command_file_state"
 RESTORE = "3.0.2_restore_prompt_commands"
 RETIRE = ("3.1.2_globalize_commands", "3.2.0a4_safe_globalize_commands")
+ACTIVE_RETIRE = ("3.2.0a4_safe_globalize_commands", "4.0.0rc8_stamp_globalize_commands")
 SUCCESSOR = "3.2.0a4_safe_globalize_commands"
 WRITERS = (ENFORCE, RESTORE)
 
@@ -187,7 +188,7 @@ def retire_path_is_available(monkeypatch: pytest.MonkeyPatch) -> None:
     # Patch the classes the registry actually registered: ``auto_discover_migrations``
     # reloads a module after ``MigrationRegistry.clear()``, so a module-level import
     # of the base class can be a stale class object.
-    for retire in RETIRE:
+    for retire in ACTIVE_RETIRE:
         registered = type(MigrationRegistry.get_by_id(retire))
         monkeypatch.setattr(registered, "_global_runtime_present", staticmethod(lambda: True))
         monkeypatch.setattr(registered, "_global_command_file_present", staticmethod(lambda *_: True))
@@ -204,7 +205,7 @@ def test_legacy_local_command_files_are_still_retired(tmp_path: Path, retire_pat
 
     result = MigrationRunner(project).upgrade(TARGET, include_worktrees=False)
     assert result.success, result.errors
-    assert set(RETIRE) & set(result.migrations_applied), result.migrations_applied
+    assert set(ACTIVE_RETIRE) & set(result.migrations_applied), result.migrations_applied
 
     assert _command_files(project) == {USER_COMMAND, USER_NAMED_COMMAND}
     assert (commands / USER_NAMED_COMMAND).read_text(encoding="utf-8") == "---\ndescription: mine\n---\nMine.\n"
