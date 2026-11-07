@@ -1,0 +1,53 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M6V7HMBBAXDYC1TBGWNS3K7Y",
+  "materialized_at": "2026-11-07T14:45:33.675989+00:00",
+  "mission_number": "",
+  "mission_slug": "legacy-charter-git-identity-01M6TZ9E",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-opencode",
+      "agent": "reviewer-opencode",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "assignee": "opencode",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M6V7HMBBAXDYC1TBGWNS3K7Y",
+      "last_transition_at": "2026-11-07T14:45:33.675989+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Start red-first hermetic fixture remediation for #7061.",
+        "Implementation complete: exact 3 red nodes reproduced; 3 green after patch; 4-case matrix and 102-test owning file green. Canonical bounded pre-review scope pinned.",
+        "Begin independent reviewer-role review of the bounded fixture diff and red-to-green evidence.",
+        "Approve focused fixture-only remediation with complete red-to-green evidence and no scope findings."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/.t3/worktrees/spec-kitty/t3-15ae82ed/kitty-specs/legacy-charter-git-identity-01M6TZ9E/tasks/WP01-hermetic-git-identity/review-cycle-1.md",
+        "reference": "review-cycle://legacy-charter-git-identity-01M6TZ9E/WP01-hermetic-git-identity/review-cycle-1.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    }
+  }
+}
