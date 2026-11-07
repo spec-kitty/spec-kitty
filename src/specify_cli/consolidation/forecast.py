@@ -309,7 +309,7 @@ def _forecast_claim_status_dir(main_repo: Path, mission: str, *, json_output: bo
     coordination worktree, or a default Mission's topic branch no checkout holds) refuses with
     the door's remedy instead of forecasting an empty history.
     """
-    from specify_cli.status.read_surface import ref_source_remedy, resolve_status_read
+    from specify_cli.status import ref_source_remedy, resolve_status_read
 
     surface = resolve_status_read(main_repo, mission)
     if surface.path is not None:

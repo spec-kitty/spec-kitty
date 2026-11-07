@@ -120,7 +120,7 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
         return
     # The one status read door (ADR 2026-11-06-2, WP05): the declared source, so an
     # unmaterialized coordination worktree reads the committed coordination branch.
-    from specify_cli.status.read_surface import materialize_status, resolve_status_read
+    from specify_cli.status import materialize_status, resolve_status_read
 
     snapshot = materialize_status(resolve_status_read(repo_root, mission_slug))
     current_lane = snapshot.work_packages.get(wp_id, {}).get("lane")

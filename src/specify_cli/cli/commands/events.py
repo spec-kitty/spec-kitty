@@ -71,7 +71,7 @@ from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
 from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
 from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from specify_cli.core.paths import locate_project_root
-from specify_cli.status.read_surface import ref_source_remedy, resolve_status_read
+from specify_cli.status import ref_source_remedy, resolve_status_read
 from specify_cli.status import (
     EMPTY_DIGEST,
     ResumeRefused,

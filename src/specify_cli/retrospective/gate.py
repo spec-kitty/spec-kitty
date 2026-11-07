@@ -204,7 +204,7 @@ def _read_status_log_retrospective_events(*, feature_dir: Path, repo_root: Path)
     """
     # Imported lazily to keep the retrospective package importable without dragging in
     # the status read door (and through it the coordination package) at module-import time.
-    from specify_cli.status.read_surface import read_status_text, resolve_status_read  # noqa: PLC0415
+    from specify_cli.status import read_status_text, resolve_status_read  # noqa: PLC0415
 
     try:
         surface = resolve_status_read(repo_root, feature_dir.name)
