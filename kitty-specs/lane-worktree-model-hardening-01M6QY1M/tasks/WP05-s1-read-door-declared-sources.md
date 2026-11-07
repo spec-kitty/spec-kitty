@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: issue-7276-lane-worktree-hardening
 merge_target_branch: issue-7276-lane-worktree-hardening
 branch_strategy: Planning artifacts for this mission were generated on issue-7276-lane-worktree-hardening. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-7276-lane-worktree-hardening unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-lane-worktree-model-hardening-01M6QY1M
+base_commit: a4e342649cfe4936e89b4da0e8599dffc658ace2
+created_at: '2026-11-06T13:07:15.494267+00:00'
 subtasks:
 - T024
 - T025
