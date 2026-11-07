@@ -81,13 +81,22 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
 
 @pytest.mark.parametrize(
     "tracked_state",
-    ["usable", "corrupt", "staged-edit", "redirect-ceiling", "post-empty-ownership", "start-ceiling-ownership", "config-error"],
+    [
+        "usable",
+        "corrupt",
+        "staged-edit",
+        "redirect-ceiling",
+        "post-empty-ownership",
+        "post-empty-lexical-ownership",
+        "start-ceiling-ownership",
+        "config-error",
+    ],
 )
 def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint.
 
-    Ownership refusal is exercised with both an unresolved post-empty ceiling alias and a
-    ceiling equal to git's starting directory: neither stops git reaching the held identity.
+    Ownership refusal is exercised with unresolved post-empty alias/lexical spellings and a
+    ceiling equal to git's starting directory: none stops git reaching the held identity.
     Configuration failure is separate evidence that a failed query cannot establish absence.
     """
     root = _repo(tmp_path)
@@ -127,6 +136,11 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
             pytest.skip("platform cannot create directory symlinks")
         monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{alias}")
+    elif tracked_state == "post-empty-lexical-ownership":
+        # Path drops this trailing dot, but Git keeps post-empty spellings lexical.
+        # Turning it into a canonical ceiling hides the anchor whose ownership Git refused.
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{mission_dir.parent}/.")
     elif tracked_state == "start-ceiling-ownership":
         # Git ignores a ceiling equal to its starting directory. Its ownership refusal
         # must not become an absence merely because the general walk stops at the start.
