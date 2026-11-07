@@ -1,0 +1,1915 @@
+schema_version: 1
+mission_id: 01M6QY1MKKW6AA3EBKSJ0VVAMP
+mission_slug: lane-worktree-model-hardening-01M6QY1M
+mission_number: 251
+friendly_name: Lane and worktree model hardening
+mission_type: software-dev
+target_branch: issue-7276-lane-worktree-hardening
+created_at: '2026-11-07T11:49:51.916371+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-07T11:49:51.916371+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-025
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-025
+- id: h-003
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-3] H1 resolution (carried in the WP14/WP20 dispatch briefs rather than another planning
+    edit).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze-3] H1 resolution (carried in the WP14/WP20 dispatch briefs rather than another planning
+    edit).** One \"landed\" signal, owned by the placement seam (WP14): once consolidate records that a default Mission's
+    topic branch has landed on the target, the seam resolves the PRIMARY partition to `target_branch`; before that, to `meta.mission_branch`.
+    WP20 does not decide placement inside `executor.py`: after the landing it re-reads the seam. T118 checks both states and
+    `agent context resolve` after consolidate. H2: the landing's tip read and the projection bound the window that is not
+    guarded. H3: `expected_consolidate_checkout` is a seventh `lands_mission_branch` caller; it stays unchanged under the
+    separate `lands_topic_branch` predicate."
+- id: h-005
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] Dogfooding clash: the managed status sparse exclusion (`/*`, `!kitty-specs/<mission>/status.events.jsonl`,
+    `!.../status.json`) was applied to all ten live lane worktree'
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement] Dogfooding clash: the managed status sparse exclusion (`/*`, `!kitty-specs/<mission>/status.events.jsonl`,
+    `!.../status.json`) was applied to all ten live lane worktrees of this Mission, most likely by WP10's new `doctor sparse-checkout
+    --fix` run with lane source.** The installed CLI (base code, editable from the repository root checkout) predates the
+    managed-sparse policy and refuses `implement` as legacy sparse-checkout (#588). Disposition: verified the patterns are
+    exactly the managed exclusion with clean lane trees, then used the logged `--allow-sparse-checkout` override for claims.
+    Consolidation will hit the same preflight: either the same override, or `git sparse-checkout disable` per lane first.
+    Decide at consolidate time. Lesson for implementers: never run a mutating doctor `--fix` from a lane against the shared
+    repository.\n- [2026-11-06][WP07] A parallel consolidation+coordination suite run hit the container memory limit (OOM
+    kill); the red-first c"
+- id: h-004
+  category: tooling
+  summary: 'Tracer: [2026-11-06][orchestrator] #7275 merged into main (2026-11-06T15:56Z); `guarded_landed_removal` is on
+    origin/main (git/destructive_guard.py, workspace/landed_worktrees.py). WP16 stays in scope'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][orchestrator] #7275 merged into main (2026-11-06T15:56Z); `guarded_landed_removal` is on origin/main
+    (git/destructive_guard.py, workspace/landed_worktrees.py). WP16 stays in scope: its lane base must include origin/main.**
+    Disposition: WP16 runs after WP18.\n\n- 2026-11-07 closeout: accept and consolidate were NOT run for real. Accept is blocked
+    by the placeholder acceptance matrix, and the consolidate dry-run predicts a FAIL on two intra-Mission dependency merge
+    commits. Both need an operator decision (populate the matrix with evidence; rework the merges, attest, or accept them
+    as a core defect). No status or matrix files were edited by hand.\n\n- [2026-11-07][closeout] Operator ruling: deferred
+    FRs (FR-006, deferred part of FR-005, FR-092) are recorded with a new non-blocking `deferred` criterion verdict (core
+    change, #7308, in this PR).\n- [2026-11-07][closeout] Operator ruling: fix the closed-world attribution of allocator dependency-lane
+    merges in core in this PR (#730"
+not_helpful:
+- id: n-032
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-057
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-014
+  category: process
+  summary: WP06 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-039
+  details: WP WP06 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-023
+  category: process
+  summary: WP06 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-048
+  details: WP WP06 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-015
+  category: process
+  summary: WP07 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-040
+  details: WP WP07 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-024
+  category: process
+  summary: WP07 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-049
+  details: WP WP07 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-016
+  category: process
+  summary: WP10 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-041
+  details: WP WP10 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-025
+  category: process
+  summary: WP10 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-050
+  details: WP WP10 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-017
+  category: process
+  summary: WP13 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-042
+  details: WP WP13 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-026
+  category: process
+  summary: WP13 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-051
+  details: WP WP13 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-018
+  category: process
+  summary: WP14 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-043
+  details: WP WP14 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-027
+  category: process
+  summary: WP14 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-052
+  details: WP WP14 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-019
+  category: process
+  summary: WP16 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-044
+  details: WP WP16 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-028
+  category: process
+  summary: WP16 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-053
+  details: WP WP16 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-020
+  category: process
+  summary: WP17 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-045
+  details: WP WP17 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-029
+  category: process
+  summary: WP17 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-054
+  details: WP WP17 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-021
+  category: process
+  summary: WP18 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-046
+  details: WP WP18 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-030
+  category: process
+  summary: WP18 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-055
+  details: WP WP18 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-022
+  category: process
+  summary: WP20 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-047
+  details: WP WP20 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-031
+  category: process
+  summary: WP20 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-056
+  details: WP WP20 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-026
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP05 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP08 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-030
+  details: WP WP08 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP09 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-031
+  details: WP WP09 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP10 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-032
+  details: WP WP10 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP11 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-033
+  details: WP WP11 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-009
+  category: review_loop
+  summary: WP12 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-034
+  details: WP WP12 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-010
+  category: review_loop
+  summary: WP13 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-035
+  details: WP WP13 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-011
+  category: review_loop
+  summary: WP14 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-036
+  details: WP WP14 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-012
+  category: review_loop
+  summary: WP15 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-037
+  details: WP WP15 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-013
+  category: review_loop
+  summary: WP20 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-038
+  details: WP WP20 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-089
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G1 verified: WP20/FR-062/IC-18 re-aimed at the post-landing window.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze-2] G1 verified: WP20/FR-062/IC-18 re-aimed at the post-landing window.** Code check:
+    a coordination Mission's `lanes.json` `mission_branch` and its coordination branch are one name (`mission_branch_name`
+    / `coordination_branch_name` both give `kitty/mission-<slug>-<mid8>`; `single_branch_landing.authorship_window` docstring);
+    `phase_claim.py` captures `run.coord_checkpoint` before `_phase_merge_lanes`; `_phase_mission_to_target` squashes the
+    branch tip through `integrate_mission_into_target` with no path filter (meta.json via the two-way driver, target-authoritative
+    `mission_number` / `baseline_merge_commit`). So edits after the last lane cut already land; what is dropped is PRIMARY
+    commits after the checkpoint that the landing did not carry (after it read the tip, up to teardown, incl. the resumed
+    late window), which `_post_checkpoint_mission_paths` excludes. Disposition: FR-062 names `_phase_mission_to_target` /
+    `integrate_mission_into_target`; plan IC-18 and"
+- id: n-090
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G2: no widening of the post-checkpoint projection to PRIMARY kinds.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze-2] G2: no widening of the post-checkpoint projection to PRIMARY kinds.** The exclusion
+    guards the target's `mission_number` bake and `baseline_merge_commit` stamp from stale coordination-ref copies (and meta.json
+    for #5460). Disposition: T121's widening option dropped; WP20 adds `test_target_authored_mission_number_and_baseline_survive`
+    and an unwidened-exclusion pin."
+- id: n-091
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G3: separate default-Mission predicate.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze-2] G3: separate default-Mission predicate.** `lands_mission_branch` has six `single_branch`
+    callers (`executor.py:456, 953`, `phase_advance.py:328, 582`, `phase_teardown.py:792, 850`). Disposition: WP20 adds a
+    new predicate (e.g. `lands_topic_branch`) and a pin that `lands_mission_branch` is unchanged; executor.py (WP15) and phase_advance.py
+    (WP07) hunks recorded as out-of-map in WP20 and the owner prompts.'
+- id: n-092
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G4 verified: mid-run PRIMARY reads assigned to WP20, not WP05.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze-2] G4 verified: mid-run PRIMARY reads assigned to WP20, not WP05.** `run.target_feature_dir`
+    (`executor.py:446`, read by `phase_advance.py:319-321` before the landing) and `run_state._is_coord_topology_mission`
+    (target meta `coordination_branch`) find no meta for a default Mission until the landing. Disposition: WP20 T121 Window
+    C with out-of-map hunks in `run_state.py` / `executor.py` (WP15) and `phase_advance.py` (WP07); integration test `test_default_mission_consolidate_detects_coord_topology_and_bakes_on_target`.'
+- id: n-093
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G5/G8: out-of-map hunks recorded in owner prompts.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze-2] G5/G8: out-of-map hunks recorded in owner prompts.** WP07 (`phase_advance.py`), WP11
+    (`single_branch_landing.py`), WP15 (`phase_teardown.py`, `run_state.py`, `executor.py`, and `orchestrator_api/consolidation.py`
+    only if WP20's parity test needs it; pinning current behaviour preferred). Disposition: one line in each owner's Context
+    & Constraints; tasks.md and plan ownership tables extended."
+- id: n-094
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G6: FR-092 / SC-011 / Dependencies amended.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze-2] G6: FR-092 / SC-011 / Dependencies amended.** The S11 pack doctrine landed via spec-kitty-open-packs
+    PR #128 (merged, main 9013b34), applied by the S11 sibling session; WP19 is to be canceled. The core pack pin bump is
+    an open operator decision at pre-PR time, so the spec no longer promises it; FR-092's Status says so, SC-011 measures
+    only the core half. This supersedes the earlier \"[analyze] WP19\" entry's \"does not bump the core pack pin\". Disposition:
+    spec FR-092, C-002, User Story 9 test, SC-011, Dependencies; plan IC-17 and scope lines; tasks.md, WP18, WP19."
+- id: n-095
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze-2] G7: C-004 cites FR-037 (with FR-036 and FR-039) for the S5 guard binding.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze-2] G7: C-004 cites FR-037 (with FR-036 and FR-039) for the S5 guard binding.** Disposition:
+    spec C-004.'
+- id: n-086
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] C2: WP16 exit rule.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze] C2: WP16 exit rule.** WP16 stays planned; if #7275 is unmerged when every other WP is
+    approved, WP16 is canceled with rationale, a follow-up issue is opened, and FR-036/FR-037/FR-039/SC-006 are recorded deferred-with-followup
+    in the issue matrix; accept/consolidate proceed. Disposition: recorded in spec Dependencies, tasks.md and WP16.'
+- id: n-083
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] D1: WP04 carries #6884 as separate commits, red-first test first (charter C-011).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze] D1: WP04 carries #6884 as separate commits, red-first test first (charter C-011).**
+    T017 now cherry-picks `942ff4aed984ea8d1436d2bd1f7af169336553be` (test only) ALONE as commit 1, then `59bd93d6bd68c2193bd48aaf3963305c51dde48a`
+    (fix) and `f404a0b2403037ad1fe5f0b5692c37bb8d7ba60e` (style), optional `43f48eee8f6338f13efdd925fc54e4bbc6b5c7da` (spelling),
+    each path-limited with `-x` and `Co-authored-by: Ivan Melck`; WP04's own T020 red-first tests precede T021/T022. SHAs
+    verified on `origin/issue-6466-lane-status-shadow`. Disposition: fixed in tasks/WP04 and tasks.md."
+- id: n-084
+  category: tooling
+  summary: "Tracer: [2026-11-06][analyze] E1: new WP20 (plan IC-18, FR-062) owns the consolidate landing of a default Mission's
+    PRIMARY artifacts from the topic branch."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][analyze] E1: new WP20 (plan IC-18, FR-062) owns the consolidate landing of a default Mission's
+    PRIMARY artifacts from the topic branch.** It extends the mission-branch landing seam (`lands_mission_branch`) instead
+    of a parallel path, owns `consolidation/bookkeeping_projection.py`, and records out-of-map hunks in `lanes/single_branch_landing.py`
+    (WP11), `consolidation/phase_advance.py` (WP07) and `consolidation/phase_teardown.py` (WP15); depends on WP07, WP14, WP15;
+    WP14 T082 no longer asserts the consolidate leg; WP17 now depends on WP20. Disposition: planned."
+- id: n-085
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] F2: WP15 is the single owner of the orchestrator-api 1.23.0 -> 1.24.0 bump and of
+    every 1.24.0 doc row; WP13 and WP14 depend on WP15 and only emit their fields.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze] F2: WP15 is the single owner of the orchestrator-api 1.23.0 -> 1.24.0 bump and of every
+    1.24.0 doc row; WP13 and WP14 depend on WP15 and only emit their fields.** Chosen over moving the fields into WP15 because
+    the fields are produced by WP13/WP14 code; WP15 depends only on WP03, so lanes stay acyclic. Disposition: fixed.'
+- id: n-088
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] F4/F6: spec wording aligned.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze] F4/F6: spec wording aligned.** The #6884 Dependencies bullet now names the deliberate
+    fail-closed flip; WP04 adds a repository-root-caller control for an unreadable registry; C-004 records the s5-seam interim
+    remover exception (DM `01M6QY4B7P4T68TE7JE30FRJV6`). Disposition: fixed.'
+- id: n-041
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] Remediated the blocked analysis report (D1, E1, F1, E2, C1, F2, C2, F3 and lows)
+    in spec.md, plan.md, tasks.md and tasks/WP*.md.'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][analyze] Remediated the blocked analysis report (D1, E1, F1, E2, C1, F2, C2, F3 and lows) in
+    spec.md, plan.md, tasks.md and tasks/WP*.md.** F1: WP04 -> WP01, WP09 -> WP03. E2: NFR-008 Linux/Windows criteria added
+    to WP10 and WP15. C1: out-of-matrix test selections named for WP06 (`test_accept_*`, `test_implement*`, `test_retrospect_doctor_surface_4090.py`,
+    plus the `tests/cli` events/retrospect files), WP13 (`test_lifecycle_read_seam_migration.py`, `test_specify_*`) and WP16
+    (`test_accept_*`, `test_doctor_cli_surface_golden.py`). F3: 19 resolved Decision Moments in spec and plan. E3: WP16 gains
+    NFR-005 second-run and NFR-006 `--durations` checks. B1: WP19 cites `upstream/doctrine-and-write-service-adr-map.md` Part
+    1; \"destructive-op routing pins\" named. F5: recorded in the shared-file table. `finalize-tasks --validate-only` passed
+    (20 WPs, 17 lanes, no cycles). Disposition: ready for the operator's mutating finalize and a re-run of `/spec-kitty.analyze`."
+- id: n-087
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] WP19 is to be canceled at implement time.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][analyze] WP19 is to be canceled at implement time.** The operator made open-packs PR #128 ready
+    and ungated with the S11 doctrine already applied; this Mission does not bump the core pack pin; no WP depends on WP19.
+    Disposition: recorded in tasks.md, WP19, WP18 and plan IC-17.'
+- id: n-040
+  category: tooling
+  summary: 'Tracer: [2026-11-06][analyze] open-packs PR #128 merged (main 9013b34).'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][analyze] open-packs PR #128 merged (main 9013b34).** Whether this Mission's core PR bumps the
+    built-in/internal pins to it (`charter pack vendor` + `make sync-packs` + `regenerate-graph`) is open: the original brief
+    asked for it, the later relayed operator update says core integration follows once the charter service is wired in, and
+    a bump would pull every open-packs change since a79c3631. Disposition: decide at pre-PR time with the operator; not part
+    of any WP."
+- id: n-122
+  category: tooling
+  summary: 'Tracer: [2026-11-06][closeout] Operator ruling: leave the open-packs pin as is; this PR does not bump it to open-packs
+    main 9013b34.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][closeout] Operator ruling: leave the open-packs pin as is; this PR does not bump it to open-packs
+    main 9013b34.** Disposition: a separate PR bumps it.'
+- id: n-136
+  category: tooling
+  summary: "Tracer: [2026-11-06][discovery] #7239/#7237/#7240 duplicate #7275's commits under different SHAs; the S4 ADR lives
+    only on an unmerged branch."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][discovery] #7239/#7237/#7240 duplicate #7275's commits under different SHAs; the S4 ADR lives
+    only on an unmerged branch.** Disposition: S5 builds a seam, binds after #7275 merges."
+- id: n-135
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] Five overlapping single_branch predicates (`is_planning_lane`, `is_repo_root_lane`,
+    `lands_mission_branch`, `minted_mission_branch`, `is_single_branch_mission`); `lane_'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] Five overlapping single_branch predicates (`is_planning_lane`, `is_repo_root_lane`,
+    `lands_mission_branch`, `minted_mission_branch`, `is_single_branch_mission`); `lane_created_branch("lane-planning")` resolves
+    to the target, a trap for gates.** Disposition: S8 tidy-first.'
+- id: n-034
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] Four findings were escalated to the operator in one batch (ruling 3 unworkable
+    as worded; S8 back-compat; S7 on protected targets; S5 vs the S4 ADR scope).'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][discovery] Four findings were escalated to the operator in one batch (ruling 3 unworkable as
+    worded; S8 back-compat; S7 on protected targets; S5 vs the S4 ADR scope).** All four answered the same day; recorded as
+    Decision Moments.'
+- id: n-133
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] No ADR file holds the #5100 explicit-only decision; it lives in an issue comment
+    and a Mission spec FR.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] No ADR file holds the #5100 explicit-only decision; it lives in an issue comment and
+    a Mission spec FR.** Disposition: the S7 ADR supersedes it explicitly.'
+- id: n-128
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] Shallow clone breaks `git diff origin/main...origin/<branch>` ("no merge base")
+    for older in-flight PRs (#6884).'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] Shallow clone breaks `git diff origin/main...origin/<branch>` ("no merge base") for
+    older in-flight PRs (#6884).** Agents fell back to per-commit `git show` and REST file lists. Disposition: workaround.'
+- id: n-033
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] Six read-only discovery lenses (status surface, lane lifecycle, topology, single_branch
+    bound, cleanup, doctrine+write-service ADRs) mapped call sites, overlaps and ris'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][discovery] Six read-only discovery lenses (status surface, lane lifecycle, topology, single_branch
+    bound, cleanup, doctrine+write-service ADRs) mapped call sites, overlaps and risks.** Their briefs drive the spec; full
+    files kept in the session scratchpad.'
+- id: n-134
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] The coordination branch name equals the Mission branch name (`kitty/mission-<slug>-<mid8>`);
+    no doc states it.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] The coordination branch name equals the Mission branch name (`kitty/mission-<slug>-<mid8>`);
+    no doc states it.** Disposition: S7 docs.'
+- id: n-137
+  category: tooling
+  summary: "Tracer: [2026-11-06][discovery] The research doctrine scan's open-packs paths/line numbers (23686fb) do not match
+    the pinned tree (a79c3631); command skills live in core `src/charter/offering/skills/`"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][discovery] The research doctrine scan's open-packs paths/line numbers (23686fb) do not match
+    the pinned tree (a79c3631); command skills live in core `src/charter/offering/skills/`, not in packs.** Disposition: S11
+    is two repos and two release paths."
+- id: n-130
+  category: tooling
+  summary: "Tracer: [2026-11-06][discovery] The research note's \"62 call sites\" of `resolve_status_surface*` does not reproduce
+    on `src/`; an AST count gives 25 direct calls in 18 files."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][discovery] The research note's \"62 call sites\" of `resolve_status_surface*` does not reproduce
+    on `src/`; an AST count gives 25 direct calls in 18 files.** Grep counts docstrings/imports. Disposition: AST lister kept
+    in the discovery scratch; the S1 gate counts by AST."
+- id: n-131
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] `_resolve_status_surface` names two different functions (`agent/status.py:139`,
+    alias at `implement_phases.py:368`).'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] `_resolve_status_surface` names two different functions (`agent/status.py:139`, alias
+    at `implement_phases.py:368`).** Misleads grep audits. Disposition: candidate tidy in S1.'
+- id: n-129
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] `gh pr view` / `gh issue view` fail (GraphQL 403 in the harness); `gh api` REST
+    works.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] `gh pr view` / `gh issue view` fail (GraphQL 403 in the harness); `gh api` REST works.**
+    Disposition: workaround.'
+- id: n-132
+  category: tooling
+  summary: 'Tracer: [2026-11-06][discovery] codegraph natural-language queries returned noise (Lane enum) for status-write
+    questions; grep/AST were faster for call-site census.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][discovery] codegraph natural-language queries returned noise (Lane enum) for status-write questions;
+    grep/AST were faster for call-site census.** Disposition: note only.'
+- id: n-155
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] ADR 2026-06-19-1 orders amendments newest first, while C-016 and the WP prompt
+    say "append".'
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP01] ADR 2026-06-19-1 orders amendments newest first, while C-016 and the WP prompt
+    say \"append\".** Disposition: the 2026-11-06 amendment is inserted above the 2026-10-01 one, following that file's own
+    convention; no earlier text edited, frontmatter left as is (already `status: Superseded`)."
+- id: n-156
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] ADR 2026-07-29-1 cites `tests/regression/test_issue_2993_lane_planning_ancestry.py`,
+    which now lives in `tests/lanes/`.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP01] ADR 2026-07-29-1 cites `tests/regression/test_issue_2993_lane_planning_ancestry.py`,
+    which now lives in `tests/lanes/`.** Disposition: the amendment names the current path; the earlier text is not edited.'
+- id: n-098
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] An unreadable worktree registry fails closed for every caller, repository
+    root callers included.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP01] An unreadable worktree registry fails closed for every caller, repository root
+    callers included.** The door cannot tell a lane root from the repository root without the registry; WP04 pins the repository-root-caller
+    control to fail closed. Disposition: recorded in ADR 2026-11-06-2.'
+- id: n-100
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP01] For `STATUS_STATE` the door replaces ADR 2026-09-24-2's unmaterialized raise;
+    other COORD kinds keep it until the C-3 record decides."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP01] For `STATUS_STATE` the door replaces ADR 2026-09-24-2's unmaterialized raise;
+    other COORD kinds keep it until the C-3 record decides.** Disposition: recorded in ADR 2026-11-06-2; ADR 2026-09-24-2
+    itself is not amended (not owned by WP01)."
+- id: n-101
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] Open point left with a recommendation: `CONSOLIDATED_TARGET` when the repository
+    root checkout is not on the target.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP01] Open point left with a recommendation: `CONSOLIDATED_TARGET` when the repository
+    root checkout is not on the target.** Recommendation: read the target ref through the same ref reader. Disposition: WP05
+    decides with a test.'
+- id: n-099
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP01] The pre-seed `WRITE_CHECKOUT` fallback is scoped to coordination topologies
+    and the explicit-topology create window; the ref reader's `ABSENT` maps to it before it"
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP01] The pre-seed `WRITE_CHECKOUT` fallback is scoped to coordination topologies and
+    the explicit-topology create window; the ref reader's `ABSENT` maps to it before it maps to an empty history.** Reconciles
+    R-1 (declared fallback) with R-2 (absent file = empty history). Disposition: recorded in ADR 2026-11-06-2."
+- id: n-097
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] The read door checks the "landed" signal before any coordination probe, so
+    `CONSOLIDATED_TARGET` wins over `CoordinationBranchDeleted` after teardown.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP01] The read door checks the "landed" signal before any coordination probe, so `CONSOLIDATED_TARGET`
+    wins over `CoordinationBranchDeleted` after teardown.** The door asks the placement seam (WP14) for the one signal of
+    the analyze-3 H1 entry and ADR 2026-11-06-3; ADR 2026-11-06-2 defines no second one (today `resolve_lifecycle_phase` from
+    `baseline_merge_commit`). Disposition: recorded in ADR 2026-11-06-2 (derived).'
+- id: n-043
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP01] Wrote ADR 2026-11-06-2 (one status read contract, FR-007, FR-061 placement)
+    and amended ADRs 2026-06-19-1 (superseded for status reads) and 2026-07-29-1 (restated '
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][implement WP01] Wrote ADR 2026-11-06-2 (one status read contract, FR-007, FR-061 placement) and
+    amended ADRs 2026-06-19-1 (superseded for status reads) and 2026-07-29-1 (restated ruling 3, Assert A' kept).** Sources
+    and invariants follow research R-1/R-2 and data-model §2; every topology x coordination state maps to one source in one
+    table. Disposition: for review."
+- id: n-096
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP02] S8 amendment appended last on ADR 2026-10-04-5 (refuse-plus-attest, DM 01M6QY42BBA8GZ3R4FPGCYY3F5);
+    its frontmatter `updated:` was deliberately NOT bumped.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP02] S8 amendment appended last on ADR 2026-10-04-5 (refuse-plus-attest, DM 01M6QY42BBA8GZ3R4FPGCYY3F5);
+    its frontmatter `updated:` was deliberately NOT bumped.** Any frontmatter edit would add a second conflict hunk against
+    #7255; the conflict stays at the end of the file (keep both, 2026-11-05 first). Disposition: decided.'
+- id: n-153
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP02] The WP prompt prescribes `## Amendment 2026-11-06: ...` headings, while ADR
+    2026-10-04-5's earlier amendments are `### Amendment YYYY-MM-DD — ...` under Consequenc"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP02] The WP prompt prescribes `## Amendment 2026-11-06: ...` headings, while ADR 2026-10-04-5's
+    earlier amendments are `### Amendment YYYY-MM-DD — ...` under Consequences.** Followed the prompt (the reviewer checks
+    against it), so the new amendment sits at H2 beside H3 siblings. Disposition: cosmetic; harmonize when #7255 lands if
+    review asks."
+- id: n-154
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP02] `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s per CLAUDE.md)
+    took over two minutes in the shared repository root checkout with concurrent agen'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP02] `pytest tests/architectural/test_no_legacy_terminology.py` (≈0.1 s per CLAUDE.md)
+    took over two minutes in the shared repository root checkout with concurrent agents.** Disposition: noted; collection/start-up
+    cost under contention, not the test.'
+- id: n-104
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP03] ADR 2026-11-06-1 amendment draft uses the S4 session's answers."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP03] ADR 2026-11-06-1 amendment draft uses the S4 session's answers.** O3 gains a
+    local form (`refs/heads/<target>` at `reconciliation_passed_target_sha`, relaxing `_assert_named_landing_ref`, no new
+    code; pr mode uses the pushed PR head's tracking ref and never deletes the Mission branch); O2 probe unavailable keeps
+    and reports (exit 0); O7 residue-only lanes are removable without `--force` by deleting exactly the classified residue
+    first. Proposed `LandedRemoval.passed_sha` field is a recommendation for the #7275 owner."
+- id: n-103
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP03] S9 open choices given a recommendation, not decided (A-12).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP03] S9 open choices given a recommendation, not decided (A-12).** C-1: artefact rule
+    (a) service artefact operation on `coordination_ref_commit`, decision ledger to PRIMARY per ADR 2026-10-01-3; `status.json`
+    (a) not committed on the coordination branch (fits S10's \"derived\" disposition). C-2: write fence = compare-and-swap
+    alone (`SERVICE_BUSY` / `COORDINATION_BRANCH_DELETED` / `COORDINATION_REF_MOVED`, emptied `core.hooksPath`). C-3: cursor
+    names its commit, new `ResumeRefused` reason `source_moved`; pre-seed fallback retired at step 4a (drain seeds the ref);
+    JGit vs subprocess deferred to events 0007 D-5 / 0008 D-2."
+- id: n-102
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP03] SC-010 mapping: the D-6 header bullet ("A database or hosted adapter is not
+    a drop-in replacement ...") and the two meta bullets ("Each of those needs its own ADR"'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP03] SC-010 mapping: the D-6 header bullet ("A database or hosted adapter is not a
+    drop-in replacement ...") and the two meta bullets ("Each of those needs its own ADR", "no hosted surface") map to the
+    D-6 amendment itself; the five obligation bullets map to events 0007 (port/adapter), C-3 (publication seam), events 0008
+    (read API pull), C-2 (merge semantics), C-2 (gates).** C-1 discharges no D-6 bullet of its own; it is the placement decision
+    and step 4a. C-3 D-2 states the core wording of the 2026-10-01-2 amendment and points to 0008, recorded as "not a second
+    discharge". Disposition: ADR 2026-10-22-1 Amendment 2026-11-06.'
+- id: n-157
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP03] The S4 ADR (2026-11-06-1) and the S10 amendment exist only on unmerged PR
+    branches (#7275, #7274), so the core ADRs link them by PR, and the amendment draft's rela"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP03] The S4 ADR (2026-11-06-1) and the S10 amendment exist only on unmerged PR branches
+    (#7275, #7274), so the core ADRs link them by PR, and the amendment draft's relative link `../3.x/...` only resolves once
+    pasted into `docs/adr/4.x/`.** The events ADRs 0007/0008 are on spec-kitty-events PR #215 and already link the core files
+    by `main` URLs that 404 until this Mission merges. Disposition: cross-repo/unmerged links accepted as forward references."
+- id: n-158
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP03] `description_length_check` silently enforces a 180-char ceiling; C-3's first
+    description was 183 chars."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP03] `description_length_check` silently enforces a 180-char ceiling; C-3's first
+    description was 183 chars.** Disposition: shortened; worth running before commit on every new ADR."
+- id: n-163
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP04] #6884 commit 5b6f2a8c21 (not on the carry list) holds the review-round code
+    and the test to flip; style commit f404a0b2 does not apply without it.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP04] #6884 commit 5b6f2a8c21 (not on the carry list) holds the review-round code and
+    the test to flip; style commit f404a0b2 does not apply without it.** Disposition: carried, path-limited to src and tests.'
+- id: n-106
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP04] Absent file vs pre-seed: the door's pre-seed fallback wins."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP04] Absent file vs pre-seed: the door's pre-seed fallback wins.** The ref reader
+    only returns `RefRead.ABSENT` (one `git cat-file --batch`, with ref and path on stdin). A directory in no git repository
+    is returned unchanged. The new symbols stay out of `__all__` until WP05 wires a caller."
+- id: n-164
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP04] Integration tests in a lane worktree run very slowly (about 100 s per few
+    tests); 47 test files plant an empty `.git` directory.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP04] Integration tests in a lane worktree run very slowly (about 100 s per few tests);
+    47 test files plant an empty `.git` directory.** Disposition: used `-n`; an empty `.git` without HEAD counts as no repository.'
+- id: n-105
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP04] The root normalization fails closed for every caller, per ADR 2026-11-06-2.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP04] The root normalization fails closed for every caller, per ADR 2026-11-06-2.**
+    An unreadable registry raises `WorktreeRegistryUnavailable`, repository-root callers included. This drops #6884's zero-subprocess
+    fast path: one `git worktree list` per normalization. The reviewer checks the cost against NFR-001."
+- id: n-165
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP04] WP04 handed off with the bare claim identity as well; identity correction
+    applied before review.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP04] WP04 handed off with the bare claim identity as well; identity correction applied
+    before review.**'
+- id: n-112
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP05] One read door `status/read_surface.py::resolve_status_read` + `StatusReadSurface`;
+    `resolve_status_surface_with_anchor` delegates to it; the loud empty-coordinatio'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP05] One read door `status/read_surface.py::resolve_status_read` + `StatusReadSurface`;
+    `resolve_status_surface_with_anchor` delegates to it; the loud empty-coordination fallback is deleted.** New source MISSION_BRANCH_REF
+    answers the WP01 open point (repository root checkout not on the Mission branch): read refs/heads/<mission_branch> when
+    no checkout holds the topic branch, else that checkout is the WRITE_CHECKOUT. The landed signal is `mission_runtime.mission_has_landed`
+    (merged_at, reopen-aware); WP14 only changes its body. `status_service.ref_exists` was renamed `ref_names_object`. Follow-ups:
+    record MISSION_BRANCH_REF in ADR 2026-11-06-2 and data-model (WP18); `runtime_bridge._primary_mission_is_completed` keeps
+    a duplicate merged-marker check.'
+- id: n-167
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP05] The dead-symbol gate forces a cross-module caller (or an allowlist entry)
+    for read functions whose consumers arrive in later WPs; the read-side bypass gate blocks '
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP05] The dead-symbol gate forces a cross-module caller (or an allowlist entry) for
+    read functions whose consumers arrive in later WPs; the read-side bypass gate blocks raw path primitives in a new module
+    (the door's lookup helper lives in surface_resolver as `locate_status_mission`); an out-of-dir caller (wp_status_backfill)
+    classified liveness from the legacy path and only make test-fast caught it.** Disposition: allowlist entry `read_status_events`
+    burns down in WP06."
+- id: n-120
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP06 cycle 2] `materialize` writes status.json for every source with a checkout
+    path (including CONSOLIDATED_TARGET).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP06 cycle 2] `materialize` writes status.json for every source with a checkout path
+    (including CONSOLIDATED_TARGET).** On ref sources (COORD_BRANCH_REF / MISSION_BRANCH_REF) it exits 1 with `status_surface_on_ref`
+    and a remedy from the door's `ref_source_remedy` (`spec-kitty materialize --mission <slug>` for the coordination branch;
+    `git switch`/`git worktree add` for the Mission branch). doctor/lifecycle/validate/materialize share `_read_surface_or_refuse`
+    (`status_surface_unavailable`, JSON envelope under --json). The shipped migration `m_zz_verdict_provenance_backfill` advice
+    is left unedited (DIRECTIVE_044). For the changelog (WP18): `events tail` gains `status_surface_on_ref` instead of silent
+    empty output; `agent status materialize` exits 1 on ref sources."
+- id: n-118
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP06] Orchestrator decision: the rest of T034 moves to WP07, which owns the single-door
+    gate and so must drain every legacy caller anyway.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP06] Orchestrator decision: the rest of T034 moves to WP07, which owns the single-door
+    gate and so must drain every legacy caller anyway.** Moving to WP07: `task_utils/support.py` (path-typed `reconstruct_wp_view`
+    / `WorkPackage.status_dir`); the `mission_runtime/resolution.py` STATUS_STATE `read_dir` arm (Path-typed, cannot express
+    COORD_BRANCH_REF) and its ~20 `read_dir(STATUS_STATE)` callers; the finalize pin's `_resolve_status_read_dir`; `status_transition`;
+    `aggregate._resolve_read_dir`. Direction for WP07: migrate the callers onto the door. Do not raise for ref sources in
+    a Path arm, because that would reintroduce the fail-loud reads the ADR removed. WP06 decisions: `MissionStatus` resolves
+    lazily; `materialize` writes nothing for ref sources or CONSOLIDATED_TARGET; `events tail` refuses `status_surface_on_ref`
+    on a ref source; `doctor`/`lifecycle`/`validate` refuse on a ref source."
+- id: n-172
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP06] `read_status_ref` returns ABSENT when the ref's tree object is missing, so
+    a corrupt coordination branch reads as an empty history (WP04 residual, confirmed); each"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP06] `read_status_ref` returns ABSENT when the ref's tree object is missing, so a
+    corrupt coordination branch reads as an empty history (WP04 residual, confirmed); each `uv run` pytest session rebuilds
+    a test venv (~50 s).** Disposition: residual recorded for the ADR; venv cost noted."
+- id: n-123
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP07] A dry-run forecast on a ref-sourced status refuses CLAIM_REFUSED_FORECAST
+    with the door's `ref_source_remedy` instead of building a claim from an empty history. `r"
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP07] A dry-run forecast on a ref-sourced status refuses CLAIM_REFUSED_FORECAST with
+    the door's `ref_source_remedy` instead of building a claim from an empty history. `read_surface.resolve_committed_status_read`
+    returns None without meta, without coordination topology, or when the ref names no object.** `_read_path_resolver.resolve_surface_dir_or_typed_error`
+    is not migrated (Path-typed, mission_runtime callers only: deferred T034); done_bookkeeping's target-branch `git show`
+    is unchanged. Disposition: review WP07."
+- id: n-121
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP07] Operator ruling (DM 01M6S40GBWB6JD0FFTMQ2F6NW7): the single-door gate and
+    the remaining legacy status-read migration are DEFERRED to a follow-up Mission.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP07] Operator ruling (DM 01M6S40GBWB6JD0FFTMQ2F6NW7): the single-door gate and the
+    remaining legacy status-read migration are DEFERRED to a follow-up Mission.** WP07 is re-scoped to the consolidation readers
+    (done_bookkeeping ×2, forecast, phase_advance with its third landed-reader copy delegated to mission_has_landed, preflight,
+    _read_path_resolver), plus the door's explicit committed-ref read entry that done_bookkeeping needs. WP07 adds no gate
+    and no allowlist. The T034 remainder (support.py, the mission_runtime STATUS_STATE arm and callers, the finalize pin,
+    status_transition, aggregate) also goes to the follow-up. Census (summary; the full file was lost in a container restart):
+    about 53 legacy sites in about 35 files: 32 read_dir/resolve_partition_read_dir(STATUS_STATE), 8 resolve_status_surface,
+    2 resolve_status_surface_with_anchor outside surface_resolver, 5 read_event_log/read_event_stream_log, 5 private _resolve_read_dir/_resolve_status_read_dir;
+    be"
+- id: n-111
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP09 cycle 2] The dead worktree creators (`create_wp_workspace`, `create_feature_worktree`,
+    `setup_feature_directory`, `GitVCS.create_workspace` and its protocol stub, `'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP09 cycle 2] The dead worktree creators (`create_wp_workspace`, `create_feature_worktree`,
+    `setup_feature_directory`, `GitVCS.create_workspace` and its protocol stub, `GitPreflightError`) were deleted instead
+    of allowlisted, keeping the lane-checkout gate's allowlist empty (Standing Order #5).** The managed sparse match is exact
+    on every topology. The gate budget stays CPU time, justified in its fixture (7.4 s wall clock under -n 8 against 1.2 s
+    alone). The ADR amendments (2026-07-29-1, 2026-04-03-1) wrongly say the helper covers the landed_worktrees printed recreate
+    hint; fix the wording in WP18 (docs)."
+- id: n-108
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP09] One helper, `lanes/lane_checkout.py::open_lane_checkout`, creates every lane
+    checkout (fresh/legacy/crash-recovery allocation, lifecycle_sync recreate, review chec'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP09] One helper, `lanes/lane_checkout.py::open_lane_checkout`, creates every lane
+    checkout (fresh/legacy/crash-recovery allocation, lifecycle_sync recreate, review checkout, `implement --recover`); each
+    gets the status sparse exclusion, `lanes` topology included.** The landed_worktrees printed hint is not a spec-kitty route
+    and stays out. A dependency merge with an unmerged `status.json` regenerates it from the merged log into the index without
+    touching disk. Mission dir name: `<slug>-<mid8>` on coordination topologies, the slug otherwise.'
+- id: n-166
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP09] `core/worktree.py` (`create_wp_workspace`, `create_feature_worktree`) and
+    `core/vcs/git.py::create_workspace` have no production caller; the gate allowlists them.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP09] `core/worktree.py` (`create_wp_workspace`, `create_feature_worktree`) and `core/vcs/git.py::create_workspace`
+    have no production caller; the gate allowlists them.** Each fresh pytest session in a lane worktree rebuilds a test venv
+    (session-fixture `pip install -e`), adding minutes per run. Concurrent agents push load above 10 on 4 cores. Disposition:
+    retire the dead creators (follow-up issue); note the venv cost.'
+- id: n-047
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP10 cycle 2] Closeout item:'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][implement WP10 cycle 2] Closeout item:** add `LANE_STATUS_NOT_EXCLUDED`, `LANE_STATUS_AUTHORED`,
+    `STATUS_WRITE_TARGETS_LANE_CHECKOUT`, `status_surface_on_ref` and `status_surface_unavailable` to `contracts/error-codes.yaml`
+    (planning artifact; WP18/closeout).\n- [2026-11-06] Closeout additions from the WP10 c2 review: a pin test for the legacy-Mission
+    exemption; re-run `tests/specify_cli/upgrade` on the consolidated branch (the reviewer did not re-run it in the narrowed
+    comparison).\n- [2026-11-06][WP14 c2 review] Non-blocking nits for closeout: `_write_branch_holder` re-implements the
+    lane-worktree exclusion; `coord_worktree_mission_names` hardcodes the `*-coord` glob; `resolve_primary_partition_dir`
+    and `default_mission_topic_dir` overlap.\n\n- WP20 c2 approved (closeout nits): restore positive G2 mission_number assertion
+    (==1 + baseline_merge_commit ancestry); cycle-1 commit message misnames lands_topic_branch as lanes_topic_branch.\n\n\
+    - WP17 approved (closeout): 3 reds i"
+- id: n-173
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP10] An rc9-named migration is impossible while pyproject is at rc8 (the requires-git
+    audit runs the upgrade at the installed version); upgrade-preview subprocess tests'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP10] An rc9-named migration is impossible while pyproject is at rc8 (the requires-git
+    audit runs the upgrade at the installed version); upgrade-preview subprocess tests cannot run from a lane worktree with
+    the shared venv ("Source mismatch").** Disposition: renamed to rc8; the lane tests are classified as a stale install.'
+- id: n-119
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP10] S6 write side.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP10] S6 write side.** A status write into a lane checkout refuses STATUS_WRITE_TARGETS_LANE_CHECKOUT;
+    the worktree registry decides, and an unreadable registry fails closed. A BookkeepingTransaction coordination append needs
+    a registered coordination worktree. The move-task deliverable auto-commit leaves the status files out by name on every
+    topology. The clone-local migration `m_4_0_0rc8_lane_checkout_status_exclusion` (id `4.0.0rc8_lane_checkout_status_exclusion`,
+    a `# tie:` entry, named rc8 rather than the planned rc9 because the requires-git audit runs at the installed version)
+    applies the exclusion through the one authority and reports lane-only event ids without dropping them. The doctor probe
+    LANE_STATUS_AUTHORED is surfaced in `doctor sparse-checkout`. WP10's `owned_files` still names an rc9 file: a known planning-artifact
+    mismatch, left alone so the analysis report stays current."
+- id: n-117
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP12 cycle 2] For the PR body:'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP12 cycle 2] For the PR body:** WP12's out-of-map orchestrator-api/consolidation.py
+    change moves the existing `_refuse_post_approval_lane_content` call in front of the planning-only closeout. It therefore
+    also runs for `lanes` Missions whose WPs are all planning work (review finding 5). No contract field changes. WP12 also
+    appended its window residuals to ADR 2026-10-04-5 from its lane."
+- id: n-115
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP12] S8 bound: `consolidation/write_branch_bound.py`, tier 1 `check_lane` on the
+    Mission branch, tier 2 every content commit inside an approved WP window (O_k,S_k] (a m'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP12] S8 bound: `consolidation/write_branch_bound.py`, tier 1 `check_lane` on the Mission
+    branch, tier 2 every content commit inside an approved WP window (O_k,S_k] (a missing O_k widens to the claim base, logged);
+    a tier-1 refusal is reported alone.** The claim records a lane-to-branch map so the gate re-check reads the Mission branch.
+    orchestrator-api's planning-only path skipped the approved-bound preflight; one existing call moved in front of it (FR-076,
+    no new contract field). `single_branch_evidence_window` stays on `manifest.mission_branch` (moving it would change legacy
+    unminted Missions)."
+- id: n-113
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP13] A default create mints one topic branch on every target and records `topology:
+    single_branch`, `topology_source: default`, `topology_settled: false` and `create_re'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP13] A default create mints one topic branch on every target and records `topology:
+    single_branch`, `topology_source: default`, `topology_settled: false` and `create_return_branch`; `lanes`/`coord` are
+    explicit-only and the --pr-bound fallback is gone.** The IC-13 guard: a default create from a checkout on another Mission's
+    branch targets the Primary Branch (or that Mission's target when the Primary Branch is itself a Mission branch), applied
+    only to default creates. #5676: write-checkout switches refuse WRITE_CHECKOUT_OCCUPIED/DIRTY through `switch_write_checkout`.
+    One meta.json write sets the coordination/topology/settled/decision keys together (crash-consistent). Release coupling
+    C-010: ship WP13 only with WP12 and WP14; the PR body must say so."
+- id: n-169
+  category: tooling
+  summary: "Tracer: [2026-11-06][implement WP13] Each test run took 3 to 28 minutes under xdist on the shared, overloaded
+    machine; `coord_topology_reachable` and the coord factory's `topology=None` path lost thei"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP13] Each test run took 3 to 28 minutes under xdist on the shared, overloaded machine;
+    `coord_topology_reachable` and the coord factory's `topology=None` path lost their live callers.** Disposition: dead-code
+    check at review; WP14 wires `count_code_lanes` and `restamp_topic_branch_as_coordination`."
+- id: n-171
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP13] Several lanes edit `tests/architectural/dead_symbol_allowlist.yaml` and `_baselines.yaml`
+    in parallel (WP05 +1, WP06 -1, WP13 +2 with exits naming WP14).'
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][implement WP13] Several lanes edit `tests/architectural/dead_symbol_allowlist.yaml` and `_baselines.yaml`
+    in parallel (WP05 +1, WP06 -1, WP13 +2 with exits naming WP14).** Disposition: expect consolidation conflicts on both
+    files. Resolve to the union of live entries with an honest recount; WP14 must remove the two WP13 entries. The dead-symbol
+    gate's ~240 s run sits at its timeout under load."
+- id: n-126
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP14 c2] One topic-holder locator (`read_surface.topic_holder_mission_dir` via
+    `_read_path_resolver.default_mission_topic_dir`) now serves Mission listing (`context/miss'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP14 c2] One topic-holder locator (`read_surface.topic_holder_mission_dir` via `_read_path_resolver.default_mission_topic_dir`)
+    now serves Mission listing (`context/mission_resolver.py`), the read door's write-checkout anchor, `canonicalize_feature_dir`
+    and the transaction's coordination-less write arm. A corrupt meta returns None from the locator so each caller keeps its
+    own corruption verdict.** Out-of-map: context/mission_resolver.py, workspace/root_resolver.py, coordination/transaction.py.
+    Disposition: review WP14 c2."
+- id: n-125
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP14] Settlement lives in `lanes/topology_settlement.py` (pure size rule, five-step
+    lanes_with_coord plan with an undo stack, refusals WRITE_CHECKOUT_OCCUPIED/DIRTY/TOPO'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][implement WP14] Settlement lives in `lanes/topology_settlement.py` (pure size rule, five-step
+    lanes_with_coord plan with an undo stack, refusals WRITE_CHECKOUT_OCCUPIED/DIRTY/TOPOLOGY_SETTLEMENT_REFUSED); it runs
+    before `_emit_tasks_started`, `--validate-only` only previews, and a later finalize failure undoes it. The meta re-stamp
+    runs in the coordination worktree after it is materialized. The PRIMARY ref arm for default Missions is a new pure helper
+    `_default_mission_primary_ref` rather than a change to `single_branch_write_ref`. T089 is pinned by an AST test only.**
+    Left as strict xfail: context resolve / check-prerequisites after settlement (MISSION_NOT_FOUND: `resolve_mission` lists
+    only the root's kitty-specs/) and the N1 event-write half. Disposition: review WP14."
+- id: n-107
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP15] FR-035: the resume crash window is not real on the base, but running coordination
+    teardown first creates one; closed by a `cleanup_started` marker plus the anchor '
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP15] FR-035: the resume crash window is not real on the base, but running coordination
+    teardown first creates one; closed by a `cleanup_started` marker plus the anchor carry.** `--abort` after an interrupted
+    cleanup rolls nothing back and prints recreate hints (`git branch <b> <sha>`). The process probe runs only for removals
+    backed by a landing proof (not `mission close --discard`). `LaneCleanupItem.branch` may be None (leg retained by policy).
+    The cleanup JSON shape ships through orchestrator-api only.'
+- id: n-045
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] Closeout cleanup list (fold into a final WP or the pre-PR fix pass):'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][implement] Closeout cleanup list (fold into a final WP or the pre-PR fix pass):**\n  - delete
+    `write_branch_bound._commits_outside_windows` (dead after WP12 cycle 2);\n  - remove the WP13 allowlist entries once WP14
+    wires their callers;\n  - fix the ADR wording on the landed_worktrees printed hint (WP09);\n  - record MISSION_BRANCH_REF
+    in ADR 2026-11-06-2 and in data-model (WP05);\n  - retarget the C-1/C-3 links to spec-kitty-events main (WP03);\n  - fix
+    spec FR-084/C-003 wording, then re-run analyze;\n  - delete the third landed-reader copy in `phase_advance.py:264` unless
+    WP07 does;\n  - delete or rename the remaining old enum-member docstrings."
+- id: n-042
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] Operator ruling relayed by the S11 session:'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][implement] Operator ruling relayed by the S11 session:** open-packs aligns with the spec-kitty-charter
+    contracts; core becomes compatible by wiring in the charter service's generated client; following those contracts is the
+    consumer's choice. For #7276, the open-packs doctrine is not gated on core, and the pin bump is a core-side choice. Disposition:
+    unchanged plan; the pin bump stays a pre-PR operator question."
+- id: n-159
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] `move-task WP02 --to for_review` printed a remedy `cd .worktrees/<slug>-lane-j
+    && git rebase None`.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement] `move-task WP02 --to for_review` printed a remedy `cd .worktrees/<slug>-lane-j &&
+    git rebase None`.** lane-j (WP13) has no worktree yet and the base interpolated as `None`. The command took more than
+    2 minutes in a checkout shared with three agents. Disposition: candidate defect (stale-lane hint with an unresolved base);
+    file at closeout.'
+- id: n-044
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] spec-kitty-events PR #215 merged (ADR 0007/0008 Proposed, mission-write 1.0.1-SNAPSHOT
+    on events main).'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][implement] spec-kitty-events PR #215 merged (ADR 0007/0008 Proposed, mission-write 1.0.1-SNAPSHOT
+    on events main).** C-1/C-3 (WP03, approved) already record the step 4 + 4a ordering, the destinationRef change to ADR
+    2026-10-27-1 D-3, and the oracle's missing-ref answer. Disposition: at docs time (WP18), retarget the C-1/C-3 links from
+    the PR branch to events `main`. The operator accepts 0007/0008 together with C-1..C-3."
+- id: n-070
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] 17 implementation concerns; IC-04/IC-05 may merge if #6884 lands first.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] 17 implementation concerns; IC-04/IC-05 may merge if #6884 lands first.** ADR concerns
+    are grouped into three (S1+S6; S7+S8; S3+S5+S9). Disposition: handed to /spec-kitty.tasks.'
+- id: n-077
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] A-5 (`--pr-bound`) kept as today although it is now the one default route to plain
+    `lanes`.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] A-5 (`--pr-bound`) kept as today although it is now the one default route to plain `lanes`.**
+    Flagged for the operator rather than silently changed; the #2533 hazard it guards may not apply once the topic branch
+    is the coordination branch. Disposition: superseded by DM 01M6R0QQM5FCPY736008AD4W6V (fallback dropped).'
+- id: n-145
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] ADR 2026-06-22-1, 2026-04-03-1, 2026-07-29-1 and 2026-09-19-1 live under docs/adr/3.x,
+    not 4.x as some briefs implied.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] ADR 2026-06-22-1, 2026-04-03-1, 2026-07-29-1 and 2026-09-19-1 live under docs/adr/3.x,
+    not 4.x as some briefs implied.** Paths verified by listing. Disposition: workaround.'
+- id: n-078
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] DM 01M6R0QJVPVZG2QT8MWQD4NXJR (primary_partition_default): for a default Mission the
+    PRIMARY partition resolves to the topic branch until consolidate lands it; explicit --to'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] DM 01M6R0QJVPVZG2QT8MWQD4NXJR (primary_partition_default): for a default Mission the PRIMARY
+    partition resolves to the topic branch until consolidate lands it; explicit --topology keeps today's placement.** Placement
+    contract change (new FR-061) recorded by the IC-01/IC-02 ADRs and carried by the IC-05 read door and placement seam; IC-14
+    pins instead of escalating; the root checkout does not show planning files after settlement. Disposition: decided (operator,
+    stijn-dejongh)."
+- id: n-079
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] DM 01M6R0QQM5FCPY736008AD4W6V (pr_bound_fallback): the --pr-bound fallback to plain
+    lanes is dropped; multi-lane settlement always yields lanes_with_coord.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] DM 01M6R0QQM5FCPY736008AD4W6V (pr_bound_fallback): the --pr-bound fallback to plain lanes
+    is dropped; multi-lane settlement always yields lanes_with_coord.** A-5 and the edge case rewritten; plain lanes stays
+    explicit-only. Disposition: decided (operator, stijn-dejongh).'
+- id: n-148
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Folding resolved Decision Moments back into plan artifacts is manual: the decision
+    index has no link back to the plan sections it answers, so the OQ conditionals had to be f'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] Folding resolved Decision Moments back into plan artifacts is manual: the decision index
+    has no link back to the plan sections it answers, so the OQ conditionals had to be found by grep across 9 files.** Disposition:
+    note; candidate tooling gap (decision → artifact back-references).'
+- id: n-073
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] IC-14 shrinks to one settlement path (single_branch: no git step; lanes_with_coord:
+    commit, move root checkout, re-stamp, materialize coord worktree, write lanes.json).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] IC-14 shrinks to one settlement path (single_branch: no git step; lanes_with_coord: commit,
+    move root checkout, re-stamp, materialize coord worktree, write lanes.json).** The landing step, its conflict compensation
+    and the protection-dependent arm are deleted; size M-L. `topology_decision.rule` values collapse to wp_count_le_2 | code_lanes_le_1
+    | lanes_with_coord; `target_protected` stays informational. Disposition: decided.'
+- id: n-066
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] No S8 marker key; the bound is gated on the stored single_branch topology plus `lands_mission_branch`.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] No S8 marker key; the bound is gated on the stored single_branch topology plus `lands_mission_branch`.**
+    Refuse-plus-attest (operator ruling) made brief D's `approval_bound` marker unnecessary. Disposition: decided."
+- id: n-147
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] No single doc states that the coordination branch is a configurable `meta.json` target
+    sharing the Mission-branch grammar; corroborating it for OQ-2 took a reader census (CO'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] No single doc states that the coordination branch is a configurable `meta.json` target
+    sharing the Mission-branch grammar; corroborating it for OQ-2 took a reader census (COORDINATION_BRANCH_KEY, mission_branch_name,
+    coord_seed/workspace reconstruct paths).** Disposition: workaround; folded into FR-059 docs (IC-17).'
+- id: n-074
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] OQ-1 resolved as recommended (DM 01M6R0B3YX291STRVVQ0HQCJD5); the escalation trigger
+    also covers a target placement a promoted Mission cannot match without landing.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] OQ-1 resolved as recommended (DM 01M6R0B3YX291STRVVQ0HQCJD5); the escalation trigger also
+    covers a target placement a promoted Mission cannot match without landing.** Because OQ-2 forbids landing at settlement,
+    pre-settlement PRIMARY artifacts sit on the coordination branch on every target. Disposition: decided; superseded by DM
+    01M6R0QJVPVZG2QT8MWQD4NXJR.'
+- id: n-071
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] OQ-2 resolved against the recommendation (DM 01M6R0B954ZPQN5NV4R1ZRE7NY): the multi-lane
+    arm settles to `lanes_with_coord` on every target, the topic branch is the coordinat'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] OQ-2 resolved against the recommendation (DM 01M6R0B954ZPQN5NV4R1ZRE7NY): the multi-lane
+    arm settles to `lanes_with_coord` on every target, the topic branch is the coordination branch, lanes are cut from it.**
+    Corroborated: `coordination_branch` is a meta.json key (~32 readers via COORDINATION_BRANCH_KEY) whose default name uses
+    `mission_branch_name`; reconstruct-from-slug paths (`coord_seed.py:1155`, `workspace.py:300`) agree. No landing of planning
+    commits on the target, no fast-forward/merge step; plain `lanes` and `coord` become explicit-only. Supersedes the earlier
+    \"Settlement to `lanes` ... lands the topic branch's planning commits\" entry and widens DM 01M6QZ02's protected-only
+    mapping. Disposition: decided (operator)."
+- id: n-075
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] OQ-3 resolved as recommended (DM 01M6R0BDYC29D6XMDY72R22CP9): single_branch + topic
+    mission_branch + topology_source: default + topology_settled: false.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] OQ-3 resolved as recommended (DM 01M6R0BDYC29D6XMDY72R22CP9): single_branch + topic mission_branch
+    + topology_source: default + topology_settled: false.** Disposition: decided (operator).'
+- id: n-076
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] OQ-4 resolved as recommended (DM 01M6R0BJQ6Q1MV6492EH6HB66H): one 1.23.0 -> 1.24.0
+    bump carries topology_source/topology_provisional (specify), topology_decision (tasks pass'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] OQ-4 resolved as recommended (DM 01M6R0BJQ6Q1MV6492EH6HB66H): one 1.23.0 -> 1.24.0 bump
+    carries topology_source/topology_provisional (specify), topology_decision (tasks pass-through) and lane_cleanup.** IC-15
+    owns the bump; no release ships 1.24.0 without all three. Conditionals removed from the contracts. Disposition: decided
+    (operator).'
+- id: n-069
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] One orchestrator-api bump 1.23.0 -> 1.24.0, owned by IC-15; topology fields ride it
+    only if OQ-4 is accepted.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] One orchestrator-api bump 1.23.0 -> 1.24.0, owned by IC-15; topology fields ride it only
+    if OQ-4 is accepted.** Disposition: open, OQ-4.'
+- id: n-038
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Operator answered OQ-1..OQ-4 (Decision Moments, slot keys plan.*); folded into spec,
+    plan, research, data-model, quickstart and contracts.'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][plan] Operator answered OQ-1..OQ-4 (Decision Moments, slot keys plan.*); folded into spec, plan,
+    research, data-model, quickstart and contracts.** OQ-2 changed the design (lanes_with_coord on every target, topic branch
+    = coordination branch); IC-14 shrinks to one settlement path.'
+- id: n-143
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Placement of PRIMARY artifacts for coordination Missions on a protected target is not
+    stated in one place (commit_router re-homing vs ProtectionPolicy refusal).'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] Placement of PRIMARY artifacts for coordination Missions on a protected target is not stated
+    in one place (commit_router re-homing vs ProtectionPolicy refusal).** It took several reads and is still unresolved. Disposition:
+    IC-14 characterization test; OQ-1.'
+- id: n-037
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Plan written as 17 implementation concerns in dependency order (ADRs first; S1/S2/S6
+    early; S8 before S7; S5 seam independent of #7275), with a shared-file ownership map and'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][plan] Plan written as 17 implementation concerns in dependency order (ADRs first; S1/S2/S6 early;
+    S8 before S7; S5 seam independent of #7275), with a shared-file ownership map and an in-flight PR rebase plan.** Four
+    open questions (OQ-1..OQ-4) go to the operator.'
+- id: n-064
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Promotion to `lanes_with_coord` on a protected target leaves PRIMARY artifacts (incl.
+    meta.json) on the coordination branch.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] Promotion to `lanes_with_coord` on a protected target leaves PRIMARY artifacts (incl. meta.json)
+    on the coordination branch.** IC-14 first characterizes how an explicit `lanes_with_coord` create on a protected target
+    places them, and mirrors that; otherwise PRIMARY reads resolve to the coordination branch. Disposition: superseded by
+    DM 01M6R0QJVPVZG2QT8MWQD4NXJR (PRIMARY resolves to the topic branch until consolidate).'
+- id: n-062
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Provisional topology stored as `single_branch` + topic `mission_branch` + `topology_source:
+    default` + `topology_settled: false`.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] Provisional topology stored as `single_branch` + topic `mission_branch` + `topology_source:
+    default` + `topology_settled: false`.** It reuses the minted single_branch write routing (one choke point), so pre-settlement
+    placement needs no new code, and settlement only ever grows. Disposition: recommended; operator confirmation requested
+    (OQ-3).'
+- id: n-146
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] S11 review (open-packs PR #128) found core follow-ups.'
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][plan] S11 review (open-packs PR #128) found core follow-ups.** `spec-kitty context cleanup` clears
+    every orphaned context rather than one lane's; DESTROYED_LANE has an undocumented no-tip variant; the LANE_WORK_TIP_UNKNOWN
+    message should suggest `--dry-run` first. Disposition: fold into IC-17 (S11 core text) if small, else file issues."
+- id: n-065
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] S2 keeps the orchestrator envelope shape; the distinct reason is message text plus
+    an internal `GateDecision.reason_code`.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] S2 keeps the orchestrator envelope shape; the distinct reason is message text plus an internal
+    `GateDecision.reason_code`.** This preserves SC-012's single bump. Disposition: decided."
+- id: n-067
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] S8 tier 2 lives in a new `consolidation/write_branch_bound.py`; `approved_bound.py`
+    only gains the public `stamp_refusal` split and the warnings.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] S8 tier 2 lives in a new `consolidation/write_branch_bound.py`; `approved_bound.py` only
+    gains the public `stamp_refusal` split and the warnings.** This keeps complexity ≤ 15 and gives IC-11 and IC-12 disjoint
+    file ownership. Disposition: decided.'
+- id: n-072
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] Settlement moves the repository root checkout to a recorded `create_return_branch`
+    before the coordination worktree checks out the topic branch.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][plan] Settlement moves the repository root checkout to a recorded `create_return_branch` before
+    the coordination worktree checks out the topic branch.** Git forbids one branch in two worktrees; the branch is recorded
+    at create (new additive meta key) because the create-time branch may not be the target. Compensation restores the root
+    checkout onto the topic branch; a missing or busy return branch refuses TOPOLOGY_SETTLEMENT_REFUSED. Disposition: decided.'
+- id: n-063
+  category: tooling
+  summary: "Tracer: [2026-11-06][plan] Settlement to `lanes` on an unprotected target lands the topic branch's planning commits
+    on the target and returns the write checkout."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] Settlement to `lanes` on an unprotected target lands the topic branch's planning commits
+    on the target and returns the write checkout.** That matches today's `lanes` shape and frees the repository root checkout
+    (#5550/#5676). Conflict refuses with compensation. Disposition: recommended; OQ-2."
+- id: n-142
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] The orchestrator-api contract is at 1.23.0 (`envelope.py:192`), not the 1.10.0 cited
+    in the discovery briefs and CLAUDE.md prose.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] The orchestrator-api contract is at 1.23.0 (`envelope.py:192`), not the 1.10.0 cited in
+    the discovery briefs and CLAUDE.md prose.** The plan uses the live value. Disposition: workaround; CLAUDE.md prose drift
+    noted for IC-17.'
+- id: n-144
+  category: tooling
+  summary: 'Tracer: [2026-11-06][plan] The plan template has no slot for an ownership map, PR rebase plan or open questions.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][plan] The plan template has no slot for an ownership map, PR rebase plan or open questions.**
+    They were added inside the Implementation Concern Map section. Disposition: note; candidate template gap for open-packs.'
+- id: n-068
+  category: tooling
+  summary: "Tracer: [2026-11-06][plan] The registry being unreadable during root normalization fails closed (typed error),
+    tightening #6884's fail-open choice."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][plan] The registry being unreadable during root normalization fails closed (typed error), tightening
+    #6884's fail-open choice.** Rule 1 forbids a silent lane-copy read. Disposition: recorded for the IC-01 ADR."
+- id: n-110
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP04] Approved (cycle 2). Residuals recorded:'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][review WP04] Approved (cycle 2). Residuals recorded:** (1) a commit whose tree object is missing
+    reads as `RefRead.ABSENT`, so as an empty history (corrupt repositories only); (2) `status_service.ref_exists` treats
+    any `rev-parse` failure as a missing ref, so a corrupt repository falls back to the on-disk check instead of raising;
+    (3) `status_service.ref_exists` and `lanes._git.ref_exists` share a name but differ (the lanes one also checks the object):
+    WP05 should rename one; (4) `resolve_status_surface_with_anchor` normalizes twice: memoize in WP05.'
+- id: n-114
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP05] Cross-WP obligations recorded from the WP05 review:'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][review WP05] Cross-WP obligations recorded from the WP05 review:** (N1, owned by WP14) for a
+    default Mission whose repository root checkout moved to another branch still carrying the Mission dir, the write seam
+    writes the root's copy while the door reads the topic-branch ref, so an emitted event is invisible to reads; WP14 aligns
+    the write side and adds a read-after-write test. (N4, owned by WP06/WP07) legacy path callers read an empty history for
+    a post-fix empty coordination worktree and when the coordination ref is unreadable; the migration onto the door closes
+    it. (Allowlist, owned by WP06) WP06 removes the `read_status_events` dead-symbol allowlist entry and returns the baseline
+    to 231."
+- id: n-168
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP09] WP09 deletes about 1,500 test lines (the dead worktree creators); `tests/architectural/test_module_length_agreement.py`
+    may need a timings recapture.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][review WP09] WP09 deletes about 1,500 test lines (the dead worktree creators); `tests/architectural/test_module_length_agreement.py`
+    may need a timings recapture.** Disposition: check in CI on the draft PR.'
+- id: n-124
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP10 c2] Legacy (pre-coordination) Missions are exempt from the lane write refusal
+    STATUS_WRITE_TARGETS_LANE_CHECKOUT; they keep base behaviour.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][review WP10 c2] Legacy (pre-coordination) Missions are exempt from the lane write refusal STATUS_WRITE_TARGETS_LANE_CHECKOUT;
+    they keep base behaviour.** Consistent with ruling 8 only because such Missions have no other status surface; it narrows
+    FR-041. Closeout: record the narrowing in the spec batch and add a pin test for the exemption. The flat `status.emit`
+    path never reaches the refusal (pre-existing). Disposition: approved with follow-up.'
+- id: n-116
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP12] S8 adversarial review. Handled: a commit between two approvals, a rebase/amend
+    (APPROVAL_STAMP_NOT_ON_LANE), a bookkeeping-only commit. ADR residuals: a commit made d'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][review WP12] S8 adversarial review. Handled: a commit between two approvals, a rebase/amend (APPROVAL_STAMP_NOT_ON_LANE),
+    a bookkeeping-only commit. ADR residuals: a commit made during review, a commit absorbed by a later WP's window, content
+    inside a merge commit, and a missing O_k.** The missing-O_k residual is under-stated in the ADR: with WP02's claim unstamped,
+    a commit between WP01's approval and WP02's claim passes, and an old O_k after a rebase or attestation widens the window
+    the same way. WP18 corrects the ADR 2026-10-04-5 S8 amendment text."
+- id: n-046
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP13] Closeout item:'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][review WP13] Closeout item:** the out-of-matrix `tests/specify_cli/cli/commands` directory shows
+    failures that reviewers attributed to xdist or the base without serial confirmation (charter-cascade, doctrine-asset,
+    `test_activate_only_6408`, the merge-golden `--dependency-ref`, and others). Before the PR, run that directory on the
+    consolidated branch and on origin/main and classify each red (CLAUDE.md test policy; out-of-matrix category 6).'
+- id: n-170
+  category: tooling
+  summary: "Tracer: [2026-11-06][review WP13] The dead-symbol gate also flags WP15's `consolidation/lane_cleanup` exports
+    (approved WP15, f50df2bb07). WP15's review did not run that gate serially."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][review WP13] The dead-symbol gate also flags WP15's `consolidation/lane_cleanup` exports (approved
+    WP15, f50df2bb07). WP15's review did not run that gate serially.** Disposition: fixed in WP13's cycle-2 rework, whose
+    lane carries WP15. Lesson: every code-WP review runs `test_no_dead_symbols.py` serially. The 17 out-of-matrix failures
+    in `tests/specify_cli/cli/commands -k \"create or specify or lifecycle\"` were attributed by test name only; verify on
+    the base before the PR."
+- id: n-109
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review WP15] Approved with follow-ups, carried in the WP20 brief because WP20 edits phase_teardown
+    and depends on WP15.'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][review WP15] Approved with follow-ups, carried in the WP20 brief because WP20 edits phase_teardown
+    and depends on WP15.** (a) A kill after the coordination teardown but before the `cleanup_started` marker makes `--resume`
+    refuse \"Missing mission branch\". Nothing is lost; set the marker before the coordination teardown. (b) The contract's
+    `lane_cleanup` key in `consolidate --json` is not emitted (`run.lane_cleanup` is stored, never read). (c) The orchestrator
+    landing proof reads `passed_sha` live from the target tip, not a gate-passed anchor; WP16 must bind the anchor. (d) Pre-existing:
+    `claim_base.on_wp_terminal` clears a fully canceled lane's tip ref while its branch exists. Follow-up issue at closeout."
+- id: n-162
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review] DEFECT: the code-lane claim path (`cli/commands/implement_claim._start_wp_implementation_status`,
+    `effective_actor: str`) records the implementer as the bare tool `claude`'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][review] DEFECT: the code-lane claim path (`cli/commands/implement_claim._start_wp_implementation_status`,
+    `effective_actor: str`) records the implementer as the bare tool `claude` and drops `--profile`, while the planning-lane
+    claim records the structured actor with the profile.** `move-task --to approved` then refuses every code WP with REVIEW_NOT_INDEPENDENT
+    (#6715 identity rule) for a reviewer `claude::reviewer-renata`. Workaround: claim with the compact form `--agent claude::<profile>`.
+    WP08 was re-claimed through a recorded identity-correction rejection; WP04, WP11 and WP15 were claimed bare and need the
+    same correction at review. Disposition: file a core issue at closeout.'
+- id: n-161
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review] Spec FR-084/C-003 still say the events ADRs are files this Mission delivers; the
+    plan and WP03 only link spec-kitty-events PR #215.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][review] Spec FR-084/C-003 still say the events ADRs are files this Mission delivers; the plan
+    and WP03 only link spec-kitty-events PR #215.** Editing spec.md now would make the analysis report stale and block every
+    further implement claim. Disposition: fix the two rows once the last WP is claimed, before accept, then re-run analyze.'
+- id: n-160
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review] The generated review prompt uses `--agent claude::reviewer-renata`, while our brief
+    said `--agent claude`; with auto-commit disabled, move-task prints "verdict written but'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][review] The generated review prompt uses `--agent claude::reviewer-renata`, while our brief said
+    `--agent claude`; with auto-commit disabled, move-task prints "verdict written but NOT committed (--no-auto-commit)" although
+    no such flag was passed.** Disposition: brief fixed; orchestrator commits status.'
+- id: n-138
+  category: tooling
+  summary: 'Tracer: [2026-11-06][setup] The container restarted mid-discovery; discovery files in the scratchpad survived,
+    the primary working directory flips between /home/user and the checkout.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][setup] The container restarted mid-discovery; discovery files in the scratchpad survived, the
+    primary working directory flips between /home/user and the checkout.** Disposition: always cd into the checkout.'
+- id: n-127
+  category: tooling
+  summary: 'Tracer: [2026-11-06][setup] add_repo for spec-kitty-open-packs (push) was denied by the harness permission classifier.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][setup] add_repo for spec-kitty-open-packs (push) was denied by the harness permission classifier.**
+    S11 cannot open its upstream PR from this session; doctrine changes are drafted as a patch for the operator. Disposition:
+    blocked, escalated in hand-off.'
+- id: n-056
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] "Lanes/worktrees created after settlement" read as: lane manifest at settlement,
+    lane branches/checkouts by the existing implement-time allocation (A-7).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] "Lanes/worktrees created after settlement" read as: lane manifest at settlement, lane
+    branches/checkouts by the existing implement-time allocation (A-7).** Pre-allocating checkouts at finalize would contradict
+    ruling 5.'
+- id: n-139
+  category: tooling
+  summary: "Tracer: [2026-11-06][specify] Discovery briefs live under a scratchpad path keyed on the old cwd (`-home-user-spec-kitty`),
+    not the session's current scratchpad (`-home-user`)."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][specify] Discovery briefs live under a scratchpad path keyed on the old cwd (`-home-user-spec-kitty`),
+    not the session's current scratchpad (`-home-user`).** A sub-agent must be handed the absolute path. Disposition: workaround
+    (paths passed explicitly)."
+- id: n-060
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] Missing claim stamp `O_k` degrades to `(claim base, S_k]` and is logged (A-8), not
+    a new refusal code.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] Missing claim stamp `O_k` degrades to `(claim base, S_k]` and is logged (A-8), not a
+    new refusal code.** Keeps S8 contract-neutral.'
+- id: n-035
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] One Mission, explicit `lanes` topology, consolidating into the topic branch issue-7276-lane-worktree-hardening.'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][specify] One Mission, explicit `lanes` topology, consolidating into the topic branch issue-7276-lane-worktree-hardening.**
+    ADR work packages first where they govern code; S2 before S3; S8 before S7; S1 and S6 early.'
+- id: n-036
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] Out-of-repo deliverables:'
+  evidence_refs:
+  - e-058
+  details: "- **[2026-11-06][specify] Out-of-repo deliverables:** S9's spec-kitty-events ADRs (0007/0008) and S11's open-packs
+    doctrine are drafted as patches/files (read-only access to events; open-packs push denied) for the operator to land."
+- id: n-054
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] Protected target: "lanes otherwise" settles to `lanes_with_coord`, topic branch
+    promoted to the coordination branch (assumption A-3).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] Protected target: "lanes otherwise" settles to `lanes_with_coord`, topic branch promoted
+    to the coordination branch (assumption A-3).** A `lanes` Mission with status on a protected target is refused at consolidate,
+    and create no longer mints coord; `coord` stops being a default outcome since <=1 code lane settles to `single_branch`.
+    Rejected: `lanes` holding the topic branch in the write checkout for the whole Mission (#5550/#5676).'
+- id: n-048
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] Ruling 3 restated (operator, escalation answer).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][specify] Ruling 3 restated (operator, escalation answer).** Lane checkouts never show status
+    files, lanes never change them, readers never read them; the fork-time blob stays in lane history. Removing the files
+    from lane trees would delete the real log at consolidation and break ADR 2026-07-29-1 Assert A'."
+- id: n-061
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S11 withholds all lease-behaviour text (FR-093)'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S11 withholds all lease-behaviour text (FR-093)** because the lease is out of scope
+    (C-007); "text never ships before its behaviour".'
+- id: n-053
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S4 coordination (session for PR #7275).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S4 coordination (session for PR #7275).** ADR 2026-11-06-1 Scope (commit 3e9aeacd) now
+    names S5/S10/S3 as adopting callers. The S4 session asks us to keep our O3/O2/O7 amendment draft. Binding target: `guarded_landed_removal(repo_root,
+    LandedRemoval(worktree, branch, tip, remote, landing_ref), context=, processes_in=, absorbed=)`; the local-target proof
+    relaxes `_assert_named_landing_ref`. The `clear_tip` data-loss fix stays in S5.'
+- id: n-059
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S5 includes the prune backstop for consolidated Mission lanes (FR-039).'
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][specify] S5 includes the prune backstop for consolidated Mission lanes (FR-039).** Without it
+    the \"kept\" report's `doctor workspaces --prune` remedy would do nothing (Mission lanes are report-only today); lands
+    after #7275."
+- id: n-051
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S5 is a seam now (operator).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S5 is a seam now (operator).** One lane-cleanup module behind a remover port; kept lanes
+    are reported, never a traceback after a verified landing; ADR 2026-11-06-1 amendment drafted; binding to destructive_guard
+    after #7275 merges.'
+- id: n-057
+  category: tooling
+  summary: "Tracer: [2026-11-06][specify] S6 \"write-check refuses\" placed on Spec Kitty's own write paths plus a doctor
+    probe for hand commits (A-9); no pre-commit hook, no new refusal on the shared for_review ga"
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][specify] S6 \"write-check refuses\" placed on Spec Kitty's own write paths plus a doctor probe
+    for hand commits (A-9); no pre-commit hook, no new refusal on the shared for_review gate (C-006).** Keeps the orchestrator-api
+    transition contract unchanged."
+- id: n-049
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S7 becomes deferred materialization (operator, escalation answer).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S7 becomes deferred materialization (operator, escalation answer).** Without an explicit
+    `--topology`, `create` mints one Mission topic branch only; lanes, worktrees and the coordination branch are created at
+    finalize once the size rule settles the topology. Rationale (operator): compressing lanes/coord into single_branch is
+    the most expensive transition; growing is cheap.'
+- id: n-050
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S8 back-compat is refuse-plus-attest (operator).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S8 back-compat is refuse-plus-attest (operator).** Unstamped single_branch approvals
+    refuse APPROVAL_STAMP_MISSING after upgrade; `--attest-approved-reviewed` lifts per WP. Commit-to-target Missions stay
+    an unbounded residual (recorded in the ADR amendment).'
+- id: n-052
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] S8 stamp is the Mission write-branch head, gated on the stored single_branch topology
+    (never on `is_planning_lane`), code `LANE_MOVED_AFTER_APPROVAL` reused.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] S8 stamp is the Mission write-branch head, gated on the stored single_branch topology
+    (never on `is_planning_lane`), code `LANE_MOVED_AFTER_APPROVAL` reused.** Keeps the orchestrator-api contract unchanged.'
+- id: n-140
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] The spec scaffold has no slots for Domain Language, Assumptions, Dependencies, Out
+    of Scope or Rules; the specify prompt asks for them.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][specify] The spec scaffold has no slots for Domain Language, Assumptions, Dependencies, Out of
+    Scope or Rules; the specify prompt asks for them.** Added as extra sections after Success Criteria, keeping scaffold order.
+    Disposition: note; candidate template gap for open-packs.'
+- id: n-055
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] The topic branch reuses `kitty/mission-<slug>-<mid8>` (A-1) and a default `single_branch`
+    always consolidates its topic branch (A-4).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] The topic branch reuses `kitty/mission-<slug>-<mid8>` (A-1) and a default `single_branch`
+    always consolidates its topic branch (A-4).** Settlement assigns a role, never renames; every size-default `single_branch`
+    Mission falls inside the S8 bound, leaving only explicit `--commit-to-target` unbounded.'
+- id: n-058
+  category: tooling
+  summary: 'Tracer: [2026-11-06][specify] `--commit-to-target` keeps requiring explicit `--topology single_branch` (FR-060).'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][specify] `--commit-to-target` keeps requiring explicit `--topology single_branch` (FR-060).**
+    Conservative; a provisional Mission never writes straight to its target.'
+- id: n-141
+  category: tooling
+  summary: "Tracer: [2026-11-06][specify] spec-kitty-open-packs attached read-only at the operator's request and cloned to
+    /home/user/spec-kitty-open-packs (22c14b2); push access is still denied by the permission"
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][specify] spec-kitty-open-packs attached read-only at the operator's request and cloned to /home/user/spec-kitty-open-packs
+    (22c14b2); push access is still denied by the permission classifier.** S11 pack edits can be authored on a local branch
+    there, but the upstream PR needs push access (or the operator pushes the branch). Disposition: blocked on permission,
+    raised with the operator."
+- id: n-150
+  category: tooling
+  summary: "Tracer: [2026-11-06][tasks] #6884's commits mix core code with another Mission's `kitty-specs/` files and a hand
+    edit of `docs/changelog/CHANGELOG.md`; a plain `cherry-pick -x` would drag both in."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][tasks] #6884's commits mix core code with another Mission's `kitty-specs/` files and a hand edit
+    of `docs/changelog/CHANGELOG.md`; a plain `cherry-pick -x` would drag both in.** WP04 prescribes `cherry-pick -x -n` plus
+    path-limited restore and a Co-authored-by trailer. Disposition: workaround."
+- id: n-080
+  category: tooling
+  summary: 'Tracer: [2026-11-06][tasks] Agents find planning artifacts via the resolver paths, not a fixed root path.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][tasks] Agents find planning artifacts via the resolver paths, not a fixed root path.** `agent
+    context resolve` / `check-prerequisites --paths-only` must return the PRIMARY-partition location (the coordination worktree
+    on the topic branch for a settled default Mission, FR-061). The read-door WP (IC-05) and the settlement WP (IC-14) must
+    cover those two commands with a test; told the S11 session to cite them.'
+- id: n-081
+  category: tooling
+  summary: "Tracer: [2026-11-06][tasks] An unreadable worktree registry fails closed at the read door (WP04), reversing #6884's
+    keep-the-caller's-root leg."
+  evidence_refs:
+  - e-059
+  details: "- **[2026-11-06][tasks] An unreadable worktree registry fails closed at the read door (WP04), reversing #6884's
+    keep-the-caller's-root leg.** Under ruling 8 a root that cannot be classified must not be read as a status surface; #6884's
+    test is flipped on purpose and the PR description must say so."
+- id: n-039
+  category: tooling
+  summary: 'Tracer: [2026-11-06][tasks] Operator flipped open-packs PR #128 (S11 pack doctrine) to ready; open-packs no longer
+    gates on core compatibility, and core integration follows once the charter service is'
+  evidence_refs:
+  - e-058
+  details: '- **[2026-11-06][tasks] Operator flipped open-packs PR #128 (S11 pack doctrine) to ready; open-packs no longer
+    gates on core compatibility, and core integration follows once the charter service is wired in.** WP19 (the open-packs
+    patch) is therefore redundant: the S11 session already applied the map. Disposition: cancel WP19 at implement time with
+    that rationale; this Mission does not bump the core pack pin. Still tell the S11 session if WP16 lands, so it can restore
+    the `--prune` backstop wording.'
+- id: n-152
+  category: tooling
+  summary: 'Tracer: [2026-11-06][tasks] The migration file name needs the next release version (`m_4_0_0rc9_...` assumed);
+    pyproject says 4.0.0rc8.'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][tasks] The migration file name needs the next release version (`m_4_0_0rc9_...` assumed); pyproject
+    says 4.0.0rc8.** Disposition: WP10 told to rename consistently if the next version differs and report so owned_files can
+    follow.'
+- id: n-149
+  category: tooling
+  summary: "Tracer: [2026-11-06][tasks] The plan's shared-file ownership map (two ICs with hunks in one file) cannot be expressed
+    in `owned_files` (no overlap allowed)."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][tasks] The plan's shared-file ownership map (two ICs with hunks in one file) cannot be expressed
+    in `owned_files` (no overlap allowed).** Each shared file got one owner; the other WP's hunk is a recorded out-of-map
+    edit, listed in tasks.md \"Shared-file sequencing\". Disposition: workaround."
+- id: n-082
+  category: tooling
+  summary: 'Tracer: [2026-11-06][tasks] WP16 (guard binding) is out of the first PR cut, blocked on #7275 merging.'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][tasks] WP16 (guard binding) is out of the first PR cut, blocked on #7275 merging.** IC-17 split
+    into WP17/WP18/WP19 to break the planning-lane cycle.'
+- id: n-151
+  category: tooling
+  summary: "Tracer: [2026-11-06][tasks] WP16 owns `src/specify_cli/git/destructive_guard.py`, which exists only on #7275's
+    branch; it is listed in `create_intent` so finalize accepts the pre-merge zero-match."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][tasks] WP16 owns `src/specify_cli/git/destructive_guard.py`, which exists only on #7275's branch;
+    it is listed in `create_intent` so finalize accepts the pre-merge zero-match.** Disposition: workaround; drop it from
+    create_intent once #7275 merges."
+gaps:
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP02] ADR 2026-11-06-3 written (Proposed): nine decisions folding in H1 (one "landed"
+    signal owned by the placement seam: PRIMARY to `meta.mission_branch` before landing'
+  evidence_refs:
+  - e-059
+  details: '- **[2026-11-06][implement WP02] ADR 2026-11-06-3 written (Proposed): nine decisions folding in H1 (one "landed"
+    signal owned by the placement seam: PRIMARY to `meta.mission_branch` before landing, `target_branch` after), FR-061 PRIMARY-on-topic-branch
+    (DM 01M6R0QJVPVZG2QT8MWQD4NXJR), `lanes_with_coord` on every target (DM 01M6R0B954ZPQN5NV4R1ZRE7NY), the dropped `--pr-bound`
+    fallback (DM 01M6R0QQM5FCPY736008AD4W6V), `create_return_branch` and C-010.** The second-`create` target-resolution risk
+    is kept as a mitigation with "a refusal would be a new code" left open (no over-deciding). Disposition: decided by the
+    record; operator accepts by merging.'
+- id: g-006
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement WP15] Every `done` transition clears the lane-tip ref (`lanes/claim_base.on_wp_terminal`,
+    #5115); a killed consolidate leaves the merge lock behind, so `--resume` needs '
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement WP15] Every `done` transition clears the lane-tip ref (`lanes/claim_base.on_wp_terminal`,
+    #5115); a killed consolidate leaves the merge lock behind, so `--resume` needs a manual unlock; shared-machine OOM killed
+    parallel test workers twice.** Disposition: noted; candidate gaps for the lock.'
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-06][implement] `agent action implement` for a code lane left meta.json (`vcs_locked_at`) and
+    the WP prompt history STAGED but uncommitted in the repository root checkout, while planni'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][implement] `agent action implement` for a code lane left meta.json (`vcs_locked_at`) and the
+    WP prompt history STAGED but uncommitted in the repository root checkout, while planning-lane agents commit in the same
+    checkout.** Any concurrent commit there would sweep them up. Disposition: orchestrator committed them at once; candidate
+    gap (the claim should commit its own bookkeeping or leave nothing staged).'
+- id: g-005
+  category: tooling
+  summary: "Tracer: [2026-11-06][review] A rejection resets the WP's subtasks to `planned`, so the rework must re-mark the
+    same subtasks done before `move-task --to for_review` runs."
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][review] A rejection resets the WP's subtasks to `planned`, so the rework must re-mark the same
+    subtasks done before `move-task --to for_review` runs.** Disposition: workaround; candidate gap."
+- id: g-004
+  category: tooling
+  summary: 'Tracer: [2026-11-06][review] The issue-matrix guard refused the first per-WP approvals (WP01, WP02) on rows that
+    belong to the whole Mission (context-only citations such as #2533 and #7255 counted as '
+  evidence_refs:
+  - e-060
+  details: "- **[2026-11-06][review] The issue-matrix guard refused the first per-WP approvals (WP01, WP02) on rows that belong
+    to the whole Mission (context-only citations such as #2533 and #7255 counted as 'unknown').** Disposition: orchestrator
+    recorded verdicts for every cited issue (S1–S11 in-mission; context and other-session issues not-applicable), then relayed
+    the reviewers' approvals as `claude::reviewer-renata`. Candidate gap: matrix seeding from spec citations could default
+    context-only references to not-applicable."
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-11-06][tasks] First `finalize-tasks --validate-only` failed `LANE_DEPENDENCY_CYCLE`: every planning_artifact
+    WP is pooled into `lane-planning`, so a planning WP that depends on a code WP'
+  evidence_refs:
+  - e-060
+  details: '- **[2026-11-06][tasks] First `finalize-tasks --validate-only` failed `LANE_DEPENDENCY_CYCLE`: every planning_artifact
+    WP is pooled into `lane-planning`, so a planning WP that depends on a code WP (the IC-17 docs+patch WP after WP17) closes
+    a cycle with code WPs that depend on the ADR WPs.** The canonical tasks prompt does not warn that planning-artifact WPs
+    cannot sit downstream of code WPs. Disposition: workaround: IC-17 split into WP17 (code), WP18 (docs/changelog as `code_change`,
+    owns only `docs/`) and WP19 (open-packs patch, planning artifact, no deps, hand-off gated in prose). Candidate gap for
+    the tasks template.'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP01-adr-status-read-contract.md
+- id: e-006
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP02-adr-topology-settlement-and-s8-windows.md
+- id: e-007
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write.md
+- id: e-008
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP04-s1-root-normalization-and-ref-reader.md
+- id: e-009
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources.md
+- id: e-010
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP06-s1-migrate-cli-and-runtime-readers.md
+- id: e-011
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP07-s1-consolidation-readers-and-single-door-gate.md
+- id: e-012
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP08-s2-for-review-gate-on-lane-branch.md
+- id: e-013
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP09-s3-s6-lane-checkout-helper.md
+- id: e-014
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor.md
+- id: e-015
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP11-s8-stamp-write-branch-head.md
+- id: e-016
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate.md
+- id: e-017
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP13-s7-provenance-and-topic-branch-create.md
+- id: e-018
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize.md
+- id: e-019
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module.md
+- id: e-020
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP16-s5-guard-binding-pr-mode-prune.md
+- id: e-021
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP17-s11-skills-stale-remedy-guard.md
+- id: e-022
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP18-s11-docs-and-changelog.md
+- id: e-023
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP19-s11-open-packs-doctrine-patch.md
+- id: e-024
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP20-s7-consolidate-lands-topic-branch-primary.md
+- id: e-025
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+- id: e-026
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6R51VV3KHRQ2GZ9G58P9BCS
+- id: e-027
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RAQD6JY5NADPDS3NZTQEK2..01M6RCNPAFTHAR9N5R7P4JCFDZ
+- id: e-028
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RNQ4T61SRTPASR7DR1P2GR
+- id: e-029
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RYYQ1PNNG3ASR9ENPQZ05W
+- id: e-030
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6R82KWRRYGRM417WT86WW45..01M6R8E0VTB15TF9CK9TVFXQ4H
+- id: e-031
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RE33J026K76WN14K7V3Q3H..01M6RKDHSRT7TT1KQQX7EQQM3S
+- id: e-032
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RYQHEA37BE4PGF1REFKT4V
+- id: e-033
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6R95KFPA9Y2KFERQJY63JDA
+- id: e-034
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RR918V3R7VPFZ7VYQQSNCH
+- id: e-035
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RPGXJA3PB5FP2QJNNWQB89..01M6RXCW09HM4VZ7R051EYTQXE
+- id: e-036
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6SBBBPSGJ9NGMDF7NMH7V5F
+- id: e-037
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6RC6TVYT7F78VTJG461TC5B
+- id: e-038
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6SKYAQ519WQ4B35DN174T6W
+- id: e-039
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TJN5ZGJH4D6D4Y8TQ2CKT3
+- id: e-040
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTJP88K7W2M8PQG9AW39NB
+- id: e-041
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTCTC44GDDC9J6VZ9MEJHZ
+- id: e-042
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TF8B59EXA9F3RNM1WBA4WE
+- id: e-043
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TJR5EXWBW0VZWAF6B00ASM
+- id: e-044
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TM6MPEWB3551WS2XE1C64B
+- id: e-045
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TR9TSTC6WRGB6JTYPGYB3W
+- id: e-046
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTNDW1X01C017G1S6ATQAV
+- id: e-047
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTFR1YQQ0K909PH7MC8YYT
+- id: e-048
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TJN5ZGJH4D6D4Y8TQ2CKT3..01M6TQX8ZT0H54MV583SNDQPC6
+- id: e-049
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTJP88K7W2M8PQG9AW39NB..01M6TWX7ZGR11H70R1NPKFACD0
+- id: e-050
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTCTC44GDDC9J6VZ9MEJHZ..01M6TWWWE962YAW9R04PEMGWSY
+- id: e-051
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TF8B59EXA9F3RNM1WBA4WE..01M6TGQKJWM7YW12S63CZGAHXY
+- id: e-052
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TJR5EXWBW0VZWAF6B00ASM..01M6TQXER06Y11BDVR27PCN84T
+- id: e-053
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TM6MPEWB3551WS2XE1C64B..01M6TQXME56RNGX14ET00YWFYN
+- id: e-054
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TR9TSTC6WRGB6JTYPGYB3W..01M6TSFZR4P7GJE053DPYY1GR8
+- id: e-055
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTNDW1X01C017G1S6ATQAV..01M6TWXE02CTCH1ZF2RG2Y0HFP
+- id: e-056
+  kind: event_range
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/status.events.jsonl
+  range: 01M6TTFR1YQQ0K909PH7MC8YYT..01M6TWX2A6K9ZXA4E9NHR3GQF0
+- id: e-057
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/analysis-report.md
+- id: e-058
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/traces/approach.md
+- id: e-059
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/traces/design-decisions.md
+- id: e-060
+  kind: file
+  path: kitty-specs/lane-worktree-model-hardening-01M6QY1M/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

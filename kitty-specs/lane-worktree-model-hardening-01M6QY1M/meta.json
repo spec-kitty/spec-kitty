@@ -1,0 +1,36 @@
+{
+  "accept_commit": "7c7b9e22ba465245e085deecbb9f1e68fe5e4b62",
+  "acceptance_history": [
+    {
+      "accept_commit": "7c7b9e22ba465245e085deecbb9f1e68fe5e4b62",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-07T06:54:07.363783+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "2f8bf1721e869b2c688c9a2801cdd63d731af191"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-07T06:54:07.363783+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "2f8bf1721e869b2c688c9a2801cdd63d731af191",
+  "baseline_merge_commit": "20a6dec300a37538f002ef64fc064e0d88c6ad04",
+  "created_at": "2026-11-06T08:01:50.940562+00:00",
+  "flattened": false,
+  "friendly_name": "Lane and worktree model hardening",
+  "merged_at": "2026-11-07T11:45:44.432895+00:00",
+  "merged_commit": "1a6a007820b9519cd64b70acff28e2e6850c5991",
+  "mid8": "01M6QY1M",
+  "mission_id": "01M6QY1MKKW6AA3EBKSJ0VVAMP",
+  "mission_number": 251,
+  "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The lane, worktree and coordination model is the largest single source of friction. This Mission applies the operator rulings: one status read contract, the for_review gate reading lane branches, lane checkouts that never show status files, approval windows for single_branch, topology settled at finalize-tasks by Mission size, cleanup as the last consolidation step, plus the ADRs for short-lived checkouts and worktree-free coordination writes.",
+  "purpose_tldr": "Make lanes, worktrees and the status surface simpler and safer, per the 2026-11-06 operator rulings (epic #7276).",
+  "slug": "lane-worktree-model-hardening-01M6QY1M",
+  "status_phase": "1",
+  "target_branch": "issue-7276-lane-worktree-hardening",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-06T09:40:28.737114+00:00"
+}
