@@ -21,7 +21,14 @@ shape. Per worktree the outcome is exactly one of:
   else; the worktree is left untouched and the ids are reported (C-009: an
   event is never dropped);
 * ``skipped_mid_operation`` -- a merge, rebase or cherry-pick is in progress;
+* ``refused_sparse_cone`` -- the worktree is a cone-mode sparse checkout, which
+  cannot hold the exclusion; it is left untouched (#7276);
+* ``failed`` -- applying the exclusion raised; the lane is reported and the run
+  is not recorded as a success, so it runs again (#7276);
 * ``already_excluded`` -- the exclusion is in place (a re-run is a no-op, NFR-005).
+
+A worktree that is already a non-cone sparse checkout keeps its own patterns;
+the two status negations are merged into them (#7276).
 
 A run that would leave a lane ``refused_lane_only_events`` or
 ``skipped_mid_operation`` is refused by ``can_apply()``: the runner reports it
@@ -68,10 +75,19 @@ class LaneCheckoutOutcome(StrEnum):
     REFUSED_LANE_ONLY_EVENTS = "refused_lane_only_events"
     SKIPPED_MID_OPERATION = "skipped_mid_operation"
     ALREADY_EXCLUDED = "already_excluded"
+    REFUSED_SPARSE_CONE = "refused_sparse_cone"
+    FAILED = "failed"
 
 
 _CHANGING_OUTCOMES = frozenset({LaneCheckoutOutcome.EXCLUDED, LaneCheckoutOutcome.FLAGGED_REDUNDANT})
-_UNMIGRATED_OUTCOMES = frozenset({LaneCheckoutOutcome.REFUSED_LANE_ONLY_EVENTS, LaneCheckoutOutcome.SKIPPED_MID_OPERATION})
+_UNMIGRATED_OUTCOMES = frozenset(
+    {
+        LaneCheckoutOutcome.REFUSED_LANE_ONLY_EVENTS,
+        LaneCheckoutOutcome.SKIPPED_MID_OPERATION,
+        LaneCheckoutOutcome.REFUSED_SPARSE_CONE,
+        LaneCheckoutOutcome.FAILED,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +118,10 @@ def lane_exclusion_remedy(item: LaneCheckoutMigrationItem) -> str:
         )
     if item.outcome == LaneCheckoutOutcome.SKIPPED_MID_OPERATION:
         return f"finish or abort the merge, rebase or cherry-pick in {item.worktree}, {_UPGRADE_REMEDY}"
+    if item.outcome == LaneCheckoutOutcome.REFUSED_SPARSE_CONE:
+        return f"switch {item.worktree} to a non-cone sparse checkout (git sparse-checkout set --no-cone ...) or disable it, {_UPGRADE_REMEDY}"
+    if item.outcome == LaneCheckoutOutcome.FAILED:
+        return f"fix the git error reported for {item.worktree}, {_UPGRADE_REMEDY}"
     return "run `spec-kitty doctor sparse-checkout --fix` (or `spec-kitty upgrade`)"
 
 
@@ -176,12 +196,26 @@ def _migrate_one(project_path: Path, worktree: Path, lane_id: str, mission: str,
         return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.ALREADY_EXCLUDED)
     if _mid_operation(worktree):
         return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.SKIPPED_MID_OPERATION, reason="a merge, rebase or cherry-pick is in progress")
+    if _cone_mode(worktree):
+        reason = "a cone-mode sparse checkout cannot exclude the status files; worktree left untouched"
+        return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.REFUSED_SPARSE_CONE, reason=reason)
     item = _classify_copy(project_path, worktree, lane_id, mission, mission_dir_name)
     if item.outcome in _CHANGING_OUTCOMES and not dry_run:
-        from specify_cli.lanes.lane_checkout import exclude_lane_status_files
+        from specify_cli.lanes import lane_checkout
 
-        exclude_lane_status_files(worktree, mission_dir_name)
+        try:
+            lane_checkout.exclude_lane_status_files(worktree, mission_dir_name)
+        except lane_checkout.LaneCheckoutError as exc:
+            return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.FAILED, reason=f"the exclusion could not be applied ({exc})")
     return item
+
+
+def _cone_mode(worktree: Path) -> bool:
+    return _config_true(worktree, "core.sparseCheckout") and _config_true(worktree, "core.sparseCheckoutCone")
+
+
+def _config_true(worktree: Path, key: str) -> bool:
+    return _git(worktree, "config", "--get", key).strip().lower() == "true"
 
 
 def _classify_copy(project_path: Path, worktree: Path, lane_id: str, mission: str, mission_dir_name: str) -> LaneCheckoutMigrationItem:
@@ -216,15 +250,14 @@ def _classify_copy(project_path: Path, worktree: Path, lane_id: str, mission: st
 
 
 def _already_excluded(worktree: Path, mission_dir_name: str) -> bool:
-    from specify_cli.coordination.workspace import lane_status_exclusion_patterns
+    from specify_cli.lanes.lane_checkout import status_exclusion_in_place
 
-    if _git(worktree, "config", "--get", "core.sparseCheckout").strip().lower() != "true":
+    if not _config_true(worktree, "core.sparseCheckout") or _config_true(worktree, "core.sparseCheckoutCone"):
         return False
     sparse_file = _git_path(worktree, "info/sparse-checkout")
     if sparse_file is None or not sparse_file.is_file():
         return False
-    present = {line.strip() for line in sparse_file.read_text(encoding="utf-8").splitlines() if line.strip()}
-    return present == set(lane_status_exclusion_patterns(mission_dir_name))
+    return status_exclusion_in_place(sparse_file.read_text(encoding="utf-8").splitlines(), mission_dir_name)
 
 
 def _mid_operation(worktree: Path) -> bool:
@@ -333,4 +366,7 @@ class LaneCheckoutStatusExclusionMigration(BaseMigration):
         prefix = "would apply" if dry_run else "applied"
         changes = [f"{prefix} lane status exclusion: {item.render()}" for item in items if item.outcome in _CHANGING_OUTCOMES]
         warnings = [f"lane worktree not migrated: {item.render()}" for item in items if item.outcome in _UNMIGRATED_OUTCOMES]
-        return MigrationResult(success=True, changes_made=changes, warnings=warnings)
+        # can_apply() already blocks every refusal it can foresee; a lane whose exclusion
+        # failed while applying keeps the run from being recorded as a success (#7276).
+        errors = [f"lane worktree exclusion failed: {item.render()}" for item in items if item.outcome == LaneCheckoutOutcome.FAILED]
+        return MigrationResult(success=not errors, changes_made=changes, errors=errors, warnings=warnings)

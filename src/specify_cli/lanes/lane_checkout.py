@@ -51,10 +51,12 @@ __all__ = [
     "lane_checkout_containing",
     "lane_mission_dir_name",
     "lane_mission_dir_name_from_meta",
+    "merge_status_exclusion",
     "mission_code_lanes",
     "open_lane_checkout",
     "read_registered_checkouts",
     "resolve_lane_mission_dir_name",
+    "status_exclusion_in_place",
 ]
 
 #: The spec-kitty runtime-state directory a lane checkout must never show as untracked (#5434).
@@ -178,14 +180,65 @@ def exclude_lane_status_files(checkout: Path, mission_dir_name: str) -> None:
     The configuration is per worktree (clone-local). ``reapply`` leaves a
     locally modified status file on disk with a warning, so a dirty copy's
     rows are never discarded (C-009); a clean one leaves the disk.
+
+    A checkout that is already sparse keeps its own patterns (#7276): in
+    non-cone mode the two ``!`` status patterns are appended to the existing
+    list (the operator's restriction is never widened to ``/*``); a cone-mode
+    checkout cannot hold a negation and is refused.
+
+    Raises:
+        LaneCheckoutError: the checkout is in cone mode, or a git step failed.
     """
-    _git(checkout, "sparse-checkout", "init", "--no-cone")
+    sparse_on = _git_config_true(checkout, "core.sparseCheckout")
+    if sparse_on and _git_config_true(checkout, "core.sparseCheckoutCone"):
+        raise LaneCheckoutError(
+            f"{checkout} uses a cone-mode sparse checkout, which cannot exclude the Mission status files; "
+            "switch it to non-cone mode (git sparse-checkout set --no-cone ...) or disable it, then retry"
+        )
+    if not sparse_on:
+        _git(checkout, "sparse-checkout", "init", "--no-cone")
     sparse_file = Path(_git(checkout, "rev-parse", "--git-path", "info/sparse-checkout"))
     if not sparse_file.is_absolute():
         sparse_file = checkout / sparse_file
+    existing = sparse_file.read_text(encoding="utf-8").splitlines() if sparse_on and sparse_file.is_file() else []
     sparse_file.parent.mkdir(parents=True, exist_ok=True)
-    sparse_file.write_text("\n".join(lane_status_exclusion_patterns(mission_dir_name)) + "\n", encoding="utf-8")
+    sparse_file.write_text("\n".join(merge_status_exclusion(existing, mission_dir_name)) + "\n", encoding="utf-8")
     _git(checkout, "sparse-checkout", "reapply")
+
+
+def merge_status_exclusion(existing: list[str], mission_dir_name: str) -> list[str]:
+    """The non-cone pattern list *existing* plus the status exclusion (#7276).
+
+    With no patterns of its own the checkout gets the full exclusion list
+    (``/*`` and the two negations). Otherwise every existing pattern is kept in
+    order and the negations are moved to the end, where they win (git applies
+    the last matching pattern).
+    """
+    patterns = lane_status_exclusion_patterns(mission_dir_name)
+    negations = [p for p in patterns if p.startswith("!")]
+    kept = [line for line in existing if line.strip() and line.strip() not in negations]
+    if not kept:
+        return list(patterns)
+    return [*kept, *negations]
+
+
+def status_exclusion_in_place(lines: list[str], mission_dir_name: str) -> bool:
+    """True when a non-cone pattern list carries the status exclusion (merged or full).
+
+    Both negations must be present after every positive pattern, so no later
+    pattern can re-include a status file.
+    """
+    stripped = [line.strip() for line in lines if line.strip()]
+    negations = [p for p in lane_status_exclusion_patterns(mission_dir_name) if p.startswith("!")]
+    if not all(n in stripped for n in negations):
+        return False
+    first_negation = min(stripped.index(n) for n in negations)
+    return all(line.startswith("!") for line in stripped[first_negation:])
+
+
+def _git_config_true(cwd: Path, key: str) -> bool:
+    result = subprocess.run(["git", "-C", str(cwd), "config", "--get", key], capture_output=True, text=True, check=False)
+    return result.returncode == 0 and result.stdout.strip().lower() == "true"
 
 
 def _refuse_detached(request: LaneCheckoutRequest) -> None:

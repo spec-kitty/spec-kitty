@@ -362,3 +362,40 @@ def test_an_operator_sparse_pattern_beside_the_exclusion_stays_refused(route: st
             mission_slug=MISSION_SLUG,
             mission_id=MISSION_ID,
         )
+
+
+# #7276: merging the status exclusion into an operator's own non-cone patterns.
+
+
+def test_merge_status_exclusion_full_list_when_no_patterns() -> None:
+    from specify_cli.coordination.workspace import lane_status_exclusion_patterns
+    from specify_cli.lanes.lane_checkout import merge_status_exclusion
+
+    assert merge_status_exclusion([], "m-1") == lane_status_exclusion_patterns("m-1")
+
+
+def test_merge_status_exclusion_keeps_patterns_and_moves_negations_last() -> None:
+    from specify_cli.lanes.lane_checkout import merge_status_exclusion, status_exclusion_in_place
+
+    merged = merge_status_exclusion(["!kitty-specs/m-1/status.json", "/src/", ""], "m-1")
+    assert merged == ["/src/", "!kitty-specs/m-1/status.events.jsonl", "!kitty-specs/m-1/status.json"]
+    assert status_exclusion_in_place(merged, "m-1")
+
+
+def test_status_exclusion_not_in_place_when_missing_or_reincluded() -> None:
+    from specify_cli.lanes.lane_checkout import status_exclusion_in_place
+
+    assert not status_exclusion_in_place(["/*", "!kitty-specs/m-1/status.json"], "m-1")
+    assert not status_exclusion_in_place(["!kitty-specs/m-1/status.events.jsonl", "!kitty-specs/m-1/status.json", "/kitty-specs/"], "m-1")
+
+
+def test_exclude_lane_status_files_refuses_cone_mode(tmp_path: Path) -> None:
+    import subprocess
+
+    from specify_cli.lanes.lane_checkout import LaneCheckoutError, exclude_lane_status_files
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=T", "-c", "user.email=t@e", "commit", "-q", "--allow-empty", "-m", "b"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "sparse-checkout", "set", "--cone", "src"], check=True)
+    with pytest.raises(LaneCheckoutError, match="cone-mode"):
+        exclude_lane_status_files(tmp_path, "m-1")
