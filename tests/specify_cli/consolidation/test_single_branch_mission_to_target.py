@@ -323,8 +323,9 @@ def test_no_lane_branch_cleanup_line_when_none_were_deleted(protected_repo: Path
     run = _unprotected_run(protected_repo)
 
     with ex.console.capture() as captured:
-        phase_teardown._delete_lane_branches(run)
+        report = phase_teardown._lane_cleanup_report(run)
 
+    assert report.results == (), "a single_branch Mission has no code lane to clean up"
     assert "Cleaned up" not in captured.get()
 
 

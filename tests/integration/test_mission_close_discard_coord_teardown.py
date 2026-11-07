@@ -343,7 +343,7 @@ def test_expected_lane_worktree_dir_names_are_exact() -> None:
             predicted_surfaces=(), depends_on_lanes=(), parallel_group=0,
         )
     )
-    assert _expected_lane_worktree_dir_names("alpha", manifest) == {"alpha-lane-a"}
+    assert _expected_lane_worktree_dir_names(manifest) == {"alpha-lane-a"}
 
 
 def _write_mission_meta(repo: Path, slug: str) -> None:
@@ -358,7 +358,7 @@ def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -
     its OWN lane worktree, never sibling `alpha-beta`'s worktree (whose dir name
     shares the `alpha-` prefix) — preserving the sibling's uncommitted work. The
     pre-fix `<slug>-*` prefix scan deleted it."""
-    from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
+    from specify_cli.cli.commands.mission_type import _discard_lanes
 
     repo = _init_repo(tmp_path)
     _write_mission_meta(repo, "alpha")
@@ -367,7 +367,7 @@ def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -
     _git(repo, "worktree", "add", "--detach", str(sibling_wt))
     (sibling_wt / "uncommitted.txt").write_text("precious sibling work\n", encoding="utf-8")
 
-    _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
+    _discard_lanes(repo, _single_lane_manifest("alpha"))
 
     assert not (repo / ".worktrees" / "alpha-lane-a").exists(), "target worktree must be removed"
     assert sibling_wt.exists(), "SIBLING worktree must be preserved (no prefix over-match)"
@@ -388,7 +388,7 @@ def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
     `specify_cli.decisions.ownership`. `safe_is_dir` makes this raise on every
     interpreter instead of only on 3.11-3.13.
     """
-    from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
+    from specify_cli.cli.commands.mission_type import _discard_lanes
 
     repo = _init_repo(tmp_path)
     _write_mission_meta(repo, "alpha")
@@ -400,8 +400,12 @@ def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
 
     # Deny the stat at the seam: root stats through a 0o000 directory (#5691).
     deny_path_method(monkeypatch, "stat", worktrees_root / "alpha-lane-a")
-    with pytest.raises(OSError):
-        _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
+    # S5: the lane-cleanup module reports the unstattable lane as kept, and the discard stops loudly.
+    from specify_cli.git.destructive_guard import DestructiveOpRefused
+
+    with pytest.raises(DestructiveOpRefused) as refused:
+        _discard_lanes(repo, _single_lane_manifest("alpha"))
+    assert refused.value.error_code == "LANE_CLEANUP_FAILED"
 
 
 def test_verify_flags_stale_coordination_worktree_registration(tmp_path: Path) -> None:

@@ -21,16 +21,13 @@ import warnings
 from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
-from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     DISCARD_INTENT,
     DestructiveOpRefused,
-    RemoveOutcome,
     branch_only_commits,
     branch_tip,
     discarded_ref,
     guarded_branch_delete,
-    guarded_worktree_remove,
 )
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.mission_metadata import load_meta, recorded_mid8
@@ -501,10 +498,9 @@ def close_cmd(
     # F-001: re-key to the canonical directory name. `--mission` accepts
     # handles (bare mid8, numeric prefix); the resolver canonicalizes the
     # DIRECTORY only, while `_discard_mission` / `_teardown_coordination_worktree`
-    # compose names from the slug — `_delete_lane_branches` via
-    # `lane_branch_name(raw, lane_id)` and `_remove_lane_worktrees` via the
-    # exact-name `_expected_lane_worktree_dir_names` composition
-    # (`<slug>-<mid8>-lane-<id>`). Fed a raw handle, those helpers would compose
+    # compose names from the slug (lane names now come from the recorded
+    # `lanes.json` slug through `consolidation.lane_cleanup`, S5).
+    # Fed a raw handle, slug-keyed helpers would compose
     # the WRONG on-disk names and leave the real worktrees/branches behind while
     # the command reports success.
     mission_slug = feature_dir.name
@@ -680,8 +676,8 @@ def _discard_mission_steps(
         destination_ref=destination_ref,
     )
     if lanes_manifest is not None:
-        _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
-        _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
+        _discard_lanes(repo_root, lanes_manifest)
+        _delete_discarded_mission_branch(repo_root, lanes_manifest)
         return None
     _delete_legacy_coordination_branch(repo_root, meta_path)
     return None
@@ -750,13 +746,13 @@ def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: st
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     if lanes_manifest is not None:
-        _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
-        _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
+        _discard_lanes(repo_root, lanes_manifest)
+        _delete_discarded_mission_branch(repo_root, lanes_manifest)
     # Operator-explicit discard of this protected single_branch Mission's own minted
     # branch. It holds ALL of the Mission's commits (finalization AND implementation),
     # so they exist nowhere else: the unique-commit check is bypassed on purpose
     # (#6071), after ``_announce_discard_loss`` showed them, and the tip is kept under
-    # ``refs/spec-kitty/discarded/``. ``_delete_lane_branches`` above already removes
+    # ``refs/spec-kitty/discarded/``. ``_delete_discarded_mission_branch`` above already removes
     # it for the manifest case; this stays correct should the manifest ever be absent.
     if _discard_own_mission_branch(repo_root, minted, creation_base=_existing_ref(repo_root, target)):
         console.print(f"  Deleted mission branch {minted}")
@@ -828,19 +824,13 @@ def _registered_worktree_names(repo_root: Path) -> list[str]:
 def _expected_discard_branches(feature_dir: Path, mission_slug: str, meta_path: Path) -> list[str]:
     """The branches a discard is expected to delete (for post-teardown verify).
 
-    Mirrors :func:`_delete_lane_branches` / :func:`_delete_legacy_coordination_branch`
+    Mirrors :func:`_discard_lanes` / :func:`_delete_legacy_coordination_branch`
     so the residual check verifies exactly the set the discard tried to remove.
     """
     branches: list[str] = []
     manifest = _load_lanes_manifest(feature_dir)
     if manifest is not None:
-        from specify_cli.lanes.branch_naming import code_lane_branch_name
-        from specify_cli.lanes.compute import is_planning_lane
-
-        for lane in manifest.lanes:
-            if is_planning_lane(lane):
-                continue
-            branches.append(code_lane_branch_name(mission_slug, lane.lane_id))
+        branches.extend(_code_lane_branch_names(manifest))
         deletable = _deletable_mission_branch(manifest)
         if deletable is not None:
             branches.append(deletable)
@@ -891,7 +881,7 @@ def _verify_discard_complete(
     # likewise checked both on disk and in the git worktree registry.
     manifest = _load_lanes_manifest(feature_dir)
     if manifest is not None:
-        for name in sorted(_expected_lane_worktree_dir_names(mission_slug, manifest)):
+        for name in sorted(_expected_lane_worktree_dir_names(manifest)):
             if (worktrees_root / name).is_dir() or name in registered:
                 leaks.append(f".worktrees/{name}")
 
@@ -1053,7 +1043,7 @@ def _announce_discard_loss(repo_root: Path, mission_slug: str, minted: str | Non
     own = _own_branches_for_discard(minted, lanes_manifest)
     if not own:
         return
-    doomed = [*own, *_code_lane_branch_names(mission_slug, lanes_manifest)] if lanes_manifest is not None else list(own)
+    doomed = [*own, *_code_lane_branch_names(lanes_manifest)] if lanes_manifest is not None else list(own)
     for branch in own:
         tip = branch_tip(repo_root, branch)
         if tip is None:
@@ -1107,19 +1097,45 @@ def _deletable_mission_branch(manifest: Any) -> str | None:
     return str(mission_branch)
 
 
-def _code_lane_branch_names(mission_slug: str, lanes_manifest: Any) -> list[str]:
-    from specify_cli.lanes.branch_naming import code_lane_branch_name
-    from specify_cli.lanes.compute import is_planning_lane
+def _code_lane_branch_names(lanes_manifest: Any) -> list[str]:
+    """The lane branches the discard deletes: the one answer of ``lanes.compute.lane_created_branch`` (S5)."""
+    from specify_cli.lanes.compute import is_planning_lane, lane_created_branch
 
-    return [code_lane_branch_name(mission_slug, lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)]
+    return [lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)]
 
 
-def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
+def _discard_lanes(repo_root: Path, lanes_manifest: Any) -> None:
+    """Remove every lane worktree and lane branch through the shared lane-cleanup module (S5, FR-030).
+
+    A discard has no landing proof. Each lane branch keeps the full guard against the mission
+    branch (or the target): a lane holding the only copy of work, or a dirty lane worktree, is
+    kept, and the discard then stops with exit 1 (#5965) before the mission branch is deleted.
+    """
+    from specify_cli.consolidation import lane_cleanup
+    from specify_cli.consolidation.lane_cleanup import LaneCleanupOutcome, LaneRetention, MainTodayRemover, plan_lane_cleanup
+    from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
+
+    items = plan_lane_cleanup(lanes_manifest, repo_root=repo_root)
+    if not items:
+        return
     lane_base = _existing_ref(repo_root, lanes_manifest.mission_branch) or _existing_ref(repo_root, lanes_manifest.target_branch)
-    deleted_lanes = 0
-    for branch_name in _code_lane_branch_names(mission_slug, lanes_manifest):
-        deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name, creation_base=lane_base)
+    context = residue_context_or_strictest(repo_root, lanes_manifest.mission_slug, CheckoutRole.LANE)
+    remover = MainTodayRemover(repo_root, context=context, creation_base=lane_base)
+    report = lane_cleanup.apply(items, remover, landing=None, retention=LaneRetention())
+    removed = sum(result.outcome is LaneCleanupOutcome.REMOVED for result in report.results)
+    if removed:
+        console.print(f"  Removed {removed} lane(s) (worktree and branch)")
+    if report.kept:
+        first = report.kept[0]
+        raise DestructiveOpRefused(
+            error_code=first.code or lane_cleanup.LANE_CLEANUP_FAILED,
+            remediation=f"{first.remedy}; lane {first.item.lane_id} was kept, nothing else of the discard ran after it.",
+            worktree_path=first.item.worktree,
+            current_branch=first.item.branch,
+        )
 
+
+def _delete_discarded_mission_branch(repo_root: Path, lanes_manifest: Any) -> None:
     deletable = _deletable_mission_branch(lanes_manifest)
     # The Mission's own mission/coordination branch is abandoned by an operator-explicit
     # ``mission close --discard`` (the only path that reaches here), so the unique-commit
@@ -1133,13 +1149,10 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
         deletable,
         creation_base=_bookkeeping_branch_base(repo_root, deletable, lanes_manifest.target_branch),
     )
-    # Report only what was actually removed: a single_branch mission has no lane
-    # branch and (unprotected) no mission branch of its own to delete.
-    deleted = [f"{deleted_lanes} lane branch(es)"] if deleted_lanes else []
+    # Report only what was actually removed: an unprotected single_branch mission has no
+    # mission branch of its own to delete.
     if deleted_mission:
-        deleted.append("mission/coordination branch")
-    if deleted:
-        console.print(f"  Deleted {' + '.join(deleted)}")
+        console.print("  Deleted mission/coordination branch")
 
 
 def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None:
@@ -1313,12 +1326,12 @@ def _discard_own_mission_branch(repo_root: Path, branch_name: str, *, creation_b
     return True
 
 
-def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) -> set[str]:
+def _expected_lane_worktree_dir_names(lanes_manifest: Any) -> set[str]:
     """Exact on-disk lane-worktree dir names a discard targets (no prefix match).
 
     Composed by the canonical ``worktree_dir_name`` grammar, keyed on the same
-    ``mission_slug`` (= ``feature_dir.name``) and lane set as
-    :func:`_delete_lane_branches`, so worktree removal and branch deletion target
+    recorded ``lanes.json`` Mission slug and lane set as
+    :func:`_code_lane_branch_names`, so worktree removal and branch deletion target
     the SAME lanes. Replaces ``.worktrees/<slug>-*`` prefix matching, which
     over-matches a *sibling* mission whose name shares the prefix (legacy non-mid8
     slugs) and could delete its worktree — including uncommitted work.
@@ -1326,38 +1339,7 @@ def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) ->
     from specify_cli.lanes.branch_naming import worktree_dir_name
     from specify_cli.lanes.compute import is_planning_lane
 
-    return {worktree_dir_name(mission_slug, lane_id=lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)}
-
-
-def _remove_lane_worktrees(
-    repo_root: Path,
-    mission_slug: str,
-    lanes_manifest: Any,
-) -> None:
-    """Remove this mission's operator-visible lane worktrees by EXACT name.
-
-    The coordination worktree is handled separately by
-    :func:`_teardown_coordination_worktree`.
-    """
-    from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
-
-    worktrees_root = repo_root / ".worktrees"
-    if not safe_is_dir(worktrees_root):
-        return
-
-    context = ResidueContext.for_mission(repo_root, mission_slug, CheckoutRole.LANE)
-    removed = 0
-    for name in sorted(_expected_lane_worktree_dir_names(mission_slug, lanes_manifest)):
-        entry = worktrees_root / name
-        if not safe_is_dir(entry):
-            continue
-        try:
-            result = guarded_worktree_remove(entry, retain=False, context=context)
-        except RuntimeError:
-            continue  # not a registered worktree / git refused: nothing the guard can prove, nothing removed
-        removed += result.outcome is RemoveOutcome.REMOVED
-    if removed:
-        console.print(f"  Removed {removed} lane worktree(s)")
+    return {worktree_dir_name(lanes_manifest.mission_slug, lane_id=lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)}
 
 
 # ---------------------------------------------------------------------------
