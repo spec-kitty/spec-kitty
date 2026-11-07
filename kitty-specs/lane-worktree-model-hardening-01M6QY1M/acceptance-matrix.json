@@ -460,13 +460,13 @@
     },
     {
       "criterion_id": "FR-070",
-      "description": "Verify FR-070 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-070 Stamp approvals with the write-branch head: every lifecycle transition of a WP in a Mission whose stored topology is `single_branch` to carry the Mission write branch's head as its lane-head stamp (gated on the stored topology, never on the planning-lane shape), so that approvals bound the content. A `lanes` Mission's planning lane stays unstamped.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-h:tests/status/test_lane_head_single_branch.py::test_single_branch_probe_stamps_mission_branch_head; lane-h:tests/status/test_lane_head_single_branch.py::test_lanes_planning_lane_wp_stays_unstamped; lane-h:tests/status/test_lane_head_single_branch.py::test_move_task_approved_records_lane_head_single_branch; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP11-s8-stamp-write-branch-head/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:16.194326+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-071",
