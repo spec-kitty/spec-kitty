@@ -186,14 +186,17 @@ def _mission_is_genuinely_legacy(repo_root: Path, mission_slug: str) -> bool:
     (:func:`specify_cli.coordination.legacy_resolution.meta_is_genuinely_legacy`).
     """
     meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    return meta_is_genuinely_legacy(load_meta(meta_dir, on_malformed="none"))
+    return bool(meta_is_genuinely_legacy(load_meta(meta_dir, on_malformed="none")))
 
 
 def exclude_lane_status_files(checkout: Path, mission_dir_name: str) -> None:
     """Register and apply the status-file sparse exclusion in one lane checkout.
 
     Uses git's own sparse-checkout commands (no shell globbing, NFR-008).
-    The configuration is per worktree (clone-local). ``reapply`` leaves a
+    The merged pattern list is applied in the single call
+    ``sparse-checkout set --no-cone --stdin``, so a failure never leaves the
+    checkout half-configured. The configuration is per worktree (clone-local).
+    ``set`` leaves a
     locally modified status file on disk with a warning, so a dirty copy's
     rows are never discarded (C-009); a clean one leaves the disk.
 
@@ -211,15 +214,18 @@ def exclude_lane_status_files(checkout: Path, mission_dir_name: str) -> None:
             f"{checkout} uses a cone-mode sparse checkout, which cannot exclude the Mission status files; "
             "switch it to non-cone mode (git sparse-checkout set --no-cone ...) or disable it, then retry"
         )
-    if not sparse_on:
-        _git(checkout, "sparse-checkout", "init", "--no-cone")
+    existing = _existing_sparse_patterns(checkout) if sparse_on else []
+    patterns = merge_status_exclusion(existing, mission_dir_name)
+    # One call: `sparse-checkout init` would apply `/*` and `!/*/` on its own, hiding every
+    # subdirectory, and a later failed step would leave the checkout that way.
+    _git(checkout, "sparse-checkout", "set", "--no-cone", "--stdin", stdin="\n".join(patterns) + "\n")
+
+
+def _existing_sparse_patterns(checkout: Path) -> list[str]:
     sparse_file = Path(_git(checkout, "rev-parse", "--git-path", "info/sparse-checkout"))
     if not sparse_file.is_absolute():
         sparse_file = checkout / sparse_file
-    existing = sparse_file.read_text(encoding="utf-8").splitlines() if sparse_on and sparse_file.is_file() else []
-    sparse_file.parent.mkdir(parents=True, exist_ok=True)
-    sparse_file.write_text("\n".join(merge_status_exclusion(existing, mission_dir_name)) + "\n", encoding="utf-8")
-    _git(checkout, "sparse-checkout", "reapply")
+    return sparse_file.read_text(encoding="utf-8").splitlines() if sparse_file.is_file() else []
 
 
 def merge_status_exclusion(existing: list[str], mission_dir_name: str) -> list[str]:
@@ -301,9 +307,9 @@ def _failure(request: LaneCheckoutRequest) -> str:
     return f"{_FAILURE_PREFIX[request.route]} {request.worktree_path}"
 
 
-def _git(cwd: Path, *args: str) -> str:
-    """Run one git command in ``cwd``; raise :class:`LaneCheckoutError` on a non-zero exit."""
-    result = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=False)
+def _git(cwd: Path, *args: str, stdin: str | None = None) -> str:
+    """Run one git command in ``cwd`` (``stdin`` fed to it); raise :class:`LaneCheckoutError` on a non-zero exit."""
+    result = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=False, input=stdin)
     if result.returncode != 0:
         raise LaneCheckoutError(f"git {' '.join(args)} failed in {cwd}: {(result.stderr or result.stdout).strip()}")
     return result.stdout.strip()

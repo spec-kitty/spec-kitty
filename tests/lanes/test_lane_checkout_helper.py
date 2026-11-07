@@ -414,3 +414,31 @@ def test_helper_leaves_a_genuinely_legacy_mission_lane_status_files_in_place(tmp
 
     for name in STATUS_FILES:
         assert (checkout / "kitty-specs" / MISSION_SLUG / name).exists(), f"{name} must stay in a legacy lane checkout"
+
+
+def test_exclusion_is_applied_in_one_sparse_checkout_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`sparse-checkout init` applies `/*` and `!/*/` at once; a later failure would leave the lane without its subdirectories."""
+    from specify_cli.lanes import lane_checkout
+
+    repo = _seed_mission(tmp_path, topology="lanes")
+    checkout = tmp_path / "lane-checkout"
+    _git(repo, "worktree", "add", "-q", "-b", LANE_BRANCH, str(checkout), "main")
+    calls: list[tuple[str, ...]] = []
+    real_git = lane_checkout._git
+
+    def _recording(cwd: Path, *args: str, **kwargs: str) -> str:
+        calls.append(args)
+        return real_git(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(lane_checkout, "_git", _recording)
+
+    lane_checkout.exclude_lane_status_files(checkout, MISSION_SLUG)
+
+    sparse_calls = [args for args in calls if args[0] == "sparse-checkout"]
+    assert len(sparse_calls) == 1, sparse_calls
+    assert sparse_calls[0][:3] == ("sparse-checkout", "set", "--no-cone")
+    assert (checkout / "src" / "app.py").exists(), "subdirectories stay on disk"
+    assert not (checkout / "kitty-specs" / MISSION_SLUG / "status.json").exists()
+    patterns = _git(checkout, "sparse-checkout", "list").splitlines()
+    assert patterns[0] == "/*"
+    assert patterns[-2:] == [f"!kitty-specs/{MISSION_SLUG}/status.events.jsonl", f"!kitty-specs/{MISSION_SLUG}/status.json"]
