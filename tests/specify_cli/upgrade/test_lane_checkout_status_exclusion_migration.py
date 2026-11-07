@@ -446,3 +446,24 @@ def test_migration_still_excludes_a_stored_topology_mission_lane(tmp_path: Path)
     repo = _project(tmp_path)
 
     assert _only(repo).outcome == "excluded"
+
+
+def test_unreadable_lane_worktree_is_failed_not_excluded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A git failure while probing the copy must not read as clean: it would hide lane-only events (C-009)."""
+    import kernel.git as kernel_git
+
+    repo = _project(tmp_path)
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise kernel_git.GitCommandError(argv=("status",), cwd=tmp_path, returncode=128, stderr="fatal: unreadable")
+
+    monkeypatch.setattr(kernel_git, "status_entries", _boom)
+
+    item = _only(repo)
+
+    assert item.outcome == "failed"
+    assert "unreadable" in item.reason
+    assert not _sparse_on(_lane(repo)), "an unreadable lane is not excluded"
+    assert LaneCheckoutStatusExclusionMigration().detect(repo), "it stays selected, so it runs again"
+    can_apply, _reason = LaneCheckoutStatusExclusionMigration().can_apply(repo)
+    assert not can_apply
