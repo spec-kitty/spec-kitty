@@ -1,11 +1,11 @@
 {
-  "baseline_merge_commit": "61f97bb5e38fb824a0a118258486da93fc797152",
+  "baseline_merge_commit": "2700af6008354aab429fce8795754fb381e4be40",
   "coordination_branch": "kitty/mission-upgrade-empty-home-command-migrations-01M6EJQR",
   "created_at": "2026-11-02T16:51:00.980607+00:00",
   "flattened": false,
   "friendly_name": "upgrade empty home command migrations",
   "merged_at": "2026-11-02T18:26:48.159935+00:00",
-  "merged_commit": "61f97bb5e38fb824a0a118258486da93fc797152",
+  "merged_commit": "2700af6008354aab429fce8795754fb381e4be40",
   "mid8": "01M6EJQR",
   "mission_id": "01M6EJQR37WFRDJ7JV2NHM84SZ",
   "mission_number": 248,

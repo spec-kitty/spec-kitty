@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6954": {
-      "evidence_ref": "commit 019d0b8860 (landed successor): _SafeGlobalizeCommandsBase classifies from metadata.yaml via target_version; tests/upgrade/test_empty_home_command_migrations.py red-then-green (2 tests), tests/upgrade/test_globalize_commands_stamp_classification.py 13 tests",
+      "evidence_ref": "commit da8a8e23d0 (landed successor): _SafeGlobalizeCommandsBase classifies from metadata.yaml via target_version; tests/upgrade/test_empty_home_command_migrations.py red-then-green (2 tests), tests/upgrade/test_globalize_commands_stamp_classification.py 13 tests",
       "fr": null,
       "nfr": null,
       "repo": null,
