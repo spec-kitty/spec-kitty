@@ -1035,13 +1035,42 @@ def mission_dir_aliases(repo_root: Path, mission_slug: str) -> frozenset[str]:
     return names | {composed} if _is_safe_segment(composed) else names
 
 
-def _is_git_entry(dot_git: Path) -> bool:
-    """True for a linked checkout's ``.git`` file or a ``.git`` directory holding ``HEAD``.
+def _is_git_directory(git_dir: Path) -> bool:
+    """git's own shape test (``is_git_directory``): ``HEAD`` plus ``objects`` and ``refs``.
 
-    A bare ``.git`` directory without ``HEAD`` is not a repository to git either
-    (``git`` answers "not a git repository"), so it has no registry to read.
+    ``objects`` and ``refs`` are looked up in the directory a ``commondir`` file names
+    (a linked worktree's admin directory), else in *git_dir* itself.
     """
-    return dot_git.is_file() or (dot_git / "HEAD").is_file()
+    if not (git_dir / "HEAD").is_file():
+        return False
+    common = git_dir
+    commondir = git_dir / "commondir"
+    if commondir.is_file():
+        try:
+            common = git_dir / commondir.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            return False
+    return (common / "objects").is_dir() and (common / "refs").is_dir()
+
+
+def _is_git_entry(dot_git: Path) -> bool:
+    """True for a ``.git`` directory, or a ``.git`` file's ``gitdir:`` target, that git accepts.
+
+    A ``.git`` directory without ``HEAD``, ``objects`` or ``refs`` is not a repository to git
+    either (``git`` answers "not a git repository"), so it has no registry to read (#7282).
+    """
+    if dot_git.is_dir():
+        return _is_git_directory(dot_git)
+    if not dot_git.is_file():
+        return False
+    try:
+        text = dot_git.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return False
+    if not text.startswith("gitdir:"):
+        return False
+    target = Path(text.removeprefix("gitdir:").strip())
+    return _is_git_directory(target if target.is_absolute() else dot_git.parent / target)
 
 
 def _inside_git_repository(path: Path) -> bool:

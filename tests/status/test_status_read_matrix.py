@@ -537,3 +537,33 @@ def test_root_with_a_headless_git_directory_is_unchanged(tmp_path: Path) -> None
     (fake / ".git").mkdir(parents=True)
 
     assert canonical_status_read_root(fake) == fake
+
+
+def test_root_with_a_head_only_git_directory_is_unchanged(tmp_path: Path) -> None:
+    """A ``.git`` holding ``HEAD`` but no ``objects``/``refs`` is no repository to git (#7282).
+
+    git's own check (``is_git_directory``) needs ``HEAD``, ``objects`` and ``refs``; a shape
+    check on ``HEAD`` alone sent such a directory to ``git worktree list``, which refused, and
+    the read door failed closed with ``WorktreeRegistryUnavailable`` for a plain directory.
+    """
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    fake = tmp_path / "head-only-repository"
+    (fake / ".git").mkdir(parents=True)
+    (fake / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    assert canonical_status_read_root(fake) == fake
+
+
+def test_root_with_a_git_file_pointing_at_no_repository_is_unchanged(tmp_path: Path) -> None:
+    """A ``.git`` file whose ``gitdir:`` names no git directory has no registry to read (#7282)."""
+    from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+    target = tmp_path / "pointer-target"
+    target.mkdir()
+    (target / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    fake = tmp_path / "pointer-repository"
+    fake.mkdir()
+    (fake / ".git").write_text(f"gitdir: {target}\n", encoding="utf-8")
+
+    assert canonical_status_read_root(fake) == fake
