@@ -182,10 +182,18 @@ def test_move_derived_files_probes_git_once_per_walk(tracked_project: Path, git_
 
 
 def test_cutover_repo_probes_git_once_per_walk(tracked_project: Path, git_count: _GitCount) -> None:
-    """WP01 review item 7: many identity-less folders cost the one batch probe (rev-parse + ls-files), not 2 each."""
+    """WP01 review item 7: many identity-less folders cost the one batch probe (rev-parse + ls-files), not 2 each.
+
+    Since #6673 (d8829074b7) ``cutover_mission`` also runs the tracked-meta guard for each non-residue Mission whose
+    ``meta.json`` is absent on disk: 4 more git calls (rev-parse prefix, rev-parse HEAD, ls-tree, ls-files
+    --error-unmatch) per such real Mission. The budget is the batch probe plus that per-real-Mission cost; the 32
+    residue folders still cost nothing of their own.
+    """
     _add_bulk_residue(tracked_project)
     git_count.calls = 0
     results = cutover_repo(tracked_project, dry_run=True)
     residue = [r for r in results if r.residue]
+    real = [r for r in results if not r.residue]
     assert len(residue) == 32
-    assert git_count.calls <= 2
+    assert len(real) == 1
+    assert 2 <= git_count.calls <= 2 + 4 * len(real)

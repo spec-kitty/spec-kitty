@@ -1,0 +1,1 @@
+- **Nightly reds cleared** (#7177, #7178, #7111, #7181, #7182, #7183). Stale out-of-matrix test pins now match their current contracts, and the upgrade tracked-meta notice renders its restore remedy through the git-remedies module with unchanged text.

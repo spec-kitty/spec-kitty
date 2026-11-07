@@ -13,7 +13,8 @@ guard that keeps only what no cheaper test pins:
   refusals and resume (#5459), and write-checkout occupancy across missions,
   including the refusal's ``move-task`` remedy (#5680), and
 - the claim accepting ``spec-kitty next``'s own uncommitted bookkeeping
-  (``kitty-ops/`` and the Mission's ``mission-events.jsonl``) while a real
+  (a new ``kitty-ops/lifecycle/<ulid>.json`` file per Op record, #7003, and the
+  Mission's tracked ``mission-events.jsonl``) while a real
   operator edit beside it still refuses (#5930).
 
 The finalize lane shape, the implement refusals (wrong branch, occupancy,
@@ -349,9 +350,12 @@ def test_next_loop_claims_the_next_wp_after_residue_is_committed(agent_loop_miss
     assert _git(repo, "status", "--porcelain") == ""
 
     _next(slug, "WP02")
+    # #7003 (8f3149ae5b): an Op lifecycle record is one NEW file (``kitty-ops/lifecycle/<ulid>.json``), never an
+    # append to a shared log, so no ``kitty-ops/`` path is tracked-and-modified again. The tracked-and-modified
+    # form of ``next``'s bookkeeping is the Mission's ``mission-events.jsonl``; the new-file form is untracked.
     modified = _git(repo, "status", "--porcelain", "--untracked-files=no")
-    assert "kitty-ops/" in modified, modified
     assert f"kitty-specs/{slug}/mission-events.jsonl" in modified, modified
+    assert "?? kitty-ops/lifecycle/" in _git(repo, "status", "--porcelain"), "next left no per-record lifecycle file"
     result = _action_implement("WP02", slug)
     assert result.exit_code == 0, result.output
 

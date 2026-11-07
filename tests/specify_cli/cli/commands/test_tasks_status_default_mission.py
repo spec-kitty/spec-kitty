@@ -35,7 +35,15 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def _make_mission(project: Path, slug: str, *, merged: bool = False) -> None:
     mission = project / "kitty-specs" / slug
     (mission / "tasks").mkdir(parents=True)
-    meta: dict[str, str] = {"mission_slug": slug, "mission_type": "software-dev", "target_branch": "main"}
+    # #5875 (7634075bd5): a ``kitty-specs/`` child is a selectable Mission only when its meta.json carries a
+    # non-empty ``mission_id`` (or git tracks it); without one it is read-side residue and the sole-active default
+    # finds no candidate. The id is distinct per slug (built on the slug's mid8) so several Missions stay several.
+    meta: dict[str, str] = {
+        "mission_id": slug.rsplit("-", 1)[-1].ljust(26, "0"),
+        "mission_slug": slug,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+    }
     if merged:
         # ``merged_at`` is the explicit completion marker ``is_mission_completed`` honours.
         meta["merged_at"] = "2026-01-01T00:00:00+00:00"

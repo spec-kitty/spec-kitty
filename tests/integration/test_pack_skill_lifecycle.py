@@ -112,8 +112,12 @@ def project(tmp_path: Path, home: Path) -> Path:
     return root
 
 
+_SYNTHESIS_LOCK = ".kittify/runtime/locks/charter-synthesis.lock"
+_SNAPSHOT_IGNORE = (PACK_SKILL_STAGING.as_posix(), ".kittify/skills-manifest.json", ".kittify/runtime/locks")
+
+
 def test_pack_skill_lifecycle_survives_every_retiring_path(project: Path, home: Path) -> None:
-    before = _snapshot(project, ignore=(PACK_SKILL_STAGING.as_posix(), ".kittify/skills-manifest.json"))
+    before = _snapshot(project, ignore=_SNAPSHOT_IGNORE)
     home_before = _snapshot(home)
 
     _invoke(project, "activate", "skill", SKILL_ID)
@@ -157,7 +161,11 @@ def test_pack_skill_lifecycle_survives_every_retiring_path(project: Path, home: 
     manifest = load_manifest(project, strict=True)
     assert manifest is not None and not [entry for entry in manifest.entries if entry.origin == ORIGIN_PACK]
 
-    after = _snapshot(project, ignore=(PACK_SKILL_STAGING.as_posix(), ".kittify/skills-manifest.json"))
+    # #6453 / #6719 (d4be7a1940): activate and deactivate hold the charter-synthesis lock; in this non-git project it
+    # sits in .kittify/runtime/locks and its file outlives the holder. It is runtime bookkeeping, not project state,
+    # so it is ignored (as in test_activation_json_6525.py) once proven to be the lock that was taken.
+    assert (project / _SYNTHESIS_LOCK).is_file()
+    after = _snapshot(project, ignore=_SNAPSHOT_IGNORE)
     # The deactivation records an exclusion in the activation ledger (ADR 2026-10-19-1); every other byte is back where it started.
     ledger = ".kittify/charter/activation.yaml"
     ledger_after, ledger_before = after.pop(ledger), before.pop(ledger)
