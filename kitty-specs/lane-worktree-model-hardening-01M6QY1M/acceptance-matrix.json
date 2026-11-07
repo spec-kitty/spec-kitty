@@ -450,13 +450,13 @@
     },
     {
       "criterion_id": "FR-061",
-      "description": "Verify FR-061 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-061 PRIMARY partition of a default Mission resolves to the topic branch: a Mission with `topology_source: default` to have its PRIMARY partition (spec, plan, research, data-model, contracts, tasks, WP files, `lanes.json`, `meta.json`; `_PRIMARY_ARTIFACT_KINDS`, `src/mission_runtime/artifacts.py:180`) read and written on the Mission topic branch (`meta.mission_branch`, which after a multi-lane settlement is also its coordination branch) before and after settlement, until `consolidate` lands it on `target_branch`, so that planning artifacts never reach the target early. `target_branch` stays the landing branch. Explicit `--topology` Missions keep today's placement (PRIMARY to `target_branch`). Placement contract change (DM `01M6R0QJVPVZG2QT8MWQD4NXJR`): recorded by the IC-01 and IC-02 ADRs and carried by the S1 read door and the placement seam as one change.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-2 / 2026-11-06-3 (WP01, WP02); lane-b:tests/status/test_read_surface_door.py::test_default_mission_primary_partition_is_the_topic_branch_checkout; lane-b:tests/status/test_read_surface_door.py::test_default_mission_off_its_topic_branch_reads_the_topic_branch; lane-b:tests/specify_cli/cli/commands/agent/test_context_resolve_primary_partition.py::test_topic_branch_held_by_another_checkout_reports_that_checkout; lane-k:tests/integration/test_default_mission_primary_placement.py::test_default_mission_primary_placement_topic_branch_pinned; lane-k:tests/integration/test_default_mission_primary_placement.py::test_context_resolve_and_prerequisites_report_primary_location_after_settlement; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP01-adr-status-read-contract/review-cycle-1.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP02-adr-topology-settlement-and-s8-windows/review-cycle-1.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-2.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize/review-cycle-2.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP20-s7-consolidate-lands-topic-branch-primary/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:11.363148+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-070",
