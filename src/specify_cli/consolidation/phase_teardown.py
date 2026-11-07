@@ -50,7 +50,7 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupReport,
     LaneRetention,
     LocalTargetAtPass,
-    MainTodayRemover,
+    GuardedLaneRemover,
     plan_lane_cleanup,
 )
 from specify_cli.consolidation._constants import (
@@ -1072,7 +1072,7 @@ def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
     # #5965 / #5966: the guard decides disposability from the checkout ROLE and the Mission's
     # STORED topology, so a lane worktree holding uncommitted rework is kept, not destroyed.
     context = residue_context_or_strictest(run.main_repo, run.target_feature_dir.name, CheckoutRole.LANE)
-    remover = MainTodayRemover(run.main_repo, context=context, after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None)
+    remover = GuardedLaneRemover(run.main_repo, context=context, after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None)
     landing = LocalTargetAtPass(target_ref=lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
     report = lane_cleanup.apply(items, remover, landing=landing, retention=retention)
     _tombstone_removed_lane_contexts(run, report)

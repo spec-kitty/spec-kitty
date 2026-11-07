@@ -767,6 +767,32 @@ def test_the_prune_destroys_only_through_the_landed_removal_entry() -> None:
     assert called & _LOWER_LEVEL_PRIMITIVES == set()
 
 
+_LANE_CLEANUP_MODULE = SRC_ROOT / "specify_cli" / "consolidation" / "lane_cleanup.py"
+_ACCEPTANCE_MODULE = SRC_ROOT / "specify_cli" / "acceptance" / "__init__.py"
+#: S5 (WP16, FR-036/FR-037): the call sites that remove a lane under a landing proof. Each hands the
+#: lane to ``GuardedLaneRemover``, which calls ``guarded_landed_removal``.
+_LANDED_LANE_REMOVER_SITES: tuple[str, ...] = (
+    "specify_cli/consolidation/phase_teardown.py",
+    "specify_cli/orchestrator_api/consolidation.py",
+    "specify_cli/acceptance/__init__.py",
+)
+
+
+def test_the_lane_remover_binds_the_landed_removal_entry() -> None:
+    """C-004: a lane removal backed by a landing proof goes through the guard entry, never ``--force``."""
+    called = _called_names(_LANE_CLEANUP_MODULE)
+    assert "guarded_landed_removal" in called, "the lane remover no longer binds the guard entry"
+    constants = {node.value for node in _ast.walk(_ast.parse(_LANE_CLEANUP_MODULE.read_text(encoding="utf-8"))) if isinstance(node, _ast.Constant)}
+    assert "--force" not in constants
+
+
+def test_landing_proof_lane_removals_use_the_guarded_remover() -> None:
+    """Consolidate, orchestrator-api and pr-mode acceptance each remove lanes through ``GuardedLaneRemover``."""
+    missing = [rel for rel in _LANDED_LANE_REMOVER_SITES if "GuardedLaneRemover" not in _called_names(SRC_ROOT / rel)]
+    assert not missing, f"landing-proof lane removal no longer uses GuardedLaneRemover: {missing}"
+    assert _called_names(_ACCEPTANCE_MODULE) & _LOWER_LEVEL_PRIMITIVES == set()
+
+
 def test_the_prune_entry_scanner_detects_a_planted_bypass(tmp_path: Path) -> None:
     """Non-vacuity: the same scan sees a direct primitive call."""
     planted = tmp_path / "planted_bypass.py"

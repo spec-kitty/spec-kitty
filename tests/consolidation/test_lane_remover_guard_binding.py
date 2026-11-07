@@ -24,7 +24,7 @@ from specify_cli.consolidation.lane_cleanup import (
 )
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.git.destructive_guard import (
-    LOCAL_TARGET_NOT_AT_PASS,
+    LOCAL_TARGET_OFF_GATE_TIP,
     NOT_LANDED_ON_NAMED_REMOTE,
     PROCESS_PROOF_UNAVAILABLE,
     WORKTREE_TIP_MOVED,
@@ -89,6 +89,14 @@ def _at_pass(root: Path) -> LocalTargetAtPass:
     return LocalTargetAtPass(target_ref="main", passed_sha=_git(root, "rev-parse", "main"))
 
 
+def test_target_moved_forward_by_bookkeeping_still_removes(landed: tuple[Path, Path, str]) -> None:
+    root, worktree, tip = landed
+    landing = _at_pass(root)
+    _commit(root, "status.json", "{}\n")  # the run's own bookkeeping commit after the gate
+    result = GuardedLaneRemover(root, context=NothingIsResidue(), probe=_idle).remove(_item(worktree, tip), landing=landing)
+    assert result.outcome is LaneCleanupOutcome.REMOVED, result
+
+
 def test_absorbed_lane_removed_through_the_guard(landed: tuple[Path, Path, str]) -> None:
     root, worktree, tip = landed
     result = GuardedLaneRemover(root, context=NothingIsResidue(), probe=_idle).remove(_item(worktree, tip), landing=_at_pass(root))
@@ -128,10 +136,13 @@ def test_probe_unavailable_keeps_and_reports(landed: tuple[Path, Path, str]) -> 
 
 def test_local_target_moved_off_the_pass_tip_kept(landed: tuple[Path, Path, str]) -> None:
     root, worktree, tip = landed
-    landing = LocalTargetAtPass(target_ref="main", passed_sha=_git(root, "rev-parse", "main~1"))
+    # The target was rewound off the PASS tip (a rollback): the PASS tip is no longer on it.
+    passed = _git(root, "rev-parse", "main")
+    _git(root, "reset", "-q", "--keep", "main~1")
+    landing = LocalTargetAtPass(target_ref="main", passed_sha=passed)
     result = GuardedLaneRemover(root, context=NothingIsResidue(), probe=_idle).remove(_item(worktree, tip), landing=landing)
     assert result.outcome is LaneCleanupOutcome.KEPT
-    assert result.code == LOCAL_TARGET_NOT_AT_PASS
+    assert result.code == LOCAL_TARGET_OFF_GATE_TIP
     assert worktree.exists()
 
 
@@ -154,7 +165,7 @@ def test_guard_local_variant_refuses_a_ref_outside_refs_heads(landed: tuple[Path
     removal = LandedRemoval(worktree=worktree, branch=_LANE_BRANCH, tip=tip, remote="", landing_ref="main", passed_sha=_git(root, "rev-parse", "main"))
     with pytest.raises(DestructiveOpRefused) as refused:
         guarded_landed_removal(root, removal, context=NothingIsResidue(), processes_in=lambda _p: False, absorbed=lambda _t, _r: True)
-    assert refused.value.error_code == LOCAL_TARGET_NOT_AT_PASS
+    assert refused.value.error_code == LOCAL_TARGET_OFF_GATE_TIP
     assert worktree.exists()
 
 

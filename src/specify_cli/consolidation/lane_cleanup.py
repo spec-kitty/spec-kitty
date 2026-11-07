@@ -38,7 +38,10 @@ from typing import Protocol
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     DestructiveOpRefused,
+    NOT_LANDED_ON_NAMED_REMOTE,
+    LandedRemoval,
     guarded_branch_delete,
+    guarded_landed_removal,
     guarded_worktree_remove,
 )
 from specify_cli.git.ref_advance import ResidueClassifier
@@ -52,6 +55,7 @@ __all__ = [
     "LANE_CLEANUP_FAILED",
     "PROCESS_IN_WORKTREE",
     "PROCESS_PROOF_UNAVAILABLE",
+    "GuardedLaneRemover",
     "LandingProof",
     "LaneCleanupItem",
     "LaneCleanupOutcome",
@@ -399,3 +403,92 @@ def _refusal_detail(refusal: DestructiveOpRefused, worktree: Path) -> str:
     if refusal.dirty_entries:
         return f"{worktree} has uncommitted changes."
     return f"{worktree} was not removed."
+
+
+class GuardedLaneRemover:
+    """The lane remover bound to the landed-removal guard (WP16, FR-037, C-004, ADR 2026-11-06-1).
+
+    A lane with a worktree, a branch and a landing proof is handed to ``guarded_landed_removal``:
+    consolidate's :class:`LocalTargetAtPass` becomes the O3-local proof (the local target at the
+    reconciliation PASS tip), pr-mode's :class:`RemoteRef` the named-remote proof. The tip is the
+    claim-validated ``expected_tip`` (else the live branch tip, which the guard still proves landed
+    and checks the worktree against). A guard refusal keeps the lane with the guard's code; the guard
+    never forces a removal. Every other leg (no landing proof, no worktree left, a retained branch)
+    goes to :class:`MainTodayRemover`, today's guarded primitives.
+    """
+
+    def __init__(
+        self,
+        repo_root: Path,
+        *,
+        context: ResidueClassifier,
+        creation_base: str | None = None,
+        probe: ProcessProbe = processes_with_cwd_under,
+        after_worktree_removed: Callable[[], None] | None = None,
+    ) -> None:
+        self._repo_root = repo_root
+        self._context = context
+        self._probe = probe
+        self._after_worktree_removed = after_worktree_removed
+        self._fallback = MainTodayRemover(repo_root, context=context, creation_base=creation_base, probe=probe, after_worktree_removed=after_worktree_removed)
+
+    def remove(self, item: LaneCleanupItem, *, landing: LandingProof | None) -> LaneCleanupResult:
+        removal = _guarded_removal(self._repo_root, item, landing)
+        if removal is None or landing is None or item.worktree is None or item.branch is None:
+            return self._fallback.remove(item, landing=landing)
+        try:
+            result = guarded_landed_removal(
+                self._repo_root,
+                removal,
+                context=self._context,
+                processes_in=self._busy,
+                absorbed=self._absorbed,
+            )
+        except DestructiveOpRefused as refusal:
+            if refusal.error_code == NOT_LANDED_ON_NAMED_REMOTE and isinstance(landing, LocalTargetAtPass):
+                # A lane consolidate did not land (all its WPs canceled): today's guarded primitives keep
+                # its only copy under a discarded-tip ref (interim, recorded follow-up).
+                return self._fallback.remove(item, landing=landing)
+            return _kept(item, refusal.error_code, refusal.remediation, detail=_refusal_detail(refusal, item.worktree))
+        if self._after_worktree_removed is not None:
+            self._after_worktree_removed()
+        if result.refusal is not None:
+            return replace(_kept(item, result.refusal, f"the worktree was removed but {item.branch} was kept", detail=None), recreate=result.recreate)
+        if result.branch_deleted:
+            from specify_cli.lanes import lane_tip
+
+            lane_tip.clear_tip(self._repo_root, item.branch)
+        return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED, recreate=result.recreate)
+
+    def _busy(self, path: Path) -> bool | None:
+        """O2: ``None`` when the probe cannot tell (off Linux): the guard then keeps the lane (NFR-008)."""
+        probe = self._probe([path])
+        return (path in probe.busy) if probe.available else None
+
+    def _absorbed(self, tip: str, landing_ref: str) -> bool:
+        from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
+
+        try:
+            return bool(is_absorbed(self._repo_root, tip, landing_ref, base=None))
+        except AbsorptionUnsupported:
+            return False
+
+
+def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:
+    """The guard's removal for a worktree on its branch with a usable landing proof, else ``None`` (fallback).
+
+    A local proof needs a recorded PASS tip; the tip is the claim-validated one, else the live branch tip.
+    """
+    if landing is None or item.branch is None or item.worktree is None or not safe_is_dir(item.worktree):
+        return None
+    if isinstance(landing, LocalTargetAtPass) and not landing.passed_sha.strip():
+        return None
+    tip = item.expected_tip or _branch_tip(repo_root, item.branch)
+    return _landed_removal(item.worktree, item.branch, tip, landing) if tip else None
+
+
+def _landed_removal(worktree: Path, branch: str, tip: str, landing: LandingProof) -> LandedRemoval:
+    if isinstance(landing, LocalTargetAtPass):
+        ref = landing.target_ref if landing.target_ref.startswith("refs/") else f"refs/heads/{landing.target_ref}"
+        return LandedRemoval(worktree=worktree, branch=branch, tip=tip, remote="", landing_ref=ref, passed_sha=landing.passed_sha)
+    return LandedRemoval(worktree=worktree, branch=branch, tip=tip, remote=landing.remote, landing_ref=landing.ref)

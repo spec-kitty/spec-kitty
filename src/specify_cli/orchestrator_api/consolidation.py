@@ -431,7 +431,7 @@ def _apply_lane_merge_cleanup(
     target = lanes_manifest.target_branch
     landing = lane_cleanup.LocalTargetAtPass(target_ref=target, passed_sha=_branch_tip_sha(main_repo_root, target) or "")
     retention_legs = lane_cleanup.LaneRetention(remove_worktree=retention.remove_worktree, delete_branch=retention.delete_branch)
-    report = lane_cleanup.apply(items, lane_cleanup.MainTodayRemover(main_repo_root, context=context), landing=landing, retention=retention_legs)
+    report = lane_cleanup.apply(items, lane_cleanup.GuardedLaneRemover(main_repo_root, context=context), landing=landing, retention=retention_legs)
     for kept in report.kept:
         logger.warning("Lane %s was kept (%s): %s", kept.item.lane_id, kept.code, kept.remedy)
     return report
