@@ -95,6 +95,10 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # #5780 (PR #5845, ADR 2026-10-06-3): per-run origin-freshness mode
         # (enforce|warn|off) for the evidence gate.
         "--origin-check",
+        # #6771 (9c2881c6, ADR 2026-09-29-1 Amendment 2026-10-31): repeatable external
+        # dependency ref a WP branch brought in (inherited history), recorded on the
+        # transaction record and threaded into the claim build and the closed-world forecast.
+        "--dependency-ref",
     }
 )
 

@@ -176,18 +176,43 @@ def test_empty_tool_actor_is_accepted_with_an_unchanged_envelope(tmp_path: Path)
 
 
 def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(tmp_path: Path) -> None:
-    """A ``migration:`` ``--actor`` is stored whole as ``tool`` so it keeps its seed status (#6400 review F3)."""
+    """A ``migration:`` actor is stored whole as ``tool`` so it keeps its seed status (#6400 review F3).
+
+    Since #6754 (f22a7b6275) a caller-supplied ``migration:`` ``--actor`` is refused: a
+    reconstruction seed restates history and is written in-process by migrations only. This pin
+    therefore writes the seed through that mandated path (``build_system_actor``, role ``system``)
+    and keeps its three seed predicates. The refusal itself is covered, for all four verbs, by
+    ``tests/specify_cli/orchestrator_api/test_caller_seed_refusal_6754.py``.
+    """
     from spec_kitty_events import diary
 
-    from specify_cli.status import is_migration_actor
+    from specify_cli.status import Lane, StatusEvent, build_system_actor, is_migration_actor
     from specify_cli.status.store import read_events_raw
+    from tests._support.status_seed import seed_status_events
 
-    repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
-
-    _start_implementation(repo_root, "migration:backfill")
+    _repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
+    actor = build_system_actor("migration:backfill")
+    seed_status_events(
+        mission_dir,
+        [
+            StatusEvent(
+                event_id=f"01SEEDWP01MIGRATION000000{index}",
+                mission_slug=_SLUG,
+                wp_id="WP01",
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=f"2026-01-01T00:00:0{index}+00:00",
+                actor=actor,
+                force=True,
+                execution_mode="worktree",
+            )
+            for index, (from_lane, to_lane) in enumerate(((Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS)))
+        ],
+    )
 
     raws = [raw for raw in read_events_raw(mission_dir) if raw.get("wp_id") == "WP01" and raw.get("to_lane") in {"claimed", "in_progress"}]
-    assert [raw["actor"] for raw in raws] == [_implementer("migration:backfill"), _implementer("migration:backfill")]
+    expected = {"tool": "migration:backfill", "role": "system", "profile": None, "model": None}
+    assert [raw["actor"] for raw in raws] == [expected, expected]
     for raw in raws:
         assert is_migration_actor(raw["actor"])
         assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw)))
