@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M6NS2NSKFF8SZHQPPK2VR1B6",
+  "completed_at": "2026-11-05T12:04:34.923048+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/acceptance-matrix.json"
+}

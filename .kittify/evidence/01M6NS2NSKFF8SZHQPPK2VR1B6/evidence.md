@@ -1,0 +1,99 @@
+{
+  "mission_slug": "lane-window-never-created-recovery-01M6GRJ5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_branch_ref_absent_reads_only_a_definite_absence; tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/consolidation/test_wp_evidence.py::test_a_pruned_lane_without_a_landing_commit_names_the_ref_and_the_merge_commit_scope; teeth: branch_ref_absent `returncode == 1` -> `!= 0` failed 4 named tests (incl. the two above that pin exit-128 as not absent); move-task `if wp_evidence.branch_ref_absent(...)` -> `if False` failed 3 (git_ops never-created + sibling, integration CLI); both reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042645+00:00",
+      "notes": "Absence (show-ref exit 1) is routed to its own refusal on both surfaces. Non-blocking gap: rewording the code-lane local fact `does not exist in this checkout` to `is unavailable` survived all 130 tests; absence stays pinned via `no lane of this Mission has a branch here` (never-created shape) and `the window tip <ref> no longer exists` (accept path), not for the move-task sibling shape."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling; tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/integration/test_move_task_absent_lane_window_refusal.py::test_a_lane_mission_implemented_on_the_target_branch_names_the_shape; teeth: `if _lane_branches_absent_locally(...)` -> `if False` in absent_lane_window_cause failed all 3; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042657+00:00",
+      "notes": "Shape is stated as indistinguishable from target-branch execution (local fact, not a finding); the integration test drives the real move-task CLI on a lanes Mission implemented on main."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_move_task_absent_lane_window_refusal.py::test_a_lane_mission_implemented_on_the_target_branch_names_the_shape; tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling (`stop retrying that window`); teeth: re-appending `Make the lane branch and the recorded planning commit readable, then retry.` to the move-task absent refusal failed the integration and git_ops tests on their not-in assertions; disabling the absent branch (pre-fix wording) failed both plus the sibling case; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042659+00:00",
+      "notes": "Accept recovery footer still says restore/fetch for a readable branch but now scopes escalation for target-branch-only work (asserted in the wp_evidence test)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling; tests/consolidation/test_wp_evidence.py::test_a_missing_lane_with_a_sibling_offers_only_conditional_recovery; tests/integration/test_move_task_absent_lane_window_refusal.py::test_a_lane_mission_implemented_on_the_target_branch_names_the_shape; teeth: dropping `: that fabricates the evidence it checks` from absent_lane_window_cause failed all 3; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042660+00:00",
+      "notes": "Fabrication caution is asserted for both the never-created and the sibling (partial) shape."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling; tests/integration/test_move_task_absent_lane_window_refusal.py::test_a_lane_mission_implemented_on_the_target_branch_names_the_shape; teeth: `issues/7120` -> `issues/0000` failed both on `issues/7120`; removing the escalation sentence (`Without a verified PR landing commit, ask the Mission maintainer ... (limitation tracked at .../issues/7120)`) failed both; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042661+00:00",
+      "notes": "Refusal names the open evidence-policy ruling (#7120) and the escalation to the Mission maintainer as the next step."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_a_missing_lane_with_a_sibling_offers_only_conditional_recovery; tests/git_ops/test_move_task_evidence_refusals.py::test_a_missing_lane_with_a_sibling_names_conditional_restore; teeth: lane_tip `refs/spec-kitty/lane-tip/{branch}` -> `refs/heads/{branch}` failed both; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042662+00:00",
+      "notes": "Restore from the lane-tip ref or a verified PR-head copy survives, conditioned on actual lane history (1a0c946d57 wording)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/git_ops/test_move_task_evidence_refusals.py::test_a_present_ref_that_cannot_be_read_is_still_unreadable; tests/consolidation/test_wp_evidence.py::test_a_lane_ref_that_exists_but_cannot_be_read_refuses_instead_of_falling_back; tests/consolidation/test_wp_evidence.py::test_branch_ref_absent_reads_only_a_definite_absence; tests/consolidation/test_wp_evidence.py::test_absent_lane_diagnosis_distinguishes_unknown_siblings_and_non_lane_tips; tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py::test_an_unreadable_window_refuses_unreadable (pre-existing wording pin); teeth: branch_ref_absent `returncode == 1` -> `!= 0` (exit-128 ref read as absent) failed the first four; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042663+00:00",
+      "notes": "Present-but-unreadable ref keeps `could not be diffed` and refuses; fail-closed (NFR-002) holds."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling; tests/consolidation/test_wp_evidence.py::test_a_missing_lane_with_a_sibling_offers_only_conditional_recovery; tests/consolidation/test_wp_evidence.py::test_a_pruned_lane_without_a_landing_commit_names_the_ref_and_the_merge_commit_scope; scenario 2 (#6780 landed window unchanged): tests/consolidation/test_wp_evidence.py::test_the_landed_window_stands_in_for_a_pruned_tip, tests/consolidation/test_wp_evidence.py::test_a_pruned_lane_with_its_own_change_in_the_pr_side_passes; teeth: forcing _scan_lane absence_cause to None failed the first 3; reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042666+00:00",
+      "notes": "Tests drive wp_evidence.evaluate_evidence, the predicate accept and consolidate reach via mission_evidence_report; the cause text is the single shared absent_lane_window_cause (C-002)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_move_task_absent_lane_window_refusal.py::test_a_lane_mission_implemented_on_the_target_branch_names_the_shape (returncode != 0, WP02 stays in_progress, no lane branch created); tests/git_ops/test_move_task_evidence_refusals.py::test_a_never_created_lane_branch_names_the_shape_and_the_escalation; tests/consolidation/test_wp_evidence.py::test_a_lane_window_that_never_existed_names_the_shape_and_the_ruling (verdict IMPLEMENTATION_UNREADABLE); teeth: `return` inserted in the move-task absent branch made the real CLI move WP02 to for_review (integration failed) and git_ops cases DID NOT RAISE; replacing _scan_lane `scan.add(..._unreadable_line...)` with `pass` failed 5 wp_evidence tests incl. the never-existed case; both reverted",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-05T12:04:23.042668+00:00",
+      "notes": "Refusal holds on both surfaces; the diagnosis never turns into a pass."
+    }
+  ],
+  "negative_invariants": []
+}
