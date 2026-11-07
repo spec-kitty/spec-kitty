@@ -2,7 +2,7 @@
   "mission_slug": "op-record-model-and-coauthor-01M6EJV5",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pass",
+  "overall_verdict": "pending",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -38,51 +38,51 @@
       "criterion_id": "FR-004",
       "description": "The per-record Op auto-commit ends with the configured Co-Authored-By trailer.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_configured_co_author_rides_the_per_record_commit and ::test_cli_co_author_overrides_the_configured_value",
-      "pass_fail": "pass",
-      "verified_by": "reviewer-renata",
-      "verified_at": "2026-11-02T19:57:14.578224+00:00",
-      "notes": "test_configured_co_author_rides_the_per_record_commit; test_cli_co_author_overrides_the_configured_value"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Deferred to #7315 by the operator ruling of 2026-11-07: slice (b) is outside PR #7101; no verdict or evidence is claimed on the narrowed head."
     },
     {
       "criterion_id": "FR-005",
       "description": "The doctor-sweep closure-spine auto-commit carries the same trailer.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_configured_co_author_rides_the_doctor_sweep_spine_commit",
-      "pass_fail": "pass",
-      "verified_by": "reviewer-renata",
-      "verified_at": "2026-11-02T19:57:17.735036+00:00",
-      "notes": "test_configured_co_author_rides_the_doctor_sweep_spine_commit"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Deferred to #7315 by the operator ruling of 2026-11-07: slice (b) is outside PR #7101; no verdict or evidence is claimed on the narrowed head."
     },
     {
       "criterion_id": "FR-006",
       "description": "An explicitly passed trailer overrides the configured one for a single close.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_explicit_co_author_overrides_the_configured_value and ::test_explicit_co_author_works_without_any_configuration",
-      "pass_fail": "pass",
-      "verified_by": "reviewer-renata",
-      "verified_at": "2026-11-02T19:57:21.046256+00:00",
-      "notes": "test_explicit_co_author_overrides_the_configured_value; test_explicit_co_author_works_without_any_configuration"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Deferred to #7315 by the operator ruling of 2026-11-07: slice (b) is outside PR #7101; no verdict or evidence is claimed on the narrowed head."
     },
     {
       "criterion_id": "FR-007",
       "description": "A repository with no commit.co_author produces exactly the pre-change commit message.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_no_configured_co_author_keeps_the_pre_change_message",
-      "pass_fail": "pass",
-      "verified_by": "reviewer-renata",
-      "verified_at": "2026-11-02T19:57:24.252240+00:00",
-      "notes": "test_no_configured_co_author_keeps_the_pre_change_message (paired with the configured-value positive control on the same fixture)"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Deferred to #7315 by the operator ruling of 2026-11-07: slice (b) is outside PR #7101; no verdict or evidence is claimed on the narrowed head."
     },
     {
       "criterion_id": "FR-008",
       "description": "A malformed commit.co_author refuses the auto-commit, names the key, and leaves the completed event durable on disk.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/invocation/test_op_commit_attribution.py::test_malformed_configured_co_author_refuses_the_commit_and_names_the_key",
-      "pass_fail": "pass",
-      "verified_by": "reviewer-renata",
-      "verified_at": "2026-11-02T19:57:27.375888+00:00",
-      "notes": "test_malformed_configured_co_author_refuses_the_commit_and_names_the_key"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Deferred to #7315 by the operator ruling of 2026-11-07: slice (b) is outside PR #7101; no verdict or evidence is claimed on the narrowed head."
     }
   ],
   "negative_invariants": []

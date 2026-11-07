@@ -1,8 +1,8 @@
 {
   "wp_id": "WP01",
   "captured_at": "2026-11-02T17:59:07Z",
-  "base_branch": "acbabe1a55cb1221d15eb31c50223d075cb76608",
-  "base_commit": "acbabe1a55cb1221d15eb31c50223d075cb76608",
+  "base_branch": "3cb7a683e1d409f63d3d9ef371503d54a18381c7",
+  "base_commit": "3cb7a683e1d409f63d3d9ef371503d54a18381c7",
   "test_runner": "custom",
   "total": 0,
   "passed": 0,
