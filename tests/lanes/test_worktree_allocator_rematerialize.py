@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.branch_naming import code_lane_branch_name
-from specify_cli.lanes.consolidation import _make_merge_env, reconcile_derived_status_snapshot_conflicts
+from specify_cli.lanes.consolidation import _ensure_merge_driver_git_config, _make_merge_env, reconcile_derived_status_snapshot_conflicts
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
@@ -120,6 +120,11 @@ def _setup_divergent_lanes(tmp_path: Path, *, human_conflict: bool) -> tuple[Pat
     both-sides conflict (src/app.py). Returns (repo, dependent_worktree)."""
     repo = tmp_path / "repo"
     _init_repo(repo)
+    return _add_divergent_lanes(repo, human_conflict=human_conflict)
+
+
+def _add_divergent_lanes(repo: Path, *, human_conflict: bool) -> tuple[Path, Path]:
+    """The divergent dep branch and dependent worktree on an initialised ``repo``."""
     feature_dir = repo / "kitty-specs" / MISSION_SLUG
     dep_branch = code_lane_branch_name(MISSION_SLUG, "lane-dep")
 
@@ -225,3 +230,57 @@ def test_reconcile_fails_closed_when_no_event_log_to_derive_from(tmp_path: Path)
         env=env,
     ).stdout
     assert "status.json" in unmerged
+
+
+def test_index_regenerated_snapshot_keeps_mission_metadata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A snapshot regenerated in a status-excluded lane checkout equals an in-place regeneration.
+
+    Mission ``lane-worktree-model-hardening-01M6QY1M`` WP09 review cycle 1,
+    issue 2: in a lane checkout the event log is sparse-excluded, so the
+    unmerged ``status.json`` is regenerated from the merged log's index entry,
+    off disk. It used to run in a bare scratch directory with no ``meta.json``
+    and lost ``mission_type`` (``'software-dev'`` became ``''``). The staged
+    snapshot must be byte-identical to an in-place ``reconcile_status_snapshot``
+    of the same merged log beside the Mission's ``meta.json`` and the lane's own
+    pre-merge snapshot.
+    """
+    from specify_cli.lanes.lane_checkout import exclude_lane_status_files
+    from specify_cli.status import reconcile_status_snapshot
+
+    _use_venv_spec_kitty_on_path(monkeypatch)
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+    meta = {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG, "mission_type": "software-dev", "target_branch": "main"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "Mission meta")
+    repo, dependent_wt = _add_divergent_lanes(repo, human_conflict=False)
+    dep_branch = code_lane_branch_name(MISSION_SLUG, "lane-dep")
+    log_rel = f"kitty-specs/{MISSION_SLUG}/status.events.jsonl"
+    snapshot_rel = f"kitty-specs/{MISSION_SLUG}/status.json"
+    ours_snapshot = _git(dependent_wt, "show", f"HEAD:{snapshot_rel}") + "\n"
+
+    exclude_lane_status_files(dependent_wt, MISSION_SLUG)
+    assert not (dependent_wt / log_rel).exists()
+    _ensure_merge_driver_git_config(repo)
+    env = _make_merge_env()
+    merge = subprocess.run(["git", "-C", str(dependent_wt), "merge", "--no-commit", "--no-ff", dep_branch], capture_output=True, text=True, env=env)
+    assert merge.returncode != 0, "the divergent status.json must conflict"
+
+    assert reconcile_derived_status_snapshot_conflicts(dependent_wt, env) is True
+
+    staged = subprocess.run(["git", "-C", str(dependent_wt), "show", f":0:{snapshot_rel}"], capture_output=True, check=True, env=env).stdout
+    in_place = tmp_path / "in-place" / MISSION_SLUG
+    in_place.mkdir(parents=True)
+    merged_log = subprocess.run(["git", "-C", str(dependent_wt), "show", f":0:{log_rel}"], capture_output=True, check=True, env=env).stdout
+    (in_place / "status.events.jsonl").write_bytes(merged_log)
+    (in_place / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (in_place / "status.json").write_text(ours_snapshot, encoding="utf-8")
+    assert reconcile_status_snapshot(in_place)
+
+    assert staged == (in_place / "status.json").read_bytes()
+    assert json.loads(staged)["mission_type"] == "software-dev"
+    assert not (dependent_wt / snapshot_rel).exists(), "the regenerated snapshot is staged through the index only"

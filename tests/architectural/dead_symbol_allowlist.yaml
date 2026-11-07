@@ -1320,10 +1320,6 @@ widened_grandfathered_470:
     name: count_wp_section_subtask_rows
   - module: specify_cli.core.subtask_rows
     name: uncheck_wp_section_subtask_rows
-  - module: specify_cli.core.worktree
-    name: create_feature_worktree
-  - module: specify_cli.core.worktree
-    name: create_wp_workspace
   - module: specify_cli.doc_analysis.doc_state
     name: ensure_documentation_state
   - module: specify_cli.doc_analysis.doc_state

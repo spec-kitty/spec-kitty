@@ -94,3 +94,41 @@ def lane_has_commit_beyond_base(
         return int(result.stdout.strip()) > 0
     except ValueError:
         return False
+
+
+def lane_branch_has_commit_beyond_base(
+    repo_root: Path, base_ref: str, branch: str, *, env: dict[str, str] | None = None
+) -> bool | None:
+    """Return whether ``refs/heads/<branch>`` carries a commit beyond ``base_ref``.
+
+    Counts ``git rev-list --count <base_ref>..refs/heads/<branch>`` from
+    ``repo_root``, so no lane checkout is needed (the ``for_review`` gate, S2 / #7278).
+    Both refs follow ``--end-of-options``: a name beginning with ``-`` is never an option.
+
+    Returns ``None`` when the branch ref does not exist (a distinct, named refusal for
+    the caller, never a vacuous pass). Fail-closed otherwise: an unresolvable base or an
+    unparseable count returns ``False``.
+    """
+    if not branch_exists(repo_root, branch, env=env):
+        return None
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "rev-list",
+            "--count",
+            "--end-of-options",
+            f"{base_ref}..refs/heads/{branch}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    if result.returncode != 0:
+        return False
+    try:
+        return int(result.stdout.strip()) > 0
+    except ValueError:
+        return False
