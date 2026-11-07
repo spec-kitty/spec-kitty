@@ -320,13 +320,13 @@
     },
     {
       "criterion_id": "FR-045",
-      "description": "Verify FR-045 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-045 Doctor probe for lane-authored status changes: a doctor finding that lists every live lane branch whose status files differ from its merge-base with the branch it consolidates into, so that retiring the auto-rebase status merger can later be proven safe. The merger and the lane-side deletion refusals stay in this Mission.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-g:tests/specify_cli/cli/commands/test_lane_status_authored_probe.py::test_doctor_probe_reports_lane_authored_change; lane-g:tests/specify_cli/cli/commands/test_lane_status_authored_probe.py::test_doctor_probe_ignores_merged_in_coord_bytes; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:07.042390+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-046",
