@@ -26,13 +26,13 @@
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-003 Absent or empty coordination worktree reads the branch: a Mission whose coordination branch exists but whose worktree is absent or empty to read the committed branch, so that status survives short-lived checkouts. When the branch holds no log yet, the read falls back to the write checkout under a declared rule. Owned checkouts follow the same rule instead of raising.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-b:tests/status/test_read_surface_door.py::test_empty_coord_worktree_reads_branch; lane-b:tests/status/test_read_surface_door.py::test_unmaterialized_coord_reads_branch_events; lane-b:tests/status/test_read_surface_door.py::test_owned_checkout_unmaterialized_reads_ref_not_raises; lane-b:tests/status/test_read_surface_door.py::test_fallback_reason_only_on_a_coordination_write_checkout; lane-c:tests/status/test_status_readers_cross_cwd_parity.py::test_empty_coordination_worktree_reads_the_committed_history; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-2.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP06-s1-migrate-cli-and-runtime-readers/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:11:38.856277+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-004",
