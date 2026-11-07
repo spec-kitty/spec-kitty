@@ -2119,7 +2119,7 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
         return None
     from specify_cli.status.read_surface import topic_holder_mission_dir
 
-    held = topic_holder_mission_dir(repo_root, topic, composed.name)
+    held: Path | None = topic_holder_mission_dir(repo_root, topic, composed.name)
     if held is None or held.resolve() == composed.resolve():
         return None
     return held
@@ -2127,13 +2127,17 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
 
 def coord_worktree_mission_names(repo_root: Path) -> list[str]:
     """Mission directory names that only a coordination worktree carries (settled default Missions)."""
+    from specify_cli.lanes.branch_naming import coord_worktree_glob
+
     worktrees = repo_root / ".worktrees"
     if not worktrees.is_dir():
         return []
-    return sorted({child.name for coord in worktrees.glob("*-coord") for child in (coord / "kitty-specs").glob("*") if (child / "meta.json").is_file()})
+    return sorted({child.name for coord in worktrees.glob(coord_worktree_glob()) for child in (coord / "kitty-specs").glob("*") if (child / "meta.json").is_file()})
 
 
 def _coord_worktree_mission_dir(repo_root: Path, dir_name: str) -> Path | None:
     """The coordination worktree's copy of Mission *dir_name*, or ``None`` when it has none."""
-    candidate = repo_root / ".worktrees" / f"{dir_name}-coord" / "kitty-specs" / dir_name
+    from specify_cli.lanes.branch_naming import coord_worktree_path_for_dir
+
+    candidate = coord_worktree_path_for_dir(repo_root, dir_name) / "kitty-specs" / dir_name
     return candidate if (candidate / "meta.json").is_file() else None

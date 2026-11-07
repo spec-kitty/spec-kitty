@@ -134,7 +134,7 @@ from specify_cli.git.destructive_guard import (
     guarded_landed_removal,
     recreate_command,
 )
-from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
+from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch, resolve_mid8
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
@@ -466,7 +466,11 @@ def _mission_meta_for_lane(repo_root: Path, branch: str) -> dict[str, Any] | Non
         if not isinstance(meta, dict):
             continue
         mission_id = str(meta.get("mission_id") or "")
-        if (parsed.mid8_token is not None and mission_id[:8] == parsed.mid8_token) or (parsed.mid8_token is None and meta_path.parent.name == parsed.slug):
+        if parsed.mid8_token is not None:
+            matched = resolve_mid8(meta_path.parent.name, mission_id=mission_id or None) == parsed.mid8_token
+        else:
+            matched = meta_path.parent.name == parsed.slug
+        if matched:
             matches.append(meta)
     return matches[0] if len(matches) == 1 else None
 

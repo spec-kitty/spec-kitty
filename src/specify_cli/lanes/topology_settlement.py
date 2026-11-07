@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.git import GitPath, status_entries
+from specify_cli.lanes.branch_naming import lane_branch_ref_glob
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +362,7 @@ def _check_branches(ctx: _SettlementContext) -> None:
     holders = _checkouts_holding(ctx.repo_root, ctx.return_branch)
     if holders:
         raise _refuse(f"create_return_branch {ctx.return_branch!r} is checked out in {holders[0]}. Switch that checkout to another branch, then retry.")
-    lane_refs = _git_ok(ctx.repo_root, "for-each-ref", "--format=%(refname)", f"refs/heads/{ctx.topic}-lane-*")
+    lane_refs = _git_ok(ctx.repo_root, "for-each-ref", "--format=%(refname)", lane_branch_ref_glob(ctx.topic))
     if lane_refs:
         raise _refuse(f"lane branches already exist for {ctx.topic!r} ({lane_refs.splitlines()[0]}); a started Mission never re-settles.")
 
