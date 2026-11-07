@@ -1406,6 +1406,36 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-11-06-2-one-status-read-contract.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-11-06-4-coordination-branch-written-by-commit.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-11-06-5-gates-over-worktree-less-coordination.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/4.x/2026-11-06-6-committed-ledger-is-the-coordination-blob.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation

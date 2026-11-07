@@ -90,3 +90,8 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-11-01 | [pull requests touch no shared generated file and land through a merge queue](2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md) |
 | 2026-11-01 | [Op lifecycle records are one file per record](2026-11-01-2-op-lifecycle-records-are-one-file-per-record.md) |
 | 2026-11-06 | [a destructive git operation discharges named proof obligations](2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md) |
+| 2026-11-06 | [One status read contract](2026-11-06-2-one-status-read-contract.md) |
+| 2026-11-06 | [a default Mission topology is settled once, by size, at the first finalize](2026-11-06-3-topology-is-settled-once-at-first-finalize.md) |
+| 2026-11-06 | [a coordination branch is written by commit, not through a coordination worktree](2026-11-06-4-coordination-branch-written-by-commit.md) |
+| 2026-11-06 | [consolidation gates hold over a coordination branch with no worktree](2026-11-06-5-gates-over-worktree-less-coordination.md) |
+| 2026-11-06 | [the committed ledger of a coordination Mission is the blob on its coordination branch](2026-11-06-6-committed-ledger-is-the-coordination-blob.md) |
