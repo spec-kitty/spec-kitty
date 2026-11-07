@@ -32,7 +32,7 @@ do not fix anything. You document.
 
 ## When to Use This Skill
 
-- After `spec-kitty merge --mission <slug>` completes and all WPs show `done`
+- After `spec-kitty consolidate --mission <slug>` completes and all WPs show `done`
 - Before tagging a release that depends on this mission's changes
 - When a downstream team needs a sign-off on spec→code fidelity
 - When you suspect a WP review was too narrow and cross-WP holes exist
@@ -69,8 +69,11 @@ Note the `baseline_merge_commit` (the SHA of the PR that preceded this mission,
 if present) and `mission_type`. These anchor every git diff you will run.
 
 ```bash
-# Scan the event log for the full state machine history
-cat kitty-specs/<slug>/status.events.jsonl
+# Scan the event log for the full state machine history, read from the
+# target branch (never from a checkout's working tree)
+git show <target-branch>:kitty-specs/<slug>/status.events.jsonl
+# or, through the CLI's status read door:
+spec-kitty agent tasks status --mission <slug> --json
 ```
 
 The event log tells you: how many rejection cycles each WP had, which WPs were

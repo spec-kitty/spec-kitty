@@ -1,0 +1,1 @@
+- **One helper creates every lane checkout** (#7279). `lanes/lane_checkout.py::open_lane_checkout` serves fresh, legacy and crash-recovery allocation, the lifecycle recreate, the review checkout and `implement --recover`; the unused worktree creators (`create_wp_workspace`, `create_feature_worktree`, `setup_feature_directory`, `GitVCS.create_workspace`) were deleted.

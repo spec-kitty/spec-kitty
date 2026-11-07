@@ -2,7 +2,7 @@
 title: Execution Lanes
 description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-11-07'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -25,7 +25,8 @@ Spec Kitty uses a lane-based execution model.
 2. `spec-kitty agent action implement WP## --agent <name>` requires a valid `lanes.json`.
 3. The runtime chooses the lane worktree. Agents do not pick a base branch manually.
 4. If a `lanes` mission computes one lane, the mission uses one worktree. A `single_branch` mission uses no lane worktree at all.
-5. Merge always follows `lane branches -> mission branch -> target branch`.
+5. Consolidation always follows `lane branches -> mission branch -> target branch`.
+6. Code lanes are cut from the Mission branch: on a coordination topology that is the coordination branch, which shares the Mission branch's name; for a default Mission settled to `lanes_with_coord` it is the [topic branch](../context/topology.md#topic-branch).
 
 ## Workspace Resolution Contract
 
@@ -52,6 +53,18 @@ branch and no dependency merge. See the
 this repo's `AGENTS.md` claimed such a fallback existed; that claim was
 false and has been corrected — see the `MissingLanesError` contract above
 for the real behavior.)
+
+## Lane Checkouts, Status and Cleanup
+
+Mission `lane-worktree-model-hardening-01M6QY1M` (#7276) fixed how lane checkouts relate to status and how they end.
+
+- **One lane-checkout helper.** `lanes/lane_checkout.py::open_lane_checkout` creates every lane checkout: fresh, legacy and crash-recovery allocation, the lifecycle recreate, the review checkout and `implement --recover`.
+- **No status files in a lane checkout.** The helper applies a managed sparse exclusion on every topology, so a lane checkout never shows the Mission's `status.events.jsonl` or `status.json`. A status write aimed at a lane checkout refuses with `STATUS_WRITE_TARGETS_LANE_CHECKOUT` (the git worktree registry decides; an unreadable registry fails closed). Missions created before coordination topologies existed keep their earlier behavior. Existing lane worktrees are brought in line by a clone-local migration; see [Git Worktrees §Lane checkouts hide status](git-worktrees.md#lane-checkouts-hide-status).
+- **One status read door.** Every status read goes through `status/read_surface.py::resolve_status_read` (ADR [4.x `2026-11-06-2`](../adr/4.x/2026-11-06-2-one-status-read-contract.md)): the coordination branch on coordination topologies, the Mission branch (or the checkout that holds it) otherwise, the target once the Mission has landed. Read it from the CLI with `spec-kitty agent tasks status`.
+- **The `for_review` gate reads the lane branch.** It counts commits with `git rev-list <base>..refs/heads/<lane>` from the repository root, so it needs no lane checkout.
+- **Stale lanes are refreshed by the CLI.** `consolidate` auto-rebases a stale lane, and the stale-lane remedy prints `spec-kitty agent action implement <WP> --mission <handle>` (the lane sync point), never a `cd .worktrees/...` plus `git merge` recipe.
+- **Approval windows for `single_branch`.** A `single_branch` Mission that lands a minted Mission branch is bounded per work package (`consolidation/write_branch_bound.py`, #7283): the approval-stamp check runs on the Mission branch, and every content commit must lie inside some approved work package's window, from its first claim stamp to its newest approval stamp. A commit outside every window refuses with `LANE_MOVED_AFTER_APPROVAL`, naming the work package approved before it. An approval recorded without a stamp refuses with `APPROVAL_STAMP_MISSING`; attest it per work package with `spec-kitty consolidate --attest-approved-reviewed <WP> --attest-reason "<why>"`.
+- **Cleanup is consolidation's last step.** After the landing is verified, `consolidate` removes lane and coordination checkouts and branches (`consolidation/lane_cleanup.py`, under the destructive guard) and prints one line per lane: `Removed`, `Kept` (a guard refused; the line names the code and detail) or `Retained` (retention policy). A `Kept` lane does not fail the run. An interrupted cleanup resumes from a `cleanup_started` marker; `--abort` after it rolls nothing back and prints `git branch <b> <sha>` recreate hints.
 
 ## Naming
 
