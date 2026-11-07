@@ -40,7 +40,8 @@ guaranteed conflict whichever lands first. The dependency is recorded in the PR'
 A copy of #6946's fixture (its own branch, run locally on `main`) reproduces the reported
 defect at the real entry point: after converging a project with a bootstrapped home, an
 un-bootstrapped home moves `HEAD`
-(`0650b34db5b1…` → `c19da6a58de5…`), and the auto-commit adds exactly the 23 files the
+(from the temporary reproduction base to its auto-commit; those throwaway SHAs were not
+retained), and the auto-commit adds exactly the 23 files the
 issue describes — the three packaged missions plus 2 ledger rows for
 `0.6.7_ensure_missions` and `0.12.0_documentation_mission`. That is the #6551 path,
 still unfixed here, and **not** one of the three sites this mission owns.
