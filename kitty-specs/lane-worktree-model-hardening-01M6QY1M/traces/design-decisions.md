@@ -152,3 +152,5 @@ into lane-c conflicts:
 The merge was aborted and lane-c is unchanged. Under the ruling, WP06 needs rework (option b).
 Every lane still to merge (g, d, k, m, p, n, o) also changes `_baselines.yaml`, and g, m, n and o
 also change `dead_symbol_allowlist.yaml`, so each is likely to need the same rework in turn.
+
+- [2026-11-07][closeout] Batch refresh: lanes c (79519b2eee, resolved), g (621c3c1d60, clean), d (8215731993, clean), k (3a56a83f2f, resolved) pushed; WP06 and WP14 moved to for_review for rework review (--force on for_review only). Ruling widened for the remaining lanes (m, p, n, o): a refresh conflict in a code file may be resolved when both sides intent is clear (e.g. lane_cleanup.py __all__: keep additions, honor removals), verified by that WP tests; every non-empty refresh merge goes through a rework review.
