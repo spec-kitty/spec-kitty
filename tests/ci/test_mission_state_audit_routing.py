@@ -163,7 +163,9 @@ BUMP_PATHS = (
 # explicit (small) list:
 #   - the dependency manifests that carry the reducer (spec-kitty-events);
 #   - the router workflow itself and the report renderer (CI machinery, not src modules the audit runs);
-#   - a module-level-only constant source the audit imports but calls no function in (core/constants.py).
+#   - a module-level-only constant source the audit imports but calls no function in (core/constants.py);
+#   - the git-repository classifier mission_metadata uses only after a failed git query, which this fixture
+#     does not execute (kernel/git_anchor.py).
 # Each must still match the mission_state group; the manifests must also fire the events-alignment workflow.
 NON_DERIVABLE_TRIGGER_INPUTS = (
     "uv.lock",
@@ -172,6 +174,7 @@ NON_DERIVABLE_TRIGGER_INPUTS = (
     ".github/workflows/ci-router.yml",
     "scripts/ci/mission_state_audit_report.py",
     "src/specify_cli/core/constants.py",
+    "src/kernel/git_anchor.py",
 )
 
 

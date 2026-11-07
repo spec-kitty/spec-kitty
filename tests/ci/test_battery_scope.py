@@ -138,10 +138,11 @@ def test_a_prose_only_battery_code_helper_touch_does_not_force_the_whole_battery
     helper = "scripts/ci/gate_selection.py"
 
     assert bs.decide([helper], part="1/2") == (bs.FULL, frozenset())
-    mode, gates = bs.decide([helper], part="1/2", prose_only=True)
-    assert mode == bs.SCOPED
-    assert gates <= _PROSE_SCRIPT_SCANNERS
-    assert _CLOCK_BANS & (_PROSE_SCRIPT_SCANNERS & gates) or gates == frozenset()
+    answers = [bs.decide([helper], part=part, prose_only=True) for part in _PARTS]
+    assert {mode for mode, _ in answers} == {bs.SCOPED}
+    first, second = (gates for _, gates in answers)
+    assert not first & second, "each selected gate runs in exactly one leg"
+    assert first | second == _PROSE_SCRIPT_SCANNERS, "every declared scanner of the helper runs, and no other gate"
 
 
 def test_prose_only_does_not_change_the_fail_safe() -> None:
