@@ -490,13 +490,13 @@
     },
     {
       "criterion_id": "FR-073",
-      "description": "Verify FR-073 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-073 Gate re-check reads the Mission branch: the gate re-check to compare the Mission branch's live tip against its claim-time tip (never the planning-lane alias that resolves to the target) and restore through the one rollback authority, so that a commit landing mid-run is refused. The run's own bookkeeping commits never refuse.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-i:tests/integration/test_single_branch_approval_windows.py::test_gate_recheck_mid_run_commit_rolls_back; lane-i:tests/integration/test_single_branch_approval_windows.py::test_own_bookkeeping_commits_never_refuse; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:30.962970+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-074",
