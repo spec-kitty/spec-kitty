@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#7120": {
+      "evidence_ref": "Context only: this mission pins a sentence introduced by #7120; #7120 itself stays open for the unruled target-branch evidence fallback.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7200": {
+      "evidence_ref": "Commit 6957311028 pins the absence sentence; reviewer-renata reproduced the is-unavailable mutation red; focused module 3 passed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

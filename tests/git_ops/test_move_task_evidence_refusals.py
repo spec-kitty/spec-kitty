@@ -71,6 +71,7 @@ def test_a_missing_lane_with_a_sibling_names_conditional_restore(tmp_path: Path,
 
     message = str(refused.value)
     assert refused.value.code == "IMPLEMENTATION_UNREADABLE"
+    assert "the lane branch kitty/mission-fx-lane-b does not exist in this checkout" in message
     assert "refs/spec-kitty/lane-tip/kitty/mission-fx-lane-b" in message
     assert "If it did exist" in message
     assert "no lane of this Mission has a branch here" not in message

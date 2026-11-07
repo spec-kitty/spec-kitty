@@ -1,0 +1,39 @@
+{
+  "mission_slug": "pin-absent-lane-wording-7200-01M6P3HX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/git_ops/test_move_task_evidence_refusals.py::test_a_missing_lane_with_a_sibling_names_conditional_restore (3 passed; assertion line 74; is-unavailable mutation 1 failed) and reviewer-renata APPROVE review-cycle-1",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-05T15:25:29.147575+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/git_ops/test_move_task_evidence_refusals.py::test_a_missing_lane_with_a_sibling_names_conditional_restore (3 passed; assertion line 74; is-unavailable mutation 1 failed) and reviewer-renata APPROVE review-cycle-1",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-05T15:25:32.162947+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/git_ops/test_move_task_evidence_refusals.py::test_a_missing_lane_with_a_sibling_names_conditional_restore (3 passed; assertion line 74; is-unavailable mutation 1 failed) and reviewer-renata APPROVE review-cycle-1",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-05T15:25:36.624212+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
