@@ -1,0 +1,69 @@
+{
+  "event_count": 27,
+  "last_event_id": "01M6ER6BPK6X0BZQFH2T0ZSEK5",
+  "materialized_at": "2026-11-02T18:26:22.547564+00:00",
+  "mission_number": "",
+  "mission_slug": "upgrade-empty-home-command-migrations-01M6EJQR",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implementer-pedro",
+      "force_count": 0,
+      "implementer_of_record": "implementer-pedro",
+      "lane": "done",
+      "last_event_id": "01M6ER68ESXVG9WW6Q5Y36GFBG",
+      "last_transition_at": "2026-11-02T18:26:19.225442+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261102",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 713161,
+      "shell_pid_created_at": "1793639302.99"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implementer-pedro",
+      "force_count": 0,
+      "implementer_of_record": "implementer-pedro",
+      "lane": "done",
+      "last_event_id": "01M6ER6A0X3P3MJQ5W7QQY0RD8",
+      "last_transition_at": "2026-11-02T18:26:20.829092+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1078072,
+      "shell_pid_created_at": "1793642111.07"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "implementer-pedro",
+      "force_count": 1,
+      "implementer_of_record": "implementer-pedro",
+      "lane": "done",
+      "last_event_id": "01M6ER6BPK6X0BZQFH2T0ZSEK5",
+      "last_transition_at": "2026-11-02T18:26:22.547564+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261102",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1511274,
+      "shell_pid_created_at": "1793643658.31"
+    }
+  }
+}

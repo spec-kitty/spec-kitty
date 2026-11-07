@@ -1,0 +1,22 @@
+{
+  "baseline_merge_commit": "78b063b4f1b1e71c0c49dc3e347f39baac08b27a",
+  "coordination_branch": "kitty/mission-upgrade-empty-home-command-migrations-01M6EJQR",
+  "created_at": "2026-11-02T16:51:00.980607+00:00",
+  "flattened": false,
+  "friendly_name": "upgrade empty home command migrations",
+  "merged_at": "2026-11-02T18:26:48.159935+00:00",
+  "merged_commit": "3848a51bc5ef8320e3bfe9874462511377b95c77",
+  "mid8": "01M6EJQR",
+  "mission_id": "01M6EJQR37WFRDJ7JV2NHM84SZ",
+  "mission_number": 248,
+  "mission_slug": "upgrade-empty-home-command-migrations-01M6EJQR",
+  "mission_type": "software-dev",
+  "purpose_context": "Three upgrade migrations (2.1.3 restore_prompt_commands, 2.1.4 enforce_command_file_state, 3.1.2 globalize_commands) read the operator's home directly rather than through uses_centralized_runtime(), so the same commit can take a different migration path on two machines. This mission measures them at the real upgrade entry point and makes the classification a function of the project's own stamp (issue #6954).",
+  "purpose_tldr": "Make three upgrade migrations decide from the project, not the operator's home",
+  "slug": "upgrade-empty-home-command-migrations-01M6EJQR",
+  "status_phase": "1",
+  "target_branch": "issue-6954-upgrade-empty-home-command-migrations",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-02T17:12:00+00:00"
+}
