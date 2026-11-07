@@ -47,6 +47,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -80,12 +81,9 @@ def _invoke(*args: str) -> Result:
 def _surface_is_the_handed_dir() -> Iterator[None]:
     """Keep the mocked-resolution tests hermetic: without this the real status-surface
     resolver would run against whatever checkout the test process sits in. Tests that
-    pin the surface patch it again inside their own body."""
-    with patch.object(
-        events_cli,
-        "resolve_surface_dir_or_typed_error",
-        side_effect=lambda _repo_root, _slug, *, on_missing_meta: on_missing_meta,
-    ):
+    pin the surface patch it again inside their own body. The one status read door
+    finding no Mission falls back to the handed dir (WP06)."""
+    with patch.object(events_cli, "resolve_status_read", side_effect=FileNotFoundError("no mission")):
         yield
 
 
@@ -545,15 +543,36 @@ def test_log_comes_from_the_resolved_status_surface(tmp_path: Path) -> None:
 
     with (
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(primary_dir)),
-        patch.object(events_cli, "resolve_surface_dir_or_typed_error", return_value=coord_dir) as resolver,
+        patch.object(events_cli, "resolve_status_read", return_value=SimpleNamespace(path=coord_dir, ref=None)) as resolver,
     ):
         result = _invoke("tail", "--mission", MISSION_SLUG, "--json", "--once")
 
     assert result.exit_code == 0, result.output
     assert [json.loads(line)["event_id"] for line in result.stdout.splitlines() if line.strip()] == ["coord-1", "coord-2"]
     assert resolver.call_args.args[1] == MISSION_SLUG
-    # No readable meta.json: the delegator falls back to the handed mission dir.
-    assert resolver.call_args.kwargs["on_missing_meta"] == primary_dir
+
+
+def test_a_ref_sourced_status_surface_is_refused_never_tailed_as_empty(tmp_path: Path) -> None:
+    """WP06: an empty or absent coordination worktree reads a ref; tail has no file to follow and refuses."""
+    from specify_cli.status.read_surface import StatusReadSource
+
+    primary_dir = tmp_path / "primary" / MISSION_SLUG
+    _write_events(primary_dir, [{"event_id": "stale-root-copy"}])
+    ref = "refs/heads/kitty/mission-x"
+
+    with (
+        patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(primary_dir)),
+        patch.object(events_cli, "resolve_status_read", return_value=SimpleNamespace(path=None, ref=ref, source=StatusReadSource.COORD_BRANCH_REF)),
+    ):
+        result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    payload = json.loads(result.stderr)
+    assert payload["error"] == "status_surface_on_ref"
+    assert ref in payload["detail"]
+    # The remedy gives the Mission a checkout (agent status materialize refuses a ref source too).
+    assert f"spec-kitty materialize --mission {MISSION_SLUG}" in payload["detail"]
 
 
 def _surface_failures(tmp_path: Path) -> list[Exception]:
@@ -582,7 +601,7 @@ def test_unresolvable_status_surface_is_refused_on_stderr(tmp_path: Path, failur
 
     with (
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(feature_dir)),
-        patch.object(events_cli, "resolve_surface_dir_or_typed_error", side_effect=failure),
+        patch.object(events_cli, "resolve_status_read", side_effect=failure),
     ):
         result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
 

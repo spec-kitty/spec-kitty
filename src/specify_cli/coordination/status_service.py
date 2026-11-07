@@ -20,8 +20,8 @@ surfaces:
 The key rule is visibility at the call site: callers choose a read source or a
 write target by name. There is no global event-log path redirect.
 
-A repository-root-labelled (``PRIMARY_CHECKOUT`` / ``PRIMARY_CHECKOUT_APPEND``)
-contract may additionally carry the validated ``owned`` ownership fact
+A repository-root-labelled (``StatusReadSource.WRITE_CHECKOUT`` read /
+``EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND`` write) contract may additionally carry the validated ``owned`` ownership fact
 (WP06, FR-013/FR-014). Classification of whether such a contract's path
 targets a coordination worktree is delegated entirely to
 :func:`specify_cli.coordination.surface_resolver.primary_read_targets_coord_worktree`,
@@ -68,13 +68,13 @@ class StatusContractError(TypeError):
 
 
 def _validate_read_labels(contract: EventLogReadContract) -> None:
-    """Fold the duplicated ``PRIMARY_CHECKOUT`` / ``COORDINATION_WORKTREE``
+    """Fold the duplicated ``WRITE_CHECKOUT`` / ``COORD_WORKTREE``
     read-guard blocks that :func:`read_event_log` and :func:`read_event_stream_log`
     used to repeat (WP06 campsite; behaviour-preserving). Classification is
     delegated entirely to
     :func:`specify_cli.coordination.surface_resolver.primary_read_targets_coord_worktree`,
     which consults ``contract.owned`` (the validated fact, when present)
-    before path shape. A ``COORDINATION_WORKTREE`` contract has no ``owned``
+    before path shape. A ``COORD_WORKTREE`` contract has no ``owned``
     field, so it always classifies by shape alone -- unchanged (FR-014).
     """
     from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415 -- cold path
@@ -99,7 +99,7 @@ class EventLogReadContract:
     slug-to-mission-id resolution.
 
     ``owned`` is the validated :class:`~mission_runtime.OwnedCheckout` fact
-    for a ``PRIMARY_CHECKOUT`` contract whose path lives under an owned
+    for a ``WRITE_CHECKOUT`` contract whose path lives under an owned
     checkout (WP06). It is the LAST field so positional construction stays
     compatible, and it is ``None`` for every non-owned caller and for every
     other source (a coordination-labelled contract never carries a fact —
@@ -318,7 +318,7 @@ def read_status_ref(repo_root: Path, ref: str, path: str) -> RefRead:
 
 
 def _read_ref_events_text(contract: EventLogReadContract) -> str | None:
-    """Read a ``COORDINATION_BRANCH_REF`` contract's log text, or ``None`` when ABSENT."""
+    """Read a ``COORD_BRANCH_REF`` contract's log text, or ``None`` when ABSENT."""
     from specify_cli.status import EVENTS_FILENAME  # noqa: PLC0415
 
     if contract.repo_root is None or contract.destination_ref is None:
