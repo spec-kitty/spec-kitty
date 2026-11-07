@@ -90,6 +90,8 @@ from specify_cli.consolidation.git_probes import (
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
+    is_merge_commit,
+    merge_own_changed_paths,
     merge_tree_write_tree_available,
     patch_id_of,
     patch_ids_in_range,
@@ -116,6 +118,7 @@ from specify_cli.consolidation.wp_attribution import (
     first_governed_open_stamp,
     lacks_lane_head_stamps,
     lane_never_started,
+    lane_dependency_merges,
     lane_own_commits,
     resolve_canceled_wp,
     stamp_of,
@@ -789,6 +792,12 @@ class ApprovedWpCommitSet:
     # hand-built claim and on a mission with no checked lane.
     bound_lane_tips: tuple[tuple[str, str], ...] = ()
 
+    # S8 (#7283): ``(lane id, branch)`` for every lane the approved-bound check read through a
+    # branch other than its created lane branch: a ``single_branch`` Mission's ``lane-planning``
+    # is read through its Mission branch (its created-branch alias resolves to the target). The
+    # gate re-check reads each lane through this map. Empty on every other claim.
+    bound_lane_branches: tuple[tuple[str, str], ...] = ()
+
     # #6715: approved WPs whose IMPLEMENTATION_MISSING refusal a no-implementation attestation
     # (``policy_metadata.attestation == "no_implementation"``) lifted, so ``consolidate`` can
     # name them in its output. Never an approval, a stamp or a review. Empty on a hand-built claim.
@@ -1125,7 +1134,9 @@ class MergeOutcomeVerifier:
         widens attribution on its own (see
         :func:`resolve_external_dependency_refs`).
 
-        NON-content commits are never flagged: merge commits (empty patch-id) and
+        NON-content commits are never flagged: a merge commit that adds nothing beyond
+        its parents (empty ``--remerge-diff``, #7307; a merge with its own content is
+        content, attributable only as an approved lane's reviewed dependency merge) and
         spec-kitty housekeeping commits (status/meta/matrix/retrospective
         projections — every changed path is bookkeeping) are excluded from the
         content set so a legitimate merge never false-fails (NFR-004). Bounded to
@@ -1154,17 +1165,36 @@ class MergeOutcomeVerifier:
             for sha in commits_in_range(self._repo, claim.excluded_window_base, ref):
                 if sha in unattributable:
                     continue
-                pid = patch_id_of(self._repo, sha)
-                if not pid:
-                    continue  # merge commit / empty diff — never content
-                if not self._commit_is_content(sha, claim):
-                    continue  # spec-kitty housekeeping — status/meta/matrix/retrospective
-                if sha in claim.authored_shas or pid in claim.authored_patch_ids:
-                    continue  # attributable to an approved WP's own authorship
-                if sha in claim.external_dependency_shas:
-                    continue  # a declared, verified external dependency (#6771) — predates the window
-                unattributable[sha] = pid
+                pid = self._unattributable_patch_id(sha, claim)
+                if pid is not None:
+                    unattributable[sha] = pid
         return list(unattributable.items())
+
+    def _unattributable_patch_id(self, sha: str, claim: ApprovedWpCommitSet) -> str | None:
+        """*sha*'s patch-id when it is un-attributable window content, else ``None`` (one commit of the scan).
+
+        A merge commit is judged by what it adds beyond its parents (#7307,
+        :func:`merge_own_changed_paths`), never by its ``--cc`` patch-id: a clean merge
+        adds nothing; a resolution is content that only an approved lane's own
+        dependency merge (by SHA, :func:`_own_dependency_merges`) attributes.
+        """
+        if sha in claim.authored_shas:
+            return None  # an approved WP's own authorship, or its lane's own dependency merge (#7307)
+        if sha in claim.external_dependency_shas:
+            return None  # a declared, verified external dependency (#6771) — predates the window
+        if is_merge_commit(self._repo, sha):
+            own_paths = merge_own_changed_paths(self._repo, sha)
+            if not any(not self._is_bookkeeping_path(path, claim) for path in own_paths):
+                return None  # a clean merge, or one resolving only bookkeeping — no content of its own
+            return patch_id_of(self._repo, sha)
+        pid = patch_id_of(self._repo, sha)
+        if not pid:
+            return None  # empty diff — never content
+        if not self._commit_is_content(sha, claim):
+            return None  # spec-kitty housekeeping — status/meta/matrix/retrospective
+        if pid in claim.authored_patch_ids:
+            return None  # a copy of an approved WP's own change
+        return pid
 
     def forecast_content_verdict(self, landing_refs: Sequence[str], claim: ApprovedWpCommitSet, *, squashed_tree: str | None) -> VerifyResult:
         """The content verdict the real run's strategy would reach, judged before the landing (#7244).
@@ -1767,8 +1797,8 @@ def build_approved_wp_set(
 
     # Implementation-evidence + independent-review axis (#5939 single_branch, #6715 every
     # topology): the stamp bound above refuses content a lane gained AFTER its approval; it has
-    # nothing to bound on a lane that holds no content at all, and a single_branch Mission's one
-    # lane is a planning lane it skips. REFUSE (before the collectors read tips, so nothing is
+    # nothing to bound on a lane that holds no content at all (a single_branch Mission's one lane is
+    # bounded through its Mission branch since S8, #7283, but only when it lands one). REFUSE (before the collectors read tips, so nothing is
     # rolled back) when an approved WP has no change to its owned_files in its evidence window,
     # no confirmable independent review, or an uncomputable / unreadable window. The single
     # authority is ``consolidation.wp_evidence``; the event log is read lazily through the one
@@ -1829,6 +1859,7 @@ def build_approved_wp_set(
         approved_lane_content=approved_lane_content,
         canceled_dependency_content=dependency.content,
         bound_lane_tips=bound.lane_tips,
+        bound_lane_branches=bound.lane_branches,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
         external_dependency_refs=external_dependency.refs,
         external_dependency_pins=dict(external_dependency.pins),
@@ -2112,6 +2143,7 @@ class _BoundVerdict:
 
     refusal: str | None = None
     lane_tips: tuple[tuple[str, str], ...] = ()
+    lane_branches: tuple[tuple[str, str], ...] = ()
 
 
 def _bound_events_unreadable_text(lane_id: str) -> str:
@@ -2183,6 +2215,9 @@ def _approved_bound_verdict(
 ) -> _BoundVerdict:
     """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
 
+    A ``single_branch`` Mission that lands a minted Mission branch is checked through that
+    branch against its per-WP approval windows instead (:func:`_write_branch_verdict`, S8, #7283).
+
     A lane that also holds a canceled work package is checked like any other: no commit,
     status event or attestation of a canceled work package covers a commit (#5720).
 
@@ -2190,6 +2225,17 @@ def _approved_bound_verdict(
     a line per lane in lane order. A lane tip is resolved once and both checked and recorded, so the gate re-check asks about
     exactly the commit this check validated.
     """
+    write_branch = _bound_write_branch(repo_root, lanes_manifest, work_packages, excluded_canceled_wp_ids)
+    if write_branch is not None:
+        return _write_branch_verdict(
+            repo_root,
+            lanes_manifest,
+            write_branch,
+            coord_base_ref=coord_base_ref,
+            window_base=window_base,
+            planning_prefix=planning_prefix,
+            event_log=event_log,
+        )
     lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
     if not lanes:
         return _BoundVerdict()
@@ -2226,6 +2272,80 @@ def _approved_bound_verdict(
     if refusals:
         return _BoundVerdict(refusal=render_refusals(refusals, lanes_manifest.mission_slug))
     return _BoundVerdict(lane_tips=tuple(tips))
+
+
+@dataclass(frozen=True)
+class _WriteBranchScope:
+    """The one ``single_branch`` lane the S8 bound reads, the Mission branch it reads it through, and its approved work packages."""
+
+    lane_id: str
+    branch: str
+    approved_wp_ids: tuple[str, ...]
+
+
+def _bound_write_branch(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    work_packages: Mapping[str, Any],
+    excluded_canceled_wp_ids: frozenset[str],
+) -> _WriteBranchScope | None:
+    """The S8 scope (#7283) when the Mission lands a minted Mission branch, else ``None``.
+
+    Only a STORED ``single_branch`` Mission whose write branch differs from its target
+    (``lands_mission_branch``) is bounded this way; a commit-to-target Mission stays unbounded
+    (FR-078). Its approved work packages are those of its planning lane(s), canceled-with-provenance excluded.
+    """
+    from specify_cli.lanes.single_branch_landing import minted_mission_branch
+
+    branch = minted_mission_branch(repo_root, lanes_manifest.mission_slug, lanes_manifest.target_branch)
+    if branch is None:
+        return None
+    planning = [lane for lane in lanes_manifest.lanes if is_planning_lane(lane)]
+    approved = tuple(sorted(wp for lane in planning for wp in _bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids)))
+    if not planning or not approved:
+        return None
+    return _WriteBranchScope(planning[0].lane_id, branch, approved)
+
+
+def _write_branch_verdict(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    scope: _WriteBranchScope,
+    *,
+    coord_base_ref: str,
+    window_base: str | None,
+    planning_prefix: str | None,
+    event_log: _ClaimEventLog,
+) -> _BoundVerdict:
+    """Check a ``single_branch`` Mission branch against its approval windows (S8, #7283; tiers 1 and 2).
+
+    The Mission branch tip is resolved once, checked and recorded with the lane's branch, so the
+    gate re-check reads the Mission branch (never ``lane-planning``'s created-branch alias, which
+    resolves to the target) and asks about exactly the commit validated here.
+    """
+    from .write_branch_bound import check_write_branch, render_write_branch_refusals
+
+    events = event_log.read()
+    if events is None:
+        return _BoundVerdict(refusal=_bound_events_unreadable_text(scope.lane_id))
+    claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
+    if not resolves_commit(repo_root, claim_base):
+        return _BoundVerdict(refusal=_bound_claim_base_unresolved_text(claim_base))
+    tip = resolve_commit(repo_root, scope.branch)
+    refusals = check_write_branch(
+        repo_root,
+        events=events,
+        lane_id=scope.lane_id,
+        branch=scope.branch,
+        approved_wp_ids=scope.approved_wp_ids,
+        claim_base=claim_base,
+        anchors=[window_base] if window_base else [],
+        is_bookkeeping=functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix),
+        tip=tip,
+    )
+    if refusals:
+        return _BoundVerdict(refusal=render_write_branch_refusals(refusals, lanes_manifest.mission_slug))
+    return _BoundVerdict(lane_tips=((scope.branch, tip),), lane_branches=((scope.lane_id, scope.branch),))
 
 
 def approved_bound_refusal(
@@ -2273,6 +2393,7 @@ def lane_tips_moved_refusal(
     anchor_shas: Sequence[str],
     planning_prefix: str | None,
     approved_wp_ids: Mapping[str, Sequence[str]] | None = None,
+    lane_branches: Mapping[str, str] | None = None,
 ) -> str | None:
     """Refusal text when content arrived on a lane after the claim-time check validated it, else ``None`` (#5668).
 
@@ -2285,12 +2406,15 @@ def lane_tips_moved_refusal(
     already reaches every merged lane commit and would exempt the commit this exists to
     find. A lane is named with its manifest work packages, or with *approved_wp_ids*
     (lane id -> approved work package ids) for the lanes it lists, so the recovery
-    command never names a canceled work package.
+    command never names a canceled work package. *lane_branches* (lane id -> branch, the claim's
+    :attr:`ApprovedWpCommitSet.bound_lane_branches`) names the branch a lane was checked through
+    when it is not the lane's created branch: a ``single_branch`` Mission's ``lane-planning`` is
+    read through its Mission branch, never through its alias, which resolves to the target (S8, #7283).
     """
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
     refusals: list[BoundRefusal] = []
     for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        branch = (lane_branches or {}).get(lane.lane_id) or _lane_branch_for(lanes_manifest, lane.lane_id)
         validated = validated_tips.get(branch)
         if validated is None or not branch_exists(repo_root, branch):
             continue
@@ -3176,6 +3300,55 @@ def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, obj
     return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
 
 
+def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, object]], presence: _PresenceScope | None) -> tuple[str, ...]:
+    """The approval stamps of *lane*'s WPs that are in an approved membership lane (#7307); canceled WPs never count."""
+    if presence is None:
+        return ()
+    stamps: list[str] = []
+    for wp in getattr(lane, "wp_ids", ()):
+        stamp = presence.approval_stamps.get(wp)
+        if stamp and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES:
+            stamps.append(stamp)
+    return tuple(stamps)
+
+
+def _drop_unreviewed_merges(repo_root: Path, spine: list[str], stamps: Sequence[str]) -> list[str]:
+    """*spine* less every merge commit no approval stamp in *stamps* reaches (#7307).
+
+    Returns *spine* itself when nothing is dropped. A merge whose parents cannot be read
+    is dropped (attributes less; the verifier then REFUSEs on its own probe error).
+    """
+    kept: list[str] = []
+    dropped = False
+    for sha in spine:
+        try:
+            merge = is_merge_commit(repo_root, sha)
+        except GitProbeError:
+            dropped = True
+            continue
+        if not merge or any(sha_reachable_from(repo_root, sha, stamp) for stamp in stamps):
+            kept.append(sha)
+        else:
+            dropped = True
+    return kept if dropped else spine
+
+
+def _own_dependency_merges(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: object,
+    work_packages: Mapping[str, Mapping[str, object]],
+    spine: Sequence[str],
+) -> frozenset[str]:
+    """*lane*'s merges of its declared, not fully canceled, dependency lanes on its *spine* (#7307)."""
+    tips = [
+        _lane_branch_for(lanes_manifest, dep.lane_id)
+        for dep in lanes_manifest.lanes
+        if dep.lane_id in tuple(getattr(lane, "depends_on_lanes", ()) or ()) and _lane_is_approved(dep, work_packages)
+    ]
+    return lane_dependency_merges(repo_root, spine, tips)
+
+
 def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
     """First-parent SHAs (newest-first) for a lane, TOLERATING an unresolvable range.
 
@@ -3648,6 +3821,8 @@ class _PresenceScope:
     carried: frozenset[str] | None
     lane_bases: Mapping[str, str | None]
     canceled: frozenset[str]
+    #: Each WP's newest approval stamp (:func:`approval_stamp`), ``None`` when unstamped (#7307).
+    approval_stamps: Mapping[str, str | None] = field(default_factory=dict)
 
 
 def _presence_scope(
@@ -3666,7 +3841,8 @@ def _presence_scope(
         carried = None
     lane_bases = {lane.lane_id: first_governed_open_stamp(events, frozenset(lane.wp_ids)) for lane in lanes_manifest.lanes} if events is not None else {}
     canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base)
-    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled)
+    stamps = {wp: approval_stamp(events, wp) for lane in lanes_manifest.lanes for wp in lane.wp_ids} if events is not None else {}
+    return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps)
 
 
 def _presence_range_unreadable_refusal(
@@ -3832,6 +4008,13 @@ def _collect_authored(
         first_parent = _lane_first_parent_spine(repo_root, base, branch)
         full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
         full_blobs, full_deletions = _final_authored_walk(repo_root, full_authored)
+        # #7307 review: a merge on the spine counts toward this lane's authorship only
+        # when one of its approved WPs' approval stamps reaches it (it was in a reviewed
+        # tip). A merge made after the approval is the lane's unreviewed work: the
+        # approved bound skips merges, so it is left out here and the verifier judges
+        # what it adds beyond its parents (a clean merge carries nothing; any own
+        # content FAILs), on the closed-world and the squash blob axes alike.
+        reviewed = full_authored if is_planning_lane(lane) else _drop_unreviewed_merges(repo_root, full_authored, _approved_stamps(lane, work_packages, presence))
         # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
         # spine, unchanged — approved content must be PRESENT on the target.
         if not is_planning_lane(lane):
@@ -3868,19 +4051,24 @@ def _collect_authored(
         # content (e.g. when its first-claim stamp was recorded at a later tip
         # rather than the creation base). Gating on ``depends_on_lanes`` keeps
         # the fix to the exact shape it closes.
-        authored = full_authored
-        lane_blobs, lane_deletions = full_blobs, full_deletions
+        authored = reviewed
+        lane_blobs, lane_deletions = (full_blobs, full_deletions) if reviewed is full_authored else _final_authored_walk(repo_root, reviewed)
         lane_own_base = presence.lane_bases.get(lane.lane_id) if (presence is not None and not is_planning_lane(lane) and lane.depends_on_lanes) else None
         if lane_own_base is not None:
-            own = lane_own_commits(repo_root, base, full_authored, [lane_own_base])
-            if len(own) != len(full_authored):
-                authored = [sha for sha in full_authored if sha in own]
+            own = lane_own_commits(repo_root, base, reviewed, [lane_own_base])
+            if len(own) != len(reviewed):
+                authored = [sha for sha in reviewed if sha in own]
                 lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
         for sha in authored:
             shas.add(sha)
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
+        # #7307: the lane's own REVIEWED dependency merges (``reviewed`` holds only
+        # merges an approval stamp reaches) stay its authorship by SHA even when the
+        # #5968 own-base bound above drops them (they predate the first claim stamp).
+        # Only the SHA: their blobs stay the dependency's (#5968).
+        shas |= _own_dependency_merges(repo_root, lanes_manifest, lane, work_packages, reviewed)
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
