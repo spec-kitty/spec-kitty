@@ -365,7 +365,12 @@ class TestCreateFeatureCommand:
         mission_id, mid8 = _sole_mission_identity(tmp_path)
         assert output["mission_slug"] == f"test-feature-{mid8}"
         assert "feature_dir" in output
-        assert output["current_branch"] == "main"
+        # #7276/#7282 (ADR 2026-11-06-3): a default create mints the Mission topic
+        # branch and checks it out in the write checkout; the target stays main.
+        assert output["current_branch"] == f"kitty/mission-test-feature-{mid8}"
+        assert output["mission_branch"] == f"kitty/mission-test-feature-{mid8}"
+        assert output["topology"] == "single_branch"
+        assert output["topology_source"] == "default"
         assert output["target_branch"] == "main"
         assert output["base_branch"] == "main"
         assert output["planning_base_branch"] == "main"

@@ -220,12 +220,14 @@ def test_specify_topology_lanes_persists_choice_without_coord_branch(
 # ---------------------------------------------------------------------------
 
 
-def test_specify_omitted_topology_defaults_to_coord_and_mints_branch(
+def test_specify_omitted_topology_defaults_to_provisional_single_branch_and_mints_topic_branch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Omitting ``--topology`` reproduces today's behaviour exactly: the mission
-    is ``topology=coord`` and a coordination branch is minted and recorded
-    (NFR-001 backward-compat)."""
+    """Omitting ``--topology`` records the provisional size default (#7276/#7282,
+    ADR 2026-11-06-3): ``topology=single_branch``, ``topology_source=default``,
+    ``topology_settled=false``, and exactly one Mission topic branch is minted and
+    recorded as ``mission_branch``. Re-pinned from the retired ``coord`` default;
+    the first ``finalize-tasks`` settles the topology by size."""
     repo = _init_project(tmp_path)
     with _in_project(repo, monkeypatch):
         result = _invoke_specify(["coord-default-demo", "--json"])
@@ -233,14 +235,16 @@ def test_specify_omitted_topology_defaults_to_coord_and_mints_branch(
     assert result.exit_code == 0, f"exit {result.exit_code}:\n{result.output}"
     feature_dir = _only_feature_dir(repo)
     meta = _read_meta(feature_dir)
-    assert meta["topology"] == "coord"
-    coord_branch = meta.get("coordination_branch")
-    assert isinstance(coord_branch, str) and coord_branch.startswith("kitty/mission-"), (
-        f"omitted --topology must mint a coordination branch (got {coord_branch!r})"
+    assert meta["topology"] == "single_branch", meta
+    assert meta["topology_source"] == "default", meta
+    assert meta["topology_settled"] is False, meta
+    topic_branch = meta.get("mission_branch")
+    assert isinstance(topic_branch, str) and topic_branch.startswith("kitty/mission-"), (
+        f"omitted --topology must mint a Mission topic branch (got {topic_branch!r})"
     )
     # The minted branch must actually exist as a real git ref.
-    refs = _git(feature_dir.parents[1], "branch", "--list", coord_branch).stdout
-    assert coord_branch in refs, f"minted coordination branch {coord_branch!r} is not a real ref"
+    refs = _git(repo, "branch", "--list", topic_branch).stdout
+    assert topic_branch in refs, f"minted topic branch {topic_branch!r} is not a real ref"
 
 
 def _add_origin_on_main(repo: Path, tmp_path: Path) -> None:
@@ -254,20 +258,14 @@ def _add_origin_on_main(repo: Path, tmp_path: Path) -> None:
     _git(repo, "remote", "set-head", "origin", "main")
 
 
-def test_specify_omitted_topology_on_non_primary_branch_derives_lanes(
+def test_specify_omitted_topology_on_non_primary_branch_is_provisional_single_branch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """#2581/WP06 #2602: omitting ``--topology`` on a NON-primary feature branch
-    derives ``lanes`` (no coordination branch minted) through the shared
-    ``_resolve_default_topology_phase`` — closing the gotcha at the
-    ``/spec-kitty.specify`` entry point, not just ``agent mission create``.
-    Re-pinned from ``single_branch`` (WP06 review cycle 1, issue 1): the
-    binding decision on #5100 (comment 5870360497) makes ``single_branch``
-    explicit-only (``--topology single_branch`` or ``--owned-checkout``) —
-    default users keep worktree isolation instead. On the primary branch
-    (T010) the default stays ``coord``; here, with ``origin/HEAD -> main``
-    and HEAD on a feature branch, the derivation sees a genuine
-    primary/non-primary mismatch."""
+    """#2581 re-pinned for #7276/#7282 (ADR 2026-11-06-3): the create-time default
+    no longer derives ``lanes`` from a primary/non-primary mismatch. On a
+    non-primary branch an omitted ``--topology`` still records the provisional
+    ``single_branch`` default (unsettled) with no coordination branch; ``lanes``
+    and ``coord`` are explicit-only, and settlement happens at first finalize."""
     repo = _init_project(tmp_path)
     _add_origin_on_main(repo, tmp_path)
     _git(repo, "checkout", "-qb", "feat/non-primary-change")
@@ -277,10 +275,13 @@ def test_specify_omitted_topology_on_non_primary_branch_derives_lanes(
     assert result.exit_code == 0, f"exit {result.exit_code}:\n{result.output}"
     feature_dir = _only_feature_dir(repo)
     meta = _read_meta(feature_dir)
-    assert meta["topology"] == "lanes", meta
+    assert meta["topology"] == "single_branch", meta
+    assert meta["topology_source"] == "default", meta
+    assert meta["topology_settled"] is False, meta
+    assert meta.get("create_return_branch") == "feat/non-primary-change", meta
     assert "coordination_branch" not in meta, (
-        f"a non-primary-branch specify without --pr-bound must NOT mint a "
-        f"coordination branch (got {meta.get('coordination_branch')!r})"
+        f"a default create must NOT mint a coordination branch before settlement "
+        f"(got {meta.get('coordination_branch')!r})"
     )
 
 

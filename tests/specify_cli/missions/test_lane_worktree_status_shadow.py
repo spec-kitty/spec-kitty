@@ -237,9 +237,11 @@ def test_authoritative_read_reports_the_post_fork_lane(tmp_path: Path) -> None:
     lane_worktree = _start_implementation(repo)
 
     assert lane_worktree.is_dir()
-    # The lane worktree's own copy is the fork-time shadow: it never saw the transition.
+    # #7276/#7282: a lane checkout carries no status files (managed sparse
+    # exclusion, ``lanes/lane_checkout.py::open_lane_checkout``), so there is no
+    # fork-time shadow left to read: the lane worktree's own copy has no WP state.
     lane_copy = lane_worktree / "kitty-specs" / MISSION_DIRNAME
-    assert _lane_of(lane_copy) == "planned"
+    assert _lane_of(lane_copy) is None
     # The authority (primary / mission branch) does hold the transition.
     assert _lane_read_from_root(repo) == "in_progress"
 

@@ -609,13 +609,13 @@ def test_next_resolve_mission_slug_propagates_ambiguity(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# coord-empty Option B parity — MissionStatus.load resolves PRIMARY + loud warning
+# coord-empty parity — MissionStatus.load resolves PRIMARY (no fallback warning since #7276)
 # for EVERY handle form (WP04 / 01KVN754 / #1716 / FR-003)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("handle", [_COORD_SLUG, _COORD_MID8, _COORD_MISSION_ID])
-def test_coord_empty_window_resolves_primary_with_warning_for_all_handles(
+def test_coord_empty_window_resolves_primary_for_all_handles(
     repo: Path, handle: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Inverted by mission 01KVN754 WP04 (out-of-map linearized edit; WP05 owns
@@ -658,11 +658,14 @@ def test_coord_empty_window_resolves_primary_with_warning_for_all_handles(
         ms = MissionStatus.load(repo_root=repo, mission_slug=handle)
 
     assert ms.read_dir.resolve() == expected_primary
-    assert any(
+    # #7276 WP05 deleted the loud empty-coordination fallback: the read door
+    # decides the empty coordination worktree deterministically, so the old
+    # fallback WARNING is gone (#7282). Every handle form still lands on PRIMARY.
+    assert not any(
         r.name == "specify_cli.coordination.surface_resolver"
         and r.levelno == logging.WARNING
         for r in caplog.records
-    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+    )
 
 
 # ---------------------------------------------------------------------------

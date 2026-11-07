@@ -147,7 +147,9 @@ def test_create_feature_explicit_target_branch_flag_overrides_current(tmp_path: 
     # Assumption check
     assert (tmp_path / ".kittify").exists()
     # Act
-    result, meta = _run_create_feature(tmp_path, "test-feature", "main", extra_args=["--target-branch", "2.x"])
+    # #7276/#7282 (ADR 2026-11-06-3): a default create mints the Mission topic
+    # branch from the target on every target, so the target must exist.
+    result, meta = _run_create_feature(tmp_path, "test-feature", "main", also=("2.x",), extra_args=["--target-branch", "2.x"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     assert meta is not None
