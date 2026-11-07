@@ -198,7 +198,7 @@ def _read_surface_or_refuse(ms: MissionStatus, json_output: bool) -> StatusReadS
 
 def _refuse_ref_surface(ms: MissionStatus, surface: StatusReadSurface, json_output: bool, consequence: str) -> NoReturn:
     """Refuse a ref-sourced surface for a command that needs a file, naming a remedy that gives it one."""
-    from specify_cli.status.read_surface import ref_source_remedy
+    from specify_cli.status import ref_source_remedy
 
     remedy = ref_source_remedy(surface, ms.mission_slug)
     message = f"status for {ms.mission_slug} lives on {surface.ref} ({surface.source.value}); no checkout holds its status.events.jsonl, so {consequence}. {remedy}"
@@ -240,7 +240,7 @@ def _status_dir_for_command(
 def _read_mission_events(ms: MissionStatus) -> list[Any]:
     """Lane transitions from the aggregate's declared source (the one read door)."""
     from specify_cli.status import read_events
-    from specify_cli.status.read_surface import read_status_events
+    from specify_cli.status import read_status_events
 
     surface = ms.status_read_surface()
     if surface is None:

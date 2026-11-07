@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 # The ONE status read-source enum (review cycle 1, N6): the read door's declared sources. A
 # ``primary_checkout`` contract reads ``WRITE_CHECKOUT``, a ``coordination_worktree`` contract
 # ``COORD_WORKTREE`` and a ``coordination_branch_ref`` contract ``COORD_BRANCH_REF``.
-from specify_cli.status.read_surface import StatusReadSource
+from specify_cli.status import StatusReadSource
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout

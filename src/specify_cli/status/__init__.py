@@ -467,6 +467,26 @@ from .write_service_protocol import (
     repository_id,
 )
 
+# The one status read door (ADR 2026-11-06-2), re-exported so callers outside the
+# status package import it from here (status module boundary, #7276).
+from specify_cli.status.read_surface import (
+    StatusReadSource,
+    StatusReadSurface,
+    checkout_holding_branch,
+    decide_status_read,
+    materialize_status,
+    non_lane_checkout_holding_branch,
+    read_status_events,
+    read_status_stream,
+    read_status_text,
+    ref_source_remedy,
+    resolve_committed_status_read,
+    resolve_primary_partition_dir,
+    resolve_status_read,
+    topic_holder_mission_dir,
+)
+from specify_cli.status.store import seed_scratch_event_log
+
 
 def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
     """Return the cycle-aware missing-status message without eager dependency-graph imports."""
@@ -485,6 +505,21 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 # 8 consumer call sites) was retired.
 
 __all__ = [
+    "StatusReadSource",
+    "StatusReadSurface",
+    "checkout_holding_branch",
+    "decide_status_read",
+    "materialize_status",
+    "non_lane_checkout_holding_branch",
+    "read_status_events",
+    "read_status_stream",
+    "read_status_text",
+    "ref_source_remedy",
+    "resolve_committed_status_read",
+    "resolve_primary_partition_dir",
+    "resolve_status_read",
+    "topic_holder_mission_dir",
+    "seed_scratch_event_log",
     "check_no_snapshot_drift",
     "tasks_are_finalized",
     "ActiveWPStatus",

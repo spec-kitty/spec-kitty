@@ -1183,7 +1183,7 @@ def _current_lanes_or_empty(main_repo: Path, mission_slug: str) -> dict[str, str
     """
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.status import StoreError, reduce
-    from specify_cli.status.read_surface import read_status_events, resolve_status_read
+    from specify_cli.status import read_status_events, resolve_status_read
 
     try:
         snapshot = reduce(read_status_events(resolve_status_read(main_repo, mission_slug)))

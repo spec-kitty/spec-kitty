@@ -571,7 +571,7 @@ def _check_unchecked_subtasks(
         authored_subtask_roster,
         unchecked_subtask_ids_from_event_stream,
     )
-    from specify_cli.status.read_surface import read_status_stream, resolve_status_read
+    from specify_cli.status import read_status_stream, resolve_status_read
 
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:

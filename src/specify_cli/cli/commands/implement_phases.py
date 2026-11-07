@@ -367,7 +367,7 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
     implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
 
-    from specify_cli.status.read_surface import materialize_status, resolve_status_read
+    from specify_cli.status import materialize_status, resolve_status_read
 
     # FR-003 layer 4 / FR-005: read WP-lane status through the one status read door
     # (ADR 2026-11-06-2), the declared source the status WRITE path also commits to: the

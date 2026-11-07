@@ -15,8 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from kernel.git.listing import tree_entries
-from kernel.git.runner import GitCommandError, decode_path, run_git
+from kernel.git.listing import log_paths, tree_entries
+from kernel.git.runner import GitCommandError
 from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.compute import is_planning_lane
 from specify_cli.lanes.models import ExecutionLane
@@ -104,19 +104,10 @@ def _mission_side_changes(repo_root: Path, lane_branch: str, mission_branch: str
     the whole ``merge_base..mission_branch`` diff, the strictest superset.
     """
     try:
-        result = run_git(
-            repo_root,
-            "log",
-            "--format=",
-            "--name-only",
-            "--no-renames",
-            "--diff-merges=remerge",
-            f"{lane_branch}..{mission_branch}",
-            "--",
-        )
+        paths = log_paths(repo_root, f"{lane_branch}..{mission_branch}", remerge_merges=True)
     except GitCommandError:
         return set(git_diff_names(repo_root, merge_base, mission_branch))
-    return {decode_path(line) for line in result.stdout.splitlines() if line.strip()}
+    return {str(path) for path in paths}
 
 
 def _filter_benign_overlaps(overlap: list[str], lane_branch: str, mission_branch: str, repo_root: Path) -> list[str]:

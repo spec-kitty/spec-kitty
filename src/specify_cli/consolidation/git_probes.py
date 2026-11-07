@@ -651,15 +651,12 @@ def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
     """
     if not remerge_diff_available(repo_root):
         raise GitProbeError(f"judging merge commit {sha} needs git >= 2.36 (git show --remerge-diff); upgrade git")
-    ret, out, err = run_command(
-        ["git", "show", "--remerge-diff", "--name-only", "--format=", "--no-renames", sha],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git show --remerge-diff {sha} failed (exit {ret}): {(err or '').strip()}")
-    return [line for line in (out or "").splitlines() if line.strip()]
+    from kernel.git import GitCommandError, remerge_paths
+
+    try:
+        return [str(path) for path in remerge_paths(repo_root, sha)]
+    except GitCommandError as exc:
+        raise GitProbeError(f"git show --remerge-diff {sha} failed: {exc}") from exc
 
 
 def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:

@@ -1036,13 +1036,13 @@ def _regenerate_snapshot_in_index(worktree: Path, rel: str, env: dict[str, str])
     Mission's ``meta.json`` (``mission_type`` / ``mission_number`` come from
     it) and the lane's own pre-merge snapshot (stage 2, whose recorded
     ``schema_version`` the reducer keys on). Nothing is written to disk in the
-    checkout and no write is reported for the scratch path: the status-owned
+    checkout (the scratch log is seeded through the status store): the status-owned
     :func:`~specify_cli.status.materialize_snapshot` /
     :func:`~specify_cli.status.materialize_to_json` render it in memory.
     """
     import tempfile
 
-    from specify_cli.status import EVENTS_FILENAME, materialize_snapshot, materialize_to_json
+    from specify_cli.status import EVENTS_FILENAME, materialize_snapshot, materialize_to_json, seed_scratch_event_log
 
     mission_rel = Path(rel).parent
     log = _index_blob(worktree, f":0:{(mission_rel / EVENTS_FILENAME).as_posix()}", env)
@@ -1052,7 +1052,10 @@ def _regenerate_snapshot_in_index(worktree: Path, rel: str, env: dict[str, str])
     with tempfile.TemporaryDirectory(prefix="spec-kitty-status-") as scratch:
         scratch_dir = Path(scratch) / mission_rel.name
         scratch_dir.mkdir()
-        (scratch_dir / EVENTS_FILENAME).write_bytes(log)
+        try:
+            seed_scratch_event_log(scratch_dir, log)
+        except ValueError:
+            return False  # an unreadable merged log: no authoritative state (fail closed)
         _seed_scratch(scratch_dir, "meta.json", _index_blob(worktree, f":0:{(mission_rel / 'meta.json').as_posix()}", env))
         _seed_scratch(scratch_dir, Path(rel).name, _index_blob(worktree, f":2:{rel}", env))
         snapshot = materialize_to_json(materialize_snapshot(scratch_dir)).encode("utf-8")

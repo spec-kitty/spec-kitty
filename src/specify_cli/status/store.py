@@ -380,6 +380,30 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
             tmp_path.unlink(missing_ok=True)
 
 
+def seed_scratch_event_log(feature_dir: Path, raw: bytes) -> None:
+    """Seed a throwaway scratch Mission directory's event log from *raw* JSONL bytes.
+
+    For in-memory reductions of a log that lives only in a git index or tree
+    (e.g. the lane consolidation's ``status.json`` regeneration, #7276): the
+    caller owns a temporary *feature_dir* outside every checkout and reduces it
+    with :func:`~specify_cli.status.materialize_snapshot`. Every non-blank line
+    is decoded as one row and written through :func:`append_raw_rows_atomic`,
+    the one event-log write primitive.
+
+    Raises:
+        ValueError: a line is not a JSON object (the caller fails closed).
+    """
+    rows: list[dict[str, Any]] = []
+    for line in raw.decode("utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            raise ValueError(f"event log line is not a JSON object: {line[:80]!r}")
+        rows.append(row)
+    append_raw_rows_atomic(_events_path(feature_dir), rows)
+
+
 def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
     """Thin, behavior-preserving wrapper over :func:`append_raw_rows_atomic`.
 

@@ -257,7 +257,7 @@ def _completed_mission_projected_events_path(run: _MergeRunState) -> Path | None
     records, not a write location. The landed signal is ``mission_runtime.mission_has_landed``.
     """
     from mission_runtime import mission_has_landed
-    from specify_cli.status.read_surface import resolve_status_read
+    from specify_cli.status import resolve_status_read
 
     if not mission_has_landed(run.target_feature_dir):
         return None

@@ -101,7 +101,6 @@ failure #7214 fixed.
 
 from __future__ import annotations
 
-import json
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -457,19 +456,20 @@ def _mission_meta_for_lane(repo_root: Path, branch: str) -> dict[str, Any] | Non
     parsed = parse_mission_slug_from_branch(branch)
     if parsed is None or parsed.lane_id is None:
         return None
+    from specify_cli.context.mission_resolver import iter_kitty_specs_children
+    from specify_cli.mission_metadata import load_meta_or_empty
+
     matches: list[dict[str, Any]] = []
-    for meta_path in sorted((repo_root / "kitty-specs").glob("*/meta.json")):
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if not isinstance(meta, dict):
+    for mission_dir in iter_kitty_specs_children(repo_root):
+        # Missing or unreadable meta.json: the Mission is skipped, as before (#7276).
+        meta = load_meta_or_empty(mission_dir)
+        if not meta:
             continue
         mission_id = str(meta.get("mission_id") or "")
         if parsed.mid8_token is not None:
-            matched = resolve_mid8(meta_path.parent.name, mission_id=mission_id or None) == parsed.mid8_token
+            matched = resolve_mid8(mission_dir.name, mission_id=mission_id or None) == parsed.mid8_token
         else:
-            matched = meta_path.parent.name == parsed.slug
+            matched = mission_dir.name == parsed.slug
         if matched:
             matches.append(meta)
     return matches[0] if len(matches) == 1 else None

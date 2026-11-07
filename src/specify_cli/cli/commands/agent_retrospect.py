@@ -60,8 +60,8 @@ from specify_cli.retrospective.writer import (
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
-from specify_cli.status.models import StatusEvent
-from specify_cli.status.read_surface import read_status_events, resolve_status_read
+from specify_cli.status import StatusEvent
+from specify_cli.status import read_status_events, resolve_status_read
 
 app = typer.Typer(
     name="retrospect",

@@ -40,6 +40,7 @@ __all__ = [
     "is_tracked",
     "log_paths",
     "numstat_entries",
+    "remerge_paths",
     "status_entries",
     "tracked_paths",
     "tree_entries",
@@ -433,17 +434,34 @@ def commit_paths(
     return parse_paths_z(_git(cwd, [*args, commit], (), env=env, timeout=timeout))
 
 
+def remerge_paths(cwd: Path, commit: str, *, env: Env = None, timeout: float | None = None) -> tuple[GitPath, ...]:
+    """Paths where merge *commit* differs from git's automatic re-merge of its parents.
+
+    ``git show --remerge-diff`` (git >= 2.36): a conflict resolution, or an edit
+    folded into the merge. Empty for a clean merge.
+    """
+    args = [*_REPO_RELATIVE_DIFF, "show", "--remerge-diff", "--name-only", "--format=", "-z", "--no-renames", commit]
+    return parse_paths_z(_git(cwd, args, (), env=env, timeout=timeout))
+
+
 def log_paths(
     cwd: Path,
     rev_range: str,
     *,
     pathspecs: Sequence[str] = (),
     glob: bool = False,
+    remerge_merges: bool = False,
     env: Env = None,
     timeout: float | None = None,
 ) -> tuple[GitPath, ...]:
-    """Every path touched by a commit in *rev_range* (renames split), first-seen order, no duplicates."""
-    args = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames", rev_range]
+    """Every path touched by a commit in *rev_range* (renames split), first-seen order, no duplicates.
+
+    With *remerge_merges* a merge commit contributes only what its own resolution
+    introduced (``--diff-merges=remerge``: its diff against git's automatic re-merge);
+    without it a merge lists nothing (git's default for ``log``).
+    """
+    merges = ["--diff-merges=remerge"] if remerge_merges else []
+    args = [*_REPO_RELATIVE_DIFF, "log", "-z", "--name-only", "--format=", "--no-renames", *merges, rev_range]
     return tuple(dict.fromkeys(parse_paths_z(_git(cwd, args, pathspecs, glob=glob, env=env, timeout=timeout))))
 
 

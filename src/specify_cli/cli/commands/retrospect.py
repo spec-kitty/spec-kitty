@@ -79,8 +79,8 @@ from specify_cli.retrospective.summary import (
     legacy_registry_record_dir,
 )
 from specify_cli.status import read_events
-from specify_cli.status.models import StatusEvent
-from specify_cli.status.read_surface import read_status_events, resolve_status_read
+from specify_cli.status import StatusEvent
+from specify_cli.status import read_status_events, resolve_status_read
 from specify_cli.status import TERMINAL_LANES
 
 app = typer.Typer(
