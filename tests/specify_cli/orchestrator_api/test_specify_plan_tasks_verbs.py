@@ -140,7 +140,13 @@ _SPECIFY_SUCCESS_DATA_KEYS = frozenset(
         "spec_kitty_version",
         "spec_state",
         "target_branch",
+        # contract 1.24.0 (S7 #7282, IC-13): the replaced implicit target, or null.
+        "target_replacement",
         "topology",
+        # contract 1.24.0 (S7 #7282, FR-058): how the topology was chosen, and
+        # whether it is provisional until the first ``tasks``.
+        "topology_provisional",
+        "topology_source",
         "uncommitted_artifacts",
         "write_mode",
     }

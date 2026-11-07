@@ -109,7 +109,7 @@ _NO_COMMIT_MESSAGE = (
     "or pass --target-branch naming an existing branch, then retry."
 )
 _DIRTY_MESSAGE = (
-    "Cannot mint the protected-target mission branch: the write checkout at /repo has "
+    "Cannot switch the write checkout onto the new Mission branch: the write checkout at /repo has "
     "uncommitted changes outside this mission's own scaffold: stray.txt, src/x.py. "
     "Commit or discard them, then retry."
 )

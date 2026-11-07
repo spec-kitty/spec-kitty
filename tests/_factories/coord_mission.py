@@ -19,9 +19,9 @@ Public API
 - :func:`make_coord_mission` -- production create path, both coordination
   topologies, three ``via`` variants (``core`` / ``cli_topology`` /
   ``cli_pr_bound``), optional ``materialized=True`` for a deterministic
-  MATERIALIZED coordination surface. ``topology=None`` is accepted only for
-  ``via="cli_pr_bound"`` (the real WP06 default-resolution path: no
-  ``--topology``, topology comes back from ``meta.json``).
+  MATERIALIZED coordination surface. ``topology`` is always explicit: a create
+  without ``--topology`` is a provisional ``single_branch`` with no coordination
+  branch (S7 #7282, ADR 2026-11-06-3), so it never yields a coord Mission.
 - :func:`make_prefix_coord_mission` -- the **pre-fix shape**: a committed
   root-checkout status log, a coordination branch cut *without* the Mission
   dir, and an absent/empty coordination worktree. Built EXPLICITLY (never by
@@ -283,22 +283,14 @@ def _coord_mission_from_meta(
     *,
     slug: str,
     meta: dict[str, object],
-    topology: MissionTopology | None,
+    topology: MissionTopology,
     creation_base_sha: str,
 ) -> CoordMission:
-    """Build a :class:`CoordMission` from a create outcome's ``meta.json``.
-
-    ``topology=None`` (M1, WP06's real default path) skips the requested-
-    topology assertion entirely and resolves ``topology`` from ``meta.json``
-    instead -- the caller asserts the product default itself (e.g.
-    ``coord.topology is MissionTopology.COORD``).
-    """
+    """Build a :class:`CoordMission` from a create outcome's ``meta.json``, asserting *topology*."""
     topology_value = meta["topology"]
     if not isinstance(topology_value, str):
         raise AssertionError(f"meta.json topology is not a string: {topology_value!r}")
-    if topology is not None:
-        _require_topology_match(topology_value, topology)
-    resolved_topology = MissionTopology(topology_value)
+    _require_topology_match(topology_value, topology)
 
     coordination_branch = meta.get("coordination_branch")
     if not isinstance(coordination_branch, str):
@@ -316,7 +308,7 @@ def _coord_mission_from_meta(
         mission_slug=slug,
         mid8=mid8,
         mission_dir_name=mission_dir_name,
-        topology=resolved_topology,
+        topology=topology,
         target_branch=target_branch,
         coordination_branch=coordination_branch,
         coord_worktree_path=worktree_path,
@@ -365,17 +357,12 @@ def _invoke_mission_create_cli(repo: Path, args: list[str]) -> dict[str, object]
     return _first_json_line(result.output)
 
 
-def _cli_create_args(slug: str, topology: MissionTopology | None, *extra: str) -> list[str]:
-    """Build the ``agent mission create`` arg list.
-
-    ``topology=None`` omits ``--topology`` entirely (M1): the real WP06
-    default path for ``--pr-bound`` from a protected primary branch, where
-    the product itself resolves the topology rather than the caller.
-    """
-    topology_args = ["--topology", topology.value] if topology is not None else []
+def _cli_create_args(slug: str, topology: MissionTopology, *extra: str) -> list[str]:
+    """Build the ``agent mission create`` arg list (always with an explicit ``--topology``)."""
     return [
         slug,
-        *topology_args,
+        "--topology",
+        topology.value,
         "--branch-strategy",
         "already-confirmed",
         "--json",
@@ -394,7 +381,7 @@ def _coord_mission_from_cli_payload(
     payload: dict[str, object],
     *,
     slug: str,
-    topology: MissionTopology | None,
+    topology: MissionTopology,
     creation_base_sha: str,
 ) -> CoordMission:
     meta_file = payload["meta_file"]
@@ -411,7 +398,7 @@ def _make_coord_mission_via_cli_topology(tmp_path: Path, topology: MissionTopolo
     return _coord_mission_from_cli_payload(repo, payload, slug=slug, topology=topology, creation_base_sha=creation_base_sha)
 
 
-def _make_coord_mission_via_cli_pr_bound(tmp_path: Path, topology: MissionTopology | None, *, slug: str, protected_primary: bool) -> CoordMission:
+def _make_coord_mission_via_cli_pr_bound(tmp_path: Path, topology: MissionTopology, *, slug: str, protected_primary: bool) -> CoordMission:
     repo = _init_repo_with_target(tmp_path, target_branch=_PRIMARY_BRANCH, protected_primary=protected_primary)
     _set_up_bare_remote(repo)
     creation_base_sha = _git_rev_parse(repo, _PRIMARY_BRANCH)
@@ -457,7 +444,7 @@ def _materialize_coord_surface(coord: CoordMission) -> CoordMission:
 
 def make_coord_mission(
     tmp_path: Path,
-    topology: MissionTopology | None,
+    topology: MissionTopology,
     *,
     via: Literal["core", "cli_topology", "cli_pr_bound"] = "core",
     slug: str = "demo",
@@ -474,11 +461,10 @@ def make_coord_mission(
         --start-branch topic`` from ``main``, with a bare ``origin`` and
         ``origin/HEAD`` set (required for default-topology resolution).
 
-    ``topology``: required (non-``None``) for ``via="core"``/``"cli_topology"``.
-    ``via="cli_pr_bound"`` additionally accepts ``topology=None`` (M1): this
-    is WP06's real default path -- ``--topology`` is omitted entirely and the
-    resulting ``coord.topology`` is read back from ``meta.json`` (the caller
-    asserts the product default, e.g. ``is MissionTopology.COORD``, itself).
+    ``topology``: the coordination topology, passed explicitly on every ``via``. A
+    create without ``--topology`` no longer yields a coord Mission (S7 #7282, ADR
+    2026-11-06-3: it is a provisional ``single_branch``); that default is covered by
+    ``test_mission_create_provisional_topology.py``.
 
     ``protected_primary=True`` configures the Primary Branch (``main``) as
     protected (``protection.protected_branches``) -- the SAME meaning for
@@ -496,9 +482,9 @@ def make_coord_mission(
     use :func:`make_prefix_coord_mission` for the explicit pre-fix shape.
     """
     if via == "core":
-        coord = _make_coord_mission_via_core(tmp_path, _require_topology(topology, via), slug=slug, protected_primary=protected_primary)
+        coord = _make_coord_mission_via_core(tmp_path, topology, slug=slug, protected_primary=protected_primary)
     elif via == "cli_topology":
-        coord = _make_coord_mission_via_cli_topology(tmp_path, _require_topology(topology, via), slug=slug, protected_primary=protected_primary)
+        coord = _make_coord_mission_via_cli_topology(tmp_path, topology, slug=slug, protected_primary=protected_primary)
     elif via == "cli_pr_bound":
         coord = _make_coord_mission_via_cli_pr_bound(tmp_path, topology, slug=slug, protected_primary=protected_primary)
     else:
@@ -506,12 +492,6 @@ def make_coord_mission(
     if materialized:
         coord = _materialize_coord_surface(coord)
     return coord
-
-
-def _require_topology(topology: MissionTopology | None, via: str) -> MissionTopology:
-    if topology is None:
-        raise ValueError(f"topology=None is only supported for via='cli_pr_bound' (got via={via!r})")
-    return topology
 
 
 # ---------------------------------------------------------------------------

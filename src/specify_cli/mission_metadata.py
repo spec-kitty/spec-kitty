@@ -32,7 +32,13 @@ from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import resolve_mid8
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
-from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
+from specify_cli.meta_keys import (
+    COORDINATION_BRANCH_KEY,
+    FLATTENED_KEY,
+    TOPOLOGY_DECISION_KEY,
+    TOPOLOGY_KEY,
+    TOPOLOGY_SETTLED_KEY,
+)
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -132,6 +138,12 @@ class MissionMetaOptional(TypedDict, total=False):
     # ``core.paths.read_contracts_waiver_from_meta`` (fail-closed).
     contracts: str
     contracts_rationale: str
+    # S7 #7282 (ADR 2026-11-06-3 Decision 4): topology provenance. Absent
+    # ``topology_source`` means a legacy, settled Mission.
+    topology_source: str
+    topology_settled: bool
+    topology_decision: dict[str, Any]
+    create_return_branch: str
 
 
 # ---------------------------------------------------------------------------
@@ -1269,6 +1281,49 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
 
         write_meta(feature_dir, meta, validate=False)
         return cleared
+
+
+def restamp_topic_branch_as_coordination(feature_dir: Path, *, topology_decision: Mapping[str, Any]) -> dict[str, Any]:
+    """Promote a default Mission's topic branch to its coordination branch (S7 #7282).
+
+    The sibling of :func:`flatten_coordination_metadata`, in the opposite direction:
+    settlement of a provisional Mission to ``lanes_with_coord`` (ADR 2026-11-06-3
+    Decision 3, step 3). In ONE ``load -> mutate -> write_meta(validate=False)`` under
+    the Mission write lock, it sets ``coordination_branch`` to the recorded
+    ``mission_branch`` (the same ref name, A-1), keeps ``mission_branch`` (the PRIMARY
+    partition of a default Mission, FR-061), sets ``topology: lanes_with_coord`` and
+    ``topology_settled: true``, and writes *topology_decision*. One write, so a crash
+    can never leave a ``coordination_branch`` beside a stale ``single_branch`` topology.
+
+    Returns the prior values of every key it changed (``None`` for a key that was
+    absent), the compensation snapshot. Raises ``ValueError`` when ``meta.json``
+    records no ``mission_branch``, or a ``coordination_branch`` that is another ref,
+    and when a ``topology_decision`` is already recorded (write-once).
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    from specify_cli.status import mission_write_lock
+
+    with mission_write_lock(feature_dir):
+        meta = _require_meta(feature_dir)
+        topic = meta.get("mission_branch")
+        if not isinstance(topic, str) or not topic:
+            raise ValueError(f"{feature_dir.name}: meta.json records no mission_branch to promote")
+        existing = meta.get(COORDINATION_BRANCH_KEY)
+        if existing is not None and existing != topic:
+            raise ValueError(f"{feature_dir.name}: coordination_branch {existing!r} is not the topic branch {topic!r}")
+        if TOPOLOGY_DECISION_KEY in meta:
+            raise ValueError(f"{feature_dir.name}: topology_decision is already recorded (write-once)")
+
+        # Explicit subscript writes: the shape-registry writer-parity ratchet reads them.
+        prior = {key: meta.get(key) for key in (COORDINATION_BRANCH_KEY, TOPOLOGY_KEY, TOPOLOGY_SETTLED_KEY, TOPOLOGY_DECISION_KEY)}
+        meta[COORDINATION_BRANCH_KEY] = topic
+        meta[TOPOLOGY_KEY] = "lanes_with_coord"
+        meta[TOPOLOGY_SETTLED_KEY] = True
+        meta[TOPOLOGY_DECISION_KEY] = dict(topology_decision)
+        write_meta(feature_dir, meta, validate=False)
+        return prior
 
 
 def get_change_mode(feature_dir: Path) -> str | None:
