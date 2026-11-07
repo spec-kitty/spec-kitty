@@ -181,3 +181,37 @@ def test_never_force_pin() -> None:
     assert forced == []
     called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
     assert "guarded_landed_removal" in called
+
+
+@pytest.fixture
+def unlanded(tmp_path: Path) -> tuple[Path, Path, str]:
+    """A repo whose lane holds a commit consolidate never landed (e.g. all its WPs canceled)."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "t@example.invalid")
+    _git(root, "config", "user.name", "T")
+    _git(root, "config", "commit.gpgsign", "false")
+    (root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    _git(root, "add", ".gitignore")
+    _commit(root, "base.py", "x = 1\n")
+    worktree = root / ".worktrees" / "demo-lane-a"
+    _git(root, "worktree", "add", "-q", "-b", _LANE_BRANCH, str(worktree))
+    _git(worktree, "config", "user.email", "t@example.invalid")
+    tip = _commit(worktree, "canceled.py", "work = 1\n")
+    return root, worktree, tip
+
+
+def test_unlanded_lane_under_local_proof_is_kept_not_deleted(unlanded: tuple[Path, Path, str]) -> None:
+    """The O3-local guard's NOT_LANDED refusal keeps the lane; it never falls back to a delete.
+
+    Before the landing fix the refusal fell back to the older remover, which deleted the branch
+    with its own tip as the creation base, wrote no discarded-tip record and cleared the lane-tip
+    ref: the lane's only commit was then reachable from no ref, and the report said ``Removed``.
+    """
+    root, worktree, tip = unlanded
+    result = GuardedLaneRemover(root, context=NothingIsResidue(), probe=_idle).remove(_item(worktree, tip), landing=_at_pass(root))
+    assert result.outcome is LaneCleanupOutcome.KEPT, result
+    assert result.code == NOT_LANDED_ON_NAMED_REMOTE
+    assert worktree.exists()
+    assert _git(root, "for-each-ref", "--contains", tip, "--format=%(refname)") != "", "the lane's only commit must stay reachable from a ref"
