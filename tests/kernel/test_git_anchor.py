@@ -17,7 +17,7 @@ from typing import Any
 
 import pytest
 
-from kernel.git_anchor import GIT_REDIRECT_ENV, AnchorKind, GitAnchor, classify_git_entry, find_git_anchor
+from kernel.git_anchor import GIT_REDIRECT_ENV, UNRESOLVABLE_START_REASON, AnchorKind, GitAnchor, classify_git_entry, find_git_anchor
 
 pytestmark = pytest.mark.fast
 
@@ -228,4 +228,5 @@ def test_a_start_that_cannot_be_resolved_is_unknown(tmp_path: Path, monkeypatch:
     verdict = find_git_anchor(start, environ={})
 
     assert verdict is not None
-    assert (verdict.kind, verdict.path) == (AnchorKind.UNKNOWN, start / ".git")
+    assert (verdict.kind, verdict.path) == (AnchorKind.UNKNOWN, start)
+    assert verdict.reason == UNRESOLVABLE_START_REASON

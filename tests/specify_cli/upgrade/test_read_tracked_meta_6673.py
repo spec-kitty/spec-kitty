@@ -642,3 +642,28 @@ def test_a_git_that_cannot_be_run_names_an_unknown_git_rather_than_git(tmp_path:
     tracked = read_tracked_meta(mission_dir)
 
     assert (tracked.unavailable, tracked.unreadable_reason) == (True, "anchor")
+
+
+def test_anchor_tail_reads_grammatically_for_an_unreadable_git_entry(tmp_path: Path) -> None:
+    """#7287 review: the reason slots into "`<anchor>` is {why}", so it must read as a predicate."""
+    from kernel.git_anchor import AnchorKind, GitAnchor
+    from specify_cli.upgrade.tracked_meta_notice import _anchor_tail
+
+    tail = _anchor_tail(GitAnchor(AnchorKind.UNKNOWN, tmp_path / "kitty-specs" / "x" / ".git", "unreadable"), tmp_path)
+
+    assert "`kitty-specs/x/.git` is unreadable:" in tail
+    assert "is cannot" not in tail
+
+
+def test_anchor_tail_for_an_unresolvable_start_names_the_folder_not_a_git(tmp_path: Path) -> None:
+    """#7287 review: a start whose path cannot be resolved has no `.git` to repair or remove."""
+    from kernel.git_anchor import UNRESOLVABLE_START_REASON, AnchorKind, GitAnchor
+    from specify_cli.upgrade.tracked_meta_notice import _anchor_tail
+
+    folder = tmp_path / "kitty-specs" / "loop"
+    tail = _anchor_tail(GitAnchor(AnchorKind.UNKNOWN, folder, UNRESOLVABLE_START_REASON), tmp_path)
+
+    assert "the folder `kitty-specs/loop` cannot be resolved" in tail
+    assert "no identity was minted" in tail
+    assert ".git" not in tail
+    assert "remove it" not in tail

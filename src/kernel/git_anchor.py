@@ -54,8 +54,14 @@ from kernel.resolution import resolve_rejecting_loops
 __all__ = [
     "AnchorKind",
     "GitAnchor",
+    "UNRESOLVABLE_START_REASON",
     "find_git_anchor",
 ]
+
+#: The reason on the verdict for a start folder whose path cannot be resolved. Its ``path`` is
+#: that folder, not a ``.git``: the cause is the folder's own path (for example a symbolic-link
+#: loop), so the repair is to fix that path, not to repair or remove a ``.git``.
+UNRESOLVABLE_START_REASON: Final[str] = "a folder whose path cannot be resolved"
 
 #: The directory name git looks for.
 _GIT_DIR_NAME: Final[str] = ".git"
@@ -116,7 +122,7 @@ def classify_git_entry(git_entry: Path) -> GitAnchor:
     except FileNotFoundError:
         return GitAnchor(AnchorKind.RESIDUE, git_entry, "absent")
     except OSError:
-        return GitAnchor(AnchorKind.UNKNOWN, git_entry, "cannot be read")
+        return GitAnchor(AnchorKind.UNKNOWN, git_entry, "unreadable")
     if stat.S_ISREG(mode):
         return GitAnchor(AnchorKind.REPOSITORY, git_entry, "a pointer file to a repository")
     if stat.S_ISLNK(mode):
@@ -139,7 +145,7 @@ def _classify_git_directory(git_dir: Path) -> GitAnchor:
                     other = True
     except OSError:
         # Unreadable, or removed between the lstat and the listing.
-        return GitAnchor(AnchorKind.UNKNOWN, git_dir, "cannot be read")
+        return GitAnchor(AnchorKind.UNKNOWN, git_dir, "unreadable")
     if head_is_file:
         return GitAnchor(AnchorKind.REPOSITORY, git_dir, "a repository directory")
     if head_is_file is not None:
@@ -175,7 +181,7 @@ def find_git_anchor(start: Path, *, environ: Mapping[str, str] | None = None) ->
     try:
         resolved_start = resolve_rejecting_loops(start)
     except OSError:
-        return GitAnchor(AnchorKind.UNKNOWN, Path(start) / _GIT_DIR_NAME, "cannot be read")
+        return GitAnchor(AnchorKind.UNKNOWN, Path(start), UNRESOLVABLE_START_REASON)
     ceilings = git_ceiling_dirs(source, resolve_after_empty=False) - {resolved_start}
     for candidate in iter_ancestors(resolved_start, ceilings=ceilings):
         verdict = classify_git_entry(candidate / _GIT_DIR_NAME)

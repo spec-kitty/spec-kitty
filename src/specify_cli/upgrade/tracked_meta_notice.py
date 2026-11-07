@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from kernel.git_anchor import GitAnchor
+from kernel.git_anchor import UNRESOLVABLE_START_REASON, GitAnchor
 from specify_cli.mission_metadata import TrackedMeta, UnreadableReason, read_tracked_meta
 
 #: File-restore command for notices whose tracked-state diagnostics support it.
@@ -66,6 +66,12 @@ _ANCHOR_TAIL = (
     "`{anchor}` is {why}: this check can neither confirm it as a repository nor rule it out as harmless residue, so whether it is "
     "tracked is unknown and no identity was minted — if it is a repository, repair it (for example restore its "
     "`HEAD`); if it is leftover residue that holds nothing you need, remove it; then re-run"
+)
+
+#: The tail for a folder whose own path cannot be resolved (#7262): the cause is the path, not a `.git`.
+_UNRESOLVED_START_TAIL = (
+    "the folder `{folder}` cannot be resolved (for example a symbolic-link loop in its path), so whether it is tracked "
+    "is unknown and no identity was minted — fix that path, then re-run"
 )
 
 #: The tail for an explicit git redirect in the environment (#7262): the names on disk cannot rule out the store it selects.
@@ -186,6 +192,8 @@ def _anchor_tail(anchor: GitAnchor, repo_root: Path) -> str:
     """The repair tail for a `.git` the classifier could not rule out, naming that `.git` (#7262)."""
     if anchor.path is None:
         return _REDIRECT_TAIL.format(why=anchor.reason)
+    if anchor.reason == UNRESOLVABLE_START_REASON:
+        return _UNRESOLVED_START_TAIL.format(folder=_shown(anchor.path, repo_root))
     return _ANCHOR_TAIL.format(anchor=_shown(anchor.path, repo_root), why=anchor.reason)
 
 
