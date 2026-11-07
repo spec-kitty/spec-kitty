@@ -1,0 +1,35 @@
+{
+  "accept_commit": "984234145ed4f31937600f92ae45aae7fac82d20",
+  "acceptance_history": [
+    {
+      "accept_commit": "984234145ed4f31937600f92ae45aae7fac82d20",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T15:59:51.139586+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "984234145ed4f31937600f92ae45aae7fac82d20"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T15:59:51.139586+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "984234145ed4f31937600f92ae45aae7fac82d20",
+  "baseline_merge_commit": "984234145ed4f31937600f92ae45aae7fac82d20",
+  "created_at": "2026-11-05T15:12:27.672245+00:00",
+  "flattened": true,
+  "friendly_name": "Corpus advisory suite budget you can defend",
+  "merged_at": "2026-11-05T16:02:02.381784+00:00",
+  "merged_commit": "984234145ed4f31937600f92ae45aae7fac82d20",
+  "mid8": "01M6P49E",
+  "mission_id": "01M6P49EBJZ15Q06S9XYQE61HX",
+  "mission_number": 250,
+  "mission_slug": "corpus-advisory-budget-01M6P49E",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #7206: the advisory Packs corpus suite runs at its 20-minute budget (measured p95 20.3 min, 102% of cap) and cancels on unrelated PRs. This mission records the measured cost breakdown, derives the cap with the repository's #5378 headroom formula, enforces it with a guard, and makes a budget expiry legible as INCOMPLETE (#4437) without touching selection semantics.",
+  "purpose_tldr": "Derive the advisory corpus job's timeout from its measured worst case and make a budget expiry read as incomplete advisory, not a failed test.",
+  "slug": "corpus-advisory-budget-01M6P49E",
+  "status_phase": "1",
+  "target_branch": "issue-7206-corpus-advisory-budget",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-05T15:17:09.506318+00:00"
+}
