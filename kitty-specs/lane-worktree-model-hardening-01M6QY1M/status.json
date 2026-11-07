@@ -557,8 +557,8 @@
     "WP16": {
       "actor": "claude",
       "agent": "claude::python-pedro",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude::python-pedro",
       "lane": "for_review",
