@@ -289,7 +289,20 @@ jobs:
   built-in-corpus-suite:
     name: built-in / -m corpus suite (advisory)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Budget measured before it was raised (#7206). Over 55 advisory-job runs the p95 is
+    # 20.3 min = 102% of the retired 20-minute cap: four runs were killed at the budget with
+    # no failing test. A PR run spends ~8 min collecting the whole tests/ tree in every worker
+    # (the 1 624 corpus items come from 103 of 4 429 modules), ~3.5 min on the content-addressed
+    # wall-clock policy scan (PRs never restore that cache by design: policy-scan-cache's trust
+    # boundary), and ~6.3 min executing the suite. Both fixed costs are architectural, so the cap
+    # follows the measured maximum under the repository's own headroom rule instead of being
+    # picked: a path shard or matrix would buy time by narrowing the lane, which two live guards
+    # forbid (tree-wide corpus reach #3008 -> tests/ci/test_corpus_blocking_home.py; exactly one
+    # pytest invocation -> tests/ci/test_contracts_routing.py). The derivation is held by
+    # tests/ci/test_nightly_timeout_headroom.py and the rest of the contract by
+    # tests/ci/test_corpus_suite_budget.py. Acceptance: p95 <= 75% of the cap (20.3/31 = 65%).
+    # headroom (#5378): max-suite>=19:55 runs=55 window=2026-11-04..05 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 31
     needs: [changes]
     if: ${{ needs.changes.outputs.built_in == 'true' || needs.changes.outputs.corpus == 'true' }}
     # Advisory per FR-009 / operator decision DM 01M3V027T8WF0CR3D1B8VY2VZ0: the
@@ -316,6 +329,10 @@ jobs:
       - uses: ./.github/actions/sync-packs
       - uses: ./.github/actions/policy-scan-cache
       - name: Run the advisory corpus suite
+        # Strictly below the job cap so a killed suite still reaches the notice step below: a
+        # job-cap expiry runs no further steps, which is why #7206's cancellations ended at a
+        # bare `The operation was canceled.` with no explanation (#4437).
+        timeout-minutes: 28
         run: |
           # corpus exit-5 floor (#3008): "no tests collected" is a failure,
           # never a silent pass — do not swallow the exit code. Run parallel
@@ -331,7 +348,9 @@ jobs:
       - name: Advisory corpus failure notice
         if: failure()
         run: |
-          echo "::warning::corpus suite failed (advisory, FR-009) -- this does not block packs gate or router gate"
+          # A killed suite (step timeout) and a failing case both land here; say which this
+          # advisory lane is, so neither reads as a blocking failure (#7206, #4437).
+          echo "::warning::advisory corpus suite did not complete a passing run: it either hit its step timeout (INCOMPLETE -- not a test failure) or a corpus case failed. The -m corpus lane is advisory (FR-009) and blocks nothing; measured budget and derivation are in this job's comment (#7206)."
 
   built-in-plugin-validate:
     name: built-in / plugin build + claude plugin validate --strict
