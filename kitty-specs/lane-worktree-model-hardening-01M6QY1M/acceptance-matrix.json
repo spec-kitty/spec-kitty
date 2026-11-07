@@ -16,13 +16,13 @@
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-002 Root normalised at every entry; never a lane root or missing path: every root-taking status entry point to re-anchor a lane root to the repository root (finishing #6884), and never return a lane directory or a path that does not exist, so that a lane copy is never read as truth.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-a:tests/status/test_status_read_matrix.py::test_lane_root_normalizes_to_the_repository_root; lane-a:tests/status/test_status_read_matrix.py::test_lane_root_reads_write_checkout_state; lane-a:tests/specify_cli/missions/test_lane_worktree_status_shadow.py::test_lane_worktree_root_reads_the_authoritative_lane; lane-a:tests/specify_cli/missions/test_lane_worktree_status_shadow.py::test_a_relative_lane_worktree_root_is_re_anchored_too; lane-b:tests/status/test_read_surface_door.py::test_never_returns_nonexistent_path; lane-b:tests/status/test_read_surface_door.py::test_surface_path_must_exist; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP04-s1-root-normalization-and-ref-reader/review-cycle-3.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:11:33.648373+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-003",
