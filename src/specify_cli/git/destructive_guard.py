@@ -851,6 +851,8 @@ PROCESS_IN_WORKTREE = "PROCESS_IN_WORKTREE"
 """O2: a process is standing in the worktree; nothing was removed."""
 PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
 """O2: the probe cannot tell whether a process is standing in the worktree; nothing was removed."""
+LOCAL_TARGET_OFF_GATE_TIP = "LOCAL_TARGET_OFF_GATE_TIP"
+"""O3-local: the local target is not a ``refs/heads/`` branch that still contains the gate-passed tip; nothing was removed."""
 BRANCH_IS_PRIMARY = "BRANCH_IS_PRIMARY"
 """The branch is the local copy of the landing ref's own branch; it is never deleted (the worktree may still be removed)."""
 
@@ -866,17 +868,26 @@ _LOCAL_KEEPING_REFS: tuple[str, ...] = ("--branches", "--tags", "--glob=refs/spe
 
 @dataclass(frozen=True)
 class LandedRemoval:
-    """What the caller proved: ``worktree`` at ``tip`` (on ``branch``, or detached) landed on ``landing_ref`` of ``remote``."""
+    """What the caller proved: ``worktree`` at ``tip`` (on ``branch``, or detached) landed on ``landing_ref`` of ``remote``.
+
+    The O3-local variant (``passed_sha`` set, ADR 2026-11-06-1 amendment): ``landing_ref`` is a
+    local ``refs/heads/<target>`` that must still contain ``passed_sha``, the tip the reconciliation
+    gate passed (it may have moved forward by the run's own bookkeeping, never off it); ``remote`` is
+    then unused. Every other obligation is unchanged.
+    """
 
     worktree: Path
     branch: str | None
     tip: str
     remote: str
     landing_ref: str
+    passed_sha: str | None = None
 
     @property
     def landing_branch(self) -> str:
-        """The branch name the landing ref tracks (``refs/remotes/<remote>/<b>`` -> ``<b>``)."""
+        """The branch name the landing ref names (``refs/remotes/<remote>/<b>`` or, O3-local, ``refs/heads/<b>`` -> ``<b>``)."""
+        if self.passed_sha is not None:
+            return self.landing_ref.removeprefix(_LOCAL_BRANCH_PREFIX)
         return self.landing_ref.removeprefix(tracking_ref(self.remote, ""))
 
 
@@ -928,8 +939,29 @@ def _refuse(code: str, removal: LandedRemoval, remediation: str, *, entries: Seq
     )
 
 
+_LOCAL_BRANCH_PREFIX = "refs/heads/"
+
+
+def _assert_local_target_at_pass(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> None:
+    """O3-local, the naming half: a local ``refs/heads/`` target that still contains the gate-passed tip."""
+    passed = (removal.passed_sha or "").strip()
+    named = removal.landing_ref.startswith(_LOCAL_BRANCH_PREFIX) and bool(removal.landing_branch) and bool(passed)
+    if not named:
+        raise _refuse(LOCAL_TARGET_OFF_GATE_TIP, removal, f"{removal.landing_ref!r} is not a local branch ref with a gate-passed tip.")
+    live = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{removal.landing_ref}^{{commit}}"], env=env)
+    if live.returncode != 0:
+        raise _refuse(LOCAL_TARGET_OFF_GATE_TIP, removal, f"{removal.landing_ref} does not resolve.")
+    # The run's own bookkeeping commits land on the target after the gate passed: the target may move
+    # forward from the PASS tip, never off it (a rollback, a reset or a rewrite refuses).
+    if _run_git(repo_root, ["merge-base", "--is-ancestor", passed, live.stdout.strip()], env=env).returncode != 0:
+        raise _refuse(LOCAL_TARGET_OFF_GATE_TIP, removal, f"{removal.landing_ref} no longer contains the gate-passed tip {passed[:12]}.")
+
+
 def _assert_named_landing_ref(repo_root: Path, removal: LandedRemoval, env: dict[str, str] | None) -> None:
-    """O3, the naming half: the proof must be about one configured remote's tracking ref, never "some ref"."""
+    """O3, the naming half: the proof must be about one configured remote's tracking ref (or, O3-local, the target at its PASS tip), never "some ref"."""
+    if removal.passed_sha is not None:
+        _assert_local_target_at_pass(repo_root, removal, env)
+        return
     remote = removal.remote.strip()
     named = bool(remote) and removal.landing_ref.startswith(tracking_ref(remote, "")) and bool(removal.landing_branch)
     if not named or remote not in configured_remotes(repo_root, env=env):

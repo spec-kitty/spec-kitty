@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from kernel.clock import now_utc_stamp
 from kernel.git import GitCommandError, GitPath, StatusEntry, changed_paths
@@ -33,6 +33,7 @@ from specify_cli.task_utils import (
     split_frontmatter,
 )
 from specify_cli.task_utils.support import TaskCliError
+from specify_cli.lanes.persistence import CorruptLanesError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 from specify_cli.validators.paths import normalize_path_token
@@ -63,6 +64,8 @@ from .summary_core import (
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
+    from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
+    from specify_cli.workspace.process_probe import ProcessProbeResult
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 logger = logging.getLogger(__name__)
@@ -1984,6 +1987,10 @@ def _build_acceptance_instructions(
     else:  # checklist
         instructions.append(f"All checks passed. Recommended next step: `spec-kitty consolidate --mission {summary.feature}`.")
 
+    if mode == "pr":
+        # FR-036: pr mode removes absorbed lanes itself; no raw ``git worktree remove`` / ``git branch -d``.
+        cleanup_instructions.append(f"Lanes the pushed pull request head does not carry yet stay in place; after it lands, run `{_PRUNE_BACKSTOP}`.")
+        return instructions, cleanup_instructions
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")
     if landed_by_consolidate:
@@ -1994,6 +2001,54 @@ def _build_acceptance_instructions(
         cleanup_instructions.append(f"Delete the Mission branch when done: `git branch -d {branch}`")
 
     return instructions, cleanup_instructions
+
+
+_PRUNE_BACKSTOP = "spec-kitty doctor workspaces --prune"
+
+
+def _pr_head_remote(repo_root: Path, branch: str) -> str:
+    """The remote the PR head is pushed to: ``branch.<b>.remote``, else ``origin``."""
+    configured = run_git(["config", "--get", f"branch.{branch}.remote"], cwd=repo_root, check=False).stdout.strip()
+    return configured if configured and configured != "." else "origin"
+
+
+def pr_mode_lane_cleanup(
+    repo_root: Path,
+    feature_dir: Path,
+    branch: str,
+    *,
+    probe: Callable[[Sequence[Path]], ProcessProbeResult] | None = None,
+) -> LaneCleanupReport | None:
+    """FR-036 / SC-006: remove every code lane the pushed PR head absorbs, before the PR merges.
+
+    The landing proof is the PR head's tracking ref ``refs/remotes/<remote>/<branch>``; each lane goes
+    through the lane-cleanup module bound to ``guarded_landed_removal``. A lane the pushed head does
+    not carry is kept with the guard's code (``NOT_LANDED_ON_NAMED_REMOTE``), a missing tracking ref
+    keeps every lane (``LANDING_REF_UNNAMED``). ``None`` when the Mission has no ``lanes.json``.
+    """
+    from specify_cli.consolidation import lane_cleanup
+    from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
+    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.workspace.process_probe import processes_with_cwd_under
+
+    manifest = read_lanes_json(feature_dir)
+    if manifest is None:
+        return None
+    items = lane_cleanup.plan_lane_cleanup(manifest, repo_root=repo_root)
+    remote = _pr_head_remote(repo_root, branch)
+    landing = lane_cleanup.RemoteRef(remote=remote, ref=f"refs/remotes/{remote}/{branch}")
+    context = residue_context_or_strictest(repo_root, manifest.mission_slug, CheckoutRole.LANE)
+    remover = lane_cleanup.GuardedLaneRemover(repo_root, context=context, probe=probe or processes_with_cwd_under)
+    return lane_cleanup.apply(items, remover, landing=landing, retention=lane_cleanup.LaneRetention())
+
+
+def _pr_mode_cleanup_lines(summary: AcceptanceSummary, branch: str) -> list[str]:
+    """The cleanup report lines of a committed pr-mode acceptance; never raises (a failed cleanup is a note)."""
+    try:
+        report = pr_mode_lane_cleanup(summary.primary_repo_root, summary.feature_dir, branch)
+    except (OSError, RuntimeError, ValueError, CorruptLanesError) as exc:  # the acceptance is committed: report, never raise
+        return [f"Lane cleanup did not run ({exc}); run `{_PRUNE_BACKSTOP}` after the pull request lands."]
+    return report.render_lines() if report is not None else []
 
 
 def _lands_by_consolidation(feature_dir: Path) -> bool:
@@ -2066,6 +2121,9 @@ def perform_acceptance(
         landed_by_consolidate=landed_by_consolidate,
         lands_by_consolidation=lands_by_consolidation,
     )
+
+    if mode == "pr" and commit_created:
+        cleanup_instructions.extend(_pr_mode_cleanup_lines(summary, branch))
 
     notes: list[str] = []
     if accept_commit:
