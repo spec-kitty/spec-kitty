@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-11-07T12:21:17.441969+00:00",
+  "flattened": false,
+  "friendly_name": "Hermetic legacy-charter Git identity fixtures",
+  "mid8": "01M6TZ9E",
+  "mission_id": "01M6TZ9EZKBXHVEHW20ZMD4HWX",
+  "mission_number": null,
+  "mission_slug": "legacy-charter-git-identity-01M6TZ9E",
+  "mission_type": "software-dev",
+  "purpose_context": "Issue #7061 remains red because two test setups give Git identity only to their bootstrap commit. Persist repository-local identity so later safe_commit calls run under the intended assertions.",
+  "purpose_tldr": "Make three owned-checkout migration tests hermetic without changing production behavior.",
+  "slug": "legacy-charter-git-identity-01M6TZ9E",
+  "target_branch": "issue-7061-legacy-charter-git-identity",
+  "topology": "single_branch"
+}

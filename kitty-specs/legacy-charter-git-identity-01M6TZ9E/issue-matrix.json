@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#6788": {
+      "evidence_ref": "Context-only exclusion in spec C-002; no work owed in the #7061 fixture-only Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7061": {
+      "evidence_ref": "Commit c2d98001a9; red-first 3 failed -> 3 passed; matrix 4 passed; owning file 102 passed; nightly on merged commit still pending.",
+      "fr": "FR-001",
+      "nfr": "NFR-001",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001",
+      "scope": "Three remaining legacy-charter fixture identity failures only",
+      "source_file": "spec.md",
+      "title": "Nightly suite red: interpreter-3.13-shard-5",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7206": {
+      "evidence_ref": "Context-only exclusion in spec C-002; no work owed in the #7061 fixture-only Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7273": {
+      "evidence_ref": "Context-only exclusion in spec C-002; no work owed in the #7061 fixture-only Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#7287": {
+      "evidence_ref": "Context-only exclusion in spec C-002; no work owed in the #7061 fixture-only Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
