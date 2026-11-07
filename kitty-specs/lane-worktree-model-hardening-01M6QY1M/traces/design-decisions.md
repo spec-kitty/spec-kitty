@@ -111,3 +111,5 @@ Outcome for lane-f: not applicable. The lane-f worktree was recreated at its can
 of lane-f (6217017). No commit was made and nothing was pushed. The stale check compares lane-f
 with the mid-run mission tip, which already has lane-e and lane-a merged (921bb30); the rollback
 removes that tip, so a refresh cannot make lane-f pass. Closeout stopped for a further ruling.
+
+- [2026-11-07][closeout] Ruling: the false stale-lane refusal (lane-f) is fixed in core in this PR (#7311), same class as #7307; refresh-merge not applicable. #7311 reviewed (approve), merged into the topic branch. Nits: move wp= below planning early return; multi-WP remedy names first WP only; docstring step 1 outdated. Follow-up: consolidate --dry-run does not forecast stale-lane refusals. Expect a stale_check.py conflict with lane-n (WP17) during consolidation.
