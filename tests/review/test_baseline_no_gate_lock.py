@@ -36,7 +36,7 @@ _BASELINE_DEADLINE_S = 5.0  # < the acquire timeout: a lock-coupled run cannot f
 def held_gate_lock(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Hold the real ``pre-review-gate-run.lock`` for the duration of the test."""
     monkeypatch.setattr(pre_review_gate, "_LOCK_ACQUIRE_TIMEOUT_DEFAULT", _ACQUIRE_TIMEOUT_S)
-    lock_path = get_runtime_root().base / "gate-locks" / pre_review_gate._SCOPED_RUN_LOCK_FILENAME
+    lock_path = get_runtime_root().base / pre_review_gate.GATE_LOCK_DIRECTORY / pre_review_gate._SCOPED_RUN_LOCK_FILENAME
     with machine_file_lock(lock_path, blocking=True, timeout_s=15.0):
         yield
 
