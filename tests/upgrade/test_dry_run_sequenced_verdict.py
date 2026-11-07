@@ -32,6 +32,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -43,6 +44,7 @@ from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult, declared_predecessors
+from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -51,6 +53,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _TARGET = "4.0.0rc8"
 _PREDECESSOR = "9.9.9_writes_marker"
 _DEPENDENT = "9.9.9_reads_marker"
+_SUPERSEDED_PREDECESSOR = "3.2.6_gate_artifact_merge_drivers"
 
 
 # --------------------------------------------------------------------------- #
@@ -148,7 +151,7 @@ class _ReadsMarker(BaseMigration):
     migration_id = "9.9.9_reads_marker"
     description = "Rewrites the marker file a predecessor writes"
     target_version = _TARGET
-    sequenced_after: tuple[str, ...] = ()
+    sequenced_after: ClassVar[tuple[str, ...]] = ()
 
     def detect(self, project_path: Path) -> bool:
         return (Path(project_path) / "marker.txt").exists()
@@ -319,12 +322,14 @@ def _declaration_faults(
     order: dict[str, int],
     registered: set[str],
 ) -> list[str]:
-    """Every declared predecessor that can never fire: unknown, unordered, or ordered after its declarer."""
+    """Every declared predecessor that can never fire: unknown, superseded, unordered, or later."""
     faults: list[str] = []
     for declarer, predecessors in declarations:
         for predecessor in predecessors:
             if predecessor not in registered:
                 faults.append(f"{declarer} declares unknown predecessor {predecessor}")
+            elif predecessor in SUPERSEDED_MIGRATIONS:
+                faults.append(f"{declarer} declares superseded predecessor {predecessor}")
             elif predecessor not in order:
                 faults.append(f"{declarer} declares {predecessor}, which order_manifest.txt does not order")
             elif order[predecessor] >= order.get(declarer, -1):
@@ -353,13 +358,14 @@ def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
     ("predecessor", "fault"),
     [
         ("9.9.9_typo", "declares unknown predecessor 9.9.9_typo"),
+        (_SUPERSEDED_PREDECESSOR, "declares superseded predecessor 3.2.6_gate_artifact_merge_drivers"),
         ("unordered", "which order_manifest.txt does not order"),
         ("later", "which the manifest orders after it"),
     ],
 )
 def test_the_declaration_audit_reports_a_declaration_that_can_never_fire(predecessor: str, fault: str) -> None:
-    order = {"earlier": 0, "declarer": 1, "later": 2}
-    registered = {"earlier", "declarer", "later", "unordered"}
+    order = {"earlier": 0, _SUPERSEDED_PREDECESSOR: 0, "declarer": 1, "later": 2}
+    registered = {"earlier", _SUPERSEDED_PREDECESSOR, "declarer", "later", "unordered"}
 
     assert _declaration_faults([("declarer", ("earlier",))], order, registered) == []
     faults = _declaration_faults([("declarer", (predecessor,))], order, registered)
