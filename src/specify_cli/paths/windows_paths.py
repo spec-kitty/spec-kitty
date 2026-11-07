@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Literal
 
 import platformdirs
-from kernel.paths import ensure_runtime_state_root, to_posix
+from kernel.paths import RUNTIME_STATE_DIR_NAME, ensure_runtime_state_root, to_posix
 
 
 @dataclass(frozen=True)
@@ -49,16 +49,6 @@ class RuntimeRoot:
     @property
     def cache_dir(self) -> Path:
         return self.base / "cache"
-
-
-#: Canonical name of the runtime STATE directory — the single owner of the
-#: string, so no consumer re-types it (DIRECTIVE_044). The user-global runtime
-#: root ends in it (``~/.spec-kitty`` on POSIX). The repository-LOCAL runtime
-#: directory that holds worktree-scoped lock state deliberately shares the name
-#: (``<repo_root>/.spec-kitty``: the status lock's bare non-git fallback and the
-#: worktree review lock, #6367) and takes it from here rather than spelling it
-#: again — the two scopes are different directories, the name is one fact.
-RUNTIME_STATE_DIR_NAME = ".spec-kitty"
 
 
 def get_runtime_root() -> RuntimeRoot:

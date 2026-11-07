@@ -18,6 +18,13 @@ from pathlib import Path, PurePath, PurePosixPath
 from kernel.pack_tiers import BUILT_IN
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
+#: PUBLIC: canonical name of the runtime STATE directory — the single owner of
+#: the string, so no consumer re-types it (DIRECTIVE_044). The user-global
+#: runtime root ends in it (``~/.spec-kitty`` on POSIX). Repository-LOCAL lock
+#: state deliberately shares the name (``<repo_root>/.spec-kitty``); those
+#: consumers take it from here or through the ``specify_cli.paths`` re-export.
+RUNTIME_STATE_DIR_NAME = ".spec-kitty"
+
 #: Environment variable naming the pack root (default- or operator-supplied).
 #: Read here, at the kernel floor, so built-in-pack-root *resolution* has exactly
 #: ONE ``SPEC_KITTY_PACKS_ROOT`` read (FR-001/DR-1) -- the resolve in
@@ -349,9 +356,9 @@ def get_runtime_state_root() -> Path:
             # a constrained/simulated Windows runtime (ctypes/registry lookup
             # unavailable) from crashing before callers can patch or inspect
             # this resolver.
-            return Path.home() / ".spec-kitty"
+            return Path.home() / RUNTIME_STATE_DIR_NAME
 
-    return Path.home() / ".spec-kitty"
+    return Path.home() / RUNTIME_STATE_DIR_NAME
 
 
 def ensure_runtime_state_root() -> Path:

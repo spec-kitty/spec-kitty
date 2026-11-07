@@ -54,6 +54,7 @@ from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed, read_
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.planning_commit_classify import PinClass, classify_recorded_pin
 from specify_cli.mission_metadata import load_meta
+from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 
 if TYPE_CHECKING:
     # #4889: type-only -- the runtime import lives inside
@@ -1175,7 +1176,7 @@ def allocate_lane_worktree(
     # ``info/exclude`` is ignored), so it lands in the shared file whether ``repo_root`` is the
     # main checkout or a linked worktree. Running it here, at the single code-lane choke point
     # before every ``adopt_lane_ancestry`` call, is safe and idempotent.
-    exclude_from_git_index(repo_root, [".spec-kitty/"])
+    exclude_from_git_index(repo_root, [f"{RUNTIME_STATE_DIR_NAME}/"])
 
     if worktree_path.exists():
         # FL1 (D3): an existing lane worktree cannot be re-parented onto a
@@ -1739,7 +1740,7 @@ def _auto_resolve_dependency_merge(worktree_path: Path, env: dict[str, str]) -> 
         completed = conclude_in_progress_op(worktree_path, env=env, disable_gpgsign=False)
     except MergeConclusionRefused:
         return False
-    return completed.returncode == 0
+    return bool(completed.returncode == 0)
 
 
 def _merge_dependency_lane_tips(
