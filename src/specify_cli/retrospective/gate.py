@@ -189,30 +189,30 @@ def _charter_authorizes_autonomous_skip(repo_root: Path) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def _resolve_events_path(*, feature_dir: Path, repo_root: Path) -> Path:
-    """Resolve the canonical ``status.events.jsonl`` path (FR-009 / #1735).
+def _read_status_log_retrospective_events(*, feature_dir: Path, repo_root: Path) -> list[dict[str, object]]:
+    """The ``retrospective.*`` events of the Mission's status log, from its declared source.
 
-    Under coordination topology the authoritative event log lives in the
-    coordination worktree, NOT in the primary checkout's feature dir — the
-    passed ``feature_dir`` is identity-only. Reading events through it
-    directly is exactly the #1735 split-brain bug class, so the gate routes
-    the read through the single canonical surface resolver
-    (:func:`specify_cli.coordination.surface_resolver.resolve_status_surface`,
-    C-005). Falls back to the passed ``feature_dir`` only when the surface
-    cannot be resolved (e.g. ``meta.json`` absent for a legacy/test mission).
+    Under coordination topology the authoritative log lives on the coordination surface,
+    NOT in the primary checkout's feature dir -- the passed ``feature_dir`` is identity-only.
+    Reading it directly is exactly the #1735 split-brain bug class, so the gate reads through
+    the one status read door (:func:`specify_cli.status.read_surface.resolve_status_read`,
+    ADR 2026-11-06-2), which reads the committed coordination branch when the coordination
+    worktree is empty or absent. Falls back to the passed ``feature_dir`` only when the door
+    cannot find the Mission or its ``meta.json`` is malformed (a legacy/test Mission). An
+    unreadable coordination ref raises ``StatusSurfaceRefUnreadable`` (FR-004): never an
+    empty history.
     """
-    # Imported lazily to keep the retrospective package importable without
-    # dragging in the coordination package at module-import time (mirrors
-    # the lazy-import convention used by status.aggregate for this resolver).
-    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
-        resolve_status_surface,
-    )
+    # Imported lazily to keep the retrospective package importable without dragging in
+    # the status read door (and through it the coordination package) at module-import time.
+    from specify_cli.status.read_surface import read_status_text, resolve_status_read  # noqa: PLC0415
 
     try:
-        surface: Path = resolve_status_surface(repo_root, feature_dir.name)
+        surface = resolve_status_read(repo_root, feature_dir.name)
     except (FileNotFoundError, ValueError):
-        return feature_dir / "status.events.jsonl"
-    return surface
+        return _read_retrospective_events(feature_dir / "status.events.jsonl")
+    text = read_status_text(surface)
+    source = surface.path / "status.events.jsonl" if surface.path is not None else f"{surface.ref}:{surface.mission_dir_name}"
+    return [] if text is None else _retrospective_events_from_text(text, source=str(source))
 
 
 def _read_retrospective_events(events_path: Path) -> list[dict[str, object]]:
@@ -240,6 +240,15 @@ def _read_retrospective_events(events_path: Path) -> list[dict[str, object]]:
             f"Cannot read event log at {events_path}: {exc}"
         ) from exc
 
+    return _retrospective_events_from_text(raw_text, source=str(events_path))
+
+
+def _retrospective_events_from_text(raw_text: str, *, source: str) -> list[dict[str, object]]:
+    """Parse status-log text and keep only the ``retrospective.*`` events.
+
+    Raises:
+        EventLogUnreadable: if a line cannot be parsed as JSON.
+    """
     retro_events: list[dict[str, object]] = []
     for lineno, line in enumerate(raw_text.splitlines(), start=1):
         stripped = line.strip()
@@ -249,7 +258,7 @@ def _read_retrospective_events(events_path: Path) -> list[dict[str, object]]:
             obj = json.loads(stripped)
         except json.JSONDecodeError as exc:
             raise EventLogUnreadable(
-                f"Malformed JSON on line {lineno} of {events_path}: {exc}"
+                f"Malformed JSON on line {lineno} of {source}: {exc}"
             ) from exc
         if not isinstance(obj, dict):
             continue
@@ -630,8 +639,7 @@ def is_completion_allowed(
     # 2. Read event log (filtered to retrospective events only) through the
     # canonical status surface (FR-009 / #1735): under coordination topology
     # the authoritative log lives in the coord worktree, not feature_dir.
-    events_path = _resolve_events_path(feature_dir=feature_dir, repo_root=repo_root)
-    events = _read_retrospective_events(events_path)
+    events = _read_status_log_retrospective_events(feature_dir=feature_dir, repo_root=repo_root)
 
     # 3. Find the latest terminal event.
     latest = _latest_terminal_event(events)

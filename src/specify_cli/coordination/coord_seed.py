@@ -23,6 +23,10 @@ names directly. ``COORD_SEED_TRAILER``, ``CoordSeedForkRefused`` and
 cross-module caller *yet* -- they are deliberately left un-allowlisted (an
 accepted transitional red on ``test_no_dead_symbols``, cured when their
 consumer WP lands; see the WP03 Activity Log for the curing-WP mapping).
+``coord_branch_is_post_fix`` left ``__all__`` when its one cross-module
+caller, the surface resolver's EMPTY-worktree warning, was removed with the
+loud repository-root fallback (Mission lane-worktree-model-hardening WP05,
+ADR 2026-11-06-2); it stays this module's own discriminator.
 """
 
 from __future__ import annotations
@@ -70,7 +74,6 @@ __all__ = [
     "COORD_SEED_TRAILER",
     "CoordBranchUndeclaredAndAbsent",
     "CoordSeedForkRefused",
-    "coord_branch_is_post_fix",
     "establish_coord_write_location",
 ]
 

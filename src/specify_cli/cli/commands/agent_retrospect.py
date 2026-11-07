@@ -23,7 +23,6 @@ from rich.table import Table
 from typing_extensions import Annotated
 
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, ResolvedMission, resolve_mission
-from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.paths import locate_project_root
 from kernel.clock import now_utc_iso
 from specify_cli.charter_pack_synthesizer import (
@@ -61,6 +60,8 @@ from specify_cli.retrospective.writer import (
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
+from specify_cli.status.models import StatusEvent
+from specify_cli.status.read_surface import read_status_events, resolve_status_read
 
 app = typer.Typer(
     name="retrospect",
@@ -322,29 +323,31 @@ def _render_generator_diagnostics(diagnostics: _GeneratorDiagnostics) -> None:
     _err_console.print("\n".join(lines), soft_wrap=True)
 
 
-def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path) -> Path:
-    """Resolve the directory holding the canonical ``status.events.jsonl`` (FR-009 / #1735).
+def _canonical_status_events(repo_root: Path, mission_slug: str, fallback_dir: Path) -> list[StatusEvent]:
+    """Lane transitions from the Mission's declared status source (FR-005, #1735).
 
-    Under coordination topology the authoritative event log lives in the
-    coordination worktree, not the primary checkout's feature dir — reading
-    events through ``resolved.feature_dir`` directly is exactly the #1735
-    split-brain bug class. Route through the single canonical surface
-    resolver (:func:`resolve_status_surface`, C-005); fall back to
-    *fallback_dir* only when the surface cannot be resolved (e.g.
-    ``meta.json`` absent for a legacy mission).
+    Under coordination topology the authoritative event log lives on the coordination
+    surface, not the primary checkout's feature dir -- reading events through
+    ``resolved.feature_dir`` directly is exactly the #1735 split-brain bug class. Read
+    through the one status read door
+    (:func:`~specify_cli.status.read_surface.resolve_status_read`, ADR 2026-11-06-2),
+    which reads the committed coordination branch when the coordination worktree is empty
+    or absent. Fall back to *fallback_dir* only when the door cannot find the Mission or
+    its ``meta.json`` is malformed (a legacy Mission). An unreadable coordination ref
+    raises ``StatusSurfaceRefUnreadable`` (FR-004).
     """
     try:
-        surface: Path = resolve_status_surface(repo_root, mission_slug)
+        surface = resolve_status_read(repo_root, mission_slug)
     except (FileNotFoundError, ValueError):
-        return fallback_dir
-    return surface.parent
+        return list(read_events(fallback_dir))
+    return read_status_events(surface)
 
 
 def _canonical_events_write_dir(repo_root: Path, mission_slug: str) -> Path:
     """Resolve the WRITE-surface directory for the canonical ``status.events.jsonl`` (WP14, FR-003).
 
     Every event-append call in this module writes through the write-location
-    accessor (``write_dir``), never through :func:`_canonical_events_dir`'s
+    accessor (``write_dir``), never through :func:`_canonical_status_events`'s
     read-resolver fallback -- a coordination-routed Mission's event log must
     never be appended to the repository root checkout. ``write_dir`` raises
     its own named errors rather than falling back (fail-closed).
@@ -383,7 +386,7 @@ def _mission_artifacts_sufficient_for_empty_record(
     if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
         return False
     try:
-        events = read_events(_canonical_events_dir(repo_root, mission_slug, feature_dir))
+        events = _canonical_status_events(repo_root, mission_slug, feature_dir)
         if not events:
             return False
         snapshot = reduce_status_events(events)

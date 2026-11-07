@@ -112,11 +112,11 @@ def test_migrated_primary_kinds_stay_silent_when_coord_branch_was_deleted(
 def test_stay_lenient_retrospect_fallback_tolerates_missing_status_surface(
     tmp_path: Path,
 ) -> None:
-    """Ledger stay-lenient ``_canonical_events_path`` fallback must keep working.
+    """Ledger stay-lenient ``_canonical_status_events`` read must keep working.
 
-    The fallback fires when ``resolve_status_surface`` raises ``FileNotFoundError``
-    / ``ValueError`` (e.g. meta.json absent for a legacy mission) — not on
-    ``CoordinationBranchDeleted``, which propagates from the status surface.
+    A legacy Mission with no ``meta.json`` reads its own directory's log (the read
+    door's write-checkout answer, or the ``FileNotFoundError`` / ``ValueError``
+    fallback) — an empty log is an empty history, never a raise.
     """
     _git(tmp_path, "init", "-q")
     _git(tmp_path, "config", "user.email", "read-seam@example.test")
@@ -126,8 +126,7 @@ def test_stay_lenient_retrospect_fallback_tolerates_missing_status_surface(
     mission_dir.mkdir(parents=True)
     # No meta.json → resolve_status_surface cannot classify; fallback engages.
 
-    events_path = retrospect._canonical_events_path(tmp_path, MISSION_DIR_NAME)
-    assert events_path == mission_dir / "status.events.jsonl"
+    assert retrospect._canonical_status_events(tmp_path, MISSION_DIR_NAME) == []
 
 
 def test_coord_partition_kind_still_fails_loud_via_seam(tmp_path: Path) -> None:

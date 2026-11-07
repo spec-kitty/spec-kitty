@@ -79,50 +79,45 @@ COORD_SURFACE_LIVE_MESSAGE = (
 def coordination_surface_is_live(feature_dir: Path) -> bool:
     """Whether *feature_dir*'s status authority is a live coordination surface.
 
-    Asks the canonical surface authority
-    (:func:`specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor`)
-    where the Mission's ``status.events.jsonl`` currently lives, instead of
-    probing git here. The surface is *live* only when it resolves somewhere other
-    than *feature_dir* (the PRIMARY-partition Mission directory) **and** something
-    is actually there: the resolved ``status.events.jsonl`` exists, or the
-    ``coordination_branch`` named in ``meta.json`` still exists -- as a local head,
-    a remote-tracking ref or on a remote, so a fresh clone or a second machine that
-    never checked the branch out still reads as live (a branch whose worktree is not
-    materialised yet). The resolver returns the *would-be* coordination path even
-    when no worktree and no branch exist, so a path that resolved with nothing
-    behind it is not live. It is *not* live (the
-    PRIMARY-partition log is the authority) when
+    Asks the one status read door
+    (:func:`specify_cli.status.read_surface.resolve_status_read`, ADR 2026-11-06-2) for
+    the Mission's declared status source, instead of probing git here. The surface is
+    *live* -- the PRIMARY-partition log in *feature_dir* is not the authority -- when the
+    declared source is
+
+    * the coordination worktree (``COORD_WORKTREE``) somewhere other than *feature_dir*;
+    * the committed coordination branch (``COORD_BRANCH_REF``: the coordination worktree is
+      empty or not materialised, on this clone or a fresh one);
+    * the declared pre-seed fallback (``fallback_reason`` set): the coordination branch
+      exists but holds no log yet, so the next status write lands there, not here.
+
+    It is *not* live when
 
     * the Mission declares no ``coordination_branch`` in ``meta.json`` (it has no
-      coordination surface; this cheap pre-check skips the resolver, whose
-      mission index is rebuilt on every call and is O(corpus));
-    * the topology routes status to the PRIMARY partition, or the Mission is
-      completed (merge evidence makes the PRIMARY-partition log the record);
-    * the resolved coordination path has no log and the branch exists nowhere (the
-      resolver's own existence check: local, remote-tracking and remote);
-    * the coordination branch is gone (``CoordinationBranchDeleted``) -- the
-      documented degrade, kept so a post-deletion Mission can still be repaired;
+      coordination surface; this cheap pre-check skips the door, whose mission index is
+      rebuilt on every call and is O(corpus));
+    * the declared source is the write checkout (a coordination-less topology), the landed
+      target's copy (``CONSOLIDATED_TARGET``), or *feature_dir* itself (addressed at the
+      coordination checkout, its log IS the authority);
+    * the coordination branch is gone (``CoordinationBranchDeleted``) -- the documented
+      degrade, kept so a post-deletion Mission can still be repaired;
     * there is no repository, no ``meta.json`` at all or no resolvable root.
 
-    Fail closed: any other ``StatusReadPathNotFound`` (a coord-declared topology
-    whose surface cannot be proven) counts as live, and so does a ``meta.json`` that
-    exists but is corrupt (``MissionMetaReadError``). Read-only: the resolver
-    never writes, materialises or mints a branch.
+    Fail closed: any other ``StatusReadPathNotFound`` (a coord-declared topology whose
+    surface cannot be proven), an unreadable coordination ref (``StatusSurfaceRefUnreadable``)
+    and a ``meta.json`` that exists but is corrupt (``MissionMetaReadError``) count as live.
+    Read-only: the door never writes, materialises or mints a branch.
     """
-    from specify_cli.coordination.surface_resolver import (
-        CoordinationBranchDeleted,
-        _coord_branch_exists,
-        resolve_status_surface_with_anchor,
-    )
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.core.paths import MissionMetaReadError, WorkspaceRootNotFound, resolve_canonical_root
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status.read_surface import StatusReadSource, resolve_status_read
 
     try:
-        branch = (load_meta_fail_closed(feature_dir) or {}).get("coordination_branch")
-        if not branch:
+        if not (load_meta_fail_closed(feature_dir) or {}).get("coordination_branch"):
             return False
-        repo_root = resolve_canonical_root(feature_dir)
-        surface = resolve_status_surface_with_anchor(repo_root, feature_dir.name)
+        surface = resolve_status_read(resolve_canonical_root(feature_dir), feature_dir.name)
     except MissionMetaReadError:
         # A corrupt meta.json cannot prove the Mission has no coordination surface: refuse.
         return True
@@ -130,11 +125,13 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
         # CoordinationBranchDeleted is a StatusReadPathNotFound: keep it ahead of
         # the fail-closed arm by listing it here, in the degrade set.
         return False
-    except StatusReadPathNotFound:
+    except (StatusReadPathNotFound, StatusSurfaceRefUnreadable):
         return True
-    if surface.surface_path.parent.resolve() == feature_dir.resolve():
+    if surface.fallback_reason is not None or surface.source is StatusReadSource.COORD_BRANCH_REF:
+        return True
+    if surface.source is not StatusReadSource.COORD_WORKTREE or surface.path is None:
         return False
-    return bool(surface.surface_path.is_file() or _coord_branch_exists(repo_root, str(branch)))
+    return surface.path.resolve() != feature_dir.resolve()
 
 
 @dataclass(frozen=True)

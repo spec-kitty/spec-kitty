@@ -1,37 +1,14 @@
-"""WP04/WP08 coord-empty Option B — the loud primary-fallback warning (NON-FAKEABLE).
+"""EMPTY coordination worktree whose branch holds no log: the declared pre-seed fallback.
 
-Mission ``mission-surface-resolver-safety-net-01KVN754`` applies the operator-
-decided **Option B**: a materialized-but-empty coordination worktree no longer
-hard-fails. ``resolve_status_surface_with_anchor`` falls back to the PRIMARY
-checkout and proceeds. WP08 (#2533) refines WHEN the fallback is loud:
-
-* a coord mission WITH lanes (``MissionTopology.LANES_WITH_COORD`` — lane
-  worktrees were provisioned to write there) hitting an empty coord root is
-  genuinely unexpected, so the fallback still emits a single **loud,
-  observable** warning so an operator or orchestrating agent can intervene
-  (FR-001 / FR-003 / NFR-003 / #1716) — the TRUE-POSITIVE case this module
-  pins;
-* a solo coord mission with no lanes (``MissionTopology.COORD``) hitting an
-  empty coord root is the EXPECTED steady state before its first
-  coordination-branch write self-materializes it — the fallback stays quiet,
-  no warning, no manual-flatten prompt for a condition that is not an error
-  (#2533 / WP08 T029-T031, pinned by
-  ``tests/coordination/test_surface_resolver_solo_coord_primary.py``).
-
-The true-positive centerpiece is a **3-part conjunctive** assertion that a
-``print`` or a ``logging.DEBUG`` line could NOT satisfy:
-
-  (a) a record at EXACTLY ``logging.WARNING`` from the named module logger
-      ``specify_cli.coordination.surface_resolver``;
-  (b) the message names BOTH operator recovery paths — flatten (drop the
-      ``coordination_branch`` key) AND ``spec-kitty agent worktree repair``;
-  (c) the resolver returns the PRIMARY dir (not the coord dir, not a raise).
-
-Grep anchors for the reviewer:
-  * logger name:   ``specify_cli.coordination.surface_resolver``
-  * warning const: ``surface_resolver._COORD_EMPTY_FALLBACK_WARNING``
-
-ADR: ``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md``.
+History: Mission ``mission-surface-resolver-safety-net-01KVN754`` (Option B) made a
+materialized-but-empty coordination worktree fall back to the PRIMARY checkout, loudly for
+``lanes_with_coord`` and quietly for solo ``coord`` (#2533). ADR
+``2026-11-06-2-one-status-read-contract`` (Mission lane-worktree-model-hardening WP05) replaces
+that loud fallback: the one read door reads the committed coordination branch when it holds the
+log, and when it does not (these fixtures: the branch was cut with no log) it takes the
+declared pre-seed fallback to the write checkout, stamped as ``fallback_reason`` on the surface
+instead of a log warning. The legacy path projection
+(``resolve_status_surface_with_anchor``) still names the PRIMARY dir for that case.
 """
 
 from __future__ import annotations
@@ -127,56 +104,27 @@ def _materialise_coord_empty(
 
 
 @pytest.mark.parametrize("slug", [BARE_SLUG, SLUG_WITH_MID8], ids=["bare", "slug-mid8"])
-def test_coord_empty_with_lanes_warns_loudly_and_returns_primary(
+def test_coord_empty_with_lanes_declares_pre_seed_fallback_and_returns_primary(
     tmp_path: Path, slug: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """3-part conjunction: WARNING level + BOTH recovery tokens + PRIMARY dir.
+    """A ``lanes_with_coord`` Mission whose empty coordination worktree's branch holds no log.
 
-    The TRUE-POSITIVE case (WP08 T031): a coord mission WITH lanes
-    (``lanes_with_coord``) whose coord worktree is unexpectedly empty STILL
-    warns — a ``print`` (no log record), a ``logging.DEBUG`` line (wrong
-    level), or a message missing either recovery token all FAIL this test.
-    The fallback must be observable AND actionable AND must resolve to the
-    primary checkout.
+    The door declares the pre-seed fallback on the surface (``fallback_reason``); the legacy
+    projection resolves the PRIMARY dir; no log warning replaces the declaration.
     """
+    from specify_cli.status.read_surface import StatusReadSource, resolve_status_read
+
     primary_dir = _materialise_coord_empty(tmp_path, slug, topology="lanes_with_coord")
 
+    surface = resolve_status_read(tmp_path, slug)
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
         resolved = resolve_status_surface_with_anchor(tmp_path, slug)
 
-    # (a) EXACTLY one record, at EXACTLY logging.WARNING, from the named logger.
-    warning_records = [
-        r
-        for r in caplog.records
-        if r.name == _LOGGER_NAME and r.levelno == logging.WARNING
-    ]
-    assert warning_records, (
-        "coord-empty WITH lanes must emit a record at EXACTLY logging.WARNING "
-        f"from {_LOGGER_NAME!r} — a print or DEBUG line must NOT satisfy this. "
-        f"Records seen: {[(r.name, r.levelname) for r in caplog.records]}"
-    )
-    # No DEBUG/INFO downgrade smuggled the message in below WARNING.
-    assert all(r.levelno >= logging.WARNING for r in warning_records)
-
-    message = warning_records[0].getMessage()
-    lowered = message.lower()
-    # (b) BOTH recovery paths named — discriminating tokens, not "an error".
-    assert "flatten" in lowered and "coordination_branch" in message, (
-        "warning must name recovery path (a): flatten the mission by removing "
-        f"the `coordination_branch` key. Got: {message!r}"
-    )
-    assert "doctor workspaces --fix" in message, (
-        "warning must name recovery path (b): the real repair command "
-        "(spec-kitty doctor workspaces --fix, per FR-007/#1890). "
-        f"Got: {message!r}"
-    )
-    # (c) The resolver RETURNS the PRIMARY dir — Option B fallback, not a raise,
-    #     not the coord dir.
-    assert resolved.read_dir.resolve() == primary_dir.resolve(), (
-        "coord-empty Option B must resolve to the PRIMARY checkout, not the "
-        f"coord dir. Got: {resolved.read_dir}"
-    )
+    assert surface.source is StatusReadSource.WRITE_CHECKOUT
+    assert surface.fallback_reason and "pre-seed" in surface.fallback_reason
+    assert resolved.read_dir.resolve() == primary_dir.resolve()
     assert resolved.primary_anchor.resolve() == primary_dir.resolve()
+    assert not [r for r in caplog.records if r.name == _LOGGER_NAME and r.levelno == logging.WARNING]
 
 
 def test_coord_empty_solo_no_lanes_stays_quiet_and_returns_primary(
@@ -188,8 +136,8 @@ def test_coord_empty_solo_no_lanes_stays_quiet_and_returns_primary(
     whose coord worktree is materialized-but-empty is the EXPECTED
     pre-first-write state (#2533) — the resolver must still return the
     PRIMARY surface (Option B fallback unchanged), but MUST NOT emit
-    ``_COORD_EMPTY_FALLBACK_WARNING``: this is not an error condition and
-    should not prompt a manual flatten.
+    a warning: this is not an error condition and should not prompt a manual
+    flatten.
     """
     primary_dir = _materialise_coord_empty(
         tmp_path,
@@ -260,16 +208,19 @@ def test_no_split_brain_warning_after_new_coord_create(tmp_path: Path, caplog: p
     )
 
 
-def test_legacy_empty_coord_still_warns(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Control (R6): WP02's explicit pre-fix shape (committed root log, coordination
-    branch cut BEFORE it, EMPTY worktree) still trips the split-brain warning --
-    T031 changes create's OWN placement going forward; it never silently heals an
-    existing pre-fix Mission's already-empty worktree.
+def test_legacy_empty_coord_declares_pre_seed_fallback(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Control (R6): WP02's explicit pre-fix shape (committed root log, coordination branch cut
+    BEFORE it, EMPTY worktree) takes the declared pre-seed fallback: the surface carries
+    ``fallback_reason`` (ADR 2026-11-06-2, WP05), not a log warning.
     """
+    from specify_cli.status.read_surface import StatusReadSource, resolve_status_read
+
     coord = make_prefix_coord_mission(tmp_path, MissionTopology.LANES_WITH_COORD, worktree="empty")
 
+    surface = resolve_status_read(coord.repo_root, coord.mission_dir_name)
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-        resolve_status_surface_with_anchor(coord.repo_root, coord.mission_dir_name)
+        resolved = resolve_status_surface_with_anchor(coord.repo_root, coord.mission_dir_name)
 
-    warning_records = [r for r in caplog.records if r.name == _LOGGER_NAME and r.levelno == logging.WARNING]
-    assert warning_records, "a legacy pre-fix, genuinely empty coord surface must still warn (control, unchanged by T031)"
+    assert surface.source is StatusReadSource.WRITE_CHECKOUT
+    assert surface.fallback_reason
+    assert resolved.read_dir.resolve() == coord.root_mission_dir.resolve()
