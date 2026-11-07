@@ -230,6 +230,21 @@ def test_stamped_open_excludes_what_preceded_the_claim(repo: _Repo) -> None:
     assert [(r.wp_ids, r.commits) for r in repo.check(approved=("WP01",))] == [(("WP01",), (early,))]
 
 
+def test_a_blocked_move_does_not_open_a_work_package_window(repo: _Repo) -> None:
+    """WP03 is blocked at the very start, so its blocked stamp must not widen its window over X."""
+    repo.event("WP03", Lane.PLANNED, Lane.BLOCKED)
+    _build(repo, "WP01", "src/m1.py")
+    between = repo.commit("src/between.py")
+    _build(repo, "WP02", "src/m2.py")
+    repo.event("WP03", Lane.BLOCKED, Lane.IN_PROGRESS)
+    repo.commit("src/m3.py")
+    repo.approve("WP03")
+
+    refusals = repo.check(approved=("WP01", "WP02", "WP03"))
+
+    assert [(r.code, r.wp_ids, r.commits) for r in refusals] == [(BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL, ("WP01",), (between,))]
+
+
 def test_unstamped_approval_refuses_stamp_missing(repo: _Repo) -> None:
     repo.claim("WP01")
     repo.commit("src/m1.py")
