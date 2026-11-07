@@ -83,7 +83,7 @@ def test_dirty_mint_refusal_leaves_no_scaffold_and_retry_succeeds(tmp_path: Path
 
     with pytest.raises(MissionCreationError, match="uncommitted changes outside") as refused:
         _create(repo, "orphan-retry", _FIRST_ID)
-    assert refused.value.error_code is None  # MISSION_CREATE_FAILED, unchanged
+    assert refused.value.error_code == "WRITE_CHECKOUT_DIRTY"  # #5676: typed (was MISSION_CREATE_FAILED)
     assert _scaffolds(repo, "orphan-retry") == []
     assert _git(repo, "branch", "--show-current") == "main"
     assert stray.read_text(encoding="utf-8") == "operator work\n"  # the operator's work is untouched

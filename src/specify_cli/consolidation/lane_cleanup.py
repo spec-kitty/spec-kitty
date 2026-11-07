@@ -47,21 +47,12 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
-    "BACKSTOP_COMMAND",
-    "COORDINATION_TEARDOWN_REFUSED",
     "LANE_CLEANUP_FAILED",
-    "PROCESS_IN_WORKTREE",
-    "PROCESS_PROOF_UNAVAILABLE",
-    "LandingProof",
-    "LaneCleanupItem",
     "LaneCleanupOutcome",
     "LaneCleanupReport",
-    "LaneCleanupResult",
-    "LaneRemover",
     "LaneRetention",
     "LocalTargetAtPass",
     "MainTodayRemover",
-    "RemoteRef",
     "apply",
     "branch_exists",
     "kept_after_coordination_refusal",

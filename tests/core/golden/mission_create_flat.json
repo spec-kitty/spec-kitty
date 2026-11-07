@@ -1,5 +1,5 @@
 {
-  "base_commit": "f0f3daa55fcfa79361acc7b3bab3beffa0e64705",
+  "base_commit": "f26efc0f26c4127761012d99b87bde9223c34c41",
   "cells": {
     "lanes/abandoned_prior_recreate": {
       "outcome": {
@@ -36,6 +36,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-abandoned-prior-<MID8#1>/spec.md"
           ]
@@ -280,6 +281,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-documentation-<MID8#1>/spec.md"
           ]
@@ -436,6 +438,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-plain-<MID8#1>/spec.md"
           ]
@@ -584,6 +587,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-pr-bound-<MID8#1>/spec.md"
           ]
@@ -735,6 +739,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-retention-<MID8#1>/spec.md"
           ]
@@ -886,6 +891,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-same-slug-other-type-<MID8#1>/spec.md"
           ]
@@ -1127,6 +1133,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-summary-<MID8#1>/spec.md"
           ]
@@ -1276,6 +1283,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "elsewhere",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/spec.md",
             "<TMP>/repo/kitty-specs/flat-lanes-elsewhere-<MID8#1>/meta.json",
@@ -1420,6 +1428,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/spec.md"
           ]
@@ -1569,6 +1578,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-documentation-<MID8#1>/spec.md"
           ]
@@ -1725,6 +1735,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-plain-<MID8#1>/spec.md"
           ]
@@ -1873,6 +1884,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-pr-bound-<MID8#1>/spec.md"
           ]
@@ -2024,6 +2036,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-retention-<MID8#1>/spec.md"
           ]
@@ -2175,6 +2188,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "topic",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-summary-<MID8#1>/spec.md"
           ]
@@ -2324,6 +2338,7 @@
           "origin_binding_succeeded": false,
           "owned_checkout": null,
           "target_branch": "elsewhere",
+          "target_replacement": null,
           "uncommitted_files": [
             "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/spec.md",
             "<TMP>/repo/kitty-specs/flat-single-branch-elsewhere-<MID8#1>/meta.json",
