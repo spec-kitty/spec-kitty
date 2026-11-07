@@ -36,13 +36,13 @@
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-004 Bad ref is not an absent file: the branch reader to raise a typed error for a missing or unreadable ref and to return an empty history only for an absent file on a readable ref, so that a broken ref never reads as genesis.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-a:tests/coordination/test_status_ref_reader.py::test_ref_reader_bad_ref_raises_typed_error; lane-a:tests/coordination/test_status_ref_reader.py::test_ref_reader_corrupt_ref_raises_typed_error; lane-a:tests/coordination/test_status_ref_reader.py::test_ref_reader_absent_file_reads_empty; lane-a:tests/coordination/test_status_ref_reader.py::test_ref_exists_distinguishes_missing_from_unreadable; lane-b:tests/status/test_read_surface_door.py::test_unreadable_ref_raises_never_reads_as_genesis; lane-b:tests/status/test_read_surface_door.py::test_absent_log_on_a_readable_ref_is_an_empty_history; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP04-s1-root-normalization-and-ref-reader/review-cycle-3.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP05-s1-read-door-declared-sources/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:11:43.924683+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-005",
