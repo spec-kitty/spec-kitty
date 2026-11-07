@@ -9,8 +9,8 @@ the other. Its approvals bound it in two tiers:
   content committed after every approval stamp refuses ``LANE_MOVED_AFTER_APPROVAL``.
 * **Tier 2** -- every content commit in ``claim_base..mission_branch`` must lie in some approved
   work package's window ``(O_k, S_k]``: reachable from ``S_k`` (the stamp on its newest
-  approval) and not from ``O_k`` (the stamp on its first governed claim,
-  :func:`~specify_cli.consolidation.wp_attribution.first_governed_open_stamp`). A commit slipped
+  approval) and not from ``O_k`` (the stamp on its first claim,
+  :func:`~specify_cli.consolidation.wp_attribution.approval_window_open_stamp`). A commit slipped
   in between two approvals is reachable from the later approval stamp, but also from the later
   work package's claim stamp, so tier 1 misses it and tier 2 refuses it, naming the work package
   approved before it. Overlapping windows are accepted. A work package with no claim stamp
@@ -40,7 +40,7 @@ from .approved_bound import (
     render_refusals,
 )
 from .git_probes import commits_in_range
-from .wp_attribution import first_governed_open_stamp, lane_exempt_commits
+from .wp_attribution import approval_window_open_stamp, lane_exempt_commits
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def approval_windows(events: Sequence[StatusEvent], stamps: Mapping[str, str]) -
     """
     windows: list[ApprovalWindow] = []
     for wp_id, stamp in stamps.items():
-        window = ApprovalWindow(wp_id, first_governed_open_stamp(events, frozenset({wp_id})), stamp)
+        window = ApprovalWindow(wp_id, approval_window_open_stamp(events, wp_id), stamp)
         if window.degraded:
             logger.info("%s has no stamped claim: its approval window opens at the claim base (A-8)", wp_id)
         windows.append(window)

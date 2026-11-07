@@ -680,6 +680,22 @@ def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[s
     return None
 
 
+def approval_window_open_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
+    """The head when *wp_id* first entered implementation: ``O_k`` of a ``single_branch`` approval window.
+
+    The stamp on the WP's first non-migration transition into ``claimed`` or ``in_progress``.
+    Unlike :func:`first_governed_open_stamp` (the mixed-lane closed-world anchor, which also
+    counts ``blocked``), a ``blocked`` move opens nothing here: a WP blocked at the start would
+    otherwise open its window before the work of WPs approved ahead of it.
+    """
+    for event in events:
+        if event.wp_id == wp_id and not is_migration_event(event) and event.to_lane in _ENTERED_IMPLEMENTATION_LANES:
+            stamp = stamp_of(event)
+            if stamp is not None:
+                return stamp
+    return None
+
+
 def lane_dependency_merges(repo_root: Path, spine: Iterable[str], dependency_tips: Sequence[str]) -> frozenset[str]:
     """The lane's OWN dependency merges on its first-parent *spine* (#7307).
 
@@ -988,6 +1004,7 @@ __all__ = [
     "UnattributableReason",
     "CanceledPathState",
     "canceled_spine_content",
+    "approval_window_open_stamp",
     "first_governed_open_stamp",
     "is_migration_event",
     "lacks_lane_head_stamps",
