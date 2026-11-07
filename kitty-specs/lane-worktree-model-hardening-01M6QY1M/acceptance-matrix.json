@@ -250,13 +250,13 @@
     },
     {
       "criterion_id": "FR-039",
-      "description": "Verify FR-039 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-039 Prune backstop covers consolidated Mission lanes: `doctor workspaces --prune` to treat a lane of a consolidated or pr-accepted Mission as a removal candidate under the same proofs, when no consolidation record is active and no retention is declared, so that the remedy printed for a kept lane actually works.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-m:tests/specify_cli/workspace/test_landed_worktrees_mission_lane_prune.py::test_prune_candidates_consolidated_mission_lane; lane-m:tests/specify_cli/workspace/test_landed_worktrees_mission_lane_prune.py::test_pr_accepted_mission_lane_is_a_candidate; lane-m:tests/specify_cli/workspace/test_landed_worktrees_mission_lane_prune.py::test_active_record_keeps_lane_report_only; lane-m:tests/specify_cli/workspace/test_landed_worktrees_mission_lane_prune.py::test_retained_mission_keeps_lane_report_only; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP16-s5-guard-binding-pr-mode-prune/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:31.419138+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-039a",
