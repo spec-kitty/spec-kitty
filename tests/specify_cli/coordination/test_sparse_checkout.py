@@ -18,8 +18,8 @@ import pytest
 from specify_cli.coordination import (
     CoordinationWorkspace,
     lane_sparse_checkout_patterns,
-    register_lane_sparse_checkout,
 )
+from specify_cli.lanes.lane_checkout import exclude_lane_status_files, lane_mission_dir_name
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -81,7 +81,7 @@ def test_lane_sparse_checkout_excludes_status_files(
     _git(repo, "worktree", "add", "-b", LANE_BRANCH,
          str(lane_path), COORD_BRANCH)
 
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     spec_dir = lane_path / "kitty-specs" / MISSION_DIR
     # Other files in the spec dir still present.
@@ -99,7 +99,7 @@ def test_primary_checkout_unaffected(
     lane_path = repo / ".worktrees" / f"{MISSION_SLUG}-{MID8}-lane-a"
     _git(repo, "worktree", "add", "-b", LANE_BRANCH,
          str(lane_path), COORD_BRANCH)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     spec_dir = repo / "kitty-specs" / MISSION_DIR
     assert (spec_dir / "status.events.jsonl").exists()
@@ -117,7 +117,7 @@ def test_coord_worktree_unaffected(
     lane_path = repo / ".worktrees" / f"{MISSION_SLUG}-{MID8}-lane-a"
     _git(repo, "worktree", "add", "-b", LANE_BRANCH,
          str(lane_path), COORD_BRANCH)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     # The coord worktree's sparse-checkout was never touched.
     coord_spec = coord_path / "kitty-specs" / MISSION_DIR
@@ -125,7 +125,7 @@ def test_coord_worktree_unaffected(
     assert (coord_spec / "status.json").exists()
 
 
-def test_register_lane_sparse_checkout_idempotent(
+def test_exclude_lane_status_files_idempotent(
     repo_with_status_files: Path,
 ) -> None:
     repo = repo_with_status_files
@@ -133,8 +133,8 @@ def test_register_lane_sparse_checkout_idempotent(
     _git(repo, "worktree", "add", "-b", LANE_BRANCH,
          str(lane_path), COORD_BRANCH)
 
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     spec_dir = lane_path / "kitty-specs" / MISSION_DIR
     assert not (spec_dir / "status.events.jsonl").exists()

@@ -9,6 +9,13 @@ from typing import ClassVar
 
 from specify_cli.lanes.auto_rebase import AutoRebaseReport, attempt_auto_rebase
 from specify_cli.lanes.compute import is_repo_root_lane
+from specify_cli.lanes.lane_checkout import (
+    LaneCheckoutError,
+    LaneCheckoutRequest,
+    LaneCheckoutRoute,
+    open_lane_checkout,
+    resolve_lane_mission_dir_name,
+)
 from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -134,26 +141,30 @@ def sync_lane_after_coordination_commit(
     )
     coordination_head = _git_stdout(repo_root, "rev-parse", coordination_branch)
     if not (worktree_path / ".git").exists():
-        worktree_path.parent.mkdir(parents=True, exist_ok=True)
-        add_result = subprocess.run(
-            ["git", "worktree", "add", str(worktree_path), lane_branch],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if add_result.returncode != 0:
+        # WP09 (FR-021, FR-040): the recreate goes through the one lane-checkout
+        # helper, so the recreated checkout is attached, hooked and excluded.
+        try:
+            open_lane_checkout(
+                LaneCheckoutRequest(
+                    repo_root=repo_root,
+                    mission_slug=lanes_manifest.mission_slug,
+                    mission_dir_name=resolve_lane_mission_dir_name(repo_root, lanes_manifest.mission_slug),
+                    lane_id=lane.lane_id,
+                    branch=lane_branch,
+                    worktree_path=worktree_path,
+                    create_branch_from=None,
+                    route=LaneCheckoutRoute.LIFECYCLE_SYNC,
+                )
+            )
+        except LaneCheckoutError as exc:
             raise LaneAutoRebaseSyncError(
                 lane_id=lane.lane_id,
                 lane_branch=lane_branch,
                 lane_worktree_path=worktree_path,
                 coordination_branch=coordination_branch,
                 coordination_head=coordination_head,
-                halt_reason=(
-                    "could not create lane worktree for auto-rebase: "
-                    f"{(add_result.stderr or add_result.stdout).strip()}"
-                ),
-            )
+                halt_reason=f"could not create lane worktree for auto-rebase: {exc}",
+            ) from exc
 
     report = attempt_auto_rebase(
         lane=lane,
