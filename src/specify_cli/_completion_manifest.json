@@ -241,7 +241,7 @@
        "deprecated": false
       },
       "materialize": {
-       "help": "Rebuild status.json from the canonical event log.\n\nReads all events from status.events.jsonl, applies the deterministic\nreducer to produce a snapshot, writes status.json, and updates legacy\ncompatibility views.\n\nExamples:\n    spec-kitty agent status materialize\n    spec-kitty agent status materialize --mission 034-my-feature\n    spec-kitty agent status materialize --json",
+       "help": "Rebuild status.json from the canonical event log.\n\nReads all events from status.events.jsonl, applies the deterministic\nreducer to produce a snapshot, writes status.json, and updates legacy\ncompatibility views.\n\nstatus.json is written into the checkout that holds the declared status\nsource (the write checkout, the coordination worktree, or for a landed\nMission the consolidated target). When no checkout holds it (the\ncoordination worktree is empty or absent, or no checkout holds the\nMission branch) the command refuses, writes nothing and names the remedy.\n\nExamples:\n    spec-kitty agent status materialize\n    spec-kitty agent status materialize --mission 034-my-feature\n    spec-kitty agent status materialize --json",
        "hidden": false,
        "deprecated": false
       },
