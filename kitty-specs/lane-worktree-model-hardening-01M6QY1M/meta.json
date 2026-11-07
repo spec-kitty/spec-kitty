@@ -12,5 +12,7 @@
   "purpose_tldr": "Make lanes, worktrees and the status surface simpler and safer, per the 2026-11-06 operator rulings (epic #7276).",
   "slug": "lane-worktree-model-hardening-01M6QY1M",
   "target_branch": "issue-7276-lane-worktree-hardening",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-06T09:40:28.737114+00:00"
 }

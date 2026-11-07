@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2533": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5046": {
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5100": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +33,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5460": {
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5550": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5676": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6117": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6466": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6884": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7173": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +117,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7198": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,11 +129,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7226": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,11 +141,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7228": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,11 +153,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7237": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -141,11 +165,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7239": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,11 +177,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7240": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -165,11 +189,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7248": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -177,11 +201,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7255": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -189,11 +213,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7264": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -201,11 +225,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7265": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -213,11 +237,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7266": {
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7274": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -225,11 +261,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7275": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context or owned by another PR/session (epic #7276 dependency map); no work owed by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -237,7 +273,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7276": {
@@ -253,7 +289,7 @@
       "wp": null
     },
     "#7277": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S1 read contract: WP01 ADR, WP04-WP07",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -261,11 +297,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP05"
     },
     "#7278": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S2 for_review gate on the lane branch",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -273,11 +309,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP08"
     },
     "#7279": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S3 ADR 2026-04-03-1 amendment (WP03) + lane-checkout helper (WP09)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -285,11 +321,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7280": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S5 cleanup seam (WP15); guard binding WP16 gated on #7275",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -297,11 +333,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP15"
     },
     "#7281": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S6 restated ruling 3: WP09/WP10",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -309,11 +345,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP10"
     },
     "#7282": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S7 size-based topology: WP02 ADR, WP13, WP14, WP20",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -321,11 +357,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP14"
     },
     "#7283": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S8 single_branch approval windows: WP02 ADR, WP11, WP12",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -333,11 +369,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP12"
     },
     "#7284": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S9 core ADRs C-1/C-2/C-3 + D-6 amendment; events ADRs in spec-kitty-events PR #215",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -345,11 +381,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP03"
     },
     "#7285": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S11: pack doctrine delivered by spec-kitty-open-packs PR #128 (merged); core skills/CLI text in WP17",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -357,8 +393,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP17"
     }
   },
   "schema_version": 1
