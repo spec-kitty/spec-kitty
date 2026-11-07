@@ -180,3 +180,5 @@ done transitions and the retrospective recorded, branches and worktrees kept. No
 came up. CONTRACT_VERSION on the landing is "1.25.0" (`orchestrator_api/envelope.py`), as reached
 through the lane refreshes. The stale_check.py merge was resolved earlier in the WP17 rework
 (fcc8e08040). The frozen worktree was removed afterwards. Pushed (topic tip ec684095d8).
+
+- [2026-11-07][closeout] Operator ruling: leave the pyproject.toml version alone despite __init__.py edits (src/mission_runtime, acceptance, coordination); note in PR body.
