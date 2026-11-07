@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "move-task-fixture-charter-provisioning-01M6GA71",
+  "mission_id": "01M6GA71BQVDBFGM0Q01BCGAZN",
+  "mission_branch": "kitty/mission-move-task-fixture-charter-provisioning-01M6GA71",
+  "target_branch": "issue-7073-move-task-fixture-charter-provisioning",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/",
+        "tests/tasks/test_move_task_git_validation_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-03T09:02:58.947207+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "aaaa43402e6baffa731793ef9a256216a07010ea"
+}

@@ -1,0 +1,49 @@
+{
+  "mission_slug": "move-task-fixture-charter-provisioning-01M6GA71",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_move_task_git_validation_unit.py:78 git_repo_with_worktree calls provision_test_charter(repo) before the Initial commit; resolve_mission_type_context(repo,'software-dev') returns the curated profile (proven by FR-002's tests)",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-03T09:33:48.446169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "TestFixtureCharterProvisioning: 2 failed before the fix (UnknownMissionTypeError + 'using the built-in default' record), 2 passed after; reverting the provisioning call makes both fail again",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-03T09:33:52.866053+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "pytest --collect-only: 17 nodes (15 pre-existing ids unchanged); base 8 failed/7 passed and branch 8 failed/9 passed with the identical 8 IMPLEMENTATION_MISSING failures; make test-fast 2822 passed",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-03T09:33:57.093735+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "custom_command",
+      "evidence": "git diff origin/main..HEAD -- src/ is empty; the only code change is the one test module (ruff/mypy 0 new diagnostics)",
+      "pass_fail": "pass",
+      "verified_by": "pi:python-pedro",
+      "verified_at": "2026-11-03T09:34:02.302993+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

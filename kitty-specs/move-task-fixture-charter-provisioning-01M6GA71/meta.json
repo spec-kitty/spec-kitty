@@ -1,0 +1,48 @@
+{
+  "accept_commit": "866d7b350983a499f3a9578b2afdf442556ecb5b",
+  "acceptance_history": [
+    {
+      "accept_commit": "f3e71ec46246c5c80d9a8b36da8ce7e64b177fb2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T09:34:16.749339+00:00",
+      "accepted_by": "pi:python-pedro",
+      "accepted_from_commit": "a85f64c184ffffef8ffa4124a47bdd5da08730cb"
+    },
+    {
+      "accept_commit": "bcd6281cb33cb86742b34e602f5269854d6d6d3c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T09:34:27.599488+00:00",
+      "accepted_by": "pi:python-pedro",
+      "accepted_from_commit": "5b018ebb9023fd918f61e5ed7f712c849f4f5ceb"
+    },
+    {
+      "accept_commit": "866d7b350983a499f3a9578b2afdf442556ecb5b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-03T09:34:35.682375+00:00",
+      "accepted_by": "pi:python-pedro",
+      "accepted_from_commit": "540500b32636f12948d9743777e899162edce241"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-03T09:34:35.682375+00:00",
+  "accepted_by": "pi:python-pedro",
+  "accepted_from_commit": "540500b32636f12948d9743777e899162edce241",
+  "baseline_merge_commit": "c2bf97b2f78fbe1ae74359e134f6f5390f9826ae",
+  "created_at": "2026-11-03T09:00:33.783505+00:00",
+  "flattened": true,
+  "friendly_name": "move task fixture charter provisioning",
+  "merged_at": "2026-11-03T09:35:41.939602+00:00",
+  "merged_commit": "a93c74e84a2ff0ee363989dfc62752b444ff12d1",
+  "mid8": "01M6GA71",
+  "mission_id": "01M6GA71BQVDBFGM0Q01BCGAZN",
+  "mission_number": 249,
+  "mission_slug": "move-task-fixture-charter-provisioning-01M6GA71",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances move task fixture charter provisioning on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "move task fixture charter provisioning",
+  "slug": "move-task-fixture-charter-provisioning-01M6GA71",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-03T09:03:52.150956+00:00"
+}
