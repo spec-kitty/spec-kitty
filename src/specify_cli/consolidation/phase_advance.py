@@ -579,7 +579,11 @@ def _reanchor_primary_on_target_after_topic_landing(run: _MergeRunState) -> None
 
 
 def _target_checkout_mission_dir(main_repo: Path, primary_dir: Path) -> Path:
-    """The repository root checkout's (the target's) copy of the Mission directory *primary_dir* names."""
+    """The repository root checkout's (the target's) copy of the Mission directory *primary_dir* names.
+
+    Assumes the repository root checkout is on the target branch at this point (the landing
+    advanced it there); a coordination Mission's topic branch is held by its own worktree.
+    """
     target_dir: Path = main_repo / KITTY_SPECS_DIR / primary_dir.name
     return target_dir
 

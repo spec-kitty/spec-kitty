@@ -759,8 +759,8 @@ def _post_checkpoint_mission_paths(
 
 
 _META_JSON_FILENAME = "meta.json"
-#: ``meta.json`` keys the consolidation run (or the teardown that follows) authors on the TARGET:
-#: a topic-branch copy of them is stale by construction and never lands (G2).
+#: ``meta.json`` keys the consolidation run authors on the TARGET: a topic-branch change to one
+#: of them is stale by construction and never counts as an unlanded PRIMARY change (G2).
 _TARGET_AUTHORED_META_KEYS: frozenset[str] = frozenset({MISSION_NUMBER_KEY, "baseline_merge_commit", "status_phase", "mission_branch", *COORDINATION_KEYS})
 
 
@@ -837,38 +837,6 @@ def unlanded_topic_primary_paths(
         if not landed:
             unlanded.append(candidate)
     return unlanded
-
-
-def topic_primary_landing_bytes(
-    main_repo: Path,
-    path: str,
-    *,
-    base: str,
-    topic_ref: str,
-    target_ref: str,
-) -> bytes | None:
-    """The bytes that land the topic branch's change to PRIMARY *path* on the target; ``None`` when the topic deleted it.
-
-    For every file but ``meta.json`` that is the topic branch's own content. For ``meta.json``
-    only the keys the topic changed since *base* take the topic's value (a key the topic removed
-    is removed), over the TARGET's mapping: target-authored values (``mission_number``,
-    ``baseline_merge_commit``, ``merged_*``) are kept (G2).
-    """
-    from specify_cli.mission_metadata import format_meta_text
-
-    if Path(path).name != _META_JSON_FILENAME:
-        topic_bytes: bytes | None = _read_git_blob_bytes(main_repo, topic_ref, path)
-        return topic_bytes
-    before = _json_mapping_at(main_repo, base, path)
-    topic = _json_mapping_at(main_repo, topic_ref, path)
-    merged = dict(_json_mapping_at(main_repo, target_ref, path))
-    for key in _topic_changed_meta_keys(before, topic):
-        if key in topic:
-            merged[key] = topic[key]
-        else:
-            merged.pop(key, None)
-    landed_text: str = format_meta_text(merged)
-    return landed_text.encode("utf-8")
 
 
 def project_post_checkpoint_commits_to_target(
