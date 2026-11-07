@@ -129,7 +129,26 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 # main it is the gate's baseline and the entry is dead weight: remove it in a
 # follow-up so the byte-freeze covers the corrected file again (#4956 drained the
 # previous entries).
-_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset()
+#
+# - kitty-specs/lane-window-never-created-recovery-01M6GRJ5/ (the 7 paths below)
+#   (2026-11-07, operator decision by stijn-dejongh in session, "7203 -> A",
+#   #7312): the Mission's files reached main through #7146 before its closeout,
+#   so main records finished work as unfinished. The operator admitted these
+#   knowing the files are stale rather than CORRUPT, which this comment's rule
+#   above does not otherwise cover; #7313 tracks that gap. The event log is
+#   APPENDED and status.json is the reducer's materialization. The other files
+#   carry acceptance, the merge record and the WP03 rename edits.
+_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
+    {
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/acceptance-matrix.json",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/issue-matrix.json",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/lanes.json",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/meta.json",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/status.events.jsonl",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/status.json",
+        "kitty-specs/lane-window-never-created-recovery-01M6GRJ5/tasks/WP03-cli-proof.md",
+    }
+)
 
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
