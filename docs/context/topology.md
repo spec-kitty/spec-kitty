@@ -1,8 +1,8 @@
 ---
 title: 'Context: Topology'
-description: 'Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package.'
+description: 'Topology glossary: the four topologies, size default, topic branch, write checkout, repo-root and code lanes, mission branch, lane work tip, started work package.'
 doc_status: active
-updated: '2026-10-16'
+updated: '2026-11-07'
 related:
 - context/orchestration
 - context/execution
@@ -16,12 +16,38 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | The shape a mission is given at creation, stored as `topology` in `meta.json`. Exactly four values, the 2x2 product of "has a coordination branch" and "has lanes": `single_branch` (no coordination, no lanes: every work package runs in the [write checkout](#write-checkout)), `lanes` (no coordination, computed code lanes), `coord` (coordination, no lanes), `lanes_with_coord` (coordination and code lanes). Realized by the `MissionTopology` enum in `src/mission_runtime/context.py`. Create-time default (when `--topology` is omitted): `coord` on the primary branch, `lanes` on any other branch, with `--pr-bound` keeping `coord` only where coordination is reachable and `lanes` otherwise; `single_branch` comes only from an explicit `--topology single_branch` or from `--owned-checkout`, never implicitly. A mission with no stored `topology` (created before the field existed) is read as `lanes` at runtime, whereas `spec-kitty migrate backfill-topology` writes the derived 2x2 cell, which can be `single_branch` for a mission with no code lane yet; the write is an explicit operator choice that switches the mission onto the `single_branch` runtime. `doctor coordination --fix` does not make that choice for you: after flattening a mission whose coordination branch was never created it stamps the runtime reading (`lanes`), not a derived `single_branch`. |
+| **Definition** | The shape a mission is given at creation, stored as `topology` in `meta.json`. Exactly four values, the 2x2 product of "has a coordination branch" and "has lanes": `single_branch` (no coordination, no lanes: every work package runs in the [write checkout](#write-checkout)), `lanes` (no coordination, computed code lanes), `coord` (coordination, no lanes), `lanes_with_coord` (coordination and code lanes). Realized by the `MissionTopology` enum in `src/mission_runtime/context.py`. Create-time default (when `--topology` is omitted): the [size default](#size-default). `lanes` and `coord` come only from an explicit `--topology`; `single_branch` also comes from `--owned-checkout`; an explicit value is settled at create and never re-decided. A mission with no stored `topology` (created before the field existed) is read as `lanes` at runtime, whereas `spec-kitty migrate backfill-topology` writes the derived 2x2 cell, which can be `single_branch` for a mission with no code lane yet; the write is an explicit operator choice that switches the mission onto the `single_branch` runtime. `doctor coordination --fix` does not make that choice for you: after flattening a mission whose coordination branch was never created it stamps the runtime reading (`lanes`), not a derived `single_branch`. |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the artifact-kind routing rule — use [PRIMARY partition](./orchestration.md#primary-partition) or [COORD partition](./orchestration.md#coord-partition). The concept is the physical tree an artifact resolves to — use [Topology Surface](./orchestration.md#topology-surface). Never write "mode" or "layout" for a topology. |
 | **Related terms** | [write checkout](#write-checkout), [code lane](#code-lane), [Topology Surface](./orchestration.md#topology-surface), [Lane](./orchestration.md#lane) |
+
+---
+
+### Size default
+
+| | |
+|---|---|
+| **Definition** | The topology a Mission gets when `agent mission create` runs without `--topology` (ADR [4.x `2026-11-06-3`](../adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md), #7282). Create mints exactly one [topic branch](#topic-branch) on every target and no worktree, and records `topology: single_branch`, `topology_source: default`, `topology_settled: false` and `create_return_branch` (the branch the repository root checkout was on). The first `finalize-tasks` settles the topology once, by size (`lanes/topology_settlement.py`): at most two non-canceled work packages, or at most one code lane, stays `single_branch` (a Mission that meets either limit stays, so a tie stays `single_branch`); anything larger becomes `lanes_with_coord`, on protected and unprotected targets alike, with the topic branch as its coordination branch. Settlement then records `topology_settled: true`; a settled Mission, and every Mission created with an explicit topology, is never re-decided. `finalize-tasks --validate-only` only previews the decision. A `lanes_with_coord` settlement commits the Mission directory on the topic branch, moves the repository root checkout back to `create_return_branch`, materializes the coordination worktree on the topic branch, re-stamps `meta.json` there and writes `lanes.json`; any failure undoes every step, leaves the Mission provisional and refuses with `TOPOLOGY_SETTLEMENT_REFUSED` (or `WRITE_CHECKOUT_OCCUPIED` / `WRITE_CHECKOUT_DIRTY`). A later failure of the same `finalize-tasks` run also undoes the settlement. |
+| **Context** | Topology |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The Mission was created with `--topology` or `--owned-checkout` — its topology is explicit. Never call the default "explicit-only" and never say it is decided at create. |
+| **Related terms** | [topic branch](#topic-branch), [Topology](#topology), [mission branch](#mission-branch) |
+
+---
+
+### Topic branch
+
+| | |
+|---|---|
+| **Definition** | The one branch a default Mission's create mints, `kitty/mission-<slug>-<mid8>`, recorded as `mission_branch` in `meta.json` and checked out in the write checkout. Before the landing it holds the Mission's [PRIMARY partition](./orchestration.md#primary-partition) artifacts (spec, plan, work package outlines): the placement seam resolves PRIMARY to `meta.mission_branch` until `consolidate` records the landing, and to `target_branch` after it. A Mission that stays `single_branch` lands it like any [mission branch](#mission-branch). A Mission settled to `lanes_with_coord` uses it as its coordination branch, which therefore shares the Mission branch's name, and cuts its code lanes from it. Its consolidation refuses the coordination teardown (exit 1, branch, coordination worktree and marker kept) while the topic branch still holds PRIMARY changes the target does not carry; the message names the paths and says to review them with `git diff <target> <branch>`, land them on the target, then run `spec-kitty consolidate --resume`. |
+| **Context** | Topology |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The Mission has an explicit topology — say [mission branch](#mission-branch) or coordination branch. The concept is the branch the work lands on — use [target branch](./orchestration.md#target-branch). |
+| **Related terms** | [size default](#size-default), [mission branch](#mission-branch), [PRIMARY partition](./orchestration.md#primary-partition) |
 
 ---
 
@@ -81,12 +107,12 @@ Terms describing the shape a mission is given at creation and where its work run
 
 | | |
 |---|---|
-| **Definition** | `kitty/mission-<slug>-<mid8>`. For a `single_branch` mission it is minted and checked out in the [write checkout](#write-checkout), and recorded as `mission_branch` in `meta.json`, only when the mission targets a [protected target](#protected-target) without `--commit-to-target`. `spec-kitty consolidate` then lands the mission branch onto the target. Lane-based missions carry the same branch name as the consolidation base of their code lanes. |
+| **Definition** | `kitty/mission-<slug>-<mid8>`. For a `single_branch` mission it is minted and checked out in the [write checkout](#write-checkout), and recorded as `mission_branch` in `meta.json`, only when the mission targets a [protected target](#protected-target) without `--commit-to-target`. `spec-kitty consolidate` then lands the mission branch onto the target. Lane-based missions carry the same branch name as the consolidation base of their code lanes; on a coordination topology the coordination branch is that same branch (`mission_branch_name` and `coordination_branch_name` give one name). A default Mission's mission branch is its [topic branch](#topic-branch). |
 | **Context** | Topology |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Do NOT use when** | The concept is the branch a mission's code must ultimately land on — use [target branch](./orchestration.md#target-branch). The concept is the coordination branch — say "coord branch". The concept is a single lane's branch — use [code lane](#code-lane). |
-| **Related terms** | [protected target](#protected-target), [write checkout](#write-checkout), [Lane Consolidation](./orchestration.md#lane-consolidation), [target branch](./orchestration.md#target-branch) |
+| **Related terms** | [topic branch](#topic-branch), [protected target](#protected-target), [write checkout](#write-checkout), [Lane Consolidation](./orchestration.md#lane-consolidation), [target branch](./orchestration.md#target-branch) |
 
 ---
 

@@ -2,7 +2,7 @@
 title: Git Worktrees Explained
 description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-11-07'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -215,15 +215,33 @@ git worktree remove --force .worktrees/feature-lane-a
 git worktree prune
 ```
 
-## Full Checkouts
+## Worktree Vocabulary
 
-Current Spec Kitty lane worktrees use full checkouts. Isolation is enforced by
-lane computation, ownership metadata, workspace context, and merge guards
-rather than by hiding files from the working directory.
+| Checkout | What it holds | Disposable? |
+|----------|---------------|-------------|
+| Repository root checkout | The operator's working copy; for a default Mission before settlement, the write checkout on the [topic branch](../context/topology.md#topic-branch) | No |
+| Write checkout | The one checkout a `single_branch` Mission writes code and status into | No while a WP is `in_progress` |
+| Lane worktree (`.worktrees/<slug>-lane-<id>`) | One code lane's branch; no status files | Yes: `consolidate` removes it as its last step |
+| Coordination worktree | The coordination branch, where status is written | Yes: torn down with the coordination branch and marker as one unit |
+| Merge scratch worktree (`.kittify/runtime/merge/<id>/workspace`) | Consolidation's internal scratch tree | Always cleaned up |
 
-That means an execution worktree still contains the full repository checkout,
-but agents are expected to stay inside the files owned by the active WP and
-lane.
+Status is never read from a lane worktree. Every reader goes through the one status read door (`status/read_surface.py::resolve_status_read`, ADR [4.x `2026-11-06-2`](../adr/4.x/2026-11-06-2-one-status-read-contract.md)); from the CLI, use `spec-kitty agent tasks status`.
+
+## Lane checkouts hide status
+
+A lane worktree is a full checkout except for the Mission's `status.events.jsonl` and `status.json`, which a managed sparse exclusion keeps out. Every new lane checkout gets it from `lanes/lane_checkout.py::open_lane_checkout`. Isolation of code is otherwise enforced by lane computation, ownership metadata, workspace context and consolidation guards, and agents stay inside the files owned by the active WP and lane.
+
+Lane worktrees that already exist are brought in line by the clone-local migration `4.0.0rc8_lane_checkout_status_exclusion` (run by `spec-kitty upgrade`). It finds them through the git worktree registry and reports one outcome per worktree:
+
+| Outcome | Meaning |
+|---------|---------|
+| `excluded` | A clean copy; the exclusion is applied and the files leave the disk |
+| `flagged_redundant` | A dirty copy whose every event is already on the status surface; the exclusion is applied and git keeps the modified file on disk |
+| `refused_lane_only_events` | A dirty copy holding events found nowhere else; the worktree is left untouched and the event ids are reported |
+| `skipped_mid_operation` | A merge, rebase or cherry-pick is in progress |
+| `already_excluded` | Nothing to do |
+
+While any lane is `refused_lane_only_events` or `skipped_mid_operation`, the migration is skipped and selected again on the next upgrade. `spec-kitty doctor sparse-checkout` reports each such lane as `LANE_STATUS_NOT_EXCLUDED` with its remedy: for lane-only events, record each transition on the status surface with `spec-kitty agent tasks move-task`, discard the lane copy's change to the two status files, then run `spec-kitty upgrade`.
 
 ## Common Issues
 
