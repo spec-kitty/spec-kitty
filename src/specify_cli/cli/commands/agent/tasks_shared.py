@@ -52,6 +52,7 @@ from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files_checked
+from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.dirty_classifier import status_entry_paths
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
@@ -112,7 +113,7 @@ def _review_currency_check_branch(
 # matching lets untracked source files silently slip past the guard.
 # C-004: paths OUTSIDE this list still reach the blocking branch unchanged,
 # so genuine uncommitted implementation work continues to block review handoff.
-_RUNTIME_STATE_DENY_LIST: tuple[str, ...] = (".spec-kitty/", ".kittify/")
+_RUNTIME_STATE_DENY_LIST: tuple[str, ...] = (f"{RUNTIME_STATE_DIR_NAME}/", ".kittify/")
 
 
 # ---------------------------------------------------------------------------

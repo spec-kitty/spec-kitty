@@ -10,7 +10,7 @@ keep them from collapsing into each other.
 
 | Field | Value |
 | --- | --- |
-| Owner | `src/specify_cli/paths/windows_paths.py` (`RUNTIME_STATE_DIR_NAME`) |
+| Owner | `src/specify_cli/paths/windows_paths.py` (`RUNTIME_STATE_DIR_NAME`) as planned; the landing pass (2026-11-07, operator-requested fold) moved the owner to `src/kernel/paths.py`, re-exported by `specify_cli.paths` |
 | Type | `str` (a single path segment) |
 | Value | `".spec-kitty"` |
 | Derived by | `get_runtime_root()` on POSIX and on the Windows platformdirs-failure branch (`Path.home() / RUNTIME_STATE_DIR_NAME`) |
