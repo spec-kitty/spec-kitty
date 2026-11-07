@@ -317,13 +317,12 @@ def test_assert_merged_wps_reached_done_allows_done_snapshot(
         encoding="utf-8",
     )
 
-    # Patch the re-exported binding _assert_merged_wps_reached_done actually
-    # imports (`from specify_cli.status import get_wp_lane`, resolved at call
-    # time) — patching the lane_reader original would not intercept it.
-    monkeypatch.setattr(
-        "specify_cli.status.get_wp_lane",
-        lambda *_a, **_kw: "done",
-    )
+    # The validator reads through the status read door (WP07); pin its log and the
+    # per-WP reduction to an all-done snapshot.
+    from specify_cli.consolidation import done_bookkeeping
+
+    monkeypatch.setattr("specify_cli.status.read_surface.read_status_text", lambda *_a, **_kw: "log")
+    monkeypatch.setattr(done_bookkeeping, "_not_done_wps", lambda *_a, **_kw: [])
 
     _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])
 

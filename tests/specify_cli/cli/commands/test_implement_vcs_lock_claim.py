@@ -179,7 +179,7 @@ def _planning_commit_phase(tmp_path: Path, feature_dir: Path, wp_id: str) -> Non
         wp_file=feature_dir / "tasks" / f"{wp_id}-plan.md",
         declared_deps=[],
     )
-    preflight = ClaimPreflight(planning_branch="main", status_feature_dir=feature_dir, lanes_feature_dir=feature_dir)
+    preflight = ClaimPreflight(planning_branch="main", lanes_feature_dir=feature_dir)
     implement_phases.commit_planning_artifacts(ctx, wp_id, preflight)
 
 

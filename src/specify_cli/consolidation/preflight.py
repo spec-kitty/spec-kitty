@@ -1177,16 +1177,17 @@ def is_pure_behind_head_lag(
 def _current_lanes_or_empty(main_repo: Path, mission_slug: str) -> dict[str, str]:
     """``{wp_id: lane}`` reduced from the mission's status surface; ``{}`` when unreadable.
 
-    The same surface/reader the done bookkeeping and ``acceptably_canceled_wp_ids``
-    use. An unreadable surface proves no WP ``done``, so every WP counts as pending
+    The same status read door the done bookkeeping and ``acceptably_canceled_wp_ids``
+    read. An unreadable surface proves no WP ``done``, so every WP counts as pending
     (the preflight then still asks the policy -- fail toward probing, never skip).
     """
-    from specify_cli.coordination.surface_resolver import resolve_status_surface
-    from specify_cli.status import StoreError, read_events, reduce
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.status import StoreError, reduce
+    from specify_cli.status.read_surface import read_status_events, resolve_status_read
 
     try:
-        snapshot = reduce(read_events(resolve_status_surface(main_repo, mission_slug).parent))
-    except (FileNotFoundError, StoreError):
+        snapshot = reduce(read_status_events(resolve_status_read(main_repo, mission_slug)))
+    except (FileNotFoundError, StoreError, StatusSurfaceRefUnreadable):
         return {}
     return {wp_id: str(wp.get("lane", "")) for wp_id, wp in snapshot.work_packages.items() if isinstance(wp, dict)}
 

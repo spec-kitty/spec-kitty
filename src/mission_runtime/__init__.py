@@ -68,6 +68,10 @@ from mission_runtime.checkout_identity import (
     enforce_checkout_identity,
 )
 from mission_runtime.identity import handle_names_mission, mid8_from_slug, resolve_mid8
+
+# lane-worktree-model-hardening WP05 (ADR 2026-11-06-2/-3): the placement seam's one
+# "landed" reader, shared by the status read door and the FR-061 PRIMARY placement.
+from mission_runtime.landing import mission_has_landed
 from mission_runtime.resolution import (
     ActionContextError,
     IssueMatrixRefReadError,
@@ -169,6 +173,7 @@ __all__ = [
     # The kind -> basenames inversion of the basename->kind classifier; the ONE
     # derivation ``surface_resolver`` and finalize's COORD dirt probe share.
     "mission_file_basenames_for_kind",
+    "mission_has_landed",
     "placement_seam",
     "resolve_action_context",
     "resolve_artifact_surface",
