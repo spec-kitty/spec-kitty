@@ -49,7 +49,7 @@
       "wp": "WP01"
     },
     "#7013": {
-      "evidence_ref": "commit 630530fa14 + f887224e02: model_id removed from OpStartedEvent, claim seam narrowed, Op auto-commit carries commit.co_author / --co-author",
+      "evidence_ref": "slice (a): commit b51e6af7f5 + c377441271; tests/specify_cli/invocation/test_executor.py, tests/specify_cli/invocation/test_record.py, tests/contract/test_mission_status_ops.py, tests/specify_cli/status/test_resolved_binding_linkage.py; remaining work: #7315 (operator ruling 2026-11-07)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "fixed",
+      "verdict": "deferred-with-followup",
       "wp": "WP01"
     }
   },
