@@ -232,6 +232,7 @@ class HeadRunResult:
     observed_elapsed_seconds: float | None = None
 
 
+GATE_LOCK_DIRECTORY = "gate-locks"
 _SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
 
 # K-9: the lock-acquire wait is bounded on ITS OWN short timeout, deliberately
@@ -279,7 +280,7 @@ def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
     # for CPU contention: concurrent gate runs across lanes/worktrees on the
     # same machine serialize on it (a per-repo_root lock would not, since each
     # worktree has a distinct root).
-    lock_path = get_runtime_root().base / "gate-locks" / _SCOPED_RUN_LOCK_FILENAME
+    lock_path = get_runtime_root().base / GATE_LOCK_DIRECTORY / _SCOPED_RUN_LOCK_FILENAME
     try:
         with machine_file_lock(lock_path, blocking=True, timeout_s=timeout):
             yield

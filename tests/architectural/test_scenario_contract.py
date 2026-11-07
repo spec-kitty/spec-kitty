@@ -20,12 +20,15 @@ Also checks, per ADR 2026-10-15-1:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
+from runtime.next._tmp_namespace import SPEC_KITTY_PROMPT_NAMESPACE
 from scripts.ci import absorption_ledger as ledger
 from scripts.ci import scenario_contract as contract
+from specify_cli.review.pre_review_gate import GATE_LOCK_DIRECTORY
 from tests.contract._loader import load_tool
 from tests.pinned_service_assets import contract_tools_dir
 
@@ -290,8 +293,6 @@ def test_real_home_fingerprint_constants_match_java_literals() -> None:
     java_content = java_path.read_text(encoding="utf-8")
 
     # Extract PROMPT_NAMESPACE_DIRECTORY literal
-    import re
-
     prompt_match = re.search(r'static final String PROMPT_NAMESPACE_DIRECTORY = "([^"]+)";', java_content)
     assert prompt_match is not None, "Could not find PROMPT_NAMESPACE_DIRECTORY in Java file"
     prompt_literal = prompt_match.group(1)
@@ -301,12 +302,6 @@ def test_real_home_fingerprint_constants_match_java_literals() -> None:
     assert gate_match is not None, "Could not find GATE_LOCK_DIRECTORY in Java file"
     gate_literal = gate_match.group(1)
 
-    # Import and compare with production constants
-    from src.runtime.next._tmp_namespace import SPEC_KITTY_PROMPT_NAMESPACE
-
+    # Compare with production constants
     assert prompt_literal == SPEC_KITTY_PROMPT_NAMESPACE, f"Java literal {prompt_literal!r} does not match production constant {SPEC_KITTY_PROMPT_NAMESPACE!r}"
-
-    gate_lock_owner = REPO_ROOT / "src" / "specify_cli" / "review" / "pre_review_gate.py"
-    assert f'"{gate_literal}"' in gate_lock_owner.read_text(encoding="utf-8"), (
-        f"Java literal {gate_literal!r} no longer matches the gate-lock directory used by {gate_lock_owner}"
-    )
+    assert gate_literal == GATE_LOCK_DIRECTORY, f"Java literal {gate_literal!r} does not match production constant {GATE_LOCK_DIRECTORY!r}"
