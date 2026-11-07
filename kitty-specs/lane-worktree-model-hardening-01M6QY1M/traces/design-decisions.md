@@ -154,3 +154,5 @@ Every lane still to merge (g, d, k, m, p, n, o) also changes `_baselines.yaml`, 
 also change `dead_symbol_allowlist.yaml`, so each is likely to need the same rework in turn.
 
 - [2026-11-07][closeout] Batch refresh: lanes c (79519b2eee, resolved), g (621c3c1d60, clean), d (8215731993, clean), k (3a56a83f2f, resolved) pushed; WP06 and WP14 moved to for_review for rework review (--force on for_review only). Ruling widened for the remaining lanes (m, p, n, o): a refresh conflict in a code file may be resolved when both sides intent is clear (e.g. lane_cleanup.py __all__: keep additions, honor removals), verified by that WP tests; every non-empty refresh merge goes through a rework review.
+
+- [2026-11-07][closeout] Rework reviews approved: WP06 (79519b2eee; 530 + 37 passed), WP14 (3a56a83f2f; 322 + 37), WP16 (c226d5a622; 496 + 37). Approvals recorded by the orchestrator with --force (freshness check only), each a forced hop out of an unforced in_review with an approved review_result, stamping the refresh merge. Lanes p (00b834666f), n (6261e9007e), o (fd9450991b) refreshed clean (empty remerge-diff), no status change.

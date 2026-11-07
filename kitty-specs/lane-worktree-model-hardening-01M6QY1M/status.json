@@ -574,7 +574,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Review passed: guard binding, O3-local proof, pr-mode cleanup, prune backstop; nits in /tmp/claude-0/-home-user/b39dd30a-f8d3-5041-9f9d-c4d868483fea/scratchpad/feedback-WP16-1.md",
-        "Rework: consolidation refresh merge c226d5a622 (allowlist union); --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
+        "Rework: consolidation refresh merge c226d5a622 (allowlist union); --force only bypasses the lane-behind-target freshness check, orchestrator ruling",
+        "Review passed (rework: consolidation refresh merge resolution correct; WP tests and gates green). --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
