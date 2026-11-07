@@ -25,6 +25,7 @@
   "purpose_context": "The lane, worktree and coordination model is the largest single source of friction. This Mission applies the operator rulings: one status read contract, the for_review gate reading lane branches, lane checkouts that never show status files, approval windows for single_branch, topology settled at finalize-tasks by Mission size, cleanup as the last consolidation step, plus the ADRs for short-lived checkouts and worktree-free coordination writes.",
   "purpose_tldr": "Make lanes, worktrees and the status surface simpler and safer, per the 2026-11-06 operator rulings (epic #7276).",
   "slug": "lane-worktree-model-hardening-01M6QY1M",
+  "status_phase": "1",
   "target_branch": "issue-7276-lane-worktree-hardening",
   "topology": "lanes",
   "vcs": "git",
