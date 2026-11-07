@@ -23,7 +23,6 @@ from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
-    resolve_status_surface,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
@@ -304,6 +303,27 @@ def _declared_with_recorded(
     return tuple(dict.fromkeys([*recorded.dependency_refs, *cli_refs])), dict(recorded.dependency_ref_pins)
 
 
+def _forecast_claim_status_dir(main_repo: Path, mission: str, *, json_output: bool) -> Path:
+    """The Mission dir the dry-run claim reads, from the one status read door.
+
+    Resolved read-only: the forecast never seeds or materializes a coordination surface. The
+    claim builder reads a directory, so a ref-sourced status (an empty or unmaterialized
+    coordination worktree, or a default Mission's topic branch no checkout holds) refuses with
+    the door's remedy instead of forecasting an empty history.
+    """
+    from specify_cli.status.read_surface import ref_source_remedy, resolve_status_read
+
+    surface = resolve_status_read(main_repo, mission)
+    if surface.path is not None:
+        return surface.path
+    _emit_dry_run_error(
+        error_msg=f"the Mission's status is read from {surface.ref}, which has no checkout for the forecast to read. {ref_source_remedy(surface, mission)}",
+        json_output=json_output,
+        error_code=CLAIM_REFUSED_FORECAST,
+    )
+    raise typer.Exit(1)
+
+
 def _refuse_unattributable_in_forecast(
     *,
     repo_root: Path,
@@ -337,9 +357,7 @@ def _refuse_unattributable_in_forecast(
         logger.debug("no resolvable window base for the closed-world forecast", exc_info=True)
         return
     try:
-        # The claim reads the STATUS surface the real run reads; resolved read-only here —
-        # the forecast never seeds or materializes a coordination surface.
-        status_dir = Path(resolve_status_surface(main_repo, resolved_feature)).parent
+        status_dir = _forecast_claim_status_dir(main_repo, resolved_feature, json_output=json_output)
         claim = build_approved_wp_set(
             main_repo,
             status_dir,

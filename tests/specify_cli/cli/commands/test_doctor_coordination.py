@@ -24,8 +24,8 @@ from specify_cli.cli.commands.doctor import (
 )
 from specify_cli.coordination import (
     CoordinationWorkspace,
-    register_lane_sparse_checkout,
 )
+from specify_cli.lanes.lane_checkout import exclude_lane_status_files, lane_mission_dir_name
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -168,7 +168,7 @@ def test_lane_drift_ok_when_pattern_present(
     lane_path = fresh_mission_repo / ".worktrees" / f"{MISSION_SLUG}-lane-a"
     _git(fresh_mission_repo, "worktree", "add", "-b",
          f"kitty/mission-{MISSION_SLUG}-lane-a", str(lane_path), COORD_BRANCH)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     findings = _check_lane_sparse_checkout_drift(fresh_mission_repo, _meta())
     assert any(f.severity == "ok" for f in findings)
@@ -194,7 +194,7 @@ def test_lane_drift_warns_when_pattern_edited(
     lane_path = fresh_mission_repo / ".worktrees" / f"{MISSION_SLUG}-lane-a"
     _git(fresh_mission_repo, "worktree", "add", "-b",
          f"kitty/mission-{MISSION_SLUG}-lane-a", str(lane_path), COORD_BRANCH)
-    register_lane_sparse_checkout(lane_path, MISSION_SLUG, MID8)
+    exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
 
     # Manually rewrite the sparse-checkout file to remove the exclusions.
     raw = subprocess.check_output(
