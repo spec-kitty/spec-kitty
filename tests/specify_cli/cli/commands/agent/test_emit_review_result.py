@@ -391,7 +391,7 @@ def test_emit_rejects_for_review_without_lane_commit(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     data = _extract_json(result.output)
     assert data["lane_id"] == "lane-a"
-    assert "no implementation commit" in data["error"]
+    assert "has no commit beyond" in data["error"]
     assert "WP01" in data["error"]
 
 
