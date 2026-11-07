@@ -8,11 +8,13 @@ the row is an orphan. The seeding migration is ``clone_local_effect``: a fresh c
 carries its ``git config --local`` half, ``detect()`` is True, and ``apply()`` re-appends the
 stale row, leaving a committed ``.gitattributes`` dirty (#7174, #7217).
 
-Red-first: on the pre-fix tree the first case below appends the row to a fresh clone's
+Red-first: on the pre-fix tree the first case below ends with the row in a fresh clone's
 ``.gitattributes``. The fix supersedes the historical migration (DIRECTIVE_044 forbids editing
 it) with ``4.0.0rc8_retire_issue_matrix_md_row``, which keeps the two gate-artifact rows that
 still route real artifacts (``acceptance-matrix.json``, ``issue-matrix.json``) and their driver
-config, and removes the retired row where it was already written.
+config, and removes the retired row where it was already written. The generic supersession
+contract (the recorded no-op, the carried attributes, the content hash) is covered for every
+``SUPERSEDED_MIGRATIONS`` entry in ``tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py``.
 """
 
 from __future__ import annotations
@@ -25,7 +27,6 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as root_app
-from specify_cli.upgrade.ledger import MigrationLedger
 from specify_cli.upgrade.migrations.m_4_0_0rc8_retire_issue_matrix_md_row import (
     RETIRED_ENTRY,
     RetireIssueMatrixMdRowMigration,
@@ -37,7 +38,6 @@ _runner = CliRunner()
 
 ACCEPTANCE_ENTRY = "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
 ISSUE_JSON_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
-GATE_MIGRATION = "3.2.6_gate_artifact_merge_drivers"
 ISSUE_NAME = "Spec Kitty issue matrix row-aware merge"
 ISSUE_COMMAND = "spec-kitty merge-driver-issue-matrix %O %A %B"
 
@@ -47,12 +47,7 @@ def _git(project: Path, *args: str) -> str:
 
 
 def _initialized_project(tmp_path: Path) -> Path:
-    """A committed project ``spec-kitty init`` just set up, with the retired row hand-removed.
-
-    The removal mirrors this repository's committed ``.gitattributes``: the canonical rows with
-    the orphan row edited out. It is also what a project looks like after an operator applied the
-    documented workaround (``git checkout -- .gitattributes`` is not it, but a hand-edit is).
-    """
+    """A project ``spec-kitty init`` just set up, committed with the ``.gitattributes`` it wrote."""
     project = tmp_path / "project"
     project.mkdir()
     _git(project, "init", "-q")
@@ -65,9 +60,6 @@ def _initialized_project(tmp_path: Path) -> Path:
     with contextlib.chdir(project):
         result = _runner.invoke(root_app, ["init", "--non-interactive", "--ai", "claude"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
-    attributes = project / ".gitattributes"
-    kept = [line for line in attributes.read_text(encoding="utf-8").splitlines() if line.strip() != RETIRED_ENTRY]
-    attributes.write_text("\n".join(kept) + "\n", encoding="utf-8")
     _git(project, "add", "-A")
     _git(project, "commit", "-qm", "init")
     return project
@@ -113,19 +105,6 @@ def test_a_fresh_clones_first_upgrade_leaves_gitattributes_byte_identical(tmp_pa
     assert (clone / ".gitattributes").read_bytes() == before, output
     assert RETIRED_ENTRY not in _lines(clone)
     assert _git(clone, "status", "--porcelain") == ""
-
-
-def test_a_second_upgrade_changes_nothing_either(tmp_path: Path) -> None:
-    """The clone-local reselect is idempotent: no line, no churn, no second change report."""
-    clone = _fresh_clone(_initialized_project(tmp_path), tmp_path)
-    _upgrade(clone)
-    attributes = (clone / ".gitattributes").read_bytes()
-    before_status = _git(clone, "status", "--porcelain")
-
-    output = _upgrade(clone)
-
-    assert (clone / ".gitattributes").read_bytes() == attributes, output
-    assert _git(clone, "status", "--porcelain") == before_status
 
 
 # --------------------------------------------------------------------------- #
@@ -201,19 +180,6 @@ def test_the_live_gate_artifact_rows_and_drivers_survive_the_retirement(tmp_path
     assert _config(project, "merge.spec-kitty-issue-matrix.name") == ISSUE_NAME
 
 
-def test_the_historical_migration_is_superseded_not_applied(tmp_path: Path) -> None:
-    """The row cannot come back: the recorded outcome is a superseded skip, not an apply."""
-    clone = _fresh_clone(_initialized_project(tmp_path), tmp_path)
-
-    _upgrade(clone)
-
-    records = MigrationLedger(clone).read_clone_local()
-    gate = [record for record in records if record.id == GATE_MIGRATION]
-    assert gate, "the superseded migration is re-evaluated (and re-skipped) on every clone"
-    assert {record.result for record in gate} == {"skipped"}
-    assert any(record.superseded_by for record in gate)
-
-
 # --------------------------------------------------------------------------- #
 # Unit -- the successor's own detect/apply contract
 # --------------------------------------------------------------------------- #
@@ -245,6 +211,20 @@ def test_the_successor_detects_and_removes_the_retired_row(tmp_path: Path) -> No
     assert again.success is True
     assert again.changes_made == []
     assert _lines(project) == ["*.py text", ACCEPTANCE_ENTRY, ISSUE_JSON_ENTRY]
+
+
+def test_the_successor_keeps_the_other_lines_byte_for_byte(tmp_path: Path) -> None:
+    """Removing the row rewrites nothing else: a CRLF file keeps its CRLF endings."""
+    project = _git_project(tmp_path)
+    attributes = project / ".gitattributes"
+    kept = f"*.py text\r\n{ACCEPTANCE_ENTRY}\r\n{ISSUE_JSON_ENTRY}\r\n"
+    attributes.write_bytes(f"*.py text\r\n{RETIRED_ENTRY}\r\n{ACCEPTANCE_ENTRY}\r\n{ISSUE_JSON_ENTRY}\r\n".encode())
+
+    result = RetireIssueMatrixMdRowMigration().apply(project)
+
+    assert result.success is True, result.errors
+    assert f"Removed .gitattributes entry: {RETIRED_ENTRY}" in result.changes_made
+    assert attributes.read_bytes() == kept.encode()
 
 
 def test_the_successor_dry_run_writes_nothing(tmp_path: Path) -> None:

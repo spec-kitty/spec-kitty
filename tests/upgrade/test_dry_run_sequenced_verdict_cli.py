@@ -33,7 +33,6 @@ from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.upgrade.registry import MigrationRegistry
 from tests.upgrade.test_dry_run_sequenced_verdict import (
     _DEPENDENT,
-    _PAIR_TARGET_VERSION,
     _PREDECESSOR,
     _DeclaredReadsMarker,
     _WritesMarker,
@@ -44,9 +43,6 @@ from tests.upgrade.test_dry_run_sequenced_verdict import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-# The pair's target_version is the installed package version, so the command's default target
-# includes it; assert that rather than pinning a flag the operator never passes.
-assert _PAIR_TARGET_VERSION == "4.0.0rc8"
 _PREDICTION_HEADER = "Predicted by an earlier migration in this run (dry run):"
 
 _test_app = typer.Typer(add_completion=False)

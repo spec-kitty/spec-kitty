@@ -2480,6 +2480,8 @@ module = [
     "specify_cli.invocation.errors",                # InvocationError, subclassed by op_custody.OpWriteRefused (#6564)
     "charter.offering.base",                        # BaseArtifactRepository, subclassed by MissionStepContractRepository (step_contracts)
     "specify_cli.cli.commands.charter._app",        # charter_app, whose .command() decorates charter interview
+    "specify_cli.upgrade.migrations.base",          # BaseMigration / MigrationResult, subclassed by every migration (#7217)
+    "specify_cli.upgrade.migrations._merge_driver_seeding",# MergeDriverSeedingMigration, subclassed by the merge-driver migrations (#7217)
 ]
 follow_imports = "normal"
 
