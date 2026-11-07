@@ -1,0 +1,17 @@
+{
+  "contracts": "none",
+  "contracts_rationale": "The Mission changes internal custody validation only; no external interface or contract changes.",
+  "created_at": "2026-11-07T12:26:42.230082+00:00",
+  "flattened": false,
+  "friendly_name": "Owned Mission coordination status charter custody",
+  "mid8": "01M6TZKC",
+  "mission_id": "01M6TZKC596NQ6T40DS2CHNNAZ",
+  "mission_number": null,
+  "mission_slug": "owned-charter-status-custody-01M6TZKC",
+  "mission_type": "software-dev",
+  "purpose_context": "Repair the #6788 owned lanes_with_coord advance regression by accepting only the same Mission's canonical status directory in addition to its primary Mission directory, preserving foreign-path refusal and owned primary charter resolution. Exclude the CLI startup-budget failure and #7206.",
+  "purpose_tldr": "Allow an owned Mission's canonical coordination status surface without weakening charter custody.",
+  "slug": "owned-charter-status-custody-01M6TZKC",
+  "target_branch": "issue-6788-owned-charter-status-custody",
+  "topology": "single_branch"
+}

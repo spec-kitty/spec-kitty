@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6788": {
+      "evidence_ref": "Owned coordination-status custody slice only; startup budget and #7206 excluded.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
