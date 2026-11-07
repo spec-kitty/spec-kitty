@@ -217,14 +217,18 @@ def _attribute_node_ids(node_ids: list[str], dirs_by_module: dict[str, tuple[str
     A node id counts for every module with a test directory its file sits under, so a
     directory nested in another module's directory counts for both -- exactly what each
     module's own collection would collect. Matching is by path component, so
-    ``tests/alphabet`` is not under ``tests/alpha``. Pure, so the self-mutation tests below
+    ``tests/alphabet`` is not under ``tests/alpha``. A line whose part before ``::`` is no
+    Python file is ignored. Pure, so the self-mutation tests below
     exercise it without a subprocess.
     """
     module_parts = {module: [PurePosixPath(test_dir).parts for test_dir in dirs] for module, dirs in dirs_by_module.items()}
     counts = dict.fromkeys(dirs_by_module, 0)
     orphans: list[str] = []
     for node_id in node_ids:
-        file_parts = PurePosixPath(node_id.split("::", 1)[0]).parts
+        file_part = node_id.split("::", 1)[0]
+        if not file_part.endswith(".py"):
+            continue  # A warning line that happens to hold "::" is not a test.
+        file_parts = PurePosixPath(file_part).parts
         owners = [module for module, parts in module_parts.items() if any(file_parts[: len(dir_parts)] == dir_parts for dir_parts in parts)]
         if not owners:
             orphans.append(node_id)
@@ -262,7 +266,8 @@ def _live_collected_counts(dirs_by_module: dict[str, tuple[str, ...]]) -> dict[s
     if proc.returncode not in (0, 1) or empty or orphans:
         pytest.fail(
             f"live collection over {union!r} failed (rc={proc.returncode}, {len(node_ids)} node ids parsed; "
-            f"modules with none: {empty}; node ids under no module directory: {orphans[:5]}):\n"
+            f"modules with none: {empty}; node ids under no module directory: {orphans[:5]}; "
+            f"collection errors: {[line for line in proc.stdout.splitlines() if line.startswith('ERROR ')][:10]}):\n"
             f"STDOUT tail:\n{proc.stdout[-2000:]}\nSTDERR tail:\n{proc.stderr[-2000:]}"
         )
     return counts
@@ -334,7 +339,7 @@ def test_every_registry_module_agrees_with_live_collection(
             "committed/collected length mismatch for registry module(s): "
             f"{[(m.module, m.committed, m.collected) for m in mismatches]}. The module's timings drifted "
             "without recapture (recapture via scripts/ci/capture_shard_timings.py --module <name> --write); "
-            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            f"this test runs only with {_STRICT_ENV_VAR}=1 (#7288); the scheduled recapture owns the fix.",
             strict=_strict_mode(),
         )
 
@@ -358,7 +363,7 @@ def test_charter_agrees_with_live_collection(
     if committed != collected:
         _report_drift(
             f"charter drifted: committed={committed} collected={collected} (was 6156==6156 at WP04/WP05 recapture); "
-            f"non-blocking per PR since spec-kitty#5189, strict when {_STRICT_ENV_VAR}=1.",
+            f"this test runs only with {_STRICT_ENV_VAR}=1 (#7288); the scheduled recapture owns the fix.",
             strict=_strict_mode(),
         )
 
@@ -645,7 +650,7 @@ def test_attribution_is_by_path_component_and_counts_nested_directories_for_both
     """
     import tests.architectural.test_module_length_agreement as this_module
 
-    counts, orphans = this_module._attribute_node_ids(_SYNTHETIC_IDS, _SYNTHETIC_DIRS)
+    counts, orphans = this_module._attribute_node_ids([*_SYNTHETIC_IDS, "RuntimeWarning: a::b"], _SYNTHETIC_DIRS)
 
     assert counts == {"alpha": 2, "beta": 2, "outer": 2}
     assert orphans == ["tests/alphabet/test_x.py::test_not_alpha"]
