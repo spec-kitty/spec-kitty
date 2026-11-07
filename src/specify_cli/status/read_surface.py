@@ -415,7 +415,9 @@ def _write_checkout_decision(facts: _MissionFacts) -> _Decision:
         return decision
     held_dir = _topic_holder_mission_dir(facts.repo_root, topic, facts.mission_dir_name)
     if held_dir is not None:
-        return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology, anchor=facts.primary_dir)
+        # The PRIMARY anchor is the topic holder too (WP05 obligation N1): a status write anchored
+        # on it lands where this decision reads.
+        return _path_decision(facts.repo_root, facts.mission_dir_name, held_dir, StatusReadSource.WRITE_CHECKOUT, facts.topology)
     return _Decision(
         topology=facts.topology,
         source=StatusReadSource.MISSION_BRANCH_REF,
@@ -552,6 +554,16 @@ def _topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str
         return None
     held_dir = holder / _KITTY_SPECS / mission_dir_name
     return held_dir if held_dir.is_dir() else None
+
+
+def checkout_holding_branch(repo_root: Path, branch: str) -> Path | None:
+    """Public face of the one "which checkout holds *branch*" probe (FR-061)."""
+    return _checkout_holding_branch(repo_root, branch)
+
+
+def topic_holder_mission_dir(repo_root: Path, topic: str, mission_dir_name: str) -> Path | None:
+    """Public face of the topic-holder lookup the planning-read resolver shares (FR-061)."""
+    return _topic_holder_mission_dir(repo_root, topic, mission_dir_name)
 
 
 def resolve_primary_partition_dir(repo_root: Path, mission: str) -> Path | None:

@@ -248,11 +248,24 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
     predicate is left to each caller.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
-        return
-    for entry in sorted(specs_dir.iterdir()):
-        if entry.is_dir():
-            yield entry
+    from specify_cli.missions._read_path_resolver import coord_worktree_mission_names
+
+    names = {entry.name for entry in specs_dir.iterdir() if entry.is_dir()} if specs_dir.exists() else set()
+    # FR-061 (#7282): a settled default Mission's PRIMARY partition lives only in the
+    # checkout holding its topic branch (the coordination worktree).
+    names.update(coord_worktree_mission_names(repo_root))
+    for name in sorted(names):
+        yield _topic_holder_or(repo_root, specs_dir / name)
+
+
+def _topic_holder_or(repo_root: Path, entry: Path) -> Path:
+    """*entry*, or the topic holder's copy for an unlanded default Mission whose root copy has no meta."""
+    from specify_cli.missions._read_path_resolver import default_mission_topic_dir
+
+    if (entry / "meta.json").is_file():
+        return entry
+    held = default_mission_topic_dir(repo_root, entry)
+    return held if held is not None else entry
 
 
 def iter_kitty_specs_children(repo_root: Path) -> list[Path]:

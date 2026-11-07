@@ -705,7 +705,7 @@ def _commit_partition_group(
             )
     else:
         # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = owned.owned_root if owned is not None else repo_root, files
+        worktree_root, commit_paths = owned.owned_root if owned is not None else _primary_commit_root(repo_root, placement.ref, files), files
 
     if not commit_paths:
         return _classify_no_commit_paths(repo_root, files, use_coord=use_coord, placement=placement)
@@ -1154,6 +1154,23 @@ def _merge_group_results(
             return replace(result, commit_hashes=all_commit_hashes, surfaces=all_surfaces)
 
     return replace(results[0], commit_hashes=all_commit_hashes, surfaces=all_surfaces)
+
+
+def _primary_commit_root(repo_root: Path, ref: str, files: tuple[Path, ...]) -> Path:
+    """The checkout a PRIMARY commit on *ref* runs in (FR-061, Mission lane-worktree-model-hardening WP14).
+
+    The repository root checkout, unless another checkout holds *ref* and every file
+    lies inside it: a settled ``topology_source: default`` Mission's PRIMARY partition
+    is its topic branch, which the coordination worktree holds once the root checkout
+    moved back to ``create_return_branch``.
+    """
+    from specify_cli.status.read_surface import checkout_holding_branch
+
+    holder = checkout_holding_branch(repo_root, ref) if files else None
+    if holder is None or holder.resolve() == repo_root.resolve():
+        return repo_root
+    resolved = holder.resolve()
+    return holder if all(path.resolve().is_relative_to(resolved) for path in files) else repo_root
 
 
 def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
