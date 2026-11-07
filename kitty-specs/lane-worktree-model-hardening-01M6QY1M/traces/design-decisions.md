@@ -169,3 +169,14 @@ and #7285 (FR-092 core pin bump deferred). The `issue_matrix_verdict_terminality
 those two.
 
 - [2026-11-07][closeout] Reconciliation after the squash flagged 3 auto-merged blobs from the clean refresh merges on lanes g and p (no lane authored the combined file; their approval stamps predate the merges). Ruling: re-review and re-approve every lane whose refresh merge is not yet covered by an approval stamp: WP10 (lane-g 621c3c1d60), WP20 (lane-p 00b834666f), WP07 (lane-d 8215731993), WP18 (lane-o fd9450991b); moved to for_review (--force on for_review only). Consolidate now runs from a frozen detached CLI worktree (editable install rewrote itself mid-run).
+
+## [closeout 2026-11-07] consolidated: landing 1a6a007820, mission_number 251
+
+After WP10, WP20, WP07 and WP18 were approved again on their refresh merges (topic 20a6dec300),
+`consolidate --keep-branch --keep-worktree --allow-sparse-checkout` was run from a frozen detached CLI
+worktree of 20a6dec300 (`PYTHONPATH`, packs synced). It exited 0: squash landing
+1a6a007820b9519cd64b70acff28e2e6850c5991 on `issue-7276-lane-worktree-hardening`, mission_number=251,
+done transitions and the retrospective recorded, branches and worktrees kept. No textual conflict
+came up. CONTRACT_VERSION on the landing is "1.25.0" (`orchestrator_api/envelope.py`), as reached
+through the lane refreshes. The stale_check.py merge was resolved earlier in the WP17 rework
+(fcc8e08040). The frozen worktree was removed afterwards. Pushed (topic tip ec684095d8).

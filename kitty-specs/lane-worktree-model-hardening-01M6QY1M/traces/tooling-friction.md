@@ -143,3 +143,14 @@ their approval stamps predate the merges and the merges are not reviewed depende
 (#7307). Lanes c, k and m were re-approved on their refresh merges and are not flagged.
 The rollback restored target, mission and coordination branches and rebaselined the record; nothing
 landed (d757d96 and the number 251 are gone with it).
+
+## [closeout 2026-11-07] post-landing gates
+
+- `make test-fast`: 2896 passed, 7 skipped. `ruff check .`: clean. `ruff format --check .`: 4120 files formatted.
+- `test_no_dead_symbols.py -p no:xdist`: 37 passed. The 8 expected WP15 lane_cleanup reds did not appear.
+- `test_no_worktree_name_guess.py`: 4 failed, 13 passed. The known hits are `_read_path_resolver.py:2138`
+  (name-guess and def-use) and `topology_settlement.py:364` (compose). One hit is new:
+  `workspace/landed_worktrees.py:469` re-slices `mission_id[:8]` instead of `resolve_mid8`; WP16 commit
+  ce9e5f8a5e introduced it. Not fixed (closeout scope).
+- `tests/consolidation/test_forecast_squash_parity.py::test_forecast_renders_a_content_refuse_as_a_claim_refusal`
+  fails as expected: it patches `forecast.resolve_status_surface`, which WP07 removed. Not fixed.
