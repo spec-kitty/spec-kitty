@@ -190,6 +190,26 @@ def test_retention_is_reported_apart_from_kept(repo: _Repo) -> None:
     assert report.to_json()[0]["outcome"] == "retained_by_policy"
 
 
+def test_branch_only_retention_report_says_the_worktree_was_removed(tmp_path: Path) -> None:
+    """With only ``retain_branches`` the worktree goes; the line must say so, not read as a full retain."""
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    item = LaneCleanupItem(lane_id="lane-a", worktree=worktree, branch="kitty/mission-x-lane-a")
+    seen: list[LaneCleanupItem] = []
+
+    class Removing:
+        def remove(self, item: LaneCleanupItem, *, landing: object) -> LaneCleanupResult:
+            seen.append(item)
+            return LaneCleanupResult(item=item, outcome=LaneCleanupOutcome.REMOVED)
+
+    report = apply([item], Removing(), landing=_LANDING, retention=LaneRetention(remove_worktree=True, delete_branch=False))
+
+    assert seen == [LaneCleanupItem(lane_id="lane-a", worktree=worktree, branch=None)], "only the worktree leg runs"
+    assert report.results[0].outcome is LaneCleanupOutcome.RETAINED_BY_POLICY
+    line = report.render_lines()[1]
+    assert "worktree removed; branch retained, retain_branches" in line, line
+
+
 def test_no_process_proof_keeps_the_worktree(repo: _Repo) -> None:
     """NFR-008 simulated: off Linux the probe is unavailable, so a lane worktree is kept and reported."""
     worktree = repo.root / ".worktrees" / f"{repo.manifest.mission_slug}-lane-a"
