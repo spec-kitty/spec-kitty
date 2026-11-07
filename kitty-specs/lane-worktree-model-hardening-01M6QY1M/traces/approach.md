@@ -29,3 +29,5 @@
 - WP20 c2 approved (closeout nits): restore positive G2 mission_number assertion (==1 + baseline_merge_commit ancestry); cycle-1 commit message misnames lands_topic_branch as lanes_topic_branch.
 
 - WP17 approved (closeout): 3 reds in tests/architectural/test_no_worktree_name_guess.py at _read_path_resolver.py:2138 and topology_settlement.py:364, introduced via lane-k (WP14 f385c7e5b1) / lane-p. Must be fixed before consolidation.
+
+- WP18 approved. Closeout (ruled out of WP18): WP10 error codes into contracts/error-codes.yaml; MISSION_BRANCH_REF in ADR + data-model; WP12 ADR S8 text correction. Friction: scripts/docs checks need PYTHONPATH=<worktree>.

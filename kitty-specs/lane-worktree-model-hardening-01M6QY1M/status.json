@@ -614,7 +614,8 @@
       "last_transition_at": "2026-11-07T01:26:49.197111+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Docs pages (topology size default, topic branch, lane checkouts/status read door/cleanup, worktree vocabulary + migration outcomes) and 12 changelog fragments #7277-#7285"
+        "Docs pages (topology size default, topic branch, lane checkouts/status read door/cleanup, worktree vocabulary + migration outcomes) and 12 changelog fragments #7277-#7285",
+        "Review passed: docs and 12 fragments match shipped lane code; gates green; WP10/WP12 leftovers go to closeout"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
