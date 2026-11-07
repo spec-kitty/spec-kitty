@@ -458,7 +458,13 @@ def test_cli_refuses_migrate_too(tmp_path: Path) -> None:
 @pytest.mark.parametrize("invoking_checkout", ["primary", "owned"])
 def test_cli_creates_in_migrated_owned_checkout_when_primary_is_legacy(tmp_path: Path, invoking_checkout: str) -> None:
     root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
-    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["config", "user.name", "t"],
+        ["config", "user.email", "t@t"],
+        ["add", "-A"],
+        ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+    ):
         subprocess.run(["git", *args], cwd=root, check=True)
     owned = tmp_path / "owned"
     subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
@@ -622,7 +628,13 @@ def test_cli_startup_claim_is_not_reused_by_later_commands(tmp_path: Path, first
     from specify_cli.core.owned_mission import resolve_owned_create_root
 
     root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
-    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["config", "user.name", "t"],
+        ["config", "user.email", "t@t"],
+        ["add", "-A"],
+        ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+    ):
         subprocess.run(["git", *args], cwd=root, check=True)
     owned = tmp_path / "owned"
     subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
