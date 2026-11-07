@@ -325,6 +325,14 @@ def _primary_anchored_feature_dir(repo_root: Path, explicit_feature: str | None)
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not dir_name:
         return None
+    # FR-061 (Mission lane-worktree-model-hardening WP05): a ``topology_source: default``
+    # Mission's PRIMARY partition lives on its topic branch until it lands; the one read door
+    # names that location. ``None`` keeps today's (target) placement for every other Mission.
+    from specify_cli.status.read_surface import resolve_primary_partition_dir
+
+    topic_dir = resolve_primary_partition_dir(repo_root, dir_name)
+    if topic_dir is not None:
+        return topic_dir
     # gate-read-surface-completion WP01 / FR-009: the planning-read anchor flows
     # through the ONE kind-aware chokepoint (``_planning_read_dir`` → the seam),
     # not a parallel ``primary_feature_dir_for_mission`` call. SPEC is a PRIMARY

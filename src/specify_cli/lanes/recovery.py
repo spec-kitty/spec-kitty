@@ -694,15 +694,25 @@ def recover_worktree(
 ) -> None:
     """Recover a lane worktree from an existing branch.
 
-    Uses `git worktree add <path> <branch>` (WITHOUT -b) to attach
-    to the pre-existing branch.
+    Attaches to the pre-existing branch (never ``-b``) through the one
+    lane-checkout helper (Mission WP09, FR-021): the recreated checkout gets
+    the lane-tip hook and the status-file exclusion like every other route.
     """
+    from specify_cli.lanes.lane_checkout import LaneCheckoutRoute, resolve_lane_mission_dir_name
     from specify_cli.lanes.worktree_allocator import _recover_lane_worktree
 
     worktree_path, _lane_branch = predict_lane_worktree(
         repo_root, mission_slug, state.lane_id
     )
-    _recover_lane_worktree(repo_root, worktree_path, state.branch_name)
+    _recover_lane_worktree(
+        repo_root,
+        worktree_path,
+        state.branch_name,
+        mission_slug=mission_slug,
+        mission_dir_name=resolve_lane_mission_dir_name(repo_root, mission_slug),
+        lane_id=state.lane_id,
+        route=LaneCheckoutRoute.RECREATE,
+    )
 
 
 def recover_context(

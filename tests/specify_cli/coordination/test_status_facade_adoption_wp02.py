@@ -139,11 +139,10 @@ def sparse_lane_repo(tmp_path: Path) -> tuple[Path, Path]:
 
     # Simulate the lane sparse-checkout policy: the event log and snapshot are
     # physically absent from the lane filesystem (this is the condition under
-    # which the old derivation misread ``genesis``). We remove them directly
-    # rather than via ``register_lane_sparse_checkout`` because that helper keys
-    # its exclusion patterns on the ``<slug>-<mid8>`` directory name, whereas
-    # this flattened fixture uses a bare-slug mission dir (matching the real
-    # execution-context-unification mission layout).
+    # which the old derivation misread ``genesis``). We remove them directly,
+    # which keeps this flattened bare-slug fixture (matching the real
+    # execution-context-unification mission layout) independent of the
+    # sparse-checkout machinery.
     lane_feature_dir = lane / "kitty-specs" / _MISSION_SLUG
     (lane_feature_dir / "status.events.jsonl").unlink()
     (lane_feature_dir / "status.json").unlink()
