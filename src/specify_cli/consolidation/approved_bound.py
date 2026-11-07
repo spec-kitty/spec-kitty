@@ -339,18 +339,40 @@ def _maps_to_code_lane(repo_root: Path, mission_slug: str, wp_id: str) -> bool:
     return lane is not None and not is_planning_lane(lane)
 
 
+def _approval_is_bounded(repo_root: Path, mission_slug: str, wp_id: str) -> bool:
+    """True iff ``consolidate`` bounds *wp_id*'s approval by its stamp; any lookup failure reads as False.
+
+    Two shapes are bounded: a work package in a code (non-planning) lane
+    (:func:`_maps_to_code_lane`), and every work package of a Mission whose STORED topology
+    is ``single_branch`` with a minted Mission branch (S8, #7283). A commit-to-target
+    ``single_branch`` Mission (write branch == target) and a ``lanes`` planning lane are
+    not bounded (FR-078).
+    """
+    if _maps_to_code_lane(repo_root, mission_slug, wp_id):
+        return True
+    from specify_cli.lanes.single_branch_landing import minted_write_branch
+
+    try:
+        return minted_write_branch(repo_root, mission_slug) is not None
+    except Exception:
+        # The warning is advisory and printed after the transition landed: a lookup failure must not fail it.
+        logger.debug("could not read meta.json for %s to check %s's approval stamp", mission_slug, wp_id, exc_info=True)
+        return False
+
+
 def unstamped_approval_warning(event: StatusEvent | None, *, repo_root: Path, mission_slug: str) -> str | None:
     """The one-line warning for an approval that was persisted without an approval stamp, else ``None``.
 
     The stamp is best-effort (the status pipeline never refuses a transition for want of
     one), while ``consolidate`` refuses an approved work package that has none. This is
     what the shells that persist an approval print, so the operator learns it at approval
-    time. Only a work package that maps to a code lane is warned about: a planning lane is
-    never stamped and never bounded.
+    time. Only a work package whose approval is bounded (:func:`_approval_is_bounded`) is
+    warned about: a ``lanes`` planning lane and a commit-to-target ``single_branch`` Mission
+    are never bounded.
     """
     if event is None or not _is_approval_transition(event) or stamp_of(event) is not None:
         return None
-    if not _maps_to_code_lane(repo_root, mission_slug, event.wp_id):
+    if not _approval_is_bounded(repo_root, mission_slug, event.wp_id):
         return None
     return (
         f"Warning: no lane head could be recorded for {event.wp_id}'s approval; `spec-kitty consolidate` will refuse it "
@@ -400,11 +422,12 @@ def approval_warnings(event: StatusEvent | None, load_events: Callable[[], Seque
     already says an unstamped work package refuses. Every other approval, an arbiter override
     or a forced approval that could not be classified included, gets
     :func:`unstamped_approval_warning` when it recorded no approval stamp. Neither line prints
-    for a work package outside a code lane: a planning lane (and every ``single_branch`` lane)
-    is never stamped and never bounded, so ``consolidate`` has nothing to say about it.
+    for a work package whose approval is not bounded (:func:`_approval_is_bounded`): a
+    ``lanes`` planning lane and a commit-to-target ``single_branch`` Mission, which
+    ``consolidate`` does not bound, so it has nothing to say about them.
     """
     try:
-        if event is None or not _maps_to_code_lane(repo_root, mission_slug, event.wp_id):
+        if event is None or not _approval_is_bounded(repo_root, mission_slug, event.wp_id):
             return []
         forced = forced_approval_warning(event, load_events)
         if forced is not None:
@@ -427,7 +450,7 @@ def commits_beyond(repo_root: Path, tip: str, excluded: Sequence[str]) -> list[s
     validated tip). Raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`
     when a ref does not resolve (fail-closed, as every sibling probe).
     """
-    beyond = commits_in_range(repo_root, excluded[0], tip)
+    beyond: list[str] = commits_in_range(repo_root, excluded[0], tip)
     for ref in excluded[1:]:
         if not beyond:
             break
@@ -462,6 +485,30 @@ def resolves_commit(repo_root: Path, ref: str) -> bool:
     return True
 
 
+def approval_stamps(events: Sequence[StatusEvent], wp_ids: Iterable[str]) -> dict[str, str | None]:
+    """``{wp_id: approval stamp or None}`` for *wp_ids*, in the given order (:func:`approval_stamp` each)."""
+    return {wp_id: approval_stamp(events, wp_id) for wp_id in wp_ids}
+
+
+def stamp_refusal(repo_root: Path, *, stamps: Mapping[str, str | None], lane_id: str, branch: str, tip: str | None = None) -> BoundRefusal | None:
+    """Refuse when an approval stamp in *stamps* is missing or not on the branch, else ``None``.
+
+    The stamp-resolution half of :func:`check_lane`: every work package with no stamp
+    refuses together (``APPROVAL_STAMP_MISSING``), before any reachability probe; else the
+    first stamp, in *stamps* order, that *tip* (default *branch*) does not reach refuses
+    (``APPROVAL_STAMP_NOT_ON_LANE``). A probe error raises
+    :class:`~specify_cli.consolidation.git_probes.GitProbeError`.
+    """
+    missing = tuple(wp_id for wp_id, stamp in stamps.items() if stamp is None)
+    if missing:
+        return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, lane_id, branch, missing)
+    lane_tip = tip or branch
+    for wp_id, stamp in stamps.items():
+        if stamp is not None and not sha_reachable_from(repo_root, stamp, lane_tip):
+            return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, lane_id, branch, (wp_id,), stamp=stamp)
+    return None
+
+
 def check_lane(
     repo_root: Path,
     *,
@@ -491,13 +538,10 @@ def check_lane(
     if not commits_in_range(repo_root, claim_base, lane_tip):
         return None
     approved = tuple(sorted(approved_wp_ids))
-    stamps = {wp_id: approval_stamp(events, wp_id) for wp_id in approved}
-    missing = tuple(wp_id for wp_id, stamp in stamps.items() if stamp is None)
-    if missing:
-        return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_MISSING, lane_id, branch, missing)
-    for wp_id, stamp in stamps.items():
-        if stamp is not None and not sha_reachable_from(repo_root, stamp, lane_tip):
-            return BoundRefusal(BoundRefusalCode.APPROVAL_STAMP_NOT_ON_LANE, lane_id, branch, (wp_id,), stamp=stamp)
+    stamps = approval_stamps(events, approved)
+    refusal = stamp_refusal(repo_root, stamps=stamps, lane_id=lane_id, branch=branch, tip=lane_tip)
+    if refusal is not None:
+        return refusal
     covered = [stamp for stamp in stamps.values() if stamp is not None]
     exempt = lane_exempt_commits(repo_root, claim_base, anchors)
     beyond = [sha for sha in commits_beyond(repo_root, lane_tip, [claim_base, *covered]) if sha not in exempt]
@@ -520,6 +564,7 @@ __all__ = [
     "BoundRefusal",
     "BoundRefusalCode",
     "approval_stamp",
+    "approval_stamps",
     "approval_warnings",
     "check_lane",
     "commits_beyond",
@@ -529,4 +574,5 @@ __all__ = [
     "refusal_codes",
     "render_refusals",
     "resolves_commit",
+    "stamp_refusal",
 ]
