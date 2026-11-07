@@ -70,13 +70,13 @@
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-007 Read-contract ADR: an ADR or amendment that records the contract and explicitly reverses `coord-artifact-single-home-01M3V4BE#FR-017` and `coord-artifact-single-home-01M3V4BE#C-002` (the loud repository-root fallback for an empty coordination surface), so that the behaviour change is governed.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-2-one-status-read-contract.md (reverses coord-artifact-single-home-01M3V4BE#FR-017 and #C-002, lines ~164-166); docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md 'Amendment 2026-11-06: superseded by the one status read contract'; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP01-adr-status-read-contract/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:11:59.209985+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-010",
