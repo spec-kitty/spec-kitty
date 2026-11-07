@@ -380,13 +380,13 @@
     },
     {
       "criterion_id": "FR-054",
-      "description": "Verify FR-054 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-054 Settled once, before any WP starts: the topology settled only at the first finalize, before finalize's first status write and before any WP is claimed, so that no lane or WP is ever re-homed. Re-finalize, the legacy tasks-finalize repair path and doctor rebuilds never re-decide, and growth after settlement keeps the settled topology.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_refinalize_never_redecides; lane-k:tests/specify_cli/cli/commands/agent/test_finalize_topology_settlement.py::test_repair_paths_never_settle; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP14-s7-settlement-at-first-finalize/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:37.129599+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-055",
