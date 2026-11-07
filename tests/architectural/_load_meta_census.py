@@ -215,6 +215,13 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # also reached from `warn_if_sparse_once`, which must never break the
     # command that called it. Deliberately silent, like its sibling above.
     ("src/specify_cli/git/sparse_checkout.py", "_policy_from_lane_worktree"): (1, "silent-by-contract"),
+    # The legacy probe of the lane status exclusion (#7316 landing): an unreadable
+    # meta.json reads as None, which is never legacy, so the exclusion still applies,
+    # exactly as before the probe existed and as the transaction's own legacy read
+    # (``legacy_resolution._load_mission_meta``) does. A fail-closed read would stop
+    # lane allocation and the upgrade migration on a corrupt meta.json.
+    ("src/specify_cli/lanes/lane_checkout.py", "_mission_is_genuinely_legacy"): (1, "silent-by-contract"),
+    ("src/specify_cli/lanes/lane_checkout.py", "mission_code_lanes"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
     # #5135: the #4474 / FR-011 primary-tree fallback for the mission_number
