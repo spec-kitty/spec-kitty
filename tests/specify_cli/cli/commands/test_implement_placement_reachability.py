@@ -639,26 +639,41 @@ def test_merged_mission_with_torn_down_coordination_branch_rerun_dirty(build: Ca
 
 
 # ---------------------------------------------------------------------------
-# Row 6: refused before placement is ever consulted
+# Row 6: the claim reads the committed coordination branch (ADR 2026-11-06-2, N4)
 # ---------------------------------------------------------------------------
+#
+# Re-pinned by WP06 of mission lane-worktree-model-hardening. These two rows used to pin a
+# refusal ("WP WP01 is not finalized") for a coordination worktree that is absent or empty.
+# That refusal was a false one: the Mission IS finalized, and its finalized log sits on the
+# committed coordination branch. The claim preflight read the absent / empty worktree path as
+# an empty history. The one status read door reads the committed branch instead, so the claim
+# now sees WP01 seeded and implement proceeds exactly as on a healthy coordination Mission
+# (the planning commit materializes the coordination worktree). A Mission that is genuinely
+# not finalized on its coordination branch is still refused (the row after these two).
 
 
-def test_unmaterialized_coordination_worktree_is_refused_as_not_finalized(build: Callable[[str], Built]) -> None:
+def test_unmaterialized_coordination_worktree_claims_from_the_committed_branch(build: Callable[[str], Built]) -> None:
     built = build("coord")
     remove_coord_worktrees(built)
     make_dirty(built)
 
     outcome = run_implement(built)
 
-    assert_outcome(outcome, exit_code=1, commits=(), status=(DIRTY_SPEC, UNTRACKED_TRACES), present=(NOT_FINALIZED,))
+    assert_outcome(
+        outcome,
+        exit_code=0,
+        commits=(commit(COORD, TRACE), commit("topic", SPEC)),
+        status=(UNTRACKED_TRACES,),
+        present=(COORD_SUCCESS,),
+        absent=(NOT_FINALIZED,),
+    )
 
 
-def test_empty_coordination_worktree_is_refused_as_not_finalized(build: Callable[[str], Built]) -> None:
+def test_empty_coordination_worktree_claims_from_the_committed_branch(build: Callable[[str], Built]) -> None:
     """``CoordState.EMPTY``: the coord worktree root exists and is on its declared ref, but its
-    feature dir was never materialized. Distinct from ``UNMATERIALIZED`` (whole worktree absent,
-    above) and from the branch-mismatch guard (Row 4): the probe reaches ``EMPTY`` only after the
-    worktree passes the ref check, so this pins that a half-materialized coord worktree still fails
-    closed before any commit rather than being mistaken for a healthy, resolvable surface.
+    feature dir is gone. Distinct from ``UNMATERIALIZED`` (whole worktree absent, above) and from
+    the branch-mismatch guard (Row 4): the probe reaches ``EMPTY`` only after the worktree passes
+    the ref check. The claim reads the coordination branch's finalized log, never an empty one.
     """
     built = build("coord")
     empty_coord_worktrees(built)
@@ -668,6 +683,34 @@ def test_empty_coordination_worktree_is_refused_as_not_finalized(build: Callable
     # same outcome): the shared probe must classify the emptied worktree as EMPTY before the run.
     meta = built.meta()
     assert probe_coord_state(built.repo, built.slug, str(meta["mid8"]), coordination_branch=built.coordination_branch) is CoordState.EMPTY
+
+    outcome = run_implement(built)
+
+    # The write side restores the emptied Mission dir from the branch tip and carries the
+    # untracked trace in its "seed coordination surface" commit (not a planning commit), so
+    # only the PRIMARY ``spec.md`` planning commit is counted and the tree ends clean.
+    assert_outcome(
+        outcome,
+        exit_code=0,
+        commits=(commit("topic", SPEC),),
+        status=(),
+        present=(COORD_SUCCESS,),
+        absent=(NOT_FINALIZED,),
+    )
+    assert git(built.repo, "show", f"{built.coordination_branch}:kitty-specs/{built.slug}/{TRACE}")
+
+
+def test_unfinalized_coordination_branch_is_refused_as_not_finalized(build: Callable[[str], Built]) -> None:
+    """The real "not finalized" condition still refuses: the committed coordination log holds no
+    seed for WP01. With the worktree absent the claim reads that branch, so the refusal is the
+    branch's own verdict, not an artefact of a missing checkout.
+    """
+    built = build("coord")
+    coord_worktree = built.coord_worktrees()[0]
+    (coord_worktree / "kitty-specs" / built.slug / "status.events.jsonl").write_text("", encoding="utf-8")
+    git(coord_worktree, "commit", "-qam", "state: coordination log without the finalize seed")
+    remove_coord_worktrees(built)
+    make_dirty(built)
 
     outcome = run_implement(built)
 

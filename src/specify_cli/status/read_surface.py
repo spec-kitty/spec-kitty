@@ -3,7 +3,7 @@
 ADR ``docs/adr/4.x/2026-11-06-2-one-status-read-contract.md`` (FR-001, FR-003, FR-004, FR-061,
 NFR-001). :func:`resolve_status_read` is the only way a status read finds its source; readers
 consume the returned :class:`StatusReadSurface` through :func:`read_status_events`,
-:func:`read_status_stream` and :func:`materialize_status`. Writers keep the write seam.
+:func:`read_status_stream`, :func:`read_status_text` and :func:`materialize_status`. Writers keep the write seam.
 
 Sources (checked in this order):
 
@@ -50,6 +50,10 @@ if TYPE_CHECKING:
 __all__ = [
     "materialize_status",
     "read_status_events",
+    "read_status_stream",
+    "read_status_text",
+    "ref_source_remedy",
+    "resolve_committed_status_read",
     "resolve_primary_partition_dir",
     "resolve_status_read",
 ]
@@ -191,6 +195,43 @@ def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout |
         )
     root = owned.repository_root if owned is not None else repo_root
     return decide_status_read(root, mission).surface()
+
+
+def resolve_committed_status_read(repo_root: Path, mission: str) -> StatusReadSurface | None:
+    """The committed coordination ref of *mission*, read explicitly (never the worktree file).
+
+    For a durable-history reader (consolidation resume progress, FR-007) that must not count
+    roll-backable worktree bytes. Returns a ``COORD_BRANCH_REF`` surface whatever the
+    coordination worktree's state, or ``None`` when there is no committed history to read:
+    no readable ``meta.json``, a topology without coordination, or a coordination ref that
+    names no object (absent branch, or *repo_root* not a git repository). A ref that exists but
+    cannot be read raises ``StatusSurfaceRefUnreadable`` from the read functions (FR-004).
+    """
+    from specify_cli.coordination.status_service import ref_names_object
+    from specify_cli.coordination.surface_resolver import _coord_mid8
+    from specify_cli.core.paths import load_meta_fail_closed
+    from specify_cli.missions._read_path_resolver import coord_feature_dir, normalized_status_read_root
+
+    with normalized_status_read_root(_reanchor_coordination_worktree(repo_root)) as root:
+        _candidate, dir_name, primary_dir = _locate_mission(root, mission)
+        meta = load_meta_fail_closed(primary_dir) if primary_dir.is_dir() else None
+        if meta is None:
+            return None
+        facts = _facts(root, dir_name, primary_dir, meta, None)
+        if not routes_through_coordination(facts.topology) or facts.coord_branch is None:
+            return None
+        ref = f"{_HEADS_PREFIX}{facts.coord_branch}"
+        if not ref_names_object(root, ref):
+            return None
+        coord_dir: Path = coord_feature_dir(root, dir_name, _coord_mid8(dict(meta), dir_name, root))
+        return StatusReadSurface(
+            topology=facts.topology,
+            source=StatusReadSource.COORD_BRANCH_REF,
+            mission_dir_name=coord_dir.name,
+            path=None,
+            repo_root=root,
+            ref=ref,
+        )
 
 
 def decide_status_read(
@@ -551,6 +592,20 @@ def _ref_text(surface: StatusReadSurface) -> str | None:
     return None if result.data is None else result.data.decode("utf-8", errors="replace")
 
 
+def read_status_text(surface: StatusReadSurface) -> str | None:
+    """The raw log text at the surface's declared source, or ``None`` when there is no log.
+
+    For readers that need every line of ``status.events.jsonl``, not only lane transitions and
+    annotations (e.g. the retrospective gate's ``retrospective.*`` events). Read only; a ref read
+    reuses the door's prefetched read (NFR-001) and an unreadable ref raises
+    ``StatusSurfaceRefUnreadable`` (never an empty history).
+    """
+    if surface.path is None:
+        return _ref_text(surface)
+    events_path = surface.path / _EVENTS_FILENAME
+    return events_path.read_text(encoding="utf-8") if events_path.is_file() else None
+
+
 def read_status_stream(surface: StatusReadSurface) -> EventStream:
     """Transitions and annotations from the surface's declared source (read only)."""
     from specify_cli.status import EventStream, read_event_stream, read_event_stream_from_text
@@ -568,6 +623,22 @@ def read_status_stream(surface: StatusReadSurface) -> EventStream:
 def read_status_events(surface: StatusReadSurface) -> list[StatusEvent]:
     """Lane transitions from the surface's declared source (read only)."""
     return list(read_status_stream(surface).transitions)
+
+
+def ref_source_remedy(surface: StatusReadSurface, mission_slug: str) -> str:
+    """How an operator gives a ref-sourced status a checkout, for a command that needs a file.
+
+    ``COORD_BRANCH_REF``: ``spec-kitty materialize`` materializes the coordination worktree
+    (it adds an absent one and restores an empty one from the branch tip), after which the door
+    reads ``COORD_WORKTREE``. ``MISSION_BRANCH_REF``: no checkout holds the Mission topic
+    branch, so the operator checks it out. A path source needs no remedy (``ValueError``).
+    """
+    if surface.ref is None:
+        raise ValueError(f"{surface.source} reads a path; it needs no checkout remedy")
+    if surface.source is StatusReadSource.MISSION_BRANCH_REF:
+        branch = surface.ref.removeprefix(_HEADS_PREFIX)
+        return f"Check out the Mission branch with 'git switch {branch}' (or 'git worktree add <path> {branch}'), then re-run."
+    return f"Materialize the coordination worktree with 'spec-kitty materialize --mission {mission_slug}', then re-run."
 
 
 def materialize_status(surface: StatusReadSurface) -> StatusSnapshot:

@@ -519,18 +519,21 @@ def test_resolve_run_status_dir_returns_the_write_location_path(tmp_path: Path) 
     assert ex._resolve_run_status_dir(seam) == tmp_path / "kitty-specs" / "m"
 
 
-def test_primary_mission_is_merged_reads_the_merge_marker_and_never_raises(tmp_path: Path) -> None:
+def test_landed_signal_reads_the_merge_marker_and_never_raises(tmp_path: Path) -> None:
+    """``phase_advance`` delegates its landed check to ``mission_runtime.mission_has_landed`` (WP07)."""
     import json
 
-    assert phase_advance._primary_mission_is_merged(tmp_path) is False  # no meta.json
+    from mission_runtime import mission_has_landed
+
+    assert mission_has_landed(tmp_path) is False  # no meta.json
     (tmp_path / "meta.json").write_text("{not json", encoding="utf-8")
-    assert phase_advance._primary_mission_is_merged(tmp_path) is False  # corrupt meta reads as not merged
+    assert mission_has_landed(tmp_path) is False  # corrupt meta reads as not merged
     (tmp_path / "meta.json").write_text(json.dumps({"mission_slug": "m"}), encoding="utf-8")
-    assert phase_advance._primary_mission_is_merged(tmp_path) is False
+    assert mission_has_landed(tmp_path) is False
     (tmp_path / "meta.json").write_text(
         json.dumps({"mission_slug": "m", "merged_at": "2026-10-02T12:00:00+00:00"}), encoding="utf-8"
     )
-    assert phase_advance._primary_mission_is_merged(tmp_path) is True
+    assert mission_has_landed(tmp_path) is True
 
 
 def test_resolve_run_status_surface_uses_run_feature_dir_unless_completed(tmp_path: Path) -> None:
