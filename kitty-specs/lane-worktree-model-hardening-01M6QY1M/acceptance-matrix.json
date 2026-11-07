@@ -520,13 +520,13 @@
     },
     {
       "criterion_id": "FR-076",
-      "description": "Verify FR-076 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-076 No contract change for S8: S8 refusals through `consolidate-mission` to arrive as today's `PREFLIGHT_FAILED` with the reused codes in `preflight_error_codes`, so that my integration needs no change.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-i:tests/orchestrator_api/test_single_branch_bound_preflight.py::test_orchestrator_preflight_failed_carries_reused_code; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:45.638646+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-077",
