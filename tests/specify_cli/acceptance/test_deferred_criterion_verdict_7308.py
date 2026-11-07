@@ -35,6 +35,15 @@ from tests.specify_cli.acceptance.test_acceptance_verdict_command import _git, _
 _SLUG = "deferred-verdict-mission"
 
 
+def _invoke(**kwargs: Any) -> int:
+    """Run the command; return its exit code (0 when it returns normally)."""
+    try:
+        acceptance_verdict(mission=_SLUG, criterion="FR-001", json_output=True, **kwargs)
+    except typer.Exit as exc:
+        return int(exc.exit_code or 0)
+    return 0
+
+
 def _criterion(cid: str, verdict: str, **extras: str) -> AcceptanceCriterion:
     return AcceptanceCriterion(
         criterion_id=cid,
@@ -163,23 +172,18 @@ class TestAcceptanceVerdictDeferredFlag:
             acceptance_verdict(mission=_SLUG, criterion="FR-001", result="pass", reason="x", json_output=True)
         assert exc.value.exit_code == 2
 
-    def test_deferred_recorded_with_description_and_notes(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_deferred_recorded_with_description_and_notes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = self._seed(tmp_path, monkeypatch)
-        try:
-            acceptance_verdict(
-                mission=_SLUG,
-                criterion="FR-001",
+        assert (
+            _invoke(
                 result="deferred",
                 reason="needs the hosted read service",
                 follow_up="https://github.com/spec-kitty/spec-kitty/issues/7400",
                 description="The read API answers status queries",
                 notes="Deferred by operator ruling",
-                json_output=True,
             )
-        except typer.Exit as exc:
-            assert exc.exit_code in (0, None)
+            == 0
+        )
         payload = json.loads(capsys.readouterr().out)
         assert payload["result"] == "deferred"
         assert payload["overall_verdict"] == "pass"
@@ -199,10 +203,7 @@ class TestAcceptanceVerdictDeferredFlag:
             {"result": "pass"},
         )
         for kwargs in calls:
-            try:
-                acceptance_verdict(mission=_SLUG, criterion="FR-001", json_output=True, **kwargs)
-            except typer.Exit as exc:
-                assert exc.exit_code in (0, None)
+            assert _invoke(**kwargs) == 0
         reloaded = read_acceptance_matrix(feature_dir)
         assert reloaded is not None
         assert reloaded.criteria[0].pass_fail == "pass"
