@@ -15,7 +15,7 @@ planning_base_branch: issue-6954-upgrade-empty-home-command-migrations
 merge_target_branch: issue-6954-upgrade-empty-home-command-migrations
 branch_strategy: Planning artifacts for this mission were generated on issue-6954-upgrade-empty-home-command-migrations. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6954-upgrade-empty-home-command-migrations unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-upgrade-empty-home-command-migrations-01M6EJQR
-base_commit: 75a8c37debcbaf0981e780857bb20accfda1c91d
+base_commit: null
 created_at: '2026-11-02T17:08:45.364780+00:00'
 subtasks:
 - T001
