@@ -570,13 +570,13 @@
     },
     {
       "criterion_id": "FR-082",
-      "description": "Verify FR-082 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-082 Core ADR C-3: the committed ledger is the coordination-branch blob: a Proposed ADR that amends the publication seam and the read API pull to read git objects for coordination Missions, and gives the `events tail` cursor a source ref, so that consumers have one committed ledger.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): docs/adr/4.x/2026-11-06-6-committed-ledger-is-the-coordination-blob.md (Proposed); approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:10.041645+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-083",
