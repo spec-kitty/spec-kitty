@@ -118,3 +118,35 @@ def test_run_settlement_plan_undoes_in_reverse_and_names_failed_undo() -> None:
         run_settlement_plan(steps, remedy="Retry.")
     assert log == ["a", "b", "undo-c", "undo-b", "undo-a"]
     assert "'c'" in str(refused.value) and "could not undo: b" in str(refused.value)
+
+
+def test_undo_refuses_when_topic_branch_moved_past_settlement_commit(tmp_path: Path) -> None:
+    """#7276: the commit undo is a CAS on the settlement commit; a later commit is kept."""
+    import subprocess
+    from types import SimpleNamespace
+
+    from specify_cli.lanes.topology_settlement import SettlementHandle, SettlementStep, TopologySettlementRefused, _CoordPlan
+
+    def run(*args: str) -> str:
+        return subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True, text=True).stdout.strip()
+
+    run("init", "-q", "-b", "topic")
+    run("config", "user.email", "t@example.com")
+    run("config", "user.name", "T")
+    run("commit", "-q", "--allow-empty", "-m", "base")
+    mission = tmp_path / "kitty-specs" / "m1"
+    mission.mkdir(parents=True)
+    (mission / "spec.md").write_text("x\n")
+    ctx = SimpleNamespace(repo_root=tmp_path, mission_dir_name="m1", mission_rel="kitty-specs/m1", topic="topic")
+    plan = _CoordPlan(ctx=ctx, decision=None, write_lanes=lambda _p: None)  # type: ignore[arg-type]
+    plan.commit_mission_dir()
+    run("commit", "-q", "--allow-empty", "-m", "later work")
+    moved_tip = run("rev-parse", "topic")
+
+    with pytest.raises(TopologySettlementRefused, match="moved past"):
+        plan.uncommit_mission_dir()
+    assert run("rev-parse", "topic") == moved_tip
+
+    handle = SettlementHandle(decision=None, planning_dir=mission, applied=[SettlementStep("commit", lambda: None, plan.uncommit_mission_dir)])  # type: ignore[arg-type]
+    assert handle.compensate() == ["commit"]
+    assert run("rev-parse", "topic") == moved_tip
