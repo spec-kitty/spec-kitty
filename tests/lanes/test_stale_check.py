@@ -163,7 +163,9 @@ class TestStaleRemediation:
         remediation = _stale_remediation(
             _lane(lane_id="lane-a"), "kitty/mission-feat-lane-a", "kitty/mission-feat",
         )
-        assert "cd .worktrees/*-lane-a" in remediation
+        assert "cd .worktrees" not in remediation
+        assert "kitty/mission-feat-lane-a" in remediation
+        assert "spec-kitty implement WP01" in remediation
         assert "git merge kitty/mission-feat" in remediation
 
     def test_planning_lane_gets_repo_root_remediation(self):
