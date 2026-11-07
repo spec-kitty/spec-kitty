@@ -540,13 +540,13 @@
     },
     {
       "criterion_id": "FR-078",
-      "description": "Verify FR-078 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-078 Commit-to-target stays unbounded and pinned: a Mission whose write branch is its target to keep today's behaviour, pinned by a strict expected-failure test that names the residual, so that the gap is visible rather than silently assumed closed.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-i:tests/integration/test_single_branch_approval_windows.py::test_commit_to_target_unbounded_residual (strict xfail naming the residual); approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP12-s8-approval-windows-claim-and-gate/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:55.332543+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-080",
