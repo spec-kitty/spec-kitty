@@ -27,3 +27,5 @@
 - [2026-11-06][WP14 c2 review] Non-blocking nits for closeout: `_write_branch_holder` re-implements the lane-worktree exclusion; `coord_worktree_mission_names` hardcodes the `*-coord` glob; `resolve_primary_partition_dir` and `default_mission_topic_dir` overlap.
 
 - WP20 c2 approved (closeout nits): restore positive G2 mission_number assertion (==1 + baseline_merge_commit ancestry); cycle-1 commit message misnames lands_topic_branch as lanes_topic_branch.
+
+- WP17 approved (closeout): 3 reds in tests/architectural/test_no_worktree_name_guess.py at _read_path_resolver.py:2138 and topology_settlement.py:364, introduced via lane-k (WP14 f385c7e5b1) / lane-p. Must be fixed before consolidation.

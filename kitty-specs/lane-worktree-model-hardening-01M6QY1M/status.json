@@ -573,7 +573,8 @@
       "last_transition_at": "2026-11-07T01:10:30.264745+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Stale remedy prints spec-kitty re-entry command (A-10 verified); six skills + CLAUDE.md updated; guard with planted strings; prune backstop withheld (WP16)"
+        "Stale remedy prints spec-kitty re-entry command (A-10 verified); six skills + CLAUDE.md updated; guard with planted strings; prune backstop withheld (WP16)",
+        "Review passed: FR-090/091/093/059 met; guard non-vacuous; A-10 green; contract 1.24.0 verified; name-guess reds come from dependency lanes (WP14), not WP17"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
