@@ -364,3 +364,65 @@ def test_doctor_fix_excludes_safe_lanes_and_keeps_reporting_the_refused_one(tmp_
     assert _sparse_on(_lane(repo, "lane-a"))
     assert _copy(repo, "lane-b").read_bytes() == before
     assert find_lanes_lacking_exclusion(repo, fix=False) == remaining
+
+
+# ---------------------------------------------------------------------------
+# #7276 adversarial-review follow-ups: an operator's own sparse patterns, and a
+# lane whose exclusion fails, are never silently expanded or recorded as done.
+# ---------------------------------------------------------------------------
+
+
+def _sparse_file(worktree: Path) -> Path:
+    raw = Path(_git(worktree, "rev-parse", "--git-path", "info/sparse-checkout").strip())
+    return raw if raw.is_absolute() else worktree / raw
+
+
+def test_non_cone_sparse_lane_keeps_its_patterns_and_gains_the_exclusion(tmp_path: Path) -> None:
+    repo = _project(tmp_path)
+    lane = _lane(repo)
+    _git(lane, "sparse-checkout", "set", "--no-cone", "/kitty-specs/", "/.gitignore")
+    assert not (lane / ".kittify").exists()
+
+    item = _only(repo)
+
+    assert item.outcome.value == "excluded"
+    lines = _sparse_file(lane).read_text(encoding="utf-8").splitlines()
+    assert "/kitty-specs/" in lines and "/.gitignore" in lines and "/*" not in lines
+    assert not _copy(repo).exists()
+    assert not (lane / ".kittify").exists()  # the operator's restriction is not expanded
+    assert _only(repo).outcome.value == "already_excluded"
+
+
+def test_cone_mode_lane_is_refused_untouched_and_blocks_the_migration(tmp_path: Path) -> None:
+    repo = _project(tmp_path)
+    lane = _lane(repo)
+    _git(lane, "sparse-checkout", "set", "--cone", "kitty-specs")
+    before = _sparse_file(lane).read_text(encoding="utf-8")
+
+    item = _only(repo)
+
+    assert item.outcome.value == "refused_sparse_cone"
+    assert _sparse_file(lane).read_text(encoding="utf-8") == before
+    ok, reason = LaneCheckoutStatusExclusionMigration().can_apply(repo)
+    assert not ok and "cone" in reason
+
+
+def test_a_lane_whose_exclusion_fails_is_reported_and_the_run_is_not_a_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.lanes import lane_checkout
+
+    repo = _project(tmp_path, lanes=("lane-a", "lane-b"))
+    real = lane_checkout.exclude_lane_status_files
+
+    def _fail_on_a(checkout: Path, mission_dir_name: str) -> None:
+        if checkout.name.endswith("lane-a"):
+            raise lane_checkout.LaneCheckoutError("git sparse-checkout reapply failed: boom")
+        real(checkout, mission_dir_name)
+
+    monkeypatch.setattr(lane_checkout, "exclude_lane_status_files", _fail_on_a)
+    result = LaneCheckoutStatusExclusionMigration().apply(repo)
+
+    assert result.success is False
+    assert any("lane-a" in w and "boom" in w for w in result.warnings)
+    assert any("lane-b" in c for c in result.changes_made)
+    assert not _copy(repo, "lane-b").exists()
+    assert _copy(repo, "lane-a").exists()
