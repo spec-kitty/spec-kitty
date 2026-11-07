@@ -39,3 +39,5 @@
 - [2026-11-07][closeout] #7308 reviewed (approve) and merged into the topic branch. Nits for PR body/follow-up: deferred criterion yields clean pass unlike NI-5 pass_pending_consolidation (state in docstring/PR); bookkeeping_projection.py:954 treats only pass as established (deferred->pending not refused; follow-up); unreachable disclosure fallback text; double replace() in _resolve_criterion_update.
 
 - [2026-11-07][closeout] #7307 approved after cycle 2 and merged into the topic branch. Nits: _drop_unreviewed_merges identity check (use a dropped flag); ADR amendment could name the attestation/forced-approval residual.
+
+- [2026-11-07][closeout] WP10, WP20, WP07, WP18 rework approved (refresh merges reviewed: auto-combined content correct). Closeout item: tests/consolidation/test_forecast_squash_parity.py (#7244, topic branch) monkeypatches forecast.resolve_status_surface, which WP07 removed; fix the test to patch the read door after consolidation. WP07 task file lists tests/architectural/test_status_read_single_door.py, absent on lane-d (trace).
