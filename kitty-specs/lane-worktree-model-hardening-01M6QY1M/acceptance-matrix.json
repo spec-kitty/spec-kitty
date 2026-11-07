@@ -240,13 +240,13 @@
     },
     {
       "criterion_id": "FR-038",
-      "description": "Verify FR-038 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-038 ADR `2026-11-06-1` amendment draft: an amendment drafted in this Mission. It extends the scope to consolidation cleanup, pr-mode cleanup and the prune backstop for Mission lanes, and adds: the local landing proof; \"probe unavailable means keep and report\"; the residue versus never-`--force` rule; a named tool-owned scratch exemption; lane-tip and tombstone ops as guarded; and the deferred sites. It is drafted here so that the operator can land it with or after #7275.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "Document present on issue-7276-lane-worktree-hardening (planning lane): kitty-specs/lane-worktree-model-hardening-01M6QY1M/upstream/adr-2026-11-06-1-amendment-draft.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:26.347749+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-039",
