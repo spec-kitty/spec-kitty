@@ -214,3 +214,35 @@ All work for a mission happens in one branch/worktree, even if disjoint.
 
 **Related Product Document:**
 * Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo
+
+## Amendment 2026-11-06: lane branches are long-lived, lane checkouts belong to one workflow action
+
+**Status of this amendment:** Proposed (2026-11-06). Operator ruling 5 of epic [#7276](https://github.com/spec-kitty/spec-kitty/issues/7276) (DM `01M6QY3BFCGCA7CXE4TZ9W70WH`, Mission `lane-worktree-model-hardening-01M6QY1M`): "Short-lived per-command lane checkouts: amend ADR 2026-04-03-1 now. Releasing a checkout commits or refuses." Slice S3, [#7279](https://github.com/spec-kitty/spec-kitty/issues/7279). The earlier text of this record is a snapshot and still says "feature" and "merge"; this amendment uses Mission and lane consolidation.
+
+**Core Decision 3 is amended.** It read: "Every active lane gets one long-lived branch and one worktree." It now reads:
+
+> 3. Every active lane gets one **long-lived lane branch**. A **lane checkout** (a worktree of that branch under `.worktrees/`) is held for **one workflow action** and released at its end.
+
+Core Decision 4 follows: sequential work packages of one lane share its lane branch; each action gets its own checkout. The lane branch, not the checkout, carries the lane's work: every gate reads the lane branch ref and the `lane_head` stamps, never a checkout (the `for_review` gate on the lane branch, Mission WP08). Lane consolidation and the Branch Model are unchanged.
+
+**What the amendment fixes, for the follow-up that builds it:**
+
+- **Acquire and release points.** A checkout is acquired at the start of `spec-kitty agent action implement <WP>` and `spec-kitty agent action review <WP>`, and released at the end of that action: for implement, at the `in_progress -> for_review` hand-off; for review, at the verdict. No other command holds a lane checkout across its own exit.
+- **Releasing commits or refuses.** A release never discards work. Work in the checkout is committed by the action before release, or the release refuses and keeps the checkout, naming the paths. A release is a destructive operation under [ADR 2026-11-06-1](https://github.com/spec-kitty/spec-kitty/pull/7275) (PR #7275, branch `issue-7211-safe-landed-prune`): O1, O2, O4 (with O6), O5, O7 and O8 apply as written. Only O3 does not arise, because a release never deletes the lane branch. O4 applies although the branch survives: removing the checkout drops its `HEAD` reflog, so a commit made in the checkout and then orphaned (`commit --amend`, `reset`, an aborted rebase) that only that reflog reaches is recorded under `refs/spec-kitty/discarded/reflog/` before the removal, or the release refuses and keeps the checkout.
+- **The lane tip is recorded before a guarded removal.** The release writes `refs/spec-kitty/lane-tip/<branch>` (`lanes/lane_tip.py`) before the guard removes the checkout, so `DESTROYED_LANE` and `LANE_WORK_TIP_UNKNOWN` keep their evidence.
+- **Attached checkouts.** A lane checkout is created on the lane branch, attached, never detached, so the `post-commit` / `post-rewrite` lane-tip recorder hook fires on every commit made in it.
+- **Re-entry.** Work resumes with `spec-kitty agent action implement <WP>`, which acquires a fresh checkout of the existing lane branch (the route that finds the branch present and the worktree gone). A stale lane is refreshed by auto-rebase on re-entry (Mission assumption A-10). No manual `cd .worktrees/... && git merge` recipe is taught.
+- **Harness working directories across turns.** A checkout path is valid only for the action that printed it. A harness that keeps a working directory across turns re-runs the action command to get a checkout again, and must not write into a released path. A harness isolation worktree (one the harness creates for itself) is not a lane checkout and never a status surface.
+- **The review lock lives outside the checkout.** `.spec-kitty/review-lock.json` sits inside the lane worktree today (`review/lock.py`); a short-lived checkout would take the lock with it. The lock moves to a location that survives a release (for example under the git common dir), as part of the follow-up.
+- **Auto-rebase without a held checkout.** Auto-rebase (`lanes/auto_rebase.py`) merges inside a lane worktree today. With short-lived checkouts it runs inside the checkout the re-entry action acquires. A merge with no checkout at all (`git merge-tree --write-tree`, then a compare-and-swap ref update, git 2.38 or later) is a possible later optimisation for clean merges only; a conflicted merge always needs the action's checkout.
+- **Migration of existing checkouts.** Existing long-lived lane worktrees stay valid. The first action that runs in one adopts it as acquired and releases it at its end. Idle ones are removed by consolidation's final cleanup (ruling 6, slice S5) or by the `spec-kitty doctor workspaces --prune` backstop, under the same proofs; never with `--force`.
+
+**The one lane-checkout helper is the future lease acquire.** Every lane checkout is created by one helper, `open_lane_checkout` (Mission WP09, `lanes/lane_checkout.py`), on every route: allocation, recovery, the lifecycle-sync recreate, the review checkout and the printed recreate command. It installs the lane-tip hook, the local excludes and the status exclusion. That helper is where the lease is acquired once leases exist.
+
+**The lease implementation is a follow-up Mission** (Mission constraint C-007): lease state, the review-lock relocation and release-on-transition wiring are not built by Mission `lane-worktree-model-hardening-01M6QY1M`. Until that follow-up ships, lane checkouts keep today's lifetime; what ships now is the single helper and the `for_review` gate on the lane branch, which together make the release safe to add.
+
+**Confirmation** (replaces Confirmation item 2's "exactly one lane and one worktree" with "exactly one lane branch, and a checkout only during an action"):
+
+- the `for_review` gate needs no lane checkout: `tests/specify_cli/lanes/test_for_review_gate_parity.py` (Mission WP08);
+- every lane checkout comes from the one helper, attached, with the hook and the exclusions: `tests/architectural/test_lane_checkout_single_seam.py` (with planted-violation self-tests) and `tests/lanes/test_lane_checkout_helper.py` (Mission WP09);
+- the release itself (commit or refuse, tip recorded before removal, a reflog-only commit in the checkout recorded under `refs/spec-kitty/discarded/reflog/` before removal (O4, O6), review lock outside the checkout) is confirmed by the lease follow-up Mission's own tests.

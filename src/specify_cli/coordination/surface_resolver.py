@@ -78,6 +78,7 @@ from specify_cli.missions._read_path_resolver import (
     _compose_primary_feature_dir,
     _declared_mid8,
     candidate_feature_dir_for_mission,
+    canonical_status_read_root,
     coord_feature_dir,
     probe_coord_state,
     read_primary_meta,
@@ -1308,6 +1309,10 @@ def resolve_status_surface_with_anchor(
     Raises StatusReadPathNotFound when the coord-worktree mid8 cannot be derived
         from any declared source (fail closed — never fabricate a mid8).
     """
+    # FR-002: a lane root re-anchors to the repository root before anything is
+    # composed (ADR 2026-11-06-2 "Root normalization"; fails closed on an
+    # unreadable worktree registry).
+    repo_root = canonical_status_read_root(repo_root)
     try:
         feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
     except StatusReadPathNotFound as exc:
