@@ -19,7 +19,8 @@ This module holds the rest of the contract, and nothing about what the job selec
 * that notice says the run did not finish, that the lane is advisory, and that this is **not a test
   failure** — #4437's rule that a cancellation must never masquerade as either a failure or a pass;
 * the recorded measured maximum stays within the issue's acceptance ratio (p95 ≤ 75 % of the cap; the
-  record is a maximum, so the check is the stricter form of the same rule).
+  record is the suite step's measured maximum, a lower bound on the step time; the job's p95 is somewhat
+  higher, and the recorded value is checked as the closest measured proxy for it).
 
 Every property is evaluated by ONE production function, :func:`budget_violations`, and each assertion
 has a mutation control that calls that same function on a broken copy — a control that never reaches
