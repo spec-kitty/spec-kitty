@@ -318,6 +318,10 @@ def test_target_authored_mission_number_and_baseline_survive(window_b_run: tuple
     built, _proc = window_b_run
     meta = target_meta(built)
     assert meta.get("mission_number") != _STALE_MISSION_NUMBER, "the topic branch's stale mission_number reached the target"
+    assert meta.get("mission_number") == 1, "the target-authored mission_number was not kept"
+    baseline = meta.get("baseline_merge_commit")
+    assert baseline, "the target-authored baseline_merge_commit was not kept"
+    git(built.root, "merge-base", "--is-ancestor", str(baseline), _TARGET)
 
 
 # ---------------------------------------------------------------------------
