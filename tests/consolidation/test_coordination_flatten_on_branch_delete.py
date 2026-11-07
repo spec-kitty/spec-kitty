@@ -77,7 +77,7 @@ def merged_coord_repo(tmp_path: Path) -> Path:
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init")
+    _git(repo, "init", "-b", "main")  # the branch lanes_manifest.target_branch declares (#7201)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Spec Kitty Test")
     (repo / "README.md").write_text("seed\n")
@@ -300,7 +300,7 @@ def test_issue_3086_flatten_is_noop_for_non_coord_mission(tmp_path: Path) -> Non
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init")
+    _git(repo, "init", "-b", "main")  # the branch lanes_manifest.target_branch declares (#7201)
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Spec Kitty Test")
     (repo / "README.md").write_text("seed\n")

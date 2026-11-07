@@ -9,7 +9,7 @@ DecisionTerminalResponse for CLI output contracts.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,6 +19,7 @@ from kernel.clock import datetime
 __all__ = [
     "OriginFlow",
     "DecisionStatus",
+    "DecisionError",
     "DecisionErrorCode",
     "IndexEntry",
     "DecisionIndex",
@@ -74,6 +75,35 @@ class DecisionErrorCode(StrEnum):
     # rather than leaking it onto the public API -- so this stays reserved
     # here without also needing a matching contract entry.
     VERIFY_DRIFT = "DECISION_VERIFY_DRIFT"
+
+
+# ---------------------------------------------------------------------------
+# Error class
+# ---------------------------------------------------------------------------
+
+
+class DecisionError(Exception):
+    """Structured error raised by the decisions service and the decisions lock.
+
+    Lives here, beside :class:`DecisionErrorCode`, so ``decisions/lock.py`` can
+    raise it without importing the service (#6763); ``service.DecisionError`` is
+    this same class.
+
+    Attributes:
+        code: Machine-readable DecisionErrorCode.
+        details: Optional dict with context (decision_id, status, etc.).
+    """
+
+    def __init__(
+        self,
+        code: DecisionErrorCode,
+        details: dict[str, Any] | None = None,
+        message: str | None = None,
+    ) -> None:
+        self.code = code
+        self.details = details or {}
+        msg = message or f"Decision error: {code.value}"
+        super().__init__(msg)
 
 
 # ---------------------------------------------------------------------------

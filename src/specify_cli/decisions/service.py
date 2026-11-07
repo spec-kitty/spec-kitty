@@ -7,7 +7,8 @@ Public API:
     cancel_decision(repo_root, mission_slug, decision_id, *, ...)  -> DecisionTerminalResponse
 
 Also exports:
-    DecisionError(Exception) — structured error with ``code`` and ``details``.
+    DecisionError(Exception) — structured error with ``code`` and ``details``
+    (defined in ``models``; the decisions lock is owned by ``lock``).
 
 mission_id resolution:
     Reads ``<repo_root>/kitty-specs/<mission_slug>/meta.json`` → ``mission_id`` field.
@@ -19,8 +20,7 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 import json
-from collections.abc import Callable, Iterator
-from contextlib import ExitStack, contextmanager
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -28,13 +28,13 @@ import ulid as _ulid_mod
 
 from kernel.clock import datetime, now_utc
 from kernel.errors import GuardedReadError
-from kernel.event_log_append import EventLogLockTimeoutError, event_log_lock, event_log_lock_path
 from kernel.guarded_read import read_guarded
-from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import index_fold as _index_fold
+from specify_cli.decisions import lock as _lock
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import (
+    DecisionError,
     DecisionErrorCode,
     DecisionIndex,
     DecisionOpenResponse,
@@ -81,26 +81,6 @@ class DecisionEventLogReadError(GuardedReadError, RuntimeError):
     """
 
 
-class DecisionError(Exception):
-    """Structured error raised by the decisions service.
-
-    Attributes:
-        code: Machine-readable DecisionErrorCode.
-        details: Optional dict with context (decision_id, status, etc.).
-    """
-
-    def __init__(
-        self,
-        code: DecisionErrorCode,
-        details: dict | None = None,  # type: ignore[type-arg]
-        message: str | None = None,
-    ) -> None:
-        self.code = code
-        self.details = details or {}
-        msg = message or f"Decision error: {code.value}"
-        super().__init__(msg)
-
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -111,183 +91,13 @@ def _mint_decision_id() -> str:
     return str(_ulid_mod.ULID())
 
 
-#: T010 (D4, FR-004): the sidecar lock-only path guarding the decisions index
-#: RMW. Never the payload path (``index.json`` itself) -- see
-#: ``kernel.locks`` G1: the caller supplies a DEDICATED lock-only path.
-_LOCK_FILENAME = "index.json.lock"
-
-#: Bounded wait matching the NFR-002 10s hold ceiling, used by resolve /
-#: defer / cancel -- a stuck holder fails loudly (``DecisionError`` with
-#: ``LOCK_TIMEOUT``, see :func:`_decisions_lock`) rather than hanging a caller
-#: forever. ``open_decision`` does NOT use it: an open waits on the decisions
-#: lock without a bound (:data:`_OPEN_LOCK_WAIT_S`).
-_LOCK_ACQUIRE_TIMEOUT_S = 10.0
-
-#: #4848 (operator ruling): an open waits on the decisions lock WITHOUT a time
-#: bound -- the same unbounded wait the Mission status lock already uses
-#: (``status.locking.UNBOUNDED_LOCK_WAIT``). The holder of the decisions lock
-#: may itself be waiting, without a bound, on the status lock inside its
-#: opening append, so a bounded wait here would fail an unrelated open of a
-#: different decision. Deadlock-free because every path takes the decisions
-#: lock before the status lock, never the reverse.
-_OPEN_LOCK_WAIT_S: float | None = None
-
-
-def _decisions_lock_path(ledger_dir: Path) -> Path:
-    """Return the sidecar lock path guarding ``decisions/index.json``.
-
-    Shared by the forward write path below and the reconciler
-    (``cli/commands/_decisions_doctor.py``, T012, I8) -- both serialize
-    against the SAME lock so a concurrent open/resolve cannot race a repair.
-    ``ledger_dir`` is the PRIMARY-partition dir :func:`_ledger_dir` resolves
-    (#4966 AC-D2) -- the doctor's own ``_ledger_dir`` copy must resolve the
-    SAME dir so both lock paths agree.
-    """
-    return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
-
-
-def _decisions_anchor_lock_path(events_path: Path) -> Path:
-    """Return the log-anchor lock path that every decision writer of *events_path* takes.
-
-    The sidecar lock above is keyed on the per-checkout LEDGER directory, but
-    the row the critical section protects is appended to the Mission EVENT LOG
-    (:func:`_write_events_path`), which resolves independently and, on a
-    coordination topology, on a different partition. The identity every writer
-    of that row shares is therefore the log, not the ledger directory (#6765).
-
-    Delegated verbatim to :func:`kernel.event_log_append.event_log_lock_path`,
-    the ONE existing anchor to lock-path contract (#6606 rule 1): the digest of
-    the resolved anchor under ``<git-common-dir>/spec-kitty-locks/event-logs/``,
-    which every worktree of a repository shares (so the lock file never lands
-    in a working tree). Outside a git repository it falls back to a sibling
-    ``<log>.event-log.lock``; when git cannot be invoked it raises
-    ``EventLogLockUnavailableError`` rather than locking where no other writer
-    locks. No second digest or placement scheme lives here (C-003).
-    """
-    return event_log_lock_path(events_path)
-
-
-@contextmanager
-def _decisions_write_locks(
-    *,
-    events_path: Path,
-    ledger_dir: Path,
-    timeout_s: float | None,
-    mission_slug: str,
-    decision_id: str | None,
-) -> Iterator[None]:
-    """Hold both decision-write locks: the log anchor, then the ledger sidecar.
-
-    ONE global order (C-004), and no path inverts it::
-
-        anchor lock (event log)     <- cross-checkout serialization (#6765)
-          ledger-dir sidecar lock   <- in-ledger repair exclusion (#4848, #5925, #6628)
-            Mission status lock     <- taken by ``emit`` inside the critical section
-
-    The anchor is taken first because it is the new half: every existing
-    holder of the sidecar (the reconciler, ``repair-runtime-lock``, ``next``'s
-    owned-commit guard) takes only that lock, so nothing can already hold the
-    sidecar and then wait for the anchor.
-
-    The anchor is taken through :func:`kernel.event_log_append.event_log_lock`
-    (:func:`_decisions_anchor_lock`), not a raw file lock, so its per-thread
-    re-entrancy registry applies: a nested ``event_log_lock`` on the same log
-    inside the critical section (a status-store append, #6193) yields the held
-    lock instead of self-deadlocking. The sidecar is taken through
-    :func:`_decisions_lock`. A timed-out wait on either keeps the existing
-    single refusal shape (``DecisionError`` with ``LOCK_TIMEOUT``, owned by
-    #6841), so this adds no error surface (NFR-003). ``timeout_s=None`` waits
-    without a bound on both takes, which is what ``open_decision`` needs
-    (NFR-001).
-
-    The caller passes paths it has ALREADY resolved: resolving the log may
-    materialize the coordination surface, and a placement refusal must fail
-    before any lock is taken and before any write (#5113).
-    """
-    with ExitStack() as stack:
-        stack.enter_context(
-            _decisions_anchor_lock(
-                events_path,
-                timeout_s=timeout_s,
-                mission_slug=mission_slug,
-                decision_id=decision_id,
-            )
-        )
-        stack.enter_context(
-            _decisions_lock(
-                _decisions_lock_path(ledger_dir),
-                timeout_s=timeout_s,
-                mission_slug=mission_slug,
-                decision_id=decision_id,
-            )
-        )
-        yield
-
-
-@contextmanager
-def _decisions_anchor_lock(events_path: Path, *, timeout_s: float | None, mission_slug: str, decision_id: str | None) -> Iterator[None]:
-    """Hold the event-log anchor lock; a timed-out wait becomes ``DecisionError(LOCK_TIMEOUT)``.
-
-    Only the ACQUIRE is translated, as in :func:`_decisions_lock`; the held
-    section is not wrapped, so its own exceptions propagate unchanged.
-    """
-    with ExitStack() as stack:
-        try:
-            stack.enter_context(event_log_lock(events_path, timeout_s=timeout_s))
-        except EventLogLockTimeoutError as exc:
-            lock_path = _decisions_anchor_lock_path(events_path)
-            raise DecisionError(
-                code=DecisionErrorCode.LOCK_TIMEOUT,
-                details={
-                    "decision_id": decision_id,
-                    "mission_slug": mission_slug,
-                    "lock_path": str(lock_path),
-                    "timeout_seconds": timeout_s,
-                },
-                message=(
-                    f"Timed out after {timeout_s:g}s waiting for the decisions lock {str(lock_path)!r}; "
-                    "another decision command is holding it. Nothing was written; retry the command."
-                ),
-            ) from exc
-        yield
-
-
-@contextmanager
-def _decisions_lock(lock_path: Path, *, timeout_s: float | None, mission_slug: str, decision_id: str | None) -> Iterator[None]:
-    """Hold the decisions lock; a timed-out wait becomes ``DecisionError(LOCK_TIMEOUT)``.
-
-    Only the ACQUIRE is translated: an exception raised inside the held
-    section propagates unchanged. ``timeout_s=None`` waits without a bound.
-    A timeout leaves nothing written, since the caller's critical section
-    never ran.
-    """
-    with ExitStack() as stack:
-        try:
-            stack.enter_context(machine_file_lock(lock_path, blocking=True, timeout_s=timeout_s))
-        except LockAcquireTimeout as exc:
-            raise DecisionError(
-                code=DecisionErrorCode.LOCK_TIMEOUT,
-                details={
-                    "decision_id": decision_id,
-                    "mission_slug": mission_slug,
-                    "lock_path": str(lock_path),
-                    "timeout_seconds": timeout_s,
-                },
-                message=(
-                    f"Timed out after {timeout_s:g}s waiting for the decisions lock {str(lock_path)!r}; "
-                    "another decision command is holding it. Nothing was written; retry the command."
-                ),
-            ) from exc
-        yield
-
-
 def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
     """Validate the exact local ignore destination and observe its effective rule."""
     import subprocess
 
     from kernel.git import status_entries
 
-    lock = _decisions_lock_path(owned.mission_dir)
+    lock = _lock.lock_path(owned.mission_dir)
     ignore = lock.parent / ".gitignore"
     owned.files([lock, ignore])
     for path in (lock, ignore):
@@ -313,7 +123,7 @@ def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
     from specify_cli.gitignore_manager import read_gitignore_text
 
     content = read_gitignore_text(ignore)
-    exact_owner_rule = content is not None and f"/{_LOCK_FILENAME}" in content.splitlines()
+    exact_owner_rule = content is not None and f"/{_lock.LOCK_FILENAME}" in content.splitlines()
     return ignore, ignored.returncode == 0 and exact_owner_rule
 
 
@@ -330,7 +140,7 @@ def _ensure_runtime_lock_ignore(owned: OwnedCheckout) -> tuple[Path, bytes | Non
     before = _read_ignore_bytes(ignore) if ignore.exists() else None
     if not ignored:
         ignore.parent.mkdir(parents=True, exist_ok=True)
-        GitignoreManager(ignore.parent).ensure_entries([f"/{_LOCK_FILENAME}"], force_append=True)
+        GitignoreManager(ignore.parent).ensure_entries([f"/{_lock.LOCK_FILENAME}"], force_append=True)
     return ignore, before, _read_ignore_bytes(ignore) if ignore.exists() else b""
 
 
@@ -492,7 +302,7 @@ def _ledger_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | No
 
     ``cli/commands/_decisions_doctor.py`` and ``cli/commands/decision.py``
     both import this function, so a repair and a forward write lock the same
-    sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) and a
+    sidecar ``index.json.lock`` (see :func:`specify_cli.decisions.lock.lock_path`) and a
     concurrent open/resolve cannot race a repair.
     """
     ledger_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.DECISION_LEDGER)
@@ -504,7 +314,7 @@ def _ledger_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | No
         # such an escape on the read path (list/resolve), so the screen must
         # resolve the final component here.
         owned.files(
-            [decisions_dir, decisions_dir / "index.json", _decisions_lock_path(ledger_dir), *decisions_dir.glob("DM-*.md")],
+            [decisions_dir, decisions_dir / "index.json", _lock.lock_path(ledger_dir), *decisions_dir.glob("DM-*.md")],
             follow_links=True,
         )
     return ledger_dir
@@ -981,13 +791,13 @@ def open_decision(
     # decision gets exactly one ``DecisionPointOpened``. Lock order: anchor,
     # then sidecar, then the mission status lock the emit takes inside them
     # (as in ``_terminal_command``). The wait is unbounded
-    # (``_OPEN_LOCK_WAIT_S``) on both: the holder may be waiting, unbounded, on
+    # (``lock.OPEN_WAIT_S``) on both: the holder may be waiting, unbounded, on
     # the status lock, and a second open of a different decision must queue
     # behind it, not fail. ``on_minted`` runs after the locks are released.
-    with _decisions_write_locks(
+    with _lock.decisions_write_locks(
         events_path=events_path,
         ledger_dir=mission_dir,
-        timeout_s=_OPEN_LOCK_WAIT_S,
+        timeout_s=_lock.OPEN_WAIT_S,
         mission_slug=mission_slug,
         decision_id=decision_id,
     ):
@@ -1129,7 +939,7 @@ def _terminal_command(
     takes inside them; no code path takes them in the reverse order. The
     write-side pre-resolve below runs BEFORE the locks (it may materialize the
     coordination surface). A waiter that cannot get either lock within
-    ``_LOCK_ACQUIRE_TIMEOUT_S`` fails closed with ``DecisionError(LOCK_TIMEOUT)``
+    ``lock.ACQUIRE_TIMEOUT_S`` fails closed with ``DecisionError(LOCK_TIMEOUT)``
     and writes nothing.
 
     Before the index save, a decision whose opening is missing from the log
@@ -1147,7 +957,7 @@ def _terminal_command(
         DecisionError(NOT_FOUND): if decision_id is not in the index.
         DecisionError(TERMINAL_CONFLICT): if already terminal with different payload.
         DecisionError(LOCK_TIMEOUT): the decisions lock could not be acquired
-            within ``_LOCK_ACQUIRE_TIMEOUT_S``; nothing was written.
+            within ``lock.ACQUIRE_TIMEOUT_S``; nothing was written.
         DecisionError(EVENT_REPAIR_FAILED): the missing opening could not be
             recorded, or an idempotent retry could not repair the artifact or
             the missing terminal event.
@@ -1167,10 +977,10 @@ def _terminal_command(
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the write-side ``_write_events_path``.
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
-    with _decisions_write_locks(
+    with _lock.decisions_write_locks(
         events_path=events_path,
         ledger_dir=mission_dir,
-        timeout_s=_LOCK_ACQUIRE_TIMEOUT_S,
+        timeout_s=_lock.ACQUIRE_TIMEOUT_S,
         mission_slug=mission_slug,
         decision_id=decision_id,
     ):

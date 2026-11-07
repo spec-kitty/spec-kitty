@@ -10,6 +10,8 @@ import pytest
 
 from kernel.git.remote import CommitUnresolvable, RemoteUnreachable, fetch_commit_subtree
 
+from tests._support.temp_root import harness_env
+
 pytestmark = [pytest.mark.git_repo]
 
 _SUBTREE = "packs/built-in"
@@ -26,6 +28,8 @@ def _env() -> dict[str, str]:
         GIT_COMMITTER_NAME="t",
         GIT_COMMITTER_EMAIL="t@example.invalid",
     )
+    # The harness's discovery boundary survives the GIT_* strip (#7076).
+    env.update(harness_env())
     return env
 
 

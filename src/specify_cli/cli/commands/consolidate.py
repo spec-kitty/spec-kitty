@@ -945,7 +945,16 @@ def _run_real_merge(
         raise typer.Exit(1) from exc
 
     # -- Post-merge: WP07/FR-007 retrospective postcondition (fail-open) --
-    run_retrospective_postcondition(mission_slug=resolved_mission, repo_root=repo_root)
+    # #7201: hand the terminus the branch this run resolved and landed on. Without it
+    # the terminus re-derives the destination from `meta.json`'s `target_branch`, which
+    # is stale for a `--target <branch>` consolidation, so `safe_commit` refuses the
+    # bookkeeping commit and the fail-open terminus leaves the retrospective and its
+    # event-log append uncommitted.
+    run_retrospective_postcondition(
+        mission_slug=resolved_mission,
+        repo_root=repo_root,
+        destination_ref=resolved_target_branch,
+    )
 
     # -- Post-merge: suggest mission review + retrospective review/synthesis --
     console.print(

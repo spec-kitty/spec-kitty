@@ -7,6 +7,8 @@ import subprocess
 
 import pytest
 
+from tests._support.temp_root import harness_env
+
 pytestmark = pytest.mark.fast
 
 HELPER = Path(__file__).resolve().parents[2] / "scripts/dev/activate-isolated-env.sh"
@@ -18,8 +20,15 @@ _SCRUBBED_VARS = frozenset({"SPEC_KITTY_HOME", "SPEC_KITTY_ISOLATED_ENV", "VIRTU
 def _clean_env() -> dict[str, str]:
     """The caller's environment minus anything that would steer the helper or
     git: an activated Shadow Clone (or a git hook) running this suite must not
-    change its verdicts or write into the caller's repository."""
-    return {key: value for key, value in os.environ.items() if key not in _SCRUBBED_VARS and not key.startswith("GIT_")}
+    change its verdicts or write into the caller's repository.
+
+    ``GIT_CEILING_DIRECTORIES`` comes back in: it is the harness's discovery boundary,
+    not a config, credential or repository selector, so a child without it can walk out
+    of the test's tree (#7076).
+    """
+    env = {key: value for key, value in os.environ.items() if key not in _SCRUBBED_VARS and not key.startswith("GIT_")}
+    env.update(harness_env())
+    return env
 
 
 def _run(shell: str, cwd: Path, *, exe: str = "bash") -> subprocess.CompletedProcess[str]:

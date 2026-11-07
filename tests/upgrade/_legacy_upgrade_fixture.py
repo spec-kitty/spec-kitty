@@ -109,7 +109,9 @@ def upgrade_env(sandbox: Path, checkout_src: Path | None = None) -> dict[str, st
     env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
     env["PYTHONPATH"] = str(src)
     env["PATH"] = _path_with_git(env["PATH"])
-    assert {k for k in env if k.startswith("GIT_")} == _EXPECTED_GIT_KEYS
+    # The harness git ceiling is the one GIT_* variable a child inherits on purpose (#7076);
+    # every other one would be a leaked credential or repository selector.
+    assert {k for k in env if k.startswith("GIT_")} - {"GIT_CEILING_DIRECTORIES"} == _EXPECTED_GIT_KEYS
     assert {k for k in env if k.startswith("SPEC_KITTY_")} == _EXPECTED_SPEC_KITTY_KEYS
     return env
 

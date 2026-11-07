@@ -848,6 +848,15 @@ def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
         _mid8_for_teardown,
         projection_gate=projection_gate,
         on_persist_commit=functools.partial(_carry_pass_anchor_over_own_commit, run),
+        # #7201: the persist leg commits the retrospective BEFORE the worktree is
+        # destroyed, so it must target the branch this run actually landed on.
+        # Placement resolution would read the mission's `meta.json`
+        # `target_branch`, which is STALE for a `--target <branch>` consolidation:
+        # the checkout's HEAD is the resolved target, so the destination and HEAD
+        # disagree and `safe_commit` correctly refuses (`SafeCommitHeadMismatch`),
+        # leaving both artifacts uncommitted. Same authoritative override the
+        # housekeeping commit above already threads.
+        destination_ref=run.lanes_manifest.target_branch,
     )
     logger.debug(
         "Coordination topology teardown for %s-%s completed",

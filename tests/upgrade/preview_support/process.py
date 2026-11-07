@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from tests._support.git_ceiling import GIT_CEILING_ENV
+from tests._support.temp_root import harness_env
+
 
 def child_environment(sandbox: Path, options: Mapping[str, str] | None = None) -> dict[str, str]:
     """Construct an allowlisted environment; never inherit credentials or selectors.
@@ -56,6 +59,12 @@ def child_environment(sandbox: Path, options: Mapping[str, str] | None = None) -
     if not env["CI"]:
         del env["CI"]
     env["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
+    # Only the ceiling: this child owns its temp root on purpose (provenance probes read
+    # ``env["TMPDIR"]``), but its git must still stop at the harness boundary instead of
+    # resolving into whatever encloses the sandbox (#7076).
+    ceiling = harness_env().get(GIT_CEILING_ENV)
+    if ceiling is not None:
+        env[GIT_CEILING_ENV] = ceiling
     return env
 
 

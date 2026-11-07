@@ -66,7 +66,6 @@ from typing import Any
 
 import typer
 
-from kernel.locks import machine_file_lock
 from mission_runtime import MissionArtifactKind, placement_seam
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
@@ -76,19 +75,17 @@ from spec_kitty_events.decisionpoint import (
 from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
-from specify_cli.decisions.models import DecisionIndex, IndexEntry
+from specify_cli.decisions import lock as _lock
+from specify_cli.decisions.models import DecisionError, DecisionIndex, IndexEntry
 from specify_cli.decisions.service import _ledger_dir
 
-from ._doctor_shared import console
+from ._doctor_shared import _json_error, console
 
 __all__ = [
     "run_decisions_reconciliation",
 ]
 
 _EVENTS_FILENAME = "status.events.jsonl"
-_LOCK_FILENAME = "index.json.lock"
-#: Matches the write path's own acquire-wait bound (``decisions/service.py``).
-_LOCK_ACQUIRE_TIMEOUT_S = 10.0
 
 _DECISION_EVENT_TYPES = (DECISION_POINT_OPENED, DECISION_POINT_RESOLVED)
 
@@ -125,6 +122,15 @@ class DecisionsReconciliationReport:
     #: ``{"decision_id", "index_status", "folded_status"}``. Empty on a
     #: healthy corpus.
     status_mismatch: list[dict[str, str]] = field(default_factory=list)
+    #: #6764: decision_ids whose event log holds more than one
+    #: ``DecisionPointOpened`` row that the canonical fold already TOLERATES
+    #: (#4848: payloads equal apart from ``recorded_at``; the fold keeps the
+    #: earliest). This is an INFORMATIONAL finding, not an error: the log was
+    #: written before #4848, it reads correctly, and nothing needs repairing.
+    #: It is therefore deliberately NOT part of :attr:`clean` and never affects
+    #: the exit code -- see :func:`run_decisions_reconciliation`. Empty on a log
+    #: written by the fixed writer.
+    duplicate_openings_tolerated: list[str] = field(default_factory=list)
     #: WP17 (FR-010/FR-010a/FR-009c, #5023): the two-surface fork/ledger-home
     #: report, computed only when ``repo_root`` is supplied to ``_diagnose``
     #: (``None`` for the back-compat no-``repo_root`` call shape driven
@@ -183,10 +189,6 @@ def _resolve_events_dir_for_doctor(repo_root: Path, mission_slug: str) -> Path:
 
 def _events_path(mission_dir: Path) -> Path:
     return mission_dir / _EVENTS_FILENAME
-
-
-def _decisions_lock_path(ledger_dir: Path) -> Path:
-    return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
 
 
 def _read_decision_events(events_path: Path) -> dict[str, list[dict]]:  # type: ignore[type-arg]
@@ -349,7 +351,7 @@ def _rebuild_index_from_log(
 def _fold_diagnostics(
     grouped: dict[str, list[dict[str, Any]]],
     index_by_id: dict[str, IndexEntry],
-) -> tuple[list[str], list[dict[str, str]]]:
+) -> tuple[list[str], list[dict[str, str]], list[str]]:
     """Run the canonical fold over every log-backed decision_id and report
     what the id-set comparison alone cannot see (#4919):
 
@@ -361,6 +363,13 @@ def _fold_diagnostics(
       index whose folded status disagrees with the on-disk index status (a
       stale entry -- e.g. the index still says ``deferred`` after a
       ``resolve`` landed in the log).
+    - ``duplicate_openings_tolerated`` (#6764): decision_ids whose log holds
+      several ``DecisionPointOpened`` rows the fold ACCEPTS (#4848) -- an
+      informational finding only, so it never affects
+      :attr:`DecisionsReconciliationReport.clean`.
+
+    The duplicate count is computed in this same loop from the group already
+    read, so it costs no second log read and no second fold.
 
     A decision missing from the index entirely (``missing_from_index``) is
     folded here too (to catch malformed folds regardless of index
@@ -375,6 +384,7 @@ def _fold_diagnostics(
     """
     malformed_ids: list[str] = []
     status_mismatch: list[dict[str, str]] = []
+    duplicate_ids: list[str] = []
     for decision_id in sorted(grouped):
         existing = index_by_id.get(decision_id)
         try:
@@ -382,6 +392,11 @@ def _fold_diagnostics(
         except _index_fold.FoldError:
             malformed_ids.append(decision_id)
             continue
+        # #6764: only a decision the fold FOLDED can hold *tolerated* duplicates --
+        # a differing-payload duplicate already continued as a malformed fold above,
+        # so the two findings are disjoint by construction.
+        if _index_fold.tolerated_duplicate_openings(grouped[decision_id]) > 0:
+            duplicate_ids.append(decision_id)
         if existing is not None and existing.status != folded.status:
             status_mismatch.append(
                 {
@@ -390,7 +405,7 @@ def _fold_diagnostics(
                     "folded_status": folded.status.value,
                 }
             )
-    return malformed_ids, status_mismatch
+    return malformed_ids, status_mismatch, duplicate_ids
 
 
 def _all_decision_ids_from_fork_report(fork_report: _fork.DecisionsForkReport) -> set[str]:
@@ -425,6 +440,11 @@ def _diagnose(
     (:func:`_fold_diagnostics`) so a genuinely unfoldable decision or a stale
     index status is caught by the read-only path too, not just ``--repair``.
 
+    #6764: the same fold pass also reports decisions whose log holds duplicate
+    ``DecisionPointOpened`` rows the fold tolerates (``duplicate_openings_tolerated``)
+    -- informational only, so :attr:`DecisionsReconciliationReport.clean` is
+    unaffected.
+
     WP17 (FR-010/FR-010a/FR-009c, #5023): when *repo_root* is supplied, this
     additionally runs the two-surface :func:`~specify_cli.decisions.fork
     .detect_decision_forks` comparison, widens the orphan rule to the union
@@ -441,7 +461,7 @@ def _diagnose(
     index_ids = {e.decision_id for e in index.entries}
     index_by_id = {e.decision_id: e for e in index.entries}
 
-    malformed_ids, status_mismatch = _fold_diagnostics(grouped, index_by_id)
+    malformed_ids, status_mismatch, duplicate_ids = _fold_diagnostics(grouped, index_by_id)
 
     orphan_universe = set(log_ids)
     fork_report: _fork.DecisionsForkReport | None = None
@@ -462,6 +482,7 @@ def _diagnose(
         orphaned_in_index=sorted(index_ids - orphan_universe),
         malformed_folds=sorted(malformed_ids),
         status_mismatch=status_mismatch,
+        duplicate_openings_tolerated=sorted(duplicate_ids),
         fork_report=fork_report,
         findings=findings,
     )
@@ -511,15 +532,14 @@ def _repair(
 
     ``events_dir`` (COORD) and ``ledger_dir`` (PRIMARY, #4966 AC-D2) are
     resolved separately by the caller; the lock is taken against
-    ``ledger_dir`` — the SAME dir ``decisions/service.py`` locks against.
+    ``ledger_dir`` — the SAME dir every holder of ``decisions/lock.py`` locks against.
 
     Returns ``(lossy_ids, malformed_ids)``: the decision_ids
     :func:`_rebuild_index_from_log` refused to rewrite (Fold A) and the
     decision_ids whose event group raised ``FoldError`` (Fold C), so the
     caller can report both conditions loudly instead of crashing.
     """
-    lock_path = _decisions_lock_path(ledger_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         grouped = _read_decision_events(_events_path(events_dir))
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
@@ -546,8 +566,7 @@ def _copy_coordination_only_ledger(repo_root: Path, mission_slug: str, ledger_di
     from specify_cli.consolidation.drivers import union_decision_index
 
     index_document, dm_contents = _fork.read_coordination_ledger_raw(repo_root, mission_slug)
-    lock_path = _decisions_lock_path(ledger_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         if index_document is not None:
             current_raw = _store.load_index(ledger_dir).model_dump(mode="json")
             merged_raw = union_decision_index(current_raw, index_document)
@@ -617,6 +636,23 @@ def _emit_status_mismatch_warning(report: DecisionsReconciliationReport) -> None
     console.print(f"  [red]stale status[/red] ({len(report.status_mismatch)}) index entry disagrees with the folded event log: {detail}")
 
 
+def _emit_duplicate_openings_notice(report: DecisionsReconciliationReport) -> None:
+    """#6764: name the decisions whose log holds duplicate ``DecisionPointOpened``
+    rows the fold already tolerates (#4848) -- informational, never a failure.
+
+    Colour is deliberately NOT red: the rows were written before #4848, they read
+    correctly, the log is left as-is, and the exit code does not change. The word
+    "informational" is spelled out so a reader cannot mistake it for an error.
+    """
+    if not report.duplicate_openings_tolerated:
+        return
+    console.print(
+        f"  [cyan]informational[/cyan] ({len(report.duplicate_openings_tolerated)}) decision(s) with duplicate "
+        "openings the fold tolerates (identical apart from their recorded time; the earliest is folded and "
+        f"the log is left unchanged): {', '.join(report.duplicate_openings_tolerated)}"
+    )
+
+
 def _surface_log_to_json(log: _fork.SurfaceLog | None) -> dict[str, object] | None:
     if log is None:
         return None
@@ -682,6 +718,7 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
     _emit_lossy_attribution_warning(report)
     _emit_malformed_fold_warning(report)
     _emit_status_mismatch_warning(report)
+    _emit_duplicate_openings_notice(report)
 
 
 def _emit_json(report: DecisionsReconciliationReport) -> None:
@@ -694,6 +731,10 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
     WP17: additive keys only (``forked``, ``streams``, ``ledger``,
     ``reconcile_steps``, ``findings``, ``ledger_copied``) -- present only
     when a fork report was computed (``repo_root`` was supplied).
+
+    #6764: ``duplicate_openings_tolerated`` is likewise additive and always
+    present (``[]`` when a log holds no tolerated duplicates). It is an
+    informational finding: ``clean`` and the exit code are unaffected.
     """
     payload: dict[str, object] = {
         "mission_slug": report.mission_slug,
@@ -706,6 +747,7 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "lossy_attribution": report.lossy_attribution,
         "malformed_folds": report.malformed_folds,
         "status_mismatch": report.status_mismatch,
+        "duplicate_openings_tolerated": report.duplicate_openings_tolerated,
         "remedy": _malformed_fold_remedy_text(report),
         "findings": report.findings,
         "ledger_copied": report.ledger_copied,
@@ -716,6 +758,64 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         payload["ledger"] = _ledger_finding_to_json(report.fork_report.ledger)
         payload["reconcile_steps"] = list(report.fork_report.reconcile_steps)
     console.print_json(json.dumps(payload, indent=2))
+
+
+#: Appended to the lock refusal when ``--repair`` already rebuilt the index under
+#: an earlier hold and only the coordination-only ledger copy then timed out, so
+#: the operator is not told the rebuild was lost (#6763 review).
+_INDEX_REBUILT_NOTE = (
+    " The index rebuild finished under an earlier hold and was saved; only the coordination-only ledger copy was skipped, so retry to complete it."
+)
+
+
+def _run_repair_phases(
+    report: DecisionsReconciliationReport,
+    events_dir: Path,
+    ledger_dir: Path,
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    progress: dict[str, bool],
+) -> tuple[list[str], list[str], bool]:
+    """Run ``--repair``'s two locked phases; return ``(lossy, malformed, ledger_copied)``.
+
+    Each phase takes the decisions lock through ``decisions/lock.py`` and may
+    raise its refusal. ``progress["index_rebuilt"]`` turns true once the first
+    phase has saved, so the caller can say so if the second phase is refused.
+    """
+    forked = report.fork_report is not None and report.fork_report.forked
+    ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
+    if forked:
+        # C-003: a forked stream is NEVER auto-merged or re-sequenced -- no
+        # index rewrite for the forked decisions; the reconcile steps are
+        # printed instead (contract rule 2, US4.3).
+        lossy_ids: list[str] = []
+        malformed_ids = list(report.malformed_folds)
+    else:
+        # Positive control (US4.4): an unforked Mission still repairs a genuine
+        # orphan exactly as before.
+        lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+        progress["index_rebuilt"] = True
+    if ledger_only_coord:
+        # FR-009c / contract rule 4: additive-only, independent of the
+        # stream-fork branch above (a coordination-only ledger can exist on an
+        # otherwise unforked Mission, e.g. NFR-002 fixture (d)).
+        _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+    return lossy_ids, malformed_ids, ledger_only_coord
+
+
+def _emit_lock_refusal(exc: DecisionError, json_output: bool, *, index_rebuilt: bool) -> None:
+    """Render the decisions-lock refusal as this family's ONE document (#6763).
+
+    It lands BEFORE any report is emitted, so ``--json`` callers get exactly one
+    C2 document and human callers exactly one error line, in the same
+    ``Error: [CODE] message`` shape the owned-refusal path uses (#5445).
+    """
+    message = str(exc) + (_INDEX_REBUILT_NOTE if index_rebuilt else "")
+    if json_output:
+        console.emit_json(_json_error(exc.code.value, message))
+    else:
+        console.print(f"[red]Error:[/red] [{exc.code.value}] {message}")
 
 
 def run_decisions_reconciliation(
@@ -731,8 +831,11 @@ def run_decisions_reconciliation(
     Diagnose (default): read-only report of log/index divergence — entries
     in the log missing from the index, index entries with no backing event,
     a decision_id whose event group cannot be folded at all
-    (``malformed_folds``), and an index entry whose status disagrees with
-    the folded log (``status_mismatch``). Always exits 0, even when the
+    (``malformed_folds``), an index entry whose status disagrees with the
+    folded log (``status_mismatch``), and the informational
+    ``duplicate_openings_tolerated`` list (#6764: decisions whose log holds
+    openings the fold already tolerates; it never affects the verdict, the
+    exit code or ``--repair``). Always exits 0, even when the
     report is not clean (report-only, matching the ``doctor
     review-cycle-reconcile`` precedent).
 
@@ -745,6 +848,19 @@ def run_decisions_reconciliation(
     reports it (exactly one report — human or JSON, never a second document)
     and then exits **1**; it exits 0 only when every decision the repair
     touched folds cleanly.
+
+    #6763: a decisions-lock wait that times out is a REFUSAL, not a report.
+    Both acquisitions (the ``--repair`` rebuild and the additive
+    coordination-only ledger copy) go through
+    :func:`specify_cli.decisions.lock.decisions_lock`, whose timeout is the
+    one decisions-lock refusal (``DecisionError(LOCK_TIMEOUT)``). That error is rendered as this family's
+    C2 envelope (``{"ok": false, "error": {...}}`` under ``--json``, a Rich
+    ``Error:`` line otherwise) and the command exits 1. Nothing is written by
+    the refused hold, whose critical section never ran; when the index rebuild
+    was already saved under an earlier hold and only the coordination-only
+    ledger copy was refused, the error says so (``_INDEX_REBUILT_NOTE``).
+    Never a raw ``LockAcquireTimeout``
+    traceback, and never a partial report followed by an error document.
     """
     # Function-local (H2/I-6 precedent, ``_review_cycle_reconcile_doctor.py``):
     # avoids a doctor <-> selector-resolution module-load cycle.
@@ -762,23 +878,19 @@ def run_decisions_reconciliation(
     report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
 
     if repair and not report.clean:
-        forked = report.fork_report is not None and report.fork_report.forked
-        ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
-        if forked:
-            # C-003: a forked stream is NEVER auto-merged or re-sequenced --
-            # no index rewrite for the forked decisions; the reconcile steps
-            # are printed instead (contract rule 2, US4.3).
-            lossy_ids: list[str] = []
-            malformed_ids = list(report.malformed_folds)
-        else:
-            # Positive control (US4.4): an unforked Mission still repairs a
-            # genuine orphan exactly as before.
-            lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
-        if ledger_only_coord:
-            # FR-009c / contract rule 4: additive-only, independent of the
-            # stream-fork branch above (a coordination-only ledger can exist
-            # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
-            _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+        progress: dict[str, bool] = {"index_rebuilt": False}
+        try:
+            lossy_ids, malformed_ids, ledger_only_coord = _run_repair_phases(
+                report, events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug, progress=progress
+            )
+        except DecisionError as exc:
+            # #6763: only the decisions-lock refusal is this command's refusal;
+            # any other DecisionError is not ours to reinterpret, so it keeps
+            # propagating unchanged.
+            if not _lock.is_lock_timeout(exc):
+                raise
+            _emit_lock_refusal(exc, json_output, index_rebuilt=progress["index_rebuilt"])
+            raise typer.Exit(1) from exc
         report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)

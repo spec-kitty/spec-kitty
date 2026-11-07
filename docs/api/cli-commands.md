@@ -2415,9 +2415,19 @@ _Project health diagnostics; a bare invocation runs the default check set_
 
  Diagnose (default): read-only; reports decisions present in the event
  log but missing from the index, index entries with no backing event, a
- decision_id whose event group cannot be folded at all (e.g. an
- ``open -> open`` corruption), and an index entry whose status disagrees
- with the folded log (a stale entry). Always exits 0 (report only).
+ decision_id whose event group cannot be folded at all (e.g. two openings
+ whose payloads differ beyond the moment each was recorded), and an index
+ entry whose status disagrees with the folded log (a stale entry). Always
+ exits 0 (report only).
+
+ It additionally prints an INFORMATIONAL finding naming each decision whose
+ event log holds several ``DecisionPointOpened`` rows that are equal apart
+ from the moment each was recorded -- the duplicate rows an interrupted or
+ concurrent open left behind before #4848. The fold tolerates them and keeps
+ the earliest; the log is left unchanged, and the finding never affects the
+ exit code or the clean verdict. ``--json`` carries the same list as
+ ``duplicate_openings_tolerated`` (always present, empty when there is
+ nothing to report).
 
  ``--repair``: rebuilds ``index.json`` from the log via the single
  canonical ``event -> IndexEntry`` fold
@@ -4309,6 +4319,18 @@ _Inspect mission types for this project._
  Implements FR-016 from
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
+ ``--target`` names the branch this Mission was consolidated into, and aims
+ the retrospective bookkeeping commit at it (#7201). Omit it to keep the
+ placement resolution from ``meta.json``'s ``target_branch``, which is right
+ for a Mission landed on its recorded target.
+
+ Pass it when the Mission was landed with ``consolidate --target <branch>``:
+ that resolved target is never written back to ``meta.json`` or
+ ``lanes.json``. A close that re-derived it would ask ``safe_commit`` for
+ ``main`` while the checkout sits on ``<branch>``, and the retrospective
+ would be refused and left uncommitted. The refusal warning names this
+ command with the right ``--target``.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          <str>  Mission slug (auto-detected from cwd if omitted)   │
 │ --discard                 Discard the mission mid-flight: delete the         │
@@ -4318,6 +4340,9 @@ _Inspect mission types for this project._
 │                           cleanup otherwise).                                │
 │ --force                   Skip the confirmation prompt when --discard is     │
 │                           set.                                               │
+│ --target           <str>  Branch this Mission was consolidated into. Aimed   │
+│                           at the retrospective bookkeeping commit; omit to   │
+│                           resolve the target from meta.json (auto-detected). │
 │ --json                    Emit a JSON envelope instead of a rich panel.      │
 │ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -4568,6 +4593,18 @@ _Inspect mission types for this project._
  Implements FR-016 from
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
 
+ ``--target`` names the branch this Mission was consolidated into, and aims
+ the retrospective bookkeeping commit at it (#7201). Omit it to keep the
+ placement resolution from ``meta.json``'s ``target_branch``, which is right
+ for a Mission landed on its recorded target.
+
+ Pass it when the Mission was landed with ``consolidate --target <branch>``:
+ that resolved target is never written back to ``meta.json`` or
+ ``lanes.json``. A close that re-derived it would ask ``safe_commit`` for
+ ``main`` while the checkout sits on ``<branch>``, and the retrospective
+ would be refused and left uncommitted. The refusal warning names this
+ command with the right ``--target``.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          <str>  Mission slug (auto-detected from cwd if omitted)   │
 │ --discard                 Discard the mission mid-flight: delete the         │
@@ -4577,6 +4614,9 @@ _Inspect mission types for this project._
 │                           cleanup otherwise).                                │
 │ --force                   Skip the confirmation prompt when --discard is     │
 │                           set.                                               │
+│ --target           <str>  Branch this Mission was consolidated into. Aimed   │
+│                           at the retrospective bookkeeping commit; omit to   │
+│                           resolve the target from meta.json (auto-detected). │
 │ --json                    Emit a JSON envelope instead of a rich panel.      │
 │ --help     -h             Show this message and exit.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯

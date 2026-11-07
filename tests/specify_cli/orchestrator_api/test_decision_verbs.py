@@ -1051,14 +1051,13 @@ def test_terminal_verb_retry_with_corrupt_event_log_emits_json_envelope(tmp_path
 def test_terminal_verb_lock_timeout_returns_lock_timeout_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
     """Red on 581b5c46: ``LockAcquireTimeout`` escaped with an empty stdout."""
     from kernel.locks import machine_file_lock
-    from specify_cli.decisions import service
 
     repo = _init_repo(tmp_path)
     mission_slug, feature_dir = _build_mission(repo, f"lock-timeout-{verb}")
     decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
     lock_path = feature_dir / "decisions" / "index.json.lock"
     index_before = (feature_dir / "decisions" / "index.json").read_bytes()
-    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    monkeypatch.setattr("specify_cli.decisions.lock.ACQUIRE_TIMEOUT_S", 0.2)
 
     with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(repo):
         result = cast("Result", runner.invoke(app, _write_verb_args(verb, mission_slug, decision_id), catch_exceptions=True))

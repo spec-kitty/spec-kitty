@@ -17,6 +17,7 @@ from charter.activation._catalog_miss import (
     classify_catalog_miss,
     classify_scope_filtered_miss,
 )
+from kernel.ancestor_walk import find_ancestor
 
 # ``_available_catalog_ids`` de-exported after the context.py re-export shim
 # retirement (doctrine-built-in-seam-consolidation WP06): no external ``src/``
@@ -71,7 +72,7 @@ def _repository_repo_root(repository: object | None) -> Path | None:
     project_dir = getattr(repository, "_project_dir", None)
     if not isinstance(project_dir, Path):
         return None
-    return next((parent for parent in (project_dir, *project_dir.parents) if (parent / ".kittify").is_dir()), None)
+    return find_ancestor(project_dir, lambda parent: (parent / ".kittify").is_dir())
 
 
 def _available_catalog_ids(repository: object | None) -> list[str]:

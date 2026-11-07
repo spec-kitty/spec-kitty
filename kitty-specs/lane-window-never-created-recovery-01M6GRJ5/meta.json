@@ -1,16 +1,33 @@
 {
+  "accept_commit": "d8176f70b862dbe9f0f5340668abd0fc1d70bb82",
+  "acceptance_history": [
+    {
+      "accept_commit": "d8176f70b862dbe9f0f5340668abd0fc1d70bb82",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-05T12:06:12.042312+00:00",
+      "accepted_by": "claude:opus-5.5:python-pedro",
+      "accepted_from_commit": "b4e487f4ca405249f106ce23274c48b9e486e91b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-05T12:06:12.042312+00:00",
+  "accepted_by": "claude:opus-5.5:python-pedro",
+  "accepted_from_commit": "b4e487f4ca405249f106ce23274c48b9e486e91b",
+  "baseline_merge_commit": "88d80d1540412f4bb33a6cd1aa383f905972d639",
   "created_at": "2026-11-03T13:11:18.023414+00:00",
   "flattened": false,
   "friendly_name": "lane window never created recovery",
+  "merged_at": "2026-11-05T12:06:54.326664+00:00",
+  "merged_commit": "582b5697b2d99119e705a1cf7b0e12211297817e",
   "mid8": "01M6GRJ5",
-  "mission_branch": "issue-7120-lane-window-never-created",
   "mission_id": "01M6GRJ53BN48A5ZBCZNB8KNEC",
-  "mission_number": null,
+  "mission_number": 250,
   "mission_slug": "lane-window-never-created-recovery-01M6GRJ5",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances lane window never created recovery on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "lane window never created recovery",
   "slug": "lane-window-never-created-recovery-01M6GRJ5",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "single_branch"
 }
