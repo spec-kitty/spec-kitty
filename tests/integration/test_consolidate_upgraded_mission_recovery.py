@@ -47,7 +47,9 @@ _SHARED_SOURCE = "src/shared.py"
 _GITATTRIBUTES_STALE_REFUSAL = (
     "✗ lane-b: Lane lane-b is stale: overlapping files ['.gitattributes']. "
     "Lane lane-b must incorporate mission changes before merging. "
-    "Run: cd .worktrees/*-lane-b && git merge kitty/mission-target-owned-01M5457A"
+    "In the checkout of branch 'kitty/mission-target-owned-01M5457A-lane-b' (find it with: git worktree list; "
+    "if none exists, recreate it with: spec-kitty implement WP02), run: "
+    "git merge kitty/mission-target-owned-01M5457A"
 )
 
 
