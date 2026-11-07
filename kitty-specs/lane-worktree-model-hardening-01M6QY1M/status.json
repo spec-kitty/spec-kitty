@@ -1,7 +1,7 @@
 {
-  "event_count": 224,
-  "last_event_id": "01M6TTR38XEXECG7MW0BRMP7HJ",
-  "materialized_at": "2026-11-07T11:01:54.077133+00:00",
+  "event_count": 225,
+  "last_event_id": "01M6TTT7H87R08E7NHPP5TBMPX",
+  "materialized_at": "2026-11-07T11:03:03.976870+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 4,
+    "for_review": 3,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -338,14 +338,14 @@
     },
     "WP10": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 3,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M6TTFHVXBWCMFZ4GKZQCJXRM",
-      "last_transition_at": "2026-11-07T10:57:14.109154+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6TTT7H87R08E7NHPP5TBMPX",
+      "last_transition_at": "2026-11-07T11:03:03.976870+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S6: registry-classified STATUS_WRITE_TARGETS_LANE_CHECKOUT refusal (+ coord append requires registered coord worktree); move-task auto-commit drops status files by name on every topology; clone-local migration 4.0.0rc8_lane_checkout_status_exclusion (five outcomes, lane-only ids reported, idempotent); doctor sparse-checkout LANE_STATUS_AUTHORED vs merge-base. Migration renamed rc9->rc8 (upgrade-target gate).",
@@ -360,9 +360,9 @@
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": 2195,
-      "shell_pid_created_at": "1793994540.86",
+      "role": "reviewer",
+      "shell_pid": 32399,
+      "shell_pid_created_at": "1794049379.36",
       "subtasks": {
         "T054": "done",
         "T055": "done",
