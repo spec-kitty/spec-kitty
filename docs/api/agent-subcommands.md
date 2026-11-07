@@ -166,8 +166,8 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │                                                       with                   │
 │                                                       --negative-invariant   │
 │    --result                                   <str>   pass | fail | pending  │
-│                                                       (required with         │
-│                                                       --criterion)           │
+│                                                       | deferred (required   │
+│                                                       with --criterion)      │
 │    --verification-method                      <str>   Criterion mode: how    │
 │                                                       this was verified      │
 │                                                       (updates proof_type).  │
@@ -189,7 +189,22 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │    --description                              <str>   Negative invariant     │
 │                                                       description (required  │
 │                                                       with                   │
-│                                                       --negative-invariant)  │
+│                                                       --negative-invariant); │
+│                                                       criterion mode:        │
+│                                                       replaces the criterion │
+│                                                       description            │
+│    --notes                                    <str>   Criterion mode:        │
+│                                                       replaces the criterion │
+│                                                       notes                  │
+│    --reason                                   <str>   Why the criterion is   │
+│                                                       deferred (required     │
+│                                                       with --result          │
+│                                                       deferred)              │
+│    --follow-up                                <str>   Follow-up reference:   │
+│                                                       issue number/URL or    │
+│                                                       ruling id (required    │
+│                                                       with --result          │
+│                                                       deferred)              │
 │    --verification-comma…                      <str>   grep pattern or        │
 │                                                       command verifying the  │
 │                                                       invariant's absence    │
@@ -963,8 +978,8 @@ _Mission lifecycle commands for AI agents_
 │                                                       with                   │
 │                                                       --negative-invariant   │
 │    --result                                   <str>   pass | fail | pending  │
-│                                                       (required with         │
-│                                                       --criterion)           │
+│                                                       | deferred (required   │
+│                                                       with --criterion)      │
 │    --verification-method                      <str>   Criterion mode: how    │
 │                                                       this was verified      │
 │                                                       (updates proof_type).  │
@@ -986,7 +1001,22 @@ _Mission lifecycle commands for AI agents_
 │    --description                              <str>   Negative invariant     │
 │                                                       description (required  │
 │                                                       with                   │
-│                                                       --negative-invariant)  │
+│                                                       --negative-invariant); │
+│                                                       criterion mode:        │
+│                                                       replaces the criterion │
+│                                                       description            │
+│    --notes                                    <str>   Criterion mode:        │
+│                                                       replaces the criterion │
+│                                                       notes                  │
+│    --reason                                   <str>   Why the criterion is   │
+│                                                       deferred (required     │
+│                                                       with --result          │
+│                                                       deferred)              │
+│    --follow-up                                <str>   Follow-up reference:   │
+│                                                       issue number/URL or    │
+│                                                       ruling id (required    │
+│                                                       with --result          │
+│                                                       deferred)              │
 │    --verification-comma…                      <str>   grep pattern or        │
 │                                                       command verifying the  │
 │                                                       invariant's absence    │

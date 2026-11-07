@@ -250,7 +250,7 @@ class TestManualEvidence:
 
         errors = validate_matrix_evidence(m)
 
-        assert "AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in errors
+        assert "AC-01: pass_fail must be one of deferred, fail, pass, pending; got 'failed'" in errors
         assert (
             "NI-01: result must be one of confirmed_absent, deferred_to_consolidation, "
             "pending, still_present, verification_error; got 'absent'"

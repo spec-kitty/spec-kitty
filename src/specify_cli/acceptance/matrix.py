@@ -31,7 +31,17 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 
-CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
+# #7308: ``deferred`` is an explicit, justified postponement of one criterion.
+# It does not block ``overall_verdict`` (a matrix of ``pass`` + justified
+# ``deferred`` rows reads ``pass``), but a deferral MUST carry a reason and a
+# follow-up reference (issue number/URL or ruling id) in the row's extras under
+# :data:`DEFERRAL_REASON_KEY` / :data:`DEFERRAL_FOLLOW_UP_KEY`; an unjustified
+# deferral is an evidence error and holds the verdict at ``pending``. Every
+# deferred row is disclosed by the accept gate (``criteria_deferred``).
+CRITERION_DEFERRED = "deferred"
+CRITERION_VERDICTS = frozenset({"pass", "fail", "pending", CRITERION_DEFERRED})
+DEFERRAL_REASON_KEY = "deferral_reason"
+DEFERRAL_FOLLOW_UP_KEY = "deferral_follow_up"
 
 # The negative-invariant results that represent an *actual, established
 # judgement* (data-model.md Result state machine). Membership in this set is the
@@ -265,7 +275,7 @@ class AcceptanceCriterion:
     description: str
     proof_type: str  # "automated_test" | "manual_qa" | "code_review" | "negative_invariant"
     evidence: str | None = None
-    pass_fail: str = "pending"  # noqa: S105  # "pass" | "fail" | "pending"
+    pass_fail: str = "pending"  # noqa: S105  # "pass" | "fail" | "pending" | "deferred"
     verified_by: str | None = None
     verified_at: str | None = None
     notes: str | None = None
@@ -383,6 +393,8 @@ class AcceptanceMatrix:
         if any(v in {"still_present", "verification_error"} for v in invariant_results):
             return "fail"
         pending_dominant_results = _pending_dominant_criterion_results(self.criteria)
+        if any(deferral_evidence_errors(c) for c in self.criteria):
+            return "pending"
         if any(v == "pending" for v in pending_dominant_results + invariant_results):
             return "pending"
         # NI-5: a deferred invariant is neither a failure nor a silent pass. It
@@ -1016,6 +1028,37 @@ def validate_manual_evidence(criterion: AcceptanceCriterion) -> list[str]:
     return errors
 
 
+def _non_blank_extra(criterion: AcceptanceCriterion, key: str) -> str | None:
+    value = criterion.extras.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def deferral_evidence_errors(criterion: AcceptanceCriterion) -> list[str]:
+    """#7308: a ``deferred`` row must name a reason AND a follow-up reference."""
+    if criterion.pass_fail != CRITERION_DEFERRED:
+        return []
+    errors: list[str] = []
+    if _non_blank_extra(criterion, DEFERRAL_REASON_KEY) is None:
+        errors.append(f"{criterion.criterion_id}: a deferred verdict requires a reason ({DEFERRAL_REASON_KEY})")
+    if _non_blank_extra(criterion, DEFERRAL_FOLLOW_UP_KEY) is None:
+        errors.append(f"{criterion.criterion_id}: a deferred verdict requires a follow-up reference ({DEFERRAL_FOLLOW_UP_KEY})")
+    return errors
+
+
+def deferred_criteria_disclosures(matrix: AcceptanceMatrix) -> list[str]:
+    """#7308: one line per deferred criterion, so a deferral is never silent."""
+    lines: list[str] = []
+    for criterion in matrix.criteria:
+        if criterion.pass_fail != CRITERION_DEFERRED:
+            continue
+        reason = _non_blank_extra(criterion, DEFERRAL_REASON_KEY) or "(no reason recorded)"
+        follow_up = _non_blank_extra(criterion, DEFERRAL_FOLLOW_UP_KEY) or "(no follow-up recorded)"
+        lines.append(f"{criterion.criterion_id} deferred: {reason} (follow-up: {follow_up})")
+    return lines
+
+
 def validate_matrix_evidence(matrix: AcceptanceMatrix) -> list[str]:
     """Validate all evidence in the matrix. Returns list of errors."""
     errors: list[str] = []
@@ -1024,6 +1067,7 @@ def validate_matrix_evidence(matrix: AcceptanceMatrix) -> list[str]:
             allowed = ", ".join(sorted(CRITERION_VERDICTS))
             errors.append(f"{criterion.criterion_id}: pass_fail must be one of {allowed}; got {criterion.pass_fail!r}")
         errors.extend(validate_manual_evidence(criterion))
+        errors.extend(deferral_evidence_errors(criterion))
     for invariant in matrix.negative_invariants:
         errors.extend(_validate_invariant_provenance(invariant))
     return errors

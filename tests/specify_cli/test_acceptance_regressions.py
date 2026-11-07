@@ -967,7 +967,7 @@ def test_collect_feature_summary_blocks_malformed_matrix_verdict_values(tmp_path
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG, mutate_matrix=False)
 
-    assert "Evidence: AC-01: pass_fail must be one of fail, pass, pending; got 'failed'" in summary.activity_issues
+    assert "Evidence: AC-01: pass_fail must be one of deferred, fail, pass, pending; got 'failed'" in summary.activity_issues
     assert "Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied" in summary.activity_issues
     assert summary.ok is False
 
