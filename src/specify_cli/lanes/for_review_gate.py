@@ -37,8 +37,6 @@ if TYPE_CHECKING:
     from .models import ExecutionLane, LanesManifest
 
 __all__ = [
-    "LANE_BRANCH_MISSING",
-    "LANE_NO_COMMIT_BEYOND_BASE",
     "GateDecision",
     "evaluate_for_review_gate",
     "resolve_lane_base_ref",

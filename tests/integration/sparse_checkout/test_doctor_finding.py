@@ -8,7 +8,7 @@ on Linux, macOS and Windows (ADR 2026-10-15-1; rows in
 ``tests/scenarios/absorption-ledger.json``).
 
 What stays here needs Spec Kitty's own lane registration
-(``register_lane_sparse_checkout``), which no CLI command exposes: a managed
+(``lanes.lane_checkout.exclude_lane_status_files``), which no CLI command exposes: a managed
 lane's sparse-checkout is never reported or remediated as legacy state.
 """
 
@@ -22,7 +22,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app as doctor_app
-from specify_cli.coordination import register_lane_sparse_checkout
+from specify_cli.lanes.lane_checkout import exclude_lane_status_files, lane_mission_dir_name
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -91,7 +91,7 @@ def _init_managed_lane_repo(repo: Path) -> Path:
             COORD_BRANCH,
         ],
     )
-    register_lane_sparse_checkout(wt, MISSION_SLUG, MID8)
+    exclude_lane_status_files(wt, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
     return wt
 
 
@@ -216,7 +216,7 @@ def _init_managed_lane_repo_with_mission_free_branch(repo: Path) -> tuple[Path, 
             COORD_BRANCH,
         ],
     )
-    register_lane_sparse_checkout(wt, MISSION_SLUG, MID8)
+    exclude_lane_status_files(wt, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
     return wt, MISSION_FREE_BRANCH
 
 
