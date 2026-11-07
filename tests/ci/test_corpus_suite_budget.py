@@ -29,6 +29,7 @@ the production check proves nothing.
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -203,7 +204,7 @@ def test_a_record_disagreeing_with_the_cap_is_refused() -> None:
 # ---------------------------------------------------------------------------
 # Mutation controls: every property above is load-bearing
 # ---------------------------------------------------------------------------
-def _mutated(mutate) -> dict[str, Any]:
+def _mutated(mutate: Callable[[dict[str, Any], list[dict[str, Any]]], None]) -> dict[str, Any]:
     packs = _load_packs()
     job = _job(packs)
     mutate(job, _steps(job))
