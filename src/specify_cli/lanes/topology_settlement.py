@@ -401,20 +401,34 @@ class _CoordPlan:
     lanes_before: bytes | None = None
 
     def commit_mission_dir(self) -> None:
+        from specify_cli.git.commit_helpers import safe_commit
+
         root = self.ctx.repo_root
         self.topic_tip_before = _git_ok(root, "rev-parse", "HEAD")
-        _git_ok(root, "add", "-A", "--", self.ctx.mission_rel)
-        if _git(root, "diff", "--cached", "--quiet").returncode == 0:
+        changed: dict[str, None] = {}
+        for entry in status_entries(root, pathspecs=(self.ctx.mission_rel,), untracked="all"):
+            changed[str(entry.path)] = None
+            if entry.orig_path is not None:
+                changed[str(entry.orig_path)] = None
+        if not changed:
             return
-        _git_ok(root, "commit", "-q", "--no-verify", "-m", f"chore({self.ctx.mission_dir_name}): planning state before topology settlement")
-        self.settlement_commit = _git_ok(root, "rev-parse", "HEAD")
+        # #7276: commit exactly the Mission directory's changed files through the commit-scope owner.
+        result = safe_commit(
+            repo_root=root,
+            worktree_root=root,
+            destination_ref=self.ctx.topic,
+            message=f"chore({self.ctx.mission_dir_name}): planning state before topology settlement",
+            paths=tuple(Path(rel) for rel in changed),
+        )
+        self.settlement_commit = result.sha
         self.committed = True
 
     def uncommit_mission_dir(self) -> None:
+        from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
+
         root = self.ctx.repo_root
         if self.committed:
-            ref = f"refs/heads/{self.ctx.topic}"
-            live_tip = _git_ok(root, "rev-parse", ref)
+            live_tip = _git_ok(root, "rev-parse", f"refs/heads/{self.ctx.topic}")
             if live_tip != self.settlement_commit:
                 # #7276: never rewind past commits made after the settlement commit.
                 raise _refuse(
@@ -423,7 +437,10 @@ class _CoordPlan:
                     "commit by hand if it must go."
                 )
             # Compare-and-swap on the commit this run made: a concurrent move still fails closed.
-            _git_ok(root, "update-ref", ref, self.topic_tip_before, self.settlement_commit)
+            try:
+                restore_branch_ref(root, self.ctx.topic, self.topic_tip_before, expected_current_sha=self.settlement_commit)
+            except RefRestoreError as exc:
+                raise _refuse(f"the topic branch {self.ctx.topic!r} moved during the undo; it was kept ({exc}).") from exc
             self.committed = False
         _git_ok(root, "reset", "-q")
 
@@ -465,8 +482,10 @@ class _CoordPlan:
         restamp_topic_branch_as_coordination(coord_dir, topology_decision=self.decision.as_meta())
 
     def restore_meta(self) -> None:
+        from specify_cli.mission_metadata import restore_meta_text
+
         if self.coord_meta_before is not None and self.coord_dir is not None:
-            (self._coord_dir() / "meta.json").write_bytes(self.coord_meta_before)
+            restore_meta_text(self._coord_dir(), self.coord_meta_before.decode("utf-8"))
 
     def write_lanes_json(self) -> None:
         lanes = self._coord_dir() / "lanes.json"
@@ -500,10 +519,9 @@ class _CoordPlan:
 def _settle_single_branch(planning_dir: Path, decision: TopologyDecision) -> SettlementHandle:
     """No git step: write ``topology_settled: true`` and ``topology_decision`` (FR-055)."""
     from specify_cli.meta_keys import TOPOLOGY_DECISION_KEY, TOPOLOGY_SETTLED_KEY
-    from specify_cli.mission_metadata import locked_update_meta
+    from specify_cli.mission_metadata import locked_update_meta, restore_meta_text
 
-    meta_path = planning_dir / "meta.json"
-    before = meta_path.read_bytes()
+    before = (planning_dir / "meta.json").read_bytes()
 
     def _mark(meta: dict[str, Any]) -> None:
         meta[TOPOLOGY_SETTLED_KEY] = True
@@ -512,7 +530,7 @@ def _settle_single_branch(planning_dir: Path, decision: TopologyDecision) -> Set
     locked_update_meta(planning_dir, _mark, validate=False)
 
     def _restore() -> None:
-        meta_path.write_bytes(before)
+        restore_meta_text(planning_dir, before.decode("utf-8"))
 
     step = SettlementStep("meta_restamp", lambda: None, _restore)
     return SettlementHandle(decision=decision, planning_dir=planning_dir, applied=[step])

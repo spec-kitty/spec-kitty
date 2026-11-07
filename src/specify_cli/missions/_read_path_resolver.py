@@ -2146,7 +2146,7 @@ def default_mission_topic_dir(repo_root: Path, composed: Path) -> Path | None:
 
     if meta_dir == composed and mission_has_landed(composed):
         return None
-    from specify_cli.status.read_surface import topic_holder_mission_dir
+    from specify_cli.status import topic_holder_mission_dir
 
     held: Path | None = topic_holder_mission_dir(repo_root, topic, composed.name)
     if held is None or held.resolve() == composed.resolve():

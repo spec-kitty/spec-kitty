@@ -355,16 +355,14 @@ def _recorded_mission_branches(write_root: Path) -> dict[str, tuple[str, str | N
     when unrecorded). A branch equal to the Mission's own ``target_branch`` is not a
     Mission branch. A Mission whose ``meta.json`` cannot be read is skipped.
     """
+    from specify_cli.context.mission_resolver import iter_kitty_specs_children
     from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.meta_keys import COORDINATION_BRANCH_KEY
 
-    specs = write_root / KITTY_SPECS_DIR
-    if not specs.is_dir():
-        return {}
     recorded: dict[str, tuple[str, str | None]] = {}
-    for feature_dir in specs.iterdir():
+    for feature_dir in iter_kitty_specs_children(write_root):
         try:
-            meta = load_meta_fail_closed(feature_dir) if feature_dir.is_dir() else None
+            meta = load_meta_fail_closed(feature_dir)
         except MissionMetaReadError:
             continue
         if not meta:

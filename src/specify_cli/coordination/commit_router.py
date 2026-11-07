@@ -1164,7 +1164,7 @@ def _primary_commit_root(repo_root: Path, ref: str, files: tuple[Path, ...]) -> 
     is its topic branch, which the coordination worktree holds once the root checkout
     moved back to ``create_return_branch``.
     """
-    from specify_cli.status.read_surface import checkout_holding_branch
+    from specify_cli.status import checkout_holding_branch
 
     holder = checkout_holding_branch(repo_root, ref) if files else None
     if holder is None or holder.resolve() == repo_root.resolve():

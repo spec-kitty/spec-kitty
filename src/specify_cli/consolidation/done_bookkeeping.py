@@ -42,7 +42,7 @@ _CANCELED_LANE_VALUE = "canceled"
 
 def _canceled_status_events(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> list[StatusEvent]:
     """Lane transitions from the status read door (the owned checkout's own surface when *owned*)."""
-    from specify_cli.status.read_surface import read_status_events, resolve_status_read
+    from specify_cli.status import read_status_events, resolve_status_read
 
     return read_status_events(resolve_status_read(repo_root, mission_slug, owned=owned))
 
@@ -464,7 +464,7 @@ def _not_done_wps(surface: StatusReadSurface, wp_ids: list[str]) -> list[str]:
     A WP with no event reads ``uninitialized`` (the unseeded sentinel), never ``done``.
     """
     from specify_cli.status import Lane, reduce, resolve_lane_alias
-    from specify_cli.status.read_surface import read_status_events
+    from specify_cli.status import read_status_events
 
     work_packages = reduce(read_status_events(surface)).work_packages
     incomplete: list[str] = []
@@ -484,7 +484,7 @@ def _assert_merged_wps_reached_done(
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.status import StoreError
-    from specify_cli.status.read_surface import read_status_text, resolve_status_read
+    from specify_cli.status import read_status_text, resolve_status_read
 
     # Read through the one status read door, so reads are on the same side as
     # the writes in _mark_wp_merged_done (fixes coordination-branch divergence).
@@ -659,7 +659,7 @@ def _durable_coordination_lanes(
     :func:`_reconcile_completed_wps_for_resume` so both read ONE durable authority.
     """
     from specify_cli.coordination.status_service import wp_lane_actor_from_events
-    from specify_cli.status.read_surface import read_status_events, resolve_committed_status_read
+    from specify_cli.status import read_status_events, resolve_committed_status_read
 
     try:
         surface = resolve_committed_status_read(repo_root, mission_slug)

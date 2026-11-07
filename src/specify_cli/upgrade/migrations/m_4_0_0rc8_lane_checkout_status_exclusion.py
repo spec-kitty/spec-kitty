@@ -269,7 +269,12 @@ def _mid_operation(worktree: Path) -> bool:
 
 
 def _dirty(worktree: Path, status_paths: tuple[str, str]) -> bool:
-    return bool(_git(worktree, "status", "--porcelain", "--untracked-files=all", "--", *status_paths).strip())
+    from kernel.git import GitCommandError, status_entries
+
+    try:
+        return bool(status_entries(worktree, pathspecs=status_paths, untracked="all"))
+    except GitCommandError:
+        return False  # an unreadable checkout reads clean, as the porcelain probe did
 
 
 def _event_keys(text: str) -> list[str]:
@@ -297,7 +302,7 @@ def _event_id(line: str) -> str | None:
 def _surface_text(project_path: Path, mission: str) -> str:
     """The resolved status surface's event log (WP05's door), from its path or its ref."""
     from specify_cli.coordination.status_service import read_status_ref
-    from specify_cli.status.read_surface import resolve_status_read
+    from specify_cli.status import resolve_status_read
 
     surface = resolve_status_read(project_path, mission)
     if surface.path is not None:

@@ -39,7 +39,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.coordination.workspace import lane_status_exclusion_patterns
 from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.lanes.branch_naming import code_lane_branch_name, coord_mission_dir_name, is_lane_branch, resolve_mid8
-from specify_cli.mission_metadata import load_meta
+from specify_cli.mission_metadata import load_meta_or_empty
 
 __all__ = [
     "LaneCheckoutError",
@@ -152,7 +152,7 @@ def resolve_lane_mission_dir_name(repo_root: Path, mission_slug: str) -> str:
     PRIMARY partition, exactly as the allocator reads them.
     """
     meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    return lane_mission_dir_name_from_meta(mission_slug, load_meta(meta_dir, on_malformed="none") or {})
+    return lane_mission_dir_name_from_meta(mission_slug, load_meta_or_empty(meta_dir))
 
 
 def open_lane_checkout(request: LaneCheckoutRequest) -> Path:
@@ -434,21 +434,19 @@ def mission_code_lanes(repo_root: Path) -> tuple[MissionCodeLane, ...]:
     A Mission whose manifest or ``meta.json`` cannot be read is skipped: it has
     no lanes this enumeration can name.
     """
+    from specify_cli.context.mission_resolver import iter_kitty_specs_children
     from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
 
-    specs = repo_root / "kitty-specs"
-    if not specs.is_dir():
-        return ()
     found: list[MissionCodeLane] = []
-    for mission_dir in sorted(child for child in specs.iterdir() if child.is_dir()):
+    for mission_dir in iter_kitty_specs_children(repo_root):
         try:
             manifest = read_lanes_json(mission_dir)
         except (CorruptLanesError, OSError, ValueError):
             continue
         if manifest is None:
             continue
-        meta = load_meta(mission_dir, on_malformed="none") or {}
+        meta = load_meta_or_empty(mission_dir)
         dir_name = lane_mission_dir_name_from_meta(manifest.mission_slug, meta)
         coordination = meta.get("coordination_branch")
         for lane in manifest.lanes:

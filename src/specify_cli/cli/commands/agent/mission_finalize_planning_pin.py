@@ -109,7 +109,7 @@ def _execution_has_begun(
         StatusReadPathNotFound,
     )
     from specify_cli.status import StoreError
-    from specify_cli.status.read_surface import materialize_status, resolve_status_read
+    from specify_cli.status import materialize_status, resolve_status_read
 
     try:
         surface = resolve_status_read(repo_root, mission_slug, owned=owned)

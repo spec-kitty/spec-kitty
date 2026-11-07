@@ -112,7 +112,7 @@ def coordination_surface_is_live(feature_dir: Path) -> bool:
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.core.paths import MissionMetaReadError, WorkspaceRootNotFound, resolve_canonical_root
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status.read_surface import StatusReadSource, resolve_status_read
+    from specify_cli.status import StatusReadSource, resolve_status_read
 
     try:
         if not (load_meta_fail_closed(feature_dir) or {}).get("coordination_branch"):

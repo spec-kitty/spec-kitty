@@ -1247,7 +1247,7 @@ def resolve_status_surface_with_anchor(
     Raises StatusReadPathNotFound when the coord-worktree mid8 cannot be derived.
     """
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
-    from specify_cli.status.read_surface import decide_status_read
+    from specify_cli.status import decide_status_read
 
     # The one read door decides the source (ADR 2026-11-06-2, WP05): root normalization
     # (lane and coordination worktree roots re-anchor; an unreadable registry fails closed),

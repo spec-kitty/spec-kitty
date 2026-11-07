@@ -109,7 +109,9 @@ def _probe_lane(repo_root: Path, lane: MissionCodeLane) -> LaneStatusAuthored | 
     commits = tuple(_git_stdout(repo_root, "log", "--no-merges", "--format=%H", *own_commits).split())
     if not commits:
         return None
-    touched = set(_git_stdout(repo_root, "log", "--no-merges", "--format=", "--name-only", *own_commits).splitlines())
+    from kernel.git import commit_paths
+
+    touched = {str(path) for commit in commits for path in commit_paths(repo_root, commit)}
     paths = tuple(path for path in lane.status_paths if path in touched)
     return LaneStatusAuthored(lane_branch=lane.branch, mission=lane.mission, paths=paths, commits=commits)
 
