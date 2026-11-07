@@ -13,6 +13,7 @@ from typing import Any, Callable, TypeVar
 
 import typer
 
+from kernel.ancestor_walk import find_ancestor
 from specify_cli.context.errors import (
     ContextCorruptedError,
     ContextNotFoundError,
@@ -27,10 +28,9 @@ _CONTEXT_OBJ_KEY = "mission_context"
 
 def _find_repo_root() -> Path:
     """Walk up from cwd to find repository root (contains .kittify/)."""
-    current = Path.cwd()
-    for parent in [current, *current.parents]:
-        if (parent / ".kittify").is_dir():
-            return parent
+    root = find_ancestor(Path.cwd(), lambda parent: (parent / ".kittify").is_dir())
+    if root is not None:
+        return root
     msg = "Could not find repository root (no .kittify/ directory found)."
     raise typer.BadParameter(msg)
 

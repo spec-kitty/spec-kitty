@@ -117,10 +117,29 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
   (`tests/_support/git_ceiling.py`), so discovery from a `tmp_path` never
   climbs into a git work tree that happens to enclose the temp root (an agent
   sandbox with `TMPDIR` under a checkout, a `/tmp` someone ran `git init` in).
-  Git and the root walks in `specify_cli.core.paths` honor it; a repository a
-  test creates inside its own `tmp_path` is still found. It is the floor: a test
-  may still set its own, narrower ceiling with `monkeypatch.setenv`, and a test
-  that builds a child environment from scratch must carry it over itself.
+  Git and the migrated parent-enumerating repo/project-root walks in the stack
+  honor it, through the one walk in `kernel.ancestor_walk` (#7056); a repository
+  a test creates inside its own `tmp_path` is still found. The `while`/`range`
+  loop walks (#7269) and `session_start`'s own walk with its `stop=` (#7122) are
+  not on it yet. It is the floor: a test
+  may still set its own, narrower ceiling with `monkeypatch.setenv`.
+- **`tempfile` lives inside the ceiling too** (#7076). The ceiling only governs
+  directories *below* a listed entry, and `tempfile`'s root is the platform temp
+  root — above every entry — so without this every `TemporaryDirectory`/`mkdtemp`
+  in the suite (59 modules) made its directory outside the harness boundary, and
+  on a host whose `/tmp` had gained a stray `.git` those directories were inside a
+  foreign repository. `pytest_configure` now points `TMPDIR`/`TEMP`/`TMP` at
+  `<basetemp>/tmp`, creates it, and resets `tempfile.tempdir`
+  (`tests/_support/temp_root.py`), so temporaries inherit the ceiling *and* the
+  run's own wipe/reap — there is no second cleanup path for them. pytest removes
+  and recreates a *given* basetemp on first use, so a guard fixture re-creates the
+  root once that has happened; without it `tempfile` silently falls back to the
+  platform temp root.
+- A test that builds a child environment **from scratch** (an allowlist, or a copy
+  with `GIT_*` stripped) must carry the ceiling over itself: merge
+  `tests/_support/temp_root.py::harness_env()`, which yields the ceiling and the
+  temp-root variables and nothing else. Six sites do; they are pinned by
+  `tests/unit/test_harness_child_env.py`.
 - Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
   nothing behind — it removes the run's dir at interpreter exit. A run with
   failures, errors, or an interruption keeps its private basetemp tree instead,

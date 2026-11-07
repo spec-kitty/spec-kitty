@@ -10,6 +10,7 @@ behaviour: a folder git holds nothing for still has its identity minted.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -19,8 +20,8 @@ from specify_cli.migration.backfill_identity import backfill_mission
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
-_SLUG = "tracked-meta-01REALMIS"
-_MISSION_ID = "01REALMISZZZZZZZZZZZZZZZZZ"
+_MISSION_ID = "01M6RMVF55CDNV3SF3FP70ERKZ"
+_SLUG = f"tracked-meta-{_MISSION_ID[:8]}"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -78,9 +79,27 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
     assert restored["mission_id"] == _MISSION_ID, "backfill_mission minted over a tracked identity"
 
 
-@pytest.mark.parametrize("tracked_state", ["usable", "corrupt", "staged-edit"])
-def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str) -> None:
-    """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint."""
+@pytest.mark.parametrize(
+    "tracked_state",
+    [
+        "usable",
+        "corrupt",
+        "staged-edit",
+        "redirect-ceiling",
+        "post-empty-ownership",
+        "post-empty-lexical-ownership",
+        "start-ceiling-ownership",
+        "config-error",
+        "config-warning",
+    ],
+)
+def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint.
+
+    Ownership refusal is exercised with unresolved post-empty alias/lexical spellings and a
+    ceiling equal to git's starting directory: none stops git reaching the held identity.
+    Configuration failure is separate evidence that a failed query cannot establish absence.
+    """
     root = _repo(tmp_path)
     mission_dir = _mission(root)
     without_id = {
@@ -100,6 +119,45 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         (mission_dir / "meta.json").write_text(json.dumps({**without_id, "mission_id": _MISSION_ID}) + "\n", encoding="utf-8")
         _git(root, "add", "-A")
     (mission_dir / "meta.json").write_text(lost, encoding="utf-8")
+    if tracked_state == "redirect-ceiling":
+        # Git cannot answer for an explicit redirect. The discovery ceiling must not
+        # turn that unknown tracked identity into permission to mint a replacement.
+        monkeypatch.setenv("GIT_DIR", str(tmp_path / "missing-git-dir"))
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
+    elif tracked_state == "post-empty-ownership":
+        # git does not resolve a ceiling entry listed after an empty entry, so its own search
+        # still reaches this repository and the ownership check it then applies is a refusal,
+        # not an absence. The alias resolves to this Mission's parent, so a walk that resolves
+        # it stops below the ``.git`` git refused.
+        assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
+        alias = tmp_path / "kitty-specs-alias"
+        try:
+            alias.symlink_to(mission_dir.parent, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
+            pytest.skip("platform cannot create directory symlinks")
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{alias}")
+    elif tracked_state == "post-empty-lexical-ownership":
+        # Path drops this trailing dot, but Git keeps post-empty spellings lexical.
+        # Turning it into a canonical ceiling hides the anchor whose ownership Git refused.
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{mission_dir.parent}/.")
+    elif tracked_state == "start-ceiling-ownership":
+        # Git ignores a ceiling equal to its starting directory. Its ownership refusal
+        # must not become an absence merely because the general walk stops at the start.
+        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
+    elif tracked_state in {"config-error", "config-warning"}:
+        # The strict-parent ceiling hides the anchor, so the configuration witness must
+        # refuse both a fatal parse error and a diagnostic-only, otherwise-unset lookup.
+        assert _MISSION_ID in _git(root, "show", f"HEAD:kitty-specs/{_SLUG}/meta.json")
+        if tracked_state == "config-error":
+            monkeypatch.setenv("GIT_CONFIG_COUNT", "invalid")
+        else:
+            global_config = tmp_path / "global-config-directory"
+            global_config.mkdir()
+            monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir.parent))
 
     result = backfill_mission(mission_dir)
 
@@ -114,7 +172,7 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
     assert result.mission_id is None
     assert result.reason is not None
     assert f"[{expected_code}]" in result.reason
-    assert "mission_id" not in written, "backfill_mission minted over an identity git holds"
+    assert (mission_dir / "meta.json").read_bytes() == lost.encode("utf-8"), "refused backfill changed the working metadata"
 
 
 def test_an_untracked_copy_without_identity_is_still_minted(tmp_path: Path) -> None:

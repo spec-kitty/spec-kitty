@@ -10,23 +10,23 @@ so a team can commit its own ``.claude/settings.json`` or ``.kiro/steering/``.
 """
 
 import os
-import subprocess
 import stat
+import subprocess
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kernel.ancestor_walk import find_ancestor
 from kernel.git import GitCommandError, tracked_paths
+from specify_cli.agent_utils.ignore_entries import agent_ignore_entries, ignored_agent_keys
 from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.no_follow import (
     NoFollowPathError,
     open_no_follow,
     read_text_no_follow,
 )
-from specify_cli.agent_utils.ignore_entries import agent_ignore_entries, ignored_agent_keys
 from specify_cli.state.contract import get_runtime_gitignore_entries
-
 
 SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
 
@@ -224,9 +224,12 @@ def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | 
 
 def _has_git_control_path(project_path: Path) -> bool:
     """Return whether this path or an ancestor has Git control metadata."""
-    return any(
-        candidate.joinpath(".git").is_file() or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file())
-        for candidate in (project_path, *project_path.parents)
+    return (
+        find_ancestor(
+            project_path,
+            lambda candidate: candidate.joinpath(".git").is_file() or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file()),
+        )
+        is not None
     )
 
 

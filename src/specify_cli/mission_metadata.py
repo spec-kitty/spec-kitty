@@ -16,6 +16,7 @@ always either the old version or the new version, never a partial write.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -23,12 +24,14 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 from charter.activation.api import read_mission_type
-from specify_cli.core.atomic import atomic_write
-from specify_cli.core.paths import safe_mission_slug
+from kernel.ancestor_walk import find_ancestor, git_ceiling_dirs
 from kernel.clock import now_utc_iso
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
 from kernel.meta_decode import MetaDecodeError, decode_meta
+from kernel.resolution import resolve_rejecting_loops
 from mission_runtime import resolve_mid8
+from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import safe_mission_slug
 from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
@@ -37,6 +40,18 @@ META_FILENAME: str = "meta.json"
 _UTF8: str = "utf-8"
 _UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
 _HEAD: str = "HEAD"
+
+# A failed git probe under an explicit repository/index/object redirect does not
+# prove that no tracked identity exists, even when discovery stops at a ceiling.
+# Successful redirects retain their existing behavior; #7262 owns their classifier.
+_GIT_CONTEXT_REDIRECTS = (
+    "GIT_DIR",
+    "GIT_COMMON_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
 
 
 def baseline_slug_fields(slug: str) -> dict[str, str]:
@@ -575,8 +590,9 @@ class _GitRefuses(Exception):
 def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     """``rev-parse --show-prefix`` of *feature_dir* (``""`` at the checkout root), or ``None``.
 
-    ``None`` means "nothing is tracked here": git is not installed, or it positively answered
-    that *feature_dir* is outside a work tree and no ``.git`` anchor exists above it.
+    ``None`` means "nothing is tracked here": git is not installed, or a query that did not
+    establish a worktree context has no ``.git`` anchor in Git's effective search domain
+    and its configuration is readable.
 
     The trailing newline git prints is removed -- and only that. ``strip()`` would also eat a
     leading space that is part of the first path component, silently missing the blob and
@@ -599,20 +615,66 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     lines = result.stdout.decode(_UTF8, "replace").split("\n")
     if result.returncode == 0 and len(lines) >= 2 and lines[0].strip() == "true":
         return lines[1].removesuffix("\n")
+    if result.returncode != 0 and any(name in os.environ for name in _GIT_CONTEXT_REDIRECTS):
+        raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
     if _has_no_git_anchor(feature_dir):
+        _require_readable_git_config(feature_dir)
         return None
     raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
 
 
+def _has_git_anchor(candidate: Path) -> bool:
+    """Whether *candidate* carries a ``.git`` directory, file or worktree marker.
+
+    Fail-closed: an ancestor that cannot be read counts as an anchor, so the caller
+    refuses (``_GitRefuses``) rather than falling back to minting an identity over a copy
+    git does hold (NFR-002). The caller's negative-evidence walk follows Git's effective
+    ceilings, ignoring entries equal to its starting directory; an ambient repository
+    above a boundary that actually applies is not an anchor (#7056).
+    """
+    try:
+        return (candidate / ".git").exists()
+    except OSError:
+        return True
+
+
 def _has_no_git_anchor(feature_dir: Path) -> bool:
-    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
-    for candidate in (feature_dir, *feature_dir.parents):
-        try:
-            if (candidate / ".git").exists():
-                return False
-        except OSError:
-            return False
-    return True
+    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*.
+
+    Use the canonical walk with git's no-realpath rule for entries after an empty entry.
+    This negative evidence must not stop below an anchor git's own search reached and
+    refused: that would turn an unknown tracked identity into permission to mint one.
+
+    git ignores a ceiling entry that *is* its starting directory (it bounds only a search
+    that starts below it), so that one entry is dropped before this walk runs; the
+    start-equal stop stays the general reading for every other caller. A start that cannot
+    be resolved leaves the question open -- unknown is a refusal here, never an absence.
+    """
+    try:
+        start = resolve_rejecting_loops(feature_dir)
+    except OSError:
+        return False
+    ceilings = git_ceiling_dirs(resolve_after_empty=False) - {start}
+    return find_ancestor(start, _has_git_anchor, ceilings=ceilings) is None
+
+
+def _require_readable_git_config(feature_dir: Path) -> None:
+    """Require a quiet configuration witness before failed discovery can mean absence.
+
+    This same-environment, same-directory lookup works outside a repository and discards
+    the value of one standard key. Status 0 (set) or 1 (unset) is accepted only without
+    diagnostics: even a non-fatal warning leaves this witness unproven. Other answers and
+    not-run queries refuse; timeouts keep the existing GitCommandError contract. This is
+    conservative evidence of readability, not ownership or the broader Git-context taxonomy.
+    """
+    try:
+        probe = run_git(feature_dir, "config", "--get", "core.bare", check=False)
+    except GitCommandError as exc:
+        if exc.timed_out:
+            raise
+        raise _GitRefuses(str(exc)) from exc
+    if probe.returncode not in (0, 1) or probe.stderr:
+        raise _GitRefuses(probe.stderr.decode(_UTF8, "replace"))
 
 
 def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:

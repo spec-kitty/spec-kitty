@@ -18,6 +18,7 @@ import pytest
 from specify_cli.core.paths import locate_project_root
 from specify_cli.status.locking import feature_status_lock, feature_status_lock_path, project_event_log_lock
 from specify_cli.status.mission_write import mission_write_lock
+from tests._support.git_ceiling import GIT_CEILING_ENV
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -58,4 +59,6 @@ def test_mission_write_lock_on_a_bare_dir_leaves_no_project_for_its_children(tmp
     with mission_write_lock(shared):
         pass
     assert not (shared / ".kittify").exists()
-    assert locate_project_root(child, stop=tmp_path) is None
+    # The walk's boundary is git's ceiling, not a per-call argument (#7076).
+    monkeypatch.setenv(GIT_CEILING_ENV, str(tmp_path))
+    assert locate_project_root(child) is None

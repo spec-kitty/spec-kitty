@@ -41,8 +41,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import load_meta_fail_closed
+from kernel.ancestor_walk import iter_ancestors
 
 # Internalized from spec-kitty-runtime 0.4.3 as part of
 # `shared-package-boundary-cutover-01KQ22DS` (mission). See
@@ -64,6 +63,8 @@ from runtime.next._internal_runtime.workflow_registry import (
 )
 from runtime.next._internal_runtime.workflow_schema import ActionStep, WorkflowSequence
 from runtime.next.decision import DecisionKind
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import load_meta_fail_closed
 
 # No __all__ declaration here: the workflow-resolver additions (PlanResult,
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
@@ -205,13 +206,23 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
 
 
 def _infer_project_root(mission_dir: Path) -> Path | None:
-    """Infer the project root that owns *mission_dir* for `.kittify` lookup."""
+    """Infer the project root that owns *mission_dir* for `.kittify` lookup.
+
+    The ``kitty-specs`` convention names the directory's parent as the owner, but only a
+    directory the walk itself admitted may be returned: when the ceiling is
+    ``…/kitty-specs``, that parent sits above the boundary (and the workflow registry would
+    read its overrides), so no owner is inferred. Below the ceiling the convention still
+    applies, with or without a ``.kittify`` marker.
+    """
     current = mission_dir.resolve()
-    for candidate in (current, *current.parents):
+    inferred_parent: Path | None = None
+    for candidate in iter_ancestors(current):
+        if inferred_parent is not None and candidate == inferred_parent:
+            return candidate
         if (candidate / ".kittify").exists():
             return candidate
         if candidate.name == KITTY_SPECS_DIR:
-            return candidate.parent
+            inferred_parent = candidate.parent
     return None
 
 
