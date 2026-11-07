@@ -99,7 +99,8 @@ class TestCheckLaneStaleness:
         assert result.is_stale is True
         assert result.stale_files == ["src/views.py"]
         assert result.remediation is not None
-        assert "git merge" in result.remediation
+        assert "spec-kitty agent action implement WP01" in result.remediation
+        assert "git merge" not in result.remediation
 
     def test_stale_planning_lane_remediation_has_no_worktree_path(self, tmp_path):
         """The canonical planning lane has no ``.worktrees/`` entry by design --
@@ -159,12 +160,21 @@ class TestCheckLaneStaleness:
 class TestStaleRemediation:
     """Pure-function coverage for the remediation-text branch (no git needed)."""
 
-    def test_lane_workspace_gets_worktree_remediation(self):
+    def test_code_lane_gets_spec_kitty_reentry_remediation(self):
         remediation = _stale_remediation(
-            _lane(lane_id="lane-a"), "kitty/mission-feat-lane-a", "kitty/mission-feat",
+            _lane(lane_id="lane-a"), "kitty/mission-feat-lane-a", "kitty/mission-feat", mission_slug="feat",
         )
-        assert "cd .worktrees/*-lane-a" in remediation
-        assert "git merge kitty/mission-feat" in remediation
+        assert "spec-kitty agent action implement WP01 --mission feat" in remediation
+        assert "spec-kitty consolidate --mission feat" in remediation
+        assert "cd .worktrees" not in remediation
+        assert "git merge" not in remediation
+
+    def test_multi_wp_code_lane_names_placeholder_and_lists_wps(self):
+        remediation = _stale_remediation(
+            _lane(lane_id="lane-b", wp_ids=("WP02", "WP03")), "kitty/mission-feat-lane-b", "kitty/mission-feat",
+        )
+        assert "spec-kitty agent action implement <WP> --mission <mission>" in remediation
+        assert "WP02, WP03" in remediation
 
     def test_planning_lane_gets_repo_root_remediation(self):
         remediation = _stale_remediation(
