@@ -684,6 +684,18 @@ def _print_acceptance_warnings(summary: AcceptanceSummary) -> None:
         console.print(f"[yellow]- {warning}[/yellow]")
 
 
+def _print_deferred_criteria(summary: AcceptanceSummary) -> None:
+    """#7308: always show deferred acceptance criteria, even on a passing accept."""
+    from rich.markup import escape
+
+    deferred = [item for item in summary.skipped_checks if item.check == "criteria_deferred"]
+    if not deferred:
+        return
+    console.print("\n[bold yellow]Deferred criteria[/bold yellow]")
+    for item in deferred:
+        console.print(f"[yellow]- {escape(item.detail)}[/yellow]")
+
+
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     table = Table(title="Work Packages by Lane", header_style="cyan")
     table.add_column("Lane")
@@ -705,6 +717,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     else:
         console.print("\n[green]No outstanding acceptance issues detected.[/green]")
 
+    _print_deferred_criteria(summary)
     _print_acceptance_warnings(summary)
 
 

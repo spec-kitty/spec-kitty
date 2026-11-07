@@ -85,3 +85,74 @@ The operator rulings (stijn-dejongh, 2026-11-06) are recorded as resolved Decisi
 - **[2026-11-06][implement WP14] Settlement lives in `lanes/topology_settlement.py` (pure size rule, five-step lanes_with_coord plan with an undo stack, refusals WRITE_CHECKOUT_OCCUPIED/DIRTY/TOPOLOGY_SETTLEMENT_REFUSED); it runs before `_emit_tasks_started`, `--validate-only` only previews, and a later finalize failure undoes it. The meta re-stamp runs in the coordination worktree after it is materialized. The PRIMARY ref arm for default Missions is a new pure helper `_default_mission_primary_ref` rather than a change to `single_branch_write_ref`. T089 is pinned by an AST test only.** Left as strict xfail: context resolve / check-prerequisites after settlement (MISSION_NOT_FOUND: `resolve_mission` lists only the root's kitty-specs/) and the N1 event-write half. Disposition: review WP14.
 - **[2026-11-06][implement WP14 c2] One topic-holder locator (`read_surface.topic_holder_mission_dir` via `_read_path_resolver.default_mission_topic_dir`) now serves Mission listing (`context/mission_resolver.py`), the read door's write-checkout anchor, `canonicalize_feature_dir` and the transaction's coordination-less write arm. A corrupt meta returns None from the locator so each caller keeps its own corruption verdict.** Out-of-map: context/mission_resolver.py, workspace/root_resolver.py, coordination/transaction.py. Disposition: review WP14 c2.
 - **[2026-11-06][orchestrator] #7275 merged into main (2026-11-06T15:56Z); `guarded_landed_removal` is on origin/main (git/destructive_guard.py, workspace/landed_worktrees.py). WP16 stays in scope: its lane base must include origin/main.** Disposition: WP16 runs after WP18.
+
+- 2026-11-07 closeout: accept and consolidate were NOT run for real. Accept is blocked by the placeholder acceptance matrix, and the consolidate dry-run predicts a FAIL on two intra-Mission dependency merge commits. Both need an operator decision (populate the matrix with evidence; rework the merges, attest, or accept them as a core defect). No status or matrix files were edited by hand.
+
+- [2026-11-07][closeout] Operator ruling: deferred FRs (FR-006, deferred part of FR-005, FR-092) are recorded with a new non-blocking `deferred` criterion verdict (core change, #7308, in this PR).
+- [2026-11-07][closeout] Operator ruling: fix the closed-world attribution of allocator dependency-lane merges in core in this PR (#7307); no lane rewrite, no --dependency-ref.
+
+## [closeout 2026-11-07] ruling: --allow-sparse-checkout for lanes d, g, k
+
+The orchestrator ruled (HANDOVER rule 3) that the sparse state in lanes d, g and k is this
+Mission's own managed status exclusion (only `status.events.jsonl` / `status.json` hidden),
+which the CLI's legacy sparse preflight misreads. Consolidate runs with
+`--allow-sparse-checkout`; no `doctor sparse-checkout --fix` was run.
+
+## [closeout 2026-11-07] ruling: refresh falsely-stale lanes with a clean mission-branch merge
+
+The orchestrator ruled that the lane-f "stale" refusal is a false positive. The overlap is
+lane-e's WP08 commit bcc5274731, which lane-f already contains, measured from the old merge
+base 98c5abb99f. The fix authorized: merge the current mission branch into each flagged lane,
+only when the merge is clean (no conflicts, empty `git show --remerge-diff`), then push and
+re-run consolidate.
+Outcome for lane-f: not applicable. The lane-f worktree was recreated at its canonical path
+(no new branch). `git merge kitty/mission-lane-worktree-model-hardening-01M6QY1M` reported
+"Already up to date": after the rollback the mission branch (a4e3426) is already an ancestor
+of lane-f (6217017). No commit was made and nothing was pushed. The stale check compares lane-f
+with the mid-run mission tip, which already has lane-e and lane-a merged (921bb30); the rollback
+removes that tip, so a refresh cannot make lane-f pass. Closeout stopped for a further ruling.
+
+- [2026-11-07][closeout] Ruling: the false stale-lane refusal (lane-f) is fixed in core in this PR (#7311), same class as #7307; refresh-merge not applicable. #7311 reviewed (approve), merged into the topic branch. Nits: move wp= below planning early return; multi-WP remedy names first WP only; docstring step 1 outdated. Follow-up: consolidate --dry-run does not forecast stale-lane refusals. Expect a stale_check.py conflict with lane-n (WP17) during consolidation.
+
+## [closeout 2026-11-07] ruling (a) generalised: refresh genuinely stale lanes with the mission commit that run built
+
+The orchestrator ruled: when a lane is refused stale on a real overlap, merge the mission-branch
+commit that run built into the lane. Proceed only if the merge has no conflicts and an empty
+`git show --remerge-diff`, push the lane branch and re-run consolidate.
+Refreshes made (each a merge with no conflicts and an empty remerge-diff, pushed):
+
+| lane | WP | merge SHA | mission commit merged |
+|------|----|-----------|-----------------------|
+| l | WP15 | dc6d7f4d422c90afaff7e0623d7cce700261ad4c | 7e650a6 |
+| b | WP05 | 388e424a4711df03784c5fbe45dc8e570a13af47 | 1353bb3 |
+| i | WP12 | 750cbfa7ccf937d65452d46dfea7a5e25f107be6 | 215764c |
+
+Stopped at lane-j: merging 1bc83bb conflicts in `tests/architectural/_baselines.yaml`
+(`allowlist_entries` 232 vs 232 with different justifications, and `widened_grandfathered_470`
+84 vs 83) and `tests/architectural/dead_symbol_allowlist.yaml` (lane-j/WP13 adds the category
+`category_c_topology_settlement_7282`, the mission side adds the WP05 `category_c_status_read_door_7277`).
+The merge was aborted, and lane-j is unchanged. Per the ruling this needs option (b) rework.
+
+- [2026-11-07][closeout] WP13 rework for the lane-j refresh conflict: approved->in_progress (no force), refresh merge 26fcda81d2 resolving _baselines.yaml (allowlist_entries 233, widened 84) and dead_symbol_allowlist.yaml (both categories). Orchestrator ruling: --force on the in_progress->for_review move only, to bypass the lane-behind-target freshness check (merging the topic branch into a lane would bring main and kitty-specs/ content into it). Pre-review gate: no new failures. Friction: implement cannot rework an approved WP whose refresh conflicts; for_review refuses a lane behind the target even for a consolidation refresh.
+
+- [2026-11-07][closeout] WP13 rework approved (feedback: no findings; gates 216, WP13 set 657, dead symbols 37 passed). Approval recorded by the orchestrator with --force (same freshness check only); the event is a forced hop out of an unforced in_review with an approved review_result and stamps lane_head 26fcda81d2, so it counts as a review approval (#5721 rule).
+
+## [closeout 2026-11-07] after the WP13 rework: lane-j passes, lane-c (WP06) refresh conflicts
+
+Topic branch 5e5ba839e6. Consolidate merged e, a, f, h, l, b, i and j (j on its new stamp
+26fcda81d2), then refused lane-c (WP06) as stale on `tests/architectural/_baselines.yaml` and
+`tests/architectural/dead_symbol_allowlist.yaml`. Merging the mission commit that run built (12e835c)
+into lane-c conflicts:
+- `_baselines.yaml`: lane-c has `allowlist_entries` 231 (WP06 burns down WP05's
+  `read_status_events` entry) and widened 83; the mission side has 233 and 84 (WP13). The
+  expected union is 232 and 84.
+- `dead_symbol_allowlist.yaml`: lane-c removed the `category_c_status_read_door_7277` category,
+  and the mission side has WP13's `category_c_topology_settlement_7282` beside it. The
+  expected resolution keeps 7282 and drops 7277.
+The merge was aborted and lane-c is unchanged. Under the ruling, WP06 needs rework (option b).
+Every lane still to merge (g, d, k, m, p, n, o) also changes `_baselines.yaml`, and g, m, n and o
+also change `dead_symbol_allowlist.yaml`, so each is likely to need the same rework in turn.
+
+- [2026-11-07][closeout] Batch refresh: lanes c (79519b2eee, resolved), g (621c3c1d60, clean), d (8215731993, clean), k (3a56a83f2f, resolved) pushed; WP06 and WP14 moved to for_review for rework review (--force on for_review only). Ruling widened for the remaining lanes (m, p, n, o): a refresh conflict in a code file may be resolved when both sides intent is clear (e.g. lane_cleanup.py __all__: keep additions, honor removals), verified by that WP tests; every non-empty refresh merge goes through a rework review.
+
+- [2026-11-07][closeout] Rework reviews approved: WP06 (79519b2eee; 530 + 37 passed), WP14 (3a56a83f2f; 322 + 37), WP16 (c226d5a622; 496 + 37). Approvals recorded by the orchestrator with --force (freshness check only), each a forced hop out of an unforced in_review with an approved review_result, stamping the refresh merge. Lanes p (00b834666f), n (6261e9007e), o (fd9450991b) refreshed clean (empty remerge-diff), no status change.

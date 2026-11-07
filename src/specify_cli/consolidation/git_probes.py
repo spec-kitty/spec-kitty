@@ -42,7 +42,7 @@ from specify_cli.git.destructive_guard import (
     guarded_reset_hard,
 )
 from specify_cli.git.ref_advance import ResidueClassifier
-from specify_cli.git.merge_tree_probe import merge_tree_write_tree_available
+from specify_cli.git.merge_tree_probe import merge_tree_write_tree_available, remerge_diff_available
 from specify_cli.consolidation._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
 
@@ -634,6 +634,34 @@ def changed_paths_of(repo_root: Path, sha: str) -> list[str]:
         raise GitProbeError(f"git show --name-only {sha} failed (exit {exc.returncode}): {exc.stderr.strip()}") from exc
 
 
+def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
+    """Paths a merge commit changed BEYOND what its parents' automatic merge produced (#7307).
+
+    ``git show --remerge-diff --name-only --format= <sha>`` re-runs the merge of the
+    parents and lists the paths where the recorded merge differs from that re-merge:
+    a conflict resolution, or any edit folded into the merge. ``[]`` means the merge
+    adds nothing of its own (a clean merge), so it carries no content to attribute.
+    The ``--cc`` diff ``git show`` emits by default is no such signal: it is non-empty
+    for a clean merge whose parents both touched one region, and empty for a
+    resolution that kept one side.
+
+    Fail-closed like every probe here: git older than 2.36 (no ``--remerge-diff``),
+    an unreadable git version, or a ``git show`` error raises :class:`GitProbeError`,
+    so the caller REFUSEs instead of reading the merge as empty.
+    """
+    if not remerge_diff_available(repo_root):
+        raise GitProbeError(f"judging merge commit {sha} needs git >= 2.36 (git show --remerge-diff); upgrade git")
+    ret, out, err = run_command(
+        ["git", "show", "--remerge-diff", "--name-only", "--format=", "--no-renames", sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git show --remerge-diff {sha} failed (exit {ret}): {(err or '').strip()}")
+    return [line for line in (out or "").splitlines() if line.strip()]
+
+
 def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     """Return the blob object id of *path* at *ref*, or ``None`` when it is ABSENT.
 
@@ -965,6 +993,7 @@ __all__ = [
     "sha_reachable_from",
     "resolve_commit",
     "commits_in_range",
+    "merge_own_changed_paths",
     "patch_id_of",
     "patch_ids_in_range",
     "first_parent_commits_in_range",

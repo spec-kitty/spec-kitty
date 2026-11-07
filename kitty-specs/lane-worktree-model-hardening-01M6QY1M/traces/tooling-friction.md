@@ -61,3 +61,53 @@ GitHub MCP tools, the cloud-session harness.
 - [2026-11-06][WP07 review] `agent action review` rejects `--allow-sparse-checkout` as an unknown option; the review claim works without it.
 - [2026-11-06][WP10 review] Running a broad blast-radius suite on the lane and the base at the same time timed out, so its reds could not be attributed; run lane and base comparisons one after the other.
 - [2026-11-06][WP14] After a lanes_with_coord settlement the root checkout has no Mission directory, so every reader that builds the path from the root breaks.
+
+- 2026-11-07 closeout: `spec-kitty accept` refuses only on "Acceptance matrix verdict is 'pending'": `acceptance-matrix.json` holds 63 auto-generated placeholder criteria (FR-001.. "TODO: replace with a real acceptance criterion", evidence null). Nothing earlier in the workflow prompted for them; filling them is real verification work, so closeout stopped here.
+- 2026-11-07 closeout: `consolidate --dry-run` forecasts a reconciliation FAIL on two lane-to-lane dependency merge commits, 013cf94cff (lane-c into lane-k, `_baselines.yaml` conflict resolution) and d1e9235fe4 (lane-d into lane-n), reported as "belongs to NO approved WP". The remedy text points at `--dependency-ref`, but that flag refuses Mission-authored refs, so it does not fit an intra-Mission dependency merge.
+
+## [closeout 2026-11-07] consolidate refused: legacy sparse-checkout on three lane worktrees
+
+`accept` succeeded (acceptance commit 7c7b9e22ba, status commit 242beb5). The real
+`consolidate --keep-branch --keep-worktree` then refused (exit 1) with "legacy
+sparse-checkout state detected" for lanes d, g and k. Each of those worktrees has a
+worktree-scoped `core.sparseCheckout=true` (`extensions.worktreeConfig` on) and an
+`info/sparse-checkout` written 2026-11-06 ~19:58-19:59 excluding only this Mission's
+`status.events.jsonl` and `status.json`. The repository root checkout is not sparse.
+The dry run did not report this, so the sparse preflight is a real-run-only gate.
+Closeout stopped: the offered remedies (`doctor sparse-checkout --fix`, a mutating
+doctor, and `--allow-sparse-checkout`, an override) both need an operator ruling.
+
+- Follow-up: `consolidate --dry-run` does not run the legacy sparse-checkout preflight at all,
+  so a clean dry run (exit 0) did not predict this refusal.
+
+## [closeout 2026-11-07] consolidate refused: lane-f stale against the mission branch
+
+With `--allow-sparse-checkout`, consolidate merged lane-e and lane-a into
+`kitty/mission-lane-worktree-model-hardening-01M6QY1M`, then refused on lane-f: "Lane lane-f is
+stale: overlapping files ['src/specify_cli/lanes/for_review_gate.py'] ... Run: cd
+.worktrees/*-lane-f && git merge kitty/mission-lane-worktree-model-hardening-01M6QY1M". The
+rollback authority restored the mission branch (921bb30 -> a4e3426) and rebaselined the record;
+the target was unchanged. The dry run did not forecast this staleness either. The suggested
+remedy commits to an approved lane after approval, so closeout stopped for a ruling.
+
+## [closeout 2026-11-07] after #7311: lane-l stale (genuine overlap)
+
+With #7311 merged (topic 82bde0c406), consolidate passed lane-f and merged lanes e, a, f and h,
+then refused on lane-l (WP15): stale, overlapping `tests/specify_cli/git/test_guarded_site_routing_misc.py`.
+This overlap is real. Lane-f's WP09 review-cycle commit 4a1d8e7a1d edits that file and is not in
+lane-l, and lane-l's own f50df2bb07 edits it too. The rollback restored the mission branch
+(7e650a6 -> a4e3426). The new remedy text (#7311/WP17 wording) is correct. Closeout stopped:
+refreshing lane-l means merging in content from another WP, not a pure dependency merge.
+
+## [closeout 2026-11-07] all lanes merge; squash projection refuses TARGET_BRANCH_CONTENT_CONFLICT
+
+Topic branch d1d3f99d03. Every lane (e … o) merged into the mission branch with no stale refusal;
+the run built mission commit 117c4ec. The default squash onto `issue-7276-lane-worktree-hardening`
+then refused with `TARGET_BRANCH_CONTENT_CONFLICT` on `src/specify_cli/lanes/stale_check.py` and
+`tests/lanes/test_stale_check.py`. This is the expected #7311 (on the target) against WP17
+(lane-n) overlap, but it surfaces before the squash, as a refusal, not as an editable conflict.
+The remediation reads "Update the mission branch against the current target branch". Since every
+failed run rolls the mission branch back to a4e3426 and rebuilds it from the lanes, the update has
+to live in a lane (lane-n), so WP17 needs a refresh and a new approval. CONTRACT_VERSION did not
+conflict: `git merge-tree` of target against 117c4ec reports only these two paths.
+Closeout stopped, as ruled ("if anything refuses, stop and report").
