@@ -278,3 +278,47 @@ NFR-005). Research: `research.md` D-5. Plan: `plan.md` (Risks). Tasks: `tasks.md
 ## Erratum (2026-10-04, #5627)
 
 The `mission_finalize.py: _compute_and_write_lanes` citations above (the producer reference in section 1 and the canonical-seams list) point to that file as it was when this ADR was written. Mission `mission-finalize-degod-01M43EW2` later split it into phase modules, with bodies moved verbatim. `_compute_and_write_lanes` now lives in `src/specify_cli/cli/commands/agent/mission_finalize_lanes.py`, and `mission_finalize` still re-exports it. The decision is unchanged.
+
+## Amendment 2026-11-06: lane checkouts carry no live status
+
+Mission `lane-worktree-model-hardening-01M6QY1M` (S6, #7281; FR-040 to FR-046), Proposed until the
+operator accepts it. It records the operator's restated ruling 3 (DM `01M6QY3XQJ5NAYVF3GMZ7ZPPRE`,
+2026-11-06) for every lane topology, `lanes` included, and keeps Assert A'.
+
+**Rule.** A lane checkout never shows the Mission's status files, Spec Kitty never changes them in a
+lane, and no reader reads them. The fork-time blob stays in lane history and is inert.
+
+- **Checkouts never show them.** Every lane checkout, on every topology with code lanes (`lanes`,
+  `coord`, `lanes_with_coord`), is created by the one lane-checkout helper
+  (`lanes/lane_checkout.py::open_lane_checkout`), which registers the sparse exclusion of
+  `status.events.jsonl` and `status.json` (FR-040). This widens the exclusion described in the
+  Context above, which only coordination-topology lanes registered, and covers every route by which
+  Spec Kitty creates a lane checkout: allocation, crash recovery, lifecycle sync, the review checkout
+  and `implement --recover`. The recreate command that `doctor workspaces` prints
+  (`workspace/landed_worktrees.py`) is a `git worktree add` for the operator to run, not a Spec Kitty
+  route, so it does not register the exclusion; a checkout made that way shows the status files until
+  `doctor sparse-checkout` reports it (`LANE_STATUS_NOT_EXCLUDED`).
+- **Lanes never change them.** The status write seam refuses a write whose target is inside a lane
+  checkout, classified through the worktree registry and not by path shape
+  (`STATUS_WRITE_TARGETS_LANE_CHECKOUT`, FR-041). Spec Kitty-owned lane commits, the deliverable
+  auto-commit included, leave the status files unstaged (FR-042).
+- **Readers never read them.** Every status read goes through the one read door of
+  [ADR 2026-11-06-2](../4.x/2026-11-06-2-one-status-read-contract.md), which never returns a lane
+  path (FR-043).
+- **No lane-side deletion commit (C-008).** The fork-time status blob stays in the lane branch's
+  history. Assert A' is kept, and this is why: a commit that deleted the files on a lane would be
+  carried onto the Mission or coordination branch at consolidation, deleting the real log, and it
+  would trip `auto_rebase._refuse_preexisting_lane_status_deletions`. Excluding the files from disk
+  keeps the lane's parentage and tree exactly as §2 and §4 above describe.
+- **Existing lane worktrees.** A re-runnable clone-local migration applies the exclusion to clean
+  worktrees, flags and excludes a dirty copy whose events are all on the resolved surface, leaves a
+  worktree untouched when its copy holds events found nowhere else (reporting their ids), and skips
+  worktrees that are mid-merge or mid-rebase; it never drops an event (FR-044, C-009). The doctor
+  finding `LANE_STATUS_AUTHORED` lists every live lane branch whose status files differ from their
+  merge-base with the branch the lane consolidates into (FR-045); it gates any later retirement of
+  the auto-rebase status union merger. Both are delivered by Mission WP10.
+
+**Confirmation.** `tests/lanes/test_lane_checkout_helper.py` (Mission WP09, every-route exclusion on
+every topology with code lanes), the WP10 write-refusal, migration and doctor tests, and
+`tests/lanes/test_issue_2993_lane_planning_ancestry.py` (Assert A and Assert A', unchanged; the
+pin cited above as `tests/regression/...` now lives there).
