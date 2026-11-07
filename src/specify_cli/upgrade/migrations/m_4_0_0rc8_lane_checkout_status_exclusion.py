@@ -25,7 +25,11 @@ shape. Per worktree the outcome is exactly one of:
   cannot hold the exclusion; it is left untouched (#7276);
 * ``failed`` -- applying the exclusion raised; the lane is reported and the run
   is not recorded as a success, so it runs again (#7276);
-* ``already_excluded`` -- the exclusion is in place (a re-run is a no-op, NFR-005).
+* ``already_excluded`` -- the exclusion is in place (a re-run is a no-op, NFR-005);
+* ``skipped_legacy_mission`` -- the Mission is genuinely legacy (no coordination
+  branch, no stored topology, not flattened): it keeps writing status into its
+  lane checkout and ``safe_commit`` cannot stage a sparse-excluded path, so the
+  lane is left untouched and is not reported as lacking the exclusion.
 
 A worktree that is already a non-cone sparse checkout keeps its own patterns;
 the two status negations are merged into them (#7276).
@@ -50,9 +54,13 @@ import subprocess
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
+
+if TYPE_CHECKING:
+    from specify_cli.lanes.lane_checkout import MissionCodeLane
 
 __all__ = [
     "LaneCheckoutStatusExclusionMigration",
@@ -77,9 +85,11 @@ class LaneCheckoutOutcome(StrEnum):
     ALREADY_EXCLUDED = "already_excluded"
     REFUSED_SPARSE_CONE = "refused_sparse_cone"
     FAILED = "failed"
+    SKIPPED_LEGACY_MISSION = "skipped_legacy_mission"
 
 
 _CHANGING_OUTCOMES = frozenset({LaneCheckoutOutcome.EXCLUDED, LaneCheckoutOutcome.FLAGGED_REDUNDANT})
+_NOTHING_TO_EXCLUDE_OUTCOMES = frozenset({LaneCheckoutOutcome.ALREADY_EXCLUDED, LaneCheckoutOutcome.SKIPPED_LEGACY_MISSION})
 _UNMIGRATED_OUTCOMES = frozenset(
     {
         LaneCheckoutOutcome.REFUSED_LANE_ONLY_EVENTS,
@@ -139,7 +149,7 @@ def lane_checkouts_lacking_exclusion(project_path: Path, *, fix: bool) -> tuple[
     items = migrate_lane_checkouts(project_path, dry_run=not fix)
     if fix:
         return tuple(item for item in items if item.outcome in _UNMIGRATED_OUTCOMES)
-    return tuple(item for item in items if item.outcome != LaneCheckoutOutcome.ALREADY_EXCLUDED)
+    return tuple(item for item in items if item.outcome not in _NOTHING_TO_EXCLUDE_OUTCOMES)
 
 
 def migrate_lane_checkouts(project_path: Path, *, dry_run: bool) -> tuple[LaneCheckoutMigrationItem, ...]:
@@ -159,7 +169,7 @@ def migrate_lane_checkouts(project_path: Path, *, dry_run: bool) -> tuple[LaneCh
         worktree = checkouts.get(lane.branch)
         if worktree is None or not worktree.is_dir():
             continue
-        items.append(_migrate_one(project_path, worktree, lane.lane_id, lane.mission, lane.mission_dir_name, dry_run=dry_run))
+        items.append(_migrate_one(project_path, worktree, lane, dry_run=dry_run))
     return tuple(items)
 
 
@@ -191,7 +201,11 @@ def _rebasing_branch(worktree: Path) -> str | None:
     return None
 
 
-def _migrate_one(project_path: Path, worktree: Path, lane_id: str, mission: str, mission_dir_name: str, *, dry_run: bool) -> LaneCheckoutMigrationItem:
+def _migrate_one(project_path: Path, worktree: Path, lane: MissionCodeLane, *, dry_run: bool) -> LaneCheckoutMigrationItem:
+    lane_id, mission, mission_dir_name = lane.lane_id, lane.mission, lane.mission_dir_name
+    if lane.legacy:
+        reason = "a genuinely-legacy Mission writes its status into the lane checkout; worktree left untouched"
+        return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.SKIPPED_LEGACY_MISSION, reason=reason)
     if _already_excluded(worktree, mission_dir_name):
         return LaneCheckoutMigrationItem(worktree, lane_id, LaneCheckoutOutcome.ALREADY_EXCLUDED)
     if _mid_operation(worktree):

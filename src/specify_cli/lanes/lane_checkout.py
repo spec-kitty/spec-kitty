@@ -20,7 +20,9 @@ checkout. On every route it:
 5. registers the sparse exclusion of the Mission's ``status.events.jsonl`` and
    ``status.json`` and reapplies it, so the files leave the disk. git keeps a
    locally modified status file on disk (with a warning) rather than discard
-   it, so no local status row is ever lost.
+   it, so no local status row is ever lost. A genuinely-legacy Mission is
+   exempt: it writes status into its lane checkout and ``safe_commit`` cannot
+   stage a sparse-excluded path.
 
 The architectural gate ``tests/architectural/test_lane_checkout_single_seam.py``
 fails on any lane ``git worktree add`` outside this module.
@@ -36,10 +38,11 @@ from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.coordination.legacy_resolution import meta_is_genuinely_legacy
 from specify_cli.coordination.workspace import lane_status_exclusion_patterns
 from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.lanes.branch_naming import code_lane_branch_name, coord_mission_dir_name, is_lane_branch, resolve_mid8
-from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.mission_metadata import load_meta, load_meta_or_empty
 
 __all__ = [
     "LaneCheckoutError",
@@ -168,8 +171,22 @@ def open_lane_checkout(request: LaneCheckoutRequest) -> Path:
     _add_worktree(request)
     _ensure_lane_tip_hook(request.repo_root)
     exclude_from_git_index(request.repo_root, [_SPEC_KITTY_STATE_EXCLUDE])
-    exclude_lane_status_files(request.worktree_path, request.mission_dir_name)
+    if not _mission_is_genuinely_legacy(request.repo_root, request.mission_slug):
+        exclude_lane_status_files(request.worktree_path, request.mission_dir_name)
     return request.worktree_path
+
+
+def _mission_is_genuinely_legacy(repo_root: Path, mission_slug: str) -> bool:
+    """True for a pre-SSOT Mission, which keeps writing its status into the lane checkout.
+
+    The coordination write path (``coordination/transaction.py``) routes such a
+    Mission's status commits to its lane checkout, and ``safe_commit`` cannot
+    stage a sparse-excluded path, so the exclusion is skipped for it. The
+    classification is the transaction's own predicate
+    (:func:`specify_cli.coordination.legacy_resolution.meta_is_genuinely_legacy`).
+    """
+    meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    return meta_is_genuinely_legacy(load_meta(meta_dir, on_malformed="none"))
 
 
 def exclude_lane_status_files(checkout: Path, mission_dir_name: str) -> None:
@@ -421,6 +438,8 @@ class MissionCodeLane:
     coordination_branch: str | None
     mission_branch: str | None
     target_branch: str | None
+    legacy: bool = False
+    """A genuinely-legacy Mission: it keeps writing status into its lane checkout, so no exclusion."""
 
     @property
     def status_paths(self) -> tuple[str, str]:
@@ -447,6 +466,7 @@ def mission_code_lanes(repo_root: Path) -> tuple[MissionCodeLane, ...]:
         if manifest is None:
             continue
         meta = load_meta_or_empty(mission_dir)
+        legacy = meta_is_genuinely_legacy(load_meta(mission_dir, on_malformed="none"))
         dir_name = lane_mission_dir_name_from_meta(manifest.mission_slug, meta)
         coordination = meta.get("coordination_branch")
         for lane in manifest.lanes:
@@ -461,6 +481,7 @@ def mission_code_lanes(repo_root: Path) -> tuple[MissionCodeLane, ...]:
                     coordination_branch=coordination if isinstance(coordination, str) and coordination else None,
                     mission_branch=manifest.mission_branch or None,
                     target_branch=manifest.target_branch or None,
+                    legacy=legacy,
                 )
             )
     return tuple(found)

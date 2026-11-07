@@ -240,6 +240,7 @@ Lane worktrees that already exist are brought in line by the clone-local migrati
 | `refused_lane_only_events` | A dirty copy holding events found nowhere else; the worktree is left untouched and the event ids are reported |
 | `skipped_mid_operation` | A merge, rebase or cherry-pick is in progress |
 | `already_excluded` | Nothing to do |
+| `skipped_legacy_mission` | A genuinely-legacy Mission (no coordination branch, no stored topology, not flattened) writes its status into the lane checkout, so the lane is left untouched |
 
 While any lane is `refused_lane_only_events` or `skipped_mid_operation`, the migration is skipped and selected again on the next upgrade. `spec-kitty doctor sparse-checkout` reports each such lane as `LANE_STATUS_NOT_EXCLUDED` with its remedy: for lane-only events, record each transition on the status surface with `spec-kitty agent tasks move-task`, discard the lane copy's change to the two status files, then run `spec-kitty upgrade`.
 

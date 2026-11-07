@@ -75,7 +75,7 @@ def _row(event_id: str) -> str:
     )
 
 
-def _project(tmp_path: Path, lanes: tuple[str, ...] = ("lane-a",)) -> Path:
+def _project(tmp_path: Path, lanes: tuple[str, ...] = ("lane-a",), *, legacy: bool = False) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
@@ -87,6 +87,8 @@ def _project(tmp_path: Path, lanes: tuple[str, ...] = ("lane-a",)) -> Path:
     mission_dir = repo / "kitty-specs" / _MISSION
     mission_dir.mkdir(parents=True)
     meta = {"mission_slug": _MISSION, "mission_id": _MISSION_ID, "topology": "lanes", "target_branch": "main", "mission_type": "software-dev"}
+    if legacy:
+        del meta["topology"]  # no coordination_branch, no stored topology, not flattened: genuinely pre-SSOT
     (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     (mission_dir / _EVENTS).write_text(_row("01M6QY1MEVENT0000000000001") + "\n", encoding="utf-8")
     (mission_dir / _SNAPSHOT).write_text("{}\n", encoding="utf-8")
@@ -426,3 +428,21 @@ def test_a_lane_whose_exclusion_fails_is_reported_and_the_run_is_not_a_success(t
     assert any("lane-b" in c for c in result.changes_made)
     assert not _copy(repo, "lane-b").exists()
     assert _copy(repo, "lane-a").exists()
+
+
+def test_migration_leaves_a_genuinely_legacy_mission_lane_unexcluded(tmp_path: Path) -> None:
+    """A legacy Mission keeps writing status into its lane checkout; the exclusion would fail its commit."""
+    repo = _project(tmp_path, legacy=True)
+
+    item = _only(repo)
+
+    assert item.outcome == "skipped_legacy_mission"
+    assert not _sparse_on(_lane(repo))
+    assert _copy(repo).exists(), "the legacy lane keeps its status files on disk"
+    assert not LaneCheckoutStatusExclusionMigration().detect(repo)
+
+
+def test_migration_still_excludes_a_stored_topology_mission_lane(tmp_path: Path) -> None:
+    repo = _project(tmp_path)
+
+    assert _only(repo).outcome == "excluded"

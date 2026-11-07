@@ -399,3 +399,18 @@ def test_exclude_lane_status_files_refuses_cone_mode(tmp_path: Path) -> None:
     subprocess.run(["git", "-C", str(tmp_path), "sparse-checkout", "set", "--cone", "src"], check=True)
     with pytest.raises(LaneCheckoutError, match="cone-mode"):
         exclude_lane_status_files(tmp_path, "m-1")
+
+
+def test_helper_leaves_a_genuinely_legacy_mission_lane_status_files_in_place(tmp_path: Path) -> None:
+    """A pre-SSOT Mission writes status into its lane checkout, so the helper must not exclude it."""
+    repo = _seed_mission(tmp_path, topology="lanes")
+    meta_path = repo / "kitty-specs" / MISSION_SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    del meta["topology"]
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    _git(repo, "commit", "-q", "-am", "make the Mission genuinely legacy")
+
+    checkout, _branch = _allocate(repo, topology="lanes")
+
+    for name in STATUS_FILES:
+        assert (checkout / "kitty-specs" / MISSION_SLUG / name).exists(), f"{name} must stay in a legacy lane checkout"
