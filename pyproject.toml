@@ -650,7 +650,6 @@ exclude = [
     "src/specify_cli/lanes/lane_env.py",
     "src/specify_cli/lanes/lifecycle_sync.py",
     "src/specify_cli/lanes/recovery.py",
-    "src/specify_cli/lanes/stale_check.py",
     "src/specify_cli/consolidation/config.py",
     "src/specify_cli/consolidation/conflict_classifier.py",
     "src/specify_cli/consolidation/conflict_resolver.py",
