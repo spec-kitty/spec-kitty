@@ -519,7 +519,10 @@ jobs:
               # MissionAgnosticCommand (cli/helpers.py). helpers.py therefore executes on the audit's parse
               # path in CI, so a change to it can change what the audit does; route it like the doctor modules above.
               - '**/specify_cli/cli/helpers.py'
+              - '**/kernel/ancestor_walk.py'
+              - '**/kernel/git_anchor.py'
               - '**/kernel/meta_decode.py'
+              - '**/kernel/resolution.py'
               - '**/kernel/git/listing.py'
               - '**/kernel/git/paths.py'
               - '**/kernel/git/runner.py'
