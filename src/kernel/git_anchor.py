@@ -29,10 +29,10 @@ Each ``.git`` entry is one of three kinds:
 Cost (#6673 NFR-002): one ``lstat`` of the entry and, for a directory, one immediate listing
 (``os.scandir``, whose entry types come from the listing itself). No child ``stat``, no
 recursion, no git invocation. The upward walk is :func:`kernel.ancestor_walk.iter_ancestors`,
-but with git's own reading of ``GIT_CEILING_DIRECTORIES``: entries after an empty entry are
-*not* resolved, so a symlinked one never stops the walk, exactly as it never stops git. The
-shared walk resolves every entry (#7022's reading); for this question stopping *before* git
-would read a repository git found as "nothing here" and mint over it (#6673 NFR-002).
+with :func:`kernel.ancestor_walk.git_ceiling_dirs`'s negative-Git-evidence reading: entries
+after an empty entry stay unresolved, lossy spellings are dropped, and a start-equal entry
+is removed because git ignores it for a search starting there. Stopping before git would
+read a repository git found as "nothing here" and mint over it (#6673 NFR-002).
 
 It lives at the ``kernel`` floor beside the ancestor walk so any layer can ask, and it imports
 only the standard library and that walk.
@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from kernel.ancestor_walk import iter_ancestors
+from kernel.ancestor_walk import git_ceiling_dirs, iter_ancestors
 from kernel.resolution import resolve_rejecting_loops
 
 __all__ = [
@@ -62,9 +62,6 @@ _GIT_DIR_NAME: Final[str] = ".git"
 
 #: Entries a non-repository ``.git`` directory may hold and still be harmless residue (#7084).
 _RESIDUE_ENTRIES: Final[frozenset[str]] = frozenset({"hooks", "spec-kitty-locks"})
-
-#: The variable git reads its discovery ceilings from.
-_CEILING_ENV: Final[str] = "GIT_CEILING_DIRECTORIES"
 
 #: The file that makes a ``.git`` directory a repository to git.
 _HEAD: Final[str] = "HEAD"
@@ -168,47 +165,20 @@ def find_git_anchor(start: Path, *, environ: Mapping[str, str] | None = None) ->
 
     Returns:
         The first repository or unknown verdict, nearest first; ``None`` when every ``.git`` up
-        to the ceiling is absent or residue. A start path that cannot be resolved is walked as
-        written (:func:`kernel.ancestor_walk.iter_ancestors`), so every ``.git`` above it is
-        still classified.
+        to the ceiling is absent or residue. A start path that cannot be resolved is unknown:
+        it cannot prove that no repository holds the Mission's identity.
     """
     source = os.environ if environ is None else environ
     redirect = next((name for name in GIT_REDIRECT_ENV if name in source), None)
     if redirect is not None:
         return GitAnchor(AnchorKind.UNKNOWN, None, f"`{redirect}` points git at a repository elsewhere")
-    for candidate in iter_ancestors(start, ceilings=_git_ceilings(source)):
+    try:
+        resolved_start = resolve_rejecting_loops(start)
+    except OSError:
+        return GitAnchor(AnchorKind.UNKNOWN, Path(start) / _GIT_DIR_NAME, "cannot be read")
+    ceilings = git_ceiling_dirs(source, resolve_after_empty=False) - {resolved_start}
+    for candidate in iter_ancestors(resolved_start, ceilings=ceilings):
         verdict = classify_git_entry(candidate / _GIT_DIR_NAME)
         if verdict.kind is not AnchorKind.RESIDUE:
             return verdict
     return None
-
-
-def _git_ceilings(environ: Mapping[str, str]) -> frozenset[Path]:
-    """``GIT_CEILING_DIRECTORIES`` read the way git reads it for discovery.
-
-    Absolute entries only; an empty entry switches resolution off for every entry after it.
-    An entry that cannot be resolved is kept as written, which can only stop the walk later.
-    """
-    ceilings: set[Path] = set()
-    resolve = True
-    for part in environ.get(_CEILING_ENV, "").split(os.pathsep):
-        if not part:
-            resolve = False
-            continue
-        entry = Path(part)
-        if not entry.is_absolute():
-            continue
-        ceilings.add(_resolved_or_as_written(entry) if resolve else entry)
-    return frozenset(ceilings)
-
-
-def _resolved_or_as_written(path: Path) -> Path:
-    """*path* resolved, or unchanged when it cannot be (an unreadable component, a symlink loop).
-
-    :func:`kernel.resolution.resolve_rejecting_loops` reports a loop as ``OSError`` on every
-    supported interpreter (#3189).
-    """
-    try:
-        return resolve_rejecting_loops(path)
-    except OSError:
-        return path
