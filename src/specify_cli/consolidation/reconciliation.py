@@ -90,6 +90,8 @@ from specify_cli.consolidation.git_probes import (
     changed_paths_of,
     commits_in_range,
     first_parent_commits_in_range,
+    is_merge_commit,
+    merge_own_changed_paths,
     merge_tree_write_tree_available,
     patch_id_of,
     patch_ids_in_range,
@@ -116,6 +118,7 @@ from specify_cli.consolidation.wp_attribution import (
     first_governed_open_stamp,
     lacks_lane_head_stamps,
     lane_never_started,
+    lane_dependency_merges,
     lane_own_commits,
     resolve_canceled_wp,
     stamp_of,
@@ -1154,17 +1157,36 @@ class MergeOutcomeVerifier:
             for sha in commits_in_range(self._repo, claim.excluded_window_base, ref):
                 if sha in unattributable:
                     continue
-                pid = patch_id_of(self._repo, sha)
-                if not pid:
-                    continue  # merge commit / empty diff — never content
-                if not self._commit_is_content(sha, claim):
-                    continue  # spec-kitty housekeeping — status/meta/matrix/retrospective
-                if sha in claim.authored_shas or pid in claim.authored_patch_ids:
-                    continue  # attributable to an approved WP's own authorship
-                if sha in claim.external_dependency_shas:
-                    continue  # a declared, verified external dependency (#6771) — predates the window
-                unattributable[sha] = pid
+                pid = self._unattributable_patch_id(sha, claim)
+                if pid is not None:
+                    unattributable[sha] = pid
         return list(unattributable.items())
+
+    def _unattributable_patch_id(self, sha: str, claim: ApprovedWpCommitSet) -> str | None:
+        """*sha*'s patch-id when it is un-attributable window content, else ``None`` (one commit of the scan).
+
+        A merge commit is judged by what it adds beyond its parents (#7307,
+        :func:`merge_own_changed_paths`), never by its ``--cc`` patch-id: a clean merge
+        adds nothing; a resolution is content that only an approved lane's own
+        dependency merge (by SHA, :func:`_own_dependency_merges`) attributes.
+        """
+        if sha in claim.authored_shas:
+            return None  # an approved WP's own authorship, or its lane's own dependency merge (#7307)
+        if sha in claim.external_dependency_shas:
+            return None  # a declared, verified external dependency (#6771) — predates the window
+        if is_merge_commit(self._repo, sha):
+            own_paths = merge_own_changed_paths(self._repo, sha)
+            if not any(not self._is_bookkeeping_path(path, claim) for path in own_paths):
+                return None  # a clean merge, or one resolving only bookkeeping — no content of its own
+            return patch_id_of(self._repo, sha)
+        pid = patch_id_of(self._repo, sha)
+        if not pid:
+            return None  # empty diff — never content
+        if not self._commit_is_content(sha, claim):
+            return None  # spec-kitty housekeeping — status/meta/matrix/retrospective
+        if pid in claim.authored_patch_ids:
+            return None  # a copy of an approved WP's own change
+        return pid
 
     def forecast_content_verdict(self, landing_refs: Sequence[str], claim: ApprovedWpCommitSet, *, squashed_tree: str | None) -> VerifyResult:
         """The content verdict the real run's strategy would reach, judged before the landing (#7244).
@@ -3176,6 +3198,22 @@ def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, obj
     return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
 
 
+def _own_dependency_merges(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: object,
+    work_packages: Mapping[str, Mapping[str, object]],
+    spine: Sequence[str],
+) -> frozenset[str]:
+    """*lane*'s merges of its declared, not fully canceled, dependency lanes on its *spine* (#7307)."""
+    tips = [
+        _lane_branch_for(lanes_manifest, dep.lane_id)
+        for dep in lanes_manifest.lanes
+        if dep.lane_id in tuple(getattr(lane, "depends_on_lanes", ()) or ()) and _lane_is_approved(dep, work_packages)
+    ]
+    return lane_dependency_merges(repo_root, spine, tips)
+
+
 def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
     """First-parent SHAs (newest-first) for a lane, TOLERATING an unresolvable range.
 
@@ -3881,6 +3919,11 @@ def _collect_authored(
             pid = patch_id_of(repo_root, sha)
             if pid:
                 patch_ids.add(pid)
+        # #7307: the lane's own dependency merges stay its authorship by SHA even
+        # when the #5968 own-base bound above drops them (they predate the first
+        # claim stamp). Only the SHA: the verifier judges what the merge adds
+        # beyond its parents, and its blobs stay the dependency's (#5968).
+        shas |= _own_dependency_merges(repo_root, lanes_manifest, lane, work_packages, full_authored)
         blobs |= lane_blobs
         deletions |= lane_deletions
         _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)

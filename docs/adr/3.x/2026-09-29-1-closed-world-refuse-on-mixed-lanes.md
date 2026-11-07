@@ -404,3 +404,32 @@ riding a carrier lane (#4945), so the operator declares the ref:
   Recorded stamps and lane tips are matched against the first-parent history back to the
   window base, so a lane merged at an earlier commit than its later stamped tip is caught.
 
+
+## Amendment 2026-11-07: a lane's own dependency merges are its work (#7307)
+
+The implement allocator merges each declared dependency lane into a dependent lane before
+that lane's first claim (`Merge dependency lane X into Y`, `lanes/worktree_allocator.py`).
+Two rules of the closed-world scan (`MergeOutcomeVerifier._unattributable_in`) then read that
+merge as content that belongs to no approved work package: the #5968 own-base bound drops it
+from the lane's authorship because it precedes the first claim stamp, and a merge was skipped
+only when its default `git show` (`--cc`) patch-id was empty, which is false for a clean merge
+whose parents both touched one region.
+
+- **A merge is judged by what it adds beyond its parents.** `git_probes.merge_own_changed_paths`
+  runs `git show --remerge-diff --name-only`: the paths where the recorded merge differs from
+  git's own re-merge of its parents. No such path, or only bookkeeping paths, means the merge
+  carries no content of its own, and its parents' commits are judged on their own. A
+  resolution is content, also one that kept one side (an empty `--cc` diff, which the old skip
+  let through).
+- **A lane's own dependency merge is attributed to that lane.** A first-parent spine commit of
+  an approved lane whose every non-first parent is reachable from a declared dependency lane
+  (`depends_on_lanes`) that is not fully canceled is added to the authorship by SHA
+  (`wp_attribution.lane_dependency_merges`), past the own-base bound. Only the SHA: its blobs
+  stay the dependency's, so the #5968 squash bound is unchanged.
+- **Still refused.** A merge with a resolution of its own that is not a lane's own dependency
+  merge, and any foreign commit, stay un-attributable and FAIL.
+- **Fail-closed.** `--remerge-diff` needs git 2.36 or newer. An older or unreadable git, or a
+  `git show` error, raises `GitProbeError` and the gate REFUSEs, as the squash axis does on git
+  older than 2.38.
+- **Unchanged.** The approved bound (#5668) already drops merge commits; the mixed-lane work
+  windows already skip merges; the canceled-content axes are not touched.

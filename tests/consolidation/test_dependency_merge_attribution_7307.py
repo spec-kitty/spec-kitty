@@ -271,5 +271,5 @@ def test_remerge_diff_available_version_gate(monkeypatch: pytest.MonkeyPatch, ve
     def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args=["git", "--version"], returncode=0, stdout=version, stderr="")
 
-    monkeypatch.setattr(merge_tree_probe.subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", fake_run)
     assert merge_tree_probe.remerge_diff_available(Path(".")) is expected
