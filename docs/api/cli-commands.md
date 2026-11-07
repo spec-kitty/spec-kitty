@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-11-06'
 related:
 - api/bulk-edit-gate
 - api/finalize-tasks-internals
@@ -101,6 +101,13 @@ Hand-authored companion to the generated `consolidate` section below. `consolida
 Mission on its **local** target branch only; it never publishes to a remote unless `--push`
 is passed.
 
+**What `--dry-run` does not check.** The dry run is allowed before the Mission's mission branch
+exists, so it does not report the real run's "Missing mission branch" refusal: a clean forecast
+does not prove that the mission branch is present. Under the default squash strategy the preview
+also leaves out lanes not yet merged into the mission branch, so it can refuse a landing that the
+real run makes (#7268). It does not run the real run's canceled-content checks, so it can also
+pass a landing that the real run refuses (#7296). See #7267.
+
 | Exit code | Meaning |
 |---|---|
 | `0` | The Mission landed and the cleanup finished. |
@@ -116,7 +123,7 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `APPROVED_CONTENT_MISSING` | The reconciliation gate found that an approved code lane's own net change to a path is not on the target, while the target left that path alone since the lane was cut and no later approved lane superseded it. The run FAILs and rolls back. Typical cause: the staged deletions of a lagging worktree were committed before a `--resume`. | Restore the change on the mission branch (for example revert the commit that recorded the deletions), then re-run. Not overridable. |
 | `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
 | `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
-| `COORD_LATE_PROJECTION_REFUSED` | A `--resume` (anything the coordination branch changed since the merge began), or a first run (anything committed after the coordination tip that run verified), found a coordination record changed (a gate matrix verdict, a trace, a deletion) that it cannot prove landed on the target. Exit code `1`. The coordination branch, worktree and marker are kept and the verified landing is not rolled back. | Follow the repair the message names for the kind of refusal, then run `spec-kitty consolidate --resume` again. `spec-kitty consolidate --abort` does not clear it. |
+| `COORD_LATE_PROJECTION_REFUSED` | A `--resume` (anything the coordination branch changed since the merge began), or a first run (anything committed after the coordination tip that run verified), found a change it cannot prove landed on the target: a status event, a coordination record (a gate matrix verdict, a trace), a primary artifact such as `meta.json`, or a deletion. Exit code `1`. The coordination branch, worktree and marker are kept and the verified landing is not rolled back. | Follow the repair the message names for the kind of refusal, then run `spec-kitty consolidate --resume` again. `spec-kitty consolidate --abort` does not clear it. |
 | `DEPENDENCY_REF_COVERS_MISSION_WORK` | A `--dependency-ref` would exempt Mission-authored work: the ref is named inside the Mission's branch namespace, or its window holds a commit on a lane or the mission branch spine, a `lane_head` stamp a work package recorded, or a recorded lane work tip. Exit code `1`, before any branch moves. | Declare only an external dependency branch. Mission work that left a recorded lane head, lane-tip ref or namespaced branch is refused even after its branch is deleted; work that left none of these cannot be detected. |
 | `DEPENDENCY_REF_MOVED` | A declared ref was pinned to a commit when the claim was built and now resolves elsewhere (checked at the reconciliation gate and on `--resume`). The message names both SHAs. The run rolls back. | Restore the ref to the pinned SHA, or `spec-kitty consolidate --abort` and re-run with the new ref. |
 | `DEPENDENCY_REF_SET_CHANGED` | `--dependency-ref` names a different set than the interrupted run recorded. Exit code `1`; the record is kept. | Re-run with the recorded set (or none), or `spec-kitty consolidate --abort` and start again. |
@@ -1614,7 +1621,10 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
 │                                                            be done without   │
-│                                                            executing         │
+│                                                            executing; does   │
+│                                                            not check that    │
+│                                                            the mission       │
+│                                                            branch exists     │
 │ --json                                                     Output            │
 │                                                            deterministic     │
 │                                                            JSON (dry-run     │
@@ -2135,8 +2145,8 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │                         surface.                                             │
 │ state-roots             Show state roots, surface classification, and safety │
 │                         warnings.                                            │
-│ workspaces              Report .worktrees/ husk directories (entries lacking │
-│                         a .git entry).                                       │
+│ workspaces              Report .worktrees/ husk directories and worktrees    │
+│                         whose work has landed.                               │
 │ identity                Report mission-identity health across kitty-specs/.  │
 │ topology                Report each mission's STORED topology across         │
 │                         kitty-specs/.                                        │
@@ -2873,28 +2883,45 @@ _Project health diagnostics; a bare invocation runs the default check set_
  husks with a structured error; this check is the recovery path.
 
  After the husk report, every registered worktree gets a verdict: landed
- (its commits are on the local origin/<primary> and nothing uncommitted or
- running is in it), not landed, unproven, or Mission-owned (#7173).
+ (its commits are on the local <remote>/<primary> and nothing uncommitted or
+ running is in it), not landed, unproven, or Mission-owned (#7173). The
+ proving remote is `origin` unless `--remote` names another (#7214).
+
+ With --prune, a commit that only the worktree HEAD reflog or the branch
+ reflog still reached is recorded under
+ refs/spec-kitty/discarded/reflog/<sha> before anything is removed (#7211),
+ and printed as a `reflog-only commit kept at` line; --json names the refs
+ in each pruned entry's kept_commits key.
 
  Examples:
      spec-kitty doctor workspaces
      spec-kitty doctor workspaces --fix
      spec-kitty doctor workspaces --prune
+     spec-kitty doctor workspaces --prune --remote upstream
      spec-kitty doctor workspaces --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix              Remove husks that are NOT registered in `git worktree     │
-│                    list` (registered worktrees are never removed)            │
-│ --prune            Remove only worktrees proven landed into the local        │
-│                    origin/<primary> (nothing is fetched: run `git fetch`     │
-│                    first to see recent merges), then their branches. Never   │
-│                    uses --force; prints a recreate command for each removal. │
-│                    Mission worktrees are only reported. Untracked ignored    │
-│                    files (e.g. .venv/, .env) are deleted with the worktree.  │
-│                    Removal is Linux only (it needs /proc to prove nothing    │
-│                    runs in a worktree).                                      │
-│ --json             Machine-readable JSON output                              │
-│ --help   -h        Show this message and exit.                               │
+│ --fix                    Remove husks that are NOT registered in `git        │
+│                          worktree list` (registered worktrees are never      │
+│                          removed)                                            │
+│ --prune                  Remove only worktrees proven landed into the local  │
+│                          <remote>/<primary> (nothing is fetched: run `git    │
+│                          fetch` first to see recent merges), then their      │
+│                          branches. Never uses --force; prints a recreate     │
+│                          command for each removal. Mission worktrees are     │
+│                          only reported. Untracked ignored files (e.g.        │
+│                          .venv/, .env) are deleted with the worktree.        │
+│                          Removal is Linux only (it needs /proc to prove      │
+│                          nothing runs in a worktree).                        │
+│ --remote          <str>  The remote whose tracking refs prove a landing      │
+│                          (default: origin). In a fork clone whose canonical  │
+│                          repository is `upstream`, pass `--remote upstream`  │
+│                          after fetching it, or every landing worktree        │
+│                          reports not_landed (#7214). Nothing is fetched      │
+│                          either way.                                         │
+│                          [default: origin]                                   │
+│ --json                   Machine-readable JSON output                        │
+│ --help    -h             Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

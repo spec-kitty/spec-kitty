@@ -106,6 +106,7 @@ from charter.offering.drg.org_pack_config import (
     OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
+    PackPathEscape,
     PackRegistry,
     SourceType,
     load_pack_registry as load_pack_registry,
@@ -120,9 +121,12 @@ from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
     OrgPackParseError,
+    OrgPackRootUnavailableError,
     OrgPackSchemaError,
+    find_body_path_escapes,
     load_org_pack,
 )
+from charter.offering.assets import find_asset_path_escapes
 from charter.offering.drg.query import ResolvedContext, resolve_context
 from charter.offering.drg.project_scan import scan_project_artifacts
 
@@ -153,13 +157,17 @@ __all__ = [
     "OrgPackEnvVarUnsetError",
     "OrgPackMissingError",
     "OrgPackParseError",
+    "OrgPackRootUnavailableError",
     "OrgPackSchemaError",
     "OrgPackSubdirEscapeError",
+    "PackPathEscape",
     "Relation",
     "ResolvedContext",
     "UnknownRelationError",
     "bridge_org_edge_to_drg_edge",
     "graph_document_to_dict",
+    "find_asset_path_escapes",
+    "find_body_path_escapes",
     "load_built_in_graph",
     "load_graph",
     "load_graph_or_dir",

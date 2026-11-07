@@ -311,12 +311,14 @@ class _MergeRunState:
     # coord commit forward. The teardown gate compare-and-swaps against this value
     # so a concurrent status-emit / verdict that landed AFTER projection (and was
     # therefore never projected) can never be silently destroyed at teardown
-    # (#4981). Teardown may also ADVANCE it, on a first run only, to a late-window
+    # (#4981). Teardown may also ADVANCE it, on either run kind, to a late-window
     # tip whose coordination records the post-projection assertion proved are
-    # committed on the target (#6871) -- so the field reads "the tip whose
-    # coordination records the assertion proved", which is exactly what the gate and
-    # the branch delete compare-and-swap against. ``None`` on a non-coord mission
-    # (no coord tip to anchor).
+    # committed on the target (#6871 first run, #7199 resume) -- so the field reads
+    # "the tip whose coordination records the assertion proved", which is exactly
+    # what the gate and the branch delete compare-and-swap against. The advance is
+    # a guarded read: it happens only while the live ref still equals the
+    # tip the window assertion covered. ``None`` on a non-coord mission (no coord tip
+    # to anchor).
     coord_tip_after_projection: str | None = None
     # ``target_expected_old_sha`` (D2/WP02) — the target ref value read at
     # transaction start; the CAS anchor and the excluded-patch-id window base.

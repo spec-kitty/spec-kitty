@@ -5,8 +5,12 @@ worktree and local branch. :func:`assess_worktrees` gives every registered
 worktree a verdict; :func:`prune_landed` removes only the ``landed`` ones.
 
 Safety is the bar: nothing is removed unless its committed work is proven to
-be on ``origin/<primary>``, nothing uncommitted is in it, and no process is
-standing in it. The verdict rule (``data-model.md``, first match wins):
+be on ``<remote>/<primary>``, nothing uncommitted is in it, and no process is
+standing in it. ``<remote>`` defaults to ``origin`` and is selectable (#7214):
+a clone whose canonical repository is another remote (the landing runbook's
+``upstream``) proves against that remote's primary ref instead, and only that
+ref — the proof is never "any remote that happens to contain the tip". The
+verdict rule (``data-model.md``, first match wins):
 
 1. main worktree, or the worktree ``current_dir`` is in -> ``excluded``
 2. prunable (directory gone; git's own ``worktree prune`` territory) -> ``excluded``
@@ -35,13 +39,13 @@ standing in it. The verdict rule (``data-model.md``, first match wins):
    worktree's git dir) -> ``OPERATION_IN_PROGRESS``, except a rebase whose
    ``head-name`` is a Mission branch -> ``mission_owned`` (a rebasing lane is
    detached, so step 5 cannot see its branch).
-8. the primary branch was not resolved from ``origin/HEAD`` or a common name
+8. the primary branch was not resolved from ``<remote>/HEAD`` or a common name
    (main, master, develop) -> ``unproven`` (``PRIMARY_UNRESOLVED``);
-   ``refs/remotes/origin/<primary>`` missing -> ``unproven``
+   ``refs/remotes/<remote>/<primary>`` missing -> ``unproven``
 9. tip not absorbed into it (``lane_tip.is_absorbed``: ancestor, else a
    ``merge-tree --write-tree`` no-op; covers merge, rebase and squash
    landings) -> ``not_landed``; ``AbsorptionUnsupported`` -> ``unproven``
-10. a branch whose tip is an ancestor of ``origin/<primary>`` and whose
+10. a branch whose tip is an ancestor of ``<remote>/<primary>`` and whose
     reflog records no commit (only creation, reset, pull, fast-forward merge,
     rebase... entries) ->
     ``not_landed`` (``NO_OWN_COMMITS``): nobody worked on it, so the prune
@@ -55,38 +59,46 @@ standing in it. The verdict rule (``data-model.md``, first match wins):
     (operator ruling ``plan.prune.unreadable_process``: skip and report).
 12. otherwise -> ``landed``
 
-Nothing here contacts a remote (NFR-002): ``origin/<primary>`` is read as a
-local ref. A stale one mostly under-reports (an older ref absorbs less), but
-it can also vouch for a commit since force-pushed off the remote. So the
-prune never relies on it to keep a tip reachable: a branch tip reached by no
-local branch or tag is recorded under ``refs/spec-kitty/discarded/<branch>``
-(the guard's ``LANDED_INTENT``), and a detached tip reached by no local
-branch or tag under ``refs/spec-kitty/discarded/detached/<sha>``, before
-anything is removed.
+Nothing here contacts a remote (NFR-002): ``<remote>/<primary>`` is read as a
+local ref, and naming a remote never turns into a fetch. A stale one mostly
+under-reports (an older ref absorbs less), but it can also vouch for a commit
+since force-pushed off the remote, so nothing the prune removes relies on it
+to stay reachable.
 
-The prune re-assesses each ``landed`` worktree right before it acts and acts
-only when the verdict is still ``landed`` at the same tip; removal goes
-through :func:`guarded_worktree_remove` with ``force=False`` (git itself
-refuses a locked or dirty worktree, a third net). The branch is then deleted
-with ``LANDED_INTENT``, which records the tip under
-``refs/spec-kitty/discarded/<branch>`` when its commits exist on no other
-local branch or tag (remote-tracking refs do not count).
-That delete is not compare-and-swap, so the prune re-reads the branch tip and
-compares it with the assessed tip first; a moved branch is kept. Every refusal
-is recorded per worktree and the run continues (I1).
+The prune re-assesses each ``landed`` worktree right before it acts, then
+hands the removal to :func:`~specify_cli.git.destructive_guard.guarded_landed_removal`,
+which discharges the proof obligations of ADR 2026-11-06-1 (#7264) before it
+destroys anything: the landing ref is a configured remote's tracking ref and
+still absorbs the tip (O3, re-run with this module's absorption proof), the
+worktree is still at that tip (O5), no process stands in it (O2, this
+module's ``/proc`` probe), it is clean (O1), and the commits that would be
+lost are recorded first (O4): a detached tip no local branch or tag reaches
+under ``refs/spec-kitty/discarded/detached/<sha>``, and every commit that only
+the worktree ``HEAD`` reflog or the branch reflog still reaches (#7211; local
+refs only, and less those whose change is verbatim on the landing ref, O6) under
+``refs/spec-kitty/discarded/reflog/<sha>``. The worktree is then removed
+without ``--force`` (O7) and the branch deleted by compare-and-swap at the
+proven tip (O5, #7212), with its tip recorded under
+``refs/spec-kitty/discarded/<branch>`` when no local branch or tag holds its
+commits. Every outcome carries the command that brings it back (O8). Every
+refusal is recorded per worktree, under this report's vocabulary, and the run
+continues (I1).
 
 Residuals of the process probe (documented for operators, WP06): only
 processes owned by the current uid are considered (U1), so another user's
 process inside a worktree is not detected; and a process whose cwd cannot be
 read (non-dumpable, or otherwise refused) is not detected either, only
 counted.
+
+A remote name the repository does not configure is refused before any verdict
+(:func:`assess_worktrees` returns an ``error``), because a typo that reported
+every worktree ``unproven`` would read as "nothing landed" — the silent
+failure #7214 fixed.
 """
 
 from __future__ import annotations
 
 import os
-import shlex
-import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -94,21 +106,29 @@ from pathlib import Path
 from typing import Any
 
 from kernel.git import GitCommandError, decode_path, run_git
-from kernel.paths import is_windows
 from kernel.git.listing import ignored_entries, index_entries
+from kernel.git.remote import configured_remotes, tracking_ref
 from specify_cli.git.worktree_listing import WorktreeEntry, worktree_entries
 from specify_cli.coordination.coherence import NothingIsResidue
 from specify_cli.core.git_ops import COMMON_PRIMARY_BRANCHES, resolve_primary_branch
 from specify_cli.git.destructive_guard import (
-    LANDED_INTENT,
+    BRANCH_CHECKED_OUT,
+    BRANCH_DELETE_REFUSED_BY_GIT,
+    BRANCH_TIP_MOVED,
+    LANDING_REF_UNNAMED,
+    MERGE_UNSAFE_WORKTREE_DIRTY,
+    NOT_LANDED_ON_NAMED_REMOTE,
+    PROCESS_IN_WORKTREE,
+    PROCESS_PROOF_UNAVAILABLE,
+    WORKTREE_TIP_MOVED,
+    AbsorptionProof,
     DestructiveOpRefused,
+    LandedRemoval,
+    LandedRemovalResult,
+    ProcessProbe,
     assert_worktree_clean,
-    branch_tip,
-    discarded_ref,
-    guarded_branch_delete,
-    guarded_worktree_remove,
-    WORKTREE_PARTIALLY_REMOVED,
-    keep_detached_tip,
+    guarded_landed_removal,
+    recreate_command,
 )
 from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
 from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
@@ -116,8 +136,8 @@ from specify_cli.workspace.process_probe import ProcessProbeResult, processes_wi
 
 __all__ = [
     "BRANCH_DELETE_FAILED",
-    "BRANCH_IS_PRIMARY",
     "BRANCH_MOVED",
+    "DEFAULT_REMOTE",
     "NOT_REGISTERED",
     "TIP_MOVED",
     "WORKTREE_REMOVE_FAILED",
@@ -129,8 +149,10 @@ __all__ = [
     "WorktreeVerdict",
     "assess_worktrees",
     "prune_landed",
-    "shell_command",
 ]
+
+DEFAULT_REMOTE = "origin"
+"""The remote whose tracking refs prove a landing when the caller names none."""
 
 ProbeFn = Callable[[Sequence[Path]], ProcessProbeResult]
 """The running-process probe; injectable so tests can fake ``/proc``."""
@@ -146,9 +168,7 @@ WORKTREE_REMOVE_FAILED = "WORKTREE_REMOVE_FAILED"
 BRANCH_MOVED = "BRANCH_MOVED"
 """The branch tip changed after the assessment; the branch is kept."""
 BRANCH_DELETE_FAILED = "BRANCH_DELETE_FAILED"
-"""``git branch -D`` failed after the worktree was removed; the branch is kept."""
-BRANCH_IS_PRIMARY = "BRANCH_IS_PRIMARY"
-"""The worktree had the local primary branch checked out; the primary branch is never deleted."""
+"""The branch delete failed after the worktree was removed; the branch is kept."""
 
 
 class Verdict(StrEnum):
@@ -182,6 +202,19 @@ class Reason(StrEnum):
 
 
 _DETACHED_OUTSIDE_DETAIL = "a detached worktree outside .worktrees/ (a scratch checkout of another command)"
+
+_GUARD_REFUSALS: dict[str, str] = {
+    BRANCH_TIP_MOVED: BRANCH_MOVED,
+    BRANCH_CHECKED_OUT: Reason.BRANCH_IN_OTHER_WORKTREE.value,
+    BRANCH_DELETE_REFUSED_BY_GIT: BRANCH_DELETE_FAILED,
+    WORKTREE_TIP_MOVED: TIP_MOVED,
+    PROCESS_IN_WORKTREE: Reason.PROCESS_RUNNING.value,
+    PROCESS_PROOF_UNAVAILABLE: Reason.PROCESS_PROOF_UNAVAILABLE.value,
+    NOT_LANDED_ON_NAMED_REMOTE: Reason.CONTENT_NOT_ON_PRIMARY.value,
+    LANDING_REF_UNNAMED: Reason.PRIMARY_REF_MISSING.value,
+    MERGE_UNSAFE_WORKTREE_DIRTY: Reason.UNCOMMITTED_CHANGES.value,
+}
+"""The guard's refusals, under the vocabulary this report already uses (the others keep the guard's own code)."""
 
 _SHOWN_IGNORED = 5
 """How many ignored path names a verdict carries (the count is always complete)."""
@@ -234,6 +267,7 @@ class PruneOutcome:
     kept_ref: str | None
     recreate: str
     refusal: str | None
+    kept_commits: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -245,6 +279,7 @@ class PruneOutcome:
             "kept_ref": self.kept_ref,
             "recreate": self.recreate,
             "refusal": self.refusal,
+            "kept_commits": list(self.kept_commits),
         }
 
 
@@ -255,12 +290,15 @@ class WorktreeAssessment:
     ``uninspected_processes`` counts same-uid processes the process probe
     skipped because their cwd could not be read (0 when no worktree reached
     the probe step), so a report can say "N processes could not be inspected".
+    ``remote`` names the remote the verdicts were proven against, so a payload
+    can never be mistaken for one produced against another remote.
     """
 
     primary_ref: str | None
     verdicts: tuple[WorktreeVerdict, ...]
     error: str | None = None
     uninspected_processes: int = 0
+    remote: str = DEFAULT_REMOTE
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -274,6 +312,7 @@ class WorktreeAssessment:
 @dataclass(frozen=True)
 class _Context:
     repo_root: Path
+    remote: str
     primary: str
     primary_resolved: bool
     primary_ref: str
@@ -313,28 +352,59 @@ def _current_worktree(entries: Sequence[WorktreeEntry], current_dir: Path) -> Pa
     return max(containing, key=lambda path: len(path.parts), default=None)
 
 
-def _primary_resolved(repo_root: Path, primary: str) -> bool:
-    """``True`` when ``primary`` came from ``origin/HEAD`` or is a common primary name.
+def _primary_resolved(repo_root: Path, primary: str, remote: str = DEFAULT_REMOTE) -> bool:
+    """``True`` when ``primary`` came from ``refs/remotes/<remote>/HEAD`` or is a common primary name.
 
     ``resolve_primary_branch(bias=False)`` finally falls back to the checked-out
     branch; such a guess cannot be the reference that proves a landing.
     """
     if primary in COMMON_PRIMARY_BRANCHES:
         return True
+    return _remote_head_branch(repo_root, remote) == primary
+
+
+def _remote_head_branch(repo_root: Path, remote: str) -> str | None:
+    """The branch ``refs/remotes/<remote>/HEAD`` points at, or ``None`` when unresolved.
+
+    A local symbolic-ref read: :func:`kernel.git.remote.describe_remote_head`
+    answers the same question by contacting the remote (``git remote show``),
+    which this check must never do (NFR-002).
+    """
+    ref = f"refs/remotes/{remote}/HEAD"
     try:
-        result = run_git(repo_root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD", check=False)
+        result = run_git(repo_root, "symbolic-ref", "--quiet", ref, check=False)
     except GitCommandError:
-        return False
-    return result.returncode == 0 and decode_path(result.stdout).strip() == f"refs/remotes/origin/{primary}"
+        return None
+    if result.returncode != 0:
+        return None
+    target = decode_path(result.stdout).strip()
+    prefix = f"refs/remotes/{remote}/"
+    return target.removeprefix(prefix) if target.startswith(prefix) and len(target) > len(prefix) else None
 
 
-def _context(repo_root: Path, entries: Sequence[WorktreeEntry], current_dir: Path, probe: ProbeFn) -> _Context:
-    primary = resolve_primary_branch(repo_root, bias=False)
-    primary_ref = f"refs/remotes/origin/{primary}"
+def _primary_for(repo_root: Path, remote: str) -> str:
+    """The primary branch name to prove against: the named remote's ``HEAD``, else the resolver.
+
+    ``resolve_primary_branch`` is ``origin``-biased (its first probe is
+    ``origin/HEAD``), so the named remote's own head wins when it has one.
+    """
+    return _remote_head_branch(repo_root, remote) or resolve_primary_branch(repo_root, bias=False)
+
+
+def _context(
+    repo_root: Path,
+    entries: Sequence[WorktreeEntry],
+    current_dir: Path,
+    probe: ProbeFn,
+    remote: str = DEFAULT_REMOTE,
+) -> _Context:
+    primary = _primary_for(repo_root, remote)
+    primary_ref = tracking_ref(remote, primary)
     return _Context(
         repo_root=repo_root,
+        remote=remote,
         primary=primary,
-        primary_resolved=_primary_resolved(repo_root, primary),
+        primary_resolved=_primary_resolved(repo_root, primary, remote),
         primary_ref=primary_ref,
         primary_ref_present=_ref_exists(repo_root, primary_ref),
         current=_current_worktree(entries, current_dir),
@@ -487,12 +557,17 @@ def _local_state(entry: WorktreeEntry) -> WorktreeVerdict | tuple[str, ...]:
 
 
 def _absorption(entry: WorktreeEntry, ctx: _Context) -> WorktreeVerdict | None:
-    """Steps 8-9: is the tip's committed work on ``origin/<primary>``?"""
+    """Steps 8-9: is the tip's committed work on ``<remote>/<primary>``?"""
     if not ctx.primary_resolved:
-        detail = f"the primary branch {ctx.primary!r} is only a guess: set it with `git remote set-head origin <branch>`"
+        detail = f"the primary branch {ctx.primary!r} is only a guess: set it with `git remote set-head {ctx.remote} <branch>`"
         return _verdict(entry, Verdict.UNPROVEN, Reason.PRIMARY_UNRESOLVED, detail)
     if not ctx.primary_ref_present:
-        return _verdict(entry, Verdict.UNPROVEN, Reason.PRIMARY_REF_MISSING, f"{ctx.primary_ref} does not exist locally")
+        return _verdict(
+            entry,
+            Verdict.UNPROVEN,
+            Reason.PRIMARY_REF_MISSING,
+            f"{ctx.primary_ref} does not exist locally: run `git fetch {ctx.remote}`",
+        )
     if entry.head is None:
         return _verdict(entry, Verdict.NOT_LANDED, Reason.CONTENT_NOT_ON_PRIMARY, "the worktree has no commit")
     try:
@@ -544,7 +619,7 @@ def _reflog_subjects(repo_root: Path, branch: str) -> list[str] | None:
 
 
 def _own_commits(entry: WorktreeEntry, ctx: _Context) -> WorktreeVerdict | None:
-    """Step 10: a branch sitting on ``origin/<primary>`` that nobody committed on is not the prune's to delete."""
+    """Step 10: a branch sitting on ``<remote>/<primary>`` that nobody committed on is not the prune's to delete."""
     if entry.branch is None or entry.head is None or not _is_ancestor(ctx.repo_root, entry.head, ctx.primary_ref):
         return None
     subjects = _reflog_subjects(ctx.repo_root, entry.branch)
@@ -596,15 +671,54 @@ def _evaluate(entries: Sequence[WorktreeEntry], indices: Sequence[int], ctx: _Co
     return [decided[index] for index in indices], uninspected
 
 
-def assess_worktrees(repo_root: Path, *, current_dir: Path, probe: ProbeFn = processes_with_cwd_under) -> WorktreeAssessment:
-    """One verdict per registered worktree, main worktree first. Read-only."""
+def _unconfigured_remote_error(repo_root: Path, remote: str) -> str | None:
+    """The refusal for a remote name that cannot prove anything, else ``None``.
+
+    A blank name (``--remote "$UNSET"``) is refused first: ``origin`` is the
+    default for an *omitted* option, never a fallback for an empty one, or a
+    script with an unset variable would silently prove against ``origin`` again.
+    A name is otherwise only refused when the repository has remotes to compare
+    it with: a clone with no remote at all keeps the older, quieter answer (every
+    worktree ``unproven`` / ``PRIMARY_REF_MISSING``), and an unreadable remote
+    list is no proof that the name is wrong. Both fall through to the missing
+    ``<remote>/<primary>`` ref, which fails closed either way.
+    """
+    if not remote.strip():
+        return f"a remote name is required; got {remote!r}"
+    configured = configured_remotes(repo_root)
+    if not configured or remote in configured:
+        return None
+    return f"no such remote {remote!r}; configured remotes: {', '.join(configured)}"
+
+
+def assess_worktrees(
+    repo_root: Path,
+    *,
+    current_dir: Path,
+    probe: ProbeFn = processes_with_cwd_under,
+    remote: str = DEFAULT_REMOTE,
+) -> WorktreeAssessment:
+    """One verdict per registered worktree, main worktree first. Read-only.
+
+    ``remote`` names the remote whose primary ref proves a landing (default
+    ``origin``). A remote the repository does not configure yields an ``error``
+    and no verdicts rather than a report that reads as "nothing landed".
+    """
+    error = _unconfigured_remote_error(repo_root, remote)
+    if error is not None:
+        return WorktreeAssessment(primary_ref=None, verdicts=(), error=error, remote=remote)
     try:
         entries = worktree_entries(repo_root)
     except GitCommandError as exc:
-        return WorktreeAssessment(primary_ref=None, verdicts=(), error=f"the worktree list cannot be read: {exc}")
-    ctx = _context(repo_root, entries, current_dir, probe)
+        return WorktreeAssessment(primary_ref=None, verdicts=(), error=f"the worktree list cannot be read: {exc}", remote=remote)
+    ctx = _context(repo_root, entries, current_dir, probe, remote)
     verdicts, uninspected = _evaluate(entries, range(len(entries)), ctx)
-    return WorktreeAssessment(primary_ref=ctx.primary_ref, verdicts=tuple(verdicts), uninspected_processes=uninspected)
+    return WorktreeAssessment(
+        primary_ref=ctx.primary_ref,
+        verdicts=tuple(verdicts),
+        uninspected_processes=uninspected,
+        remote=remote,
+    )
 
 
 def _reassess(repo_root: Path, path: Path, ctx: _Context) -> WorktreeVerdict | None:
@@ -617,37 +731,27 @@ def _reassess(repo_root: Path, path: Path, ctx: _Context) -> WorktreeVerdict | N
     return None
 
 
-def shell_command(*args: str) -> str:
-    """``args`` as one copy-pasteable command line for this platform's shell (POSIX quoting, or ``cmd.exe`` rules on Windows)."""
-    if is_windows():
-        return subprocess.list2cmdline(args)
-    return shlex.join(args)
-
-
 def _recreate(verdict: WorktreeVerdict, *, refusal: str | None) -> str:
-    """The command that brings back what the prune removed.
-
-    A deleted (or already gone) branch comes back with ``git branch``; a kept
-    branch gets its worktree back on it, unless another worktree has it
-    checked out (git refuses a second checkout): then, like a detached
-    worktree, the worktree comes back detached at the tip.
-    """
-    if verdict.branch is None or refusal == Reason.BRANCH_IN_OTHER_WORKTREE:
-        return shell_command("git", "worktree", "add", "--detach", str(verdict.path), verdict.tip or "")
-    if refusal is not None:
-        return shell_command("git", "worktree", "add", str(verdict.path), verdict.branch)
-    return shell_command("git", "branch", verdict.branch, verdict.tip or "")
+    """The command that brings back a worktree the prune refused to remove (its branch is kept)."""
+    command: str = recreate_command(
+        verdict.path,
+        verdict.branch,
+        verdict.tip or "",
+        branch_kept=refusal is not None,
+        checked_out_elsewhere=refusal == Reason.BRANCH_IN_OTHER_WORKTREE,
+    )
+    return command
 
 
-def _outcome(verdict: WorktreeVerdict, *, removed: bool, branch_deleted: bool = False, kept_ref: str | None = None, refusal: str | None = None) -> PruneOutcome:
-    """``refusal`` set means the branch still exists (the removal or the branch delete was refused)."""
+def _outcome(verdict: WorktreeVerdict, *, refusal: str) -> PruneOutcome:
+    """A worktree the prune kept: nothing was removed, ``refusal`` says why."""
     return PruneOutcome(
         path=verdict.path,
         branch=verdict.branch,
         tip=verdict.tip,
-        removed=removed,
-        branch_deleted=branch_deleted,
-        kept_ref=kept_ref,
+        removed=False,
+        branch_deleted=False,
+        kept_ref=None,
         recreate=_recreate(verdict, refusal=refusal),
         refusal=refusal,
     )
@@ -668,77 +772,65 @@ def _still_landed_refusal(repo_root: Path, verdict: WorktreeVerdict, ctx: _Conte
     return None
 
 
-def _branch_checked_out(repo_root: Path, branch: str) -> bool:
-    try:
-        return any(entry.branch == branch for entry in worktree_entries(repo_root))
-    except GitCommandError:
-        return True  # cannot tell: keep the branch
+def _process_probe(ctx: _Context) -> ProcessProbe:
+    """O2 evidence for the guard: the prune's ``/proc`` probe for one worktree (``None`` when it cannot tell)."""
+
+    def busy(path: Path) -> bool | None:
+        result = ctx.probe([path])
+        return (path in result.busy) if result.available else None
+
+    return busy
 
 
-def _delete_landed_branch(repo_root: Path, branch: str, tip: str | None, ctx: _Context) -> tuple[bool, str | None, str | None]:
-    """Delete ``branch`` after its worktree is gone; ``(deleted, kept_ref, refusal)``.
+def _absorption_proof(repo_root: Path) -> AbsorptionProof:
+    """O3 evidence for the guard: ``lane_tip.is_absorbed``; an unsupported git is no proof."""
 
-    The guard's delete is not compare-and-swap, so the tip is compared with the
-    assessed one immediately before; a moved branch is kept. The local primary
-    branch itself is never deleted.
-    """
-    if branch == ctx.primary:
-        return False, None, BRANCH_IS_PRIMARY
-    live = branch_tip(repo_root, branch)
-    if live is None:
-        return False, None, None
-    if live != tip:
-        return False, None, BRANCH_MOVED
-    if _branch_checked_out(repo_root, branch):
-        return False, None, Reason.BRANCH_IN_OTHER_WORKTREE.value
-    try:
-        recorded = guarded_branch_delete(repo_root, branch, creation_base=None, operator_intent=LANDED_INTENT)
-    except DestructiveOpRefused as exc:
-        return False, None, exc.error_code
-    except (GitCommandError, RuntimeError):
-        return False, None, BRANCH_DELETE_FAILED
-    kept_ref = discarded_ref(repo_root, branch, recorded) if recorded is not None else None
-    return True, kept_ref, None
+    def absorbed(tip: str, landing_ref: str) -> bool:
+        try:
+            proven: bool = is_absorbed(repo_root, tip, landing_ref, base=None)
+            return proven
+        except AbsorptionUnsupported:
+            return False
+
+    return absorbed
 
 
-def _on_a_local_ref(repo_root: Path, sha: str) -> bool:
-    """``True`` when a local branch or tag reaches ``sha`` (remote-tracking refs do not count; ``False`` when git cannot tell)."""
-    try:
-        listed = run_git(repo_root, "for-each-ref", "--count=1", "--contains", sha, "--format=%(refname)", "refs/heads", "refs/tags")
-    except GitCommandError:
-        return False
-    return bool(listed.stdout.strip())
-
-
-def _keep_detached(repo_root: Path, verdict: WorktreeVerdict) -> str | None:
-    """Record a detached tip that no local branch or tag reaches (e.g. squash-landed) before its worktree goes.
-
-    Raises :class:`DestructiveOpRefused` when the record cannot be written.
-    """
-    if verdict.branch is not None or verdict.tip is None or _on_a_local_ref(repo_root, verdict.tip):
-        return None
-    kept: str = keep_detached_tip(repo_root, verdict.tip)
-    return kept
+def _removed(verdict: WorktreeVerdict, result: LandedRemovalResult) -> PruneOutcome:
+    refusal = _GUARD_REFUSALS.get(result.refusal, result.refusal) if result.refusal is not None else None
+    return PruneOutcome(
+        path=verdict.path,
+        branch=verdict.branch,
+        tip=verdict.tip,
+        removed=True,
+        branch_deleted=result.branch_deleted,
+        kept_ref=result.kept_ref,
+        recreate=result.recreate,
+        refusal=refusal,
+        kept_commits=result.kept_commits,
+    )
 
 
 def _prune_one(repo_root: Path, verdict: WorktreeVerdict, ctx: _Context) -> PruneOutcome:
+    """Re-assess, then hand the removal to the guard, which discharges every proof obligation (ADR 2026-11-06-1)."""
     refusal = _still_landed_refusal(repo_root, verdict, ctx)
     if refusal is not None:
-        return _outcome(verdict, removed=False, refusal=refusal)
-    detached_ref: str | None = None
+        return _outcome(verdict, refusal=refusal)
+    if verdict.tip is None:
+        return _outcome(verdict, refusal=TIP_MOVED)
+    removal = LandedRemoval(worktree=verdict.path, branch=verdict.branch, tip=verdict.tip, remote=ctx.remote, landing_ref=ctx.primary_ref)
     try:
-        detached_ref = _keep_detached(repo_root, verdict)
-        guarded_worktree_remove(verdict.path, retain=False, context=NothingIsResidue(), force=False)
+        result = guarded_landed_removal(
+            repo_root,
+            removal,
+            context=NothingIsResidue(),
+            processes_in=_process_probe(ctx),
+            absorbed=_absorption_proof(repo_root),
+        )
     except DestructiveOpRefused as exc:
-        # Partly removed: git unregistered it and left a husk; the branch stays for the operator.
-        removed = exc.error_code == WORKTREE_PARTIALLY_REMOVED
-        return _outcome(verdict, removed=removed, kept_ref=detached_ref if removed else None, refusal=exc.error_code)
+        return _outcome(verdict, refusal=_GUARD_REFUSALS.get(exc.error_code, exc.error_code))
     except (GitCommandError, RuntimeError, OSError):
-        return _outcome(verdict, removed=False, refusal=WORKTREE_REMOVE_FAILED)
-    if verdict.branch is None:
-        return _outcome(verdict, removed=True, kept_ref=detached_ref)
-    deleted, kept_ref, branch_refusal = _delete_landed_branch(repo_root, verdict.branch, verdict.tip, ctx)
-    return _outcome(verdict, removed=True, branch_deleted=deleted, kept_ref=kept_ref, refusal=branch_refusal)
+        return _outcome(verdict, refusal=WORKTREE_REMOVE_FAILED)
+    return _removed(verdict, result)
 
 
 def prune_landed(
@@ -747,19 +839,27 @@ def prune_landed(
     current_dir: Path,
     probe: ProbeFn = processes_with_cwd_under,
     assessment: WorktreeAssessment | None = None,
+    remote: str | None = None,
 ) -> list[PruneOutcome]:
     """Remove each ``landed`` worktree, then its branch; one outcome per ``landed`` verdict.
 
     ``assessment`` lets a caller that already assessed (to report) reuse it;
     every worktree is re-assessed right before it is removed either way. An
     unreadable worktree list yields no outcome (``assess_worktrees`` reports it).
+    ``remote`` is the remote whose primary ref proves a landing; omitted, it is
+    the assessment's own remote (else ``origin``). Naming a different remote
+    than the assessment was made against is a :class:`ValueError`: the verdicts
+    would be reported against one remote and acted on against another.
     """
-    current = assessment if assessment is not None else assess_worktrees(repo_root, current_dir=current_dir, probe=probe)
+    if assessment is not None and remote is not None and remote != assessment.remote:
+        raise ValueError(f"the assessment was proven against {assessment.remote!r}, not {remote!r}")
+    proving = remote if remote is not None else (assessment.remote if assessment is not None else DEFAULT_REMOTE)
+    current = assessment if assessment is not None else assess_worktrees(repo_root, current_dir=current_dir, probe=probe, remote=proving)
     landed = [verdict for verdict in current.verdicts if verdict.removable]
     if current.error is not None or not landed:
         return []
     try:
-        ctx = _context(repo_root, worktree_entries(repo_root), current_dir, probe)
+        ctx = _context(repo_root, worktree_entries(repo_root), current_dir, probe, proving)
     except GitCommandError:
         return []
     return [_prune_one(repo_root, verdict, ctx) for verdict in landed]

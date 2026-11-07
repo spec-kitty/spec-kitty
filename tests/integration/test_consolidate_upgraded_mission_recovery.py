@@ -211,10 +211,7 @@ def test_as3_dry_run_no_longer_forecasts_the_metadata_conflict(tmp_path: Path) -
     """The dry-run preview shares ``_run_squash_merge``; a mission branch carrying
     its own divergent metadata (and a mixed ``status.json`` divergence) is not
     forecast as blocked."""
-    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1, status_json_divergence=True)
-    broken = [*project.branches(), project.mission_branch]
-    commit_broken_upgrade_state(project, branches=broken)
-    _diverge_target_status_json(project)
+    project = _mission_branch_upgrade_project(tmp_path)
 
     result = _consolidate(project, "--dry-run", "--json")
 
@@ -223,6 +220,52 @@ def test_as3_dry_run_no_longer_forecasts_the_metadata_conflict(tmp_path: Path) -
     assert result.returncode == 0, output
     payload = json.loads(result.stdout)
     assert not payload.get("blocked", False), payload
+
+
+def _mission_branch_upgrade_project(tmp_path: Path) -> LanesProject:
+    """The AS-3 dry-run fixture: the upgrade commit sits on every lane AND the mission branch.
+
+    The mission branch's own upgrade commit touches ``.gitattributes`` (content no lane
+    authored), so the per-commit closed-world scan calls it un-attributable, while the squash
+    lands the target's identical ``.gitattributes`` line and changes nothing there. Review's
+    approvals are stamped after the upgrade, as in :func:`_broken_project`.
+    """
+    project = build_older_version_lanes_project(tmp_path, topology="lanes", lanes=1, status_json_divergence=True)
+    commit_broken_upgrade_state(project, branches=[*project.branches(), project.mission_branch])
+    stamp_approvals(project)
+    _diverge_target_status_json(project)
+    return project
+
+
+def test_squash_dry_run_agrees_with_the_real_squash_run(tmp_path: Path) -> None:
+    """#7244: under squash the dry run forecasts the check the real run makes (blob attribution
+    of the squashed tree), not the merge-only per-commit scan, so a mission-branch commit whose
+    content the squash does not change no longer previews a refusal the real run never makes."""
+    project = _mission_branch_upgrade_project(tmp_path)
+    target_metadata = metadata_blob(project.repo, project.target_branch)
+
+    forecast = _consolidate(project, "--dry-run", "--json", "--strategy", "squash")
+    landed = _consolidate(project, "--strategy", "squash")
+
+    assert "UNATTRIBUTABLE_CONTENT_FORECAST" not in _output(forecast), _output(forecast)
+    assert forecast.returncode == 0, _output(forecast)
+    assert json.loads(forecast.stdout)["strategy"] == "squash"
+    _assert_landed(project, landed, target_metadata)
+
+
+def test_merge_dry_run_still_forecasts_the_unattributable_mission_branch_commit(tmp_path: Path) -> None:
+    """#7244 control: under merge the real run's closed-world scan refuses the mission-branch
+    commit no WP authored, so the dry run keeps forecasting it, and the real run agrees."""
+    project = _mission_branch_upgrade_project(tmp_path)
+    target_tip = _git_rev(project.repo, project.target_branch)
+
+    forecast = _consolidate(project, "--dry-run", "--json", "--strategy", "merge")
+    landed = _consolidate(project, "--strategy", "merge")
+
+    assert forecast.returncode == 1, _output(forecast)
+    assert json.loads(forecast.stdout)["error_code"] == "UNATTRIBUTABLE_CONTENT_FORECAST"
+    assert landed.returncode != 0, _output(landed)
+    assert _git_rev(project.repo, project.target_branch) == target_tip
 
 
 # ---------------------------------------------------------------------------

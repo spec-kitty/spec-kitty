@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "mission_slug": "charter-resynth-project-directive-layer-split-01M690W8",
+  "mission_id": "01M690W8QR4YHB5P2YFPCZXK4B",
+  "mission_branch": "kitty/mission-charter-resynth-project-directive-layer-split-01M690W8",
+  "target_branch": "issue-6768-charter-resynth-project-directive",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/charter/synthesizer/test_project_directive_layer_split_6768.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/orchestrator.py",
+        "src/charter/activation/synthesizer/request.py",
+        "src/charter/activation/synthesizer/resynthesize_pipeline.py",
+        "src/charter/activation/synthesizer/synthesize_pipeline.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T13:07:07.565451+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "7c91ca616b4c298e6f248655dba59fd84f164991"
+}

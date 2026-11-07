@@ -5,7 +5,6 @@ ASSET sidecar manifest domain model - public API.
 from charter.offering.assets.models import AssetManifest
 from charter.offering.assets.repository import (
     AssetNotFoundError,
-    AssetPathEscape,
     AssetPathEscapeError,
     AssetRepository,
     AssetResolutionError,
@@ -15,7 +14,6 @@ from charter.offering.assets.repository import (
 __all__ = [
     "AssetManifest",
     "AssetNotFoundError",
-    "AssetPathEscape",
     "AssetPathEscapeError",
     "AssetRepository",
     "AssetResolutionError",

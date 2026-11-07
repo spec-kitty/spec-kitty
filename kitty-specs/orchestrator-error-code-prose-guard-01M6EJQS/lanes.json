@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "orchestrator-error-code-prose-guard-01M6EJQS",
+  "mission_id": "01M6EJQSTJPNT1HWKYR95HEVR9",
+  "mission_branch": "kitty/mission-orchestrator-error-code-prose-guard-01M6EJQS",
+  "target_branch": "issue-7035-orchestrator-error-code-prose-guard",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/contract/test_orchestrator_api.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "docs/changelog/unreleased/",
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-02T16:56:39.144852+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "f8c80fbd844361a8e08938891e9821dfe240abd0"
+}
