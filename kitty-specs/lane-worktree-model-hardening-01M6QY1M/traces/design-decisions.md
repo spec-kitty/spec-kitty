@@ -113,3 +113,22 @@ with the mid-run mission tip, which already has lane-e and lane-a merged (921bb3
 removes that tip, so a refresh cannot make lane-f pass. Closeout stopped for a further ruling.
 
 - [2026-11-07][closeout] Ruling: the false stale-lane refusal (lane-f) is fixed in core in this PR (#7311), same class as #7307; refresh-merge not applicable. #7311 reviewed (approve), merged into the topic branch. Nits: move wp= below planning early return; multi-WP remedy names first WP only; docstring step 1 outdated. Follow-up: consolidate --dry-run does not forecast stale-lane refusals. Expect a stale_check.py conflict with lane-n (WP17) during consolidation.
+
+## [closeout 2026-11-07] ruling (a) generalised: refresh genuinely stale lanes with the mission commit that run built
+
+The orchestrator ruled: when a lane is refused stale on a real overlap, merge the mission-branch
+commit that run built into the lane. Proceed only if the merge has no conflicts and an empty
+`git show --remerge-diff`, push the lane branch and re-run consolidate.
+Refreshes made (each a merge with no conflicts and an empty remerge-diff, pushed):
+
+| lane | WP | merge SHA | mission commit merged |
+|------|----|-----------|-----------------------|
+| l | WP15 | dc6d7f4d422c90afaff7e0623d7cce700261ad4c | 7e650a6 |
+| b | WP05 | 388e424a4711df03784c5fbe45dc8e570a13af47 | 1353bb3 |
+| i | — | 750cbfa7ccf937d65452d46dfea7a5e25f107be6 | 215764c |
+
+Stopped at lane-j: merging 1bc83bb conflicts in `tests/architectural/_baselines.yaml`
+(`allowlist_entries` 232 vs 232 with different justifications, and `widened_grandfathered_470`
+84 vs 83) and `tests/architectural/dead_symbol_allowlist.yaml` (lane-j/WP13 adds the category
+`category_c_topology_settlement_7282`, the mission side adds the WP05 `category_c_status_read_door_7277`).
+The merge was aborted, and lane-j is unchanged. Per the ruling this needs option (b) rework.
