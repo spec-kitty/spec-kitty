@@ -300,13 +300,13 @@
     },
     {
       "criterion_id": "FR-043",
-      "description": "Verify FR-043 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-043 Readers never read lane copies: no reader to read a lane checkout's status files, so that ruling 8 holds.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "Folded into FR-002 (and FR-005). lane-a:tests/specify_cli/missions/test_lane_worktree_status_shadow.py::test_lane_worktree_root_reads_the_authoritative_lane; lane-a:tests/specify_cli/missions/test_lane_worktree_status_shadow.py::test_guarded_read_seam_also_re_anchors_a_lane_worktree_root; lane-a:tests/status/test_status_read_matrix.py::test_lane_root_reads_write_checkout_state; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP04-s1-root-normalization-and-ref-reader/review-cycle-3.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:57.076235+00:00",
+      "notes": "Spec marks FR-043 [folded] into FR-002 and FR-005; evidenced here by the FR-002 lane-root re-anchoring tests. The FR-005 remainder is deferred (see FR-005)."
     },
     {
       "criterion_id": "FR-044",
