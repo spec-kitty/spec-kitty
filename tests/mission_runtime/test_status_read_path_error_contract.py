@@ -1,5 +1,8 @@
 """M6 error-contract regression + coord-empty Option B convergence (post-WP06).
 
+Amended by Mission lane-worktree-model-hardening WP05 (ADR 2026-11-06-2): the loud warning
+is replaced by the read door's declared pre-seed fallback; the PRIMARY resolution below holds.
+
 Both coord-empty handle forms now CONVERGE on WP04's Option B (loud primary
 fallback at the canonical surface, #1716/FR-003) — the transitional WP04 boundary
 split is closed by WP06's read-path boundary absorption (T015 / FR-004):
@@ -120,16 +123,13 @@ def _materialize_coord_root_without_mission_dir(repo: Path, dirname: str) -> Pat
 
 
 def _assert_option_b_warning(caplog: pytest.LogCaptureFixture) -> None:
-    """Option B must be OBSERVABLE: a single loud surface ``logging.WARNING``.
+    """The loud Option B warning is gone (ADR 2026-11-06-2, Mission lane-worktree-model-hardening WP05).
 
-    The coord-empty primary fallback is never silent (#1716/FR-003) — the surface
-    logger emits the stale-surface warning naming both recovery paths. This keeps
-    the convergence honest: the leg resolved PRIMARY *and* announced the risk.
+    These fixtures' coordination branch holds no log, so the read is the declared pre-seed
+    fallback to the write checkout, stamped as ``fallback_reason`` on the read door's surface
+    (``tests/status/test_read_surface_door.py``), not a log warning.
     """
-    assert any(
-        r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING
-        for r in caplog.records
-    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+    assert not any(r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING for r in caplog.records)
 
 
 def test_action_context_canonical_dirname_resolves_primary_with_warning(
@@ -175,10 +175,7 @@ def test_action_context_backfilled_dirname_resolves_primary_with_warning(
         )
 
     assert context.feature_dir == str(repo / "kitty-specs" / _BACKFILLED_DIRNAME)
-    assert any(
-        r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING
-        for r in caplog.records
-    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+    _assert_option_b_warning(caplog)
 
 
 def test_placement_only_canonical_dirname_resolves_with_warning(
@@ -220,7 +217,4 @@ def test_placement_only_backfilled_dirname_resolves_with_warning(
         )
 
     assert placement is not None
-    assert any(
-        r.name == _SURFACE_LOGGER and r.levelno == logging.WARNING
-        for r in caplog.records
-    ), "coord-empty Option B must emit a logging.WARNING (no silent fallback)"
+    _assert_option_b_warning(caplog)

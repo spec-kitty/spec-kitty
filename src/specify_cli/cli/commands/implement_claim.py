@@ -32,17 +32,12 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import (
     is_status_state_path,
 )
-from specify_cli.coordination.surface_resolver import (
-    StatusReadPathNotFound,
-    resolve_status_surface_with_anchor,
-)
+from specify_cli.coordination.surface_resolver import StatusReadPathNotFound
 from specify_cli.status import TransitionError
 from specify_cli.status import (
     Lane,
     WorkPackageClaimConflict,
     claim_policy_metadata,
-    read_events,
-    reduce,
     start_implementation_status,
 )
 
@@ -123,8 +118,12 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
     """
     if not auto_commit:
         return
-    status_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
-    current_lane = reduce(read_events(status_dir)).work_packages.get(wp_id, {}).get("lane")
+    # The one status read door (ADR 2026-11-06-2, WP05): the declared source, so an
+    # unmaterialized coordination worktree reads the committed coordination branch.
+    from specify_cli.status.read_surface import materialize_status, resolve_status_read
+
+    snapshot = materialize_status(resolve_status_read(repo_root, mission_slug))
+    current_lane = snapshot.work_packages.get(wp_id, {}).get("lane")
     if current_lane not in _CLAIM_COMMITTING_LANES:
         return
     try:
