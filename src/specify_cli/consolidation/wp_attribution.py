@@ -683,16 +683,19 @@ def first_governed_open_stamp(events: Sequence[StatusEvent], wp_ids: frozenset[s
 def approval_window_open_stamp(events: Sequence[StatusEvent], wp_id: str) -> str | None:
     """The head when *wp_id* first entered implementation: ``O_k`` of a ``single_branch`` approval window.
 
-    The stamp on the WP's first non-migration transition into ``claimed`` or ``in_progress``.
+    The stamp on the WP's first non-migration transition into ``claimed`` or ``in_progress``,
+    or ``None`` when that first entry carries no stamp (a claim made before stamping began) or
+    the WP never entered implementation. Later entries are never consulted: a stamped rework
+    must not stand in for an unstamped first claim, or the WP's own earlier commits would fall
+    outside its window. ``None`` makes the caller degrade to the claim base (A-8).
+
     Unlike :func:`first_governed_open_stamp` (the mixed-lane closed-world anchor, which also
     counts ``blocked``), a ``blocked`` move opens nothing here: a WP blocked at the start would
     otherwise open its window before the work of WPs approved ahead of it.
     """
     for event in events:
         if event.wp_id == wp_id and not is_migration_event(event) and event.to_lane in _ENTERED_IMPLEMENTATION_LANES:
-            stamp = stamp_of(event)
-            if stamp is not None:
-                return stamp
+            return stamp_of(event)
     return None
 
 

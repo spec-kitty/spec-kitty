@@ -223,6 +223,24 @@ def test_missing_open_stamp_degrades_to_the_claim_base_and_is_logged(repo: _Repo
     assert "WP01 has no stamped claim" in caplog.text
 
 
+def test_a_first_claim_that_predates_stamps_degrades_the_window(repo: _Repo, caplog: pytest.LogCaptureFixture) -> None:
+    """In-flight Mission: WP01's claim and commit predate stamps; a stamped rework must not narrow its window (A-8)."""
+    repo.claim("WP01", stamped=False)
+    repo.commit("src/m1.py")
+    repo.event("WP01", Lane.IN_PROGRESS, Lane.FOR_REVIEW, stamped=False)
+    repo.event("WP01", Lane.FOR_REVIEW, Lane.IN_PROGRESS)
+    repo.commit("src/m1_rework.py")
+    repo.event("WP01", Lane.IN_PROGRESS, Lane.FOR_REVIEW)
+    repo.event("WP01", Lane.FOR_REVIEW, Lane.IN_REVIEW)
+    repo.approve("WP01")
+
+    with caplog.at_level(logging.INFO, logger="specify_cli.consolidation.write_branch_bound"):
+        refusals = repo.check(approved=("WP01",))
+
+    assert refusals == ()
+    assert "WP01 has no stamped claim" in caplog.text
+
+
 def test_stamped_open_excludes_what_preceded_the_claim(repo: _Repo) -> None:
     early = repo.commit("src/early.py")
     _build(repo, "WP01", "src/m1.py")

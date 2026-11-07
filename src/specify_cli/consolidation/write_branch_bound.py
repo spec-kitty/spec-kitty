@@ -13,8 +13,8 @@ the other. Its approvals bound it in two tiers:
   :func:`~specify_cli.consolidation.wp_attribution.approval_window_open_stamp`). A commit slipped
   in between two approvals is reachable from the later approval stamp, but also from the later
   work package's claim stamp, so tier 1 misses it and tier 2 refuses it, naming the work package
-  approved before it. Overlapping windows are accepted. A work package with no claim stamp
-  degrades to ``(claim_base, S_k]`` and the degrade is logged (A-8). Merge commits,
+  approved before it. Overlapping windows are accepted. A work package whose first claim carries no
+  stamp (even if a later rework is stamped) degrades to ``(claim_base, S_k]`` and the degrade is logged (A-8). Merge commits,
   bookkeeping-only commits and commits reachable from an anchor are exempt, as in the lane check.
 
 Reachability is batched: one ``git rev-list`` per window edge, then set membership (NFR-007).
@@ -61,7 +61,7 @@ class ApprovalWindow:
 
     @property
     def degraded(self) -> bool:
-        """True when the work package has no claim stamp: its window opens at the claim base (A-8)."""
+        """True when the work package's first claim has no stamp: its window opens at the claim base (A-8)."""
         return self.open_stamp is None
 
 
