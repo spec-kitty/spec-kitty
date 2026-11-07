@@ -1,7 +1,7 @@
 {
-  "event_count": 225,
-  "last_event_id": "01M6TTT7H87R08E7NHPP5TBMPX",
-  "materialized_at": "2026-11-07T11:03:03.976870+00:00",
+  "event_count": 226,
+  "last_event_id": "01M6TTTR0AVWM6N5D94D5HXJAW",
+  "materialized_at": "2026-11-07T11:03:20.842094+00:00",
   "mission_number": "",
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 1,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 2,
     "planned": 0
   },
   "work_packages": {
@@ -683,14 +683,14 @@
     },
     "WP20": {
       "actor": "claude",
-      "agent": "claude::python-pedro",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 3,
       "implementer_of_record": "claude::python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M6TTJG1NNBZV1RR9K4YDXTR6",
-      "last_transition_at": "2026-11-07T10:58:50.549664+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6TTTR0AVWM6N5D94D5HXJAW",
+      "last_transition_at": "2026-11-07T11:03:20.842094+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "S7: late topic-branch PRIMARY changes land before coordination teardown (or refuse, triple kept); resume anchors on pre_mutation_coord_sha; post-landing PRIMARY anchor = target; lands_topic_branch predicate; projection not widened. Commits 14ad4d8f61 (red), 893dc2bbdd.",
@@ -705,9 +705,9 @@
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": 8552,
-      "shell_pid_created_at": "1794010542.75",
+      "role": "reviewer",
+      "shell_pid": 32399,
+      "shell_pid_created_at": "1794049379.36",
       "subtasks": {
         "T118": "done",
         "T119": "done",
