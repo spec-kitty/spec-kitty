@@ -87,3 +87,6 @@ The operator rulings (stijn-dejongh, 2026-11-06) are recorded as resolved Decisi
 - **[2026-11-06][orchestrator] #7275 merged into main (2026-11-06T15:56Z); `guarded_landed_removal` is on origin/main (git/destructive_guard.py, workspace/landed_worktrees.py). WP16 stays in scope: its lane base must include origin/main.** Disposition: WP16 runs after WP18.
 
 - 2026-11-07 closeout: accept and consolidate were NOT run for real. Accept is blocked by the placeholder acceptance matrix, and the consolidate dry-run predicts a FAIL on two intra-Mission dependency merge commits. Both need an operator decision (populate the matrix with evidence; rework the merges, attest, or accept them as a core defect). No status or matrix files were edited by hand.
+
+- [2026-11-07][closeout] Operator ruling: deferred FRs (FR-006, deferred part of FR-005, FR-092) are recorded with a new non-blocking `deferred` criterion verdict (core change, #7308, in this PR).
+- [2026-11-07][closeout] Operator ruling: fix the closed-world attribution of allocator dependency-lane merges in core in this PR (#7307); no lane rewrite, no --dependency-ref.
