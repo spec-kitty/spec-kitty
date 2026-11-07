@@ -610,7 +610,8 @@
       "notes": [
         "Stale remedy prints spec-kitty re-entry command (A-10 verified); six skills + CLAUDE.md updated; guard with planted strings; prune backstop withheld (WP16)",
         "Review passed: FR-090/091/093/059 met; guard non-vacuous; A-10 green; contract 1.24.0 verified; name-guess reds come from dependency lanes (WP14), not WP17",
-        "Rework: merge topic branch into lane-n to resolve stale_check.py with #7311; --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
+        "Rework: merge topic branch into lane-n to resolve stale_check.py with #7311; --force only bypasses the lane-behind-target freshness check, orchestrator ruling",
+        "Review passed (rework: merge fcc8e08040 keeps #7311 overlap rule and WP17 remedy; tests green). --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
