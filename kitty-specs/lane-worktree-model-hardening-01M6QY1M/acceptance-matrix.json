@@ -440,13 +440,13 @@
     },
     {
       "criterion_id": "FR-060",
-      "description": "Verify FR-060 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-060 `--commit-to-target` still needs an explicit `single_branch`: `--commit-to-target` to keep requiring `--topology single_branch`, so that a provisional Mission never writes straight to its target.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-j:tests/specify_cli/cli/commands/agent/test_mission_create_provisional_topology.py::test_commit_to_target_still_requires_explicit_single_branch; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP13-s7-provenance-and-topic-branch-create/review-cycle-3.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:15:06.515952+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-061",
