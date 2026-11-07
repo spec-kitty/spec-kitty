@@ -25,3 +25,5 @@
 - **[2026-11-06][implement WP10 cycle 2] Closeout item:** add `LANE_STATUS_NOT_EXCLUDED`, `LANE_STATUS_AUTHORED`, `STATUS_WRITE_TARGETS_LANE_CHECKOUT`, `status_surface_on_ref` and `status_surface_unavailable` to `contracts/error-codes.yaml` (planning artifact; WP18/closeout).
 - [2026-11-06] Closeout additions from the WP10 c2 review: a pin test for the legacy-Mission exemption; re-run `tests/specify_cli/upgrade` on the consolidated branch (the reviewer did not re-run it in the narrowed comparison).
 - [2026-11-06][WP14 c2 review] Non-blocking nits for closeout: `_write_branch_holder` re-implements the lane-worktree exclusion; `coord_worktree_mission_names` hardcodes the `*-coord` glob; `resolve_primary_partition_dir` and `default_mission_topic_dir` overlap.
+
+- WP20 c2 approved (closeout nits): restore positive G2 mission_number assertion (==1 + baseline_merge_commit ancestry); cycle-1 commit message misnames lands_topic_branch as lanes_topic_branch.
