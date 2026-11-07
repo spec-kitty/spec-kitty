@@ -144,6 +144,12 @@ contain additional append-only events such as `glossary_checked`,
 | `router_confidence` | string/null | Router confidence for auto-routed requests |
 | `started_at` | ISO 8601 timestamp | When the invocation was opened |
 | `mode_of_work` | string | `task_execution`, `mission_step`, or `query` |
+| `mission_id`, `wp_id` | string/null | Mission-scoped dispatch context, when supplied |
+
+**No model identifier is recorded (#7013).** `actor` is the harness key and the
+only runtime identity the record carries. Records written before this change may
+still hold `model_id`; they are immutable history, still readable, and never
+rewritten.
 
 ### completed event fields
 
