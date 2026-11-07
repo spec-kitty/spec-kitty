@@ -180,13 +180,13 @@
     },
     {
       "criterion_id": "FR-032",
-      "description": "Verify FR-032 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-032 Kept lanes are reported, never a traceback: any lane the remover cannot remove after a verified landing reported with its lane, code, remedy and command, the record cleared and exit 0, so that a safe landing never looks like a failure.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-l:tests/consolidation/test_lane_cleanup_kept_report.py::test_dirtied_lane_after_preflight_kept_exit_0_record_cleared; lane-l:tests/consolidation/test_lane_cleanup_module.py::test_apply_never_raises_after_a_verified_landing; lane-l:tests/consolidation/test_lane_cleanup_module.py::test_a_busy_worktree_is_kept; lane-l:tests/consolidation/test_lane_cleanup_module.py::test_no_process_proof_keeps_the_worktree; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:12:55.341049+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-033",
