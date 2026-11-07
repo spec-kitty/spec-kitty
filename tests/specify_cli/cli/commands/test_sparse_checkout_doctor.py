@@ -193,3 +193,31 @@ def test_sparse_checkout_doctor_does_not_import_doctor() -> None:
             absolute.extend(alias.name for alias in node.names)
     assert "specify_cli.cli.commands.doctor" not in absolute
     assert set(relative) <= {"_doctor_shared"}
+
+
+def test_run_sparse_checkout_fix_scans_after_the_lane_exclusion_fix(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#7276: the scan reads each lane as --fix's exclusion step left it, never as it was.
+
+    A scan taken first would hand the remediation a stale verdict and let it
+    disable a managed lane (and its operator patterns).
+    """
+    monkeypatch.setattr(sc, "locate_project_root", lambda: tmp_path)
+    import specify_cli.git.sparse_checkout as scan_mod
+
+    order: list[str] = []
+
+    def _lane_findings(_root: Path, fix: bool) -> bool:
+        order.append(f"lane_findings(fix={fix})")
+        return False
+
+    def _scan(_root: Path) -> _ScanReport:
+        order.append("scan")
+        return _ScanReport(any_blocking=False)
+
+    monkeypatch.setattr(sc, "_report_lane_findings", _lane_findings)
+    monkeypatch.setattr(scan_mod, "scan_repo", _scan)
+    with pytest.raises(typer.Exit):
+        sc.run_sparse_checkout(fix=True)
+    assert order == ["lane_findings(fix=True)", "scan"]

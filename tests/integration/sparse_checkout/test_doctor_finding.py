@@ -275,3 +275,39 @@ def test_doctor_still_reports_genuine_legacy_on_mission_free_branch(
     assert "Legacy sparse-checkout state detected" in result.stdout
     assert str(wt) in result.stdout
     assert "spec-kitty doctor sparse-checkout --fix" in result.stdout
+
+
+def _lane_pattern_file(wt: Path) -> Path:
+    raw = _run(["git", "-C", str(wt), "rev-parse", "--git-path", "info/sparse-checkout"]).stdout.strip()
+    path = Path(raw)
+    return path if path.is_absolute() else wt / path
+
+
+def test_doctor_fix_keeps_lane_with_merged_operator_patterns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#7276/#7281: --fix never disables a lane whose operator patterns carry the negations."""
+    repo = tmp_path / "merged"
+    wt = _init_managed_lane_repo(repo)
+    pattern_file = _lane_pattern_file(wt)
+    # An operator's own pattern ahead of the managed list, then the negations merged in.
+    pattern_file.write_text("src/\n" + pattern_file.read_text(encoding="utf-8"), encoding="utf-8")
+    before = pattern_file.read_text(encoding="utf-8")
+    _enable_sparse(repo, pattern="README.md\n")
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
+        lambda: repo,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
+        lambda: True,
+    )
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+
+    result = CliRunner().invoke(doctor_app, ["sparse-checkout", "--fix"])
+
+    assert str(wt) not in result.stdout
+    assert pattern_file.read_text(encoding="utf-8") == before
+    cfg = _run(["git", "-C", str(wt), "config", "--get", "core.sparseCheckout"]).stdout.strip()
+    assert cfg == "true"

@@ -228,6 +228,7 @@ def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
 class _ManagedLanePolicy:
     mission_slug: str
     expected_patterns: frozenset[str]
+    mission_dir_name: str = ""
 
     def matches_path(self, path: Path) -> bool:
         return lane_id_for_worktree_dir(path.name, self.mission_slug) is not None
@@ -246,12 +247,19 @@ class _ManagedLanePolicy:
         return None if lane_id is None or lane_id == PLANNING_LANE_ID else code_lane_branch_name(self.mission_slug, lane_id)
 
 
-def _read_patterns(path: Path) -> frozenset[str] | None:
+def _read_pattern_lines(path: Path) -> list[str] | None:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
-    return frozenset(line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#"))
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
+
+
+def _status_exclusion_present(policy: _ManagedLanePolicy, lines: list[str]) -> bool:
+    """Whether *lines* carry the policy's Mission status exclusion (the lane helper's own predicate)."""
+    from specify_cli.lanes.lane_checkout import status_exclusion_in_place
+
+    return bool(policy.mission_dir_name) and status_exclusion_in_place(lines, policy.mission_dir_name)
 
 
 def _policy_from_meta(raw: dict[str, object] | None) -> _ManagedLanePolicy | None:
@@ -283,9 +291,11 @@ def _policy_from_meta(raw: dict[str, object] | None) -> _ManagedLanePolicy | Non
     mission_id = raw.get("mission_id")
     if isinstance(coord_branch, str) and coord_branch and not (isinstance(mission_id, str) and len(mission_id) >= 8):
         return None
+    mission_dir_name = lane_mission_dir_name_from_meta(mission_slug, raw)
     return _ManagedLanePolicy(
         mission_slug=mission_slug,
-        expected_patterns=frozenset(lane_status_exclusion_patterns(lane_mission_dir_name_from_meta(mission_slug, raw))),
+        expected_patterns=frozenset(lane_status_exclusion_patterns(mission_dir_name)),
+        mission_dir_name=mission_dir_name,
     )
 
 
@@ -398,12 +408,15 @@ def _classify_worktree_state(
     if not state.pattern_file_present or state.pattern_file_path is None:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
 
-    present = _read_patterns(state.pattern_file_path)
-    if present is None:
+    present_lines = _read_pattern_lines(state.pattern_file_path)
+    if present_lines is None:
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
-    # Exactly the status exclusion: it is the only sparse pattern a lane may
-    # carry, so an operator's own pattern beside it stays legacy/unknown state.
-    if candidates[0].expected_patterns == present:
+    # Managed when the status exclusion is in place (#7276/#7281): the lane
+    # helper merges the negations into an operator's own non-cone patterns, so
+    # extra operator patterns beside them stay managed. One predicate, shared
+    # with the helper and the upgrade migration. A list without the negations
+    # (a foreign or drifted sparse checkout) stays legacy/unknown state.
+    if _status_exclusion_present(candidates[0], present_lines):
         return replace(state, sparse_checkout_kind=SparseCheckoutKind.MANAGED_LANE)
     return replace(state, sparse_checkout_kind=SparseCheckoutKind.UNKNOWN)
 

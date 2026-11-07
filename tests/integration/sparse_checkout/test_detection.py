@@ -350,6 +350,36 @@ class TestEndToEndDetection:
         assert report.affected_paths == (lane_path,)
         assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
 
+    def test_lane_with_merged_operator_patterns_stays_managed(self, tmp_path: Path) -> None:
+        """#7276/#7281: the status negations merged into an operator's own patterns."""
+        repo = tmp_path / "r"
+        lane_path = _init_coordination_lane_repo(repo)
+        _write_lane_patterns(lane_path, ["src/", "docs/"])
+        exclude_lane_status_files(lane_path, lane_mission_dir_name(MISSION_SLUG, coordination_mid8=MID8))
+
+        report = scan_repo(repo)
+
+        assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.MANAGED_LANE
+        assert report.any_blocking is False
+        require_no_sparse_checkout(
+            repo,
+            command="consolidate",
+            override_flag=False,
+            actor="tester",
+            mission_slug=MISSION_SLUG,
+            mission_id=MISSION_ID,
+        )
+
+    def test_lane_with_operator_patterns_but_no_negations_is_unknown(self, tmp_path: Path) -> None:
+        repo = tmp_path / "r"
+        lane_path = _init_coordination_lane_repo(repo)
+        _write_lane_patterns(lane_path, ["src/", "docs/"])
+
+        report = scan_repo(repo)
+
+        assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
+        assert report.any_blocking is True
+
     def test_manual_matching_worktree_is_blocking_unknown(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_coordination_lane_repo(repo)
@@ -530,6 +560,17 @@ class TestManagedLaneIsBranchIndependent:
         assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.MANAGED_LANE
         assert report.any_blocking is False
         assert len(reads) == 1, f"expected only the root-derived meta.json read, got {reads}"
+
+
+def _write_lane_patterns(lane_path: Path, patterns: list[str]) -> None:
+    """Replace the lane's sparse pattern file with *patterns* verbatim."""
+    raw = _run(
+        ["git", "-C", str(lane_path), "rev-parse", "--git-path", "info/sparse-checkout"],
+    ).stdout.strip()
+    pattern_file = Path(raw)
+    if not pattern_file.is_absolute():
+        pattern_file = lane_path / pattern_file
+    pattern_file.write_text("\n".join(patterns) + "\n", encoding="utf-8")
 
 
 def _truncate_lane_patterns(lane_path: Path) -> None:

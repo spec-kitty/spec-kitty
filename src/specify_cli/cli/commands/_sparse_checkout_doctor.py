@@ -354,8 +354,11 @@ def run_sparse_checkout(fix: bool) -> None:
     from specify_cli.git.sparse_checkout import scan_repo
 
     repo_root = _resolve_repo_root()
-    report = scan_repo(repo_root)
+    # Lane findings first: with --fix they re-apply the status exclusion, and the
+    # scan below must see the lane as that leaves it, never as it was before.
+    # Otherwise --fix would disable a managed lane on a stale verdict (#7276).
     lane_findings = _report_lane_findings(repo_root, fix)
+    report = scan_repo(repo_root)
 
     if not report.any_blocking:
         if lane_findings:
