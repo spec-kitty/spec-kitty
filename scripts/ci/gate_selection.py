@@ -295,6 +295,7 @@ FANOUT_ALLOWLIST: dict[str, dict[str, str]] = {
     },
     "mission_pack_content": {
         "core_misc": _INCIDENTAL_TEMPLATES,
+        "status": _INCIDENTAL_TEMPLATES,
         "unit": _INCIDENTAL_TEMPLATES,
     },
     "mission_type_definitions": {
