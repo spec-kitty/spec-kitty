@@ -29,7 +29,7 @@ from specify_cli.core.mission_creation_meta import _build_create_meta
 from specify_cli.meta_keys import COORDINATION_KEYS, IDENTITY_KEYS
 from specify_cli.migration.backfill_identity import backfill_mission
 from specify_cli.migration.backfill_topology import backfill_mission_topology
-from specify_cli.mission_metadata import flatten_coordination_metadata
+from specify_cli.mission_metadata import flatten_coordination_metadata, restamp_topic_branch_as_coordination
 
 pytestmark = [pytest.mark.unit]
 
@@ -55,6 +55,7 @@ def test_coordination_write_path_keys_are_known_audit_keys() -> None:
     audit_keys = KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT["meta.json"]
     written = _literal_and_constant_meta_writes(_build_create_meta)
     written |= _literal_and_constant_meta_writes(flatten_coordination_metadata)
+    written |= _literal_and_constant_meta_writes(restamp_topic_branch_as_coordination)
     written |= _literal_and_constant_meta_writes(backfill_mission)
     written |= _literal_and_constant_meta_writes(backfill_mission_topology)
     written |= set(meta_flag_patch(pr_bound=True, retain_branches=True, retain_worktrees=True, commit_to_target=True))

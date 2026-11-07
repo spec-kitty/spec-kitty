@@ -37,6 +37,7 @@ from typing import Protocol
 
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
+    PROCESS_IN_WORKTREE,
     DestructiveOpRefused,
     NOT_LANDED_ON_NAMED_REMOTE,
     LandedRemoval,
@@ -50,22 +51,13 @@ from specify_cli.lanes.models import LanesManifest
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
-    "BACKSTOP_COMMAND",
-    "COORDINATION_TEARDOWN_REFUSED",
     "LANE_CLEANUP_FAILED",
-    "PROCESS_IN_WORKTREE",
-    "PROCESS_PROOF_UNAVAILABLE",
     "GuardedLaneRemover",
-    "LandingProof",
-    "LaneCleanupItem",
     "LaneCleanupOutcome",
     "LaneCleanupReport",
-    "LaneCleanupResult",
-    "LaneRemover",
     "LaneRetention",
     "LocalTargetAtPass",
     "MainTodayRemover",
-    "RemoteRef",
     "apply",
     "branch_exists",
     "kept_after_coordination_refusal",
@@ -74,8 +66,6 @@ __all__ = [
 
 #: The backstop every kept lane names (contracts/consolidate-cleanup-report.md).
 BACKSTOP_COMMAND = "spec-kitty doctor workspaces --prune"
-#: A process stands in the lane worktree.
-PROCESS_IN_WORKTREE = "PROCESS_IN_WORKTREE"
 #: Running processes cannot be checked on this platform (no ``/proc``).
 PROCESS_PROOF_UNAVAILABLE = "PROCESS_PROOF_UNAVAILABLE"
 #: The remover itself failed unexpectedly; the lane is kept and nothing more is attempted.

@@ -59,6 +59,35 @@ class MissionAlreadyExistsError(MissionCreationError):
     error_code = "MISSION_ALREADY_EXISTS"
 
 
+@dataclass(frozen=True, slots=True)
+class TargetReplacement:
+    """The IC-13 guard replaced an implicit target that was another Mission's branch (S7 #7282)."""
+
+    #: The checked-out branch the create would otherwise have targeted.
+    replaced_branch: str
+    #: The directory name of the Mission that records *replaced_branch*.
+    owning_mission: str
+    #: The target the create chose instead.
+    target_branch: str
+    remedy: str = "Pass --target-branch <branch> to choose the target."
+
+    def notice(self) -> str:
+        """The one-line operator notice."""
+        return (
+            f"The checked-out branch {self.replaced_branch} is Mission {self.owning_mission}'s branch, "
+            f"so this Mission targets {self.target_branch} instead. {self.remedy}"
+        )
+
+    def to_json(self) -> dict[str, str]:
+        """The ``target_replacement`` object of the ``--json`` payload."""
+        return {
+            "replaced_branch": self.replaced_branch,
+            "owning_mission": self.owning_mission,
+            "target_branch": self.target_branch,
+            "remedy": self.remedy,
+        }
+
+
 @dataclass(slots=True)
 class MissionCreationResult:
     """Structured result from ``create_mission_core()``."""
@@ -85,6 +114,9 @@ class MissionCreationResult:
     # validated owned-create fact rather than a bare path (G5).
     owned_checkout: OwnedCreateRoot | None = None
     canonical_repo_root: Path | None = None
+    #: S7 #7282 IC-13: set when the create replaced an implicit target that was
+    #: another Mission's branch (``None`` otherwise).
+    target_replacement: TargetReplacement | None = None
 
 
 # Report the façade as home, as before #5634 (tracebacks, repr, pickling). Set
@@ -92,6 +124,7 @@ class MissionCreationResult:
 # ``sys.modules[cls.__module__]``, and the façade is not registered yet when
 # this module is imported on its own.
 MissionCreationResult.__module__ = "specify_cli.core.mission_creation"
+TargetReplacement.__module__ = "specify_cli.core.mission_creation"
 
 
 class ProtectedMintRefusedError(MissionCreationError):
@@ -124,3 +157,25 @@ class MissionBranchExistsError(ProtectedMintRefusedError):
     __module__ = "specify_cli.core.mission_creation"
 
     error_code: str = "MISSION_BRANCH_EXISTS"
+
+
+class WriteCheckoutSwitchOccupiedError(ProtectedMintRefusedError):
+    """A switch of the write checkout refused: another WP is ``in_progress`` there (#5676).
+
+    The same rule ``implement`` refuses with (``WRITE_CHECKOUT_OCCUPIED``). Raised before
+    any git write; the failure-atomic create treats it as disposable.
+    """
+
+    # Report the façade as home, as the sibling creation errors do (#5634).
+    __module__ = "specify_cli.core.mission_creation"
+
+    error_code: str = "WRITE_CHECKOUT_OCCUPIED"
+
+
+class WriteCheckoutSwitchDirtyError(ProtectedMintRefusedError):
+    """A switch of the write checkout refused: it has uncommitted operator work (#5676)."""
+
+    # Report the façade as home, as the sibling creation errors do (#5634).
+    __module__ = "specify_cli.core.mission_creation"
+
+    error_code: str = "WRITE_CHECKOUT_DIRTY"

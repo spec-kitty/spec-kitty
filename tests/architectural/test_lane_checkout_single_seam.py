@@ -62,7 +62,9 @@ _NON_LANE_WORKTREE_MODULES: dict[str, str] = {
         "CoordinationWorkspace.resolve materializes the coordination worktree (`.worktrees/<slug>-<mid8>-coord`), the status surface itself, never a lane"
     ),
     "specify_cli/cli/commands/_coordination_doctor.py": ("`recovery_args` names the coordination worktree re-materialization for doctor output"),
-    "specify_cli/workspace/landed_worktrees.py": ("builds the printed recreate HINT for `doctor workspaces --prune`; spec-kitty never runs it"),
+    "specify_cli/git/destructive_guard.py": (
+        "`recreate_command` builds the printed recreate HINT for a landed removal; spec-kitty never runs it (moved here from workspace/landed_worktrees.py by WP16)"
+    ),
 }
 
 #: Measured 2026-11-06: 1421 ``src/**/*.py`` files. The floor keeps a broken

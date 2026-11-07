@@ -72,6 +72,57 @@ def worktree_lanes(manifest: LanesManifest) -> list[ExecutionLane]:
     return [lane for lane in manifest.lanes if not is_repo_root_lane(lane)]
 
 
+def stored_mission_meta(repo: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> dict[str, Any]:
+    """The Mission's ``meta.json`` mapping, read through the placement seam; ``{}`` when missing or malformed.
+
+    Needs no lane manifest, so a caller that holds only the slug (the stamp probe, the
+    approval warnings) reads the stored topology from the same authority as everyone else.
+    A validated *owned* fact selects that checkout's stored metadata; ``None`` keeps PRIMARY
+    authority (#7099).
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta: dict[str, Any] = load_meta_or_empty(placement_seam(repo, mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA))
+    return meta
+
+
+def write_branch_from_meta(meta: Mapping[str, Any], target_branch: str) -> str:
+    """The Mission write branch for an already-loaded ``meta.json`` and *target_branch*.
+
+    Delegates to the one pure rule :func:`mission_runtime.single_branch_write_ref` over the
+    STORED topology (never a derived one): ``meta.mission_branch`` for a ``single_branch``
+    Mission that recorded one, *target_branch* for every other Mission.
+    """
+    from mission_runtime import single_branch_write_ref
+    from specify_cli.migration.backfill_topology import stored_topology
+
+    return single_branch_write_ref(stored_topology(meta), meta.get("mission_branch"), target_branch)
+
+
+def write_branch_for(manifest: LanesManifest, meta: Mapping[str, Any]) -> str:
+    """The Mission write branch: :func:`write_branch_from_meta` against the manifest's target.
+
+    ``meta.json`` is the authority for the branch; ``manifest.mission_branch`` is a copy that
+    goes stale once a landing clears ``meta.mission_branch``.
+    """
+    return write_branch_from_meta(meta, manifest.target_branch)
+
+
+def minted_write_branch(repo: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> str | None:
+    """The minted write branch of a STORED ``single_branch`` Mission, read with no manifest, else ``None``.
+
+    Non-``None`` only when ``meta.json`` records a ``target_branch`` and the write branch
+    (:func:`write_branch_from_meta`) differs from it: a commit-to-target Mission, any other
+    topology and a Mission with no recorded target all yield ``None``.
+    """
+    meta = stored_mission_meta(repo, mission_slug, owned=owned)
+    target = meta.get("target_branch")
+    if not (isinstance(target, str) and target):
+        return None
+    return minted_branch_from_meta(meta, target)
+
+
 def minted_mission_branch(repo: Path, mission_slug: str, target_branch: str) -> str | None:
     """The create-time ``mission_branch`` of a protected single_branch mission, else ``None``.
 
@@ -82,22 +133,13 @@ def minted_mission_branch(repo: Path, mission_slug: str, target_branch: str) -> 
     legacy manifest) and never a DERIVED topology (unstamped planning-only
     missions derive single_branch): both would land legacy missions.
     """
-    from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    meta = load_meta_or_empty(placement_seam(repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA))
-    return minted_branch_from_meta(meta, target_branch)
+    return minted_branch_from_meta(stored_mission_meta(repo, mission_slug), target_branch)
 
 
 def minted_branch_from_meta(meta: Mapping[str, Any], target_branch: str) -> str | None:
-    """:func:`minted_mission_branch` over an already-loaded ``meta.json`` mapping."""
-    from mission_runtime import is_single_branch
-    from specify_cli.migration.backfill_topology import stored_topology
-
-    minted = meta.get("mission_branch")
-    if not (isinstance(minted, str) and minted and minted != target_branch):
-        return None
-    return minted if is_single_branch(stored_topology(meta)) else None
+    """:func:`minted_mission_branch` over an already-loaded ``meta.json`` mapping: the write branch when it is not the target."""
+    branch = write_branch_from_meta(meta, target_branch)
+    return None if branch == target_branch else branch
 
 
 def _is_protected_single_branch(repo: Path, mission_slug: str, target_branch: str) -> bool:
@@ -126,10 +168,10 @@ def expected_consolidate_checkout(repo: Path, manifest: LanesManifest, target_br
     branch to name -- ``target_branch`` would send the operator to a checkout
     that does not carry the mission. Every other mission expects the target.
     """
-    if not lands_mission_branch(repo, manifest):
+    mission_branch = write_branch_for(manifest, stored_mission_meta(repo, manifest.mission_slug))
+    if mission_branch == manifest.target_branch:
         return target_branch
     head = _git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-    mission_branch = str(manifest.mission_branch)
     if head == mission_branch:
         return mission_branch
     if head != target_branch and _git(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{mission_branch}").returncode == 0:
@@ -203,12 +245,7 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest, *, owned: Owne
     seam; ``None`` keeps PRIMARY authority. Never infer topology from a stale primary copy
     when the caller explicitly validated an owned checkout (#7099).
     """
-    from mission_runtime import MissionArtifactKind, placement_seam
-
-    from specify_cli.mission_metadata import load_meta_or_empty
-
-    meta = load_meta_or_empty(placement_seam(repo, manifest.mission_slug, owned=owned).read_dir(MissionArtifactKind.PRIMARY_METADATA))
-    return is_single_branch_meta(meta)
+    return is_single_branch_meta(stored_mission_meta(repo, manifest.mission_slug, owned=owned))
 
 
 def single_branch_evidence_window(repo: Path, manifest: LanesManifest, *, assume_single_branch: bool = False) -> tuple[str, str] | None:

@@ -327,6 +327,8 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
                 "create",
                 "cli-json-test",
                 "--json",
+                "--topology",
+                "coord",
                 "--target-branch",
                 "main",
                 "--friendly-name",
@@ -362,32 +364,35 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# Issue #2581 / WP06 #2602 (FR-013) — context-derived topology default
+# S7 #7282 (ADR 2026-11-06-3) — no --topology is a provisional single_branch
 #
-# Coordination-bearing topology (coord) mints a coordination branch that a
-# non-primary-branch mission (created without --pr-bound) has to be manually
-# flattened out of afterwards. The default is derived from context: lanes on
-# a non-primary feature/fork branch with no --pr-bound; coord everywhere else
-# (primary branch, --pr-bound with coordination reachable, or an explicit
-# --topology choice). Binding decision #5100 (comment 5870360497): the
-# original #2581 fix made this arm default to single_branch, but
-# single_branch must be an explicit-only choice — default users keep
-# worktree isolation, so this arm was re-keyed to lanes (WP06, #2602).
+# This replaces the context-derived default of #2581 / WP06 #2602 (coord on the
+# primary branch or with a reachable --pr-bound, lanes elsewhere). A create
+# without --topology mints one Mission topic branch on every target and stores
+# single_branch with topology_source: default; plain lanes and coord are
+# explicit-only and the --pr-bound reachability fallback is gone.
 # ---------------------------------------------------------------------------
 
 
-def test_create_on_non_primary_branch_without_pr_bound_defaults_to_lanes(
+def _assert_provisional_topic_branch(payload: dict[str, object], slug: str) -> None:
+    assert payload["topology"] == "single_branch", payload
+    assert payload["topology_source"] == "default", payload
+    assert payload["topology_provisional"] is True, payload
+    assert payload.get("coordination_branch") is None, payload
+    assert payload.get("coordination_branch_created") is False, payload
+    assert str(payload["mission_branch"]).startswith(f"kitty/mission-{slug}-"), payload
+    meta = json.loads(Path(str(payload["meta_file"])).read_text(encoding="utf-8"))
+    assert meta["topology"] == "single_branch", meta
+    assert meta["topology_settled"] is False, meta
+
+
+def test_create_on_non_primary_branch_without_topology_is_provisional(
     tmp_path: Path,
 ) -> None:
-    """WP06/#2602: a feature-branch create with no ``--topology``/``--pr-bound``
-    defaults to ``lanes`` (not the pre-#5100 ``single_branch``) and mints NO
-    coordination branch. ``single_branch`` is now explicit-only — via
-    ``--topology single_branch`` or ``--owned-checkout`` — per the binding
-    decision on #5100 (comment 5870360497).
+    """A feature-branch create with no ``--topology`` is a provisional ``single_branch``.
 
     The repository really stands on ``feature/my-fix`` while ``origin/HEAD``
-    names ``main`` as the primary, so the derivation sees a genuine
-    primary/non-primary mismatch.
+    names ``main`` as the primary (formerly the ``lanes`` arm, #2602).
     """
     _init_repo(tmp_path)
     _check_out_feature_branch_with_main_primary(tmp_path, "feature/my-fix")
@@ -410,18 +415,11 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_lanes(
         )
 
     assert result.exit_code == 0, result.output
-    payload = _json_payload_from_output(result.output)
-    assert payload["topology"] == "lanes", payload
-    assert payload.get("coordination_branch") is None, payload
-    assert payload.get("coordination_branch_created") is False, payload
-    # T026 CLI-level check: confirm the STORED meta.json (not merely the
-    # --json echo) records the lanes default.
-    meta = json.loads(Path(str(payload["meta_file"])).read_text(encoding="utf-8"))
-    assert meta["topology"] == "lanes", meta
+    _assert_provisional_topic_branch(_json_payload_from_output(result.output), "feature-branch-default")
 
 
-def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
-    """Non-regression: a primary-branch create with no ``--topology`` still gets ``coord``."""
+def test_create_on_primary_branch_without_topology_is_provisional(tmp_path: Path) -> None:
+    """A primary-branch create with no ``--topology`` no longer mints a coordination branch."""
     _init_repo(tmp_path)
 
     runner = CliRunner()
@@ -442,28 +440,14 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
         )
 
     assert result.exit_code == 0, result.output
-    payload = _json_payload_from_output(result.output)
-    assert payload["topology"] == "coord", payload
-    assert payload["coordination_branch"].startswith("kitty/mission-primary-branch-default-")
-    assert payload["coordination_branch_created"] is True
+    _assert_provisional_topic_branch(_json_payload_from_output(result.output), "primary-branch-default")
 
 
-def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
-    """Tripwire (WP02/#2533): ``--pr-bound`` keeps ``coord`` when the primary TARGET is protected.
+def test_create_pr_bound_without_topology_is_provisional(tmp_path: Path) -> None:
+    """``--pr-bound`` no longer selects ``coord`` by reachability (DM 01M6R0QQM5FCPY736008AD4W6V).
 
-    FROZEN — this MUST stay green. The checkout is a non-primary feature branch
-    (``feature/my-fix``) but the primary target resolves to ``main``, which is in
-    the default protected set. ``_resolve_default_topology_phase`` keys
-    ``coord_topology_reachable`` on the **primary-target** protection, NOT the
-    checkout, so ``coord_topology_reachable(pr_bound=True, primary_protected=True,
-    current_is_primary=False)`` is ``True`` → ``coord``.
-
-    If this test FLIPS to ``lanes`` you keyed on the current checkout
-    (unprotected) instead of the primary target (protected) — that is the bug this
-    tripwire guards against; fix the keying, do not relax the assertion. The
-    complementary "unprotected target → lanes" case (WP06/#2602 re-keying;
-    ``single_branch`` is explicit-only per #5100 comment 5870360497) is proven
-    by ``tests/specify_cli/cli/commands/agent/test_coord_topology_no_strand.py``.
+    The checkout is a non-primary feature branch while the primary target ``main``
+    is protected; formerly the dropped ``--pr-bound`` reachability fallback made this ``coord``.
     """
     _init_repo(tmp_path)
     _check_out_feature_branch_with_main_primary(tmp_path, "feature/my-fix")
@@ -487,10 +471,7 @@ def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path:
         )
 
     assert result.exit_code == 0, result.output
-    payload = _json_payload_from_output(result.output)
-    assert payload["topology"] == "coord", payload
-    assert payload["coordination_branch"].startswith("kitty/mission-pr-bound-non-primary-")
-    assert payload["coordination_branch_created"] is True
+    _assert_provisional_topic_branch(_json_payload_from_output(result.output), "pr-bound-non-primary")
 
 
 def test_create_explicit_topology_overrides_context_derivation(tmp_path: Path) -> None:
@@ -609,6 +590,8 @@ def test_pr_bound_create_start_branch_switches_before_scaffold_writes(tmp_path: 
             [
                 "create",
                 "json-pr-bound-branch",
+                "--topology",
+                "coord",
                 "--pr-bound",
                 "--branch-strategy",
                 "already-confirmed",
@@ -952,6 +935,8 @@ def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
             [
                 "create",
                 "event-persistence-failure",
+                "--topology",
+                "coord",
                 "--start-branch",
                 start_branch,
                 "--json",

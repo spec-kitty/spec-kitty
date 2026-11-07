@@ -643,15 +643,15 @@ def test_coord_create_seeds_coordination_branch_and_reads_materialized(
 
 
 def test_coord_create_protected_primary_default_topology_still_seeds(tmp_path: Path) -> None:
-    """Real default path (post-tasks squad R-m4): ``--pr-bound --start-branch
-    <topic>`` with NO explicit ``--topology`` on a protected primary resolves
-    the product default ``topology=coord`` (never falls back to
-    ``single_branch`` due to the ``origin/HEAD``-less fallback quirk), and
-    still carries the R1 history-probe + R1b seed/materialize shape.
+    """``--pr-bound --start-branch <topic>`` on a protected primary (post-tasks squad
+    R-m4) still carries the R1 history-probe + R1b seed/materialize shape.
+
+    S7 #7282 (ADR 2026-11-06-3): with no ``--topology`` the create is now a
+    provisional ``single_branch``, so ``coord`` is requested explicitly here.
     """
     coord = make_coord_mission(
         tmp_path,
-        None,
+        MissionTopology.COORD,
         via="cli_pr_bound",
         protected_primary=True,
         slug="status-placement-protected",

@@ -33,7 +33,7 @@ from specify_cli.coordination.policy import (
     WorkflowMutationPolicy,
     _normalize_ref,
 )
-from specify_cli.coordination.status_service import EventLogWriteContract
+from specify_cli.coordination.status_service import EventLogWriteContract, refuse_status_write_into_lane_checkout
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
@@ -196,6 +196,19 @@ def _canonical_coord_mission_slug(
         return mission_slug
     _composed_meta, composed_declares = read_primary_meta(seam_repo_root, composed)
     return composed if composed_declares else mission_slug
+
+
+def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
+    """The non-lane checkout holding *destination_ref*, else *repo_root* (FR-061, N1)."""
+    from specify_cli.coordination.surface_resolver import WorktreeTopology, classify_worktree_topology
+    from specify_cli.status.read_surface import checkout_holding_branch
+
+    holder: Path | None = checkout_holding_branch(repo_root, _normalize_ref(destination_ref))
+    if holder is None or holder.resolve() == repo_root.resolve():
+        return repo_root
+    if classify_worktree_topology(holder, repo_root=repo_root) is WorktreeTopology.LANE_WORKTREE:
+        return repo_root
+    return holder
 
 
 class _CoordWriteTarget(NamedTuple):
@@ -817,7 +830,12 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # (``test_transaction_legacy_topology_routing`` asserts this arm
                 # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
                 # provenance check here.
-                worktree_root = repo_root
+                #
+                # FR-061 / WP05 obligation N1 (Mission lane-worktree-model-hardening WP14): a
+                # default Mission's write branch (its topic branch) may be held by a checkout
+                # other than the repository root; the status read door reads that holder, so
+                # the write lands there too (the same topic-holder locator).
+                worktree_root = _write_branch_holder(repo_root, effective_destination_ref)
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_refusal = _caller_ref_refusal(
@@ -1014,20 +1032,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         self.feature_dir.mkdir(parents=True, exist_ok=True)
 
         # Append + verify readback (matches existing emit pipeline).
-        # C-SEAM-1: the raw ".worktrees" in parts idiom is retired in favour of
-        # the blessed shape primitive (WP06 T030), imported lazily to avoid a
-        # module-level cycle back through mission_runtime (mirrors
-        # status_service._is_coordination_worktree_path's prior lazy import).
-        from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
-            is_under_worktrees_segment,
-        )
-
-        if self._owned is not None:
-            write_contract = EventLogWriteContract.primary_checkout_append(self.feature_dir, owned=self._owned)
-        elif self._legacy_mode and not is_under_worktrees_segment(self.feature_dir):
-            write_contract = EventLogWriteContract.primary_checkout_append(self.feature_dir)
-        else:
-            write_contract = EventLogWriteContract.coordination_transaction_append(self.feature_dir)
+        write_contract = self._resolve_write_contract()
         self._attempted_event_ids.extend(unit_ids)
         try:
             # #6603: the unit goes through the EventBridge port; the local file
@@ -1051,6 +1056,32 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             if path not in self._staged_paths:
                 self._staged_paths.append(path)
         return [PendingEventHandle(event_id=event_id) for event_id in unit_ids]
+
+    def _resolve_write_contract(self) -> EventLogWriteContract:
+        """The write contract for this transaction's append, after the FR-041 registry check.
+
+        The lane-checkout refusal lives here, where the transaction already
+        pays for git, so the contract validator in ``status_service`` stays
+        git-free (NFR-002). A genuinely-legacy Mission (``_legacy_mode`` with a
+        cwd-derived lane destination) predates the coordination topology: its
+        lane checkout is its declared write target, so it keeps that write.
+        """
+        # C-SEAM-1: the raw ".worktrees" in parts idiom is retired in favour of
+        # the blessed shape primitive (WP06 T030), imported lazily to avoid a
+        # module-level cycle back through mission_runtime (mirrors
+        # status_service._is_coordination_worktree_path's prior lazy import).
+        from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+            is_under_worktrees_segment,
+        )
+
+        if self._owned is not None:
+            return EventLogWriteContract.primary_checkout_append(self.feature_dir, owned=self._owned)
+        if self._legacy_mode:
+            if is_under_worktrees_segment(self.feature_dir):
+                return EventLogWriteContract.coordination_transaction_append(self.feature_dir)
+            return EventLogWriteContract.primary_checkout_append(self.feature_dir)
+        _require_registered_coordination_target(self.feature_dir, self.worktree_root)
+        return EventLogWriteContract.coordination_transaction_append(self.feature_dir)
 
     def _prune_unlanded_attempt(self, unit_ids: list[str]) -> None:
         """Forget *unit_ids* again when the failed append never put their rows in the log.
@@ -1449,3 +1480,26 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 "BookkeepingTransaction: lock release failed: %s",
                 exc,
             )
+
+
+def _require_registered_coordination_target(feature_dir: Path, worktree_root: Path) -> None:
+    """A coordination append needs a registry-classified coordination worktree (FR-041).
+
+    The ``.worktrees/`` path shape alone used to admit any worktree append as a
+    coordination write, a lane checkout included. The registry decides: a
+    target inside a registered lane checkout refuses with
+    ``STATUS_WRITE_TARGETS_LANE_CHECKOUT``, and a target in no registered
+    coordination worktree (a husk) refuses before anything is written with the
+    structured :class:`BookkeepingCommitFailed` (the commit could never land),
+    naming the remedy. An unreadable registry fails closed.
+    """
+    from specify_cli.coordination.surface_resolver import is_registered_coord_worktree  # noqa: PLC0415 -- lazy, as above: avoids the mission_runtime cycle
+
+    refuse_status_write_into_lane_checkout(feature_dir)
+    if not is_registered_coord_worktree(feature_dir):
+        raise BookkeepingCommitFailed(
+            f"The coordination worktree {worktree_root} is not registered with git (an unregistered husk), "
+            f"so a status commit there can never land; nothing was written to {feature_dir}. "
+            "Remove the husk with `spec-kitty doctor workspaces --fix`, then retry: the coordination "
+            "worktree is materialized again on the next status write."
+        )

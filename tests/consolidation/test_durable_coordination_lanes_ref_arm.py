@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -59,13 +58,27 @@ def _init_repo(root: Path) -> Path:
 
 @pytest.fixture()
 def pinned_placement(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin the placement to COORD_REF and the read dir to ``<repo>/kitty-specs/<mission>``."""
-    monkeypatch.setattr(done_bookkeeping, "resolve_placement_only", lambda *_a, **_k: SimpleNamespace(ref=COORD_REF))
-    monkeypatch.setattr(
-        done_bookkeeping,
-        "placement_seam",
-        lambda repo_root, slug, **_k: SimpleNamespace(read_dir=lambda _kind: repo_root / "kitty-specs" / slug),
-    )
+    """Pin the door's committed-ref entry to COORD_REF and the Mission dir ``kitty-specs/<mission>``.
+
+    The entry's own declared arm is kept: a ref that names no object (or no repository) is ``None``.
+    """
+    from mission_runtime import MissionTopology
+    from specify_cli.coordination.status_service import ref_names_object
+    from specify_cli.status import read_surface
+
+    def _committed(repo_root: Path, mission: str) -> read_surface.StatusReadSurface | None:
+        if not ref_names_object(repo_root, COORD_REF):
+            return None
+        return read_surface.StatusReadSurface(
+            topology=MissionTopology.LANES_WITH_COORD,
+            source=read_surface.StatusReadSource.COORD_BRANCH_REF,
+            mission_dir_name=mission,
+            path=None,
+            repo_root=repo_root,
+            ref=COORD_REF,
+        )
+
+    monkeypatch.setattr(read_surface, "resolve_committed_status_read", _committed)
 
 
 def _lanes(repo_root: Path) -> dict[str, str] | None:

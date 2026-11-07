@@ -38,6 +38,7 @@ from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, owned_
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.meta_keys import TOPOLOGY_HELP, TOPOLOGY_SETTLED_KEY, TOPOLOGY_SOURCE_KEY, TopologySource
 from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_branch_delete
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 
@@ -53,6 +54,12 @@ if TYPE_CHECKING:
 
 # ``--start-branch`` / ``--target-branch`` must name the same branch because
 # mission creation stores exactly one planning branch.
+#: ``--target-branch`` help (S7 #7282 IC-13): the implicit target is the checked-out
+#: branch, except when a create without ``--topology`` stands on another Mission's branch.
+TARGET_BRANCH_HELP = (
+    "Target branch (defaults to the current branch; without --topology, a current branch that is "
+    "another Mission's branch is replaced by the Primary Branch, and the create says so)"
+)
 START_TARGET_MISMATCH_MESSAGE = (
     "--start-branch and --target-branch must match because mission "
     "creation stores one planning branch. Omit --target-branch for "
@@ -377,77 +384,26 @@ def _enforce_branch_strategy_gate_phase(
 def _resolve_default_topology_phase(
     *,
     explicit_topology: MissionTopology | None,
-    repo_root: Path | None,
-    current_branch: str | None,
-    pr_bound: bool,
     owned_create_root: OwnedCreateRoot | None = None,
-) -> MissionTopology:
-    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533, #2602).
+) -> tuple[MissionTopology, TopologySource]:
+    """Resolve the create-time topology and how it was chosen (S7 #7282, ADR 2026-11-06-3).
 
-    ``single_branch`` is explicit-only (binding decision on #5100, comment
-    5870360497): it is produced ONLY by an explicit ``--topology
-    single_branch`` or by ``--owned-checkout`` — never as an implicit
-    default. Every other implicit arm below resolves to either ``coord`` or
-    ``lanes``, so default users on the ordinary create path keep worktree
-    isolation (US4/FR-013).
-
-    - An explicit ``--topology`` always wins.
-    - ``--owned-checkout`` is itself an explicit request for an isolated,
-      operator-managed write surface (ADR 2026-09-03-1: owned mode supports
-      ``single_branch`` only), so it also wins outright — before any
-      branch/pr-bound context is consulted. This is a genuine BEHAVIOUR
-      CHANGE, not a preservation of prior implicit routing: an owned
-      checkout with no configured ``origin`` has no protection/reachability
-      signal of its own, so ``resolve_primary_branch`` falls back to
-      reading the checkout's OWN current branch — making
-      ``current_branch == primary_branch`` true for that checkout
-      regardless of which branch it is on. Pre-WP06 that fallback quirk
-      routed a real owned-checkout create with no ``--topology`` to the
-      *primary-branch* ``coord`` arm, never to the non-primary arm's
-      (then-implicit) ``single_branch`` (#5100 review cycle 1, nit 3).
-    - Otherwise the default keys on *topology honesty* (INV-2): a
-      coordination topology is minted only when coordination routing is
-      actually reachable, never as pure overhead.
-    - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
-      is reachable iff ``primary_protected or current_is_primary``. A pr-bound
-      mission on an **unprotected** primary target (e.g. created with
-      ``--start-branch <topic-branch>``) therefore defaults to ``lanes``,
-      eliminating the stranded coord branch behind the #2533 split-brain
-      without falling back to the no-longer-implicit ``single_branch``.
-      Protection is keyed on the **primary TARGET branch** (``ProtectionPolicy``
-      + ``resolve_primary_branch``), NOT the current checkout (the tripwire in
-      ``test_mission_create.py`` proves this).
-    - A non-pr-bound mission created on the repository's primary branch keeps the
-      historical ``coord`` default; one created on a non-primary feature/fork
-      branch defaults to ``lanes`` — minting a coordination branch there just
-      to have the operator manually flatten it is the friction #2581 closed,
-      and #2602 keeps that friction closed via worktree isolation rather than
-      an implicit ``single_branch``.
+    - An explicit ``--topology`` always wins: ``(topology, EXPLICIT)``, settled at create.
+    - ``--owned-checkout`` is an explicit request for an operator-managed write surface
+      (ADR 2026-09-03-1: owned mode supports ``single_branch`` only):
+      ``(SINGLE_BRANCH, OWNED_CHECKOUT)``, settled at create.
+    - Otherwise the create is provisional: ``(SINGLE_BRANCH, DEFAULT)``. Create mints
+      one Mission topic branch on every target, whatever its protection, and the first
+      ``finalize-tasks`` settles the topology by size. Plain ``lanes`` and ``coord``
+      are explicit-only, and there is no ``--pr-bound`` reachability fallback
+      (DM ``01M6R0QQM5FCPY736008AD4W6V``). This supersedes the context-derived
+      default of #2581 / #2602 and the #5100 item 2 explicit-only ``single_branch``.
     """
     if explicit_topology is not None:
-        return explicit_topology
+        return explicit_topology, TopologySource.EXPLICIT
     if owned_create_root is not None:
-        return MissionTopology.SINGLE_BRANCH
-    # Fail-safe: without a resolvable repo/checkout we cannot key on target
-    # protection, so keep the historical ``coord`` default. Hoisted ahead of the
-    # pr-bound arm because that arm now needs a resolvable ``repo_root`` to read
-    # the primary target branch's protection.
-    if repo_root is None or current_branch is None:
-        return MissionTopology.COORD
-
-    from specify_cli.core.git_ops import resolve_primary_branch
-
-    primary_branch = resolve_primary_branch(repo_root)
-    if pr_bound:
-        from specify_cli.coordination.surface_authority import coord_topology_reachable
-        from specify_cli.git.protection_policy import ProtectionPolicy
-
-        primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
-        current_is_primary = current_branch == primary_branch
-        return MissionTopology.COORD if coord_topology_reachable(pr_bound, primary_protected, current_is_primary) else MissionTopology.LANES
-    if current_branch == primary_branch:
-        return MissionTopology.COORD
-    return MissionTopology.LANES
+        return MissionTopology.SINGLE_BRANCH, TopologySource.OWNED_CHECKOUT
+    return MissionTopology.SINGLE_BRANCH, TopologySource.DEFAULT
 
 
 def _print_worktree_navigation_hint(mission_slug: str, error_msg: str) -> None:
@@ -626,6 +582,7 @@ def _run_create_core_phase(
     owned_create_root: OwnedCreateRoot | None = None,
     json_output: bool,
     topology: MissionTopology = MissionTopology.COORD,
+    topology_source: TopologySource | None = None,
     retain_branches: bool = False,
     retain_worktrees: bool = False,
     commit_to_target: bool = False,
@@ -657,6 +614,7 @@ def _run_create_core_phase(
             purpose_context=purpose_context,
             pr_bound=pr_bound,
             topology=topology,
+            topology_source=topology_source,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_create_root=owned_create_root,
             retain_branches=retain_branches,
@@ -733,6 +691,13 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # Mission topology (WP03 / #2218) — the operator's create-time shape,
         # surfaced so `specify --json` callers can read it without re-deriving.
         "topology": str(result.meta.get("topology", "")),
+        # S7 #7282 (FR-058, contract 1.24.0): how the topology was chosen, and whether
+        # it is still provisional (settled at the first finalize-tasks).
+        "topology_source": result.meta.get(TOPOLOGY_SOURCE_KEY),
+        "topology_provisional": result.meta.get(TOPOLOGY_SETTLED_KEY) is False,
+        # S7 #7282 IC-13: the implicit target was another Mission's branch and was
+        # replaced; names the replaced branch, its owner, the choice and the remedy.
+        "target_replacement": result.target_replacement.to_json() if result.target_replacement is not None else None,
     }
     if result.owned_checkout is not None:
         # Serialized key stays byte-identical (occurrence_map serialized_keys:
@@ -787,6 +752,8 @@ def _emit_create_result_phase(
     """Emit the create result in JSON or human form (output stays in the CLI layer)."""
     mission_branch = _minted_mission_branch(result)
     if not json_output:
+        if result.target_replacement is not None:
+            console.print(f"[yellow]Note:[/yellow] {result.target_replacement.notice()}")
         _print_branch_line(result, mission_branch)
         if resolved_mission_type == MISSION_TYPE_DOCUMENTATION:
             console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
@@ -842,7 +809,7 @@ def create_mission(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[
         str | None,
-        typer.Option("--target-branch", help="Target branch (defaults to current branch)"),
+        typer.Option("--target-branch", help=TARGET_BRANCH_HELP),
     ] = None,
     friendly_name: Annotated[str | None, typer.Option("--friendly-name", help="Human-friendly mission title")] = None,
     purpose_tldr: Annotated[
@@ -867,19 +834,7 @@ def create_mission(
         MissionTopology | None,
         typer.Option(
             "--topology",
-            help=(
-                "Create-time mission shape: single_branch | lanes | coord | "
-                "lanes_with_coord. Coordination-bearing shapes (coord, "
-                "lanes_with_coord) mint a coordination branch and "
-                "materialize its worktree immediately, seeding it with the "
-                "mission's creation events (MissionCreated, SpecifyStarted) "
-                "so the coordination surface is live from birth (#5440); "
-                "branch-flat shapes (single_branch, lanes) do neither. "
-                "Default: context-derived (#2581, #2602) — coord on the "
-                "primary branch or with --pr-bound when coordination is "
-                "reachable; lanes otherwise. single_branch only when "
-                "requested explicitly (or via --owned-checkout)."
-            ),
+            help=TOPOLOGY_HELP,
         ),
     ] = None,
     branch_strategy: Annotated[
@@ -998,11 +953,8 @@ def create_mission(
             json_output=json_output,
         )
 
-        resolved_topology = _resolve_default_topology_phase(
+        resolved_topology, topology_source = _resolve_default_topology_phase(
             explicit_topology=topology,
-            repo_root=command_checkout,
-            current_branch=current_branch,
-            pr_bound=pr_bound,
             owned_create_root=owned_create_root,
         )
 
@@ -1025,6 +977,7 @@ def create_mission(
             purpose_context=purpose_context,
             pr_bound=pr_bound,
             topology=resolved_topology,
+            topology_source=topology_source,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_create_root=owned_create_root,
             json_output=json_output,
