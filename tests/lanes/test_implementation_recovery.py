@@ -25,6 +25,10 @@ from specify_cli.lanes.recovery import (
     scan_recovery_state,
 )
 from specify_cli.lanes.worktree_allocator import _recover_lane_worktree
+
+# Mission WP09: the recovery checkout goes through the one lane-checkout helper,
+# which needs the Mission identity for the status-file exclusion.
+_RECOVER_KW: dict[str, str] = {"mission_slug": "010-feat", "mission_dir_name": "010-feat", "lane_id": "lane-a"}
 from specify_cli.workspace.context import (
     WorkspaceContext,
     load_context,
@@ -346,7 +350,7 @@ class TestWorktreeRecovery:
         assert not worktree_path.exists()
 
         # Recover the worktree
-        _recover_lane_worktree(repo, worktree_path, lane_branch)
+        _recover_lane_worktree(repo, worktree_path, lane_branch, **_RECOVER_KW)
 
         # Verify worktree was recreated
         assert worktree_path.exists()
@@ -372,7 +376,7 @@ class TestWorktreeRecovery:
 
         # This should NOT fail even though the branch already exists
         # (because we use `git worktree add <path> <branch>` not `git worktree add -b`)
-        _recover_lane_worktree(repo, worktree_path, lane_branch)
+        _recover_lane_worktree(repo, worktree_path, lane_branch, **_RECOVER_KW)
         assert worktree_path.exists()
 
     def test_recover_context_from_branch(self, tmp_path: Path) -> None:
@@ -385,7 +389,7 @@ class TestWorktreeRecovery:
 
         # Recover worktree first
         worktree_path = repo / ".worktrees" / "010-feat-lane-a"
-        _recover_lane_worktree(repo, worktree_path, lane_branch)
+        _recover_lane_worktree(repo, worktree_path, lane_branch, **_RECOVER_KW)
 
         # Build a RecoveryState to pass to recover_context
         state = RecoveryState(
@@ -736,7 +740,7 @@ class TestRecoverLaneWorktree:
 
         worktree_path = repo / ".worktrees" / "010-feat-lane-a"
         with pytest.raises(RuntimeError, match="Failed to recover worktree"):
-            _recover_lane_worktree(repo, worktree_path, "kitty/mission-010-feat-nonexistent")
+            _recover_lane_worktree(repo, worktree_path, "kitty/mission-010-feat-nonexistent", **_RECOVER_KW)
 
     def test_recovered_worktree_has_correct_branch(self, tmp_path: Path) -> None:
         """Recovered worktree is on the correct branch."""
@@ -747,7 +751,7 @@ class TestRecoverLaneWorktree:
         lane_branch = _create_lane_branch_with_commits(repo)
 
         worktree_path = repo / ".worktrees" / "010-feat-lane-a"
-        _recover_lane_worktree(repo, worktree_path, lane_branch)
+        _recover_lane_worktree(repo, worktree_path, lane_branch, **_RECOVER_KW)
 
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],

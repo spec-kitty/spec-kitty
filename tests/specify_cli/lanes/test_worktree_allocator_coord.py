@@ -217,10 +217,13 @@ def test_new_topology_applies_sparse_checkout(
     assert not (lane_spec_dir / "status.json").exists()
 
 
-def test_legacy_topology_skips_sparse_checkout(
+def test_legacy_topology_applies_sparse_checkout_too(
     legacy_repo: Path,
 ) -> None:
-    """No ``coordination_branch`` => parent on mission_branch, no sparse-checkout."""
+    """No ``coordination_branch`` => parent on mission_branch, and the status
+    exclusion is registered all the same (Mission WP09, FR-040: every topology
+    with code lanes, ``lanes`` included).
+    """
     manifest = _make_manifest(
         mission_branch=LEGACY_MISSION_BRANCH,
         mission_id="legacy",  # too short for mid8(); irrelevant on legacy path
@@ -234,12 +237,10 @@ def test_legacy_topology_skips_sparse_checkout(
     assert worktree_path.exists()
     assert branch == f"kitty/mission-{LEGACY_MISSION_SLUG}-lane-a"
 
-    # No sparse-checkout was applied — legacy mission_dir was bare, no
-    # status files to exclude, and `core.sparseCheckout` should remain unset.
     result = subprocess.run(
         ["git", "-C", str(worktree_path), "config",
          "--get", "core.sparseCheckout"],
         capture_output=True, text=True,
     )
-    # config --get returns 1 when unset.
-    assert result.returncode != 0 or result.stdout.strip() != "true"
+    assert result.stdout.strip() == "true"
+    assert (worktree_path / "kitty-specs" / LEGACY_MISSION_SLUG / "spec.md").exists()
