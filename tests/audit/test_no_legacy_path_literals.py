@@ -288,6 +288,7 @@ def test_runtime_state_dir_name_has_one_owner_and_consumers_derive_it() -> None:
         "src/specify_cli/review/lock.py",
         "src/specify_cli/lanes/worktree_allocator.py",
         "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/cli/commands/agent/tasks_shared.py",
     )
 
     owner_tree = ast.parse((repo_root / owner).read_text(encoding="utf-8"))
