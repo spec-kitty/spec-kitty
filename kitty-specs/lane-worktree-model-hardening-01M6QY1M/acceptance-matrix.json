@@ -260,13 +260,13 @@
     },
     {
       "criterion_id": "FR-039a",
-      "description": "Verify FR-039a is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-039a Per-lane outcomes in the orchestrator envelope: `consolidate-mission` to return per-lane removed, kept and retained outcomes under one minor contract version bump, so that I can act on kept lanes.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-l:tests/orchestrator_api/test_consolidate_mission_lane_cleanup.py::test_orchestrator_and_executor_same_lane_outcome; lane-l:tests/specify_cli/orchestrator_api/test_contract_version.py (minor bump; lane-m carries 1.25.0 per traces/approach.md); approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:36.438277+00:00",
+      "notes": "Contract minor bump to 1.25.0 lives on lane-m (traces/approach.md closeout note); reconcile at consolidation."
     },
     {
       "criterion_id": "FR-040",
