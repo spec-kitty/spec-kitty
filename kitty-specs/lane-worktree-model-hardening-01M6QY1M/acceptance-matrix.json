@@ -210,13 +210,13 @@
     },
     {
       "criterion_id": "FR-035",
-      "description": "Verify FR-035 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-035 Resume after a crash inside cleanup: a `--resume` after a kill following cleanup's own commits to complete without re-running the gate against deleted lane branches, proven by a red-first test written before any fix, so that an interrupted cleanup is not a dead end.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-l:tests/consolidation/test_lane_cleanup_module.py::test_resume_after_kill_in_cleanup_skips_regate; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP15-s5-lane-cleanup-module/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:11.071784+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-036",
