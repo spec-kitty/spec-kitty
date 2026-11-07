@@ -2,7 +2,7 @@
   "mission_slug": "lane-worktree-model-hardening-01M6QY1M",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -632,13 +632,13 @@
     },
     {
       "criterion_id": "FR-093",
-      "description": "Verify FR-093 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-093 Text never ships before its behaviour: every new skill, pack, help or doc sentence that describes behaviour to be traceable to the FR that delivers it, and a guard test that fails on lease-behaviour text, manual stale-lane recipes, `spec-kitty merge`, or advice to hand-commit status in the core skills, so that doctrine never lies.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-n:tests/charter_offering/test_command_skill_text_guard.py::test_skill_carries_no_forbidden_text; lane-n:tests/charter_offering/test_command_skill_text_guard.py::test_planted_string_is_caught; lane-n:tests/charter_offering/test_command_skill_text_guard.py::test_allowed_text_passes; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP17-s11-skills-stale-remedy-guard/review-cycle-1.md; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP18-s11-docs-and-changelog/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:39.584108+00:00",
+      "notes": ""
     }
   ],
   "negative_invariants": []
