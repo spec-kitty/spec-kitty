@@ -310,13 +310,13 @@
     },
     {
       "criterion_id": "FR-044",
-      "description": "Verify FR-044 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-044 Migrate existing lane worktrees: a re-runnable migration that brings existing lane worktrees in line, so that no status event is lost on the way. It applies the exclusion to clean worktrees. It flags and excludes a dirty copy whose events are all on the resolved surface. It leaves untouched a worktree whose copy holds events found nowhere else, and reports their ids. It skips worktrees that are mid-merge or mid-rebase. It never drops an event.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-g:tests/specify_cli/upgrade/test_lane_checkout_status_exclusion_migration.py::test_migration_excludes_clean_lane_worktree; lane-g:tests/specify_cli/upgrade/test_lane_checkout_status_exclusion_migration.py::test_migration_flags_redundant_dirty_copy; lane-g:tests/specify_cli/upgrade/test_lane_checkout_status_exclusion_migration.py::test_migration_refuses_lane_only_event_ids_untouched; lane-g:tests/specify_cli/upgrade/test_lane_checkout_status_exclusion_migration.py::test_migration_second_run_changes_nothing; lane-g:tests/specify_cli/upgrade/test_lane_checkout_status_exclusion_migration.py::test_no_event_lost; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:14:02.002621+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-045",
