@@ -73,6 +73,9 @@ __all__ = [
     "reset_legacy_failover_warning",
     "resolve_branch_name",
     "resolve_mid8",
+    "coord_worktree_glob",
+    "coord_worktree_path_for_dir",
+    "lane_branch_ref_glob",
     "resolve_transaction_mid8",
     "worktree_dir_name",
     "worktree_path",
@@ -764,6 +767,29 @@ def coord_dir_name(mission_slug: str, *, mid8: str) -> str:
     name matches the on-disk coord worktree for legacy ``NNN-`` slugs (#1589).
     """
     return f"{coord_mission_dir_name(mission_slug, mid8=mid8)}{_COORD_DIR_SUFFIX}"
+
+
+def coord_worktree_glob() -> str:
+    """Return the glob (relative to ``.worktrees/``) that matches every coordination worktree directory."""
+    return f"*{_COORD_DIR_SUFFIX}"
+
+
+def coord_worktree_path_for_dir(repo_root: os.PathLike[str] | str, mission_dir: str) -> Path:
+    """Return the coordination worktree path for an already-resolved Mission directory name.
+
+    The coordination worktree directory is the Mission directory name plus ``-coord``
+    (:func:`coord_dir_name` composes the same name from slug + mid8).
+    """
+    return Path(repo_root) / _WORKTREES_DIRNAME / f"{mission_dir}{_COORD_DIR_SUFFIX}"
+
+
+def lane_branch_ref_glob(mission_branch: str) -> str:
+    """Return the ``for-each-ref`` pattern matching the code-lane branches cut from *mission_branch*.
+
+    Lane branches extend the Mission branch name with ``-lane-<id>``
+    (:func:`code_lane_branch_name`).
+    """
+    return f"refs/heads/{mission_branch}-lane-*"
 
 
 def coord_branch_name(mission_slug: str, *, mission_id: str | None) -> str:
