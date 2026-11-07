@@ -220,13 +220,13 @@
     },
     {
       "criterion_id": "FR-036",
-      "description": "Verify FR-036 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-036 `accept --mode pr` cleans up without waiting for the merge: a committed pr-mode acceptance to remove, through the same module, each lane whose tip the pushed PR head absorbs, keep and report the rest, and stop printing raw `git worktree remove` / `git branch -d` advice, so that nothing waits for the asynchronous merge.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-m:tests/acceptance/test_pr_mode_lane_cleanup.py::test_pr_mode_removes_absorbed_lanes_before_pr_merge; lane-m:tests/acceptance/test_pr_mode_lane_cleanup.py::test_pr_mode_keeps_unpushed_lane_reported; lane-m:tests/acceptance/test_pr_mode_lane_cleanup.py::test_no_raw_worktree_remove_advice; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP16-s5-guard-binding-pr-mode-prune/review-cycle-1.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:16.338072+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-037",
