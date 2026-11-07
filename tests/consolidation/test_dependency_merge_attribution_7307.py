@@ -370,3 +370,35 @@ def test_clean_post_approval_dependency_merge_carries_nothing(tmp_path: Path) ->
     _git(repo, "merge", "--no-ff", "--no-edit", _branch("lane-c"))
     clean = _git(repo, "rev-parse", "HEAD")
     assert git_probes.merge_own_changed_paths(repo, clean) == []
+
+
+def _octopus_merge_with_own_file(repo: Path) -> str:
+    """A 3-parent merge on lane-b whose tree adds ``u/octo.txt`` (content of its own)."""
+    _git(repo, "checkout", "-q", _branch("lane-b"))
+    head = _git(repo, "rev-parse", "HEAD")
+    side1 = _git(repo, "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", "side one")
+    side2 = _git(repo, "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", "side two")
+    _write(repo, "u/octo.txt", "folded into an octopus merge\n")
+    _git(repo, "add", "-A")
+    tree = _git(repo, "write-tree")
+    octo = _git(repo, "commit-tree", tree, "-p", head, "-p", side1, "-p", side2, "-m", "octopus")
+    _git(repo, "reset", "-q", "--hard", octo)
+    return octo
+
+
+def test_merge_own_changed_paths_refuses_an_octopus_merge(tmp_path: Path) -> None:
+    """``--remerge-diff`` skips octopus merges (empty stdout, exit 0): the probe must fail closed."""
+    repo, _fd, _m, _base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+    octo = _octopus_merge_with_own_file(repo)
+    with pytest.raises(GitProbeError, match="octopus"):
+        git_probes.merge_own_changed_paths(repo, octo)
+
+
+def test_post_approval_octopus_merge_with_own_content_is_refused(tmp_path: Path) -> None:
+    """The closed world REFUSEs (never PASSes) an octopus merge the remerge probe cannot judge."""
+    repo, feature_dir, manifest, base, _evil = _build_post_approval_merge(tmp_path, canceled_dependency=False)
+    _octopus_merge_with_own_file(repo)
+    _git(repo, "branch", "-f", "target-merge", _branch("lane-b"))
+    claim = _claim(repo, feature_dir, manifest, base)
+    verifier = MergeOutcomeVerifier(repo)
+    assert verifier.verify("target-merge", claim).status is VerifyStatus.REFUSE

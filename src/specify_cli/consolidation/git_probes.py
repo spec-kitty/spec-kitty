@@ -647,8 +647,12 @@ def merge_own_changed_paths(repo_root: Path, sha: str) -> list[str]:
 
     Fail-closed like every probe here: git older than 2.36 (no ``--remerge-diff``),
     an unreadable git version, or a ``git show`` error raises :class:`GitProbeError`,
-    so the caller REFUSEs instead of reading the merge as empty.
+    so the caller REFUSEs instead of reading the merge as empty. An octopus merge (3 or
+    more parents) also raises: ``--remerge-diff`` skips it ("Skipping remerge-diff for
+    octopus merges", empty stdout, exit 0), which would read as "adds nothing of its own".
     """
+    if len(commit_parents(repo_root, sha)) > 2:
+        raise GitProbeError(f"merge commit {sha} is an octopus merge (3+ parents); git show --remerge-diff skips it, so its own content cannot be judged")
     if not remerge_diff_available(repo_root):
         raise GitProbeError(f"judging merge commit {sha} needs git >= 2.36 (git show --remerge-diff); upgrade git")
     from kernel.git import GitCommandError, remerge_paths
