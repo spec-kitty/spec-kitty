@@ -125,7 +125,7 @@ Refreshes made (each a merge with no conflicts and an empty remerge-diff, pushed
 |------|----|-----------|-----------------------|
 | l | WP15 | dc6d7f4d422c90afaff7e0623d7cce700261ad4c | 7e650a6 |
 | b | WP05 | 388e424a4711df03784c5fbe45dc8e570a13af47 | 1353bb3 |
-| i | — | 750cbfa7ccf937d65452d46dfea7a5e25f107be6 | 215764c |
+| i | WP12 | 750cbfa7ccf937d65452d46dfea7a5e25f107be6 | 215764c |
 
 Stopped at lane-j: merging 1bc83bb conflicts in `tests/architectural/_baselines.yaml`
 (`allowlist_entries` 232 vs 232 with different justifications, and `widened_grandfathered_470`
