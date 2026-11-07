@@ -59,14 +59,14 @@
     {
       "criterion_id": "FR-006",
       "description": "FR-006 Empty-allowlist call-site gate: an architectural gate that fails on any status read outside the entry point, so that the contract cannot erode. It must catch a direct call, an aliased import, an attribute call, an aliased status kind and a hand-joined events path. It has an empty allowlist, a scanned-file floor, a caller floor and planted-violation self-tests, and it amends (not bypasses) the existing gates that bless the old body.",
-      "proof_type": "operator_ruling",
+      "proof_type": "inspection",
       "evidence": null,
       "pass_fail": "deferred",
       "verified_by": "claude::reviewer-renata",
-      "verified_at": "2026-11-07T06:11:54.190055+00:00",
+      "verified_at": "2026-11-07T06:17:44.156134+00:00",
       "notes": "Deferred by operator ruling; see reason.",
       "deferral_reason": "Empty-allowlist single-door call-site gate deferred to a follow-up Mission by operator ruling DM 01M6S40GBWB6JD0FFTMQ2F6NW7; WP07 adds no gate and no allowlist (traces/design-decisions.md [implement WP07]).",
-      "deferral_follow_up": "DM 01M6S40GBWB6JD0FFTMQ2F6NW7 (follow-up issue for the S1 single-door gate not yet filed)"
+      "deferral_follow_up": "#7310 (operator ruling DM 01M6S40GBWB6JD0FFTMQ2F6NW7)"
     },
     {
       "criterion_id": "FR-007",
