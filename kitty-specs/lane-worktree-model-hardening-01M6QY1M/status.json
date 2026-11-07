@@ -645,7 +645,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Docs pages (topology size default, topic branch, lane checkouts/status read door/cleanup, worktree vocabulary + migration outcomes) and 12 changelog fragments #7277-#7285",
-        "Review passed: docs and 12 fragments match shipped lane code; gates green; WP10/WP12 leftovers go to closeout"
+        "Review passed: docs and 12 fragments match shipped lane code; gates green; WP10/WP12 leftovers go to closeout",
+        "Rework: consolidation refresh merge (auto-merged file content needs an approval stamp covering it, reconciliation 2026-11-07); --force only bypasses the lane-behind-target freshness check, orchestrator ruling"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {

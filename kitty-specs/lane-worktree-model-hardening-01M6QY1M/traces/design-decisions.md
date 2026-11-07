@@ -167,3 +167,5 @@ Using `spec-kitty agent issue-verdict` (orchestrator ruling: only where approved
 Left `in-mission` as not clear-cut: #7277 (FR-005/FR-006 partly delivered, rest deferred to #7310)
 and #7285 (FR-092 core pin bump deferred). The `issue_matrix_verdict_terminality` WARN remains for
 those two.
+
+- [2026-11-07][closeout] Reconciliation after the squash flagged 3 auto-merged blobs from the clean refresh merges on lanes g and p (no lane authored the combined file; their approval stamps predate the merges). Ruling: re-review and re-approve every lane whose refresh merge is not yet covered by an approval stamp: WP10 (lane-g 621c3c1d60), WP20 (lane-p 00b834666f), WP07 (lane-d 8215731993), WP18 (lane-o fd9450991b); moved to for_review (--force on for_review only). Consolidate now runs from a frozen detached CLI worktree (editable install rewrote itself mid-run).
