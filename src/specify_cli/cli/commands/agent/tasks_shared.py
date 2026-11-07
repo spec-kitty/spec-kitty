@@ -570,19 +570,19 @@ def _check_unchecked_subtasks(
         return []
     from specify_cli.core.subtask_rows import (
         authored_subtask_roster,
-        unchecked_subtask_ids_from_snapshot,
+        unchecked_subtask_ids_from_event_stream,
     )
+    from specify_cli.status.read_surface import read_status_stream, resolve_status_read
 
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    if owned is not None:
-        status_dir = placement_seam(main_repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
-    else:
-        from specify_cli.coordination import resolve_status_surface
-
-        status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
-    return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
+    # Dynamic completion is read from the declared status source through the one read
+    # door (ADR 2026-11-06-2): the committed coordination branch when the coordination
+    # worktree is empty or absent, the owned checkout's own dir for an owned run.
+    surface = resolve_status_read(main_repo_root, mission_slug, owned=owned)
+    incomplete: list[str] = unchecked_subtask_ids_from_event_stream(read_status_stream(surface), wp_id, roster)
+    return incomplete
 
 
 def _validate_ready_for_review(

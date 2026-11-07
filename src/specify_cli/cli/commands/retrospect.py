@@ -22,10 +22,10 @@ from specify_cli.coordination.commit_outcome import (
 )
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
+from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
-    resolve_status_surface,
 )
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
 from specify_cli.core.utils import safe_is_dir
@@ -79,6 +79,8 @@ from specify_cli.retrospective.summary import (
     legacy_registry_record_dir,
 )
 from specify_cli.status import read_events
+from specify_cli.status.models import StatusEvent
+from specify_cli.status.read_surface import read_status_events, resolve_status_read
 from specify_cli.status import TERMINAL_LANES
 
 app = typer.Typer(
@@ -120,27 +122,27 @@ def _canonical_record_path(repo_root: Path, mission_slug: str, mission_id: str =
     return record_path
 
 
-def _canonical_events_path(repo_root: Path, mission_slug: str) -> Path:
-    """Return the canonical ``status.events.jsonl`` READ path for *mission_slug*.
+def _canonical_status_events(repo_root: Path, mission_slug: str) -> list[StatusEvent]:
+    """Lane transitions of *mission_slug* from its declared status source (FR-005, #1735).
 
-    FR-006 (#1735/#1771): retrospect status READS resolve the event log
-    through the single canonical surface resolver (:func:`resolve_status_surface`,
-    coord-topology-aware, C-005) rather than re-deriving a primary-checkout-only
-    path. Falls back to the primary-checkout feature dir only when the surface
-    cannot be resolved (e.g. meta.json absent for a legacy mission).
+    Retrospect status READS go through the one status read door
+    (:func:`~specify_cli.status.read_surface.resolve_status_read`, ADR 2026-11-06-2): the
+    coordination worktree's file, the committed coordination branch when that worktree is
+    empty or absent, the write checkout, or the landed target's copy. Falls back to the
+    primary-checkout feature dir only when the door cannot find the Mission or its
+    ``meta.json`` is malformed (a legacy Mission). An unreadable coordination ref raises
+    ``StatusSurfaceRefUnreadable``: it is never read as an empty history (FR-004).
 
-    WP14 (FR-003, contracts/commit-outcome.md): kept byte-identical for reads,
-    INCLUDING the ``candidate_feature_dir_for_mission`` fallback -- every
-    append/commit caller now uses :func:`_canonical_events_write_path`
-    instead (retrospect/agent-retrospect event appends are a writer family,
-    not a read substitute).
+    WP14 (FR-003, contracts/commit-outcome.md): every append/commit caller uses
+    :func:`_canonical_events_write_path` instead (retrospect/agent-retrospect event appends
+    are a writer family, not a read substitute).
     """
     try:
-        surface: Path = resolve_status_surface(repo_root, mission_slug)
+        surface = resolve_status_read(repo_root, mission_slug)
     except (FileNotFoundError, ValueError):
         feature_dir: Path = candidate_feature_dir_for_mission(repo_root, mission_slug)
-        surface = feature_dir / "status.events.jsonl"
-    return surface
+        return list(read_events(feature_dir))
+    return read_status_events(surface)
 
 
 def _canonical_events_write_path(repo_root: Path, mission_slug: str) -> Path:
@@ -293,15 +295,13 @@ def _check_mission_completed(
     """Check if mission has any open WPs. Returns non-empty list if not completed."""
     TERMINAL = TERMINAL_LANES  # frozenset{"done", "canceled"}
 
-    # FR-006 (#1735): peek at the canonical status surface (coord-aware), not the
-    # primary-checkout feature dir, so completion checks see coord-owned events.
-    events_path = _canonical_events_path(_repo_root, resolved.mission_slug)
-    feature_dir = events_path.parent
-    if not feature_dir.exists():
-        return []
-
+    # FR-005 (#1735): read the declared status source through the one read door, not the
+    # primary-checkout feature dir, so completion checks see coord-owned events. An
+    # unreadable coordination ref propagates: it is never read as "no events" (FR-004).
     try:
-        events = read_events(feature_dir)
+        events = _canonical_status_events(_repo_root, resolved.mission_slug)
+    except StatusSurfaceRefUnreadable:
+        raise
     except Exception:
         return []
 

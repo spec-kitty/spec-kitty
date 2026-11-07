@@ -512,7 +512,7 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ),
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/retrospect.py",
-        qualname="_canonical_events_path",
+        qualname="_canonical_status_events",
         token_substring="candidate_feature_dir_for_mission ( repo_root , mission_slug )",
         occurrence=None,
         rationale=(

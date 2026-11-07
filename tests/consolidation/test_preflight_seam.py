@@ -787,12 +787,12 @@ def test_pending_done_wp_ids_skips_done_and_canceled(monkeypatch: pytest.MonkeyP
 
 
 def test_current_lanes_is_empty_when_the_status_surface_is_unreadable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    from specify_cli.coordination import surface_resolver
+    from specify_cli.status import read_surface
 
-    def _missing(*_a: object) -> Path:
+    def _missing(*_a: object, **_k: object) -> Path:
         raise FileNotFoundError("no surface")
 
-    monkeypatch.setattr(surface_resolver, "resolve_status_surface", _missing)
+    monkeypatch.setattr(read_surface, "resolve_status_read", _missing)
     assert preflight._current_lanes_or_empty(tmp_path, "m") == {}
 
 

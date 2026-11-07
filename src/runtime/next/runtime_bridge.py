@@ -339,16 +339,14 @@ def _primary_mission_is_completed(primary_metadata_dir: Path) -> bool:
     appends ``MissionRunCompleted`` and runs the retrospective completion gate.
     Fail-closed and non-raising: a corrupt primary ``meta.json``
     (``MissionMetaReadError``) reads as not-merged.
-    """
-    from specify_cli.core.paths import MissionMetaReadError
-    from specify_cli.status import StoreError, is_mission_merged
 
-    if not (primary_metadata_dir / "meta.json").is_file():
-        return False
-    try:
-        return bool(is_mission_merged(primary_metadata_dir))
-    except (StoreError, MissionMetaReadError):
-        return False
+    Delegates to the placement seam's one "landed" reader
+    (:func:`mission_runtime.mission_has_landed`, ADR 2026-11-06-2/-3), so the runtime bridge,
+    the surface resolver and the status read door never read two signals.
+    """
+    from mission_runtime import mission_has_landed
+
+    return mission_has_landed(primary_metadata_dir)
 
 
 @dataclasses.dataclass(frozen=True)

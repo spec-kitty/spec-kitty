@@ -23,12 +23,9 @@ if TYPE_CHECKING:
 from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
-    resolve_status_surface,
 )
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import run_command
-from specify_cli.core.paths import (
-    MissionMetaReadError,
-)
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings), imported
@@ -94,6 +91,7 @@ from specify_cli.consolidation.run_state import (
 # unconditional forward-build of candidate snapshot paths. See the row file
 # for the full rationale.
 _GATE_ARTIFACT_FILENAMES: Final[tuple[str, ...]] = ("acceptance-matrix.json", "issue-matrix.json")
+_META_FILENAME: Final = "meta.json"
 
 
 def _gate_artifact_paths(run: _MergeRunState) -> tuple[Path, ...]:
@@ -249,37 +247,24 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
                 raise typer.Exit(1)
 
 
-def _primary_mission_is_merged(primary_dir: Path) -> bool:
-    """True when the PRIMARY Mission dir carries merge evidence (non-raising).
-
-    Same predicate ``resolve_status_surface`` applies before re-anchoring a
-    completed Mission on the repository root checkout: a corrupt or unreadable
-    ``meta.json`` reads as not-merged.
-    """
-    from specify_cli.status import StoreError, is_mission_merged
-
-    if not (primary_dir / "meta.json").is_file():
-        return False
-    try:
-        return bool(is_mission_merged(primary_dir))
-    except (StoreError, MissionMetaReadError):
-        return False
-
-
 def _completed_mission_projected_events_path(run: _MergeRunState) -> Path | None:
     """The completed-Mission ``--resume`` events path, or ``None`` when the Mission is not completed.
 
     The ONE sanctioned read of a status surface in this module (FR-008): after a
     landed consolidation the records are already projected onto the target, so a
     ``--resume`` re-entering a completed Mission keeps the PRIMARY answer
-    ``resolve_status_surface`` returns. This is a READ of projected records, not a
-    write location.
+    the status read door returns (``CONSOLIDATED_TARGET``). This is a READ of projected
+    records, not a write location. The landed signal is ``mission_runtime.mission_has_landed``.
     """
-    if not _primary_mission_is_merged(run.target_feature_dir):
+    from mission_runtime import mission_has_landed
+    from specify_cli.status.read_surface import resolve_status_read
+
+    if not mission_has_landed(run.target_feature_dir):
         return None
-    # Explicit annotation: under ``follow_imports = "skip"`` the cross-module
-    # return is seen as ``Any``; the function IS typed ``-> Path``.
-    projected: Path = resolve_status_surface(run.main_repo, run.mission_slug)
+    surface = resolve_status_read(run.main_repo, run.mission_slug)
+    if surface.path is None:
+        return None
+    projected: Path = surface.path / _STATUS_EVENTS_FILENAME
     return projected
 
 
@@ -571,6 +556,36 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
         _restore_pre_target_if_at_baseline(run)
         raise
     _handle_mission_merge_result(run, mission_result, mission_integrated_into_target=_mission_integrated_into_target)
+    _reanchor_primary_on_target_after_topic_landing(run)
+
+
+def _reanchor_primary_on_target_after_topic_landing(run: _MergeRunState) -> None:
+    """FR-062 / G4: after the landing, a default Mission's PRIMARY anchor is the target checkout.
+
+    Before the landing, ``run.target_feature_dir`` is the placement seam's PRIMARY answer: the
+    topic branch's holder (the coordination worktree). The landing carried the topic tip onto
+    the target, so the post-landing phases (``baseline_merge_commit`` stamp, ``mission_number``
+    read-back, retrospective, the landed-state clears) read and write the target checkout's
+    copy -- never the topic branch's, which the coordination teardown deletes. Explicit and
+    legacy Missions are unchanged (their anchor already is the target).
+    """
+    from specify_cli.lanes.single_branch_landing import lands_topic_branch
+
+    if not lands_topic_branch(run.main_repo, run.lanes_manifest):
+        return
+    target_dir = _target_checkout_mission_dir(run.main_repo, run.target_feature_dir)
+    if (target_dir / _META_FILENAME).is_file():
+        run.target_feature_dir = target_dir
+
+
+def _target_checkout_mission_dir(main_repo: Path, primary_dir: Path) -> Path:
+    """The repository root checkout's (the target's) copy of the Mission directory *primary_dir* names.
+
+    Assumes the repository root checkout is on the target branch at this point (the landing
+    advanced it there); a coordination Mission's topic branch is held by its own worktree.
+    """
+    target_dir: Path = main_repo / KITTY_SPECS_DIR / primary_dir.name
+    return target_dir
 
 
 def _switch_write_checkout_after_single_branch_landing(run: _MergeRunState) -> None:

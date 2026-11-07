@@ -13,7 +13,7 @@ functional coverage.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -262,7 +262,7 @@ def test_reconcile_empty_when_no_completions(tmp_path: Path) -> None:
 def test_durable_done_empty_when_placement_unresolvable(tmp_path: Path) -> None:
     # An unresolvable placement (non-coord / legacy) yields no durable-done set,
     # so the caller falls back to the transactional on-disk check.
-    with patch.object(db, "resolve_placement_only", side_effect=RuntimeError("no mission")):
+    with patch("specify_cli.status.read_surface.resolve_committed_status_read", side_effect=RuntimeError("no mission")):
         assert db._durable_done_wps_on_coordination_ref(repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]) == set()
 
 
@@ -270,12 +270,11 @@ def test_durable_done_reduces_committed_coordination_ref(tmp_path: Path) -> None
     from types import SimpleNamespace
 
     lanes = {"WP01": Lane.DONE, "WP02": Lane.APPROVED}
+    # The ref read is mocked, so the declared ref-missing arm is pinned "present";
+    # otherwise the non-git tmp_path takes that arm before the read (FR-004).
     with (
-        patch.object(db, "resolve_placement_only", return_value=SimpleNamespace(ref="kitty/mission-m")),
-        patch(
-            "specify_cli.coordination.status_service.read_event_log",
-            return_value=[object()],
-        ),
+        patch("specify_cli.status.read_surface.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
+        patch("specify_cli.status.read_surface.read_status_events", return_value=[object()]),
         patch(
             "specify_cli.coordination.status_service.wp_lane_actor_from_events",
             side_effect=lambda _events, wp_id: CurrentWpState(lanes[wp_id], None, None),
@@ -288,8 +287,8 @@ def test_durable_done_empty_when_committed_log_empty(tmp_path: Path) -> None:
     from types import SimpleNamespace
 
     with (
-        patch.object(db, "resolve_placement_only", return_value=SimpleNamespace(ref="kitty/mission-m")),
-        patch("specify_cli.coordination.status_service.read_event_log", return_value=[]),
+        patch("specify_cli.status.read_surface.resolve_committed_status_read", return_value=SimpleNamespace(ref="refs/heads/kitty/mission-m")),
+        patch("specify_cli.status.read_surface.read_status_events", return_value=[]),
     ):
         assert db._durable_done_wps_on_coordination_ref(repo_root=tmp_path, mission_slug="m", candidate_wps=["WP01"]) == set()
 
@@ -533,7 +532,6 @@ def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
     with (
         patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "resolve_status_surface"),
         patch(_READ_STREAM_TRANSACTIONAL, return_value=EventStream()),
         patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.DONE, "merge", None)),
         patch(_EMIT_TRANSACTIONAL) as emit_mock,
@@ -552,7 +550,6 @@ def test_mark_wp_merged_done_re_records_done_for_a_wp_reopened_after_done(tmp_pa
     with (
         patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "resolve_status_surface"),
         patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
         patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=True),  # a done exists in history
@@ -619,7 +616,6 @@ def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> Non
     with (
         patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "resolve_status_surface"),
         patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
         patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.IN_REVIEW, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=False),
@@ -643,7 +639,6 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
     with (
         patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
-        patch.object(db, "resolve_status_surface"),
         patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
         patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.FOR_REVIEW, "merge", None)),
         patch.object(db, "_has_transition_to", return_value=False),
@@ -658,65 +653,52 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
 # --- _assert_merged_wps_reached_done ----------------------------------------
 
 
+_DOOR = "specify_cli.status.read_surface"
+
+
+def _door_patches(tmp_path: Path, *, text: str | None = "log", not_done: list[str] | Exception | None = None) -> tuple[Any, ...]:
+    """Pin the read door to a path surface; ``not_done`` is the helper's result or an exception."""
+    from types import SimpleNamespace
+
+    surface = SimpleNamespace(path=tmp_path / "kitty-specs" / "m", ref=None, mission_dir_name="m")
+    if isinstance(not_done, Exception):
+        helper = patch.object(db, "_not_done_wps", side_effect=not_done)
+    else:
+        helper = patch.object(db, "_not_done_wps", return_value=not_done or [])
+    return (
+        patch(f"{_DOOR}.resolve_status_read", return_value=surface),
+        patch(f"{_DOOR}.read_status_text", return_value=text),
+        helper,
+    )
+
+
 def test_assert_reached_done_passes_when_all_done(tmp_path: Path) -> None:
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
-    with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
-        patch("specify_cli.status.get_wp_lane", return_value="done"),
-        patch("specify_cli.status.resolve_lane_alias", side_effect=lambda x: x),
-    ):
+    door, text, helper = _door_patches(tmp_path)
+    with door, text, helper:
         db._assert_merged_wps_reached_done(tmp_path, "m", ["WP01"])
 
 
-def test_assert_reached_done_raises_when_wp_not_done(tmp_path: Path) -> None:
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
-    with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
-        patch("specify_cli.status.get_wp_lane", return_value="approved"),
-        patch("specify_cli.status.resolve_lane_alias", side_effect=lambda x: x),
-        pytest.raises(typer.Exit) as exc,
-    ):
-        db._assert_merged_wps_reached_done(tmp_path, "m", ["WP01"])
-    assert exc.value.exit_code == 1
-
-
-def test_assert_reached_done_unrecognized_sentinel_is_incomplete(tmp_path: Path) -> None:
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
-    with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
-        patch("specify_cli.status.get_wp_lane", return_value="uninitialized"),
-        patch("specify_cli.status.resolve_lane_alias", side_effect=lambda x: x),
-        pytest.raises(typer.Exit) as exc,
-    ):
+@pytest.mark.parametrize("lane", ["approved", "uninitialized"])
+def test_assert_reached_done_raises_when_wp_not_done(tmp_path: Path, lane: str) -> None:
+    door, text, helper = _door_patches(tmp_path, not_done=[f"WP01={lane}"])
+    with door, text, helper, pytest.raises(typer.Exit) as exc:
         db._assert_merged_wps_reached_done(tmp_path, "m", ["WP01"])
     assert exc.value.exit_code == 1
 
 
 def test_assert_reached_done_raises_on_missing_event_log(tmp_path: Path) -> None:
-    from specify_cli.status import CanonicalStatusNotFoundError
-
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
-    with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
-        patch(
-            "specify_cli.status.get_wp_lane",
-            side_effect=CanonicalStatusNotFoundError("absent"),
-        ),
-        pytest.raises(typer.Exit) as exc,
-    ):
+    door, text, helper = _door_patches(tmp_path, text=None)
+    with door, text, helper, db.console.capture() as captured, pytest.raises(typer.Exit) as exc:
         db._assert_merged_wps_reached_done(tmp_path, "m", ["WP01"])
     assert exc.value.exit_code == 1
+    assert "no canonical event log" in captured.get()
 
 
 def test_assert_reached_done_raises_on_store_error(tmp_path: Path) -> None:
     from specify_cli.status import StoreError
 
-    surface = tmp_path / "kitty-specs" / "m" / "status.events.jsonl"
-    with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
-        patch("specify_cli.status.get_wp_lane", side_effect=StoreError("corrupt")),
-        pytest.raises(typer.Exit) as exc,
-    ):
+    door, text, helper = _door_patches(tmp_path, not_done=StoreError("corrupt"))
+    with door, text, helper, pytest.raises(typer.Exit) as exc:
         db._assert_merged_wps_reached_done(tmp_path, "m", ["WP01"])
     assert exc.value.exit_code == 1
 

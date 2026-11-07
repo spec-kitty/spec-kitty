@@ -35,7 +35,7 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.lanes import implement_support
 from specify_cli.lanes.implement_support import create_lane_workspace
-from specify_cli.status import UNBOUNDED_LOCK_WAIT, mission_write_lock, read_events, reduce as reduce_status_events
+from specify_cli.status import UNBOUNDED_LOCK_WAIT, mission_write_lock
 from specify_cli.workspace import context as workspace_context
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -61,10 +61,13 @@ class ImplementContext:
 
 @dataclass(frozen=True)
 class ClaimPreflight:
-    """The claim-preflight result: the target branch and the two surfaces the claim reads."""
+    """The claim-preflight result: the target branch and the lanes surface the claim reads.
+
+    The status read is the one read door's (it has no directory when the coordination
+    worktree is empty or absent), so no status directory is carried.
+    """
 
     planning_branch: str
-    status_feature_dir: Path
     lanes_feature_dir: Path
 
 
@@ -364,20 +367,14 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
     planning_branch = workspace_context.resolve_mission_target_branch(mission_slug, repo_root)
     implement_claim._raise_if_status_commit_protected(repo_root, planning_branch, auto_commit, mission_slug)
 
-    from specify_cli.coordination.surface_resolver import (
-        resolve_status_surface_with_anchor as _resolve_status_surface,
-    )
+    from specify_cli.status.read_surface import materialize_status, resolve_status_read
 
-    # FR-003 layer 4: read WP-lane status through the SAME canonical,
-    # config-determined surface authority the status WRITE path
-    # (coordination/status_transition) uses, never a second ad-hoc
-    # resolution. resolve_mission_read_path derived its own coord
-    # preference from a slug-derived mid8 (empty for bare slugs), so in the
-    # planning→implement window the read landed on a different surface than
-    # the write and saw genesis ("WP not finalized"). The anchor authority
-    # derives mid8 from meta and carries the fail-closed coord semantics
-    # (StatusReadPathNotFound) — one authority, C-STAT-1.
-    _status_feature_dir = _resolve_status_surface(repo_root, mission_slug).read_dir
+    # FR-003 layer 4 / FR-005: read WP-lane status through the one status read door
+    # (ADR 2026-11-06-2), the declared source the status WRITE path also commits to: the
+    # coordination worktree, or the committed coordination branch when that worktree is
+    # empty or absent (never the repository root checkout's stale copy, never an empty
+    # history: an unreadable coordination ref raises). One authority, C-STAT-1.
+    _claim_snapshot = materialize_status(resolve_status_read(repo_root, mission_slug))
     # ``lanes.json`` (LANE_STATE) is a PRIMARY-partition artifact with INV-5
     # read/write symmetry, so its dir resolves through the kind-aware
     # placement seam (PRIMARY surface) — a DIFFERENT surface than the coord
@@ -388,9 +385,8 @@ def claim_preflight(ctx: ImplementContext, wp_id: str) -> ClaimPreflight:
 
     # T012 / Contract 3 + dependency gate: reject unseeded WPs and
     # not-yet-ready dependencies BEFORE any workspace allocation.
-    _claim_snapshot = reduce_status_events(read_events(_status_feature_dir))
     dependency_graph.ensure_wp_claim_preconditions(wp_id, declared_deps, _claim_snapshot.work_packages)
-    return ClaimPreflight(planning_branch, _status_feature_dir, _lanes_feature_dir)
+    return ClaimPreflight(planning_branch, _lanes_feature_dir)
 
 
 def commit_planning_artifacts(ctx: ImplementContext, wp_id: str, preflight: ClaimPreflight) -> None:

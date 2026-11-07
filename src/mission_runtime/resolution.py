@@ -1080,6 +1080,38 @@ def single_branch_write_ref(
     return target_branch
 
 
+def _default_mission_primary_ref(topology_source: object, mission_branch: object, landed: bool, fallback_ref: str) -> str:
+    """The PRIMARY write ref of a ``topology_source: default`` Mission (FR-061) -- pure.
+
+    Before the Mission lands, a default Mission's PRIMARY partition writes to its
+    topic branch (``meta.mission_branch``) whatever its settled topology; after the
+    landing (the one "landed" signal, analyze-3 H1) and for every other Mission it is
+    *fallback_ref* unchanged. Kept separate from :func:`single_branch_write_ref`, whose
+    callers also use it for status and code writes.
+    """
+    if topology_source != "default" or landed:
+        return fallback_ref
+    if isinstance(mission_branch, str) and mission_branch:
+        return mission_branch
+    return fallback_ref
+
+
+def _default_mission_facts(primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> tuple[object, object, bool]:
+    """``(topology_source, mission_branch, landed)`` from the PRIMARY ``meta.json`` (non-raising)."""
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    from .landing import mission_has_landed
+
+    primary_dir = read_dir_for(primary_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA, resolver=resolver)
+    try:
+        meta = load_meta_fail_closed(primary_dir)
+    except MissionMetaReadError:
+        return None, None, False
+    if not meta:
+        return None, None, False
+    return meta.get("topology_source"), meta.get("mission_branch"), mission_has_landed(primary_dir)
+
+
 def resolve_single_branch_write_ref(
     repo_root: Path,
     mission_handle: str,
@@ -2038,6 +2070,10 @@ def resolve_placement_only(
         # mint redirects even the PRIMARY-kind bypass to `mission_branch` --
         # see `_resolve_single_branch_write_ref`.
         primary_kind_ref = _resolve_single_branch_write_ref(topology, target_branch, get_main_repo_root(repo_root), mission_slug, resolver=resolver)
+        # FR-061 / analyze-3 H1 (Mission lane-worktree-model-hardening WP14): a default
+        # Mission's PRIMARY partition stays on its topic branch until it lands, also
+        # after a ``lanes_with_coord`` settlement.
+        primary_kind_ref = _default_mission_primary_ref(*_default_mission_facts(get_main_repo_root(repo_root), mission_slug, resolver=resolver), primary_kind_ref)
         return CommitTarget(ref=primary_kind_ref)
     return branch_ref.destination_ref
 
@@ -2476,12 +2512,15 @@ class PlacementSeam:
         already consumes — closes that silent substitution: ``DELETED`` now
         raises :class:`~specify_cli.coordination.surface_resolver.
         CoordinationBranchDeleted` (the existing typed partition-mismatch
-        signal; no new exception type needed). Every other cell — a
+        signal; no new exception type needed). An ``UNMATERIALIZED``
+        coordination worktree raises
+        :class:`~specify_cli.coordination.surface_resolver.
+        CoordinationWorktreeUnmaterialized` (#4959, ADR 2026-09-24-2) rather
+        than substituting the primary checkout. The remaining cells — a
         PRIMARY-partition kind, a coord-less topology (AH-2), or a coord
-        topology whose worktree is genuinely ``EMPTY``/``UNMATERIALIZED``
-        (the create-window) — resolves identically to before **with respect to
-        raising**: these are the T031-enumerated SANCTIONED degrades, preserved
-        verbatim (NFR-002 forbids only *undeclared* fallbacks, not these
+        topology whose worktree is ``EMPTY`` (the create-window) — resolve the
+        declared PRIMARY home: these are the T031-enumerated SANCTIONED
+        degrades (NFR-002 forbids only *undeclared* fallbacks, not these
         declared ones).
 
         This is the READ side only (coord-artifact-single-home-01M3V4BE WP04,
@@ -2968,8 +3007,10 @@ def resolve_artifact_surface(
       PRIMARY;
     * a coord-partition kind on coord-routing topology consumes the four-state
       classifier: ``DELETED`` raises :class:`CoordinationBranchDeleted` (C3 "fail
-      loud"); ``MATERIALIZED`` resolves the coord dir, stamped COORD; ``EMPTY`` /
-      ``UNMATERIALIZED`` resolve the primary dir, stamped PRIMARY.
+      loud"); ``MATERIALIZED`` resolves the coord dir, stamped COORD;
+      ``UNMATERIALIZED`` raises :class:`CoordinationWorktreeUnmaterialized`
+      (#4959, ADR 2026-09-24-2); ``EMPTY`` resolves the primary dir, stamped
+      PRIMARY.
 
     The final path goes through :func:`translate_surface` so the ONE total
     translation is the production path, not merely a tested one. CWD-invariant: the
@@ -2979,6 +3020,8 @@ def resolve_artifact_surface(
     Raises:
         CoordinationBranchDeleted: When the declared coordination branch has been
             deleted from git (C3 fail-loud).
+        CoordinationWorktreeUnmaterialized: When the declared coordination
+            branch exists but its worktree has not been materialized (#4959).
         MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
             (propagated from handle canonicalization — no silent pick).
     """

@@ -1141,7 +1141,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
@@ -1173,7 +1173,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
@@ -1219,7 +1219,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
@@ -1265,7 +1265,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
@@ -1324,7 +1324,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(nonexistent, "999-missing", tmp_path),
             ),
         ):
@@ -1372,7 +1372,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
@@ -1386,7 +1386,7 @@ class TestDoctorCLI:
                 return_value=_healthy_global_checks(),
             ),
             patch(
-                "specify_cli.cli.commands.agent.status._resolve_status_surface",
+                "specify_cli.cli.commands.agent.status._status_dir_for_command",
                 return_value=(feature_dir, "034-test", tmp_path),
             ),
         ):
