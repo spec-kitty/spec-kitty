@@ -280,13 +280,13 @@
     },
     {
       "criterion_id": "FR-041",
-      "description": "Verify FR-041 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-041 Status writes never target a lane checkout: the status write seam to refuse any write whose target is inside a registered lane checkout, classified by the worktree registry and not by path shape, so that the `.worktrees/` labelling hole is closed.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-g:tests/coordination/test_status_write_lane_refusal.py::test_registry_classifies_lane_checkouts_wherever_they_live; lane-g:tests/coordination/test_status_write_lane_refusal.py::test_transaction_write_into_coord_named_lane_checkout_refuses; lane-g:tests/coordination/test_status_write_lane_refusal.py::test_transaction_write_to_coord_worktree_succeeds; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP10-s6-lane-write-refusal-migration-doctor/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:13:46.537945+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-042",
