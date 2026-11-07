@@ -116,3 +116,25 @@ def test_mission_merge_resolution_lane_lacks_still_stale(tmp_path):
     result = check_lane_staleness(_lane(), L2, MISSION, repo)
     assert result.is_stale is True
     assert "src/f.py" in result.stale_files
+
+
+def test_mission_octopus_merge_own_change_lane_lacks_still_stale(tmp_path):
+    """git skips an octopus merge's own resolution under ``--diff-merges=remerge``.
+
+    A 3-parent merge on the mission branch whose tree folds in ``src/f.py`` (and
+    nothing the parents carry) is mission-side work the lane lacks.
+    """
+    repo = _build(tmp_path)
+    _git(repo, "checkout", MISSION)
+    head = _git(repo, "rev-parse", "HEAD")
+    side1 = _git(repo, "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", "side one")
+    side2 = _git(repo, "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", "side two")
+    (repo / "src/f.py").write_text("l1\noctopus\n")
+    _git(repo, "add", "src/f.py")
+    tree = _git(repo, "write-tree")
+    octo = _git(repo, "commit-tree", tree, "-p", head, "-p", side1, "-p", side2, "-m", "octopus")
+    _git(repo, "reset", "-q", "--hard", octo)
+    _git(repo, "checkout", "main")
+    result = check_lane_staleness(_lane(), L2, MISSION, repo)
+    assert result.is_stale is True
+    assert result.stale_files == ["src/f.py"]
