@@ -37,3 +37,5 @@
 - WP16 approved. Closeout: ADR 2026-11-06-3 line 108 + WP15 prompt/design-decisions cite 1.24.0 -> 1.25.0; test_no_dead_symbols red on 8 WP15 lane_cleanup __all__ names; orchestrator-api passes live target tip as passed_sha (weaker O3-local proof, follow-up); 2 mypy no-any-return in acceptance/__init__.py (1151, 2080, pre-existing).
 
 - [2026-11-07][closeout] #7308 reviewed (approve) and merged into the topic branch. Nits for PR body/follow-up: deferred criterion yields clean pass unlike NI-5 pass_pending_consolidation (state in docstring/PR); bookkeeping_projection.py:954 treats only pass as established (deferred->pending not refused; follow-up); unreachable disclosure fallback text; double replace() in _resolve_criterion_update.
+
+- [2026-11-07][closeout] #7307 approved after cycle 2 and merged into the topic branch. Nits: _drop_unreviewed_merges identity check (use a dropped flag); ADR amendment could name the attestation/forced-approval residual.
