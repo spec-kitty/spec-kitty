@@ -51,7 +51,6 @@ __all__ = [
     "lane_checkout_containing",
     "lane_mission_dir_name",
     "lane_mission_dir_name_from_meta",
-    "merge_status_exclusion",
     "mission_code_lanes",
     "open_lane_checkout",
     "read_registered_checkouts",
