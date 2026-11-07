@@ -586,10 +586,18 @@ def _judge_acceptance_matrix(
     post-seam leg (which judges the FRESH, re-read-and-spliced matrix, never
     accept's own pre-lock snapshot) share exactly one judgement path.
     """
-    from specify_cli.acceptance.matrix import VERDICT_PASS_PENDING_CONSOLIDATION, validate_matrix_evidence
+    from specify_cli.acceptance.matrix import (
+        VERDICT_PASS_PENDING_CONSOLIDATION,
+        deferred_criteria_disclosures,
+        validate_matrix_evidence,
+    )
 
     for err in validate_matrix_evidence(acc_matrix):
         activity_issues.append(f"Evidence: {err}")
+    # #7308: a deferred criterion never blocks acceptance, but it is never
+    # silent either -- each one is disclosed as a skipped check.
+    for line in deferred_criteria_disclosures(acc_matrix):
+        skipped_checks.append(AcceptanceCheckDiagnostic(check="criteria_deferred", detail=line))
 
     verdict = acc_matrix.overall_verdict
     if verdict == "fail":
