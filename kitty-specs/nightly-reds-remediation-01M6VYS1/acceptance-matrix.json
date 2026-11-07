@@ -1,0 +1,129 @@
+{
+  "mission_slug": "nightly-reds-remediation-01M6VYS1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The consolidate flag-surface golden expects --dependency-ref and still fails for any other flag drift.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_merge_cli_golden.py::test_help_pins_one_line_help_and_every_visible_flag passes (re-run 2026-11-08 on 96fd210b1c: run 1, 10 files incl. seed-refusal guards, destructive-op routing gate and #6673 notice tests, 189 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:35:57.069017+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The orchestrator-api migration-actor test seeds the actor in-process through the system-actor builder and keeps its three seed predicates.",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_wp_lifecycle_structured_actor_6400.py::test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed passes; seed-refusal guards tests/status/test_caller_seed_refusal_6754.py and tests/specify_cli/orchestrator_api/test_caller_seed_refusal_6754.py unchanged and green (re-run 2026-11-08 on 96fd210b1c: run 1 (10 files), 189 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:18.943345+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The tracked-meta notice renders its file-restore remedy through a new checkout-form renderer in the git-remedies home, with unit tests; the gate allowlist stays empty and notice text is byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_git_remedies.py (new test_restore_recipe_never_renders_directory_needle plus the gate node test_no_inline_destructive_git_advice_in_src), tests/architectural/test_destructive_op_routing.py, and the #6673 notice tests (tests/specify_cli/upgrade/test_read_tracked_meta_6673.py, test_runtime_state_cutover_skips_absent_meta_6673.py, tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py, tests/integration/migration/test_upgrade_tracked_meta_identity_6673.py) all pass (re-run 2026-11-08 on 96fd210b1c: run 1 (10 files), 189 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:20.314733+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "charter status tests assert the typed refusal envelope and exit 1 ACTIVE_CHARTER_CONFIG_INVALID for unparseable charter.yaml.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_charter_status_freshness.py::test_unparseable_charter_yaml_refuses_status_with_typed_code (renamed from test_freshness_state_invalid_when_charter_yaml_unparseable) and tests/specify_cli/cli/commands/test_charter_generate_autotrack.py::test_status_json_error_is_parseable pass; neighbours tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py and tests/specify_cli/charter_freshness/test_computer.py green (re-run 2026-11-08 on 96fd210b1c: run 2 (11 files), 219 passed, 1 skipped).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:21.683762+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The six write-path activate tests seed present empty lists and keep their original assertions.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_charter_activate_cli.py passes in full (TestLayerAwareActivation, TestCascadeScope, TestNoCascadeWarning seed present empty lists); siblings tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py, test_activation_json_6525.py, tests/charter/test_interview_leaves_absent_key_absent_6685.py, tests/charter/activation/test_stored_spelling_6527.py green. Review cycle 2 restored the exit-code and agent-profile assertions in TestNoCascadeWarning::test_no_cascade_does_not_activate_referenced (re-run 2026-11-08 on 96fd210b1c: run 2 (11 files), 219 passed, 1 skipped).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:23.066021+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Both ambiguous-directive interview parameters assert the file-name collision refusal in the interview's own JSON error shape; the generate legs are restored.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_charter_ambiguous_directives.py::test_ambiguous_directive_keeps_siblings_and_reports_json passes (both params); sibling tests/specify_cli/upgrade/test_unify_charter_activation_migration.py green (re-run 2026-11-08 on 96fd210b1c: run 2 (11 files), 219 passed, 1 skipped).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:24.432778+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The merge done-transition tests assert the full four-key structured system actor.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_merge.py::test_mark_wp_merged_done_emits_done_when_lane_is_approved passes; in-matrix twin tests/consolidation/test_merge_done_recording.py passes unchanged (re-run 2026-11-08 on 96fd210b1c: run 3 (6 files), 108 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:25.807973+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The tasks-status default fixture Missions carry distinct mission_id values; the error-path tests keep their meaning.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_tasks_status_default_mission.py passes in full (defaulting nodes plus the three error-path tests; _make_mission mints distinct mission_id values) (re-run 2026-11-08 on 96fd210b1c: run 3 (6 files), 108 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:27.185080+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The cutover probe budget is 2 + 4 x real Missions and still proves identity-less folders cost one batch probe.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/migration/test_residue_shared_walkers_6669.py::test_cutover_repo_probes_git_once_per_walk passes; the file's mission_dirs and move_derived_files probe-once nodes also green (re-run 2026-11-08 on 96fd210b1c: run 3 (6 files), 108 passed). Per-Mission cost follow-up drafted in traces/tooling-friction.md, not filed.",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:28.557811+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The pack-skill lifecycle snapshots ignore only the runtime-locks subtree and the test asserts the lock file exists.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_pack_skill_lifecycle.py::test_pack_skill_lifecycle_survives_every_retiring_path passes (re-run 2026-11-08 on 96fd210b1c: run 3 (6 files), 108 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:29.914915+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The single-branch residue bookkeeping check asserts the tracked-modified Mission events file and the per-record untracked form, tracked changes only.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_single_branch_write_checkout_e2e.py::test_next_loop_claims_the_next_wp_after_residue_is_committed passes; whole file green (re-run 2026-11-08 on 96fd210b1c: run 3 (6 files), 108 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:31.287506+00:00",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "An internal changelog fragment exists and the per-Mission guard-cost follow-up is drafted (not filed).",
+      "proof_type": "manual_qa",
+      "evidence": "docs/changelog/unreleased/7183-nightly-reds.internal.md exists (commit 96fd210b1c); the per-Mission guard-cost follow-up is drafted, not filed, in kitty-specs/nightly-reds-remediation-01M6VYS1/traces/tooling-friction.md (filing is the operator's call). Inspected by file read, no automated node.",
+      "pass_fail": "pass",
+      "verified_by": "claude-sonnet-5-5",
+      "verified_at": "2026-11-07T23:36:32.660306+00:00",
+      "notes": null
+    }
+  ],
+  "negative_invariants": []
+}

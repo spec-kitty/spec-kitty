@@ -1,0 +1,148 @@
+{
+  "event_count": 29,
+  "last_event_id": "01M6W44VERGP3Q0ZR9643FRWC5",
+  "materialized_at": "2026-11-07T23:05:23.672213+00:00",
+  "mission_number": "",
+  "mission_slug": "nightly-reds-remediation-01M6VYS1",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-opus-reviewer",
+      "agent": "claude-opus-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M6W303JKBZYEFD2FC7JNYZ75",
+      "last_transition_at": "2026-11-07T22:45:19.571942+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented in 37b68a50b4. RED 2 failed/16 passed; GREEN 18 passed (golden + actor test); neighbours test_caller_seed_refusal_6754 x2 + test_system_actor_6722 39 passed; ruff clean. #7111 rewritten with system-role actor (not a one-line re-pin). Actor-test file has 7 tests (research said 9).",
+        "Approved by independent reviewer (reviewer-renata). 57 passed incl. exact nodes; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/.t3/worktrees/spec-kitty/t3-2b627f15/kitty-specs/nightly-reds-remediation-01M6VYS1/tasks/WP01-test-repins-7177-7111/review-cycle-1.md",
+        "reference": "review-cycle://nightly-reds-remediation-01M6VYS1/WP01-test-repins-7177-7111/review-cycle-1.md",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-opus-reviewer",
+      "agent": "claude-opus-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M6W30X5Y16XE13VH8PPT6Y02",
+      "last_transition_at": "2026-11-07T22:45:45.790243+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented in e219dafeb4. RED 1 failed/15 passed; GREEN test_git_remedies 21 passed; neighbours (notice pins, backfill, integration upgrade, destructive_op_routing) 139 passed; ruff/format/mypy clean. checkout_file_recipe used instead of restore_recipe (staged_differs/index_only).",
+        "Approved by independent reviewer (reviewer-renata); see review-cycle record."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/.t3/worktrees/spec-kitty/t3-2b627f15/kitty-specs/nightly-reds-remediation-01M6VYS1/tasks/WP02-checkout-file-recipe-7178/review-cycle-1.md",
+        "reference": "review-cycle://nightly-reds-remediation-01M6VYS1/WP02-checkout-file-recipe-7178/review-cycle-1.md",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude-opus-reviewer",
+      "agent": "claude-opus-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M6W44VERGP3Q0ZR9643FRWC5",
+      "last_transition_at": "2026-11-07T23:05:23.672213+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented in e788a0336e. RED 10 failed (4+6); GREEN 18+3+5 passed; neighbours 138 passed/1 skipped; ruff clean. Interview nodes keep _emit_error JSON; generate legs of the old test retired (covered by test_generate_rejects_ambiguous_required_directive_without_interview and stored_spelling_6527).",
+        "Changes requested: reachable generate legs deleted (F1), see review-cycle record.",
+        "review cycle 1 rework",
+        "Review cycle 1 rework: restored generate legs (F1), strengthened no-cascade test (F2)",
+        "Review cycle 2 claimed by independent reviewer (reviewer-renata)",
+        "Approved by independent reviewer (reviewer-renata); see review-cycle record."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/stijn/.t3/worktrees/spec-kitty/t3-2b627f15/kitty-specs/nightly-reds-remediation-01M6VYS1/tasks/WP03-charter-repins-7181-7182/review-cycle-2.md",
+        "reference": "review-cycle://nightly-reds-remediation-01M6VYS1/WP03-charter-repins-7181-7182/review-cycle-2.md",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1931743,
+      "shell_pid_created_at": "1794092415.41",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude-opus-reviewer",
+      "agent": "claude-opus-reviewer",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M6W31383EDRZK2PKY1HAP4Q1",
+      "last_transition_at": "2026-11-07T22:45:52.003348+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented in f5f4ec9b98. RED 6 failed; GREEN 6 passed; whole files 110 passed; ruff/format/changelog checks clean. Follow-up (per-Mission 4 git calls) drafted in traces/tooling-friction.md, not filed.",
+        "Approved by independent reviewer (reviewer-renata); see review-cycle record."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/stijn/.t3/worktrees/spec-kitty/t3-2b627f15/kitty-specs/nightly-reds-remediation-01M6VYS1/tasks/WP04-nightly-7183-five-repins/review-cycle-1.md",
+        "reference": "review-cycle://nightly-reds-remediation-01M6VYS1/WP04-nightly-7183-five-repins/review-cycle-1.md",
+        "reviewer": "claude-opus-reviewer",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    }
+  }
+}

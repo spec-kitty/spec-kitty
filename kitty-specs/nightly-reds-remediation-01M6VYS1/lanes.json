@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-reds-remediation-01M6VYS1",
+  "mission_id": "01M6VYS1TSBTWCFWQ0R9F6HJSW",
+  "mission_branch": "issue-7183-nightly-reds-remediation",
+  "target_branch": "issue-7183-nightly-reds-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7183-nightly-reds.internal.md",
+        "src/specify_cli/cli/commands/_git_remedies.py",
+        "src/specify_cli/upgrade/tracked_meta_notice.py",
+        "tests/integration/test_charter_status_freshness.py",
+        "tests/integration/test_pack_skill_lifecycle.py",
+        "tests/integration/test_single_branch_write_checkout_e2e.py",
+        "tests/orchestrator_api/test_wp_lifecycle_structured_actor_6400.py",
+        "tests/specify_cli/cli/commands/test_charter_ambiguous_directives.py",
+        "tests/specify_cli/cli/commands/test_charter_generate_autotrack.py",
+        "tests/specify_cli/cli/commands/test_git_remedies.py",
+        "tests/specify_cli/cli/commands/test_merge.py",
+        "tests/specify_cli/cli/commands/test_merge_cli_golden.py",
+        "tests/specify_cli/cli/commands/test_tasks_status_default_mission.py",
+        "tests/specify_cli/migration/test_residue_shared_walkers_6669.py",
+        "tests/specify_cli/test_charter_activate_cli.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-07T21:36:36.294797+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "18eb6fe7cd6621a783221425194f8aba3f30cbd3"
+}
