@@ -590,13 +590,13 @@
     },
     {
       "criterion_id": "FR-084",
-      "description": "Verify FR-084 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-084 `spec-kitty-events` ADR drafts 0007 and 0008: drafts of ADR 0007 and ADR 0008 in that repository's conventions, delivered as files in this Mission, so that I can land them in my repository. ADR 0007: the write service commits a unit to a branch ref with compare-and-swap, including the `mission-write` contract changes due before 1.0.0. ADR 0008: the read service reads the coordination ledger from git objects.",
+      "proof_type": "inspection: cited ADR/doc sections confirmed present via git show/grep; WP approved in the cited review cycle",
+      "evidence": "spec-kitty-events docs/adr/0007-write-service-commits-coordination-status-by-ref.md and docs/adr/0008-read-service-reads-coordination-ledger-from-git-objects.md (sibling session, branch issue-7284-coordination-ref-write-adrs / spec-kitty-events PR #215), linked from core ADRs 2026-11-06-4..6 and the 2026-10-22-1 amendment; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP03-adr-set-checkouts-cleanup-coordination-write/review-cycle-2.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:16:20.180040+00:00",
+      "notes": "WP03 re-scoped delivery (C-003: spec-kitty-events is read-only from this Mission): the drafts live in spec-kitty-events, not as files in this Mission; core records link them."
     },
     {
       "criterion_id": "FR-090",
