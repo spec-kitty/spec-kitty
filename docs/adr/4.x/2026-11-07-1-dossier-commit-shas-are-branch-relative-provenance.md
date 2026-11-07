@@ -36,6 +36,7 @@ A Mission dossier under `kitty-specs/<mission>/` records git commit SHAs as evid
 - `lanes.json`: `planning_commit_sha`;
 - `status.events.jsonl`: `policy_metadata.lane_head` on every lifecycle transition;
 - `tasks/WP*/baseline-tests.json`: `base_commit`;
+- `acceptance-matrix.json`: `negative_invariants[].verified_ref`;
 - hand-authored evidence: `issue-matrix.json` `evidence_ref`, review evidence, research notes.
 
 Almost all of them are written before the pull request exists: by `consolidate` (local `HEAD`, and
@@ -70,7 +71,8 @@ landing (ADR `2026-10-04-5`, ADR `2026-09-29-1`), where the raw branch SHA is ex
    one to "the rebased equivalent", nulls it, or approximates it. The value as written is correct.
 3. **One registry classifies every SHA field of a tool-written dossier file.** It is
    `DOSSIER_SHA_FIELDS` in `tests/architectural/test_dossier_sha_provenance.py`, covering
-   `meta.json`, `lanes.json`, `status.json`, `status.events.jsonl` and `tasks/WP*/baseline-tests.json`.
+   `meta.json`, `lanes.json`, `status.json`, `status.events.jsonl`, `tasks/WP*/baseline-tests.json`
+   and `acceptance-matrix.json`.
    The gate there fails when one of those files records a full SHA under an unclassified key path, so
    a writer that starts recording a new SHA field classifies it in the same change. Today every entry
    is `BRANCH_RELATIVE` except `pr_merge_commit`, which is `LANDED`.
@@ -80,8 +82,9 @@ landing (ADR `2026-10-04-5`, ADR `2026-09-29-1`), where the raw branch SHA is ex
    `spec-kitty accept --mode pr --merge-commit` and `spec-kitty migrate backfill-merge-commit`). A
    field moves to `LANDED` only together with such a writer.
 5. **SHAs in hand-authored evidence are branch-relative by rule.** This covers `issue-matrix.json`
-   `evidence_ref` prose, review evidence and research notes. They are not in the registry, and a
-   lander never edits them to repoint a cited commit.
+   `evidence_ref` prose, review evidence, research notes and the hand-added `evidence_provenance`
+   block of older `acceptance-matrix.json` files. They are not in the registry, and a lander never
+   edits them to repoint a cited commit.
 6. **The archive freeze stays byte-strict.** No SHA-field mask, no key-level exemption, and no
    freeze exception for a branch-relative SHA a rebase merge left unreachable: such a value is
    neither corrupt nor stale. `_OPERATOR_SANCTIONED_CORRECTIONS` remains for genuinely corrupt files.

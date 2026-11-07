@@ -72,6 +72,17 @@ TOOL_WRITTEN_FILES: frozenset[str] = frozenset(
         "status.json",
         "status.events.jsonl",
         "tasks/WP*/baseline-tests.json",
+        "acceptance-matrix.json",
+    }
+)
+
+#: Subtrees of a tool-written file that hold hand-authored evidence: no writer in
+#: ``src/`` produces them, so the ADR defines every SHA inside as branch-relative
+#: by rule and the walk does not descend into them.
+HAND_AUTHORED_SUBTREES: frozenset[tuple[str, str]] = frozenset(
+    {
+        # Hand-added provenance notes in older acceptance matrices.
+        ("acceptance-matrix.json", "evidence_provenance"),
     }
 )
 
@@ -120,6 +131,10 @@ DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     ("tasks/WP*/baseline-tests.json", "runtime_commits[]"): _BR,
     ("tasks/WP*/baseline-tests.json", "immutable_baseline.source_commit"): _BR,
     ("tasks/WP*/baseline-tests.json", "immutable_baseline.source_tree"): _BR,
+    # acceptance/matrix.py _stamp_provenance and acceptance/post_consolidation.py:
+    # the commit a negative invariant was verified at (a branch commit, or the
+    # consolidation result).
+    ("acceptance-matrix.json", "negative_invariants[].verified_ref"): _BR,
 }
 
 #: Non-vacuity floors for the real tree: the scan must see at least this many
@@ -132,15 +147,20 @@ def _normalise_file(relative: Path) -> str:
     return "/".join("WP*" if _WP_SEGMENT.match(part) else part for part in relative.parts)
 
 
-def _sha_key_paths(node: object, prefix: str = "") -> Iterator[str]:
-    """Yield the key path of every full-SHA string inside a decoded JSON value."""
+def _sha_key_paths(node: object, prefix: str = "", skip: frozenset[str] = frozenset()) -> Iterator[str]:
+    """Yield the key path of every full-SHA string inside a decoded JSON value.
+
+    A key path in ``skip`` (a hand-authored subtree) is not descended into.
+    """
+    if prefix in skip:
+        return
     if isinstance(node, dict):
         for key, value in node.items():
             segment = "*" if _WP_SEGMENT.match(str(key)) else str(key)
-            yield from _sha_key_paths(value, f"{prefix}.{segment}" if prefix else segment)
+            yield from _sha_key_paths(value, f"{prefix}.{segment}" if prefix else segment, skip)
     elif isinstance(node, list):
         for item in node:
-            yield from _sha_key_paths(item, f"{prefix}[]")
+            yield from _sha_key_paths(item, f"{prefix}[]", skip)
     elif isinstance(node, str) and _FULL_SHA.match(node):
         yield prefix
 
@@ -173,8 +193,9 @@ def scan_sha_fields(specs_root: Path) -> list[tuple[str, str, str]]:
             if normalised not in TOOL_WRITTEN_FILES:
                 continue
             where = path.relative_to(specs_root).as_posix()
+            skip = frozenset(subtree for file, subtree in HAND_AUTHORED_SUBTREES if file == normalised)
             for record in _decoded_records(path):
-                found.extend((normalised, key_path, where) for key_path in _sha_key_paths(record))
+                found.extend((normalised, key_path, where) for key_path in _sha_key_paths(record, skip=skip))
     return found
 
 
@@ -220,6 +241,10 @@ def test_gate_reports_an_unclassified_sha_field(tmp_path: Path) -> None:
     _write(mission / "status.events.jsonl", json.dumps({"policy_metadata": {"lane_head": sha, "new_head": sha}}) + "\nnot json\n")
     _write(mission / "tasks" / "WP03-thing" / "baseline-tests.json", json.dumps({"base_commit": sha, "extra": [sha]}))
     _write(mission / "status.json", json.dumps({"work_packages": {"WP02": {"review_result": {"reference": sha, "other": sha}}}}))
+    _write(
+        mission / "acceptance-matrix.json",
+        json.dumps({"negative_invariants": [{"verified_ref": sha, "checked_at": sha}], "evidence_provenance": {"E-1": {"verified_ref": sha}}}),
+    )
     # Hand-authored evidence is outside the registry and never reported.
     _write(mission / "research" / "notes.json", json.dumps({"base_sha": sha}))
     _write(mission / "issue-matrix.json", json.dumps({"rows": [{"evidence_ref": sha}]}))
@@ -233,6 +258,7 @@ def test_gate_reports_an_unclassified_sha_field(tmp_path: Path) -> None:
         ("status.events.jsonl", "policy_metadata.new_head"),
         ("tasks/WP*/baseline-tests.json", "extra[]"),
         ("status.json", "work_packages.*.review_result.other"),
+        ("acceptance-matrix.json", "negative_invariants[].checked_at"),
     }
 
 
