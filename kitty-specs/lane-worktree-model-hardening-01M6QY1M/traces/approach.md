@@ -33,3 +33,5 @@
 - WP18 approved. Closeout (ruled out of WP18): WP10 error codes into contracts/error-codes.yaml; MISSION_BRANCH_REF in ADR + data-model; WP12 ADR S8 text correction. Friction: scripts/docs checks need PYTHONPATH=<worktree>.
 
 - Merged origin/main into the topic branch (056334e235) so the WP16 lane (which merged main for #7275 guarded_landed_removal) passes the for_review kitty-specs gate. ADR 2026-10-04-5 conflict: both amendments kept. Closeout: main took orchestrator-api contract 1.24.0 (#7210); this Mission bumps to 1.25.0 (done on lane-m) — reconcile at consolidation and fix the 1.24.0 citation WP17 put in AGENTS.md/CLAUDE.md. Closeout: 8 WP15 lane_cleanup names flagged by test_no_dead_symbols; WP16 local-mode acceptance advice still raw git (follow-up); WP16 MainTodayRemover fallback for empty PASS tip (follow-up).
+
+- WP16 approved. Closeout: ADR 2026-11-06-3 line 108 + WP15 prompt/design-decisions cite 1.24.0 -> 1.25.0; test_no_dead_symbols red on 8 WP15 lane_cleanup __all__ names; orchestrator-api passes live target tip as passed_sha (weaker O3-local proof, follow-up); 2 mypy no-any-return in acceptance/__init__.py (1151, 2080, pre-existing).

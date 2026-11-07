@@ -565,6 +565,9 @@
       "last_event_id": "01M6SYG6FGBKWSE9WSF6DQ9VEQ",
       "last_transition_at": "2026-11-07T02:48:15.088167+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: guard binding, O3-local proof, pr-mode cleanup, prune backstop; nits in /tmp/claude-0/-home-user/b39dd30a-f8d3-5041-9f9d-c4d868483fea/scratchpad/feedback-WP16-1.md"
+      ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP16:20261107",
