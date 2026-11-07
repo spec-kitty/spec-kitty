@@ -27,8 +27,9 @@ file at the same mission-relative path:
 
 * **identical** — bytes proven equal to the shipped counterpart → REMOVED
   through ``guard_destructive_removal`` with a canonical-bytes prover. The
-  override tier exists for customisations; once the copy is gone the canonical
-  tier resolves again (the global runtime or the packs copy).
+  override tier exists for customisations; once the copy is gone the next
+  resolution tier answers again (a legacy ``.kittify/templates/`` copy, an org
+  pack, the global runtime, or the shipped packs copy).
 * **differs** — a counterpart exists but the bytes differ → PRESERVED verbatim
   and named in a warning. Under #4961 differing bytes cannot be proven
   package-owned, so deleting them is ruled out; ``2.0.7`` could not have removed
