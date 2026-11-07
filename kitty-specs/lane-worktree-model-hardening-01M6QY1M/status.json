@@ -606,7 +606,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "S7: late topic-branch PRIMARY changes land before coordination teardown (or refuse, triple kept); resume anchors on pre_mutation_coord_sha; post-landing PRIMARY anchor = target; lands_topic_branch predicate; projection not widened. Commits 14ad4d8f61 (red), 893dc2bbdd.",
-        "Cycle 2: second landing path removed; teardown refuses (CoordinationTeardownError, triple kept) on unlanded topic PRIMARY; Window B/resume pins red on base 55fb46379a; orchestrator-api characterization pin"
+        "Cycle 2: second landing path removed; teardown refuses (CoordinationTeardownError, triple kept) on unlanded topic PRIMARY; Window B/resume pins red on base 55fb46379a; orchestrator-api characterization pin",
+        "Review passed: cycle-1 blockers resolved (pure refusal, no second landing path; Window B/resume red-first, orchestrator-api characterization pin). Nits: G2 mission_number assertion weakened; commit-message typo."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
