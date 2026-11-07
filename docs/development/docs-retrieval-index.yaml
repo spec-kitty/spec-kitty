@@ -4248,6 +4248,15 @@ pages:
     - {slug: "2-the-cursor-names-the-blob", text: "2. The cursor names the blob", level: 3}
     - {slug: "3-no-change", text: "3. No change", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-07-1-dossier-commit-shas-are-branch-relative-provenance.md"
+    title: "ADR: dossier commit SHAs are branch-relative provenance"
+    divio_type: "none"
+    abstract: "A commit SHA a Mission dossier records names a commit on the branch the work was built on; after a rebase merge it is never repointed, and the archive freeze stays byte-strict."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -11412,6 +11421,7 @@ pages:
     - {slug: "lane-consolidation", text: "Lane Consolidation", level: 3}
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
+    - {slug: "branch-relative-provenance", text: "Branch-relative provenance", level: 3}
     - {slug: "evidence-gate", text: "Evidence gate", level: 3}
     - {slug: "origin-freshness-check", text: "Origin freshness check", level: 3}
     - {slug: "status-evidence-branch", text: "Status evidence branch", level: 3}
