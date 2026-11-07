@@ -1096,13 +1096,18 @@ def _emit_decisions_lock_timeout(exc: DecisionError, json_output: bool) -> None:
         "Do not send --result again: the advancement is already recorded. Re-run the same command without "
         "--result (query mode, read-only) to see the issued action; the next advancing call commits it."
     )
+    # The shared refusal ends "retry the command"; here a retry re-sends --result,
+    # so state the facts without it and leave the remedy to ``next_step``.
+    from specify_cli.decisions.lock import RETRY_REMEDY
+
+    summary = str(exc).removesuffix(RETRY_REMEDY) + "."
     if json_output:
         from specify_cli import __version__
 
         payload: dict[str, object] = {
             "result": "error",
             "error_code": exc.code.value,
-            "error": str(exc),
+            "error": summary,
             "lock_path": exc.details.get("lock_path"),
             "timeout_seconds": exc.details.get("timeout_seconds"),
             "next_step": remediation,
@@ -1110,7 +1115,7 @@ def _emit_decisions_lock_timeout(exc: DecisionError, json_output: bool) -> None:
         }
         print(json.dumps(payload, indent=2))
     else:
-        print(f"Error: [{exc.code.value}] {exc}", file=sys.stderr)
+        print(f"Error: [{exc.code.value}] {summary}", file=sys.stderr)
         print(f"  Next: {remediation}", file=sys.stderr)
 
 

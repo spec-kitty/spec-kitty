@@ -855,8 +855,11 @@ def run_decisions_reconciliation(
     :func:`specify_cli.decisions.lock.decisions_lock`, whose timeout is the
     one decisions-lock refusal (``DecisionError(LOCK_TIMEOUT)``). That error is rendered as this family's
     C2 envelope (``{"ok": false, "error": {...}}`` under ``--json``, a Rich
-    ``Error:`` line otherwise), the command exits 1, and nothing is written —
-    the critical section never ran. Never a raw ``LockAcquireTimeout``
+    ``Error:`` line otherwise) and the command exits 1. Nothing is written by
+    the refused hold, whose critical section never ran; when the index rebuild
+    was already saved under an earlier hold and only the coordination-only
+    ledger copy was refused, the error says so (``_INDEX_REBUILT_NOTE``).
+    Never a raw ``LockAcquireTimeout``
     traceback, and never a partial report followed by an error document.
     """
     # Function-local (H2/I-6 precedent, ``_review_cycle_reconcile_doctor.py``):

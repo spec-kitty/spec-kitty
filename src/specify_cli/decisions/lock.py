@@ -62,6 +62,7 @@ __all__ = [
     "ACQUIRE_TIMEOUT_S",
     "LOCK_FILENAME",
     "OPEN_WAIT_S",
+    "RETRY_REMEDY",
     "decisions_lock",
     "decisions_write_locks",
     "is_lock_timeout",
@@ -78,6 +79,10 @@ LOCK_FILENAME = "index.json.lock"
 #: rather than hanging the caller. Read at call time (``_lock.ACQUIRE_TIMEOUT_S``)
 #: so a test can pin it for every holder at once.
 ACQUIRE_TIMEOUT_S: float | None = 10.0
+
+#: The refusal's closing remedy. A caller whose retry is unsafe (an owned
+#: ``next`` whose advancement is already recorded) strips it and states its own.
+RETRY_REMEDY = "; retry the command."
 
 #: #4848 (operator ruling): an open waits WITHOUT a bound -- the same unbounded
 #: wait the Mission status lock uses. The holder of the decisions lock may itself
@@ -136,7 +141,7 @@ def lock_timeout_error(
         },
         message=(
             f"Timed out after {waited} waiting for the decisions lock {str(held_lock)!r}; "
-            "another decision command is holding it. Nothing was written under this lock; retry the command."
+            f"another decision command is holding it. Nothing was written under this lock{RETRY_REMEDY}"
         ),
     )
 

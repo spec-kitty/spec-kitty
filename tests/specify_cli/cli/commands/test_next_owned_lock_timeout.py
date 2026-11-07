@@ -118,6 +118,8 @@ def test_owned_next_lock_timeout_is_a_refusal(tmp_path: Path, monkeypatch: pytes
     assert "do not send --result again" in payload["next_step"].lower()
     assert "without --result" in payload["next_step"].lower()
     assert "already recorded" in payload["next_step"].lower()
+    assert "retry the command" not in payload["error"].lower()
+    assert payload["error"].endswith("Nothing was written under this lock.")
     assert payload["spec_kitty_version"]
     assert printed == [], "a refused commit must not print a decision"
 
@@ -138,6 +140,7 @@ def test_owned_next_lock_timeout_refusal_human_mode(tmp_path: Path, monkeypatch:
     assert "DECISION_LOCK_TIMEOUT" in captured.err
     assert str(lock) in captured.err
     assert "Next:" in captured.err
+    assert "retry the command" not in captured.err.lower()
     assert "without --result" in " ".join(captured.err.split())
     assert printed == []
 
