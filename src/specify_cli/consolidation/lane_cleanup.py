@@ -230,6 +230,13 @@ def _legs_to_run(item: LaneCleanupItem, retention: LaneRetention) -> LaneCleanup
     )
 
 
+def _partial_detail(legs: LaneCleanupItem, detail: str) -> str:
+    """The detail for a lane where some legs ran and the rest were retained, naming both."""
+    ran = [name for name, leg in (("worktree", legs.worktree), ("branch", legs.branch)) if leg is not None]
+    kept = [name for name in ("worktree", "branch") if name not in ran]
+    return f"{' and '.join(ran)} removed; {' and '.join(kept)} retained, {detail}"
+
+
 def apply(
     items: Iterable[LaneCleanupItem],
     remover: LaneRemover,
@@ -248,7 +255,7 @@ def apply(
         result = _remove_one(remover, legs, landing)
         result = replace(result, item=item)
         if result.outcome is LaneCleanupOutcome.REMOVED and detail is not None:
-            result = replace(result, outcome=LaneCleanupOutcome.RETAINED_BY_POLICY, detail=detail)
+            result = replace(result, outcome=LaneCleanupOutcome.RETAINED_BY_POLICY, detail=_partial_detail(legs, detail))
         results.append(result)
     return LaneCleanupReport(results=tuple(results))
 
