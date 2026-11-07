@@ -33,7 +33,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: tests/specify_cli/
 create_intent:
-- docs/changelog/unreleased/7183-nightly-reds.internal.md
+- docs/changelog/unreleased/7340.internal.md
 execution_mode: code_change
 model: claude-sonnet-5-5
 owned_files:
@@ -42,7 +42,7 @@ owned_files:
 - tests/specify_cli/migration/test_residue_shared_walkers_6669.py
 - tests/integration/test_pack_skill_lifecycle.py
 - tests/integration/test_single_branch_write_checkout_e2e.py
-- docs/changelog/unreleased/7183-nightly-reds.internal.md
+- docs/changelog/unreleased/7340.internal.md
 role: implementer
 tags: []
 task_type: implement
@@ -108,7 +108,7 @@ Wrap HTML/XML tags in backticks. Use language identifiers in code blocks.
 
 ### Subtask T018 - changelog fragment and drafted follow-up
 
-- Create `docs/changelog/unreleased/7183-nightly-reds.internal.md` (read `docs/changelog/unreleased/README.md` first): one entry in the changelog's style, US spelling, no heading, e.g. `- **Nightly reds #7177, #7178, #7111, #7181, #7182, #7183 cleared** ...` stating that stale out-of-matrix pins were re-pinned and the upgrade tracked-meta notice now renders its restore remedy through the git-remedies home. Run `uv run --frozen python -m scripts.docs.check_changelog_style` and `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased`.
+- Create `docs/changelog/unreleased/7340.internal.md` (read `docs/changelog/unreleased/README.md` first): one entry in the changelog's style, US spelling, no heading, e.g. `- **Nightly reds #7177, #7178, #7111, #7181, #7182, #7183 cleared** ...` stating that stale out-of-matrix pins were re-pinned and the upgrade tracked-meta notice now renders its restore remedy through the git-remedies home. Run `uv run --frozen python -m scripts.docs.check_changelog_style` and `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased`.
 - Append to `kitty-specs/nightly-reds-remediation-01M6VYS1/traces/tooling-friction.md` a dated draft of the follow-up issue: the tracked-meta guard costs 4 git subprocess calls per real Mission per cutover walk (2 + 4N for N Missions); proposal: pass the walk's already-computed `tracked` set into the guard to short-circuit call 6. Also note the process finding: out-of-matrix tests drift because per-PR CI never runs them (near-duplicate pairs like n1). Do NOT file the issue; report it for the operator.
 
 ### Subtask T019 - Evidence and neighbour guards
