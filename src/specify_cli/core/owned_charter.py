@@ -18,8 +18,17 @@ def charter_scope_for_owned(owned: OwnedCheckout, feature_dir: Path | None = Non
     from charter.activation.api import CharterScope, OwnedCharterInvocation
 
     if feature_dir is not None and feature_dir.resolve() != owned.mission_dir.resolve():
+        from mission_runtime import MissionArtifactKind, mission_context_for
         from specify_cli.core.owned_mission import MISSION_CONTEXT_CONFLICT
 
-        raise ActionContextError(MISSION_CONTEXT_CONFLICT, "charter Mission differs from the validated owned checkout")
+        mission_context = mission_context_for(
+            owned.repository_root,
+            owned.mission_slug,
+            owned=owned,
+            tolerate_unmaterialized_coord=True,
+        )
+        status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        if feature_dir.resolve() != status_dir.resolve():
+            raise ActionContextError(MISSION_CONTEXT_CONFLICT, "charter Mission differs from the validated owned checkout")
     scope = CharterScope.resolve(owned.owned_root, owned.mission_dir)
     return replace(scope, invocation=OwnedCharterInvocation(owned.owned_root, owned.mission_slug))
