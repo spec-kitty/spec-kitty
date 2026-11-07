@@ -275,3 +275,42 @@ Nothing else in this record changes.
 - **D-1 (the `event-log` module writes all ledgers) and D-5 (native first, JVM jar fallback).** The `event-log` module and the `command-cli` deployable live in `spec-kitty-events`. Core takes both the native binary and the jar from a pinned `service-v*` release, executes either only when its sha256 matches the pin, and fetches it on first use. The no-Python-writer rule and the named refusal are unchanged; the refusal codes are listed in 2026-10-29-1 D-5.
 
 Nothing else in this record changes.
+
+## Amendment 2026-11-06: D-6 records and step 4a
+
+**Status of this amendment:** Proposed (2026-11-06), with the five records it names; the rest of this record stays Accepted. Operator ruling 4 of epic [#7276](https://github.com/spec-kitty/spec-kitty/issues/7276) (DM `01M6QY371KRY5XXQMDQ4WZR1YE`, Mission `lane-worktree-model-hardening-01M6QY1M`): write the ADR set for the Java write service writing coordination status without a coordination worktree; ADRs only, the implementation follows migration step 4. Slice S9, [#7284](https://github.com/spec-kitty/spec-kitty/issues/7284).
+
+**D-6 applies.** Committing a coordination Mission's ledger into git objects, with no coordination worktree, is a new storage adapter of `EventLogPort`, not "the local file ledger". D-6's "each of those needs its own ADR before such an adapter is built" therefore binds, and these records discharge it:
+
+- **C-1** [ADR 2026-11-06-4](2026-11-06-4-coordination-branch-written-by-commit.md): a coordination branch is written by commit, not through a coordination worktree.
+- **C-2** [ADR 2026-11-06-5](2026-11-06-5-gates-over-worktree-less-coordination.md): consolidation gates hold over a coordination branch with no worktree.
+- **C-3** [ADR 2026-11-06-6](2026-11-06-6-committed-ledger-is-the-coordination-blob.md): the committed ledger of a coordination Mission is the blob on its coordination branch.
+- **events ADR-0007** `docs/adr/0007-write-service-commits-coordination-status-by-ref.md`: the write service commits coordination status onto the branch ref by compare-and-swap.
+- **events ADR-0008** `docs/adr/0008-read-service-reads-coordination-ledger-from-git-objects.md`: the read service reads a coordination ledger from git objects.
+
+The two events records live in [`spec-kitty/spec-kitty-events`](https://github.com/spec-kitty/spec-kitty-events), branch `issue-7284-coordination-ref-write-adrs`, pull request [spec-kitty/spec-kitty-events#215](https://github.com/spec-kitty/spec-kitty-events/pull/215) (placement rule of [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) D-1: Java service internals and the `mission-write` contract are decided there).
+
+**Mapping.** Each D-6 bullet, quoted, maps to exactly one record:
+
+| D-6 bullet | Record | Confirmation tests named by that record |
+|---|---|---|
+| "`EventLogPort` is a storage abstraction from the first Java write, and the only adapter that ships is the local file ledger." | events ADR-0007 | ADR-0007 Confirmation (`command-cli`, `spec-kitty-events`): one commit per unit and per batch with the prior tip as parent and only the log path changed; the first write commits; index, `HEAD` and working tree unchanged and planted hooks never run; `COORDINATION_REF_MOVED`, `SERVICE_BUSY`, `COORDINATION_BRANCH_DELETED`, `COORDINATION_REF_CHECKED_OUT`, `COORDINATION_LEDGER_UNREADABLE`; replay and `EVENT_ID_CONFLICT`. Today: `OperationsTest` and `contracts/tools/enum_pins.json`. |
+| "A database or hosted adapter is **not** a drop-in replacement under the current decisions:" | this amendment | Its four sub-bullets are the next four rows, each with its own record. |
+| "the git-committed ledger is the publication seam (ADR 2026-10-13-2 D-2);" | C-3 | `tests/status/test_events_tail_coordination_ref.py`, `tests/status/test_tail_cursor_source_ref.py`, `tests/status/test_read_door_missing_ref_parity.py` (to be written by the step-4 Mission). |
+| "the read API pulls the committed ledger (ADR 2026-10-01-2 D-6);" | events ADR-0008 | ADR-0008 Confirmation: oracle parity and corpus comparison on the no-worktree fixture; architecture rule 10; the native image answers with no `git` on `PATH`, starting no process and writing no file; one tip per read under a concurrent ref move; named answers for a missing ref and an unsupported ref backend. |
+| "merge semantics are file based (ADR 2026-02-09-3);" | C-2 | `tests/consolidation/test_late_window_reads_pinned_ref.py` (to be written); S10's `tests/coordination/test_projection_teardown.py` and `tests/consolidation/test_late_teardown_projection.py` on a ref-only coordination branch. |
+| "the consolidation gates rely on git ancestry and on `lane_head` stamps." | C-2 | Unchanged and green: `tests/consolidation/test_approved_bound.py`, `test_approved_bound_residuals.py`, `test_wp_attribution.py`, `test_wp_evidence.py`, `test_claim_integrity_refusal.py`, `tests/specify_cli/lanes/test_for_review_gate_parity.py`; to be written: `tests/consolidation/test_coordination_write_fence.py`, `test_rollback_without_coordination_checkout.py`, `test_resume_recovery_roles.py`. |
+| "Each of those needs its own ADR before such an adapter is built." | this amendment | This table: every bullet above names one record, and each record names its tests. |
+| "This decision adds no hosted surface to open-core (#6164 stands)." | this amendment | Unchanged: none of the five records adds a hosted surface; the services stay loopback and local. |
+
+C-3 D-2 states the core side of the read API amendment (ADR 2026-10-01-2 D-3, D-6) and points to ADR-0008 for how the read service does it; it is not a second discharge of that bullet. C-1 discharges no D-6 bullet of its own: it is the placement decision every row above relies on, and the step below.
+
+**Step 4a.** The migration order gains:
+
+- **4a. Coordination writes by commit; the coordination worktree is retired** (C-1). The write service serves `writeSurface: coordination_ref_commit` (events ADR-0007); every coordination-partition kind has a rule (C-1 D-3); existing coordination worktrees are drained and removed under the destructive guard (C-1 D-9); the CLI's five coordination-worktree codes retire (C-1 D-8).
+
+**Steps 4 and 4a ship in one release** (C-1 D-10). `coordination_ref_commit` goes live only in the release that also ships C-1's artefact rule (notes, trace, issue matrix, decisions, byproducts; #7266) and the drain and removal of existing coordination worktrees. Step 4 deletes the Python appenders and D-5 forbids a Python fallback writer, so a step 4 without step 4a would leave every existing coordination Mission refused with `COORDINATION_REF_CHECKED_OUT` on every transition.
+
+**Open question 2** (when write-location resolution moves into the service) keeps its default, step 4; for coordination Missions the location the service resolves is `refs/heads/<coord>`, and `destinationRef` becomes required for that surface (C-1 D-7, amending [ADR 2026-10-27-1](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) D-3).
+
+Nothing else in this record changes.

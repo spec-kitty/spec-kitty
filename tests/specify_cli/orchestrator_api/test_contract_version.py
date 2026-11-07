@@ -87,8 +87,8 @@ def test_contract_version_response_reports_the_current_contract_version() -> Non
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.23.0"
-    assert envelope["contract_version"] == "1.23.0"
+    assert envelope["data"]["api_version"] == "1.24.0"
+    assert envelope["contract_version"] == "1.24.0"
 
 
 def test_min_provider_version_unchanged() -> None:
