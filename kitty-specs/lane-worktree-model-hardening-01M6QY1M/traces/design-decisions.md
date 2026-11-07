@@ -136,3 +136,19 @@ The merge was aborted, and lane-j is unchanged. Per the ruling this needs option
 - [2026-11-07][closeout] WP13 rework for the lane-j refresh conflict: approved->in_progress (no force), refresh merge 26fcda81d2 resolving _baselines.yaml (allowlist_entries 233, widened 84) and dead_symbol_allowlist.yaml (both categories). Orchestrator ruling: --force on the in_progress->for_review move only, to bypass the lane-behind-target freshness check (merging the topic branch into a lane would bring main and kitty-specs/ content into it). Pre-review gate: no new failures. Friction: implement cannot rework an approved WP whose refresh conflicts; for_review refuses a lane behind the target even for a consolidation refresh.
 
 - [2026-11-07][closeout] WP13 rework approved (feedback: no findings; gates 216, WP13 set 657, dead symbols 37 passed). Approval recorded by the orchestrator with --force (same freshness check only); the event is a forced hop out of an unforced in_review with an approved review_result and stamps lane_head 26fcda81d2, so it counts as a review approval (#5721 rule).
+
+## [closeout 2026-11-07] after the WP13 rework: lane-j passes, lane-c (WP06) refresh conflicts
+
+Topic branch 5e5ba839e6. Consolidate merged e, a, f, h, l, b, i and j (j on its new stamp
+26fcda81d2), then refused lane-c (WP06) as stale on `tests/architectural/_baselines.yaml` and
+`tests/architectural/dead_symbol_allowlist.yaml`. Merging the mission commit that run built (12e835c)
+into lane-c conflicts:
+- `_baselines.yaml`: lane-c has `allowlist_entries` 231 (WP06 burns down WP05's
+  `read_status_events` entry) and widened 83; the mission side has 233 and 84 (WP13). The
+  expected union is 232 and 84.
+- `dead_symbol_allowlist.yaml`: lane-c removed the `category_c_status_read_door_7277` category,
+  and the mission side has WP13's `category_c_topology_settlement_7282` beside it. The
+  expected resolution keeps 7282 and drops 7277.
+The merge was aborted and lane-c is unchanged. Under the ruling, WP06 needs rework (option b).
+Every lane still to merge (g, d, k, m, p, n, o) also changes `_baselines.yaml`, and g, m, n and o
+also change `dead_symbol_allowlist.yaml`, so each is likely to need the same rework in turn.
