@@ -90,13 +90,13 @@
     },
     {
       "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "description": "FR-011 Pass with the lane checkout absent: the gate to pass with the lane checkout absent when the lane branch carries a commit beyond its base, so that I never need `--force`.",
+      "proof_type": "inspection: cited tests confirmed present on the approving lane branch via git show; WP approved in the cited review cycle; tests not re-run by this verifier",
+      "evidence": "lane-e:tests/specify_cli/lanes/test_for_review_gate_parity.py::test_transition_passes_with_checkout_removed; lane-e:tests/specify_cli/lanes/test_for_review_gate_parity.py::test_status_emit_passes_with_checkout_removed; approved: kitty-specs/lane-worktree-model-hardening-01M6QY1M/tasks/WP08-s2-for-review-gate-on-lane-branch/review-cycle-3.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-07T06:12:09.076242+00:00",
+      "notes": ""
     },
     {
       "criterion_id": "FR-012",
