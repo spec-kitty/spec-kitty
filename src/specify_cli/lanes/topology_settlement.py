@@ -394,6 +394,7 @@ class _CoordPlan:
     decision: TopologyDecision
     write_lanes: Callable[[Path], None]
     topic_tip_before: str = ""
+    settlement_commit: str = ""
     committed: bool = False
     coord_dir: Path | None = None
     coord_meta_before: bytes | None = None
@@ -406,13 +407,24 @@ class _CoordPlan:
         if _git(root, "diff", "--cached", "--quiet").returncode == 0:
             return
         _git_ok(root, "commit", "-q", "--no-verify", "-m", f"chore({self.ctx.mission_dir_name}): planning state before topology settlement")
+        self.settlement_commit = _git_ok(root, "rev-parse", "HEAD")
         self.committed = True
 
     def uncommit_mission_dir(self) -> None:
         root = self.ctx.repo_root
         if self.committed:
-            new_tip = _git_ok(root, "rev-parse", f"refs/heads/{self.ctx.topic}")
-            _git_ok(root, "update-ref", f"refs/heads/{self.ctx.topic}", self.topic_tip_before, new_tip)
+            ref = f"refs/heads/{self.ctx.topic}"
+            live_tip = _git_ok(root, "rev-parse", ref)
+            if live_tip != self.settlement_commit:
+                # #7276: never rewind past commits made after the settlement commit.
+                raise _refuse(
+                    f"the topic branch {self.ctx.topic!r} moved past the settlement commit "
+                    f"{self.settlement_commit} (now {live_tip}); it was kept. Revert the settlement "
+                    "commit by hand if it must go."
+                )
+            # Compare-and-swap on the commit this run made: a concurrent move still fails closed.
+            _git_ok(root, "update-ref", ref, self.topic_tip_before, self.settlement_commit)
+            self.committed = False
         _git_ok(root, "reset", "-q")
 
     def move_root_checkout(self) -> None:
