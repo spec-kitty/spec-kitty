@@ -151,3 +151,7 @@ On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed
 - Plan: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/plan.md` §KD-2, §Risks & Premortem R-7
 - Data model: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/data-model.md` §E-6, §E-9
 - Spec: `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/spec.md` §FR-005, §FR-008, §FR-014, §FR-016, §NFR-006, §NFR-008, §US-5, §EC-5
+
+## Amendment 2026-10-30: preserved `.failed` dirs are bounded to the newest three (#6723)
+
+The `.failed` preservation above kept every failed run, so a repeatedly-refused project accumulated one directory per attempt (#4226 counted 15, then 16, on one repository). Now, after the current run's failure is written, only the newest three preserved `.staging/*.failed/` directories are kept (`DEFAULT_KEEP_FAILED_RUNS` in `charter.activation.synthesizer.staging`) and the older ones are removed through `PathGuard.rmtree`. Ordering is newest-first by directory modification time with the name as a tiebreak. The run being reported is never removed, a live `.staging/<runid>/` is never a candidate, and a symbolic link named `*.failed` is never followed or removed. The diagnostic value under Consequences is unchanged for the latest refusals, and the disk cost of repeated refusals is bounded.
