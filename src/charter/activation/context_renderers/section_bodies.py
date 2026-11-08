@@ -313,6 +313,15 @@ def _resolved_body(charter_content: str, heading: str) -> str | None:
 def _render_fetch_stanza(heading: str, *, scope: CharterScope | None = None) -> list[str]:
     """Return the fetch + when-doing stanza for a resolved section header.
 
+    Delegates to the canonical composer
+    (:func:`charter.activation.context_renderers.fetch_stanza.fetch_stanza_lines`),
+    which normalizes the when-doing clause into the closed ``_WHEN_DOING_RE``
+    lead-in set (#3093). The section copy in
+    :data:`CRITICAL_SECTION_WHEN_CLAUSES` is authored prose — two of its clauses
+    (``prepare a WP for review``, ``perform a terminology cutover``) do not lead
+    with one of the six lead-ins — so a second, hand-rolled composer here emitted
+    ``section:*`` stanzas that violated the per-stanza governance contract.
+
     The shape is the one pinned by the ATDD helper
     ``_contains_either_body_or_fetch_with_conditional`` in
     ``tests/specify_cli/next/test_wp_prompt_governance_contract.py``:
@@ -323,14 +332,16 @@ def _render_fetch_stanza(heading: str, *, scope: CharterScope | None = None) -> 
       :data:`_WHEN_DOING_RE` matches.
     """
 
-    selector = f"section:{_slugify_heading(heading)}"
-    when_clause = CRITICAL_SECTION_WHEN_CLAUSES.get(heading, _DEFAULT_WHEN_CLAUSE)
-    from charter.activation.context_renderers.fetch_stanza import fetch_command
+    from charter.activation.context_renderers.fetch_stanza import fetch_stanza_lines
 
-    return [
-        f"  Run: {fetch_command(selector, scope=scope)}",
-        f"  When you {when_clause}, run this command and apply the returned rule.",
-    ]
+    return list(
+        fetch_stanza_lines(
+            critical_section_selector(heading),
+            CRITICAL_SECTION_WHEN_CLAUSES.get(heading, _DEFAULT_WHEN_CLAUSE),
+            indent="  ",
+            scope=scope,
+        )
+    )
 
 
 def render_critical_section_bodies(
