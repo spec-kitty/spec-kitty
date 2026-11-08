@@ -108,6 +108,10 @@ def _patch_merge_environment(
     # ``raising=True``. ``resume_recovery`` stopped importing ``run_command`` in
     # f43599bf (#5965/#5966, routed through the destructive guard); it is kept
     # out of this list deliberately (#6036).
+    # The fake repository has no Mission branch; the dry run now refuses that like the
+    # real run (#7267, MISSION_BRANCH_MISSING). This test is not about that refusal,
+    # so model the branch as present.
+    monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
     for _target in (
         "specify_cli.consolidation.run_state.run_command",
         "specify_cli.consolidation.phase_claim.run_command",

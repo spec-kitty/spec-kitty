@@ -310,6 +310,10 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
     monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
+    # The fake repository has no Mission branch; the dry run now refuses that like the
+    # real run (#7267, MISSION_BRANCH_MISSING). This test is not about that refusal,
+    # so model the branch as present.
+    monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
 
     result = runner.invoke(
         cli_app,
@@ -494,6 +498,10 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
     monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
+    # The fake repository has no Mission branch; the dry run now refuses that like the
+    # real run (#7267, MISSION_BRANCH_MISSING). This test is not about that refusal,
+    # so model the branch as present.
+    monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
     result = runner.invoke(
         cli_app,
         [
