@@ -961,12 +961,14 @@ def _emit_finalize_error_with_revert_note(
     """
     from specify_cli.cli.commands.agent import mission_finalize as _mf
 
-    from specify_cli.lanes.compute import LaneDependencyCycleError, LaneMembershipFrozenError
+    from specify_cli.lanes.compute import LaneDependencyCycleError, LaneIdExhaustedError, LaneMembershipFrozenError
 
     if json_output:
         error_payload: dict[str, object] = {"error": str(error)}
         if isinstance(error, ActionContextError):
             error_payload["error_code"] = error.code
+        if isinstance(error, LaneIdExhaustedError):
+            error_payload["error_code"] = error.error_code
         if isinstance(error, LaneMembershipFrozenError):
             error_payload.update(
                 {
