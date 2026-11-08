@@ -181,6 +181,30 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
     assert "python-pedro" in catalog.agent_profiles
 
 
+def test_load_yaml_id_catalog_skips_an_artifact_with_no_authored_id(tmp_path: Path) -> None:
+    """Identity is the authored ``id``, never the filename stem (#4856).
+
+    After #4852 the filename is a cosmetic kebab slug while the authored ``id``
+    stays the canonical (SCREAMING) identity. An artifact with no authored id
+    has no identity to key the catalog on, so it is skipped (fail-closed)
+    rather than being keyed on its stem — the last remaining spot that inferred
+    identity from a filename.
+    """
+    doctrine_dir = tmp_path / "styleguides"
+    doctrine_dir.mkdir(parents=True)
+
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (doctrine_dir / "shipped.styleguide.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump({"schema_version": "1.0", "id": "shipped-style", "title": "Shipped", "scope": "code"}, handle)
+    with (doctrine_dir / "anonymous.styleguide.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump({"schema_version": "1.0", "title": "Anonymous", "scope": "code"}, handle)
+
+    ids = _load_yaml_id_catalog(doctrine_dir, "*.styleguide.yaml")
+
+    assert ids == {"shipped-style"}
+
+
 def test_load_yaml_id_catalog_scans_flat_directory_only(tmp_path: Path) -> None:
     """Built-in content dirs are flat (WP02): a nested ``built-in/`` or
     ``_proposed/`` subdirectory is never traversed -- the pre-relocation
