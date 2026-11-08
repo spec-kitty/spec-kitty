@@ -77,3 +77,11 @@ def test_cli_refuses_to_write_when_both_note_doors_are_given() -> None:
 
     assert result.exit_code == 1
     assert json.loads(result.stdout)["error"] == "Pass either --note or --note-file, not both"
+
+
+def test_cli_missing_note_is_a_usage_error_exit_two() -> None:
+    """Neither --note nor --note-file keeps Click's usage-error exit 2, before any lookup."""
+    result = CliRunner().invoke(tasks_module.app, ["add-history", "WP01", "--json"])
+
+    assert result.exit_code == 2
+    assert "A history note is required" in result.output

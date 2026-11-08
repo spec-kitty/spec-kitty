@@ -1205,6 +1205,11 @@ def add_history(
         spec-kitty agent tasks add-history WP01 --note-file NOTES.md --json
         git show -s --format=%B | spec-kitty agent tasks add-history WP01 --note-file -
     """
+    if note is None and note_file is None:
+        # A missing note is a usage error: keep Click's exit 2 (the code a
+        # required ``--note`` gave before ``--note-file`` existed). Raised
+        # before the ``try`` so the generic handler cannot turn it into exit 1.
+        raise typer.BadParameter("A history note is required: pass --note or --note-file", param_hint="'--note' / '--note-file'")
     try:
         note = _resolve_history_note(note, note_file, json_output)
         # #6400: an explicit --agent that does not parse is refused before any write.
