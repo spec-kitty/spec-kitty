@@ -517,3 +517,15 @@ class TestIdentityInclude:
 
         with pytest.raises(ValueError, match="No .* found for selector"):
             build_charter_context_include(tmp_path, f"{kind}:not-a-real-artifact")
+
+
+def test_comma_selector_is_refused_on_syntax(tmp_path: Path) -> None:
+    """#3261: a comma-joined selector names the syntax problem, not a missing artifact.
+
+    The CLI's repeatable ``--include`` is the multi-selector door; the library
+    entry point refuses ``<a>,<b>`` before it reaches kind/id resolution, so the
+    error never reads as ``No <kind> found for selector '<a>,<b>'``.
+    """
+    with pytest.raises(ValueError, match="single --include selector") as excinfo:
+        build_charter_context_include(tmp_path, "directive:DIRECTIVE_001,tactic:tdd")
+    assert "No " not in str(excinfo.value)
