@@ -21,9 +21,10 @@ issue, never fixed in its shipped module (DIRECTIVE_044): per migration on
 third run must then change nothing). Either pin fails once the migration starts
 converging, so the entry is removed with the fix.
 
-Neither check is vacuous: :func:`test_fixtures_exercise_the_apply_path` holds a
-floor on how many migrations each fixture drives into ``apply()``, and checks that
-``detect()`` writes nothing.
+Neither check is vacuous as a whole: :func:`test_fixtures_exercise_the_apply_path`
+holds a floor on how many migrations each fixture selects (``detect()`` returns True),
+and checks that ``detect()`` writes nothing. The floor guards the total, not each
+migration: one neither fixture selects passes vacuously.
 """
 
 from __future__ import annotations
@@ -63,7 +64,8 @@ def _registered() -> list[BaseMigration]:
 
 #: (fixture, migration_id) -> why a second run of the migration alone changes the
 #: project, with its follow-up issue. Empty: every registered migration converges on
-#: its own on every fixture.
+#: its own wherever a fixture reaches its ``apply()``. A migration neither fixture
+#: drives into ``apply()`` passes vacuously (about 98 of 140 today; #7405's next steps).
 NOT_CONVERGENT: Mapping[tuple[str, str], str] = {}
 
 #: fixture -> {migration_id: why} for the migrations a second whole ``upgrade`` still
