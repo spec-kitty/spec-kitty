@@ -2462,6 +2462,7 @@ module = [
     "specify_cli.skills.catalog",                   # resolve_project_skill_catalog() -> SkillRegistry | None (skills/verifier.py)
     "charter.activation.skill_preparation",         # pack_skills_matter() -> bool (skills/catalog.py)
     "charter.offering.packs.hashing",               # hash_manifest_payload() -> str (packs/pack_manifest.py)
+    "charter.offering.packs.pack_layout",           # resolve_pack_layout() -> tuple[Path | None, Path] (drg/org_pack_loader.py, #6059)
     "specify_cli.lanes.branch_naming",              # *_lock_dir_name() -> str (status/mission_write.py)
     "specify_cli.status.locking",                   # holds_status_lock() -> bool (status/mission_write.py)
     "specify_cli.orchestrator_api._common",         # _fail() -> NoReturn (orchestrator_api verbs)

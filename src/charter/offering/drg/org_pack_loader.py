@@ -36,7 +36,7 @@ import warnings
 from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, field_validator
@@ -51,6 +51,9 @@ from charter.offering.drg.org_pack_config import (
 )
 from kernel.charter_pack_paths import pack_drg_fragment
 from kernel.pack_tiers import ORG
+
+if TYPE_CHECKING:
+    from charter.offering.packs.pack_descriptor import PackDescriptor
 
 __all__ = [
     "AUGMENTATION_ELIGIBLE_KINDS",
@@ -615,8 +618,14 @@ def _read_fragment_yaml(pack_name: str, fragment_yaml: Path) -> Any:
 _PACK_DESCRIPTOR_FILENAME = "pack.yaml"
 
 
-def _check_org_pack_level(pack_root: Path) -> None:
+def _check_org_pack_level(pack_root: Path) -> PackDescriptor | None:
     """Run the FR-006/FR-007 level checks for the org position through the descriptor authority.
+
+    Returns the parsed descriptor (the caller resolves the pack's DRG source
+    through :func:`~charter.offering.packs.pack_layout.resolve_pack_layout`, so
+    a declared ``pack_drg`` pointer is honoured at load time — #6059), or
+    ``None`` when the pack carries no ``pack.yaml`` at all (the legacy shape the
+    deprecation window still accepts).
 
     ``pack.yaml`` is read by :func:`~charter.offering.packs.pack_descriptor.load_pack_descriptor`
     (the single parser; imported lazily to keep the ``packs`` schema off this
@@ -640,7 +649,7 @@ def _check_org_pack_level(pack_root: Path) -> None:
             f"add one declaring 'pack_level: {ORG}' (required once the deprecation window closes)",
             stacklevel=2,
         )
-        return
+        return None
     try:
         try:
             descriptor = load_pack_descriptor(pack_yaml)
@@ -662,6 +671,32 @@ def _check_org_pack_level(pack_root: Path) -> None:
             f"{PACK_LEVEL_MISMATCH}: {pack_yaml} declares pack_level {descriptor.pack_level!r} but it is configured as a {ORG!r} org pack",
             source_file=pack_yaml,
         )
+    return descriptor
+
+
+def _org_fragment_path(pack_root: Path, descriptor: PackDescriptor | None) -> Path:
+    """Resolve the org pack's DRG fragment through the one pack-layout seam (#6059).
+
+    The declared ``pack_drg`` pointer wins; the ``drg/fragment.yaml`` convention
+    is only the fallback when the pointer is absent (or there is no descriptor
+    at all, the legacy shape). ``resolve_pack_layout`` is the single authority
+    for that choice — this loader must not carry a second one.
+    """
+    if descriptor is None:
+        return pack_drg_fragment(pack_root)
+    from charter.offering.packs.pack_layout import (  # noqa: PLC0415 — lazy: shares the descriptor import surface
+        PackLayoutError,
+        resolve_pack_layout,
+    )
+
+    try:
+        _, drg_path = resolve_pack_layout(pack_root, descriptor)
+    except PackLayoutError as exc:
+        raise OrgPackSchemaError(
+            f"Org pack {pack_root}: invalid 'pack_drg' pointer: {exc}",
+            source_file=pack_root / _PACK_DESCRIPTOR_FILENAME,
+        ) from exc
+    return drg_path
 
 
 def _only_pack_level_missing(exc: ValidationError) -> bool:
@@ -720,9 +755,9 @@ def load_org_pack(
     if not pack_root.is_dir():
         raise OrgPackMissingError(pack_name, pack_root)
 
-    _check_org_pack_level(pack_root)
+    descriptor = _check_org_pack_level(pack_root)
 
-    fragment_yaml = pack_drg_fragment(pack_root)
+    fragment_yaml = _org_fragment_path(pack_root, descriptor)
     if not fragment_yaml.exists():
         raise OrgPackMissingError(pack_name, fragment_yaml)
 
