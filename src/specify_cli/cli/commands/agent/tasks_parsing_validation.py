@@ -38,7 +38,7 @@ from collections.abc import Callable, Sequence
 from kernel.git import StatusEntry, status_entries
 from kernel.clock import UTC, datetime, now_utc, parse_iso
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -54,6 +54,7 @@ from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
+from specify_cli.meta_keys import TOPOLOGY_SOURCE_KEY, TopologySource
 from specify_cli.status import (
     Lane,
     StatusEvent,
@@ -647,7 +648,12 @@ def _check_implementation_commit_present(
     return guidance
 
 
-def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
+def _resolve_planning_branch_for_lane_guard(
+    feature_dir: Path,
+    *,
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
+) -> str | None:
     """Resolve the planning branch the lane kitty-specs guard measures against.
 
     FR-009 / FR-010: reads the planning branch from meta.json — ``planning_base_
@@ -665,6 +671,14 @@ def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
     authored ``kitty-specs`` edits. The lane's coordination/mission base ref
     (``check_branch``), by contrast, predates the inherited content and produced a
     false positive on every transition.
+
+    FR-061 (#7372): until a ``topology_source: default`` Mission lands, its PRIMARY
+    partition (spec, tasks, WP prompts, ``lanes.json``, ``meta.json``) lives on its
+    topic branch, and its lanes are cut from that branch. The planning branch the
+    guard measures against is then the topic branch, not ``target_branch``, which
+    carries none of that content yet. Which branch holds the PRIMARY partition is
+    the placement seam's decision (``placement_seam(...).write_target`` on a
+    PRIMARY kind), asked when *repo_root* and *mission_slug* are supplied.
     """
     try:
         # FR-007 route: this site was INVISIBLE to the WP07 census, whose raw
@@ -679,6 +693,9 @@ def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
 
         _meta = _load_meta_lggrd(feature_dir)
         if _meta:
+            _topic = _default_mission_primary_branch(_meta, repo_root, mission_slug)
+            if _topic is not None:
+                return _topic
             _planning = _meta.get("planning_base_branch")
             if isinstance(_planning, str) and _planning:
                 return _planning
@@ -687,6 +704,27 @@ def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
     except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
         logger.debug("Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc)
     return None
+
+
+def _default_mission_primary_branch(meta: dict[str, Any], repo_root: Path | None, mission_slug: str | None) -> str | None:
+    """The seam's PRIMARY write ref of a default Mission, or ``None`` for every other Mission (FR-061).
+
+    The ``topology_source`` test only decides whether to ask: the seam alone decides the ref
+    (topic branch before the landing, ``target_branch`` after). Asking it for every Mission
+    would change the explicit-topology precedence (``planning_base_branch`` first) this guard
+    keeps. A seam that cannot resolve yields ``None``, so the caller falls through to that
+    precedence rather than to the lane base (the #3271 false positive).
+    """
+    if repo_root is None or not mission_slug or meta.get(TOPOLOGY_SOURCE_KEY) != TopologySource.DEFAULT.value:
+        return None
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    try:
+        primary_ref: str = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC).ref
+    except Exception as exc:  # noqa: BLE001 - best-effort like the rest of this guard's metadata read
+        logger.debug("Could not resolve the default Mission's PRIMARY ref for the lane guard: %s", exc)
+        return None
+    return primary_ref
 
 
 def _unreadable_lane_guard_guidance(
@@ -729,6 +767,8 @@ def _check_kitty_specs_contamination(
     wp_id: str,
     target_lane: str,
     list_wp_branch_specs_changes_for_guard: Callable[..., list[str]],
+    repo_root: Path | None = None,
+    mission_slug: str | None = None,
 ) -> list[str] | None:
     """Block when kitty-specs/ files were committed on the lane branch."""
     # #3271: measure the lane-hygiene delta against the PLANNING branch, not the
@@ -737,7 +777,7 @@ def _check_kitty_specs_contamination(
     # and the #2993-merged planning artifacts are ancestors of the planning
     # branch, so they no longer false-positive. Legacy missions without meta.json
     # fall back to ``check_branch`` (unchanged behaviour for the flat/legacy case).
-    _planning_branch = _resolve_planning_branch_for_lane_guard(feature_dir)
+    _planning_branch = _resolve_planning_branch_for_lane_guard(feature_dir, repo_root=repo_root, mission_slug=mission_slug)
     _guard_base = _planning_branch or check_branch
     try:
         contamination_files = list_wp_branch_specs_changes_for_guard(
@@ -957,6 +997,8 @@ def _validate_worktree_state(
             wp_id=wp_id,
             target_lane=target_lane,
             list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
+            repo_root=main_repo_root,
+            mission_slug=mission_slug,
         )
         if contamination is not None:
             return False, contamination
