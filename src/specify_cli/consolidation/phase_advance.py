@@ -54,8 +54,10 @@ from specify_cli.consolidation.git_probes import (
 from specify_cli.consolidation.mission_number.bake import (
     _bake_mission_number_into_mission_branch,
 )
+from specify_cli.consolidation.lane_cleanup import branch_tip, own_auto_rebase_move
 from specify_cli.consolidation.state import (
     get_state_path,
+    save_state,
 )
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.consolidation.coord_strand import (
@@ -192,6 +194,21 @@ def _lane_completed_but_branch_gone(run: _MergeRunState, lane: ExecutionLane, la
     return all(wp in completed for wp in lane.wp_ids)
 
 
+def _record_own_auto_rebase(run: _MergeRunState, branch: str, *, before: str | None, mission_before: str | None) -> None:
+    """#6736: persist the lane's move by this run's own auto-rebase, so cleanup expects the merged tip.
+
+    Only the exact merge ``consolidate_lane_into_mission`` makes is recorded (and only from the
+    snapshot tip); any other move stays unrecorded and cleanup keeps the lane (fail closed).
+    """
+    if before is None or run.state.pre_mutation_refs.get(branch) != before:
+        return
+    move = own_auto_rebase_move(run.main_repo, branch, before=before, mission_before=mission_before)
+    if move is None:
+        return
+    run.state.lane_rebase_moves[branch] = move
+    save_state(run.state, run.main_repo)
+
+
 @_record_post_mutation_tips
 def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
@@ -241,8 +258,10 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         run.any_lane_had_unintegrated_code = True
 
         console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
+        lane_before, mission_before = branch_tip(run.main_repo, _lane_branch), branch_tip(run.main_repo, lanes_manifest.mission_branch)
         lane_result = consolidate_lane_into_mission(run.main_repo, run.mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
+            _record_own_auto_rebase(run, _lane_branch, before=lane_before, mission_before=mission_before)
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
             # T005: tolerate already-merged lanes on retry

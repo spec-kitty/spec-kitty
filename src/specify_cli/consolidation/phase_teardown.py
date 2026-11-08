@@ -52,6 +52,7 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneRetention,
     LocalTargetAtPass,
     GuardedLaneRemover,
+    cleanup_expected_tips,
     plan_lane_cleanup,
 )
 from specify_cli.consolidation._constants import (
@@ -1152,7 +1153,8 @@ def _mark_cleanup_started(run: _MergeRunState) -> None:
 def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
     """The lane legs (S5): one module, kept lanes reported, never raised after the verified landing."""
     lanes_manifest = run.lanes_manifest
-    items = plan_lane_cleanup(lanes_manifest, repo_root=run.main_repo, expected_tips=run.state.pre_mutation_refs)
+    expected = cleanup_expected_tips(run.state.pre_mutation_refs, run.state.lane_rebase_moves)  # #6736
+    items = plan_lane_cleanup(lanes_manifest, repo_root=run.main_repo, expected_tips=expected)
     retention = LaneRetention(remove_worktree=run.remove_worktree, delete_branch=run.delete_branch)
     if not items:
         return LaneCleanupReport(results=())
@@ -1161,7 +1163,12 @@ def _lane_cleanup_report(run: _MergeRunState) -> LaneCleanupReport:
     # #5965 / #5966: the guard decides disposability from the checkout ROLE and the Mission's
     # STORED topology, so a lane worktree holding uncommitted rework is kept, not destroyed.
     context = residue_context_or_strictest(run.main_repo, run.target_feature_dir.name, CheckoutRole.LANE)
-    remover = GuardedLaneRemover(run.main_repo, context=context, after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None)
+    remover = GuardedLaneRemover(
+        run.main_repo,
+        context=context,
+        after_worktree_removed=(lambda: time.sleep(delay)) if delay > 0 else None,
+        mission_slug=lanes_manifest.mission_slug,
+    )
     landing = LocalTargetAtPass(target_ref=lanes_manifest.target_branch, passed_sha=run.state.reconciliation_passed_target_sha or "")
     report = lane_cleanup.apply(items, remover, landing=landing, retention=retention)
     _tombstone_removed_lane_contexts(run, report)

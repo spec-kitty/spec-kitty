@@ -35,9 +35,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
+    MERGE_UNSAFE_WORKTREE_DIRTY,
     PROCESS_IN_WORKTREE,
+    WORKTREE_TIP_MOVED,
     DestructiveOpRefused,
     LandedRemoval,
     guarded_branch_delete,
@@ -47,6 +50,8 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.lanes.compute import is_repo_root_lane, lane_created_branch
 from specify_cli.lanes.models import LanesManifest
+from specify_cli.status.reducer import SNAPSHOT_FILENAME
+from specify_cli.status.store import EVENTS_FILENAME
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
@@ -59,7 +64,11 @@ __all__ = [
     "MainTodayRemover",
     "apply",
     "branch_exists",
+    "absorbed_but_for_status_log",
+    "branch_tip",
+    "cleanup_expected_tips",
     "kept_after_coordination_refusal",
+    "own_auto_rebase_move",
     "plan_lane_cleanup",
 ]
 
@@ -206,6 +215,41 @@ def plan_lane_cleanup(
     return tuple(items)
 
 
+def own_auto_rebase_move(repo_root: Path, branch: str, *, before: str | None, mission_before: str | None) -> list[str] | None:
+    """``[before, after]`` when ``branch`` moved by exactly the run's own auto-rebase merge, else ``None`` (#6736).
+
+    A stale lane is auto-rebased while it is consolidated (``lanes.auto_rebase``): a ``--no-ff``
+    merge of the mission branch into the lane worktree, so the lane tip moves past the tip the
+    claim validated. The move is accepted only in that exact shape: the live tip is a commit with
+    two parents, the first ``before`` (the lane tip read just before this lane was consolidated)
+    and the second ``mission_before`` (the mission branch tip read at that same moment). Any other
+    move (a foreign commit, a second merge, a rewrite) is not this run's, and returns ``None``:
+    cleanup then keeps checking against the claim-validated tip and refuses (fail closed).
+    """
+    if not before or not mission_before:
+        return None
+    after = _branch_tip(repo_root, branch)
+    if after is None or after == before:
+        return None
+    probe = _git(repo_root, "rev-list", "--parents", "-n", "1", after)
+    if probe.returncode != 0 or probe.stdout.split() != [after, before, mission_before]:
+        return None
+    return [before, after]
+
+
+def cleanup_expected_tips(pre_mutation_refs: Mapping[str, str], rebase_moves: Mapping[str, Sequence[str]] | None = None) -> dict[str, str]:
+    """The tip each lane's cleanup expects: the claim-validated tip, advanced over the run's own auto-rebase (#6736).
+
+    A recorded move ``[from, to]`` is followed only while ``from`` is still the expected tip, so a
+    move recorded by an earlier attempt whose snapshot was since re-captured is ignored.
+    """
+    tips = dict(pre_mutation_refs)
+    for branch, move in (rebase_moves or {}).items():
+        if len(move) >= 2 and tips.get(branch) == move[0]:
+            tips[branch] = move[-1]
+    return tips
+
+
 def _retained_detail(retention: LaneRetention) -> str | None:
     """The retention key that keeps this lane in place, or ``None`` when every leg runs."""
     keys = []
@@ -304,6 +348,11 @@ def _branch_tip(repo_root: Path, branch: str) -> str | None:
     return probe.stdout.strip() or None if probe.returncode == 0 else None
 
 
+def branch_tip(repo_root: Path, branch: str) -> str | None:
+    """The SHA ``refs/heads/<branch>`` resolves to, or ``None``."""
+    return _branch_tip(repo_root, branch)
+
+
 def branch_exists(repo_root: Path, branch: str) -> bool:
     """True when ``refs/heads/<branch>`` resolves."""
     return _branch_tip(repo_root, branch) is not None
@@ -396,9 +445,68 @@ class MainTodayRemover:
 
 
 def _refusal_detail(refusal: DestructiveOpRefused, worktree: Path) -> str:
-    if refusal.dirty_entries:
+    """The report line's detail; "uncommitted changes" only for the clean-check refusal (#7382).
+
+    Other refusals carry entries too (a moved tip, a unique commit, an unreadable reflog), and
+    naming those as uncommitted changes sent operators looking for edits that did not exist.
+    """
+    if refusal.error_code == MERGE_UNSAFE_WORKTREE_DIRTY and refusal.dirty_entries:
         return f"{worktree} has uncommitted changes."
+    if refusal.error_code == WORKTREE_TIP_MOVED:
+        now = f" (now at {refusal.dirty_entries[0]})" if refusal.dirty_entries else ""
+        return f"{worktree} moved after its tip was validated{now}."
+    if refusal.dirty_entries:
+        return f"{worktree} was not removed: {', '.join(refusal.dirty_entries)}."
     return f"{worktree} was not removed."
+
+
+def _git_ok_or_none(repo_root: Path, *args: str) -> str | None:
+    probe = _git(repo_root, *args)
+    return probe.stdout if probe.returncode == 0 else None
+
+
+def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path: str) -> bool:
+    """Every event line of the lane's copy of the status log is also in the landing's copy (append-only, #6736)."""
+    if _git(repo_root, "cat-file", "-e", f"{tip}:{log_path}").returncode != 0:
+        return True  # the lane carries no copy: nothing of it can be lost
+    lane = _git_ok_or_none(repo_root, "show", f"{tip}:{log_path}")
+    landed = _git_ok_or_none(repo_root, "show", f"{landing_ref}:{log_path}")
+    if lane is None or landed is None:
+        return False
+    landed_lines = {line for line in landed.splitlines() if line.strip()}
+    return all(line in landed_lines for line in lane.splitlines() if line.strip())
+
+
+def absorbed_but_for_status_log(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
+    """True when ``tip`` is absorbed by ``landing_ref`` except for the Mission's status log and snapshot (#6736).
+
+    On a coordination topology a lane branch carries a copy of the Mission's status log and its
+    ``status.json`` snapshot: syncing the lane with the mission branch (``implement``, and the
+    auto-rebase consolidate runs on a stale lane) merges them in. After the landing the target
+    appends to that log (done transitions, the coordination flatten), so ``git merge-tree`` sees
+    two different additions of the same file and the plain absorption proof never holds for such a
+    lane, although nothing on it is lost.
+
+    This proof is deliberately narrow and fails closed. It holds only when merging ``tip`` into
+    ``landing_ref`` conflicts on, and changes, no path other than
+    ``kitty-specs/<slug>/status.events.jsonl`` and ``kitty-specs/<slug>/status.json``, AND every
+    event line of the lane's log is already in the landing's log (the log is append-only; the
+    snapshot is derived from it and is regenerated by the tool). Any other difference, a git error
+    or an unreadable blob is ``False``.
+    """
+    mission_dir = f"{KITTY_SPECS_DIR}/{mission_slug}"
+    log_path = f"{mission_dir}/{EVENTS_FILENAME}"
+    status_paths = {log_path, f"{mission_dir}/{SNAPSHOT_FILENAME}"}
+    merged = _git(repo_root, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", landing_ref, tip)
+    if merged.returncode not in (0, 1):
+        return False
+    tree, *conflicted = [entry for entry in merged.stdout.split("\0") if entry] or [""]
+    if not tree or not set(conflicted) <= status_paths:
+        return False
+    changed = _git_ok_or_none(repo_root, "diff", "--name-only", "--no-renames", "-z", landing_ref, tree)
+    if changed is None or not {path for path in changed.split("\0") if path} <= status_paths:
+        return False
+    return _status_log_contained(repo_root, tip, landing_ref, log_path)
 
 
 class GuardedLaneRemover:
@@ -411,6 +519,10 @@ class GuardedLaneRemover:
     and checks the worktree against). A guard refusal keeps the lane with the guard's code; the guard
     never forces a removal. Every other leg (no landing proof, no worktree left, a retained branch)
     goes to :class:`MainTodayRemover`, today's guarded primitives.
+
+    ``mission_slug`` (consolidate and ``orchestrator-api consolidate-mission``) lets the absorption
+    proof set aside the Mission's own status log and snapshot under
+    :func:`absorbed_but_for_status_log`; without it the proof is the plain ``is_absorbed``.
     """
 
     def __init__(
@@ -421,9 +533,11 @@ class GuardedLaneRemover:
         creation_base: str | None = None,
         probe: ProcessProbe = processes_with_cwd_under,
         after_worktree_removed: Callable[[], None] | None = None,
+        mission_slug: str | None = None,
     ) -> None:
         self._repo_root = repo_root
         self._context = context
+        self._mission_slug = mission_slug
         self._probe = probe
         self._after_worktree_removed = after_worktree_removed
         self._fallback = MainTodayRemover(repo_root, context=context, creation_base=creation_base, probe=probe, after_worktree_removed=after_worktree_removed)
@@ -463,9 +577,12 @@ class GuardedLaneRemover:
         from specify_cli.lanes.lane_tip import AbsorptionUnsupported, is_absorbed
 
         try:
-            return bool(is_absorbed(self._repo_root, tip, landing_ref, base=None))
+            if is_absorbed(self._repo_root, tip, landing_ref, base=None):
+                return True
         except AbsorptionUnsupported:
             return False
+        # #6736: a coordination-topology lane carries an older copy of the Mission's status log.
+        return self._mission_slug is not None and absorbed_but_for_status_log(self._repo_root, tip, landing_ref, self._mission_slug)
 
 
 def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:
