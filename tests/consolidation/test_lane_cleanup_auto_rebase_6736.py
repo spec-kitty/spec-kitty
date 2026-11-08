@@ -33,7 +33,7 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupOutcome,
     LocalTargetAtPass,
     _refusal_detail,
-    absorbed_but_for_status_log,
+    _absorbed_but_for_status_log,
     cleanup_expected_tips,
     own_auto_rebase_move,
 )
@@ -305,37 +305,37 @@ def coord_landed(tmp_path: Path) -> tuple[Path, Path, str]:
 def test_a_lane_carrying_an_older_status_log_is_absorbed_but_for_it(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, tip = coord_landed
     assert not is_absorbed(root, tip, "refs/heads/main", base=None)  # the plain proof cannot see it (the #6736 refusal)
-    assert absorbed_but_for_status_log(root, tip, "refs/heads/main", _SLUG)
+    assert _absorbed_but_for_status_log(root, tip, "refs/heads/main", _SLUG)
 
 
 def test_another_mission_s_status_log_is_not_set_aside(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, tip = coord_landed
-    assert not absorbed_but_for_status_log(root, tip, "refs/heads/main", "other-01ABCDEF")
+    assert not _absorbed_but_for_status_log(root, tip, "refs/heads/main", "other-01ABCDEF")
 
 
 def test_an_event_only_the_lane_holds_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _write(worktree, _LOG, '{"event_id": "e1"}\n{"event_id": "e2"}\n{"event_id": "lane-only"}\n')
     _git(worktree, "commit", "-q", "-m", "an event the target never got")
-    assert not absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_unlanded_work_beside_the_status_log_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _commit(worktree, "late.py", "z = 3\n")
-    assert not absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_a_lane_without_the_log_but_with_a_stale_snapshot_is_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, worktree, _tip = coord_landed
     _git(worktree, "rm", "-q", _LOG)
     _git(worktree, "commit", "-q", "-m", "drop the log copy")
-    assert absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
+    assert _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)
 
 
 def test_an_unknown_tip_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
     root, _worktree, _tip = coord_landed
-    assert not absorbed_but_for_status_log(root, "0" * 40, "refs/heads/main", _SLUG)
+    assert not _absorbed_but_for_status_log(root, "0" * 40, "refs/heads/main", _SLUG)
 
 
 def test_the_remover_given_the_mission_slug_removes_the_coordination_lane(coord_landed: tuple[Path, Path, str]) -> None:
