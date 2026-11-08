@@ -676,7 +676,7 @@ def test_mark_wp_merged_done_direct_repo_for_single_branch(tmp_path: Path) -> No
     assert request.execution_mode == "direct_repo"
     assert request.policy_metadata["merge_phase"] == "direct_repo"
     assert request.reason is not None and "Merged" not in request.reason
-    assert "no lane merge" in request.reason
+    assert "no lane consolidation" in request.reason
 
 
 def test_mark_wp_merged_done_lane_integrated_for_lane_topologies(tmp_path: Path) -> None:
