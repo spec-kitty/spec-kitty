@@ -38,6 +38,7 @@ the parity contract).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -68,11 +69,14 @@ from specify_cli.status import (
     Lane,
     StatusEvent,
     StatusSnapshot,
+    read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
-from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
+from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD, FrontmatterError
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 from specify_cli.workspace.context import get_normalized_wp
+
+logger = logging.getLogger(__name__)
 
 #: The 👤 sentinel map one render builds for the profile ids its rows name
 #: (#6917): ``{profile_id: profile.sentinel}``, produced once per render by
@@ -427,6 +431,30 @@ def _st_config_root(st: _StatusState) -> Path:
     return st.owned.owned_root if st.owned is not None else st.main_repo_root
 
 
+def _st_declared_dependencies(wp_file: Path) -> list[str]:
+    """Read one WP's declared dependencies through the canonical typed parser (#5435).
+
+    ``WPMetadata.dependencies`` is the field the dependency gate reads
+    (``core.dependency_graph.parse_wp_dependencies``), and it answers ``[]`` for
+    an empty flow list (``dependencies: []``) and expands every entry of a flow
+    list and of a block list. The previous raw ``extract_scalar`` read reported
+    the literal ``"[]"`` as one dependency named ``"[]"`` and fused a flow list
+    into one string.
+
+    The reader is the AUTHORED one (no runtime-field re-point): ``dependencies``
+    is frontmatter-canonical, and a board over a corrupt status log must not
+    crash on a dependency read when it already degrades that log. A WP file the
+    typed parser refuses degrades to "no declared dependencies" for the same
+    reason.
+    """
+    try:
+        meta, _body = read_authored_wp_frontmatter(wp_file)
+    except (FrontmatterError, OSError, ValueError) as exc:  # pydantic.ValidationError is a ValueError
+        logger.debug("status: unparseable frontmatter in %s: %s", wp_file, exc)
+        return []
+    return list(meta.dependencies)
+
+
 def _st_load_work_packages(st: _StatusState) -> None:
     """Phase B: reduce the event log + collect the per-WP status rows.
 
@@ -472,21 +500,14 @@ def _st_load_work_packages(st: _StatusState) -> None:
             except Exception:
                 st.events = []
 
-    # WP05: declared dependencies per WP id, frozen from the SAME frontmatter parse
-    # already performed here (no extra file read).
+    # WP05: declared dependencies per WP id, read through the canonical parser the
+    # dependency gate enforces (#5435) so the readiness map matches the gate.
     for wp_file in sorted(st.tasks_dir.glob("WP*.md")):
         front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
 
         wp_id = extract_scalar(front, "work_package_id")
         title = extract_scalar(front, "title")
-        deps_raw = extract_scalar(front, "dependencies")
-        if isinstance(deps_raw, list):
-            wp_deps = [str(dep) for dep in deps_raw]
-        elif deps_raw:
-            wp_deps = [str(deps_raw)]
-        else:
-            wp_deps = []
-        st.wp_dependencies[wp_id or wp_file.stem] = wp_deps
+        st.wp_dependencies[wp_id or wp_file.stem] = _st_declared_dependencies(wp_file)
         execution_mode, workspace_kind = _st_resolve_execution_mode(front, st.main_repo_root, st.mission_slug, wp_id, owned=st.owned)
         # Route agent/shell_pid + the resolved-binding actuals through the ONE
         # reconstruction reader (SC-007). The authored ``agent_profile`` stays
