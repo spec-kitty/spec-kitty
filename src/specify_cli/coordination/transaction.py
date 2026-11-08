@@ -232,6 +232,22 @@ def _write_branch_holder(repo_root: Path, destination_ref: str) -> Path:
     return holder
 
 
+def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_ref: str) -> Path:
+    """Where a PRIMARY-target commit runs: a default Mission's topic holder, else *repo_root* (FR-061, #7372).
+
+    The holder is :func:`~specify_cli.coordination.planning_commit.primary_partition_checkout`
+    (a default Mission that has not landed, whose topic branch a non-lane checkout holds), and it
+    is used only when it holds *destination_ref*. An explicit-topology, legacy or landed Mission,
+    or a destination that holder does not hold, keeps *repo_root*.
+    """
+    from specify_cli.coordination.planning_commit import primary_partition_checkout
+
+    holder = primary_partition_checkout(repo_root, mission_slug)
+    if holder is None or holder.resolve() != _write_branch_holder(repo_root, destination_ref).resolve():
+        return repo_root
+    return holder
+
+
 class _CoordWriteTarget(NamedTuple):
     """What the coordination arm takes from ``write_dir``'s ``WriteLocation``."""
 
@@ -883,7 +899,15 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # PRIMARY ``lanes.json`` being silently redirected onto the
                 # coordination branch (the #3371 add/add root cause). The coord
                 # redirect below is skipped entirely.
-                worktree_root = repo_root
+                #
+                # FR-061 (#7372): before a ``topology_source: default`` Mission
+                # lands, its PRIMARY write ref is its topic branch, which the
+                # coordination worktree holds (the root checkout went back to
+                # ``create_return_branch``). Commit in that holder -- and ONLY
+                # for such a Mission (:func:`_primary_partition_holder`); every
+                # other mission keeps ``repo_root`` even when some other
+                # checkout happens to hold its target branch.
+                worktree_root = _primary_partition_holder(repo_root, safe_mission_slug, effective_destination_ref)
             else:
                 # New topology — materialize/seed the coordination write
                 # location on first call (WP07 T039: the single write-location

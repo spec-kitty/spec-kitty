@@ -15,6 +15,7 @@ import typer
 from specify_cli.cli.console import console
 
 from kernel.git import run_git
+from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
@@ -102,7 +103,30 @@ def _protected_destination_hint(destination_ref: str) -> str:
     )
 
 
-def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_id: str, auto_commit: bool | None) -> None:
+def _claim_commit_checkout(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:
+    """The checkout the claim commit runs in: the repository root checkout, or (FR-061) the topic holder.
+
+    Until a ``topology_source: default`` Mission lands, the PRIMARY write home of
+    ``WORK_PACKAGE_TASK`` is its topic branch, held by the coordination worktree once the
+    root checkout moved back to ``create_return_branch``; the claim-written files
+    (``meta.json``, the stamped WP prompt) live in that checkout's Mission directory
+    (#7372). Every other Mission keeps the repository root checkout. The one probe is
+    :func:`~specify_cli.coordination.planning_commit.planning_checkout_root`, shared with
+    the planning-artifact commit and (through ``primary_partition_checkout``) the
+    bookkeeping transaction.
+    """
+    from specify_cli.coordination.planning_commit import planning_checkout_root
+
+    return planning_checkout_root(repo_root, feature_dir, mission_slug)
+
+
+def _raise_if_claim_commit_head_mismatch(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    auto_commit: bool | None,
+    feature_dir: Path | None = None,
+) -> None:
     """Refuse up front a claim whose auto-commit cannot land (#5738).
 
     The claim commit (``_commit_wp_claim_status``) targets the PRIMARY write home
@@ -115,6 +139,10 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
     its message also names ``--no-auto-commit`` (:func:`_protected_destination_hint`).
     Only that mismatch is decided here: a destination the resolver reports as
     unresolvable is left to the commit-time handling.
+
+    *feature_dir* (#7372) is the claim's Mission directory: when the checkout holding
+    the destination (a default Mission's topic holder) contains it, that checkout's
+    HEAD is the one judged, as the commit runs there (:func:`_claim_commit_checkout`).
     """
     if not auto_commit:
         return
@@ -134,13 +162,14 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
         # Such a destination (e.g. a merged mission whose coordination branch was torn
         # down) keeps its existing commit-time handling in ``commit_claim`` unchanged.
         return
-    observed_head = get_current_branch(repo_root)
+    commit_checkout = repo_root if feature_dir is None else _claim_commit_checkout(repo_root, feature_dir, mission_slug)
+    observed_head = get_current_branch(commit_checkout)
     if observed_head == destination_ref:
         return
     mismatch = SafeCommitHeadMismatch(
         destination_ref=destination_ref,
         observed_head=observed_head or "<detached>",
-        worktree_root=repo_root,
+        worktree_root=commit_checkout,
     )
     if ProtectionPolicy.resolve_for_mission(repo_root, mission_slug).is_protected(destination_ref):
         # Same type and ``error_code``; only the message gains the working remedy.
@@ -204,11 +233,20 @@ def claim_commit_paths(
     return paths
 
 
-def _stage_claim_writes(repo_root: Path, wp_id: str, collect_paths: Callable[[], Iterable[Path]]) -> None:
+def _stage_claim_writes(
+    repo_root: Path,
+    wp_id: str,
+    collect_paths: Callable[[], Iterable[Path]],
+    resolve_checkout: Callable[[], Path] | None = None,
+) -> None:
     """``--no-auto-commit``: stage the claim's own writes, so "staged only" is true (#3471).
 
-    Stages the claim-commit list in the repository root
-    checkout and commits nothing. ``git add --force`` matches ``safe_commit``'s
+    Stages the claim-commit list in the checkout the claim commit would run in --
+    *resolve_checkout*'s answer (:func:`_claim_commit_checkout`: the repository root
+    checkout, or a default Mission's topic holder, #7372), else *repo_root* -- and
+    commits nothing. Resolving that checkout happens inside the best-effort ``try``
+    too, and a path under ``.worktrees/`` relative to it is never staged (#2155): it
+    is left unstaged and named in a warning, and the rest is staged. ``git add --force`` matches ``safe_commit``'s
     staging, so a claim file a consumer repository ignores is staged like the auto-commit
     would commit it, and git never stages part of the bundle before refusing an ignored
     path. Gathering the bundle runs here too: the claim has already landed, so a
@@ -217,10 +255,15 @@ def _stage_claim_writes(repo_root: Path, wp_id: str, collect_paths: Callable[[],
     unstaged.
     """
     try:
-        resolved_root = repo_root.resolve()
+        checkout = resolve_checkout() if resolve_checkout is not None else repo_root
+        resolved_root = checkout.resolve()
         rel_paths = [path.relative_to(resolved_root).as_posix() for path in collect_paths() if path.is_relative_to(resolved_root) and path.exists()]
+        nested = [rel for rel in rel_paths if Path(rel).parts[0] == WORKTREES_DIR]
+        if nested:
+            console.print(f"[yellow]Warning:[/yellow] Not staging paths inside another checkout (#2155): {', '.join(nested)}")
+            rel_paths = [rel for rel in rel_paths if rel not in nested]
         if rel_paths:
-            run_git(repo_root, "add", "--force", "--", *rel_paths)
+            run_git(checkout, "add", "--force", "--", *rel_paths)
     except Exception as exc:  # staging is best-effort: the claim's status write already landed
         console.print(f"[yellow]Warning:[/yellow] Could not stage the claim's changes: {exc}")
         console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes left unstaged)[/cyan]")
@@ -283,8 +326,10 @@ def _commit_wp_claim_status(
         )
 
     if not auto_commit:
-        _stage_claim_writes(repo_root, wp_id, gather)
+        _stage_claim_writes(repo_root, wp_id, gather, lambda: _claim_commit_checkout(repo_root, feature_dir, mission_slug))
         return
+
+    commit_checkout = _claim_commit_checkout(repo_root, feature_dir, mission_slug)
 
     files_to_commit = gather()
     if not files_to_commit:
@@ -319,7 +364,7 @@ def _commit_wp_claim_status(
     try:
         safe_commit(
             repo_root=repo_root,
-            worktree_root=repo_root,
+            worktree_root=commit_checkout,
             target=claim_commit_target,
             message=commit_msg,
             paths=tuple(files_to_commit),
