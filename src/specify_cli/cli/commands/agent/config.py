@@ -995,20 +995,27 @@ def _sync_claude_hooks(repo_root: Path, enabled: bool) -> bool:
 def _load_cursor_hooks(path: Path) -> dict | None:
     """Load Cursor hooks.json, or ``None`` if it exists but is corrupt.
 
-    A corrupt file returns ``None`` so the caller refuses to overwrite it
-    (no silent data loss); a missing file returns the empty default.
+    A corrupt file -- unparseable JSON, non-UTF-8 bytes, or a valid-JSON
+    non-object (#5293) -- returns ``None`` so the caller refuses to overwrite
+    it (no silent data loss); a missing file returns the empty default.
     """
     if not path.exists():
         return {"version": 1, "hooks": {}}
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
         console.print(
             f"  [yellow]![/yellow] Cursor hooks file is unreadable ({exc}); "
             "leaving it untouched. Fix or remove it, then re-run."
         )
         return None
-    return loaded if isinstance(loaded, dict) else {"version": 1, "hooks": {}}
+    if not isinstance(loaded, dict):
+        console.print(
+            "  [yellow]![/yellow] Cursor hooks file is not a JSON object; "
+            "leaving it untouched. Fix or remove it, then re-run."
+        )
+        return None
+    return loaded
 
 
 def _sync_cursor_hooks(repo_root: Path, enabled: bool) -> bool:

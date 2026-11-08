@@ -222,6 +222,32 @@ def test_cursor_corrupt_config_refused(tmp_path: Path) -> None:
     assert hooks.read_text(encoding="utf-8") == "}}corrupt"  # untouched
 
 
+def test_cursor_non_utf8_config_refused_not_crashed(tmp_path: Path) -> None:
+    """#5293: a hooks.json holding non-UTF-8 bytes used to crash the sync with
+    a raw ``UnicodeDecodeError`` traceback instead of the same refusal the
+    JSON-corrupt case gets."""
+    hooks = tmp_path / ".cursor" / "hooks.json"
+    hooks.parent.mkdir(parents=True)
+    hooks.write_bytes(b'{"version": 1, "hooks": {\xff\xfe}}')
+
+    assert _load_cursor_hooks(hooks) is None
+    assert _sync_cursor_hooks(tmp_path, enabled=True) is False  # refused
+    assert hooks.read_bytes() == b'{"version": 1, "hooks": {\xff\xfe}}'  # untouched
+
+
+def test_cursor_valid_json_non_object_refused_not_clobbered(tmp_path: Path) -> None:
+    """#5293: a hooks.json holding a valid JSON non-object (here: an array)
+    used to be silently REPLACED by the empty default -- data loss. It must
+    get the same refusal as corrupt JSON: never clobbered."""
+    hooks = tmp_path / ".cursor" / "hooks.json"
+    hooks.parent.mkdir(parents=True)
+    hooks.write_text('[{"command": "precious-user-hook"}]', encoding="utf-8")
+
+    assert _load_cursor_hooks(hooks) is None
+    assert _sync_cursor_hooks(tmp_path, enabled=True) is False  # refused
+    assert hooks.read_text(encoding="utf-8") == '[{"command": "precious-user-hook"}]'  # untouched
+
+
 # --------------------------------------------------------------------------
 # config.available is the source of truth
 # --------------------------------------------------------------------------
