@@ -828,7 +828,7 @@ _RESOLVER_ENTRY_FRAMES = (
     "_resolve_topology",
 )
 
-# EXACT ledger of post-mint pass-through reads on an owned finalize (22 in
+# EXACT ledger of post-mint pass-through reads on an owned finalize (24 in
 # total; 20 before the 2026-10-04 re-pin below, 37 before WP18, 68 before review cycles 3-4). Keyed on (outermost resolver entry frame,
 # immediate caller of ``get_main_repo_root``) so a new read nested under an
 # allowed entry frame -- a different leaf -- is a new key and fails. The pin
@@ -853,10 +853,23 @@ _RESOLVER_ENTRY_FRAMES = (
 #                                    _compose_primary_feature_dir`` once per status transaction
 #                                    (two transactions -> +2). Same entry frame, same leaf: a
 #                                    WHERE lookup, not a content read.
+#                                    2026-11-08 (+2, one new leaf): the status read door (#7277,
+#                                    ADR 2026-11-06-2 "Root normalization") makes
+#                                    ``candidate_feature_dir_for_mission`` normalize its root first
+#                                    through ``canonical_status_read_root``, which re-anchors a root
+#                                    the worktree registry disposes as a lane worktree to the
+#                                    main worktree root. Frames: ``_preflight_policy_verdict >
+#                                    mission_has_coordination_branch > resolve_topology >
+#                                    candidate_feature_dir_for_mission >
+#                                    canonical_status_read_root``, once per status transaction
+#                                    (two transactions -> 2). Same entry frame, same WHERE
+#                                    lookup (which directory), no content read; the dependency
+#                                    content and R-unchanged assertions below still hold.
 #   ledger_posture                   the fan-out drain posture read
 _RESOLVER_READ_LEDGER = {
     ("mission_has_coordination_branch", "_compose_primary_feature_dir"): 18,
     ("mission_has_coordination_branch", "resolve_topology"): 2,
+    ("mission_has_coordination_branch", "canonical_status_read_root"): 2,
     ("ledger_posture", "resolve_canonical_root"): 2,
 }
 
