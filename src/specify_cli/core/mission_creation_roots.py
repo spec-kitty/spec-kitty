@@ -96,8 +96,8 @@ def _resolve_create_roots(
         raise MissionCreationError(
             "This checkout has no commits yet, so Spec Kitty cannot commit the mission scaffold.\n\n"
             "Make an initial commit first, then create the mission:\n"
-            "  git commit --allow-empty -m 'Initial commit'\n\n"
-            "If the repository already has files staged, commit those instead."
+            "  git add -- . && git commit -m 'Initial commit'\n\n"
+            "If there is nothing to commit yet, use: git commit --allow-empty -m 'Initial commit'"
         )
 
     current_branch = get_current_branch(write_root)

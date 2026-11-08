@@ -34,7 +34,9 @@ def cli(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
     # Assign, never setdefault: an inherited home would leak a developer's real one.
-    env["SPEC_KITTY_HOME"] = str(cwd / ".spec-kitty-home")
+    # Beside the checkout, never inside it: cache writes there would dirty the write
+    # checkout, which ``mission create`` refuses since #7282.
+    env["SPEC_KITTY_HOME"] = str(cwd.parent / f"{_HOME_PREFIX}-{cwd.name}")
     return subprocess.run(
         [*_entry_point(), *args],
         cwd=cwd,
