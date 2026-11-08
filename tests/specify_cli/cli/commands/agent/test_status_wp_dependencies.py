@@ -88,3 +88,32 @@ def test_dependency_read_never_touches_the_status_log(tmp_path: Path) -> None:
     (tmp_path / "status.events.jsonl").write_text("{not json\n", encoding="utf-8")
 
     assert _st_declared_dependencies(tasks_dir / "WP02.md") == ["WP01"]
+
+
+def test_unknown_frontmatter_key_keeps_declared_dependencies(tmp_path: Path) -> None:
+    """A key the strict schema does not know must not erase real dependencies.
+
+    The strict ``WPMetadata`` forbids extra keys; reading the board through it
+    turned one unknown key into ``[]`` dependencies, so the board showed the WP
+    as ready while the dependency gate refused it. The lenient reader drops only
+    the unknown key and keeps every known field.
+    """
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir(parents=True)
+    wp = tasks_dir / "WP02.md"
+    wp.write_text(
+        "---\nwork_package_id: WP02\ntitle: Example\ndependencies: [WP01]\nestimated_lines: 40\nhistory: []\n---\n\n# Body\n",
+        encoding="utf-8",
+    )
+
+    assert _st_declared_dependencies(wp) == ["WP01"]
+
+
+def test_malformed_yaml_still_degrades_to_no_dependencies(tmp_path: Path) -> None:
+    """Genuinely malformed frontmatter keeps the board's degrade-to-empty fallback."""
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir(parents=True)
+    wp = tasks_dir / "WP03.md"
+    wp.write_text("---\nwork_package_id: WP03\ndependencies: [WP01\n---\n\n# Body\n", encoding="utf-8")
+
+    assert _st_declared_dependencies(wp) == []
