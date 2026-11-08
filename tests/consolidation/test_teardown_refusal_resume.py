@@ -24,7 +24,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 import typer
@@ -357,3 +357,41 @@ def test_clean_lane_worktree_is_removed(tmp_path: Path) -> None:
     _lane_cleanup_report(_lane_cleanup_run(mission))
 
     assert not _lane_worktrees(mission)
+
+
+def test_lane_cleanup_is_wired_to_the_run_s_auto_rebase_moves_and_mission_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6736: the teardown's lane legs pass cleanup the followed tip and the remover the Mission slug.
+
+    ``plan_lane_cleanup`` must expect the tip the run's own recorded auto-rebase moved the lane
+    to (``cleanup_expected_tips``), and ``GuardedLaneRemover`` must get the Mission slug that
+    enables the status-log absorption proof. The two producers and the proof are tested in
+    ``test_lane_cleanup_auto_rebase_6736.py``; this pins the consolidate teardown's wiring.
+    """
+    from specify_cli.consolidation import phase_teardown
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+    from tests.terminus.lanes_fixture import build_lanes_mission
+
+    mission = build_lanes_mission(tmp_path, wps=("WP01",), target_branch="develop", mid8="01M6736B")
+    _, branch = predict_lane_worktree(mission.repo, mission.slug, "lane-a")
+    seen: dict[str, object] = {}
+    real_plan = phase_teardown.plan_lane_cleanup
+    real_remover = phase_teardown.GuardedLaneRemover
+
+    def spy_plan(manifest: Any, *, repo_root: Path, expected_tips: Any = None) -> Any:
+        seen["expected_tips"] = dict(expected_tips or {})
+        return real_plan(manifest, repo_root=repo_root, expected_tips=expected_tips)
+
+    def spy_remover(*args: Any, **kwargs: Any) -> Any:
+        seen["mission_slug"] = kwargs.get("mission_slug")
+        return real_remover(*args, **kwargs)
+
+    monkeypatch.setattr(phase_teardown, "plan_lane_cleanup", spy_plan)
+    monkeypatch.setattr(phase_teardown, "GuardedLaneRemover", spy_remover)
+
+    run = _lane_cleanup_run(mission)
+    run.state.pre_mutation_refs = {branch: "a" * 40}
+    run.state.lane_rebase_moves = {branch: ["a" * 40, "b" * 40]}
+    phase_teardown._lane_cleanup_report(run)
+
+    assert seen["expected_tips"] == {branch: "b" * 40}
+    assert seen["mission_slug"] == mission.slug
