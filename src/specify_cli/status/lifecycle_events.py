@@ -25,12 +25,13 @@ re-running the producer (e.g. ``finalize-tasks`` on an existing
 mission) is a no-op for already-recorded events. This makes the
 canonical stream a safe target for repair / replay tooling.
 
-The schema mirrors the contracts defined in
-``spec_kitty_events.project_lifecycle`` (sibling repo). The
-``project_lifecycle`` module is referenced via string constants here
-so that the CLI does not hard-fail when an older release of
-``spec-kitty-events`` is installed; the payloads are forward-compatible
-with the typed contracts.
+The schema mirrors the contracts defined in ``spec_kitty_events``:
+``project_lifecycle`` owns the project/artifact/WP events and ``lifecycle``
+owns the mission events (sibling repo). The twelve event-type names are
+imported from that package rather than re-declared here (#6447), so the
+vocabulary has one owning source and cannot drift; payloads are constructed
+through the package's typed models, so they stay forward-compatible with
+those contracts.
 """
 
 from __future__ import annotations
@@ -43,6 +44,20 @@ from typing import Any, Literal
 from collections.abc import Iterable, Mapping
 
 from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
+from spec_kitty_events import (
+    FOLLOW_UP_RECORDED,
+    MISSION_CREATED,
+    MISSION_REOPENED,
+    PLAN_COMPLETED,
+    PLAN_STARTED,
+    PROJECT_INITIALIZED,
+    REVIEWER_SELF_APPROVAL,
+    SPECIFY_COMPLETED,
+    SPECIFY_STARTED,
+    TASKS_COMPLETED,
+    TASKS_STARTED,
+    WP_CREATED,
+)
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .locking import feature_status_lock, project_event_log_lock
@@ -70,27 +85,18 @@ class MissionNotCompletedError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# Event type constants — kept in sync with spec_kitty_events.project_lifecycle
+# Event type constants — imported from ``spec_kitty_events``, the package that
+# owns the lifecycle vocabulary (#6447). Never re-declare them here: a local
+# copy is a second authority that silently drifts from the package, and
+# ``tests/status/test_lifecycle_events_package_parity.py`` fails when one grows
+# back.
 # ---------------------------------------------------------------------------
-
-PROJECT_INITIALIZED = "ProjectInitialized"
-MISSION_CREATED = "MissionCreated"
-SPECIFY_STARTED = "SpecifyStarted"
-SPECIFY_COMPLETED = "SpecifyCompleted"
-PLAN_STARTED = "PlanStarted"
-PLAN_COMPLETED = "PlanCompleted"
-TASKS_STARTED = "TasksStarted"
-TASKS_COMPLETED = "TasksCompleted"
-WP_CREATED = "WPCreated"
-REVIEWER_SELF_APPROVAL = "ReviewerSelfApproval"
 
 # Post-mission lifecycle events (WP01 / FR-001). These record facts about a
 # mission *after* it has merged/closed: a re-open returning it to an actionable
 # state, and a follow-up commit/PR attributed to it. Both are canonical
 # ``spec_kitty_events`` types (committed schemas since 10.7.0), so they take the
 # same strict-validation path as every other lifecycle event (#6399).
-MISSION_REOPENED = "MissionReopened"
-FOLLOW_UP_RECORDED = "FollowUpRecorded"
 
 # The post-mission lifecycle event types: the SINGLE public owner of this
 # membership (#2884), consumed by the post-mission ordering in
