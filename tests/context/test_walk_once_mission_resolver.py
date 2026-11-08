@@ -27,6 +27,7 @@ from specify_cli.context.mission_resolver import (
     WalkOnceMissionResolver,
 )
 from specify_cli.missions import _read_path_resolver
+from specify_cli.retrospective import summary as summary_module
 from specify_cli.retrospective.summary import build_summary
 from tests.context._mission_tree import HANDLES, build_mission_tree, outcome, write_meta
 from tests.retrospective.test_summary_tolerance import _make_completed_yaml
@@ -274,9 +275,34 @@ def test_build_summary_shares_a_passed_resolver(tmp_path: Path, monkeypatch: pyt
     assert walks == []
 
 
+def _record_lookups(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, Path]]:
+    """Record every ``(slug, resolved feature dir)`` the summary's per-Mission lookup returns."""
+    lookups: list[tuple[str, Path]] = []
+    real = summary_module.candidate_feature_dir_for_mission
+
+    def recording(project_path: Path, mission_slug: str, **kwargs: Any) -> Path:
+        resolved: Path = real(project_path, mission_slug, **kwargs)
+        lookups.append((mission_slug, resolved))
+        return resolved
+
+    monkeypatch.setattr(summary_module, "candidate_feature_dir_for_mission", recording)
+    return lookups
+
+
 def test_build_summary_output_is_unchanged_by_the_shared_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The snapshot equals the one computed with a fresh walk per lookup (the pre-#6788 behaviour)."""
+    """The snapshot and every resolved Mission directory equal a fresh walk per lookup (pre-#6788).
+
+    The snapshot alone cannot catch a wrong resolver answer: ``build_summary`` discards
+    the proposal-event counts its lookups feed. So the resolved directories themselves
+    are compared, lookup by lookup.
+    """
     root = _corpus(tmp_path, 12)
+    shared_lookups = _record_lookups(monkeypatch)
     shared = _comparable(build_summary(project_path=root))
+    monkeypatch.undo()
+    fresh_lookups = _record_lookups(monkeypatch)
     monkeypatch.setattr(mission_resolver, "WalkOnceMissionResolver", FsMissionResolver)
     assert _comparable(build_summary(project_path=root)) == shared
+    assert shared_lookups, "the corpus must exercise the per-Mission lookup"
+    assert any(directory.name == "080-human-080" for _, directory in shared_lookups)
+    assert shared_lookups == fresh_lookups
