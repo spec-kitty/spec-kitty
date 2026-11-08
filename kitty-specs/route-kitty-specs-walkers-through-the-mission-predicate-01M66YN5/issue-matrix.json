@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3194": {
+      "evidence_ref": "Context citation only: _resolve_mission_dirs keeps safe_is_dir evaluated before the predicate, preserving #3194's raise; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5875": {
+      "evidence_ref": "Parent that introduced is_selectable_mission_dir and is already merged; this mission is its named follow-up and owes it no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6757": {
+      "evidence_ref": "Deliberately out of scope (C-001): src/specify_cli/audit/engine.py keeps its looser is_mission_dir population; #6757 carries its own mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP03"
+    },
+    "#6758": {
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/6837",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#6759": {
+      "evidence_ref": "Context only: the residue glossary entry is #6759's own mission; this mission names the read-side sense in its spec instead of editing that glossary.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}
