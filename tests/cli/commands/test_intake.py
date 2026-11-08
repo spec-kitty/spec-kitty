@@ -226,3 +226,69 @@ def test_intake_show_reports_invalid_source_yaml(tmp_path: Path, monkeypatch: py
     assert result.exit_code == 2
     assert "Brief provenance" in result.output
     assert "unreadable" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #706: intake --clear (in-matrix CLI coverage of the branch logic)
+# ---------------------------------------------------------------------------
+
+_CLEAR_ARTIFACTS = ("mission-brief.md", "brief-source.yaml", "ticket-context.md", "pending-origin.yaml")
+
+
+def _stage_intake_artifacts(tmp_path: Path) -> Path:
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    for name in _CLEAR_ARTIFACTS:
+        (kittify / name).write_text("staged\n", encoding="utf-8")
+    (kittify / "keep-me.md").write_text("user-owned\n", encoding="utf-8")
+    return kittify
+
+
+def test_intake_clear_removes_only_intake_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--clear deletes the four intake artifacts, reports each, and keeps other files."""
+    monkeypatch.chdir(tmp_path)
+    kittify = _stage_intake_artifacts(tmp_path)
+
+    result = runner.invoke(app, ["intake", "--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert sorted(p.name for p in kittify.iterdir()) == ["keep-me.md"]
+    flat = result.output.replace("\n", "")
+    for name in _CLEAR_ARTIFACTS:
+        assert f"Removed .kittify/{name}" in flat
+
+
+def test_intake_clear_with_nothing_to_clear_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """--clear is idempotent: with no artifacts it says so and exits 0."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+
+    result = runner.invoke(app, ["intake", "--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert "No intake artifacts to clear." in result.output
+
+
+@pytest.mark.parametrize("extra", [["PLAN.md"], ["--auto"], ["--show"], ["--force"]], ids=["path", "auto", "show", "force"])
+def test_intake_clear_refuses_another_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra: list[str]) -> None:
+    """--clear combined with another mode is refused and deletes nothing."""
+    monkeypatch.chdir(tmp_path)
+    kittify = _stage_intake_artifacts(tmp_path)
+
+    result = runner.invoke(app, ["intake", *extra, "--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "--clear cannot be combined" in result.output
+    for name in _CLEAR_ARTIFACTS:
+        assert (kittify / name).exists()
+
+
+def test_intake_clear_reports_an_unremovable_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An artifact that cannot be unlinked (a directory) is a clean refusal, not a traceback."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify" / "mission-brief.md").mkdir(parents=True)
+
+    result = runner.invoke(app, ["intake", "--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "Could not clear the intake artifacts" in result.output
