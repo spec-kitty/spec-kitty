@@ -25,6 +25,7 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
+from specify_cli.meta_keys import TOPOLOGY_SOURCE_KEY, TopologySource
 
 
 def load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
@@ -210,6 +211,56 @@ def feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
             )
         paths.append(rel_path)
     return paths
+
+
+def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | None:
+    """The checkout holding a default Mission's PRIMARY partition before its landing, else ``None`` (FR-061).
+
+    Until a ``topology_source: default`` Mission lands, its PRIMARY partition lives on its topic
+    branch, which the coordination worktree holds once the repository root checkout moved back to
+    ``create_return_branch``. This is the one answer the planning-artifact commit, the claim commit
+    and the bookkeeping transaction share (#7372). The ref is the placement seam's PRIMARY write
+    target (topic branch before the landing, the target after), and the holder is the non-lane
+    checkout holding that ref -- the same topic-holder probe the status read door uses. ``None``
+    for every other Mission (explicit topology, legacy, landed), for a default Mission whose PRIMARY
+    ref no non-lane checkout other than *repo_root* holds, and when ``meta.json`` cannot be read
+    (the fail-closed guards downstream report that, e.g. the #4979 demotion refusal).
+    """
+    from specify_cli.status import non_lane_checkout_holding_branch
+
+    meta = load_primary_anchored_mission_meta(repo_root, mission_slug)
+    if not meta or meta.get(TOPOLOGY_SOURCE_KEY) != TopologySource.DEFAULT.value:
+        return None
+    topic = meta.get("mission_branch")
+    primary_ref = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC).ref
+    if not isinstance(topic, str) or primary_ref != topic:
+        # Landed (the seam resolves PRIMARY to the target) or no topic branch recorded.
+        return None
+    holder: Path | None = non_lane_checkout_holding_branch(repo_root, primary_ref)
+    if holder is None or holder.resolve() == repo_root.resolve():
+        return None
+    return holder
+
+
+def planning_checkout_root(repo_root: Path, artifact_source_dir: Path, mission_slug: str) -> Path:
+    """The checkout the planning commit stages from: *repo_root*, or a default Mission's topic holder.
+
+    FR-061 (#7372): the planning-artifact directory of a default Mission that has not landed sits
+    in the checkout holding its topic branch (:func:`primary_partition_checkout`), so the claim
+    reads ``git status`` there and stages paths relative to it rather than relativizing a
+    ``.worktrees/`` path against the repository root (the #1887 guard in
+    :func:`feature_dir_file_paths` refuses that, and rightly).
+
+    The holder is used only when *artifact_source_dir* lies inside it. Every other shape keeps
+    *repo_root*, so a ``.worktrees/`` directory that is not that holder still trips the guard.
+    """
+    holder = primary_partition_checkout(repo_root, mission_slug)
+    if holder is None:
+        return repo_root
+    resolved = holder.resolve()
+    if resolved == repo_root.resolve() or not artifact_source_dir.resolve().is_relative_to(resolved):
+        return repo_root
+    return holder
 
 
 def planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_slug: str) -> Path:

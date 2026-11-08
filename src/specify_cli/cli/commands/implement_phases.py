@@ -498,7 +498,7 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     occupancy_verified = implement_support.refuse_repo_root_checkout_if_unavailable(repo_root, mission_slug, wp_id, resolved_workspace)
     # #5738: a claim whose auto-commit cannot land on the checked-out branch is
     # refused here too, before the VCS lock, the lane worktree and the status write.
-    implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
+    implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit, feature_dir)
     meta_dirty_before = _meta_dirty_before_claim(repo_root, feature_dir)
     # A lock an earlier, failed claim of this mission left behind is this claim's to commit, not dirty operator work.
     retry_lock = meta_dirty_before and _meta_differs_only_by_vcs_lock(repo_root, feature_dir)

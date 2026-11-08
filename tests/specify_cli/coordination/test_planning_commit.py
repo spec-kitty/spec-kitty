@@ -381,3 +381,86 @@ class TestCoordinationFilterWithDeclared:
         placement = planning_commit.PlanningPlacement(resolved=True, ref=CommitTarget(ref="main"))
 
         assert planning_commit.coordination_filter_with_declared(tmp_path, "m", placement, declared_coordination_branch=_COORD_BRANCH) is None
+
+
+class TestPrimaryPartitionCheckout:
+    """#7372 / FR-061: the topic holder of a default Mission before its landing, from the seam."""
+
+    _TOPIC = "kitty/mission-seam-mission-01KSEAMA"
+
+    def _repo_with_topic_worktree(self, tmp_path: Path) -> tuple[Path, Path]:
+        repo = tmp_path / "repo"
+        _init_repo(repo)
+        _write_meta(repo, dict(_DECLARING_META))
+        _commit_all(repo)
+        holder = repo / ".worktrees" / "seam-mission-coord"
+        git_out(repo, "worktree", "add", "-q", "-b", self._TOPIC, str(holder))
+        return repo, holder
+
+    @staticmethod
+    def _stub(monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None, primary_ref: str) -> None:
+        seam = type("Seam", (), {"write_target": lambda _self, _kind: type("T", (), {"ref": primary_ref})()})()
+        monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda *_a: meta)
+        monkeypatch.setattr(planning_commit, "placement_seam", lambda *_a: seam)
+
+    def _default_meta(self) -> dict[str, object]:
+        return {"topology_source": "default", "mission_branch": self._TOPIC}
+
+    def test_default_mission_before_landing_is_held_by_the_topic_worktree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, holder = self._repo_with_topic_worktree(tmp_path)
+        self._stub(monkeypatch, self._default_meta(), self._TOPIC)
+        assert planning_commit.primary_partition_checkout(repo, _SLUG) == holder
+
+    def test_landed_default_mission_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, _holder = self._repo_with_topic_worktree(tmp_path)
+        self._stub(monkeypatch, self._default_meta(), "work")
+        assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
+
+    @pytest.mark.parametrize(
+        "meta",
+        [None, {}, {"topology_source": "explicit", "mission_branch": _COORD_BRANCH}, {"topology_source": "default"}],
+        ids=["unreadable-meta", "empty-meta", "explicit-topology", "no-topic-branch"],
+    )
+    def test_any_other_mission_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None) -> None:
+        repo, _holder = self._repo_with_topic_worktree(tmp_path)
+        self._stub(monkeypatch, meta, self._TOPIC)
+        assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
+
+    def test_topic_branch_held_by_the_root_or_nobody_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, _holder = self._repo_with_topic_worktree(tmp_path)
+        git_out(repo, "branch", "unheld")
+        for ref in ("work", "unheld"):
+            self._stub(monkeypatch, {"topology_source": "default", "mission_branch": ref}, ref)
+            assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
+
+
+class TestPlanningCheckoutRoot:
+    """#7372 / FR-061: the planning commit stages from a default Mission's topic holder."""
+
+    _TOPIC = "kitty/mission-seam-mission-01KSEAMA"
+
+    def _repo_with_topic_worktree(self, tmp_path: Path) -> tuple[Path, Path]:
+        return TestPrimaryPartitionCheckout()._repo_with_topic_worktree(tmp_path)
+
+    def test_topic_holder_is_the_checkout_when_the_directory_lies_in_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, holder = self._repo_with_topic_worktree(tmp_path)
+        mission_dir = holder / "kitty-specs" / _SLUG
+        monkeypatch.setattr(planning_commit, "primary_partition_checkout", lambda *_a: holder)
+        assert planning_commit.planning_checkout_root(repo, mission_dir, _SLUG) == holder
+        # ...and the #1887 walk, run against that checkout, stages checkout-relative paths.
+        assert planning_commit.feature_dir_file_paths(holder, mission_dir) == [_META_REL]
+
+    def test_directory_outside_the_holder_keeps_the_repository_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, holder = self._repo_with_topic_worktree(tmp_path)
+        monkeypatch.setattr(planning_commit, "primary_partition_checkout", lambda *_a: holder)
+        assert planning_commit.planning_checkout_root(repo, repo / "kitty-specs" / _SLUG, _SLUG) == repo
+
+    def test_a_mission_that_is_not_default_keeps_the_repository_root_even_from_a_worktree_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo, holder = self._repo_with_topic_worktree(tmp_path)
+        monkeypatch.setattr(planning_commit, "primary_partition_checkout", lambda *_a: None)
+        mission_dir = holder / "kitty-specs" / _SLUG
+        root = planning_commit.planning_checkout_root(repo, mission_dir, _SLUG)
+        assert root == repo
+        # The #1887 guard still refuses that directory relative to the repository root.
+        with pytest.raises(SafeCommitPathPolicyError):
+            planning_commit.feature_dir_file_paths(root, mission_dir)

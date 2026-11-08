@@ -488,10 +488,14 @@ def _stage_transaction_paths(txn: BookkeepingTransaction, paths: list[Path], *, 
     Extracted from :func:`_commit_via_coordination_transaction` (#4905) so
     both the coord-bound and the primary-bound transaction below share one
     staging loop. When ``commit_to_primary_target=True`` (the primary-bound
-    caller), ``txn.worktree_root`` IS ``repo_root`` (see
+    caller), ``txn.worktree_root`` is ``repo_root`` (see
     ``BookkeepingTransaction.acquire``'s docstring), so every path here
-    already lives under it and takes the ``stage_path`` fast path below —
-    no ``_transaction_path_for`` remap needed.
+    already lives under it and takes the ``stage_path`` fast path below --
+    except for a ``topology_source: default`` Mission that has not landed
+    (FR-061, #7372): its PRIMARY target is its topic branch and
+    ``txn.worktree_root`` is the checkout holding it. Paths inside that
+    holder take the fast path; any other path is remapped into it through
+    ``_transaction_path_for``.
     """
     for path in paths:
         if not path.exists():
