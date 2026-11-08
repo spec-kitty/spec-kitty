@@ -198,4 +198,4 @@ def test_assert_merged_wps_reached_done_treats_unseeded_wp_as_not_done(
     # The exit must be the not-done verdict, not a read failure on the way there.
     output = "\n".join(str(call.args[0]) for call in printed.call_args_list)
     assert "merged WPs did not reach done" in output
-    assert "Offending WPs: WP01" in output
+    assert "Offending WPs: WP01=uninitialized" in output
