@@ -92,16 +92,13 @@ class MissionNotCompletedError(RuntimeError):
 # back.
 # ---------------------------------------------------------------------------
 
-# Post-mission lifecycle events (WP01 / FR-001). These record facts about a
-# mission *after* it has merged/closed: a re-open returning it to an actionable
-# state, and a follow-up commit/PR attributed to it. Both are canonical
-# ``spec_kitty_events`` types (committed schemas since 10.7.0), so they take the
-# same strict-validation path as every other lifecycle event (#6399).
-
-# The post-mission lifecycle event types: the SINGLE public owner of this
-# membership (#2884), consumed by the post-mission ordering in
-# ``status/lifecycle.py``. It names which events describe a mission after it
-# merged or closed; it is not a transport policy. It replaces the retired
+# The post-mission lifecycle event types (WP01 / FR-001): the SINGLE public
+# owner of this membership (#2884), consumed by the post-mission ordering in
+# ``status/lifecycle.py``. They record facts about a mission *after* it merged or
+# closed: a re-open returning it to an actionable state, and a follow-up
+# commit/PR attributed to it. Both are canonical ``spec_kitty_events`` types
+# (committed schemas since 10.7.0), so they take the same strict-validation path
+# as every other lifecycle event (#6399). This is not a transport policy. It replaces the retired
 # ``LOCAL_ONLY_LIFECYCLE_EVENT_TYPES`` (#6399): the local-only concept was retired
 # in ``spec_kitty_events`` 11.0.0.
 POST_MISSION_LIFECYCLE_EVENT_TYPES = frozenset({MISSION_REOPENED, FOLLOW_UP_RECORDED})
