@@ -8,11 +8,11 @@ checked without git. The end-to-end behaviour through the runner is pinned in
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import parse_iso
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.worktree_pass import (
@@ -29,6 +29,8 @@ from specify_cli.upgrade.worktree_selection import WorktreeOutcome, WorktreeSele
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 TARGET = "9.9.9"
+
+_FIXED_TIME = parse_iso("2026-01-01T00:00:00+00:00")
 
 
 class _Stub(BaseMigration):
@@ -164,7 +166,7 @@ class _FakeRunner:
         return self.record_returns
 
     def synthesize(self, worktree: Path) -> ProjectMetadata:
-        return ProjectMetadata(version="0.1.0", initialized_at=datetime(2026, 1, 1, tzinfo=UTC))
+        return ProjectMetadata(version="0.1.0", initialized_at=_FIXED_TIME)
 
     def settle(self, run: WorktreeRun, context: WorktreePassContext, /) -> tuple[list[str], WorktreeOutcome]:
         self.settled.append(run)
@@ -180,7 +182,7 @@ def _context(*, dry_run: bool = False) -> WorktreePassContext:
         dry_run=dry_run,
         auto_commit=False,
         main_metadata=None,
-        fallback_timestamp=datetime(2026, 1, 1, tzinfo=UTC),
+        fallback_timestamp=_FIXED_TIME,
     )
 
 

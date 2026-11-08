@@ -20,7 +20,7 @@ updated: '2026-11-08T00:00:00Z'
 - #7405: slice S2 of epic #3347, "extract `_upgrade_worktrees` and prove migrations convergent".
 - #3347: upgrade/migration atomicity and recoverability (epic).
 - #6549: a migration that is not needed on pass 1 and applied on pass 2 (the defect class).
-- #7429: the second non-convergent migration this check found.
+- #7429: a non-convergent migration this check found (#6549 is the earlier, separately reported one).
 - Related: #5934, #5712, #5472, #5470.
 
 **Reader:** a maintainer who changes `spec-kitty upgrade` or writes a migration, and an agent doing
@@ -94,7 +94,7 @@ For convergence:
    project). The second run must change nothing in the tree, including `.git/config`, `.git/info`
    and `.git/hooks`. It also runs `MigrationRunner.upgrade` twice on each fixture and on an
    older-version lanes project, and the second run must apply nothing and change nothing.
-   A floor on how many migrations each fixture drives into `apply()`, together with a check that
+   A floor on how many migrations each fixture selects as needed (`detect()` returns True, which leads to `apply()`), together with a check that
    `detect()` writes nothing, keeps the check non-vacuous.
 4. **A non-convergent migration is pinned, never patched in place.** Per migration, the entry goes
    in `NOT_CONVERGENT` as a strict `xfail`. Per run, `KNOWN_EXTRA_PASS` names exactly the
