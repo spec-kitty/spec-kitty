@@ -54,6 +54,8 @@ __all__ = [
     "read_status_text",
     "ref_source_remedy",
     "resolve_committed_status_read",
+    "resolve_consolidated_target_read",
+    "resolve_landing_evidence_read",
     "resolve_primary_partition_dir",
     "resolve_status_read",
 ]
@@ -232,6 +234,36 @@ def resolve_committed_status_read(repo_root: Path, mission: str) -> StatusReadSu
             repo_root=root,
             ref=ref,
         )
+
+
+def resolve_consolidated_target_read(repo_root: Path, primary_dir: Path) -> StatusReadSurface:
+    """The ``CONSOLIDATED_TARGET`` surface of the Mission whose PRIMARY directory is *primary_dir*.
+
+    The target's copy in the repository root checkout, where consolidation lands the log. For a
+    reader that asks whether that copy shows a landing (#7433) when the door cannot answer
+    ``CONSOLIDATED_TARGET`` itself because ``merged_at`` is missing. ``repo_root`` must already
+    be the main repository root. Raises ``ValueError`` when *primary_dir* does not exist.
+    """
+    return _consolidated_decision(repo_root, primary_dir.name, primary_dir, None).surface()
+
+
+def resolve_landing_evidence_read(repo_root: Path, mission: str) -> StatusReadSurface:
+    """The surface that holds a Mission's landing evidence (#7433): the door's own decision.
+
+    One declared exception: when the door refuses because the coordination branch is gone
+    (``CoordinationBranchDeleted``), the evidence is the target's copy
+    (:func:`resolve_consolidated_target_read`): consolidation removes the coordination branch
+    after it lands the log on the target, so that copy is the only committed log left. Whether
+    it shows a landing is the caller's question; this function only names where to look.
+
+    Raises what :func:`resolve_status_read` raises, except ``CoordinationBranchDeleted``.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    try:
+        return resolve_status_read(repo_root, mission)
+    except CoordinationBranchDeleted as refused:
+        return resolve_consolidated_target_read(Path(refused.repo_root), Path(refused.primary_candidate))
 
 
 def decide_status_read(

@@ -151,20 +151,18 @@ class WorktreeRegistryUnavailable(RuntimeError):
         super().__init__(f"Could not read the git worktree registry at {repo_root}: {detail}. Topology cannot be determined from path shape alone; fail closed.")
 
 
-def _landed_without_marker(primary_candidate: Path) -> bool:
-    """True when the PRIMARY ``meta.json`` records an assigned ``mission_number`` but no ``merged_at``.
+def _target_log_shows_landing(repo_root: Path, primary_candidate: Path) -> str | None:
+    """The latest done date when the target's status log shows a landing, else ``None`` (#7433).
 
-    The pre-#4090 landed shape the ``merged_at`` backfill migration repairs (#7433). Non-raising:
-    an absent or unreadable ``meta.json`` answers ``False`` (the ordinary flatten remedy).
+    The one terminal-WP rule (:mod:`specify_cli.status.landing_evidence`, ADR ``2026-11-06-2``)
+    applied to the log consolidation lands on the target. ``mission_number`` plays no part
+    (#5471 assigns it to Missions that never landed). Non-raising: an absent or unreadable log
+    answers ``None`` (the ordinary flatten remedy).
     """
-    from specify_cli.consolidation.mission_number import is_assigned_mission_number
-    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+    from specify_cli.status.landing_evidence import landing_evidence_at_target
 
-    try:
-        meta = load_meta_fail_closed(primary_candidate) or {}
-    except (MissionMetaReadError, OSError):
-        return False
-    return is_assigned_mission_number(meta.get("mission_number")) and not str(meta.get("merged_at") or "").strip()
+    evidence = landing_evidence_at_target(repo_root, primary_candidate)
+    return evidence.merged_at if evidence.holds else None
 
 
 # ``StatusReadPathNotFound`` resolves to ``Any`` under this project's mypy
@@ -207,17 +205,19 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         primary_candidate: Path,
     ) -> None:
         self.coordination_branch = coordination_branch
-        if _landed_without_marker(primary_candidate):
+        landed_at = _target_log_shows_landing(repo_root, primary_candidate)
+        if landed_at is not None:
             # A landed Mission whose coordination branch consolidation removed, recorded before
             # ``merged_at`` existed (#4090): flattening would be the wrong repair, the backfill
-            # migration stamps the landing marker (#7433). ``mission_number`` only picks the
-            # remedy text here; the landed verdict stays ``mission_has_landed`` alone.
+            # migration stamps the landing marker (#7433). The terminal-WP evidence only picks
+            # the remedy text here; the landed verdict stays ``mission_has_landed`` alone.
             self.next_step = (
                 f"The coordination branch {coordination_branch!r} declared in "
-                f"meta.json no longer exists, and meta.json records a mission_number "
-                f"but no merged_at: this Mission landed before the landing marker was "
-                f"recorded. Run `spec-kitty upgrade` to stamp merged_at; do not drop "
-                f"the `coordination_branch` key."
+                f"meta.json no longer exists, and the status log on the target shows "
+                f"every work package done or canceled (last done {landed_at}) but "
+                f"meta.json has no merged_at: this Mission landed before the landing "
+                f"marker was recorded. Run `spec-kitty upgrade` to stamp merged_at; do "
+                f"not drop the `coordination_branch` key."
             )
         else:
             self.next_step = (
