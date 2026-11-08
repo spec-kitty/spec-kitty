@@ -435,3 +435,15 @@ def test_other_refusals_name_their_entries_not_uncommitted_changes(tmp_path: Pat
     assert _refusal_detail(refusal, tmp_path) == f"{tmp_path} was not removed: abc123 (only on lane)."
     bare = DestructiveOpRefused(error_code=BRANCH_HAS_UNIQUE_COMMITS, current_branch=_LANE, remediation="keep it")
     assert _refusal_detail(bare, tmp_path) == f"{tmp_path} was not removed."
+
+
+def test_a_binary_conflict_beside_the_status_log_is_not_absorbed(coord_landed: tuple[Path, Path, str]) -> None:
+    """git keeps the target's side of a binary conflict in the merged tree; the conflict list still refuses it."""
+    root, worktree, _tip = coord_landed
+    (root / "blob.bin").write_bytes(b"\x00target\x00")
+    _git(root, "add", "blob.bin")
+    _git(root, "commit", "-q", "-m", "target binary")
+    (worktree / "blob.bin").write_bytes(b"\x00lane\x00")
+    _git(worktree, "add", "blob.bin")
+    _git(worktree, "commit", "-q", "-m", "lane binary")
+    assert not _absorbed_but_for_status_log(root, _git(worktree, "rev-parse", "HEAD"), "refs/heads/main", _SLUG)

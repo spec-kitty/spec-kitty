@@ -35,6 +35,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
+from kernel.git import GitCommandError, blob_at, changed_paths, merge_tree
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
@@ -458,18 +459,16 @@ def _refusal_detail(refusal: DestructiveOpRefused, worktree: Path) -> str:
     return f"{worktree} was not removed."
 
 
-def _git_ok_or_none(repo_root: Path, *args: str) -> str | None:
-    probe = _git(repo_root, *args)
-    return probe.stdout if probe.returncode == 0 else None
-
-
 def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path: str) -> bool:
-    """Every event line of the lane's copy of the status log is also in the landing's copy (append-only, #6736)."""
-    if _git(repo_root, "cat-file", "-e", f"{tip}:{log_path}").returncode != 0:
+    """Every event line of the lane's copy of the status log is also in the landing's copy (append-only, #6736).
+
+    Raises :class:`kernel.git.GitCommandError` when a ref or blob cannot be read.
+    """
+    lane = blob_at(repo_root, tip, log_path)
+    if lane is None:
         return True  # the lane carries no copy: nothing of it can be lost
-    lane = _git_ok_or_none(repo_root, "show", f"{tip}:{log_path}")
-    landed = _git_ok_or_none(repo_root, "show", f"{landing_ref}:{log_path}")
-    if lane is None or landed is None:
+    landed = blob_at(repo_root, landing_ref, log_path)
+    if landed is None:
         return False
     landed_lines = {line for line in landed.splitlines() if line.strip()}
     return all(line in landed_lines for line in lane.splitlines() if line.strip())
@@ -495,16 +494,14 @@ def _absorbed_but_for_status_log(repo_root: Path, tip: str, landing_ref: str, mi
     mission_dir = f"{KITTY_SPECS_DIR}/{mission_slug}"
     log_path = f"{mission_dir}/{EVENTS_FILENAME}"
     status_paths = {log_path, f"{mission_dir}/{SNAPSHOT_FILENAME}"}
-    merged = _git(repo_root, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", landing_ref, tip)
-    if merged.returncode not in (0, 1):
+    try:
+        merged = merge_tree(repo_root, landing_ref, tip)
+        if not merged.tree or not {str(path) for path in merged.conflicted} <= status_paths:
+            return False
+        changed = {str(path) for path in changed_paths(repo_root, landing_ref, merged.tree)}
+        return changed <= status_paths and _status_log_contained(repo_root, tip, landing_ref, log_path)
+    except GitCommandError:
         return False
-    tree, *conflicted = [entry for entry in merged.stdout.split("\0") if entry] or [""]
-    if not tree or not set(conflicted) <= status_paths:
-        return False
-    changed = _git_ok_or_none(repo_root, "diff", "--name-only", "--no-renames", "-z", landing_ref, tree)
-    if changed is None or not {path for path in changed.split("\0") if path} <= status_paths:
-        return False
-    return _status_log_contained(repo_root, tip, landing_ref, log_path)
 
 
 class GuardedLaneRemover:

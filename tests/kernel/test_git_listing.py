@@ -355,3 +355,32 @@ def test_blob_at_propagates_git_failure(tmp_path: Path) -> None:
     failure = GitCommandError(argv=("ls-tree",), cwd=tmp_path, returncode=128, stderr="fatal: bad ref")
     with patch.object(listing, "run_git", side_effect=failure), pytest.raises(GitCommandError):
         listing.blob_at(tmp_path, "HEAD", "src/a")
+
+
+# --- merge_tree -------------------------------------------------------------------------------
+
+_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+def test_parse_merge_tree_z_clean() -> None:
+    assert listing.parse_merge_tree_z(f"{_TREE}\0".encode()) == listing.MergeTreeResult(tree=_TREE, conflicted=())
+
+
+def test_parse_merge_tree_z_names_each_conflicted_path_once() -> None:
+    raw = f"{_TREE}\0a b/f\0é/g\0a b/f\0".encode()
+    assert listing.parse_merge_tree_z(raw) == listing.MergeTreeResult(tree=_TREE, conflicted=(P("a b/f"), P("é/g")))
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_merge_tree_returns_a_result_for_a_clean_or_conflicted_merge(tmp_path: Path, returncode: int) -> None:
+    stdout = f"{_TREE}\0x\0".encode()
+    with patch.object(listing, "run_git", return_value=GitResult(returncode=returncode, stdout=stdout, stderr=b"")) as run:
+        result = listing.merge_tree(tmp_path, "main", "lane")
+    assert result == listing.MergeTreeResult(tree=_TREE, conflicted=(P("x"),))
+    assert run.call_args.args[1:] == ("merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", "main", "lane")
+    assert run.call_args.kwargs["check"] is False
+
+
+def test_merge_tree_raises_on_any_other_exit(tmp_path: Path) -> None:
+    with patch.object(listing, "run_git", return_value=GitResult(returncode=128, stdout=b"", stderr=b"fatal: bad")), pytest.raises(GitCommandError):
+        listing.merge_tree(tmp_path, "main", "nope")
