@@ -45,6 +45,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
 
 #: The owning issue and the date by which the follow-up Mission drains the allowlist.
+#: The 2026-12-31 drain date is operator-confirmed; #7310 owns it, and moving it
+#: is the operator's call, recorded on that issue, never a change made here to keep a gate green.
 ALLOWLIST_ISSUE = "#7310"
 ALLOWLIST_DRAIN_BY = "2026-12-31"
 

@@ -422,7 +422,8 @@ def _st_reduce_surface(st: _StatusState, surface: StatusReadSurface) -> None:
     try:
         stream = read_status_stream(surface)
     except (StoreError, OSError, ValueError) as exc:
-        _status_error(st.json_output, f"The status log of {st.mission_slug} cannot be read: {exc}")
+        next_step = f"Run `spec-kitty agent status validate --mission {st.mission_slug}` to find the bad entries."
+        _status_error(st.json_output, f"The status log of {st.mission_slug} cannot be read: {exc}. {next_step}")
         raise typer.Exit(1) from exc
     st.events = list(stream.transitions)
     st.snapshot = reduce(st.events) if st.events else None

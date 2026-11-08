@@ -151,6 +151,22 @@ class WorktreeRegistryUnavailable(RuntimeError):
         super().__init__(f"Could not read the git worktree registry at {repo_root}: {detail}. Topology cannot be determined from path shape alone; fail closed.")
 
 
+def _landed_without_marker(primary_candidate: Path) -> bool:
+    """True when the PRIMARY ``meta.json`` records an assigned ``mission_number`` but no ``merged_at``.
+
+    The pre-#4090 landed shape the ``merged_at`` backfill migration repairs (#7433). Non-raising:
+    an absent or unreadable ``meta.json`` answers ``False`` (the ordinary flatten remedy).
+    """
+    from specify_cli.consolidation.mission_number import is_assigned_mission_number
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    try:
+        meta = load_meta_fail_closed(primary_candidate) or {}
+    except (MissionMetaReadError, OSError):
+        return False
+    return is_assigned_mission_number(meta.get("mission_number")) and not str(meta.get("merged_at") or "").strip()
+
+
 # ``StatusReadPathNotFound`` resolves to ``Any`` under this project's mypy
 # config because ``src/specify_cli/missions/`` is in the mypy ``exclude`` list
 # (pyproject ``[tool.mypy] exclude``), so mypy cannot see the real base class
@@ -191,14 +207,27 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         primary_candidate: Path,
     ) -> None:
         self.coordination_branch = coordination_branch
-        self.next_step = (
-            f"The coordination branch {coordination_branch!r} declared in "
-            f"meta.json does not exist in git (never created or deleted). "
-            f"Flatten the mission — drop the `coordination_branch` key from "
-            f"meta.json — to recover: run `spec-kitty doctor coordination --fix` "
-            f"to flatten automatically, or remove the key manually and run "
-            f"`spec-kitty migrate backfill-topology`."
-        )
+        if _landed_without_marker(primary_candidate):
+            # A landed Mission whose coordination branch consolidation removed, recorded before
+            # ``merged_at`` existed (#4090): flattening would be the wrong repair, the backfill
+            # migration stamps the landing marker (#7433). ``mission_number`` only picks the
+            # remedy text here; the landed verdict stays ``mission_has_landed`` alone.
+            self.next_step = (
+                f"The coordination branch {coordination_branch!r} declared in "
+                f"meta.json no longer exists, and meta.json records a mission_number "
+                f"but no merged_at: this Mission landed before the landing marker was "
+                f"recorded. Run `spec-kitty upgrade` to stamp merged_at; do not drop "
+                f"the `coordination_branch` key."
+            )
+        else:
+            self.next_step = (
+                f"The coordination branch {coordination_branch!r} declared in "
+                f"meta.json does not exist in git (never created or deleted). "
+                f"Flatten the mission — drop the `coordination_branch` key from "
+                f"meta.json — to recover: run `spec-kitty doctor coordination --fix` "
+                f"to flatten automatically, or remove the key manually and run "
+                f"`spec-kitty migrate backfill-topology`."
+            )
         super().__init__(
             repo_root=repo_root,
             mission_slug=mission_slug,

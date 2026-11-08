@@ -200,6 +200,8 @@ def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monk
     assert payload["ok"] is False
     assert payload["error"]["code"] == "status_failed"
     assert "status log" in payload["error"]["message"]
+    # The refusal names the next step (#7431 review): the validator that finds the bad entries.
+    assert f"spec-kitty agent status validate --mission {_SLUG}" in payload["error"]["message"]
     assert "work_packages" not in payload
 
 
