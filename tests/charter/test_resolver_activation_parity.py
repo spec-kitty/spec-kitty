@@ -122,7 +122,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fix ``load_offering_catalog`` to the deterministic module-level catalog."""
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=_CATALOG_PARADIGMS,
             directives=_CATALOG_DIRECTIVES,
             template_sets=frozenset({"software-dev-default"}),
