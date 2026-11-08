@@ -82,6 +82,7 @@ from specify_cli.consolidation.preflight import (
     _effective_push_requested,
     _enforce_planning_artifact_target_branch,
     _enforce_review_artifact_consistency,
+    mission_branch_check_required,
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync_preflight
@@ -1005,9 +1006,10 @@ def _run_lane_based_consolidation(
             main_repo,
             lanes_manifest.target_branch,
         )
-    elif not (existing_state is not None and existing_state.cleanup_started and landing_verified_for_resume(main_repo, existing_state)):
-        # S5 FR-035: a resume after a kill inside cleanup finds the mission branch already torn
-        # down with the coordination triple; the landing is verified, so only cleanup is left.
+    elif mission_branch_check_required(main_repo, lanes_manifest, existing_state):
+        # The shared predicate (also used by the dry-run forecast, #7267) skips the check on a
+        # resume after a kill inside cleanup (S5 FR-035): the mission branch was torn down with
+        # the coordination triple; the landing is verified, so only cleanup is left.
         branch_ok, branch_blocker = _check_mission_branch(
             mission_slug,
             main_repo,

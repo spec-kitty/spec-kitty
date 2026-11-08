@@ -52,6 +52,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
+    mission_branch_check_required,
     refuse_protected_status_target,
     refuse_protected_target_override,
 )
@@ -292,6 +293,43 @@ TARGET_INTEGRATION_PREVIEW_FAILED = "TARGET_INTEGRATION_PREVIEW_FAILED"
 MISSION_BRANCH_MISSING = "MISSION_BRANCH_MISSING"
 
 
+def _refuse_missing_mission_branch_in_forecast(
+    main_repo: Path,
+    resolved_feature: str,
+    lanes_manifest: LanesManifest,
+    *,
+    json_output: bool,
+) -> None:
+    """Refuse the dry run on a missing Mission branch exactly when the real run would (#7267).
+
+    Whether the check applies at all comes from the predicate the real run uses
+    (:func:`mission_branch_check_required`): a planning-artifact-only Mission, which never
+    creates its recorded branch, and a resume after a verified landing are not refused.
+    """
+    try:
+        existing_state = load_state(main_repo, lanes_manifest.mission_id or resolved_feature)
+    except ConsolidationStateReadError:
+        logger.debug("an unreadable consolidation record is read as no record by the forecast's mission-branch check", exc_info=True)
+        existing_state = None
+    if not mission_branch_check_required(main_repo, lanes_manifest, existing_state):
+        return
+    branch_ok, branch_blocker = _check_mission_branch(
+        resolved_feature,
+        main_repo,
+        expected_branch=lanes_manifest.mission_branch,
+        mission_id=lanes_manifest.mission_id,
+    )
+    if branch_ok:
+        return
+    assert branch_blocker is not None
+    _emit_dry_run_error(
+        error_msg=f"Missing mission branch: {branch_blocker['expected_branch']}. Run: {branch_blocker['remediation']}",
+        json_output=json_output,
+        error_code=MISSION_BRANCH_MISSING,
+    )
+    raise typer.Exit(1)
+
+
 def _declared_with_recorded(
     main_repo: Path,
     lanes_manifest: LanesManifest,
@@ -525,24 +563,12 @@ def run_dry_run_forecast(
         raise typer.Exit(1) from exc
     # #7267 (operator ruling 2026-11-08): the dry run refuses on a missing Mission
     # branch with the SAME refusal as the real run's preflight (executor.py's
-    # ``_check_mission_branch``), instead of reporting a clean forecast for a run
-    # that would refuse. Placed after ``require_lanes_json`` — the check needs the
+    # ``_check_mission_branch``), and under the SAME skip predicate
+    # (``mission_branch_check_required``), instead of reporting a clean forecast for
+    # a run that would refuse or refusing one that would land. Placed after ``require_lanes_json`` — the check needs the
     # manifest's recorded ``mission_branch`` — and before every status read, so a
     # deleted branch cannot surface as an unhandled status-read error either.
-    branch_ok, branch_blocker = _check_mission_branch(
-        resolved_feature,
-        get_main_repo_root(repo_root),
-        expected_branch=lanes_manifest.mission_branch,
-        mission_id=lanes_manifest.mission_id,
-    )
-    if not branch_ok:
-        assert branch_blocker is not None
-        _emit_dry_run_error(
-            error_msg=(f"Missing mission branch: {branch_blocker['expected_branch']}. Run: {branch_blocker['remediation']}"),
-            json_output=json_output,
-            error_code=MISSION_BRANCH_MISSING,
-        )
-        raise typer.Exit(1)
+    _refuse_missing_mission_branch_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
     _refuse_protected_status_target_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
     # #6464: the forecast holds the UN-retargeted manifest, so the recorded target is its
     # ``target_branch`` while the effective one is the resolved ``--target``.
