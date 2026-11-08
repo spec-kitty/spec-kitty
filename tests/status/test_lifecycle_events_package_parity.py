@@ -12,9 +12,10 @@ core's copies of the events service and contracts"*, 2026-11-01, ``Refs #6915``,
 
 Removing the tools also removed the only in-core assertion that the CLI's copy of the
 vocabulary matches the package that owns it. This module restores that assertion without
-restoring the mistake: it compares *values*, never declarations, so it stays green
-whether the twelve names are local literals (today) or imports from ``spec_kitty_events``
-(#6447), and it can never re-create the deadlock #6876 records.
+restoring the mistake: the value cases compare *values*, never declarations, so they can
+never re-create the deadlock #6876 records. The twelve have been imports from
+``spec_kitty_events`` since #6447, and
+:func:`test_the_twelve_are_imported_not_redeclared` fails if a second copy grows back.
 
 The CLI's membership is deliberately narrower than the package's vocabulary:
 ``LIFECYCLE_EVENT_TYPES`` feeds ``AUTHORITATIVE_NON_LANE_EVENT_TYPES`` (which
@@ -24,6 +25,9 @@ rows survive a repair and which appends are accepted (#6447 triage, 2026-10-19).
 """
 
 from __future__ import annotations
+
+import ast
+from pathlib import Path
 
 import pytest
 import spec_kitty_events
@@ -137,3 +141,37 @@ def test_a_symbol_the_package_no_longer_exports_fails_by_name(monkeypatch: pytes
     monkeypatch.delattr(spec_kitty_events, "TASKS_STARTED", raising=True)
     with pytest.raises(pytest.fail.Exception, match="TASKS_STARTED"):
         test_cli_lifecycle_constant_matches_the_package("TASKS_STARTED")
+
+
+def _module_level_string_bindings(tree: ast.Module) -> dict[str, str]:
+    """Map each module-level name bound to a string literal to that literal."""
+    bound: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            value: ast.expr | None = node.value
+            targets: list[ast.expr] = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+            targets = [node.target]
+        else:
+            continue
+        if not (isinstance(value, ast.Constant) and isinstance(value.value, str)):
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                bound[target.id] = value.value
+    return bound
+
+
+def test_the_twelve_are_imported_not_redeclared() -> None:
+    """The CLI keeps no second copy of the vocabulary (#6447).
+
+    #6447 was filed because ``status/lifecycle_events.py`` hand-copied the twelve
+    event-type strings, and a copy can drift from the package that owns them. The value
+    cases above would still be green under a copy that happens to match today, so this
+    case pins the structural fact instead: none of the twelve is bound to a module-level
+    string literal, i.e. each one arrives from ``spec_kitty_events``.
+    """
+    tree = ast.parse(Path(lifecycle.__file__).read_text(encoding="utf-8"))
+    redeclared = sorted(set(LIFECYCLE_CONSTANT_NAMES) & set(_module_level_string_bindings(tree)))
+    assert redeclared == [], f"lifecycle_events.py re-declares {redeclared} as local string literals; import them from spec_kitty_events instead (#6447)"
