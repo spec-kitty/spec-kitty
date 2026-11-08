@@ -34,7 +34,7 @@ Single-reduction contract (C-004): each public function performs exactly ONE
 every WP from that single reduced snapshot (never re-reducing per WP).
 
 Primary-surface contract (D9/D14/BLOCKER-1, unified #3829 items 1+4):
-``mission_terminal_verdict`` and ``committed_status_dir`` anchor BOTH reads —
+``mission_terminal_verdict`` anchors BOTH reads —
 the landed gate AND the committed status surface — on the ONE
 sanctioned identity-seam dir (``runtime_bridge_identity.
 _primary_runtime_feature_dir``), reading the meta from that dir through the
@@ -253,25 +253,3 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str, owned: OwnedChe
 
     endings = [_fold_wp_state(state) for state in snapshot.work_packages.values()]
     return "terminal" if all(ending.acceptable for ending in endings) else "blocked_conflict"
-
-
-def committed_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> Path | None:
-    """Return the committed PRIMARY status dir when authoritative, or ``None`` (#3829 item 3).
-
-    The board's ONE-reduction anchor: the same identity-seam PRIMARY dir and
-    the same landed gate as
-    :func:`mission_terminal_verdict`, additionally requiring the committed status
-    log to be present (``has_event_log``). ``None`` means PRIMARY is not the
-    authoritative status surface for this mission (not merged, no committed
-    log, or an unhandleable handle) — the caller falls back to its own
-    coordination-aware read. Sourcing the WHOLE board row (lane + companion
-    fields + the readiness reduction) from this one dir keeps a merged
-    mission's row internally consistent: never a committed lane beside
-    stale coordination companions.
-    """
-    feature_dir = _committed_surface(repo_root, mission_slug, owned)
-    if feature_dir is None:
-        return None
-    if not has_event_log(feature_dir):
-        return None
-    return feature_dir

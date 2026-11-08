@@ -202,40 +202,51 @@ def test_missing_lanes_fallback_forwards_owned_fact_to_get_normalized_wp(tmp_pat
     assert result == ("code_change", "unknown")
 
 
-def test_st_status_read_dir_owned_arm_never_calls_committed_status_dir(tmp_path: Path) -> None:
-    """``_st_status_read_dir``'s owned arm (review cycle 1 issue 2): returns
-    ``owned.mission_dir`` and never calls ``committed_status_dir`` -- pinned
-    with a raising monkeypatch so a regression that re-introduces the R-side
-    committed-authority read for an owned run fails loudly."""
+def test_st_status_surface_owned_arm_reads_the_owned_mission_dir(tmp_path: Path) -> None:
+    """``_st_status_surface``'s owned arm: the read door returns the validated owned
+    checkout's Mission dir (``WRITE_CHECKOUT``), never R's committed copy -- pinned with a
+    raising monkeypatch on the retired ``committed_status_dir`` probe (#7335)."""
+    from specify_cli.status import StatusReadSource
+
     fact = _mint_owned(tmp_path)
     st = _make_state()
     st.owned = fact
     st.feature_dir = tmp_path / "unrelated-coord-dir"
 
     def _raise(*args: object, **kwargs: object) -> None:
-        raise AssertionError("owned arm must not call committed_status_dir")
+        raise AssertionError("the board must not call committed_status_dir")
 
     with patch("runtime.next.committed_authority.committed_status_dir", side_effect=_raise):
-        result = tasks_status_cmd._st_status_read_dir(st)
-    assert result == fact.mission_dir
-    assert result is not st.feature_dir
+        surface = tasks_status_cmd._st_status_surface(st)
+    assert surface.source is StatusReadSource.WRITE_CHECKOUT
+    assert surface.path == fact.mission_dir
 
 
-def test_st_status_read_dir_non_owned_arm_still_calls_committed_status_dir(tmp_path: Path) -> None:
-    """Non-owned arm: unchanged behaviour -- ``committed_status_dir`` still
-    governs the committed-vs-coordination read-dir decision."""
+def test_st_status_surface_non_owned_arm_asks_the_read_door(tmp_path: Path) -> None:
+    """Non-owned arm: the board's status source is the read door's answer, with no owned fact."""
     st = _make_state()
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
-    st.feature_dir = tmp_path / "coord-dir"
-    committed_dir = tmp_path / "primary-committed-dir"
-    with patch(
-        "runtime.next.committed_authority.committed_status_dir",
-        return_value=committed_dir,
-    ) as committed_mock:
-        result = tasks_status_cmd._st_status_read_dir(st)
-    committed_mock.assert_called_once_with(tmp_path, "034-feature")
-    assert result == committed_dir
+    sentinel = object()
+    with patch("specify_cli.status.resolve_status_read", return_value=sentinel) as door:
+        result = tasks_status_cmd._st_status_surface(st)
+    door.assert_called_once_with(tmp_path, "034-feature", owned=None)
+    assert result is sentinel
+
+
+def test_st_status_surface_door_refusal_fails_closed(tmp_path: Path) -> None:
+    """A door refusal (here: no Mission metadata) exits 1; the board never falls back to another source."""
+    st = _make_state()
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    with (
+        patch("specify_cli.status.resolve_status_read", side_effect=FileNotFoundError("meta.json not found")),
+        patch.object(tasks.console, "emit_json") as emit,
+        pytest.raises(typer.Exit) as exit_info,
+    ):
+        tasks_status_cmd._st_status_surface(st)
+    assert exit_info.value.exit_code == 1
+    assert "meta.json not found" in str(emit.call_args)
 
 
 def test_st_resolve_dirs_owned_arm_never_calls_non_owned_resolution_seams(tmp_path: Path) -> None:
@@ -288,10 +299,18 @@ def test_st_resolve_dirs_owned_arm_never_calls_non_owned_resolution_seams(tmp_pa
 def test_patched_console_intercepts_load_work_packages_empty_leg(
     tmp_path: Path,
 ) -> None:
-    """The data-loading phase permits empty status without rendering or exiting."""
+    """The data-loading phase permits empty status without rendering or exiting.
+
+    The Mission exists (the read door resolves it) but has no event log yet.
+    """
+    mission_dir = tmp_path / "kitty-specs" / "034-feature"
+    (mission_dir / "tasks").mkdir(parents=True)
+    (mission_dir / "meta.json").write_text('{"mission_slug": "034-feature"}', encoding="utf-8")
     st = _make_state()
-    st.feature_dir = tmp_path
-    st.tasks_dir = tmp_path
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.feature_dir = mission_dir
+    st.tasks_dir = mission_dir / "tasks"
     with patch(f"{_TASKS}.console") as console_mock:
         tasks_status_cmd._st_load_work_packages(st)
     assert st.work_packages == []

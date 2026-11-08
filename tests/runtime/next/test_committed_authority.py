@@ -377,7 +377,7 @@ class TestLandedSignal:
     the read door's CONSOLIDATED_TARGET gate), not ``mission_number``, which a reopen keeps."""
 
     def test_reopened_mission_with_mission_number_is_not_terminal(self, tmp_path: Path) -> None:
-        from runtime.next.committed_authority import committed_status_dir, mission_terminal_verdict
+        from runtime.next.committed_authority import mission_terminal_verdict
 
         primary = tmp_path / "kitty-specs" / _SLUG
         _write_meta(primary, mission_number=7, merged_at=None)
@@ -388,11 +388,10 @@ class TestLandedSignal:
             return_value=primary,
         ):
             assert mission_terminal_verdict(tmp_path, _SLUG) == "none"
-            assert committed_status_dir(tmp_path, _SLUG) is None
 
     def test_landed_mission_agrees_with_the_read_door(self, tmp_path: Path) -> None:
         from mission_runtime import mission_has_landed
-        from runtime.next.committed_authority import committed_status_dir
+        from runtime.next.committed_authority import mission_terminal_verdict
 
         primary = tmp_path / "kitty-specs" / _SLUG
         _write_meta(primary, mission_number=7)
@@ -403,63 +402,4 @@ class TestLandedSignal:
             return_value=primary,
         ):
             assert mission_has_landed(primary) is True
-            assert committed_status_dir(tmp_path, _SLUG) == primary
-
-
-class TestCommittedStatusDir:
-    """``committed_status_dir`` (#3829 item 3) — the board's ONE-reduction
-    anchor: the same identity-seam dir and ``mission_number`` merge gate as
-    :func:`mission_terminal_verdict`, additionally requiring the committed log.
-
-    Supersedes the per-WP ``committed_wp_lane`` reader the pre-#3829 board
-    used (deleted with its last caller): sourcing the lane per WP beside a
-    separately-read companions row was exactly the mixed-authority row item 3
-    closes — the whole row now comes from this ONE dir.
-    """
-
-    def test_returns_dir_when_merged_with_log(self, tmp_path: Path) -> None:
-        from runtime.next.committed_authority import committed_status_dir
-
-        primary = tmp_path / "kitty-specs" / _SLUG
-        _write_meta(primary, mission_number=7)
-        _seed(primary, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
-
-        with patch(
-            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
-            return_value=primary,
-        ):
-            assert committed_status_dir(tmp_path, _SLUG) == primary
-
-    @pytest.mark.parametrize(
-        "mission_number",
-        [None, 7],
-        ids=["not_merged", "merged_but_log_absent"],
-    )
-    def test_none_when_not_merged_or_log_absent(self, tmp_path: Path, mission_number: int | None) -> None:
-        """``None`` when PRIMARY is not the authoritative status surface:
-        un-merged (decoy log tolerated, mirroring
-        ``mission_terminal_verdict``'s gate) or merged with a
-        genuinely-absent committed log."""
-        from runtime.next.committed_authority import committed_status_dir
-
-        primary = tmp_path / "kitty-specs" / _SLUG
-        _write_meta(primary, mission_number=mission_number)
-        if mission_number is not None:
-            # Merged arm: leave the log genuinely absent (no _seed call).
-            pass
-        else:
-            # Not-merged arm: a decoy PRIMARY log must NOT flip the answer.
-            _seed(primary, "WP01", from_lane=Lane.IN_PROGRESS, to_lane=Lane.BLOCKED)
-
-        with patch(
-            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
-            return_value=primary,
-        ):
-            assert committed_status_dir(tmp_path, _SLUG) is None
-
-    @pytest.mark.parametrize("handle", ["../escape", "foo/bar", ""])
-    def test_unsafe_handle_declines_to_none(self, tmp_path: Path, handle: str) -> None:
-        """#3829 item 1: same decline contract as ``mission_terminal_verdict``."""
-        from runtime.next.committed_authority import committed_status_dir
-
-        assert committed_status_dir(tmp_path, handle) is None
+            assert mission_terminal_verdict(tmp_path, _SLUG) == "terminal"

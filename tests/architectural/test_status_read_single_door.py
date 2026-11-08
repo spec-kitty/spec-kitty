@@ -24,7 +24,7 @@ entry out in the same change. The census behind the entries is
 
 A second, positive check pins the modules already moved onto the door (:data:`DOOR_ONLY_MODULES`):
 they may not call a legacy source finder *or* a path-typed log reader (``read_events``,
-``reconstruct_wp_view``, ``committed_status_dir`` ...). That set only grows.
+``reconstruct_wp_view``, ``get_wp_lane`` ...). That set only grows.
 
 Non-vacuity (DIRECTIVE_043): the planted-violation tests below prove each scanned form is caught,
 and :func:`test_scan_sees_the_real_tree` proves the live scan matched the recorded floor of hits.
@@ -75,9 +75,8 @@ _PATH_TYPED_READERS = frozenset(
         "has_event_log",
         "get_wp_lane",
         "get_all_wp_lanes",
-        "committed_status_dir",
+        "event_sourced_review_result",
         "get_arbiter_overrides_for_wp",
-        "resolve_handle_to_read_path",
     }
 )
 
@@ -247,7 +246,12 @@ LEGACY_READ_ALLOWLIST: dict[str, str] = {
 # Door-only modules: already on the door, pinned so they never regress. Grow-only.
 # ---------------------------------------------------------------------------
 
-DOOR_ONLY_MODULES: frozenset[str] = frozenset()
+DOOR_ONLY_MODULES: frozenset[str] = frozenset(
+    {
+        # #7335: the status board reads one door surface and reduces it once.
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+    }
+)
 
 #: The live scan must see at least this many hits (anti-vacuity floor; lower it as the allowlist drains).
 _LIVE_HIT_FLOOR = 40

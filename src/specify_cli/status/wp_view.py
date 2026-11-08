@@ -163,7 +163,16 @@ def _resolved_group(feature_dir: Path, wp_id: str) -> ResolvedGroup:
     ``wp_snapshot_state`` accessor and degrades every field to empty when there
     is no reduced entry (``None``) — the authored value is never substituted.
     """
-    state = wp_snapshot_state(feature_dir, wp_id)
+    return resolved_group_from_state(wp_snapshot_state(feature_dir, wp_id))
+
+
+def resolved_group_from_state(state: Mapping[str, Any] | None) -> ResolvedGroup:
+    """The resolved group from one reduced WP state (``snapshot.work_packages[wp_id]``).
+
+    For a reader that already reduced the log through the status read door
+    (``read_status_stream`` + ``reduce``), so a ref-sourced surface needs no
+    directory (#7335). ``None`` (no reduced entry) yields an empty group.
+    """
     if state is None:
         return ResolvedGroup()
 

@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from kernel.git import StatusEntry, status_entries
 from kernel.clock import UTC, datetime, now_utc, parse_iso
 from pathlib import Path
@@ -57,9 +57,11 @@ from specify_cli.lanes._git import lane_has_commit_beyond_base
 from specify_cli.meta_keys import TOPOLOGY_SOURCE_KEY, TopologySource
 from specify_cli.status import (
     Lane,
+    ReviewResultLookup,
     StatusEvent,
     event_sourced_review_result,
     is_changes_requested,
+    review_result_from_state,
     to_artifact_verdict,
 )
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
@@ -151,12 +153,28 @@ def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime
     return latest
 
 
+def _review_lookup(wp_id: str, feature_dir: Path | None, wp_states: Mapping[str, Mapping[str, Any]] | None) -> ReviewResultLookup:
+    """The WP's event-sourced verdict: from an already-reduced snapshot when given, else read off *feature_dir*.
+
+    ``wp_states`` is ``snapshot.work_packages`` of a reader that reduced the log
+    through the status read door (``agent tasks status``, #7335), so a
+    ref-sourced surface needs no directory.
+    """
+    if wp_states is not None:
+        state = wp_states.get(wp_id)
+        return ReviewResultLookup(slot_present=False, result=None) if state is None else review_result_from_state(state)
+    if feature_dir is None:
+        raise ValueError("a review verdict lookup needs feature_dir or wp_states")
+    return event_sourced_review_result(feature_dir, wp_id)
+
+
 def _apply_wp_review_verdict_flag(
     wp: dict[str, object],
     *,
     wp_id: str,
-    feature_dir: Path,
     stale_verdicts: list[dict[str, object]],
+    feature_dir: Path | None = None,
+    wp_states: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> None:
     """Annotate a single terminal-lane WP row with its event-sourced verdict
     (FR-004/T024 -- repointed off ``review-cycle-N.md`` frontmatter onto
@@ -171,7 +189,7 @@ def _apply_wp_review_verdict_flag(
     NOT damage and raises no warning at all (mirrors the retired reader's
     "no artifact yet" case).
     """
-    lookup = event_sourced_review_result(feature_dir, wp_id)
+    lookup = _review_lookup(wp_id, feature_dir, wp_states)
     if not lookup.slot_present or lookup.cleared_without_verdict:
         # Absent, or cleared by a verdict-less review exit (#5446): no damage.
         return
@@ -204,16 +222,19 @@ def _apply_wp_review_verdict_flag(
 def _apply_review_status_flags(
     work_packages: list[dict[str, object]],
     *,
-    feature_dir: Path,
     events: list[StatusEvent],
     stall_threshold_minutes: int,
+    feature_dir: Path | None = None,
+    wp_states: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """Annotate status rows with stale verdict, damaged verdict, and
     stalled-review warnings.
 
-    ``feature_dir`` is the STATUS_STATE-authoritative mission dir (the event
-    log's home) -- WP05 (verdict-seam-write-unification-01KZ9Q35) repointed
-    this off a ``tasks_dir``-anchored ``review-cycle-N.md`` frontmatter glob
+    The verdicts come from ``wp_states`` (``snapshot.work_packages`` of the
+    caller's reduction of the status read door's surface; ``agent tasks status``,
+    #7335) or, without it, from ``feature_dir``, the STATUS_STATE-authoritative
+    mission dir -- WP05 (verdict-seam-write-unification-01KZ9Q35) repointed this
+    off a ``tasks_dir``-anchored ``review-cycle-N.md`` frontmatter glob
     (:func:`_apply_wp_review_verdict_flag`).
     """
     stale_verdicts: list[dict[str, object]] = []
@@ -227,7 +248,7 @@ def _apply_review_status_flags(
 
         lane = wp.get("lane")
         if lane in (Lane.APPROVED, Lane.DONE):
-            _apply_wp_review_verdict_flag(wp, wp_id=wp_id, feature_dir=feature_dir, stale_verdicts=stale_verdicts)
+            _apply_wp_review_verdict_flag(wp, wp_id=wp_id, feature_dir=feature_dir, wp_states=wp_states, stale_verdicts=stale_verdicts)
 
         if lane == Lane.IN_REVIEW:
             last_event_time = _latest_status_event_time(events, wp_id)

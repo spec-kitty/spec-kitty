@@ -12,7 +12,7 @@ deletes is proven dead here, and the two load-bearing invariants are pinned:
   facade export have zero occurrences in WP04's owned source files, the facade
   import now raises ``ImportError``, and the name is off ``status.__all__``.
 * **Per-site unconditional reads.** ``emit._infer_subtasks_complete``,
-  ``tasks_status_cmd._st_gated_runtime_fields``, ``WorkPackage`` runtime
+  ``tasks_status_cmd._st_runtime_row``, ``WorkPackage`` runtime
   properties, and ``wp_metadata.read_wp_frontmatter`` all resolve the reduced
   snapshot with **no** flag branch — snapshot value wins even when the WP
   frontmatter carries a stale/different value.
@@ -43,7 +43,7 @@ from specify_cli.status.emit import (
 )
 from specify_cli.status.models import Lane, WPInnerStateDelta
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.cli.commands.agent.tasks_status_cmd import _st_gated_runtime_fields
+from specify_cli.cli.commands.agent.tasks_status_cmd import _st_runtime_row
 from specify_cli.task_utils.support import WorkPackage, split_frontmatter
 
 from tests.status.conftest import seed_wp_to_planned
@@ -281,18 +281,21 @@ def test_infer_subtasks_complete_silent_snapshot_blocks_fail_closed(tmp_path: Pa
     assert _infer_subtasks_complete(fd, _WP) is False
 
 
-def test_st_gated_runtime_fields_returns_snapshot_never_frontmatter(tmp_path: Path) -> None:
-    """tasks_status_cmd._st_gated_runtime_fields resolves the snapshot slots and
-    never the frontmatter ``extract_scalar`` values (there is no flag branch)."""
+def test_st_runtime_row_returns_snapshot_never_frontmatter(tmp_path: Path) -> None:
+    """The board row (``tasks_status_cmd._st_runtime_row``) resolves the snapshot slots and
+    never the frontmatter ``extract_scalar`` values (there is no flag branch). The board
+    reads its one door reduction (#7335); the retired Path-typed accessor
+    ``_st_gated_runtime_fields`` went with it."""
     fd = _make_feature_dir(tmp_path, status_phase=1)
     _claim(fd, shell_pid=515151, agent="snapshot-agent")
 
-    agent, shell_pid = _st_gated_runtime_fields(fd, _WP)
-    assert agent == "snapshot-agent"
-    assert shell_pid == "515151"
+    row = _st_runtime_row(wp_snapshot_state(fd, _WP))
+    assert row["agent"] == "snapshot-agent"
+    assert row["shell_pid"] == "515151"
 
-    # An unidentifiable WP (wp_id is None) yields the conservative empty result.
-    assert _st_gated_runtime_fields(fd, None) == ("", "")
+    # No reduced entry (an unidentifiable WP, or one absent from the snapshot) yields empty fields.
+    empty = _st_runtime_row(None)
+    assert (empty["agent"], empty["shell_pid"]) == ("", "")
 
 
 def test_workpackage_runtime_properties_are_snapshot_sourced(tmp_path: Path) -> None:

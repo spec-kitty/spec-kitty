@@ -60,8 +60,10 @@ from specify_cli.lanes.persistence import MissingLanesError
 
 if TYPE_CHECKING:
     from specify_cli.core.stale_detection import StaleCheckResult
+    from specify_cli.status import StatusReadSurface
 
 from specify_cli.missions._read_path_resolver import (
+    StatusReadPathNotFound,
     candidate_feature_dir_for_mission,
 )
 from specify_cli.status import (
@@ -133,6 +135,11 @@ class _StatusState:
     feature_dir: Path = field(default_factory=Path)
     tasks_dir: Path = field(default_factory=Path)
     # --- phase B: loaded work packages + reduced snapshot ---
+    # The one declared status source (ADR 2026-11-06-2, #7335): every status
+    # field on the board (lanes, companions, review verdict, arbiter override)
+    # comes from this surface's ONE reduction, held in ``wp_states``.
+    status_surface: StatusReadSurface | None = None
+    wp_states: dict[str, dict[str, Any]] = field(default_factory=dict)
     events: list[StatusEvent] = field(default_factory=list)
     snapshot: StatusSnapshot | None = None
     work_packages: list[dict[str, object]] = field(default_factory=list)
@@ -262,24 +269,21 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     )
     st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
 
-    # Route through the single guarded read-side seam (WP01/IC-01; FR-002, C-007).
+    # ``feature_dir`` is the Mission identity anchor (``_mission_identity_payload``)
+    # and the "Mission directory not found" check only. It is NOT a status source:
+    # every status field reads the read door's surface (``_st_status_surface``,
+    # ADR 2026-11-06-2, #7335), so neither this resolution nor its CWD fallback
+    # can put another log on the board.
     from specify_cli.missions._read_path_resolver import (
         resolve_handle_to_read_path,
     )
 
     feature_dir = resolve_handle_to_read_path(st.main_repo_root, st.mission_slug)
     if not feature_dir.exists():
-        # Last-ditch fallback to the original worktree-aware path so tests /
-        # projects that stand up status files in unusual places still work.
-        # F2 (WP01, #2947): this CWD-derived candidate can be a stale
-        # coordination checkout, but it can no longer leak a stale LANE onto
-        # the board -- ``_st_load_work_packages`` sources each row's lane
-        # from committed authority (the PRIMARY surface) whenever that is
-        # available, regardless of which ``feature_dir`` this resolution
-        # picks. This fallback's closure is that downstream committed-lane
-        # override, not a change to the existence-fallback path itself (which
-        # stays load-bearing for legacy/no-primary-status fixtures --
+        # Last-ditch fallback to the original worktree-aware path for the
+        # identity anchor (legacy/no-primary-status fixtures --
         # ``docs/development/reference/read-side-seam-classification.md``).
+        # It feeds no status read (#7335).
         status_read_root = _tasks.get_status_read_root(st.cwd)
         legacy_dir = candidate_feature_dir_for_mission(status_read_root, st.mission_slug)
         if legacy_dir.exists():
@@ -290,32 +294,34 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     st.feature_dir = feature_dir
 
     # PRIMARY leg — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg split —
-    # WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir`` above.
+    # WP03 T009). The STATUS leg is the read door's surface (``_st_status_surface``).
     st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     if not st.tasks_dir.exists():
         _status_error(st.json_output, f"Tasks directory not found: {st.tasks_dir}")
         raise typer.Exit(1)
 
 
-def _st_runtime_row(feature_dir: Path, wp_id: str | None) -> dict[str, Any]:
-    """Return the WP's runtime-identity row fields through the ONE canonical reader.
+def _st_runtime_row(state: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Return the WP's runtime-identity row fields from its ONE reduced state.
 
-    Routes the snapshot read through
+    *state* is ``snapshot.work_packages[wp_id]`` of the board's single reduction
+    of the door's surface (:func:`_st_load_work_packages`, #7335), assembled
+    through the same resolved-group builder as
     :func:`specify_cli.status.reconstruct_wp_view` (SC-007) — the reduced
     event-log snapshot is the unconditional authority (#2093/IC-03). An
-    unidentifiable WP (no ``work_package_id``) or an absent slot yields empty
-    strings, never a frontmatter fallback (C-001 — the phase-1 flag and its
-    fallback are retired with the unconditional cutover).
+    unidentifiable WP (no ``work_package_id``) or an absent slot (``None``)
+    yields empty strings, never a frontmatter fallback (C-001 — the phase-1 flag
+    and its fallback are retired with the unconditional cutover).
 
     ``resolved_agent_profile`` / ``resolved_role`` / ``resolved_model`` are the
     DISTINCT resolved-binding actuals (empty when unrecorded). The board's authored
     ``agent_profile`` row field stays separate and feeds the HiC marker — the two
     are never conflated (C-008).
     """
-    from specify_cli.status import reconstruct_wp_view
+    from specify_cli.status import resolved_group_from_state
 
-    if wp_id:
-        resolved = reconstruct_wp_view(feature_dir, wp_id).resolved
+    if state is not None:
+        resolved = resolved_group_from_state(state)
         return {
             "lane": resolved.lane or "",
             "agent": resolved.agent or "",
@@ -344,18 +350,6 @@ def _st_runtime_row(feature_dir: Path, wp_id: str | None) -> dict[str, Any]:
         "resolved_model": "",
         "resolved_provider": "",
     }
-
-
-def _st_gated_runtime_fields(feature_dir: Path, wp_id: str | None) -> tuple[str, str]:
-    """Return ``(agent, shell_pid)`` through the one reconstruction reader (#2093).
-
-    Back-compat accessor (surface pinned by ``test_tasks_compat_surface``):
-    delegates to :func:`_st_runtime_row` so the snapshot read routes through the
-    one reconstruction reader (SC-007) and never bypasses the single authority the
-    rest of the reader path honours. Mirrors ``WorkPackage.agent``/``.shell_pid``.
-    """
-    row = _st_runtime_row(feature_dir, wp_id)
-    return str(row["agent"]), str(row["shell_pid"])
 
 
 def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None, *, owned: OwnedCheckout | None = None) -> tuple[str, str]:
@@ -391,32 +385,46 @@ def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: s
         return extract_scalar(front, "execution_mode") or "code_change", "unknown"
 
 
-def _st_status_read_dir(st: _StatusState) -> Path:
-    """The one committed-vs-coordination read-dir decision for the status board (#3829 item 3).
+def _st_status_surface(st: _StatusState) -> StatusReadSurface:
+    """The board's one declared status source (ADR 2026-11-06-2, #7335, #7408).
 
-    Campsite extraction ahead of the owned-checkout wiring (WP09 T045):
-    behaviour-preserving today. The caller derives "is the committed surface
-    authoritative" via ``status_read_dir is not st.feature_dir`` (object
-    identity, not value equality) rather than re-deriving
-    ``committed_dir is not None`` from a second call here -- this returns
-    ``st.feature_dir`` itself (the SAME object) only in the non-committed
-    case, so identity exactly reconstructs the original boolean with no
-    behaviour change, even in the edge case where a committed dir would
-    coincidentally equal ``feature_dir`` by value.
-
-    Owned runs (WP09, FR-004/FR-007) return ``st.owned.mission_dir`` (the
-    SAME object already stored on ``st.feature_dir`` by
-    :func:`_st_resolve_owned`) and never call ``committed_status_dir`` --
-    R's merged-or-committed copy is exactly the stale copy that must never
-    win.
+    The read door decides the source for every topology and coordination state:
+    a landed Mission reads ``CONSOLIDATED_TARGET`` (the one landed signal, which
+    replaced the board's own ``committed_status_dir`` probe), an unmaterialized
+    coordination worktree reads the committed coordination branch (where the
+    board used to read the PRIMARY copy), and an owned run reads the validated
+    owned checkout. A door refusal (deleted coordination branch, unreadable ref,
+    unreadable worktree registry) fails the command closed instead of rendering
+    a board from another source.
     """
-    if st.owned is not None:
-        return st.owned.mission_dir
+    from specify_cli.status import resolve_status_read
 
-    from runtime.next.committed_authority import committed_status_dir
+    try:
+        return resolve_status_read(st.main_repo_root, st.mission_slug, owned=st.owned)
+    except (OSError, ValueError, RuntimeError, StatusReadPathNotFound) as exc:
+        _status_error(st.json_output, f"Cannot resolve the status source for {st.mission_slug}: {exc}")
+        raise typer.Exit(1) from exc
 
-    committed_dir = committed_status_dir(st.main_repo_root, st.mission_slug)
-    return committed_dir if committed_dir is not None else st.feature_dir
+
+def _st_reduce_surface(st: _StatusState, surface: StatusReadSurface) -> None:
+    """Read the surface once and reduce it once; every status field of the board reads the result.
+
+    ``st.events`` / ``st.snapshot`` keep their lane-transition-only shape (the
+    readiness reduction); ``st.wp_states`` is the full reduction (transitions and
+    annotations) the row companions, review verdict and arbiter override read.
+    A corrupt log degrades to an empty board (render, not crash); an unreadable
+    ref is the door's typed refusal and propagates (never an empty history).
+    """
+    from specify_cli.status import StoreError, read_status_stream, reduce
+
+    try:
+        stream = read_status_stream(surface)
+    except (StoreError, OSError, ValueError):
+        st.events, st.snapshot, st.wp_states = [], None, {}
+        return
+    st.events = list(stream.transitions)
+    st.snapshot = reduce(st.events) if st.events else None
+    st.wp_states = {wp_id: dict(state) for wp_id, state in reduce(stream.transitions, stream.annotations).work_packages.items()}
 
 
 def _st_config_root(st: _StatusState) -> Path:
@@ -465,43 +473,19 @@ def _st_load_work_packages(st: _StatusState) -> None:
     each WP's frontmatter into a status row and freezes the declared dependencies
     for the pure ``build_status_view`` readiness map.
 
-    #3829 item 3 — one committed reduction per board: when the committed
-    PRIMARY surface is authoritative for this mission
-    (:func:`committed_authority.committed_status_dir` — merged + committed
-    log present), the WHOLE row comes from that one dir: the lane, the
-    companion fields (``resolved_agent_profile``/``resolved_model``/
-    ``agent``/``shell_pid`` via ``reconstruct_wp_view``) AND the
-    events/readiness reduction. Before this, only the lane was committed-
-    sourced while the companions and the snapshot still read the possibly-
-    stale coordination ``feature_dir`` — a merged mission rendered the
-    correct committed lane beside stale coordination companions. When the
-    committed surface is NOT authoritative (not merged / no committed log),
-    ``status_read_dir`` IS ``st.feature_dir`` and every read is
-    byte-identical to the coordination-aware board of before.
+    One source, one reduction per board (#3829 item 3, #7335): the read door
+    (:func:`_st_status_surface`) declares the source and
+    :func:`_st_reduce_surface` reduces it once; the lane, the companion fields
+    (``resolved_agent_profile``/``resolved_model``/``agent``/``shell_pid``), the
+    review verdict and the arbiter override all read that reduction, so a row
+    never mixes two sources. A landed Mission's source is
+    ``CONSOLIDATED_TARGET``, where a WP absent from the snapshot renders genesis.
     """
-    status_read_dir = _st_status_read_dir(st)
-    committed_authoritative = status_read_dir is not st.feature_dir
+    from specify_cli.status import StatusReadSource
 
-    def _read_events_and_snapshot(read_dir: Path) -> None:
-        from specify_cli.status import read_events as _st_read_events
-        from specify_cli.status import reduce as _st_reduce
-
-        st.events = _st_read_events(read_dir)
-        st.snapshot = _st_reduce(st.events) if st.events else None
-
-    try:
-        _read_events_and_snapshot(status_read_dir)
-    except Exception:
-        # The board must render, not crash. A corrupt log on the committed
-        # surface falls back to the coordination read (the pre-#3829
-        # degrade); a corrupt coordination log degrades to no events, as
-        # before.
-        st.events = []
-        if status_read_dir != st.feature_dir:
-            try:
-                _read_events_and_snapshot(st.feature_dir)
-            except Exception:
-                st.events = []
+    st.status_surface = _st_status_surface(st)
+    _st_reduce_surface(st, st.status_surface)
+    committed_authoritative = st.status_surface.source is StatusReadSource.CONSOLIDATED_TARGET
 
     # WP05: declared dependencies per WP id, read through the canonical parser the
     # dependency gate enforces (#5435) so the readiness map matches the gate.
@@ -512,23 +496,12 @@ def _st_load_work_packages(st: _StatusState) -> None:
         title = extract_scalar(front, "title")
         st.wp_dependencies[wp_id or wp_file.stem] = _st_declared_dependencies(wp_file)
         execution_mode, workspace_kind = _st_resolve_execution_mode(front, st.main_repo_root, st.mission_slug, wp_id, owned=st.owned)
-        # Route agent/shell_pid + the resolved-binding actuals through the ONE
-        # reconstruction reader (SC-007). The authored ``agent_profile`` stays
+        # agent/shell_pid + the resolved-binding actuals come from the SAME one
+        # reduction the lane came from (SC-007, #3829 item 3, #7335), so a row
+        # never mixes two sources. The authored ``agent_profile`` stays
         # frontmatter-canonical (design intent for the HiC marker) and DISTINCT
         # from ``resolved_agent_profile`` (what actually ran) — C-008.
-        # #3829 item 3: the reader is pointed at the SAME one reduction the
-        # lane came from — ``status_read_dir`` (the committed dir when the
-        # committed surface is authoritative, the coordination ``feature_dir``
-        # otherwise) — so a merged mission's row never mixes a committed lane
-        # with stale coordination companions. A corrupt committed log
-        # degrades per-WP to the coordination row (render, not crash) — the
-        # same degrade the lane read had.
-        try:
-            _st_row = _st_runtime_row(status_read_dir, wp_id)
-        except Exception:
-            if status_read_dir == st.feature_dir:
-                raise
-            _st_row = _st_runtime_row(st.feature_dir, wp_id)
+        _st_row = _st_runtime_row(st.wp_states.get(wp_id) if wp_id else None)
         row_lane = str(_st_row["lane"] or "")
         # The whole row is committed-sourced when authoritative: a WP absent
         # from the committed snapshot renders genesis — never the stale
@@ -573,7 +546,7 @@ def _st_apply_review_flags(st: _StatusState) -> None:
     st.review_stall_threshold = _tasks._review_stall_threshold_minutes(_st_config_root(st))
     st.stale_verdicts, st.stalled_wps = _apply_review_status_flags(
         st.work_packages,
-        feature_dir=st.feature_dir,
+        wp_states=st.wp_states,
         events=st.events,
         stall_threshold_minutes=st.review_stall_threshold,
     )
@@ -747,7 +720,7 @@ def _st_render_board(ports: TasksPorts, st: _StatusState, view: StatusView, sent
 def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
     """Render the arbiter-override history section via the Render port (T034)."""
     try:
-        from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+        from specify_cli.review.arbiter import arbiter_overrides_from_state
 
         arbiter_lines: list[str] = []
         for wp in st.work_packages:
@@ -755,7 +728,7 @@ def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
             wp_id_val = wp_id_raw if isinstance(wp_id_raw, str) else ""
             if not wp_id_val:
                 continue
-            overrides = get_arbiter_overrides_for_wp(st.feature_dir, wp_id_val)
+            overrides = arbiter_overrides_from_state(st.wp_states.get(wp_id_val))
             for idx, override in enumerate(overrides, start=1):
                 cat = override.get("category", "custom")
                 arbiter_lines.append(f"  • {wp_id_val} Cycle {idx}: rejected → [yellow]overridden[/yellow] ({cat})")

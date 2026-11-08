@@ -488,13 +488,14 @@ def _seed_parity_mission(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_two_consumers_return_same_resolved_state(tmp_path: Path) -> None:
     """SC-007: the ``agent tasks status`` board row and ``WorkPackage`` surface
-    the SAME resolved runtime state for one WP -- because they both reconstruct through the ONE ``reconstruct_wp_view`` reader."""
+    the SAME resolved runtime state for one WP -- because they both assemble the ONE resolved group
+    (the board from its one door reduction, #7335; ``WorkPackage`` through ``reconstruct_wp_view``)."""
     from specify_cli.cli.commands.agent.tasks_status_cmd import _st_runtime_row
 
     feature_dir, wp_file = _seed_parity_mission(tmp_path)
     view = reconstruct_wp_view(feature_dir, _WP_ID)
 
-    board_row = _st_runtime_row(feature_dir, _WP_ID)
+    board_row = _st_runtime_row(wp_snapshot_state(feature_dir, _WP_ID))
     wp = _make_work_package(wp_file)
 
     # Every dynamic field comes from the same reconstructed resolved group.
@@ -526,7 +527,7 @@ def test_board_authored_profile_is_distinct_from_resolved(tmp_path: Path) -> Non
     feature_dir, wp_file = _seed_parity_mission(tmp_path)
     front, _body, _pad = split_frontmatter(wp_file.read_text(encoding="utf-8"))
 
-    board_row = _st_runtime_row(feature_dir, _WP_ID)
+    board_row = _st_runtime_row(wp_snapshot_state(feature_dir, _WP_ID))
     authored_profile = extract_scalar(front, "agent_profile")
 
     assert authored_profile == _AUTHORED_PROFILE
