@@ -305,7 +305,7 @@ Invariant 4 asks for an empty allowlist. The gate lands with a **transient, shri
 instead, because about 45 readers remain and draining them all exceeds one reviewable change. Per
 charter Standing Order #5 and ADR [2026-09-30-1](2026-09-30-1-allowlist-ratchets-are-priced-debt.md)
 the allowlist is priced debt: issue #7310 owns it, the follow-up Mission of #7310 drains it, and the
-drain date is the gate's `ALLOWLIST_DRAIN_BY` (2026-12-31, proposed here; the operator may move it).
+drain date is the gate's `ALLOWLIST_DRAIN_BY` (2026-12-31, operator-confirmed; moving it is recorded on #7310).
 A new bypass fails, and an entry that no longer matches a reader fails too, so a migrated reader
 leaves the allowlist in the same change. The allowlist size is registered in
 `tests/architectural/_baselines.yaml` (`test_status_read_single_door.legacy_read_allowlist`), so
@@ -346,8 +346,20 @@ reopen-aware `merged_at` marker). Both now ask `mission_has_landed`; `mission_nu
 and is no landed signal. `committed_status_dir`, the status board's own committed-source probe, is
 removed: the board reads the door, which already answers `CONSOLIDATED_TARGET` for a landed Mission.
 A Mission merged before `merged_at` was written again (#4090) carries `mission_number` without
-`merged_at`; the door already treated it as not landed, and now `next` does too. A backfill of
-`merged_at` for those Missions is follow-up work under #7310, not part of this change.
+`merged_at` (264 of the 819 Missions in this repository's `kitty-specs/` when this was measured).
+The door already treated it as not landed, and now `next` does too; a coordination-topology one,
+whose coordination branch consolidation removed, refuses with `COORDINATION_BRANCH_DELETED` in both.
+Reintroducing `mission_number` as a second landed signal was rejected (operator ruling 2026-11-08).
+Instead the upgrade migration `4.0.0rc8_backfill_merged_at` (#7433) stamps `merged_at` once, from
+git, on every Mission with an assigned `mission_number`, no `merged_at` and no `MissionReopened`
+event: the committer date of `baseline_merge_commit` when it resolves, else that of the oldest commit
+that set `mission_number` in `meta.json`. A reopened Mission is never stamped, and a Mission with no
+such commit is reported and left alone. It writes through the canonical meta writer, records in the
+tracked ledger partition (`meta.json` travels with the commit), declares `requires_git_repository`,
+and is idempotent. So a pre-#4090 Mission is stamped on upgrade; without upgrading, a coordination
+one refuses. Its `COORDINATION_BRANCH_DELETED` remedy says so: when the PRIMARY `meta.json` records
+`mission_number` without `merged_at`, the remedy is `spec-kitty upgrade`, not flattening the Mission.
+That check only picks the remedy text; the landed verdict stays `mission_has_landed` alone.
 
 ### Moved onto the door in this change
 
