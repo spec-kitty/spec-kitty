@@ -136,13 +136,29 @@ def test_planning_kind_protected_primary_refuses() -> None:
 
 
 def test_remedy_protected_primary_names_branch_escape_first_and_labels_env_var_operator_only() -> None:
-    """#5319: the shared remedy leads with the branch-level escapes
-    (``--start-branch`` / ``--to-branch``) and labels
+    """#5319: the shared remedy leads with the topic-branch escape and labels
     ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` as the operator-only
-    override it is."""
-    assert "--to-branch" in REMEDY_PROTECTED_PRIMARY
+    override it is. ``--to-branch`` is offered only as the ``safe-commit``
+    example: move-task, map-requirements and other callers have no such flag."""
     assert "operator-only" in REMEDY_PROTECTED_PRIMARY
+    assert REMEDY_PROTECTED_PRIMARY.startswith("commit from a topic branch")
     assert REMEDY_PROTECTED_PRIMARY.index("--start-branch") < REMEDY_PROTECTED_PRIMARY.index("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
+    assert "spec-kitty safe-commit" in REMEDY_PROTECTED_PRIMARY
+    assert REMEDY_PROTECTED_PRIMARY.index("spec-kitty safe-commit") < REMEDY_PROTECTED_PRIMARY.index("--to-branch")
+
+
+def test_remedy_protected_primary_offers_only_flags_the_named_command_declares() -> None:
+    """A flag named beside a command in the remedy must exist on that command's CLI."""
+    import typer
+    from typer.main import get_command
+
+    from specify_cli.cli.commands.safe_commit_cmd import safe_commit_command
+
+    app = typer.Typer()
+    app.command(name="safe-commit")(safe_commit_command)
+    declared = {opt for param in get_command(app).params for opt in getattr(param, "opts", [])}
+    assert "--to-branch" in declared
+    assert "spec-kitty safe-commit" in REMEDY_PROTECTED_PRIMARY
 
 
 def test_primary_kind_unprotected_commits_directly() -> None:

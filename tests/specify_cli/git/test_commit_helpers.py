@@ -298,6 +298,10 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     # override it is — so an everyday user does not reach for the hatch.
     assert "operator-only" in message
     assert "--to-branch" in message
+    # Only ``safe-commit`` owns --to-branch: it is offered as that command's
+    # example, never as a bare instruction other callers cannot honour.
+    assert "spec-kitty safe-commit" in message
+    assert message.index("spec-kitty safe-commit") < message.index("--to-branch")
     assert message.index("topic branch") < message.index(
         "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
     )
