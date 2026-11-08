@@ -26,6 +26,7 @@ import ast
 import inspect
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -185,21 +186,14 @@ def test_render_index_is_byte_stable_across_hash_seeds(tmp_path: Path) -> None:
     current_seed = env.get("PYTHONHASHSEED")
     env["PYTHONHASHSEED"] = "4242" if current_seed != "4242" else "13"
 
-    # Invoke via ``uv run`` (not bare ``sys.executable``) so the subprocess
-    # resolves the SAME project environment as this test process regardless
-    # of shell/shim PATH quirks (repo convention: always ``uv run``).
-    # ``--no-sync`` (#4866 WP04 scope extension, was #4922): this call wants
-    # the project environment as-is, never a resync — a bare
-    # ``uv run --frozen`` silently resyncs whatever ``UV_PROJECT_ENVIRONMENT``
-    # (or the default ``.venv``) currently names down to the repo's
-    # ``.python-version`` pin, corrupting a concurrently-running xdist
-    # worker's environment underneath it. ``--no-sync`` composes cleanly with
-    # the custom ``env=`` above: it does not touch the environment mapping,
-    # only skips uv's own sync step, so the ``PYTHONHASHSEED`` override this
-    # test depends on still reaches the subprocess unchanged (verified
-    # empirically; see ``tracer-design-decisions.md``).
+    # Invoke the SAME interpreter that runs this test (``sys.executable``), not
+    # ``uv run``: a lane worktree has no ``.venv`` of its own, so ``uv run --no-sync``
+    # there resolves no project environment and fails the test for a reason it did not
+    # cause (#5441). The subprocess gets the repo root and ``src`` on ``sys.path``
+    # explicitly above, so it needs nothing from the project environment beyond the
+    # interpreter itself; ``env=`` still carries the ``PYTHONHASHSEED`` override.
     result = subprocess.run(
-        ["uv", "run", "--frozen", "--no-sync", "python", "-c", script],
+        [sys.executable, "-c", script],
         capture_output=True,
         text=True,
         env=env,
