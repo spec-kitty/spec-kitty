@@ -265,12 +265,18 @@ def _whole_run_failure(raw: RawRunResult) -> BaselineFailure:
     # BOTH streams feed the identity: a runner can put the detail on stdout and a
     # stable banner on stderr, and ``stderr or stdout`` would then digest the
     # banner alone and collapse two unrelated failures (aggregate-review finding,
-    # same defect class as #6751). The separator keeps the boundary unambiguous,
-    # so "abc"/"def" and "ab"/"cdef" cannot collide.
-    normalized_stdout = raw.stdout.replace("\r\n", "\n")
-    normalized_stderr = raw.stderr.replace("\r\n", "\n")
-    digest_source = f"stdout\x00{normalized_stdout}\x00stderr\x00{normalized_stderr}"
-    digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - opaque run identity, not charter content
+    # same defect class as #6751). Each stream is framed by its byte length, so
+    # the boundary is part of the identity: text that merely moves from one
+    # stream to the other (or output that contains a separator) cannot collide.
+    normalized_stdout = raw.stdout.replace("\r\n", "\n").encode("utf-8")
+    normalized_stderr = raw.stderr.replace("\r\n", "\n").encode("utf-8")
+    digest_source = b"stdout:%d:%sstderr:%d:%s" % (
+        len(normalized_stdout),
+        normalized_stdout,
+        len(normalized_stderr),
+        normalized_stderr,
+    )
+    digest = hashlib.sha256(digest_source).hexdigest()[:16]  # noqa: TID251 - opaque run identity, not charter content
     tail_source = raw.stderr if raw.stderr.strip() else raw.stdout
     tail_lines = tail_source.replace("\r\n", "\n").strip().splitlines()
     summary = tail_lines[-1][:_FAILURE_MESSAGE_MAX_CHARS] if tail_lines else f"exit code {raw.returncode}"
