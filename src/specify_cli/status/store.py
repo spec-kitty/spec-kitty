@@ -724,8 +724,9 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
     """
     # ``EventStream`` comes from a ``follow_imports = "skip"`` module, so a narrow
     # ``mypy --strict`` run reads ``.transitions`` as ``Any`` and returning it
-    # directly trips ``no-any-return`` (#6051). Bind the value to its declared
-    # element type; behavior is unchanged.
+    # directly trips ``no-any-return`` (#6051). Binding it to an annotated local
+    # satisfies that check; under the same skip ``StatusEvent`` is also ``Any``,
+    # so this adds no real element typing. Behavior is unchanged.
     transitions: list[StatusEvent] = _partition_event_stream_from_text(feature_dir, content).transitions
     return transitions
 
