@@ -627,6 +627,36 @@ def test_an_ownership_refusal_wins_over_an_unknown_git_nearer_the_mission(tmp_pa
     assert (tracked.unavailable, tracked.unreadable_reason) == (True, "ownership")
 
 
+def test_an_ownership_refusal_refuses_even_when_the_walk_finds_no_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Git's ownership diagnosis alone refuses; it never falls through to "nothing tracked" (#7061).
+
+    The diagnosis is git saying it found a repository it will not trust. If the ``.git`` walk
+    stops before that repository (a ceiling git and the walk read differently), an absent anchor
+    must not turn the refusal into permission to mint. The configuration witness answers as git
+    does outside a trusted repository: a quiet "unset", which proves readability, not absence.
+    Independent of the host's git version and configuration: both git answers are scripted.
+    """
+    from kernel.git import GitResult
+
+    root = _repo(tmp_path)
+    mission_dir = _commit_meta(root)
+    (mission_dir / "meta.json").unlink()
+    refusal = b"fatal: detected dubious ownership in repository at '/srv/checkout'\n"
+
+    def scripted_git(_cwd: Path, *args: str, **_kwargs: Any) -> GitResult:
+        if args[:1] == ("config",):
+            return GitResult(returncode=1, stdout=b"", stderr=b"")
+        return GitResult(returncode=128, stdout=b"", stderr=refusal)
+
+    monkeypatch.setattr("specify_cli.mission_metadata.run_git", scripted_git)
+    monkeypatch.setattr("specify_cli.mission_metadata.find_git_anchor", lambda *_a, **_k: None)
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert (tracked.meta, tracked.unavailable, tracked.unreadable_reason) == (None, True, "ownership")
+    assert not (mission_dir / "meta.json").exists(), "an ownership refusal must never mint an identity"
+
+
 def test_a_git_that_cannot_be_run_names_an_unknown_git_rather_than_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The ``.git`` the classifier cannot rule out is the cause to repair, whether or not git could start."""
     from kernel.git import GitCommandError
