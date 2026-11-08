@@ -137,6 +137,25 @@ def test_to_semver_projects_pep440(pep440: str, expected: str) -> None:
     assert to_semver(pep440) == expected
 
 
+@pytest.mark.parametrize(
+    ("pep440", "expected"),
+    [
+        ("4", "4.0.0"),
+        ("4.1", "4.1.0"),
+        ("4.1rc2", "4.1.0-rc2"),
+    ],
+)
+def test_to_semver_pads_a_short_release_to_three_components(pep440: str, expected: str) -> None:
+    """SemVer needs MAJOR.MINOR.PATCH; PEP 440 lets a release omit trailing zeros."""
+    assert to_semver(pep440) == expected
+
+
+@pytest.mark.parametrize("pep440", ["1!4.0.0", "4.0.0.1"])
+def test_to_semver_leaves_an_unprojectable_release_unchanged(pep440: str) -> None:
+    """An epoch or a fourth release component has no SemVer form; never invent one."""
+    assert to_semver(pep440) == pep440
+
+
 def test_to_semver_never_raises_on_an_unparseable_version() -> None:
     """A build must not fail because a local install reports an odd version."""
     assert to_semver("not-a-version") == "not-a-version"
