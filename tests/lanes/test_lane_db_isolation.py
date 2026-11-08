@@ -19,6 +19,8 @@ This test pins:
 
 from __future__ import annotations
 
+import re
+
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -102,12 +104,25 @@ class TestLaneTestDbNameCap63:
         so the suffix — not the truncated prefix — must carry the distinction."""
         a = lane_test_db_name(self.LONG_MISSION, "lane-a")
         b = lane_test_db_name(self.LONG_MISSION, "lane-b")
-        assert a != b, f"the 63-byte cap collapsed distinct lanes into one DB name: {a!r}"
+        # Compare what the engine keeps: the first 63 bytes. Uncapped names
+        # differ only past byte 63, so this is what the cap must change.
+        assert a[:63] != b[:63], f"the 63-byte cap collapsed distinct lanes into one DB name: {a!r}"
 
     def test_cap_keeps_distinct_missions_distinct(self):
-        x = lane_test_db_name(self.LONG_MISSION, "lane-a")
-        y = lane_test_db_name("084-" + "m" * 80, "lane-a")
-        assert x != y
+        x = lane_test_db_name(self.LONG_MISSION + "x", "lane-a")
+        y = lane_test_db_name(self.LONG_MISSION + "y", "lane-a")
+        assert x[:63] != y[:63]
+
+    def test_a_63_byte_name_is_returned_verbatim(self):
+        # "test_" (5) + 51-char mission + "_lane_a" (7) == 63 bytes.
+        name = lane_test_db_name("m" * 51, "lane-a")
+        assert name == "test_" + "m" * 51 + "_lane_a"
+        assert len(name) == 63
+
+    def test_a_64_byte_name_is_capped_with_a_digest_suffix(self):
+        name = lane_test_db_name("m" * 52, "lane-a")
+        assert len(name) == 63
+        assert re.fullmatch(r"test_m+_[0-9a-f]{8}", name), name
 
     def test_capped_name_is_deterministic(self):
         assert lane_test_db_name(self.LONG_MISSION, "lane-a") == lane_test_db_name(self.LONG_MISSION, "lane-a")
