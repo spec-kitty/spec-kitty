@@ -113,3 +113,68 @@ def test_hook_executes_with_spaces_in_interpreter_path(
         f"Hook invocation failed with interpreter at a path containing a space. "
         f"rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     )
+
+
+# ---------------------------------------------------------------------------
+# #5756 — hooks dir resolution for non-plain layouts
+# ---------------------------------------------------------------------------
+
+
+def _commit_seed_file(repo: Path) -> None:
+    (repo / "seed.txt").write_text("seed\n")
+    subprocess.run(["git", "add", "seed.txt"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+
+
+def test_install_writes_into_linked_worktree_shared_hooks_dir(tmp_path: Path) -> None:
+    """#5756: a linked worktree's ``.git`` is a FILE, so the hooks dir must be
+    resolved through git (the shared common hooks dir), never joined onto
+    ``.git`` — the old ``repo_root / ".git" / "hooks"`` shape failed with
+    NotADirectoryError there.
+    """
+    main_repo = tmp_path / "main"
+    main_repo.mkdir()
+    _init_git(main_repo)
+    _commit_seed_file(main_repo)
+    worktree = tmp_path / "wt"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "topic", str(worktree)],
+        cwd=main_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    record = install(worktree)
+
+    common_hooks = main_repo / ".git" / "hooks"
+    assert record.hook_path.parent.resolve() == common_hooks.resolve()
+    assert record.hook_path.is_file()
+    assert record.hook_path.read_text(encoding="utf-8").startswith("#!/bin/sh")
+
+
+def test_install_writes_into_separate_git_dir_hooks(tmp_path: Path) -> None:
+    """#5756: a repository initialized with ``--separate-git-dir`` keeps
+    ``.git`` as a file pointing at an operator-chosen directory; the installer
+    must write into that real hooks dir, not under the working tree.
+    """
+    sep_git_dir = tmp_path / "elsewhere-sep"
+    repo = tmp_path / "repo"
+    subprocess.run(
+        ["git", "init", "-q", "--separate-git-dir", str(sep_git_dir), str(repo)],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"], cwd=repo, check=True
+    )
+
+    record = install(repo)
+
+    assert record.hook_path.parent.resolve() == (sep_git_dir / "hooks").resolve()
+    assert record.hook_path.is_file()
+    assert record.hook_path.read_text(encoding="utf-8").startswith("#!/bin/sh")

@@ -293,6 +293,14 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert "topic branch" in message
     assert "mission" not in message
     assert "spec-kitty mission create --start-branch" not in message
+    # #5319: the topic-branch / --to-branch escape is named FIRST (the
+    # routine remedy), and the env var is labeled as the operator-only
+    # override it is — so an everyday user does not reach for the hatch.
+    assert "operator-only" in message
+    assert "--to-branch" in message
+    assert message.index("topic branch") < message.index(
+        "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
+    )
 
 
 def test_safe_commit_allows_op_record_on_protected_branch_with_capability(tmp_path: Path) -> None:

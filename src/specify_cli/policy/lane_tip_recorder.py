@@ -18,10 +18,10 @@ the opposite shape on both counts:
 Installed into BOTH ``post-commit`` (fires on an ordinary lane commit) and
 ``post-rewrite`` (fires after ``git commit --amend``, ``git rebase``, and
 ``git cherry-pick`` re-attach HEAD -- plan.md M4). The hooks dir is resolved
-via ``git rev-parse --git-path hooks`` so a repository-level
-``core.hooksPath`` override, and a linked worktree's shared common hooks
-dir, are both honored (unlike :mod:`hook_installer`, which hardcodes
-``repo_root/.git/hooks``).
+via ``git rev-parse --git-path hooks`` (the shared
+:func:`specify_cli.policy.hooks_dir.resolve_hooks_dir`, #5756) so a
+repository-level ``core.hooksPath`` override, and a linked worktree's shared
+common hooks dir, are both honored.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from pathlib import Path
 from specify_cli.cli.console import console
 from specify_cli.lanes.branch_naming import lane_branch_shell_glob
 from specify_cli.lanes.lane_tip import LANE_TIP_REF_PREFIX
+from specify_cli.policy.hooks_dir import resolve_hooks_dir
 
 __all__ = ["install_lane_tip_recorder", "lane_tip_recorder_active", "pending_hook_names"]
 
@@ -85,22 +86,6 @@ def _git_out(repo_root: Path, *args: str) -> str:
         check=True,
     )
     return result.stdout.strip()
-
-
-def _resolve_hooks_dir(repo_root: Path) -> Path:
-    """Resolve the effective hooks dir via ``git rev-parse --git-path hooks``.
-
-    Honors ``core.hooksPath`` (returned verbatim, relative to ``repo_root``,
-    when set) and a linked worktree's shared common hooks dir (returned
-    already absolute in that case). ``git rev-parse`` prints the path
-    relative to the CURRENT directory otherwise, so a relative result is
-    joined onto ``repo_root`` (the ``cwd`` this runs with) rather than the
-    process's own unrelated working directory.
-    """
-    hooks_dir = Path(_git_out(repo_root, "rev-parse", "--git-path", "hooks"))
-    if hooks_dir.is_absolute():
-        return hooks_dir
-    return repo_root / hooks_dir
 
 
 #: ``git config --show-scope`` scopes at which a ``core.hooksPath`` is private to
@@ -154,7 +139,7 @@ def _installable_hooks_dir(repo_root: Path) -> tuple[Path | None, str]:
     ``core.hooksPath`` set at global/system/command scope is never written
     (its hooks would then fire in every repository the user has).
     """
-    hooks_dir = _resolve_hooks_dir(repo_root)
+    hooks_dir = resolve_hooks_dir(repo_root)
     scope = _hooks_path_scope(repo_root)
     if scope is not None:
         if scope not in _REPO_PRIVATE_CONFIG_SCOPES:
@@ -224,7 +209,7 @@ def lane_tip_recorder_active(repo_root: Path) -> bool:
     raises (a non-repository or unreadable hook reads as "not active").
     """
     try:
-        hook_path = _resolve_hooks_dir(repo_root) / "post-commit"
+        hook_path = resolve_hooks_dir(repo_root) / "post-commit"
     except (OSError, subprocess.CalledProcessError):
         return False
     return _is_lane_tip_hook(hook_path) and os.access(hook_path, os.X_OK)

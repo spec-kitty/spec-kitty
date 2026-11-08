@@ -341,11 +341,15 @@ class ProtectedBranchRefused(SafeCommitError):
             # remedy. The mission-aware caller that has mission_slug in scope
             # (coordination/commit_router.py) builds its own diagnostic with
             # the finalize-tasks/mission-create remedy.
+            # #5319: the branch-level escapes are named FIRST (the routine
+            # remedy an everyday user should reach for), and the env var is
+            # labeled as the operator-only override it is.
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Retry against a non-protected topic branch, or set "
-            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 if you own this "
-            f"branch."
+            f"Retry against a non-protected topic branch (or pass "
+            f"--to-branch <branch>), or set "
+            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 (operator-only "
+            f"override) if you own this branch."
         )
         super().__init__(
             message,

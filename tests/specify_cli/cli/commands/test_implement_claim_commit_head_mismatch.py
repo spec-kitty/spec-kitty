@@ -244,7 +244,10 @@ def test_a_coordination_topology_claim_from_the_destination_is_not_refused(tmp_p
     assert "HEAD is" not in flat(result.output)
     assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "trunk"
     assert git(repo, "log", "-1", "--format=%s", "trunk") == "chore: WP01 claimed for implementation"
-    assert git(repo, "log", "-1", "--format=%s", COORD_MISSION_BRANCH) == "chore(spec-kitty): status transition batch WP01"
+    assert git(repo, "log", "-1", "--format=%s", COORD_MISSION_BRANCH) == (
+        # #4837: the implicit subject now names the staged mission area.
+        f"chore(spec-kitty): status transition batch WP01 (kitty-specs/{COORD_SLUG})"
+    )
 
 
 def test_a_protected_single_branch_claim_from_the_minted_mission_branch_is_not_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -80,8 +80,9 @@ __all__ = [
 #: single remedy vocabulary is emitted everywhere is remaining scope under epic #2160.
 #: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` is the operator hatch that folds
 #: ``primary_protected`` to ``False`` at the caller boundary (rule 6), degrading rule
-#: 3 to rule 4.
-REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <topic-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
+#: 3 to rule 4. #5319: the branch-level escapes are named first (the routine remedy)
+#: and the env var is labeled as the operator-only override it is.
+REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <topic-branch> or --to-branch <branch>; SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 (operator-only override)"
 
 #: The remedy offered when a commit-bearing operation targets the WRONG surface
 #: (the artifact is absent at / never staged to the resolved placement). A
