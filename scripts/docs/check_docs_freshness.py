@@ -52,8 +52,21 @@ import urllib.error  # noqa: E402
 import urllib.request  # noqa: E402
 from collections.abc import Iterable, Sequence  # noqa: E402
 from dataclasses import asdict, dataclass, field, replace  # noqa: E402
-from kernel.clock import now_utc_iso  # noqa: E402
 from pathlib import Path  # noqa: E402
+
+# Actions and closeout instructions run this script as a bare file
+# (``python scripts/docs/check_docs_freshness.py --ci``), which puts
+# ``scripts/docs/`` on ``sys.path[0]`` -- never the repository root. The
+# sub-check helpers import their siblings lazily (``from scripts.docs.x import
+# y``), so without this anchor they raise ``ModuleNotFoundError: No module
+# named 'scripts'`` the moment a real run reaches them (#5179). Resolve from
+# the script, never the caller's cwd or a ``PYTHONPATH`` the caller must
+# remember (mirrors ``scripts/ci/fleet_verdict.py`` / ``stale_running_sweep.py``).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from kernel.clock import now_utc_iso  # noqa: E402
 from typing import Final, Literal  # noqa: E402
 
 __all__ = [
