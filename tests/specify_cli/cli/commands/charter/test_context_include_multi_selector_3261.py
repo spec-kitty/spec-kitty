@@ -69,7 +69,8 @@ def test_repeated_include_json_envelope_lists_every_selector(tmp_path: Path) -> 
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
-    assert payload["include"] == [_FIRST, _SECOND]
+    assert payload["include"] == _FIRST
+    assert payload["includes"] == [_FIRST, _SECOND]
     assert "BLOCK agent-profile:reviewer-renata" in payload["text"]
     assert "BLOCK agent-profile:architect-alphonso" in payload["text"]
 

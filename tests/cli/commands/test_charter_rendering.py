@@ -411,7 +411,8 @@ def test_context_include_json_renders_machine_envelope(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["success"] is True
     # #3261: the flag is repeatable, so the envelope lists the selectors.
-    assert payload["include"] == ["section:regression-vigilance"]
+    assert payload["include"] == "section:regression-vigilance"
+    assert payload["includes"] == ["section:regression-vigilance"]
     assert payload["text"] == "### Regression Vigilance\nRule body."
 
 
