@@ -109,13 +109,14 @@ def _run(
     auto_commit: bool = True,
     selection: WorktreeSelection | None = None,
 ) -> dict[str, Any]:
-    return MigrationRunner(root)._upgrade_worktrees(
+    result: dict[str, Any] = MigrationRunner(root)._upgrade_worktrees(
         _TARGET_VERSION,
         migrations,
         dry_run,
         auto_commit=auto_commit,
         worktree_selection=WorktreeSelection.all() if selection is None else selection,
     )
+    return result
 
 
 def _report(result: dict[str, Any]) -> dict[str, Any]:
