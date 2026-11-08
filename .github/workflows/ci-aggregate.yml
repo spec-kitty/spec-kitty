@@ -39,8 +39,9 @@
 # did not ask for.
 #
 # `mode` (pr|full) is honored in THIS workflow's own fail-fast/`needs`
-# behavior: pr short-circuits the diff-cover gate the moment `collect` cannot
-# resolve every registry-expected shard; full always runs the gate
+# behavior: pr short-circuits the diff-cover gate the moment `collect` reports
+# an incomplete set (it could not resolve every registry-expected shard) or an
+# empty selection (no module coverage to score); full always runs the gate
 # (`if: always()`) so the complete coverage/failure picture is visible even
 # when a shard was red or missing (FR-018/FR-019 — verified cross-cutting by
 # WP11's test_dual_mode_contract).
@@ -85,6 +86,16 @@ on:
         options:
           - pr
           - full
+
+# Least privilege by default (#5554). This workflow runs in the privileged
+# `workflow_run` context, so without a workflow-level block every job inherits
+# the repository's default GITHUB_TOKEN scopes. `contents: read` is the floor;
+# a job that needs more (`actions: read` to download the source attempt,
+# `pull-requests: read` for the Sonar PR metadata) grants it in its own
+# job-level `permissions:` block, which REPLACES this default rather than
+# extending it. Pinned by tests/ci/test_aggregate_permissions.py.
+permissions:
+  contents: read
 
 # A skipped CI Modules source is a no-op label-event run (#7019: every job skips on a label other
 # than pr:pause-ci). It gets its own group so it never cancels the real source's aggregate, and
@@ -310,11 +321,16 @@ jobs:
   # runs (run-all, per FR-018/FR-019) — but ``needs.collect.outputs.complete``
   # is re-checked by this job's OWN first step (below), so `always()` never
   # silently scores an incomplete artefact set as if it were fine. In `pr`
-  # mode the job-level `if:` requires BOTH `collect` to have succeeded AND
-  # `complete == 'true'` — a `collect` failure (a same-run collision, or a
-  # registry-expected shard missing from the exact PR attempt)
-  # short-circuits the gate rather than burning runner compute on data that is
-  # already known-incomplete (NFR-008).
+  # mode the job-level `if:` requires ALL THREE conjuncts: `collect` succeeded,
+  # `complete == 'true'` (every registry-expected shard resolved), and
+  # `coverage == 'true'` (the diff selected at least one module, so there is
+  # coverage to score) — a `collect` failure (a same-run collision, or a
+  # registry-expected shard missing from the exact PR attempt) short-circuits
+  # the gate rather than burning runner compute on data that is already
+  # known-incomplete (NFR-008), and an empty selection skips the runner
+  # entirely instead of spinning one up to report "nothing to score" (#4538).
+  # Keep this list in step with the `if:` below: the next editor reasons from
+  # it, not from the expression.
   # ---------------------------------------------------------------------------
   diff-cover:
     name: "diff-cover PR gate (>=90% changed critical-path lines)"
@@ -452,14 +468,14 @@ jobs:
   # green (it is continue-on-error by design). Read #4350 before concluding from
   # this job's status that per-change reporting is live.
   #
-  # EXECUTION CONDITION (contract §C1) -- five conjuncts, ALL required. Four are
-  # expressible in the job `if:` below; the fifth (credential presence) is not,
-  # because the `secrets` context is unavailable in a job-level condition. All
-  # five are therefore decided, independently and without short-circuiting, by
-  # the extractable evaluator in this job's first step -- which is also what
-  # makes the condition testable at all, since a `workflow_run` handler executes
-  # only the default-branch copy of its file and so cannot run on the change
-  # that introduces it (C-006).
+  # EXECUTION CONDITION (contract §C1) -- five conjuncts, ALL required. Every one
+  # except credential presence is expressible in the job `if:` below; credential
+  # presence is not, because the `secrets` context is unavailable in a job-level
+  # condition. All five are therefore decided, independently and without
+  # short-circuiting, by the extractable evaluator in this job's first step -- which
+  # is also what makes the condition testable at all, since a `workflow_run` handler
+  # executes only the default-branch copy of its file and so cannot run on the
+  # change that introduces it (C-006).
   #
   # NO `always()`. The sibling `diff-cover` gate pairs `always()` with an
   # internal completeness re-check; copying that shape without the re-check
@@ -468,11 +484,16 @@ jobs:
   sonar-pr:
     name: "SonarCloud per-change report (informational; never merge-blocking)"
     needs: collect
+    # Mirrors the §C1 conjuncts that are decidable from `needs` at job level, so an
+    # empty selection (no module coverage to report) skips the runner entirely instead
+    # of spinning one up just to print the gate's skip notice (#4539). The in-step
+    # evaluator stays the testable source of truth for all six conjuncts (§C1).
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
       needs.collect.result == 'success' &&
-      needs.collect.outputs.complete == 'true'
+      needs.collect.outputs.complete == 'true' &&
+      needs.collect.outputs.coverage == 'true'
     # §C4, surface 1 of 3. Surface 2 is this job's absence from
     # `aggregate-gate.needs`; surface 3 (branch protection) is outside the
     # repository and is declared, never claimed.
