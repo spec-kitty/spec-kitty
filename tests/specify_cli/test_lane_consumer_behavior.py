@@ -181,14 +181,21 @@ def test_assert_merged_wps_reached_done_treats_unseeded_wp_as_not_done(
     both before and after WP05 -- ``Lane.UNINITIALIZED != Lane.DONE`` holds
     either way the comparison arrives (via the now-dead ``except
     ValueError`` before WP06, or via the direct equality check after).
+
+    No resolver stub: the check reads through the one status read door
+    (``resolve_status_read``, ADR 2026-11-06-2, #7277), which resolves the
+    fixture's real, empty event log on the write checkout.
     """
     repo, _feature_dir, mission_slug = unseeded_mission_repo
-    surface = repo / "kitty-specs" / mission_slug / "status.events.jsonl"
 
     with (
-        patch.object(db, "resolve_status_surface", return_value=surface),
+        patch.object(db.console, "print") as printed,
         pytest.raises(typer.Exit) as exc_info,
     ):
         db._assert_merged_wps_reached_done(repo, mission_slug, ["WP01"])
 
     assert exc_info.value.exit_code == 1
+    # The exit must be the not-done verdict, not a read failure on the way there.
+    output = "\n".join(str(call.args[0]) for call in printed.call_args_list)
+    assert "merged WPs did not reach done" in output
+    assert "Offending WPs: WP01" in output
