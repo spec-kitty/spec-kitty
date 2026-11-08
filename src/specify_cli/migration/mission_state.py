@@ -2186,7 +2186,7 @@ def _canonicalize_status_row(
 
 
 def _select_mission_dirs(repo_root: Path, *, scan_root: Path | None, mission: str | None) -> tuple[list[Path], list[Path]]:
-    """Return ``(mission_dirs, residue_dirs)`` for the repair/dry-run selection.
+    """Return ``(mission_dirs, residue_dirs)`` for the repair selection.
 
     WP03 owns the selection rule (WP02 owned the rest of this file and has
     landed in this lane). Without ``mission=``, the default ``kitty-specs/``
