@@ -1,7 +1,67 @@
 {
   "rows": {
+    "#229": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3469": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5013": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5022": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5046": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5048": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "FR #5048(b) red-first fix in WP16",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +69,59 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
+      "wp": "WP16"
+    },
+    "#5569": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5571": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5613": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5668": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5703": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Operator ruling 2026-11-08: out of scope for S1",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +129,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#5721": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Commit-between-two-approvals bullet closed by lane window model (WP19); remaining routes recorded in WP21",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +141,91 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
+      "wp": "WP19"
+    },
+    "#5788": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5968": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6313": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6770": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6771": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7283": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7307": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7358": {
@@ -49,7 +241,7 @@
       "wp": null
     },
     "#7359": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Operator ruling 2026-11-08: out of scope for S1",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +249,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7362": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Operator ruling 2026-11-08: out of scope for S1",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +261,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7403": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission tracker S1; closed by this mission's PR",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +273,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP19"
     }
   },
   "schema_version": 1
