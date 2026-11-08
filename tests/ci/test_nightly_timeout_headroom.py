@@ -60,8 +60,16 @@ def _required_cap(max_suite: str) -> int:
     return math.ceil((total + _OVERHEAD_MINUTES) * _HEADROOM_FACTOR)
 
 
+# #6787: the integration+next lane was cancelled at its 45-minute cap, the
+# performance lane measured 32:51 against 35 and stress 6:48 against 10; their
+# caps now follow this record.
+_INTEGRATION_NEXT_JOB = "integration-next"
+_PERFORMANCE_JOB = "performance"
+_STRESS_JOB = "stress"
+
+
 def _is_nightly_target(key: str) -> bool:
-    return key.startswith(_SHARD_PREFIX) or key == _OUT_OF_MATRIX_JOB
+    return key.startswith(_SHARD_PREFIX) or key in {_OUT_OF_MATRIX_JOB, _INTEGRATION_NEXT_JOB, _PERFORMANCE_JOB, _STRESS_JOB}
 
 
 def _is_module_tests_target(key: str) -> bool:
@@ -186,9 +194,9 @@ def test_nightly_timeout_caps_meet_recorded_headroom() -> None:
     text = _WORKFLOW_PATH.read_text(encoding="utf-8")
     blocks = _job_blocks(text)
     shards = [key for key in blocks if key.startswith(_SHARD_PREFIX)]
-    assert len(blocks) >= 7, f"non-vacuity: expected >=7 target jobs, found {sorted(blocks)}"
+    assert len(blocks) >= 10, f"non-vacuity: expected >=10 target jobs, found {sorted(blocks)}"
     assert len(shards) >= 6, f"non-vacuity: expected >=6 shards, found {sorted(shards)}"
-    assert _OUT_OF_MATRIX_JOB in blocks
+    assert {_OUT_OF_MATRIX_JOB, _INTEGRATION_NEXT_JOB, _PERFORMANCE_JOB, _STRESS_JOB} <= set(blocks)
     assert _cap_violations(text) == []
 
 

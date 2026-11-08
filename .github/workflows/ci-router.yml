@@ -1724,6 +1724,9 @@ jobs:
         uses: ./.github/actions/sync-packs
       - name: Audit every Mission's state
         id: audit
+        # #6787: equal to ci-nightly.yml's audit step (parity); below the job cap, so a timeout fails
+        # this step and the if: always() upload still runs.
+        timeout-minutes: 5
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/mission-state-audit.json"
