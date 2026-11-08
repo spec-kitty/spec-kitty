@@ -615,11 +615,15 @@ _Charter bundle validation commands._
 │                                                   owned checkout.            │
 │ --action                                  <str>   Workflow action            │
 │                                                   (specify|plan|implement|r… │
-│ --include                                 <str>   Fetch selector, e.g.       │
-│                                                   agent-profile:<id>,        │
+│ --include                                 <str>   A single fetch selector,   │
+│                                                   e.g. agent-profile:<id>,   │
 │                                                   template:<mission>/<name>, │
 │                                                   directive:<id>,            │
-│                                                   section:<slug>.            │
+│                                                   section:<slug>. Repeat     │
+│                                                   --include to fetch         │
+│                                                   several; one <kind>:<id>   │
+│                                                   per occurrence (a comma is │
+│                                                   refused).                  │
 │ --mark-loaded         --no-mark-loaded            Persist first-load state   │
 │                                                   [default: mark-loaded]     │
 │ --profile                                 <str>   Agent profile whose cited  │
@@ -3280,13 +3284,15 @@ _Glossary management commands_
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   path      <str>  Path to plan document, or '-' to read from stdin. Omit    │
-│                    when using --show or --auto.                              │
+│                    when using --show, --auto or --clear.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --force            Overwrite existing brief.                                 │
 │ --show             Print current brief and provenance; no writes.            │
 │ --auto             Scan known harness plan locations and ingest              │
 │                    automatically.                                            │
+│ --clear            Delete the intake brief, provenance and ticket-origin     │
+│                    artifacts.                                                │
 │ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

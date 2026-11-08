@@ -848,6 +848,8 @@ _Decision Moment ledger for interview questions._
 │                                      contain a follow-up handle ('#NNN' or a │
 │                                      'Follow-up:' substring), or the row     │
 │                                      fails validation.                       │
+│    --title                   <str>   Issue title to stamp on the matrix row  │
+│                                      (replaces a scaffold placeholder).      │
 │    --owned-checkout          <path>  Run against an owned checkout: a linked │
 │                                      checkout that owns this mission.        │
 │                                      Refuses the repository root checkout,   │
@@ -1966,17 +1968,22 @@ _Task workflow commands for AI agents_
  Examples:
  spec-kitty agent tasks add-history WP01 --note "Completed implementation"
  --json
+ spec-kitty agent tasks add-history WP01 --note-file NOTES.md --json
+ git show -s --format=%B | spec-kitty agent tasks add-history WP01 --note-file
+ -
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    task_id      <str>  Task ID (e.g., WP01) [required]                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --note               <str>  History note [required]                       │
-│    --mission            <str>  Mission slug                                  │
-│    --agent              <str>  Agent name                                    │
-│    --shell-pid          <str>  Shell PID                                     │
-│    --json                      Output JSON format                            │
-│    --help       -h             Show this message and exit.                   │
+│ --note               <str>  History note (inline; use --note-file for        │
+│                             literal Markdown)                                │
+│ --mission            <str>  Mission slug                                     │
+│ --agent              <str>  Agent name                                       │
+│ --shell-pid          <str>  Shell PID                                        │
+│ --note-file          <str>  Read the note from this file ('-' for stdin)     │
+│ --json                      Output JSON format                               │
+│ --help       -h             Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
