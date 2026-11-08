@@ -39,7 +39,7 @@ from typing import Any
 import pytest
 import typer
 import yaml
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
@@ -56,7 +56,7 @@ _cli_app.command()(upgrade)
 _cli_runner = CliRunner()
 
 
-def _invoke_upgrade(args: list[str], cwd: Path):
+def _invoke_upgrade(args: list[str], cwd: Path) -> Result:
     """Invoke the real `upgrade` command from *cwd* (mirrors
     ``tests/upgrade/test_upgrade_integration.py``'s harness)."""
     with contextlib.chdir(cwd):
@@ -66,7 +66,8 @@ def _invoke_upgrade(args: list[str], cwd: Path):
 def _last_json_line(output: str) -> dict[str, Any]:
     """Decode the final stdout line as JSON (banner/log lines may precede it)."""
     lines = [line for line in output.strip().splitlines() if line.strip()]
-    return json.loads(lines[-1])
+    decoded: dict[str, Any] = json.loads(lines[-1])
+    return decoded
 
 
 _FROM_VERSION = "3.2.0"
