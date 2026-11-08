@@ -27,8 +27,8 @@ from tests.specify_cli.invocation._op_git import (
 
 from specify_cli import app as cli_app
 from specify_cli.invocation import op_custody
+from specify_cli.invocation import writer as writer_module
 from specify_cli.invocation.writer import EVENTS_DIR, read_op_closures
-from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops, scan_op_records
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -275,14 +275,15 @@ def test_unreadable_checkout_does_not_hide_the_others(tmp_path: Path, monkeypatc
     lane = _add_worktree(root, "lane", "topic")
     _write_stale_op(root, _ROOT_OP)
     _write_stale_op(lane, _LANE_OP)
-    real_closed_ids = ops_module.closed_invocation_ids
+    # The open-Op rule (closure spine included) is owned by invocation.writer since #6739.
+    real_closed_ids = writer_module.closed_invocation_ids
 
     def broken_spine(checkout: Path) -> set[str]:
         if Path(checkout).resolve() == lane.resolve():
             raise PermissionError(f"cannot read {checkout}")
         return real_closed_ids(checkout)
 
-    monkeypatch.setattr(ops_module, "closed_invocation_ids", broken_spine)
+    monkeypatch.setattr(writer_module, "closed_invocation_ids", broken_spine)
 
     with caplog.at_level("WARNING", logger="specify_cli.doctor.ops"):
         pairs, unreadable = scan_op_records(root)
