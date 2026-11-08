@@ -686,6 +686,145 @@ def test_rebuild_index_from_log_omits_malformed_decision_with_no_prior_entry(tmp
 
 
 # ---------------------------------------------------------------------------
+# #5304 — unreadable event-log lines must be REPORTED, not crashed on
+# ---------------------------------------------------------------------------
+
+
+def _append_unreadable_line(repo_root: Path, line: str) -> int:
+    """Append *line* to the mission's ``status.events.jsonl``; return its 1-based line number."""
+    events_path = _mission_dir(repo_root) / "status.events.jsonl"
+    text = events_path.read_text(encoding="utf-8")
+    line_number = len([ln for ln in text.splitlines() if ln.strip()]) + 1
+    with events_path.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+    return line_number
+
+
+def _open_one_decision(tmp_path: Path) -> str:
+    return open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="unreadable-step",
+        input_key="unreadable-key",
+        question="Q?",
+        actor="alice",
+    ).decision_id
+
+
+def test_diagnose_reports_invalid_json_line_instead_of_crashing(tmp_path: Path) -> None:
+    """#5304: one corrupt line in ``status.events.jsonl`` used to crash the
+    whole read-only diagnose with a raw ``json.JSONDecodeError`` traceback."""
+    from specify_cli.cli.commands._decisions_doctor import _diagnose, _ledger_dir, _mission_dir as _doctor_mission_dir
+
+    _setup_meta(tmp_path)
+    _open_one_decision(tmp_path)
+    line_number = _append_unreadable_line(tmp_path, "{not json at all")
+
+    report, _grouped = _diagnose(_doctor_mission_dir(tmp_path, MISSION_SLUG), _ledger_dir(tmp_path, MISSION_SLUG), MISSION_SLUG)
+
+    assert not report.clean
+    assert len(report.unreadable_lines) == 1
+    assert report.unreadable_lines[0]["line_number"] == line_number
+    assert "json" in str(report.unreadable_lines[0]["reason"]).lower()
+
+
+def test_diagnose_reports_non_object_event_line(tmp_path: Path) -> None:
+    """A line that parses as JSON but is not an object (here: an array) must be
+    reported as unreadable, not raise ``AttributeError`` on ``.get`` (#5304)."""
+    from specify_cli.cli.commands._decisions_doctor import _diagnose, _ledger_dir, _mission_dir as _doctor_mission_dir
+
+    _setup_meta(tmp_path)
+    _open_one_decision(tmp_path)
+    line_number = _append_unreadable_line(tmp_path, "[1, 2, 3]")
+
+    report, _grouped = _diagnose(_doctor_mission_dir(tmp_path, MISSION_SLUG), _ledger_dir(tmp_path, MISSION_SLUG), MISSION_SLUG)
+
+    assert not report.clean
+    assert len(report.unreadable_lines) == 1
+    assert report.unreadable_lines[0]["line_number"] == line_number
+
+
+def test_diagnose_reports_non_object_payload_line(tmp_path: Path) -> None:
+    """A decision event whose ``payload`` is not an object must be reported as
+    unreadable, not raise ``AttributeError`` on ``payload.get`` (#5304)."""
+    from specify_cli.cli.commands._decisions_doctor import _diagnose, _ledger_dir, _mission_dir as _doctor_mission_dir
+
+    _setup_meta(tmp_path)
+    _open_one_decision(tmp_path)
+    line_number = _append_unreadable_line(tmp_path, json.dumps({"event_type": DECISION_POINT_OPENED, "payload": "not-an-object"}))
+
+    report, _grouped = _diagnose(_doctor_mission_dir(tmp_path, MISSION_SLUG), _ledger_dir(tmp_path, MISSION_SLUG), MISSION_SLUG)
+
+    assert not report.clean
+    assert len(report.unreadable_lines) == 1
+    assert report.unreadable_lines[0]["line_number"] == line_number
+
+
+def test_diagnose_still_reports_healthy_decisions_around_unreadable_lines(tmp_path: Path) -> None:
+    """The unreadable line is isolated: every OTHER decision still folds and
+    reconciles, exactly as a malformed fold is isolated today (#5304)."""
+    from specify_cli.cli.commands._decisions_doctor import _diagnose, _ledger_dir, _mission_dir as _doctor_mission_dir
+
+    _setup_meta(tmp_path)
+    did = _open_one_decision(tmp_path)
+    _append_unreadable_line(tmp_path, "{broken")
+
+    report, _grouped = _diagnose(_doctor_mission_dir(tmp_path, MISSION_SLUG), _ledger_dir(tmp_path, MISSION_SLUG), MISSION_SLUG)
+
+    assert report.log_decision_ids == [did]
+    assert report.missing_from_index == []
+    assert report.orphaned_in_index == []
+    assert report.malformed_folds == []
+    assert len(report.unreadable_lines) == 1
+
+
+def test_repair_refuses_over_unreadable_lines_and_leaves_index_untouched(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#5304: ``--repair`` must never rebuild the index from a log it could
+    not fully parse -- the rebuild would silently drop every decision whose
+    events sit on an unreadable line. It reports loudly and exits 1."""
+    import typer
+
+    from specify_cli.cli.commands._decisions_doctor import run_decisions_reconciliation
+
+    _setup_meta(tmp_path)
+    _open_one_decision(tmp_path)
+    _append_unreadable_line(tmp_path, "{broken")
+    mission_dir = _mission_dir(tmp_path)
+    index_path = _store.index_path(mission_dir)
+    before = index_path.read_bytes()
+
+    with pytest.raises(typer.Exit) as excinfo:
+        run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=True)
+
+    assert excinfo.value.exit_code == 1
+    assert index_path.read_bytes() == before, "repair over unreadable lines must not rewrite index.json"
+
+    captured = capsys.readouterr()
+    assert "unreadable" in captured.out.lower()
+
+
+def test_doctor_decisions_json_carries_unreadable_lines(tmp_path: Path) -> None:
+    """The ``--json`` document names each unreadable line (number + reason) so a
+    machine caller is not left guessing which lines to inspect (#5304)."""
+    _setup_meta(tmp_path)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)  # project-root marker for the CLI path
+    _open_one_decision(tmp_path)
+    _append_unreadable_line(tmp_path, "{broken")
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+
+    assert exit_code == 0  # read-only diagnose stays report-only
+    assert payload["clean"] is False
+    assert len(payload["unreadable_lines"]) == 1
+    assert "line_number" in payload["unreadable_lines"][0]
+    assert "reason" in payload["unreadable_lines"][0]
+
+
+# ---------------------------------------------------------------------------
 # #4966 AC-D2 (WP03 scope expansion) — service.py and _decisions_doctor.py
 # must resolve the decision ledger (and its sidecar lock) to the SAME
 # PRIMARY-partition dir, or a concurrent open/resolve could race a --repair

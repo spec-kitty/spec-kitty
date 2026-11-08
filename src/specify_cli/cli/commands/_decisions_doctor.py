@@ -143,11 +143,20 @@ class DecisionsReconciliationReport:
     #: WP17: ``--repair`` copied a coordination-only ledger into the PRIMARY
     #: ledger dir (additive, no commit -- FR-009b).
     ledger_copied: bool = False
+    #: #5304: lines of ``status.events.jsonl`` that could not be parsed as a
+    #: decision event (invalid JSON, a valid-JSON non-object event, a
+    #: non-object ``payload``). Each item is ``{"line_number": int,
+    #: "reason": str}`` (1-based, blank lines skipped). A decision whose
+    #: events sit on an unreadable line is invisible to the id comparison and
+    #: to the fold, so this makes the report "not clean" and ``--repair``
+    #: refuses to run while any unreadable line remains (a rebuild would
+    #: silently drop that decision).
+    unreadable_lines: list[dict[str, object]] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
         base = not self.missing_from_index and not self.orphaned_in_index and not self.malformed_folds and not self.status_mismatch
-        return base and not self.findings
+        return base and not self.findings and not self.unreadable_lines
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
@@ -191,25 +200,48 @@ def _events_path(mission_dir: Path) -> Path:
     return mission_dir / _EVENTS_FILENAME
 
 
-def _read_decision_events(events_path: Path) -> dict[str, list[dict]]:  # type: ignore[type-arg]
+def _read_decision_events(events_path: Path) -> tuple[dict[str, list[dict]], list[dict[str, object]]]:  # type: ignore[type-arg]
     """Group DecisionPointOpened/Resolved event envelopes by
-    ``decision_point_id``, in on-disk (append) order."""
+    ``decision_point_id``, in on-disk (append) order.
+
+    #5304: returns ``(grouped, unreadable_lines)``. A line that cannot be
+    parsed as a decision event -- invalid JSON, a valid-JSON non-object, a
+    non-object ``payload`` -- is reported in *unreadable_lines* (each item
+    ``{"line_number": int, "reason": str}``, 1-based, blank lines skipped)
+    instead of crashing the whole doctor on one corrupt append. The decision
+    whose events sit on an unreadable line is simply absent from *grouped*,
+    so a rebuild sourced from it would silently drop it -- which is why
+    ``run_decisions_reconciliation`` refuses ``--repair`` while any
+    unreadable line remains.
+    """
     grouped: dict[str, list[dict]] = {}  # type: ignore[type-arg]
+    unreadable: list[dict[str, object]] = []
     if not events_path.exists():
-        return grouped
-    for raw_line in events_path.read_text(encoding="utf-8").splitlines():
+        return grouped, unreadable
+    for line_number, raw_line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw_line.strip()
         if not line:
             continue
-        event = json.loads(line)
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as exc:
+            unreadable.append({"line_number": line_number, "reason": f"invalid JSON ({exc.msg})"})
+            continue
+        if not isinstance(event, dict):
+            unreadable.append({"line_number": line_number, "reason": f"event is not a JSON object ({type(event).__name__})"})
+            continue
         if event.get("event_type") not in _DECISION_EVENT_TYPES:
             continue
-        payload = event.get("payload") or {}
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            unreadable.append({"line_number": line_number, "reason": f"payload is not a JSON object ({type(payload).__name__})"})
+            continue
         decision_id = payload.get("decision_point_id")
-        if not decision_id:
+        if not isinstance(decision_id, str) or not decision_id:
+            unreadable.append({"line_number": line_number, "reason": "payload.decision_point_id is missing or not a string"})
             continue
         grouped.setdefault(decision_id, []).append(event)
-    return grouped
+    return grouped, unreadable
 
 
 def _is_unrecoverable_slot_key_origin(entry: IndexEntry) -> bool:
@@ -455,7 +487,7 @@ def _diagnose(
     ``tests/status/test_authoritative_non_lane_registry_4897.py`` drives
     directly.
     """
-    grouped = _read_decision_events(_events_path(events_dir))
+    grouped, unreadable_lines = _read_decision_events(_events_path(events_dir))
     index = _store.load_index(ledger_dir)
     log_ids = set(grouped)
     index_ids = {e.decision_id for e in index.entries}
@@ -485,6 +517,7 @@ def _diagnose(
         duplicate_openings_tolerated=sorted(duplicate_ids),
         fork_report=fork_report,
         findings=findings,
+        unreadable_lines=unreadable_lines,
     )
     return report, grouped
 
@@ -540,7 +573,17 @@ def _repair(
     caller can report both conditions loudly instead of crashing.
     """
     with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
-        grouped = _read_decision_events(_events_path(events_dir))
+        grouped, unreadable_in_lock = _read_decision_events(_events_path(events_dir))
+        if unreadable_in_lock:
+            # #5304: fail closed -- never rebuild the index from a log that
+            # could not be fully parsed (the decisions whose events sit on an
+            # unreadable line would be silently dropped). The pre-phase guard
+            # in ``run_decisions_reconciliation`` already refused the common
+            # case; this covers a line corrupting only in the diagnose->lock
+            # window. Nothing is saved, and the caller's post-repair
+            # re-diagnose re-reads the file and names the unreadable lines in
+            # the final report (exit 1), so the refusal is loud.
+            return [], []
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
         if repo_root is not None and mission_slug is not None:
@@ -653,6 +696,21 @@ def _emit_duplicate_openings_notice(report: DecisionsReconciliationReport) -> No
     )
 
 
+def _emit_unreadable_lines_warning(report: DecisionsReconciliationReport) -> None:
+    """#5304: name each ``status.events.jsonl`` line that could not be parsed
+    as a decision event, instead of crashing the doctor on the first one. The
+    decisions whose events sit on these lines are invisible to the id
+    comparison and to the fold, and ``--repair`` refuses to run while any
+    unreadable line remains (a rebuild would silently drop them)."""
+    if not report.unreadable_lines:
+        return
+    detail = ", ".join(f"line {item['line_number']} ({item['reason']})" for item in report.unreadable_lines)
+    console.print(
+        f"  [red]unreadable event-log line(s)[/red] ({len(report.unreadable_lines)}) in status.events.jsonl: {detail} -- "
+        "the decision(s) on these lines cannot be reconciled; fix or remove the corrupt line(s) before repairing"
+    )
+
+
 def _surface_log_to_json(log: _fork.SurfaceLog | None) -> dict[str, object] | None:
     if log is None:
         return None
@@ -719,6 +777,7 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
     _emit_malformed_fold_warning(report)
     _emit_status_mismatch_warning(report)
     _emit_duplicate_openings_notice(report)
+    _emit_unreadable_lines_warning(report)
 
 
 def _emit_json(report: DecisionsReconciliationReport) -> None:
@@ -748,6 +807,7 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "malformed_folds": report.malformed_folds,
         "status_mismatch": report.status_mismatch,
         "duplicate_openings_tolerated": report.duplicate_openings_tolerated,
+        "unreadable_lines": report.unreadable_lines,
         "remedy": _malformed_fold_remedy_text(report),
         "findings": report.findings,
         "ledger_copied": report.ledger_copied,
@@ -878,6 +938,16 @@ def run_decisions_reconciliation(
     report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
 
     if repair and not report.clean:
+        if report.unreadable_lines:
+            # #5304: never rebuild the index from a log that could not be
+            # fully parsed -- the rebuild would silently drop every decision
+            # whose events sit on an unreadable line. Report loudly (exactly
+            # one report, same as the malformed-fold refusal) and refuse.
+            if json_output:
+                _emit_json(report)
+            else:
+                _emit_human(report)
+            raise typer.Exit(1)
         progress: dict[str, bool] = {"index_rebuilt": False}
         try:
             lossy_ids, malformed_ids, ledger_only_coord = _run_repair_phases(
@@ -912,6 +982,10 @@ def run_decisions_reconciliation(
     if repair and report.fork_report is not None and report.fork_report.forked:
         raise typer.Exit(1)
     if repair and report.malformed_folds:
+        raise typer.Exit(1)
+    if repair and report.unreadable_lines:
+        # #5304: covers a line that went unreadable only during the repair
+        # window (the in-lock re-read refused to save; see ``_repair``).
         raise typer.Exit(1)
 
     raise typer.Exit(0)
