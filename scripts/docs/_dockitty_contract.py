@@ -37,8 +37,10 @@ pages), the OKF advisories (``okf_version``, actor shapes), and the written-out
 date forms upstream still accepts for old pages (``October 1, 2026``), which this
 copy reports as not a date.
 
-Standard library only: callers parse the frontmatter (``scripts.docs._inventory``)
-and pass the mapping in, so ``site_contract.py`` keeps running on a bare ``python3``.
+Standard library plus the ``kernel.clock`` door (dates go through it, as the clock
+import ban requires): callers parse the frontmatter (``scripts.docs._inventory``) and
+pass the mapping in, so ``site_contract.py`` keeps running on a bare ``python3`` with
+``PYTHONPATH=.:src``.
 """
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from kernel.clock import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final
 
