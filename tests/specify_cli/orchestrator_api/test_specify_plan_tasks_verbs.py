@@ -219,6 +219,10 @@ _TASKS_SUCCESS_DATA_KEYS = frozenset(
         "parsed_spec_ids",
         "rejected_requirement_refs",
         "success_criteria_coverage",
+        # Contract 1.25.0 (envelope.py): additive provisional-topology decision,
+        # settled at the first finalize. The pin went stale when it shipped; this
+        # out-of-matrix test runs only in the nightly (#6786).
+        "topology_decision",
     }
 )
 
