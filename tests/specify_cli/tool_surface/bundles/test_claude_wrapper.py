@@ -513,9 +513,15 @@ class TestBuildIncludesWrappers:
             "name": "Spec Kitty",
             "url": "https://github.com/spec-kitty/spec-kitty",
         }
-        version = plugin_json["version"]
+        # The wrapper pins the PEP 440 package version (``uvx spec-kitty-cli==<v>``
+        # must resolve on PyPI), while the manifest carries its SemVer projection
+        # (#6479): both come from the one package version.
+        from specify_cli.tool_surface.bundles._builder import get_cli_version, to_semver
+
+        package_version = get_cli_version()
+        assert plugin_json["version"] == to_semver(package_version)
         bash_content = (bundle_dir / "bin" / "spec-kitty-wrapper").read_text(encoding="utf-8")
-        assert version in bash_content
+        assert f"spec-kitty-cli=={package_version}" in bash_content
 
     def test_build_is_still_idempotent_with_wrappers(self, tmp_path: Path) -> None:
         """Second build must produce byte-identical wrapper files."""

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from specify_cli.tool_surface.bundles.copilot import CopilotBundleProjector
+from specify_cli.tool_surface.bundles.projection import AGENT_PLUGINS_SCHEMA
 from specify_cli.tool_surface.bundles.vscode import VsCodeBundleProjector
 
 from ._support import full_plans, skills_only_plans
@@ -28,7 +29,10 @@ def test_copilot_bundle_plugin_json_at_root(tmp_path: Path) -> None:
     assert (out / "hooks.json").is_file()
     assert (out / ".mcp.json").is_file()
     payload = json.loads((out / "plugin.json").read_text(encoding="utf-8"))
-    assert payload["distribution_target"] == "copilot_skill_package"
+    # The manifest is the pinned Agent Plugins 1.0.0 document (closed schema):
+    # the target label is a projector attribute, never a manifest field.
+    assert payload["$schema"] == AGENT_PLUGINS_SCHEMA
+    assert "distribution_target" not in payload
     assert bundle.distribution_target == "copilot_skill_package"
 
 
@@ -49,7 +53,8 @@ def test_vscode_uses_same_layout_with_distinct_target(tmp_path: Path) -> None:
     assert (out / "plugin.json").is_file()
     assert (out / "agents" / "architect-alphonso.agent.md").is_file()
     payload = json.loads((out / "plugin.json").read_text(encoding="utf-8"))
-    assert payload["distribution_target"] == "vscode_extension"
+    assert payload["$schema"] == AGENT_PLUGINS_SCHEMA
+    assert "distribution_target" not in payload
     assert bundle.distribution_target == "vscode_extension"
 
 

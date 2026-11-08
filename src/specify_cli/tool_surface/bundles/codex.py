@@ -31,6 +31,7 @@ from ._builder import (
     command_members,
     finish_build,
     get_cli_version,
+    to_semver,
 )
 from ..operations import ApplyConsent, AssessmentInputs, Diagnostic, OperationRoot, OwnerAssessment
 from .model import BundleObservation, StagedFile
@@ -55,14 +56,52 @@ _FORBIDDEN_KEYS: frozenset[str] = frozenset({"hooks", "agents"})
 # Top-level scalar fields required by the Codex plugin schema.
 _REQUIRED_SCALAR_FIELDS: tuple[str, ...] = ("name", "version", "description")
 
-# Required nested fields in the ``interface`` sub-object.
-_REQUIRED_INTERFACE_FIELDS: tuple[str, ...] = ("displayName", "shortDescription")
+# Required nested fields in the ``interface`` sub-object. The pinned OpenAI
+# requirements (spec-kitty-internal-plugins#2 §2.3) split them into fields a
+# listing needs for rendering and URLs the MCP review needs.
+_REQUIRED_INTERFACE_FIELDS: tuple[str, ...] = (
+    "displayName",
+    "shortDescription",
+    "longDescription",
+    "developerName",
+    "category",
+    "capabilities",
+    "websiteURL",
+    "supportURL",
+    "privacyPolicyURL",
+    "defaultPrompt",
+    "logo",
+    "composerIcon",
+)
 
-# Maximum length for ``interface.shortDescription`` per the contract.
-_SHORT_DESCRIPTION_MAX_LEN = 120
+# Per-field character limits from the pinned contract. ``shortDescription`` and
+# ``displayName`` are 30, not the 120 the old constant assumed.
+_INTERFACE_MAX_LEN: dict[str, int] = {
+    "displayName": 30,
+    "shortDescription": 30,
+    "longDescription": 4000,
+    "developerName": 80,
+}
+_CAPABILITIES_MAX_ITEMS = 20
+_CAPABILITY_MAX_LEN = 120
+_DEFAULT_PROMPT_MAX_ITEMS = 3
+_DEFAULT_PROMPT_MAX_LEN = 128
 
-# Canonical author name.
+# Identity and links the directory resolves the listing from.
 _AUTHOR_NAME = "Spec Kitty"
+_DEVELOPER_NAME = "Spec Kitty, Inc."
+_PROJECT_URL = "https://github.com/spec-kitty/spec-kitty"
+_PROJECT_HOMEPAGE = "https://spec-kitty.ai/"
+_PROJECT_DOCS_URL = "https://docs.spec-kitty.ai/"
+_PROJECT_SUPPORT_URL = f"{_PROJECT_URL}/issues"
+_PROJECT_PRIVACY_URL = "https://spec-kitty.ai/privacy"
+_LICENSE = "MIT"
+
+# Square brand asset declared as ``./assets/logo.png`` and staged from the
+# package so a wheel install ships it too.
+_BUNDLE_ASSET_DIR = "assets"
+_BRAND_LOGO_NAME = "logo.png"
+_BRAND_LOGO_POINTER = f"./{_BUNDLE_ASSET_DIR}/{_BRAND_LOGO_NAME}"
 
 # Install instructions emitted after marketplace.json is written.
 _INSTALL_HINT = (
@@ -117,8 +156,10 @@ class CodexBundleProjector:
             version = get_cli_version()
             files, commands = command_members(directory / "skills", root)
             companions, observations, directories = self._companions(directory, root)
+            assets, asset_observations = self._brand_asset(directory, root)
+            observations += asset_observations
             manifest = self._manifest_payload(version, any(Path(f.path).name == _MCP_JSON_NAME for f in companions))
-            files += companions + (
+            files += companions + assets + (
                 StagedFile((directory / _MANIFEST_DIR / _MANIFEST_NAME).relative_to(root.path).as_posix(),
                            json_bytes(manifest, legacy=True), manifest=True),
                 StagedFile((directory / "marketplace.json").relative_to(root.path).as_posix(),
@@ -164,6 +205,23 @@ class CodexBundleProjector:
                                             read_observed_file(observed), observed.state.mode or 0o644))
         return tuple(files), tuple(observations), tuple(directories)
 
+    @staticmethod
+    def _brand_asset(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...]]:
+        """Stage the square brand mark the manifest declares.
+
+        The manifest points at ``./assets/logo.png``, so the bundle must contain
+        it: a listing that cannot resolve a declared image is worse than one with
+        no image field. The source ships inside the package (``*.png`` artifact),
+        so an installed CLI builds the same bundle as a source checkout.
+        """
+        source = Path(__file__).parent / _BUNDLE_ASSET_DIR / _BRAND_LOGO_NAME
+        observation = observe_bundle_path(source)
+        if observation.state.kind != "file":
+            raise BuildError(f"Brand asset is missing from the package: {source}")
+        content = read_observed_file(observation)
+        destination = (directory / _BUNDLE_ASSET_DIR / _BRAND_LOGO_NAME).relative_to(root.path).as_posix()
+        return (StagedFile(destination, content, observation.state.mode or 0o644),), (observation,)
+
     # ------------------------------------------------------------------
     # Manifest generation
     # ------------------------------------------------------------------
@@ -171,14 +229,40 @@ class CodexBundleProjector:
     def _manifest_payload(self, version: str, has_mcp: bool) -> dict[str, object]:
         manifest: dict[str, object] = {
             "name": "spec-kitty",
-            "version": version,
+            "version": to_semver(version),
             "description": "Spec-Driven Development toolkit.",
-            "author": {"name": _AUTHOR_NAME},
+            "author": {"name": _AUTHOR_NAME, "url": _PROJECT_URL},
+            "homepage": _PROJECT_HOMEPAGE,
+            "repository": _PROJECT_URL,
+            "license": _LICENSE,
+            # The plugin shells out to the ``spec-kitty`` CLI, which makes it a
+            # desktop-only plugin for the Codex directory.
+            "requires_local_executor": True,
             "interface": {
                 "displayName": "Spec Kitty",
-                "shortDescription": "Spec-Driven Development for teams.",
+                # 23 characters: the pinned limit is 30, and the old constant
+                # (120) let a 34-character value through.
+                "shortDescription": "Spec-Driven Development",
+                "longDescription": (
+                    "Spec Kitty turns agreed intent into a verified result: specify, plan, "
+                    "slice tasks into work packages, implement with review, and land under a "
+                    "charter you control."
+                ),
+                "developerName": _DEVELOPER_NAME,
+                "category": "Developer Tools",
+                "capabilities": [
+                    "Specification-first mission workflow",
+                    "Work-package implementation with review gates",
+                    "Charter and doctrine governance",
+                ],
+                "websiteURL": _PROJECT_DOCS_URL,
+                "supportURL": _PROJECT_SUPPORT_URL,
+                "privacyPolicyURL": _PROJECT_PRIVACY_URL,
+                "defaultPrompt": ["Turn this idea into a spec, plan and tasks with Spec Kitty."],
+                "logo": _BRAND_LOGO_POINTER,
+                "composerIcon": _BRAND_LOGO_POINTER,
             },
-            "skills": "skills/",
+            "skills": "./skills/",
         }
         # FR-027: advertise the MCP companion only when it was actually staged
         # into the bundle ("when applicable"). Absent companion => no pointer.
@@ -193,30 +277,34 @@ class CodexBundleProjector:
         Raises
         ------
         BuildError
-            When forbidden keys are present or required fields are missing.
+            When forbidden keys are present, a required field is missing, or a
+            pinned per-field limit is exceeded.
         """
-        # T025: forbidden keys must be absent.
+        self._validate_required_fields(manifest)
+        self._validate_interface_limits(manifest["interface"])
+        self._validate_component_pointers(manifest)
+
+    @staticmethod
+    def _validate_required_fields(manifest: dict[str, object]) -> None:
+        """Forbidden keys, required scalars, author block and interface fields."""
         found_forbidden = _FORBIDDEN_KEYS & set(manifest)
         if found_forbidden:
             raise BuildError(
                 f"Codex plugin.json must NOT contain: {sorted(found_forbidden)}"
             )
 
-        # Required top-level scalar fields.
         for key in _REQUIRED_SCALAR_FIELDS:
             if not manifest.get(key):
                 raise BuildError(
                     f"Codex plugin.json missing required field: {key!r}"
                 )
 
-        # author.name (nested).
         author = manifest.get("author")
         if not isinstance(author, dict) or not author.get("name"):
             raise BuildError(
                 "Codex plugin.json missing required field: 'author.name'"
             )
 
-        # interface.displayName and interface.shortDescription (nested).
         iface = manifest.get("interface")
         if not isinstance(iface, dict):
             raise BuildError(
@@ -228,13 +316,50 @@ class CodexBundleProjector:
                     f"Codex plugin.json missing required field: 'interface.{sub}'"
                 )
 
-        # shortDescription length guard.
-        short_desc = iface.get("shortDescription", "")
-        if isinstance(short_desc, str) and len(short_desc) > _SHORT_DESCRIPTION_MAX_LEN:
+    @staticmethod
+    def _validate_interface_limits(iface: object) -> None:
+        """Pinned per-field limits: string lengths, capabilities, default prompts."""
+        assert isinstance(iface, dict)  # guarded by _validate_required_fields
+        for field, limit in _INTERFACE_MAX_LEN.items():
+            value = iface.get(field, "")
+            if isinstance(value, str) and len(value) > limit:
+                raise BuildError(
+                    f"Codex plugin.json 'interface.{field}' exceeds {limit} characters."
+                )
+
+        # capabilities: a bounded list of bounded strings.
+        capabilities = iface.get("capabilities")
+        if not isinstance(capabilities, list) or len(capabilities) > _CAPABILITIES_MAX_ITEMS:
             raise BuildError(
-                f"Codex plugin.json 'interface.shortDescription' exceeds "
-                f"{_SHORT_DESCRIPTION_MAX_LEN} characters."
+                "Codex plugin.json 'interface.capabilities' must be a list of at most "
+                f"{_CAPABILITIES_MAX_ITEMS} items."
             )
+        if any(not isinstance(item, str) or len(item) > _CAPABILITY_MAX_LEN for item in capabilities):
+            raise BuildError(
+                "Codex plugin.json 'interface.capabilities' items must be strings of at most "
+                f"{_CAPABILITY_MAX_LEN} characters."
+            )
+
+        # defaultPrompt: one to three short prompts.
+        prompts = iface.get("defaultPrompt")
+        if not isinstance(prompts, list) or not 1 <= len(prompts) <= _DEFAULT_PROMPT_MAX_ITEMS:
+            raise BuildError(
+                "Codex plugin.json 'interface.defaultPrompt' must be a list of 1 to "
+                f"{_DEFAULT_PROMPT_MAX_ITEMS} prompts."
+            )
+        if any(not isinstance(prompt, str) or len(prompt) > _DEFAULT_PROMPT_MAX_LEN for prompt in prompts):
+            raise BuildError(
+                "Codex plugin.json 'interface.defaultPrompt' entries must be strings of at most "
+                f"{_DEFAULT_PROMPT_MAX_LEN} characters."
+            )
+
+    @staticmethod
+    def _validate_component_pointers(manifest: dict[str, object]) -> None:
+        """Bundled component paths are host-relative and carry the ``./`` prefix."""
+        for field in ("skills", "mcpServers"):
+            pointer = manifest.get(field)
+            if isinstance(pointer, str) and not pointer.startswith("./"):
+                raise BuildError(f"Codex plugin.json {field!r} path must start with './'.")
 
     # ------------------------------------------------------------------
     # Marketplace catalog

@@ -653,6 +653,10 @@ def test_profile_preparation_immutable_clock_and_owner_controls(tmp_path: Path, 
     owners(manifest)
     with pytest.raises(AssertionError):
         owners(replace(manifest, logical_owners=("claude",)))
+    # The oracle compares ``st_mtime_ns``, and the filesystem reports it from the
+    # coarse kernel clock (a same-tick rewrite keeps the identical timestamp), so
+    # wait one tick before the byte-identical rewrite this assertion must catch.
+    time.sleep(0.02)
     manifest_path_for(tmp_path).write_bytes(manifest_path_for(tmp_path).read_bytes())
     with pytest.raises(AssertionError):
         assert_unchanged(after, snapshot({"project": tmp_path}))

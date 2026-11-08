@@ -62,6 +62,7 @@ from ._builder import (
     command_members,
     finish_build,
     get_cli_version,
+    to_semver,
 )
 from .claude_wrapper import wrapper_bash_content, wrapper_cmd_content
 
@@ -78,6 +79,10 @@ _CLAUDE_LAYOUT: dict[ToolSurfaceKind, str] = {
     ToolSurfaceKind.HOOK: "hooks",
     ToolSurfaceKind.NATIVE_CONFIG: "",
 }
+
+# Identity and links the directory resolves the listing from.
+_PROJECT_URL = "https://github.com/spec-kitty/spec-kitty"
+_PROJECT_HOMEPAGE = "https://spec-kitty.ai/"
 
 # Required surface kinds a complete Claude Code bundle must carry.
 _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
@@ -138,7 +143,7 @@ class ClaudeCodeBundleProjector:
         """
         entries = self.entries(plan, project_root)
         manifest_rel = self.manifest_relative_path
-        manifest = plugin_manifest_payload(self.distribution_target)
+        manifest = plugin_manifest_payload(agent_plugins=False)
         write_bundle(output_dir, entries, manifest_rel, manifest)
         return PluginBundle(
             distribution_target=self.distribution_target,
@@ -252,7 +257,7 @@ class ClaudeBundleProjector:
                 raise BuildError("Required Claude hooks must be a JSON object")
             skills = sorted("./" + (root.path / f.path).parent.relative_to(directory).as_posix() for f in files if Path(f.path).name == "SKILL.md")
             agents = sorted("./" + (root.path / f.path).relative_to(directory).as_posix() for f in profiles)
-            manifest = self._manifest_payload(version, skills, agents, bool(hook_data) and hook_data != {"hooks": {}})
+            manifest = self._manifest_payload(version, skills, agents)
             files += (
                 StagedFile(hooks_path.relative_to(root.path).as_posix(), hooks, hook_state.mode or 0o644, managed=hook_state.kind == "absent"),
                 StagedFile(
@@ -295,28 +300,34 @@ class ClaudeBundleProjector:
         return files, observations
 
     @staticmethod
-    def _manifest_payload(version: str, skills: list[str], agents: list[str], has_hooks: bool) -> dict[str, object]:
-        """Retain explicit prepared component paths in the Claude manifest."""
+    def _manifest_payload(version: str, skills: list[str], agents: list[str]) -> dict[str, object]:
+        """Retain explicit prepared component paths in the Claude manifest.
+
+        The manifest carries no ``hooks`` pointer on purpose: ``hooks/hooks.json``
+        is the host default, so declaring it is redundant and was the one place a
+        bare relative path (no ``./`` prefix) was emitted. The hooks file itself
+        stays staged, so a hooks-carrying bundle still loads it.
+        """
         if not skills:
             raise BuildError("Claude plugin manifest has no skills to declare.")
         if not agents:
             raise BuildError("Claude plugin manifest has no agents to declare.")
 
-        manifest: dict[str, object] = {
+        return {
             "name": "spec-kitty",
             "displayName": "Spec Kitty",
-            "version": version,
+            "version": to_semver(version),
             "description": ("Spec-Driven Development toolkit — spec, plan, implement, review, merge."),
             "author": {
                 "name": "Spec Kitty",
-                "url": "https://github.com/spec-kitty/spec-kitty",
+                "url": _PROJECT_URL,
             },
+            "homepage": _PROJECT_HOMEPAGE,
+            "repository": _PROJECT_URL,
+            "license": "MIT",
             "skills": skills,
             "agents": agents,
         }
-        if has_hooks:
-            manifest["hooks"] = "hooks/hooks.json"
-        return manifest
 
     @staticmethod
     def _marketplace_payload(version: str) -> dict[str, object]:
