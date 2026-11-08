@@ -1117,8 +1117,17 @@ _Mission lifecycle commands for AI agents_
 │ --json                                                     Output JSON       │
 │                                                            format            │
 │ --target-branch                           <str>            Target branch     │
-│                                                            (defaults to      │
-│                                                            current branch)   │
+│                                                            (defaults to the  │
+│                                                            current branch;   │
+│                                                            without           │
+│                                                            --topology, a     │
+│                                                            current branch    │
+│                                                            that is another   │
+│                                                            Mission's branch  │
+│                                                            is replaced by    │
+│                                                            the Primary       │
+│                                                            Branch, and the   │
+│                                                            create says so)   │
 │ --friendly-name                           <str>            Human-friendly    │
 │                                                            mission title     │
 │ --purpose-tldr                            <str>            One-line          │
@@ -1134,49 +1143,46 @@ _Mission lifecycle commands for AI agents_
 │                                                            merge_target_bra… │
 │                                                            [default:         │
 │                                                            no-pr-bound]      │
-│ --topology                                <single_branch|  Create-time       │
-│                                           lanes|coord|lan  mission shape:    │
-│                                           es_with_coord>   single_branch |   │
-│                                                            lanes | coord |   │
+│ --topology                                <single_branch|  Mission shape:    │
+│                                           lanes|coord|lan  single_branch |   │
+│                                           es_with_coord>   lanes | coord |   │
 │                                                            lanes_with_coord. │
-│                                                            Coordination-bea… │
-│                                                            shapes (coord,    │
-│                                                            lanes_with_coord) │
-│                                                            mint a            │
+│                                                            Default (no       │
+│                                                            --topology):      │
+│                                                            create mints one  │
+│                                                            Mission topic     │
+│                                                            branch            │
+│                                                            (kitty/mission-<… │
+│                                                            and checks it     │
+│                                                            out, on any       │
+│                                                            target, with no   │
+│                                                            lanes, worktrees  │
+│                                                            or coordination   │
+│                                                            branch; the first │
+│                                                            finalize-tasks    │
+│                                                            then settles the  │
+│                                                            shape by size:    │
+│                                                            single_branch for │
+│                                                            at most 2 work    │
+│                                                            packages or at    │
+│                                                            most 1 code lane, │
+│                                                            else              │
+│                                                            lanes_with_coord  │
+│                                                            with the topic    │
+│                                                            branch as the     │
 │                                                            coordination      │
-│                                                            branch and        │
-│                                                            materialize its   │
-│                                                            worktree          │
-│                                                            immediately,      │
-│                                                            seeding it with   │
-│                                                            the mission's     │
-│                                                            creation events   │
-│                                                            (MissionCreated,  │
-│                                                            SpecifyStarted)   │
-│                                                            so the            │
-│                                                            coordination      │
-│                                                            surface is live   │
-│                                                            from birth        │
-│                                                            (#5440);          │
-│                                                            branch-flat       │
-│                                                            shapes            │
-│                                                            (single_branch,   │
-│                                                            lanes) do         │
-│                                                            neither. Default: │
-│                                                            context-derived   │
-│                                                            (#2581, #2602) —  │
-│                                                            coord on the      │
-│                                                            primary branch or │
-│                                                            with --pr-bound   │
-│                                                            when coordination │
-│                                                            is reachable;     │
-│                                                            lanes otherwise.  │
-│                                                            single_branch     │
-│                                                            only when         │
-│                                                            requested         │
-│                                                            explicitly (or    │
-│                                                            via               │
-│                                                            --owned-checkout… │
+│                                                            branch. lanes and │
+│                                                            coord are         │
+│                                                            produced only by  │
+│                                                            an explicit       │
+│                                                            --topology. An    │
+│                                                            explicit value    │
+│                                                            always wins and   │
+│                                                            is settled at     │
+│                                                            create            │
+│                                                            (--owned-checkout │
+│                                                            implies           │
+│                                                            single_branch).   │
 │ --branch-strate…                          <str>            Branch-strategy   │
 │                                                            gate control      │
 │                                                            (e.g.,            │
@@ -1821,6 +1827,12 @@ _Canonical status management commands_
  Reads all events from status.events.jsonl, applies the deterministic
  reducer to produce a snapshot, writes status.json, and updates legacy
  compatibility views.
+
+ status.json is written into the checkout that holds the declared status
+ source (the write checkout, the coordination worktree, or for a landed
+ Mission the consolidated target). When no checkout holds it (the
+ coordination worktree is empty or absent, or no checkout holds the
+ Mission branch) the command refuses, writes nothing and names the remedy.
 
  Examples:
      spec-kitty agent status materialize
