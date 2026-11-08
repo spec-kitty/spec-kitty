@@ -34,7 +34,9 @@ Error codes used:
   ANCESTRY_NOT_ESTABLISHED    -- #3281/FR-007: the recorded planning commit or an
                                  approved dependency lane's tip is not (yet) a git
                                  ancestor of the claimed workspace's HEAD, even
-                                 after self-heal re-ran the reuse-path merges
+                                 after self-heal re-ran the reuse-path merges;
+                                 or (#3763) that self-heal itself failed, with
+                                 the failure in data.cause and missing_refs []
   MISSION_ALREADY_EXISTS      -- specify: the delegate mission-creation call
                                  failed with its own typed duplicate signal
                                  (MissionAlreadyExistsError, #3861)

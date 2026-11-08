@@ -103,3 +103,38 @@ def test_transition_to_claimed_fails_structured_when_self_heal_fails(tmp_path: P
     envelope: dict[str, Any] = json.loads(result.output)
     assert envelope["success"] is False
     assert envelope["error_code"] == "ANCESTRY_NOT_ESTABLISHED", envelope
+
+
+def test_self_heal_failure_envelope_carries_the_structured_cause(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A structured self-heal failure keeps its own code and next_step under ``cause``.
+
+    The not-ok path sends ``missing_refs``; the self-heal-failure path sends it
+    too (empty) so an orchestrator reads one envelope shape for both.
+    """
+    from specify_cli.lanes.worktree_allocator import DependencyLaneMergeConflictError
+
+    repo_root, _mission_dir = _make_mission(tmp_path, _SLUG)
+    conflict = DependencyLaneMergeConflictError("lane-b", "lane-a", "kitty/mission-099-test-mission-lane-a")
+
+    def _conflicting_heal(*args: object, **kwargs: object) -> None:
+        raise conflict
+
+    monkeypatch.setattr(
+        implement_support,
+        "check_claim_ancestry",
+        lambda *args, **kwargs: AncestryCheckResult(ok=False, missing_refs=("bogus-ref",)),
+    )
+    monkeypatch.setattr(implement_support, "reenter_lane_self_heal", _conflicting_heal)
+
+    with patch("specify_cli.orchestrator_api._common._get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            ["start-implementation", "--mission", _SLUG, "--wp", "WP01", "--actor", "claude", "--policy", _valid_policy_json()],
+        )
+
+    envelope: dict[str, Any] = json.loads(result.output)
+    assert envelope["error_code"] == "ANCESTRY_NOT_ESTABLISHED", envelope
+    data = envelope["data"]
+    assert data["missing_refs"] == []
+    assert data["cause"]["error_code"] == "DEPENDENCY_LANE_MERGE_CONFLICT"
+    assert data["cause"]["next_step"] == conflict.next_step
