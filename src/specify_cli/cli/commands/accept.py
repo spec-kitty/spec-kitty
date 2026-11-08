@@ -1462,7 +1462,13 @@ def _exit_early_for_report_modes(run: _AcceptRun, summary: AcceptanceSummary, *,
         raise typer.Exit(0 if summary.ok else 1)
     if not summary.ok:
         _report_summary(run, summary, raw=True)
-        if not allow_fail and not run.json_output:
+        if allow_fail:
+            # ``--allow-fail`` is the report-only contract (#3084): the checklist
+            # is the whole output and the caller's automation must not fail, which
+            # is the only meaning the option can have. Exit 1 here made it
+            # indistinguishable from a plain failure.
+            raise typer.Exit(0)
+        if not run.json_output:
             console.print(
                 "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
             )

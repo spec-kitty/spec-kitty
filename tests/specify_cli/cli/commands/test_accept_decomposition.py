@@ -364,12 +364,13 @@ class TestReportModes:
             assert {"ok", "advisories"} <= _json_keys(result.output)
         assert harness.calls == []
 
-    @pytest.mark.parametrize("extra", [[], ["--allow-fail"]], ids=["strict", "allow-fail"])
+    @pytest.mark.parametrize(("extra", "exit_code"), [([], 1), (["--allow-fail"], 0)], ids=["strict", "allow-fail"])
     @pytest.mark.parametrize("json_output", [True, False], ids=["json", "human"])
-    def test_not_ok_summary_exits_one_either_way(self, harness: Harness, extra: list[str], json_output: bool) -> None:
+    def test_not_ok_summary_exit_code(self, harness: Harness, extra: list[str], exit_code: int, json_output: bool) -> None:
+        """#3084: ``--allow-fail`` is report-only, so a failing summary exits 0."""
         harness.summary = _fake_summary(ok=False)
         result = harness.invoke("--mission", _SLUG, *extra, json_output=json_output)
-        assert result.exit_code == 1
+        assert result.exit_code == exit_code
         if json_output:
             assert {"ok", "advisories"} <= _json_keys(result.output)
         assert harness.calls == []
