@@ -22,8 +22,10 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from charter.activation.layer_roots import resolve_pack_chain
 from specify_cli.cli.commands.charter import pack_asset as asset_module
 from specify_cli.cli.commands.charter import charter_app
+from specify_cli.core.paths import locate_project_root
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -84,7 +86,19 @@ def test_asset_path_unknown_id_exits_nonzero_naming_it() -> None:
 
 
 #: The repository's own org-tier pack; its sidecars anchor at this ``assets/`` dir.
-_INTERNAL_ASSETS_DIR = Path(__file__).resolve().parents[4] / "packs" / "internal" / "assets"
+#:
+#: Both halves come from the SAME authority the command uses (#5740): the command
+#: resolves its org packs from the MAIN repository root (``locate_project_root``
+#: follows a lane worktree back to it), so anchoring this expectation to
+#: ``Path(__file__)`` made every such run of this test fail for a reason the diff
+#: did not cause. In a clean install with no project, ``locate_project_root`` is
+#: ``None`` and the checkout-relative fallback keeps the assertion meaningful.
+_MAIN_REPO_ROOT = locate_project_root() or Path(__file__).resolve().parents[4]
+_ORG_ASSET_DIRS = tuple(root / "assets" for root in resolve_pack_chain(_MAIN_REPO_ROOT, strict=False))
+_INTERNAL_ASSETS_DIR = next(
+    (directory for directory in _ORG_ASSET_DIRS if any(directory.glob("*.asset.yaml"))),
+    _MAIN_REPO_ROOT / "packs" / "internal" / "assets",
+)
 _INTERNAL_ASSET_IDS = sorted(
     YAML(typ="safe").load(sidecar.read_text(encoding="utf-8"))["id"]
     for sidecar in _INTERNAL_ASSETS_DIR.glob("*.asset.yaml")
