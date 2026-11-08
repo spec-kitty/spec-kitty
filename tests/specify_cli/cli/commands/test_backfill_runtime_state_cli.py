@@ -222,6 +222,59 @@ def test_dry_run_over_migrated_corpus_previews_no_flip(tmp_path: Path) -> None:
     assert re.search(r"Skipped \(already migrated\)\s*:\s*1\b", result.stdout)
 
 
+# --- #4044: dry-run "Skipped (already migrated)" must not hide a would-fail mission ---
+
+
+def _inject_phantom_wp_row(feature_dir: Path) -> None:
+    """Hand-inject an annotation seed row for a WP with no legacy file (#4044).
+
+    The corrupt-input shape the fail-closed verify exists to catch: the reduced
+    snapshot carries runtime state (``assignee``) for ``WP99``, but no
+    ``tasks/WP99*.md`` row exists — a phantom / injected entry. A live run
+    FAILS such a mission (verify not ok); a dry-run used to launder it into
+    "Skipped (already migrated)" because it would neither flip nor seed.
+    """
+    events_path = feature_dir / "status.events.jsonl"
+    rows = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    rows.append(
+        {
+            "event_id": "01BBBBBBBBBBBBBBBBBBBBBBB9",
+            "kind": "annotation",
+            "wp_id": "WP99",
+            "at": "2026-01-02T05:00:00+00:00",
+            "actor": "migration",
+            "delta": {"assignee": "ghost"},
+        }
+    )
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_dry_run_does_not_label_would_fail_mission_already_migrated(tmp_path: Path) -> None:
+    fd = _build_no_seed_state_mission(tmp_path, slug="phantom")
+    _inject_phantom_wp_row(fd)
+
+    result = _invoke(tmp_path, ["--dry-run"])
+
+    assert result.exit_code == 0
+    # The phantom fails verify, so nothing here would flip...
+    assert re.search(r"Would flip\s*:\s*0\b", result.stdout), result.stdout
+    # ...and it is NOT already migrated — the label must not claim it is. A
+    # live run over the same corpus reports this mission as Failed (#4044).
+    assert re.search(r"Skipped \(already migrated\)\s*:\s*0\b", result.stdout), result.stdout
+    assert "status_phase" not in json.loads((fd / "meta.json").read_text())
+
+    # Contrast: the LIVE run fails loudly on the same corrupt input — the
+    # dry-run summary must not have framed it as benignly skipped.
+    live = _invoke(tmp_path, [])
+    assert live.exit_code == 1
+    assert re.search(r"Failed\s*:\s*1\b", live.stdout), live.stdout
+    assert "phantom" in live.stdout
+    assert "WP99: snapshot carries runtime state but no legacy WP row exists" in live.stdout
+
+
 def test_json_payload_distinguishes_flipped_from_already_migrated(tmp_path: Path) -> None:
     _build_no_seed_state_mission(tmp_path)
 
