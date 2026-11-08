@@ -129,11 +129,12 @@ class LanesManifest:
         computed_from: Description of inputs used (e.g. "dependency_graph+ownership").
         planning_artifact_wps: **Derived KIND view** — WP IDs whose
             ``execution_mode`` is ``planning_artifact``. It is kind-derived in
-            every topology: the lanes/coord arm fills it from the planning-only
-            ``lane-planning`` lane's ``wp_ids``, and the single_branch arm fills
-            it from ``execution_mode`` directly (that topology's one repo-root
-            lane also holds CODE work packages). Use it to ask the KIND question
-            ("is this WP a planning artifact?"). To ask the LANE question ("which
+            every topology: both ``compute_lanes`` arms classify each WP by its
+            ownership manifest's ``execution_mode``. In the lanes/coord arm the
+            result equals the planning-only ``lane-planning`` lane's ``wp_ids``;
+            in the single_branch arm it is a subset of the one repo-root
+            ``lane-planning`` lane, which also holds CODE work packages. Use it
+            to ask the KIND question ("is this WP a planning artifact?"). To ask the LANE question ("which
             lane routes this WP?") use ``lane_for_wp()`` instead: lane membership
             alone cannot answer the kind question on ``single_branch``. As of
             3.1.1 planning-artifact WPs are first-class lane-owned entities
