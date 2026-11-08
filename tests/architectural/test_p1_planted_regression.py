@@ -34,6 +34,7 @@ import pytest
 
 from tests.architectural import _p1_census_oracle as census_oracle
 from tests.architectural import _symbol_key as symbol_key
+from tests.architectural import test_integration_boundary as integration_boundary_gate
 from tests.architectural import test_no_dead_modules as dead_modules_gate
 from tests.architectural import test_no_dead_symbols as dead_symbols_gate
 from tests.architectural import test_no_retired_subsystems as retired_gate
@@ -48,12 +49,16 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # T080 falls back to asserting the enforcement allowlists directly.
 _MEMBERSHIP_PATH = _REPO_ROOT / "tests" / "architectural" / "shape_guard_membership.yaml"
 
-# The three always-on enforcement allowlists (C-006 boundary). They quote dead surfaces
-# as banned strings and must never be scrubbed, excluded, or demoted off the gate.
+# The four always-on enforcement allowlists (C-006 boundary; the C-007 canon in
+# shape_guard_membership.yaml names the same four). They quote dead surfaces as banned
+# strings or pin an exemption set and must never be scrubbed, excluded, or demoted off
+# the gate. #4361: the oracle listed three, so `test_integration_boundary` could not be
+# added here without tripping `is_enforcement_allowlist_gate`.
 _ENFORCEMENT_GATE_NAMES: tuple[str, ...] = (
     "test_no_dead_symbols",
     "test_no_dead_modules",
     "test_no_retired_subsystems",
+    "test_integration_boundary",
 )
 
 # The retired subsystems whose banned-import prefixes the retirement allowlist must keep.
@@ -228,10 +233,11 @@ def _marker_names(module: ModuleType) -> set[str]:
 def test_enforcement_allowlists_preserved_on_the_blocking_gates() -> None:
     """T080: the P1/P2 demotion did not weaken the enforcement allowlists.
 
-    The oracle recognizes all three gates as always-on enforcement allowlists (C-006).
-    When WP16's committed membership (E4) is present, cross-reference it: every
-    enforcement-allowlist member must still be named on the blocking gate. WP16 is a
-    PARALLEL lane, so on this base the file is absent — fall back to asserting the
+    The oracle recognizes all four gates as always-on enforcement allowlists (C-006;
+    #4361 added ``test_integration_boundary`` so this tuple and that set cannot drift
+    apart again). When WP16's committed membership (E4) is present, cross-reference it:
+    every enforcement-allowlist member must still be named on the blocking gate. WP16 is
+    a PARALLEL lane, so on this base the file is absent — fall back to asserting the
     enforcement allowlists are intact/behaviorally-unchanged DIRECTLY (always checkable).
     The full E4 cross-reference activates automatically once WP16 merges.
     """
@@ -249,6 +255,9 @@ def test_enforcement_allowlists_preserved_on_the_blocking_gates() -> None:
     # Fallback (WP16 not yet merged): the enforcement allowlists are intact directly.
     assert isinstance(dead_symbols_gate._SYMBOL_ALLOWLIST, frozenset)
     assert isinstance(dead_modules_gate._ALLOWLIST, frozenset)
+    # C-008: the integration boundary's exemption set is permanently closed, so it must
+    # stay an EMPTY frozenset rather than drifting into a working exemption (#4361).
+    assert not integration_boundary_gate.ALLOWLIST
 
     banned_prefixes = retired_gate._BANNED_IMPORT_PREFIXES
     for subsystem in _RETIRED_SUBSYSTEMS:
@@ -256,8 +265,16 @@ def test_enforcement_allowlists_preserved_on_the_blocking_gates() -> None:
     assert "websockets" in banned_prefixes
 
     # The gate modules are still collected as blocking architectural tests — the demotion
-    # did not quarantine or skip them off the gate.
-    for module in (dead_symbols_gate, dead_modules_gate, retired_gate):
+    # did not quarantine or skip them off the gate. Iterate the tuple through a module map
+    # (set-equality asserted) so a gate added above cannot silently skip this check.
+    gate_modules = {
+        "test_no_dead_symbols": dead_symbols_gate,
+        "test_no_dead_modules": dead_modules_gate,
+        "test_no_retired_subsystems": retired_gate,
+        "test_integration_boundary": integration_boundary_gate,
+    }
+    assert set(gate_modules) == set(_ENFORCEMENT_GATE_NAMES), "the module map drifted from _ENFORCEMENT_GATE_NAMES"
+    for module in gate_modules.values():
         marks = _marker_names(module)
         assert "architectural" in marks, f"{module.__name__} is no longer a blocking architectural gate"
         assert "skip" not in marks and "quarantine" not in marks, f"{module.__name__} was demoted off the blocking gate"
