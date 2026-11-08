@@ -413,7 +413,25 @@ def _apply_sanctioned_corrections(repo: Path) -> list[str]:
     return applied
 
 
+def require_full_history(repo: Path = REPO_ROOT) -> None:
+    """Skip locally, fail under CI, when ``repo`` is a shallow clone.
+
+    The recovery fixtures read historical objects pinned in
+    ``test_archive_root_byte_identical`` (``gate.ORIGINAL`` and others) that a
+    shallow clone does not hold; ``git archive`` then exits 128, which reads as
+    a product failure. CI checks out with ``fetch-depth: 0``, so there a shallow
+    clone is a real fault and fails closed, like ``_require_port_base_rev``.
+    """
+    if git(repo, "rev-parse", "--is-shallow-repository").strip() != b"true":
+        return
+    message = f"{repo} is a shallow clone; the pinned recovery history is absent. Run `git fetch --unshallow` to run these tests."
+    if os.environ.get("CI") == "true":
+        pytest.fail(message)
+    pytest.skip(message)
+
+
 def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
+    require_full_history()
     repo = tmp_path / "corpus"
     # Shared clone reads pinned objects; all refs/index/worktree mutations are local.
     subprocess.run(
@@ -881,3 +899,41 @@ def test_public_next_writes_real_lifecycle_record_files(
     assert any(record.phase == "started" for record in records)
     assert any(record.phase == "completed" for record in records)
     run_gate(repo, monkeypatch)
+
+
+# require_full_history: the shallow-clone guard of the recovery fixtures.
+def _git_cli(*args: str) -> None:
+    subprocess.run(["git", *args], capture_output=True, check=True)
+
+
+@pytest.fixture
+def _full_history_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "full"
+    _git_cli("init", "-q", str(repo))
+    for n in (1, 2):
+        _git_cli("-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", f"c{n}")
+    return repo
+
+
+@pytest.fixture
+def _shallow_history_repo(tmp_path: Path, _full_history_repo: Path) -> Path:
+    repo = tmp_path / "shallow"
+    _git_cli("clone", "-q", "--depth", "1", f"file://{_full_history_repo}", str(repo))
+    return repo
+
+
+def test_require_full_history_passes_on_full_clone(_full_history_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CI", "true")
+    require_full_history(_full_history_repo)
+
+
+def test_require_full_history_skips_shallow_clone_locally(_shallow_history_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CI", raising=False)
+    with pytest.raises(pytest.skip.Exception, match="git fetch --unshallow"):
+        require_full_history(_shallow_history_repo)
+
+
+def test_require_full_history_fails_shallow_clone_under_ci(_shallow_history_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CI", "true")
+    with pytest.raises(pytest.fail.Exception, match="shallow clone"):
+        require_full_history(_shallow_history_repo)
