@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#4211": {
+      "evidence_ref": "context: startup-asset freshness stamp; out of scope, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4572": {
+      "evidence_ref": "context: catalog-miss warning dedup + scope-filtered quieting; contract deliberately unchanged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4703": {
+      "evidence_ref": "context: hook paths bypass startup gate; out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5526": {
+      "evidence_ref": "context: shipped doctrine parsed once per change in-process (parse_shipped_yaml); this mission shrinks the first read set, it does not replace that memo",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5588": {
+      "evidence_ref": "context: session-start gate bypass; out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "pre-existing red on main (tests/contract/test_mission_status_reality.py 240s timeouts, KeyError 'findings'); cited for CI classification only, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6462": {
+      "evidence_ref": "PR #6918: persona render 52 docs / 0 unused-domain docs (red 265/213), board 0 graph parses (red 14); changelog (#6462)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#6473": {
+      "evidence_ref": "context: unwritable-home warning path; out of scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6584": {
+      "evidence_ref": "context: deferred __version__ resolution; import cost already addressed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6638": {
+      "evidence_ref": "context: deferred httpx import; import cost already addressed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "closed legacy-mission discovery test red (fixed on main); cited as the baseline for next-command tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "pre-existing red on main (tests/migration/test_birth_cutover.py EVIDENCE_WINDOW_UNCOMPUTABLE from #6715); cited for CI classification only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "CI router-gate false red on duplicate-named sibling jobs; cited when a queued run is cancelled/red for unrelated reasons",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6858": {
+      "evidence_ref": "context: open PR #6858 (cascade stem resolution) is the guard-style precedent (count parses, never assert seconds); different files, lands in either order",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
