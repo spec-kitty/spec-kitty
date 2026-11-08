@@ -31,12 +31,12 @@ from specify_cli.review.arbiter import (
     _derive_category,
     _is_arbiter_override,
     create_arbiter_decision,
-    get_arbiter_overrides_for_wp,
     parse_category_from_note,
     persist_arbiter_decision,
 )
 from specify_cli.status import ReviewOverride, WPInnerStateDelta, emit_inner_state_changed
 from specify_cli.status.models import Lane, StatusEvent
+from tests._support.arbiter_overrides import get_arbiter_overrides_for_wp
 from tests._support.status_seed import seed_status_event
 
 pytestmark = pytest.mark.fast

@@ -370,7 +370,7 @@ def persist_arbiter_decision(
     forbids a fifth field): the category is folded into ``reason`` as
     ``"[category] explanation"`` prose, the same format
     :func:`parse_category_from_note` already parses back out elsewhere (see
-    :func:`get_arbiter_overrides_for_wp`, below) — never dropped, never a new
+    the reduced snapshot (:func:`arbiter_overrides_from_state`, below)) — never dropped, never a new
     field.
 
     ``review_ref`` is accepted for call-site/signature compatibility but is
@@ -445,45 +445,12 @@ def persist_arbiter_decision(
 # ---------------------------------------------------------------------------
 
 
-def get_arbiter_overrides_for_wp(
-    feature_dir: Path,
-    wp_id: str,
-) -> list[dict[str, Any]]:
-    """Return the current durable override for a WP, event-sourced (FR-009).
-
-    Retired (T051/T052): this used to scan ``arbiter-override-*.json``
-    sidecars and ``review-cycle-*.md`` frontmatter under a bare-``wp_id``-
-    joined directory — both non-authoritative, never-durably-committed
-    representations, and (per spec.md User Story 4) an uncaught-crash-prone
-    manual YAML parse inconsistent with every other reader's declared
-    failure polarity. The event-sourced ``ReviewOverride`` on the reduced
-    ``review`` snapshot slot (the SAME record
-    ``_persist_review_artifact_override`` writes) is now the single source,
-    read via :func:`specify_cli.status.wp_snapshot_state` — the shared
-    spelling of ``read_event_stream`` -> ``reduce`` ->
-    ``work_packages.get(wp_id)`` (IC-08 / #2093), not a hand-rolled
-    re-derivation.
-
-    Returns AT MOST one entry: the event-sourced override is a single
-    reduced CURRENT state, not the per-cycle accumulation the retired
-    frontmatter/JSON scan used to build up. Kept list-shaped so its
-    ``for override in ...`` callers keep working unmodified (``agent tasks
-    status`` reads :func:`arbiter_overrides_from_state` off its one door
-    reduction, #7335). An incomplete override (missing any of
-    ``at``/``actor``/``wp_id``/``reason``) is never surfaced, mirroring
-    ``ReviewOverride.complete``'s predicate everywhere else it is honoured.
-    """
-    from specify_cli.status import wp_snapshot_state
-
-    return arbiter_overrides_from_state(wp_snapshot_state(feature_dir, wp_id))
-
-
 def arbiter_overrides_from_state(state: Mapping[str, Any] | None) -> list[dict[str, Any]]:
     """The current durable override from one reduced WP state (``None``: no entry).
 
     For a reader that already reduced the log through the status read door, so a
     ref-sourced surface needs no directory (#7335). Same contract as
-    :func:`get_arbiter_overrides_for_wp`: at most one entry, incomplete overrides
+    :func:`arbiter_overrides_from_state`: at most one entry, incomplete overrides
     are never surfaced.
     """
     from specify_cli.status import ReviewOverride

@@ -37,7 +37,6 @@ __all__ = [
     "LandingEvidence",
     "LandingVerdict",
     "landing_evidence_at_target",
-    "landing_evidence_from_surface",
     "read_landing_evidence",
 ]
 

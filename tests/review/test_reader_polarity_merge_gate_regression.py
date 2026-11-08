@@ -53,7 +53,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
     RejectedReviewArtifactFinding,
     find_rejected_review_artifact_conflicts,
 )
-from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+from tests._support.arbiter_overrides import get_arbiter_overrides_for_wp
 from specify_cli.status import ReviewOverride
 from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
