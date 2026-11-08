@@ -887,3 +887,43 @@ def test_group_level_status_read_path_envelope_names_the_invoked_verb(
     assert envelope["command"] == "orchestrator-api.mission-state"
     assert result.exit_code == 1
 
+
+def test_group_level_status_read_path_envelope_downgrades_an_unregistered_code(
+    tmp_path: Path,
+) -> None:
+    """Pins existing behaviour: an unregistered resolver code degrades (#7414).
+
+    ``COORDINATION_BRANCH_DELETED`` is not in the contract's registered
+    ``orchestrator_api`` error codes, so the group arm emits the registered
+    ``STATUS_READ_PATH_NOT_FOUND`` and carries the real code in
+    ``data.status_read_path_error_code`` rather than emitting an unregistered one.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    refusal = CoordinationBranchDeleted(
+        repo_root=Path("/repo"),
+        mission_slug=_MISSION_SLUG,
+        mid8=_MID8,
+        coordination_branch="kitty/mission-x-coord",
+        coord_candidate=Path("/repo/.worktrees") / f"{_MISSION_SLUG}-coord" / "kitty-specs" / _MISSION_SLUG,
+        primary_candidate=Path("/repo") / "kitty-specs" / _MISSION_SLUG,
+    )
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with (
+        patch.object(_common, "_get_main_repo_root", return_value=repo_root),
+        patch.object(_common, "_resolve_mission_dir", return_value=repo_root / "kitty-specs" / _MISSION_SLUG),
+        patch("specify_cli.status.read_events", side_effect=refusal),
+    ):
+        result = runner.invoke(
+            app,
+            ["mission-state", "--mission", _MISSION_SLUG],
+            catch_exceptions=True,
+        )
+
+    envelope = json.loads(result.output.strip().splitlines()[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "STATUS_READ_PATH_NOT_FOUND"
+    assert envelope["data"]["status_read_path_error_code"] == "COORDINATION_BRANCH_DELETED"
+    assert result.exit_code == 1
