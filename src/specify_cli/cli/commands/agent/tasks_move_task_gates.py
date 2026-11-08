@@ -415,17 +415,21 @@ _PRE_REVIEW_NO_CHANGED_FILES_REASON = "no changed files detected for this WP —
 
 #: The honest empty-diff reason for a PLANNING-lane WP (#6792).
 #:
-#: A ``planning_artifact`` WP commits its deliverables on the mission's target
-#: branch, so the workspace the gate resolves IS the checkout sitting on that
-#: branch: the merge-base diff against the target branch is empty by
+#: A ``planning_artifact`` WP commits its deliverables in the repository root
+#: checkout, and that is also the workspace the gate resolves for it. The gate
+#: diffs that workspace against the branch the move-task command resolved,
+#: which is the branch checked out there (the Mission topic branch of a default
+#: Mission until it lands, or the target branch of a Mission that commits to
+#: it; ADR 2026-11-06-3). The merge-base diff is therefore empty by
 #: construction, and a committed-but-clean tree adds no dirty paths. The gate is
-#: therefore right to skip cheaply — but "no changed files detected" contradicts
+#: right to skip cheaply — but "no changed files detected" contradicts
 #: the commit on disk. #2741 asked for at minimum "committed-diff not inspected"
 #: rather than a misleading ``no_coverage``; this is that record. Reached ONLY
 #: from the empty-diff short-circuit, so a planning-lane WP with uncommitted
 #: deliverables keeps today's dispatch behaviour.
 _PRE_REVIEW_PLANNING_LANE_REASON = (
-    "planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)"
+    "planning-lane WP — committed diff not inspected (a planning_artifact WP commits in the repository root checkout, "
+    "on the branch the gate diffs against, so no workspace diff exists)"
 )
 
 
@@ -1152,8 +1156,9 @@ def _mt_collect_transition_gate_verdicts(
     warn WITHOUT loading the activation graph (bounded cost, NFR-005). The reason
     that empty-diff arm records is selected by
     :func:`_mt_empty_changed_files_reason`: a planning-lane WP's change is
-    committed on the target branch itself, so the gate genuinely has no workspace
-    diff to inspect and must SAY that (#6792) rather than claim no files changed.
+    committed on the very branch the gate diffs against (the one checked out in
+    the repository root checkout), so the gate genuinely has no workspace diff to
+    inspect and must SAY that (#6792) rather than claim no files changed.
     A resolution with no active binding (no contract / no binding / not activated)
     returns the resolver's **distinguishable** ``NO_COVERAGE`` reason
     (FR-008/012), never a silent vanish. A resolution WITH active bindings but

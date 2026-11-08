@@ -1,10 +1,11 @@
 """#6792: the pre-review gate's reason must not deny a planning-lane WP's commit.
 
-A ``planning_artifact`` WP commits its deliverables directly on the mission's
-target branch — the normal path for the planning lane. Its workspace therefore
-*is* the checkout sitting on that branch, so the gate's merge-base diff against
-the target branch is empty by construction and a clean working tree adds no
-dirty paths. The gate correctly skips cheaply; what it must not do is record
+A ``planning_artifact`` WP commits its deliverables in the repository root
+checkout — the normal path for the planning lane. Its workspace therefore *is*
+that checkout, and the gate diffs it against the branch checked out there (a
+default Mission's topic branch until it lands, ADR 2026-11-06-3), so the
+merge-base diff is empty by construction and a clean working tree adds no dirty
+paths. The gate correctly skips cheaply; what it must not do is record
 "no changed files detected for this WP", because the commit on disk says
 otherwise (#2741 asked for "committed-diff not inspected" at minimum).
 
@@ -121,7 +122,7 @@ def _seed_in_progress(feature_dir: Path, wp_id: str, *, execution_mode: str) -> 
 def _build_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordRouter]:
     """A real git repo whose branch already carries the planning WP's deliverables.
 
-    The checkout sits on the mission's target branch and the tree is clean —
+    The checkout sits on the branch the gate diffs against and the tree is clean —
     exactly the shape that makes the gate's merge-base diff empty for a
     planning-lane WP.
     """
@@ -220,7 +221,7 @@ def _build_fixture(tmp_path: Path) -> tuple[TasksPorts, _RecordingCoordRouter]:
     _git(tmp_path, "add", "-A")
     _git(tmp_path, "commit", "-q", "-m", "fixture: record the planning commit")
 
-    # The planning-lane WP commits its deliverables on the target branch itself.
+    # The planning-lane WP commits its deliverables on the checked-out branch itself.
     (docs / "gate.md").write_text("changed by WP09\n", encoding="utf-8")
     (docs / "notes.md").write_text("planning notes\n", encoding="utf-8")
     _git(tmp_path, "add", "-A")
@@ -266,7 +267,7 @@ def _move_to_for_review(tmp_path: Path, wp_id: str, ports: TasksPorts) -> dict[s
 def test_planning_lane_wp_records_that_the_committed_diff_was_not_inspected(tmp_path: Path) -> None:
     """SC-001/SC-004: a committed planning-lane WP gets a true reason, cheaply.
 
-    The WP committed two files on the target branch; the gate's empty-diff arm
+    The WP committed two files on the checked-out branch; the gate's empty-diff arm
     must say the committed diff was not inspected, keep the verdict
     non-blocking, apply the transition and dispatch no gate.
     """
@@ -457,4 +458,177 @@ def test_declared_planning_mode_wins_over_a_silent_manifest_kind_view(tmp_path: 
     gate = payload["pre_review_gate"]
     assert gate["outcome"] == "no_coverage"
     assert gate["reason"].startswith("planning-lane WP — committed diff not inspected")
+    assert payload["transition_applied"] is True
+
+
+_DEFAULT_MISSION_BRANCH = f"kitty/mission-{_MISSION}-01KXG2TD"
+
+
+def _build_default_single_branch_fixture(tmp_path: Path) -> TasksPorts:
+    """A default ``single_branch`` Mission (ADR 2026-11-06-3) mid-flight.
+
+    ``agent mission create`` with no ``--topology`` mints one Mission topic
+    branch and checks it out in the write checkout; ``main`` stays the target.
+    The topic branch is ahead of ``main`` by the planning commit and the
+    planning WP's committed deliverables, and its one repo-root ``lane-planning``
+    lane holds the code WP too.
+    """
+    feature_dir = tmp_path / "kitty-specs" / _MISSION
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / "README.md").write_text("target\n", encoding="utf-8")
+
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "config", "user.email", "test@example.com")
+    _git(tmp_path, "config", "user.name", "Test")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "target base")
+    _git(tmp_path, "checkout", "-q", "-b", _DEFAULT_MISSION_BRANCH)
+
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KXG2TDVPTZSYY58E578T5RX3",
+                "mission_slug": _MISSION,
+                "slug": _MISSION,
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "mission_branch": _DEFAULT_MISSION_BRANCH,
+                "topology": "single_branch",
+                "topology_source": "default",
+                "topology_settled": True,
+                "vcs": "git",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def _write_lanes_json(*, planning_commit_sha: str | None) -> None:
+        (feature_dir / "lanes.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "mission_slug": _MISSION,
+                    "mission_id": "01KXG2TDVPTZSYY58E578T5RX3",
+                    "mission_branch": _DEFAULT_MISSION_BRANCH,
+                    "target_branch": "main",
+                    "computed_at": "2026-10-30T00:00:00+00:00",
+                    "computed_from": "fixture:dependency_graph+ownership",
+                    "planning_commit_sha": planning_commit_sha,
+                    "planning_artifact_wps": [_PLANNING_WP],
+                    "lanes": [
+                        {
+                            "lane_id": "lane-planning",
+                            "wp_ids": [_CODE_WP, _PLANNING_WP],
+                            "write_scope": ["docs/gate.md", "src/example.py"],
+                            "predicted_surfaces": [],
+                            "depends_on_lanes": [],
+                            "parallel_group": 0,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    _write_lanes_json(planning_commit_sha=None)
+    (tasks_dir / f"{_PLANNING_WP}-docs.md").write_text(
+        _wp_frontmatter(_PLANNING_WP, execution_mode="planning_artifact", owned_files=("docs/gate.md",)),
+        encoding="utf-8",
+    )
+    (tasks_dir / f"{_CODE_WP}-code.md").write_text(
+        _wp_frontmatter(_CODE_WP, execution_mode="code_change", owned_files=("src/example.py",)),
+        encoding="utf-8",
+    )
+    _seed_in_progress(feature_dir, _PLANNING_WP, execution_mode="direct_repo")
+    _seed_in_progress(feature_dir, _CODE_WP, execution_mode="direct_repo")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "fixture: planning commit on the Mission branch")
+    # finalize-tasks records the planning commit; every WP's evidence window starts there.
+    _write_lanes_json(planning_commit_sha=_git(tmp_path, "rev-parse", "HEAD").strip())
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "fixture: record the planning commit")
+
+    # Both WPs commit in the write checkout, on the Mission branch.
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "example.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", f"feat({_CODE_WP}): committed work")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "gate.md").write_text("changed by WP09\n", encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", f"docs({_PLANNING_WP}): committed deliverables")
+
+    assert _git(tmp_path, "rev-parse", "--abbrev-ref", "HEAD").strip() == _DEFAULT_MISSION_BRANCH
+    assert _git(tmp_path, "status", "--porcelain").strip() == ""
+    # The Mission branch really is ahead of the target: the empty diff below is
+    # not an artefact of a branch with nothing on it.
+    assert _git(tmp_path, "diff", "--name-only", "main...HEAD").strip() != ""
+
+    router = _RecordingCoordRouter(write_dir=feature_dir)
+    return TasksPorts(fs=FakeFsReader(), coord=router, git=FakeGitOps(), render=FakeRender())
+
+
+def _move_default_mission_wp(tmp_path: Path, wp_id: str, ports: TasksPorts) -> dict[str, Any]:
+    # ``_ensure_target_branch_checked_out`` respects the operator's current
+    # branch, so move-task resolves the Mission topic branch the write checkout
+    # sits on; the mocked resolver returns exactly that.
+    args = ["move-task", wp_id, "--to", "for_review", "--mission", _MISSION, "--no-auto-commit", "--json"]
+    with (
+        setup_mocked_env(
+            tmp_path,
+            mission_slug=_MISSION,
+            target_branch=_DEFAULT_MISSION_BRANCH,
+            extra_patches={
+                "_validate_ready_for_review": (True, []),
+                "_check_unchecked_subtasks": [],
+            },
+        ),
+        patch("specify_cli.cli.commands.agent.tasks_move_task._default_move_task_ports", return_value=ports),
+    ):
+        result = CliRunner().invoke(app, args)
+    assert result.exit_code == 0, result.stdout + result.stderr
+    payload: dict[str, Any] = json.loads(result.stdout)
+    return payload
+
+
+def test_default_single_branch_mission_planning_wp_still_has_an_empty_diff(tmp_path: Path) -> None:
+    """Under the size-based default topology the empty diff still occurs.
+
+    The planning WP committed on the Mission topic branch, which is ahead of
+    ``main``; the gate diffs the write checkout against the branch move-task
+    resolved (that same topic branch), so the changed-file set is empty and the
+    record must say the committed diff was not inspected. The reason names the
+    repository root checkout, never "the target branch", which a default
+    Mission does not commit on before it lands.
+    """
+    ports = _build_default_single_branch_fixture(tmp_path)
+
+    with patch.object(tasks_move_task_gates, "_mt_dispatch_transition_gates", side_effect=AssertionError("empty-diff arm must not dispatch a gate")):
+        payload = _move_default_mission_wp(tmp_path, _PLANNING_WP, ports)
+
+    gate = payload["pre_review_gate"]
+    assert gate["outcome"] == "no_coverage"
+    assert gate["blocked"] is False
+    assert gate["reason"].startswith("planning-lane WP — committed diff not inspected")
+    assert "target branch" not in gate["reason"]
+    assert "repository root checkout" in gate["reason"]
+    assert payload["transition_applied"] is True
+
+
+def test_default_single_branch_mission_code_wp_keeps_the_incumbent_reason(tmp_path: Path) -> None:
+    """The code WP sharing the one repo-root lane keeps today's wording.
+
+    Its committed work is equally invisible to the gate; that wider limitation
+    is #6851's scope, and this change deliberately leaves code WPs' wording
+    alone (C-001).
+    """
+    ports = _build_default_single_branch_fixture(tmp_path)
+
+    payload = _move_default_mission_wp(tmp_path, _CODE_WP, ports)
+
+    gate = payload["pre_review_gate"]
+    assert gate["outcome"] == "no_coverage"
+    assert gate["reason"] == _INCUMBENT_NO_CHANGES_REASON
     assert payload["transition_applied"] is True
