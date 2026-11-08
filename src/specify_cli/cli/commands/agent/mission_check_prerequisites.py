@@ -29,6 +29,7 @@ from specify_cli.cli.console import console
 import typer
 
 from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
+from spec_kitty_events import MISSION_CREATED
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
     emit_owned_refusal,
@@ -289,7 +290,7 @@ def _mission_created_snapshot_problems(
     if any(not isinstance(row, dict) for row in rows):
         return ["status.events.jsonl contains a non-object event"]
 
-    created_rows = [row for row in rows if row.get("event_type") == "MissionCreated"]
+    created_rows = [row for row in rows if row.get("event_type") == MISSION_CREATED]
     if len(created_rows) != 1:
         return [f"expected exactly one MissionCreated event, found {len(created_rows)}"]
     payload = created_rows[0].get("payload")
@@ -300,7 +301,7 @@ def _mission_created_snapshot_problems(
     try:
         from spec_kitty_events.conformance import validate_event
 
-        conformance = validate_event(payload, "MissionCreated", strict=True)
+        conformance = validate_event(payload, MISSION_CREATED, strict=True)
         violations = [f"{violation.field}: {violation.message}" for violation in conformance.model_violations] + [
             f"{violation.json_path}: {violation.message}" for violation in conformance.schema_violations
         ]
