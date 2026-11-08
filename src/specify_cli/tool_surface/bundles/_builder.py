@@ -68,16 +68,22 @@ def to_semver(version: str) -> str:
     * ``4.0.0+dev`` -> ``4.0.0+dev`` (a local segment is already SemVer build metadata;
       after a post segment it joins it: ``4.0.0.post1+abc`` -> ``4.0.0+post1.abc``)
     * ``4.0.0`` -> ``4.0.0``, and an already-SemVer string passes through
+    * ``4.1`` -> ``4.1.0``: PEP 440 may omit trailing zero components, SemVer
+      needs exactly three
 
-    A string ``packaging`` cannot parse is returned unchanged: a plugin build
-    must not fail because a local install reports an unusual version, and the
-    caller already warns about non-semver output.
+    A release with an epoch (``1!4.0.0``) or a fourth component (``4.0.0.1``)
+    has no SemVer form and is returned unchanged rather than truncated into a
+    different version. A string ``packaging`` cannot parse is returned
+    unchanged too: a plugin build must not fail because a local install reports
+    an unusual version.
     """
     try:
         parsed = Version(version)
     except InvalidVersion:
         return version
-    base = parsed.base_version
+    if parsed.epoch or len(parsed.release) > 3:
+        return version
+    base = ".".join(str(part) for part in (*parsed.release, 0, 0)[:3])
     segments = []
     if parsed.pre is not None:
         segments.append(f"{parsed.pre[0]}{parsed.pre[1]}")
