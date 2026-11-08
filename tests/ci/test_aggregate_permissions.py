@@ -47,11 +47,43 @@ def _effective_permissions(workflow: dict[str, Any], job: dict[str, Any]) -> dic
 
 
 def _write_scope_violations(workflow: dict[str, Any]) -> list[str]:
-    return [
-        f"{key}: {scope}={value}"
+    violations: list[str] = []
+    for key, job in _jobs(workflow).items():
+        declared = job.get("permissions")
+        if declared is None:
+            declared = workflow.get("permissions")
+        if isinstance(declared, str):
+            # ``write-all`` / ``read-all`` shorthand: name it rather than crash on ``.items()``.
+            violations.append(f"{key}: permissions shorthand {declared!r}")
+            continue
+        violations.extend(f"{key}: {scope}={value}" for scope, value in dict(declared or {}).items() if value in _WRITE_SCOPES or str(value).endswith("-all"))
+    return violations
+
+
+#: Each job's EFFECTIVE token scopes, exactly. ``collect`` downloads the source attempt's
+#: artefacts (``actions: read``); ``sonar-pr`` also reads PR metadata (``pull-requests:
+#: read``); the other jobs run on the workflow default. ci-aggregate.yml is a
+#: ``workflow_run`` workflow, so PR CI never exercises it: dropping a scope here would only
+#: break main-only CI.
+_EXPECTED_EFFECTIVE_PERMISSIONS: dict[str, dict[str, str]] = {
+    "collect": {"contents": "read", "actions": "read"},
+    "diff-cover": {"contents": "read"},
+    "sonar-pr": {"contents": "read", "actions": "read", "pull-requests": "read"},
+    "aggregate-gate": {"contents": "read"},
+}
+
+
+def _permission_drift(workflow: dict[str, Any]) -> list[str]:
+    """Name every job whose effective scopes differ from the pinned map."""
+    actual = {
+        key: _effective_permissions(workflow, job)
         for key, job in _jobs(workflow).items()
-        for scope, value in _effective_permissions(workflow, job).items()
-        if value in _WRITE_SCOPES or str(value).endswith("-all")
+        if not isinstance(job.get("permissions", workflow.get("permissions")), str)
+    }
+    return [
+        f"{key}: expected {_EXPECTED_EFFECTIVE_PERMISSIONS.get(key)} got {actual.get(key)}"
+        for key in sorted(set(_EXPECTED_EFFECTIVE_PERMISSIONS) | set(actual))
+        if actual.get(key) != _EXPECTED_EFFECTIVE_PERMISSIONS.get(key)
     ]
 
 
@@ -96,3 +128,32 @@ def test_a_workflow_level_write_default_is_caught() -> None:
 
     # ``aggregate-gate`` declares no job-level block, so it is the job that inherits it.
     assert _write_scope_violations(mutant) == ["aggregate-gate: issues=write-all"]
+
+
+def test_each_job_effective_permissions_match_the_pinned_map_exactly() -> None:
+    assert _permission_drift(_workflow()) == []
+
+
+@pytest.mark.parametrize(
+    ("job", "scope"),
+    [("collect", "actions"), ("sonar-pr", "pull-requests"), ("sonar-pr", "actions")],
+)
+def test_dropping_a_read_scope_is_caught_where_the_old_pins_were_not(job: str, scope: str) -> None:
+    mutant = copy.deepcopy(_workflow())
+    del mutant["jobs"][job]["permissions"][scope]
+
+    # Non-vacuity: the pre-existing checks accept this mutant (still read-only, still has contents).
+    assert _write_scope_violations(mutant) == []
+    assert all("contents" in _effective_permissions(mutant, j) for j in _jobs(mutant).values())
+    # The exact pin reports it.
+    assert len(_permission_drift(mutant)) == 1
+    assert _permission_drift(mutant)[0].startswith(f"{job}: ")
+
+
+@pytest.mark.parametrize("shorthand", ["write-all", "read-all"])
+def test_a_string_permissions_shorthand_is_a_named_violation_not_a_crash(shorthand: str) -> None:
+    mutant = copy.deepcopy(_workflow())
+    mutant["jobs"]["aggregate-gate"]["permissions"] = shorthand
+
+    assert _write_scope_violations(mutant) == [f"aggregate-gate: permissions shorthand {shorthand!r}"]
+    assert any(line.startswith("aggregate-gate: ") for line in _permission_drift(mutant))
