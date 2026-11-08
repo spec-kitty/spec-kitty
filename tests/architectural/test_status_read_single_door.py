@@ -19,8 +19,8 @@ Every hit must be in :data:`LEGACY_READ_ALLOWLIST`. The allowlist is **transient
 (charter Standing Order #5, ADR ``2026-09-30-1``): issue #7310 owns it, the follow-up Mission of
 #7310 drains it, and the drain date is :data:`ALLOWLIST_DRAIN_BY`. It is **shrink-only**: a new
 hit fails, and an entry that no longer matches a hit fails too, so a migrated reader must take its
-entry out in the same change. The census behind the entries is
-``docs/development/reference/status-read-door-census.md``.
+entry out in the same change. The allowlist IS the census (one entry per enclosing function and
+form, grouped by reason); ADR 2026-11-06-2, Amendment 2026-11-08, records its shape at landing.
 
 A second, positive check pins the modules already moved onto the door (:data:`DOOR_ONLY_MODULES`):
 they may not call a legacy source finder *or* a path-typed log reader (``read_events``,
@@ -247,6 +247,10 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
     {
         # #7335: the status board reads one door surface and reduces it once.
         "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        # #7408: the first lane readers moved onto the door.
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/git/origin_freshness.py",
+        "src/specify_cli/lanes/claim_base.py",
     }
 )
 

@@ -5,12 +5,12 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-08T00:00:00Z'
 ---
 
 # One status read contract
 
-**Status:** Proposed (2026-11-06). The operator accepts it by merging the pull request that carries it.
+**Status:** Proposed (2026-11-06). The operator accepts it by merging the pull request that carries it. Amended 2026-11-08 (below).
 
 **Date:** 2026-11-06
 
@@ -281,3 +281,70 @@ not make the answer right.
   reference): the worktree-free coordination write; C-3 ties the oracle fallback to this contract (a
   missing ref is a typed error, not a read of the repository root checkout).
 - PR #6884 and its contract `status-read-root.md`.
+
+## Amendment 2026-11-08 (Proposed): the call-site gate lands with a priced allowlist, and "landed" has one signal
+
+**Deciders:** Stijn Dejongh (operator). Accepted by merging the pull request that carries it.
+**Technical Story:** [#7408](https://github.com/spec-kitty/spec-kitty/issues/7408) (S5 of epic
+[#3893](https://github.com/spec-kitty/spec-kitty/issues/3893)),
+[#7310](https://github.com/spec-kitty/spec-kitty/issues/7310) (the deferred FR-005/FR-006 of Mission
+`lane-worktree-model-hardening-01M6QY1M`), [#7335](https://github.com/spec-kitty/spec-kitty/issues/7335).
+The body above is kept as written.
+
+### The gate (invariant 4, FR-006)
+
+`tests/architectural/test_status_read_single_door.py` scans `src/` (AST) for the legacy ways of
+finding a status source: `resolve_status_surface` and `resolve_status_surface_with_anchor` (a
+`for_write=True` call is the write seam and is not scanned), `read_event_log` and
+`read_event_stream_log`, `resolve_surface_dir_or_typed_error`, and every `STATUS_STATE` read off the
+placement seam (`read_dir`, `resolve_partition_read_dir`, `resolve_artifact_surface`, and
+`ctx.artifact(STATUS_STATE)` unless only its `write_dir` or `commit_target` is used). Planted
+violations keep it non-vacuous.
+
+Invariant 4 asks for an empty allowlist. The gate lands with a **transient, shrink-only allowlist**
+instead, because about 45 readers remain and draining them all exceeds one reviewable change. Per
+charter Standing Order #5 and ADR [2026-09-30-1](2026-09-30-1-allowlist-ratchets-are-priced-debt.md)
+the allowlist is priced debt: issue #7310 owns it, the follow-up Mission of #7310 drains it, and the
+drain date is the gate's `ALLOWLIST_DRAIN_BY` (2026-12-31, proposed here; the operator may move it).
+A new bypass fails, and an entry that no longer matches a reader fails too, so a migrated reader
+leaves the allowlist in the same change. Invariant 4 is reached when the allowlist is empty.
+
+A second check pins the modules already moved onto the door (`DOOR_ONLY_MODULES`, grow-only): they may
+not call a legacy source finder or a path-typed log reader (`read_events`, `read_event_stream`,
+`wp_snapshot_state`, `reconstruct_wp_view`, `has_event_log`, `get_wp_lane`, `get_all_wp_lanes`,
+`event_sourced_review_result`, `get_arbiter_overrides_for_wp`).
+
+**Not scanned (named limits).** A path-typed log read handed a directory that did not come from a
+legacy finder (the census counted `get_wp_lane` 52, `has_event_log` 26, `WorkPackage.status_dir` 20
+and `reconstruct_wp_view` 15 call sites), and `resolve_handle_to_read_path`, which also serves
+non-status reads. Modules leave that blind spot by joining `DOOR_ONLY_MODULES`.
+
+### Census at landing (45 entries)
+
+| Reason | Entries | What has to happen |
+|---|---|---|
+| Path-typed consumer (`get_wp_lane` / `read_events` / `has_event_log` on a dir) | 13 | read a surface instead |
+| Runtime decision path (`ctx.artifact(STATUS_STATE)` in `runtime/next`) | 6 | move with the runtime bridge readers |
+| Existence or fail-closed probe relying on `CoordinationWorktreeUnmaterialized` | 6 | a door-level probe |
+| Write-side transaction reading its own target (`status_transition`) | 4 | the writer cut-over (#6195, #6608) |
+| Handed-dir partition authority (#5180) | 3 | surface-typed verdict and feedback reads |
+| Legacy Path projection (`resolve_status_surface`, `resolve_surface_dir_or_typed_error`) | 2 | deleted with their callers |
+| Finalize planning pin (#5702 decides its fail-open polarity first) | 2 | #5702 |
+| `WorkPackage.status_dir` / `locate_work_package` | 2 | a surface-typed WorkPackage read |
+| Placement seam `STATUS_STATE` arm, aggregate create-window gate, `tasks_are_finalized` drift check, lane-destroyed guard, committed-ref strand authority, owned identity check, review override written through a read path | 1 each (7) | per entry |
+
+### One landed signal
+
+`runtime.next.committed_authority` decided "merged" from `meta.mission_number`, which a reopen keeps,
+while this door decides `CONSOLIDATED_TARGET` from `mission_runtime.mission_has_landed` (the
+reopen-aware `merged_at` marker). Both now ask `mission_has_landed`; `mission_number` is display-only
+and is no landed signal. `committed_status_dir`, the status board's own committed-source probe, is
+removed: the board reads the door, which already answers `CONSOLIDATED_TARGET` for a landed Mission.
+
+### Moved onto the door in this change
+
+`agent tasks status` (one surface, one reduction; every row field from it), the canceled-set read of
+`git/origin_freshness`, the lane-tip terminal hook of `lanes/claim_base` and the review dependents
+warning of `workflow_executor`. `tests/status/test_status_readers_cross_cwd_parity.py` carries
+`agent tasks status` in its matrix.
+
