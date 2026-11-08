@@ -6,7 +6,7 @@ Neutral home (issue #3772) for the two seams ``activate.py`` and
 * :func:`render_kind_filtered_line` -- the one kind-filtered-node render
   definition, previously defined in (and imported back out of) ``activate.py``
   as the underscore-private ``_render_kind_filtered_line``, a private name
-  consumed by a sibling module. The line's wording lives in the module-private
+  consumed by a sibling module. The line's wording lives in the internal (unexported)
   ``KIND_FILTERED_LABEL`` template, which the renderer is the only consumer of:
   the exported seam is the renderer, not its format string (#4599).
 * :func:`drg_urn_to_config_id` -- the one URN-accepting DRG-URN ->
