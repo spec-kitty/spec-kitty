@@ -344,9 +344,19 @@ def test_module_shard_keeps_the_step_names_the_dual_mode_contract_reads(module_j
 
 
 def test_every_universe_cache_use_is_sha_pinned_with_a_version_comment() -> None:
-    texts = [path.read_text(encoding="utf-8") for path in (_ROUTER, _MODULE_TESTS)]
-    uses = [line for text in texts for line in text.splitlines() if re.search(r"uses:\s*actions/cache/(restore|save)@", line)]
-    assert len(uses) == 4, f"expected a restore and a save in each of the two consuming jobs, found {uses}"
+    uses: list[str] = []
+    universe_uses: list[str] = []
+    for path in (_ROUTER, _MODULE_TESTS):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for index, line in enumerate(lines):
+            if not re.search(r"uses:\s*actions/cache/(restore|save)@", line):
+                continue
+            uses.append(line)
+            # The step's `with:` block follows its `uses:` line; other caches
+            # (e.g. the PlantUML jar in tests (docs)) are not universe caches.
+            if any("universe-store" in following for following in lines[index + 1 : index + 4]):
+                universe_uses.append(line)
+    assert len(universe_uses) == 4, f"expected a restore and a save in each of the two consuming jobs, found {universe_uses}"
     for line in uses:
         assert re.search(rf"@{_CACHE_SHA}\s+{re.escape(_CACHE_VERSION_COMMENT)}\s*$", line), line
 
