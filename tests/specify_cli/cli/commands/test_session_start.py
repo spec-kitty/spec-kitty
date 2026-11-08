@@ -7,7 +7,6 @@ exception swallowing, and NFR-001 performance (<200ms).
 from __future__ import annotations
 
 import time
-from functools import partial
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +14,6 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands import session_start as session_start_module
 from specify_cli.cli.commands.session_start import (
     _find_project_root,
     session_start,
@@ -23,24 +21,20 @@ from specify_cli.cli.commands.session_start import (
 from tests._perf_helpers import assert_timing_budget
 
 
-def _bound_project_root_walk(monkeypatch: pytest.MonkeyPatch, stop: Path) -> None:
-    """Bind the command's project-root walk to *stop*, inside this test's tmp tree (#130).
+def _bound_project_root_walk(monkeypatch: pytest.MonkeyPatch, ceiling: Path) -> None:
+    """Bound the command's project-root walk at *ceiling*, inside this test's tree (#130).
 
-    Production ``session_start()`` walks from cwd all the way to the filesystem
-    root. Nothing above ``tmp_path`` is under test control: on a shared machine
-    any ancestor (/tmp, /) can gain a stray ``.kittify/`` from a sibling test
-    mid-run, which flips outside-project verdicts non-deterministically — the
-    exact mechanism that sent these nodes red on some main baselines and green
-    on others (issue #130). Bounding the walk to territory this test created
-    makes the verdict deterministic while still exercising the real
-    find-nothing-then-stay-silent command path; the traversal itself is pinned
-    hermetically by ``TestFindProjectRoot``.
+    Production ``session_start()`` walks from the cwd up to the nearest
+    ``.kittify/`` or the first ``GIT_CEILING_DIRECTORIES`` entry. Nothing above
+    ``tmp_path`` is under test control: on a shared machine any ancestor (/tmp,
+    /) can gain a stray ``.kittify/`` from a sibling test mid-run, which flips
+    outside-project verdicts non-deterministically — the exact mechanism that
+    sent these nodes red on some main baselines and green on others (issue
+    #130). A per-test ceiling is the production bound (#7122), so the verdict is
+    deterministic while the real find-nothing-then-stay-silent command path is
+    still exercised.
     """
-    monkeypatch.setattr(
-        session_start_module,
-        "_find_project_root",
-        partial(session_start_module._find_project_root, stop=stop),
-    )
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -110,11 +104,12 @@ class TestFindProjectRoot:
 
     Nothing above ``tmp_path`` (``/tmp``, ``/``) is under test control:
     sibling tests can pollute a shared ancestor with a stray ``.kittify/``
-    mid-run. Walks are therefore pinned either through the explicit
-    ``start``/``stop`` parameters, or — for the two nodes exercising the
-    production no-arg default — because their ``.kittify/`` marker sits
-    *below* ``tmp_path``, terminating the ascent before any shared territory
-    is read.
+    mid-run. Walks are therefore pinned either through the explicit ``start``
+    parameter, through a per-test ``GIT_CEILING_DIRECTORIES`` bound (#7122 —
+    the production mechanism, replacing the retired test-only ``stop=``), or —
+    for the nodes exercising the production no-arg default — because their
+    ``.kittify/`` marker sits *below* ``tmp_path``, terminating the ascent
+    before any shared territory is read.
     """
 
     def test_finds_kittify_at_start(self, spec_project: Path) -> None:
@@ -148,20 +143,43 @@ class TestFindProjectRoot:
         monkeypatch.chdir(nested)
         assert _find_project_root() == spec_project
 
-    def test_finds_kittify_exactly_at_stop_boundary(self, spec_project: Path) -> None:
-        """The stop boundary itself is still examined before the walk ends."""
+    def test_finds_kittify_exactly_at_the_ceiling(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The listed ceiling directory itself is still examined before the walk ends."""
         nested = spec_project / "a"
         nested.mkdir()
-        root = _find_project_root(nested, stop=spec_project)
-        assert root == spec_project
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(spec_project))
+        assert _find_project_root(nested) == spec_project
 
-    def test_returns_none_when_region_has_no_kittify(self, tmp_path: Path) -> None:
-        """No .kittify/ between start and the stop boundary → None."""
+    def test_returns_none_when_region_has_no_kittify(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No .kittify/ between start and the listed ceiling → None."""
         jail = tmp_path / "no-project-here"
         nested = jail / "a" / "b"
         nested.mkdir(parents=True)
-        root = _find_project_root(nested, stop=jail)
-        assert root is None
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(jail))
+        assert _find_project_root(nested) is None
+
+    def test_ceiling_hides_a_kittify_above_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ``.kittify/`` above the listed ceiling is never read (#7122).
+
+        This is the behaviour the retired test-only ``stop=`` provided, now
+        delivered by the production bound the walk shares with git.
+        """
+        project = tmp_path / "project"
+        (project / ".kittify").mkdir(parents=True)
+        jail = project / "jail"
+        nested = jail / "a" / "b"
+        nested.mkdir(parents=True)
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(jail))
+
+        assert _find_project_root(nested) is None
+
+    def test_walk_from_a_bare_tmp_dir_terminates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A cwd with no project above it ends the walk instead of looping."""
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path / "run-ceiling"))
+        bare = tmp_path / "bare"
+        bare.mkdir()
+
+        assert _find_project_root(bare) is None
 
     def test_returns_none_at_filesystem_root(self) -> None:
         """Termination at the true filesystem root.
