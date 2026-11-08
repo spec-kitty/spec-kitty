@@ -807,6 +807,72 @@ def test_repair_refuses_over_unreadable_lines_and_leaves_index_untouched(
     assert "unreadable" in captured.out.lower()
 
 
+def test_repair_refused_inside_the_lock_writes_nothing_and_skips_the_ledger_copy(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """#5304 review: a line that goes unreadable only between the diagnose read
+    and the in-lock re-read makes ``_repair`` refuse. The refusal must be
+    explicit: no index write, no coordination-only ledger copy, no
+    "index rebuilt" progress, exit 1."""
+    import typer
+
+    from specify_cli.cli.commands import _decisions_doctor as doctor
+
+    _setup_meta(tmp_path)
+    _open_one_decision(tmp_path)
+    mission_dir = _mission_dir(tmp_path)
+    index_path = _store.index_path(mission_dir)
+    index_path.unlink()  # diverged: the log holds a decision the index lacks
+
+    real_read = doctor._read_decision_events
+    calls: list[int] = []
+
+    def _read(path: Path) -> tuple[dict[str, list[dict]], list[dict[str, object]]]:  # type: ignore[type-arg]
+        calls.append(1)
+        grouped, unreadable = real_read(path)
+        if len(calls) > 1:  # the in-lock re-read
+            unreadable = [{"line_number": 99, "reason": "corrupted after diagnose"}]
+        return grouped, unreadable
+
+    copies: list[object] = []
+    with (
+        patch.object(doctor, "_read_decision_events", _read),
+        patch.object(doctor._fork, "ledger_is_coordination_only", return_value=True),
+        patch.object(doctor, "_copy_coordination_only_ledger", lambda *a, **k: copies.append(a)),
+        pytest.raises(typer.Exit) as excinfo,
+    ):
+        doctor.run_decisions_reconciliation(tmp_path, MISSION_SLUG, json_output=False, repair=True)
+
+    assert excinfo.value.exit_code == 1
+    assert len(calls) >= 2, "the in-lock re-read never happened; the test did not reach the refusal"
+    assert not index_path.exists(), "a refused repair must not write index.json"
+    assert copies == [], "a refused repair must not copy the coordination-only ledger"
+    assert "repaired" not in capsys.readouterr().out.lower().replace("not repaired", "")
+
+
+def test_run_repair_phases_reports_refusal_without_progress(tmp_path: Path) -> None:
+    """``_run_repair_phases`` returns ``None`` when ``_repair`` refuses and
+    leaves ``progress["index_rebuilt"]`` false, so a later lock refusal can
+    never claim a rebuild that did not happen."""
+    from types import SimpleNamespace
+
+    from specify_cli.cli.commands import _decisions_doctor as doctor
+
+    report = SimpleNamespace(fork_report=SimpleNamespace(forked=False, ledger=object()), malformed_folds=[])
+    progress = {"index_rebuilt": False}
+    with (
+        patch.object(doctor, "_repair", return_value=None),
+        patch.object(doctor._fork, "ledger_is_coordination_only", return_value=True),
+        patch.object(doctor, "_copy_coordination_only_ledger") as copy,
+    ):
+        outcome = doctor._run_repair_phases(cast(Any, report), tmp_path, tmp_path, repo_root=tmp_path, mission_slug=MISSION_SLUG, progress=progress)
+
+    assert outcome is None
+    assert progress == {"index_rebuilt": False}
+    copy.assert_not_called()
+
+
 def test_doctor_decisions_json_carries_unreadable_lines(tmp_path: Path) -> None:
     """The ``--json`` document names each unreadable line (number + reason) so a
     machine caller is not left guessing which lines to inspect (#5304)."""
