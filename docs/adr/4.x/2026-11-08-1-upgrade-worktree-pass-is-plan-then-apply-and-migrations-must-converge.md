@@ -1,6 +1,6 @@
 ---
 title: 'ADR: the upgrade worktree pass is plan-then-apply, and every registered migration must converge'
-description: 'The upgrade worktree pass becomes a read-only plan step plus an apply step, and a run-twice check holds every migration and every upgrade to converge.'
+description: 'The upgrade worktree pass becomes a read-only plan step plus an apply step, and a run-twice check holds migrations the fixtures reach, and each upgrade, to converge.'
 status: Proposed
 doc_status: active
 kind: ADR
@@ -94,8 +94,9 @@ For convergence:
    project). The second run must change nothing in the tree, including `.git/config`, `.git/info`
    and `.git/hooks`. It also runs `MigrationRunner.upgrade` twice on each fixture and on an
    older-version lanes project, and the second run must apply nothing and change nothing.
-   A floor on how many migrations each fixture selects as needed (`detect()` returns True, which leads to `apply()`), together with a check that
-   `detect()` writes nothing, keeps the check non-vacuous.
+   A floor on how many migrations each fixture selects as needed (`detect()` returns True), together
+   with a check that `detect()` writes nothing, keeps the check from being vacuous as a whole; it does
+   not prove each migration (see Negative).
 4. **A non-convergent migration is pinned, never patched in place.** Per migration, the entry goes
    in `NOT_CONVERGENT` as a strict `xfail`. Per run, `KNOWN_EXTRA_PASS` names exactly the
    migrations the second run still applies, and the third run must then change nothing. Each entry
@@ -112,16 +113,19 @@ For convergence:
 * Each worktree-loop rule has a unit test with fake hooks (`test_worktree_pass_unit.py`), and the
   end-to-end behaviour is pinned by a characterization net (`test_worktree_pass_characterization.py`)
   that was written before the move and did not change across it.
-* A new migration is covered by the convergence check the moment it is registered, with no test of
-  its own. A new #6549-class defect on the fixtures fails CI instead of reaching a user.
+* A new migration enters the convergence check the moment it is registered, with no test of its
+  own, and it converges where the fixtures reach its `apply()`. A new #6549-class defect on the
+  fixtures fails CI instead of reaching a user.
 
 #### Negative
 
 * The convergence check runs 285 cases, about 30 seconds on one worker. It is an integration
   test, not part of the fast tier.
-* The check proves convergence only on its fixtures. A migration whose old state none of them
-  carries runs as "not needed" twice and proves nothing. The floor guards the total, not each
-  migration.
+* The check proves convergence only where the fixtures reach `apply()`. A migration whose old
+  state neither fixture carries runs as "not needed" twice and proves nothing: today that is about
+  98 of the 140 registered migrations, including 6 of the 14 clone-local ones. The floor counts
+  migrations whose `detect()` returns True on a fixture, not migrations proven convergent, and it
+  guards the total, not each migration. Closing that coverage gap stays with #7405's next steps.
 * `_settle_worktree` changed signature (it takes the `WorktreeRun` and the pass context). It is
   private and has no other caller.
 
