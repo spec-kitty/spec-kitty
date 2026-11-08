@@ -825,6 +825,9 @@ def _ledger_verdict(unit: _Unit, rank: int, limits: RetentionLimits, missions: _
     if unit.age_days <= limits.max_age_days:
         return unit.judged(VERDICT_KEPT, REASON_YOUNGER_THAN_MAX_AGE)
     if unit.link is LINK_UNLINKED:
+        # Locks win in the preview too: apply would keep a locked item anyway.
+        if _lock_is_held(unit.lock):
+            return unit.judged(VERDICT_KEPT, REASON_LOCK_HELD)
         return unit.judged(VERDICT_CANDIDATE, unit.unlinked_reason)
     if unit.link is LINK_UNKNOWN:
         return unit.judged(VERDICT_KEPT, REASON_MISSION_NOT_FOUND)
