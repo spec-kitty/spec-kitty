@@ -304,3 +304,37 @@ def test_second_upgrade_applies_and_changes_nothing(
     third = MigrationRunner(project).upgrade(__version__)
     assert third.migrations_applied == []
     assert snapshot(project) == after_second, "\n".join(_diff(after_second, snapshot(project)))
+
+
+def test_second_upgrade_with_a_selected_worktree_changes_nothing(
+    templates: dict[str, Path], tmp_path: Path, isolated_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The worktree pass converges too: a selected non-Mission worktree, upgraded twice, ends unchanged.
+
+    ``worktree_selection=None`` (the other run-twice cases) migrates no worktree, so this case opts
+    one in with :meth:`WorktreeSelection.all` and holds the plan/apply worktree pass to the same rule:
+    once any pinned extra pass (:data:`KNOWN_EXTRA_PASS`) has run, a further run changes nothing in the
+    repository root checkout or in the worktree.
+    """
+    from specify_cli.upgrade.worktree_selection import WorktreeSelection
+
+    fixture = "legacy_2_1_0"
+    project = tmp_path / "project"
+    shutil.copytree(templates[fixture], project, symlinks=True)
+    worktree = project / ".worktrees" / "wip-a"
+    _git(project, "worktree", "add", "-q", "-b", "wip/a", str(worktree))
+    monkeypatch.chdir(project)
+    selection = WorktreeSelection.all()
+    known = KNOWN_EXTRA_PASS.get(fixture, {})
+    stamp = worktree / ".kittify" / "metadata.yaml"
+    before = stamp.read_bytes()
+
+    first = MigrationRunner(project).upgrade(__version__, worktree_selection=selection)
+    assert first.success, first.errors
+    assert stamp.read_bytes() != before, "the selected worktree was not migrated, so the case would be vacuous"
+    runs = [snapshot(project)]
+    for _ in range(1 if not known else 2):
+        MigrationRunner(project).upgrade(__version__, worktree_selection=selection)
+        runs.append(snapshot(project))
+
+    assert runs[-1] == runs[-2], "\n".join(_diff(runs[-2], runs[-1]))
