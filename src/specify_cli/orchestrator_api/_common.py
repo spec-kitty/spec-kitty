@@ -86,7 +86,7 @@ _BOOKKEEPING_FAILED_CODE = "BOOKKEEPING_FAILED"
 def _fail_from_bookkeeping_error(cmd: str, exc: Exception) -> NoReturn:
     """Envelope a ``BookkeepingError`` instead of letting it escape as a traceback (#5642).
 
-    The status-writing verbs (``start-implementation``, ``start-review``,
+    The status-commit verbs (``start-implementation``, ``start-review``,
     ``transition``) wrap their write in ``except TransitionError``, but the
     transactional shell reaches :class:`BookkeepingTransaction`, whose failures
     are ``BookkeepingError`` subclasses -- a plain ``Exception`` hierarchy,
