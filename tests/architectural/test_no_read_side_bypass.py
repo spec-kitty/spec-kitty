@@ -527,7 +527,7 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="src/specify_cli/cli/commands/retrospect.py",
         qualname="summary_cmd",
-        token_substring="candidate_feature_dir_for_mission ( resolved_project , mission_slug )",
+        token_substring="candidate_feature_dir_for_mission ( resolved_project , mission_slug , resolver = run_resolver )",
         occurrence=None,
         rationale=(
             "Ledger :1005: a corpus-walk classifier iterating EVERY mission "
@@ -541,7 +541,7 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
         rel_path="src/specify_cli/retrospective/summary.py",
         qualname="_read_proposal_events",
-        token_substring="candidate_feature_dir_for_mission ( project_path , mission_slug )",
+        token_substring="candidate_feature_dir_for_mission ( project_path , mission_slug , resolver = resolver )",
         occurrence=None,
         rationale=(
             "Ledger :220: own docstring says 'Returns (0, 0, 0) on any error, "

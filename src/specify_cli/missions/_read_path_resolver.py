@@ -837,7 +837,7 @@ def _resolve_not_found(
 
 
 def read_primary_meta(
-    repo_root: Path, handle: str
+    repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
 ) -> tuple[dict[str, object], bool]:
     """Return ``(primary_meta, declares_coordination)`` from the primary mission meta.
 
@@ -859,6 +859,11 @@ def read_primary_meta(
     Lifted from the orchestrator prototype ``orchestrator_api/_common.py``
     so the seam and the orchestrator share ONE primitive (NFR-004) rather
     than two parallel cascades.
+
+    ``resolver`` (#6788): optional :class:`~mission_runtime.MissionResolver`
+    threaded into the raw-miss canonicalization below, so a caller that holds
+    a request-scoped resolver does not pay a fresh ``kitty-specs/`` walk here.
+    ``None`` preserves the historical behaviour exactly.
     """
     from specify_cli.core.paths import load_meta_fail_closed
 
@@ -902,7 +907,7 @@ def read_primary_meta(
         # silent pick) -- the SAME contract the old ``_canonicalize_handle``
         # call already had. Paid only on the raw-miss path, so the
         # composed-handle happy path keeps its pure-path cost.
-        canonical_name = _canonicalize_primary_read_handle(repo_root, handle)
+        canonical_name = _canonicalize_primary_read_handle(repo_root, handle, resolver=resolver)
         if canonical_name != handle:
             meta = load_meta_fail_closed(_compose_primary_feature_dir(repo_root, canonical_name)) or {}
     branch = meta.get("coordination_branch")
@@ -1570,7 +1575,7 @@ def _stored_topology_best_effort(
         canonical_handle = _canonicalize_bare_modern_handle(
             repo_root, mission_slug, resolver=resolver
         )
-        primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
+        primary_meta, _ = read_primary_meta(repo_root, canonical_handle, resolver=resolver)
     except (ValueError, OSError, MissionMetaReadError):
         return None
     primary_dir = _compose_primary_feature_dir(repo_root, canonical_handle)

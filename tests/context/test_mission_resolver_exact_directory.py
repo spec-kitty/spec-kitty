@@ -11,106 +11,43 @@ segment), and that a run of exact-name lookups never walks the tree.
 
 from __future__ import annotations
 
-import json
 import os
+from functools import partial
 from pathlib import Path
 
 import pytest
 
 from specify_cli.context import mission_resolver
 from specify_cli.context.mission_resolver import (
-    AmbiguousHandleError,
     MissionNotFoundError,
     resolve_mission,
 )
+from tests.context._mission_tree import (
+    HANDLES,
+    ID_NUMERIC,
+    build_mission_tree,
+    outcome,
+    write_meta,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-ID_FOO = "01FOOAAAAAAAAAAAAAAAAAAAAB"
-ID_X1 = "01XAAAAAAAAAAAAAAAAAAAAAAC"
-ID_X2 = "01XBBBBBAAAAAAAAAAAAAAAAAD"
-ID_DIGITS = "01DIGAAAAAAAAAAAAAAAAAAAAE"
-ID_MID8_NAMED = "01MIDAAAAAAAAAAAAAAAAAAAAF"
-ID_ULID_NAMED = "01ULIDAAAAAAAAAAAAAAAAAAAG"
-ID_NUMERIC = 12345
-ULID_SHAPED_NAME = "01ZZZZZZZZZZZZZZZZZZZZZZZZ"
-
-
-def _write_meta(directory: Path, payload: object) -> None:
-    directory.mkdir(parents=True, exist_ok=True)
-    (directory / "meta.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
 @pytest.fixture()
 def repo_root(tmp_path: Path) -> Path:
     """Directories chosen so that an exact name and a lower ladder priority can disagree."""
-    specs = tmp_path / "kitty-specs"
-    _write_meta(specs / "001-foo", {"mission_id": ID_FOO})
-    # A legacy directory named like 001-foo's human slug: its exact name must NOT short-circuit,
-    # because the ladder resolves "foo" to 001-foo at priority 4.
-    _write_meta(specs / "foo", {"mission_slug": "foo"})
-    _write_meta(specs / "080-x", {"mission_id": ID_X1})
-    _write_meta(specs / "081-x", {"mission_id": ID_X2})
-    _write_meta(specs / "083", {"mission_id": ID_DIGITS})
-    _write_meta(specs / "MIDNAMED", {"mission_id": ID_MID8_NAMED})
-    _write_meta(specs / ULID_SHAPED_NAME, {"mission_id": ID_ULID_NAMED})
-    _write_meta(specs / "090-array", ["not", "an", "object"])
-    _write_meta(specs / "091-empty-id", {"mission_id": ""})
-    (specs / "093-malformed").mkdir()
-    (specs / "093-malformed" / "meta.json").write_text("{not json", encoding="utf-8")
-    (specs / "094-no-meta").mkdir()
-    (specs / "095-file").write_text("not a directory", encoding="utf-8")
-    return tmp_path
-
-
-HANDLES = [
-    "001-foo",
-    "foo",
-    "x",
-    "080-x",
-    "081-x",
-    "080",
-    "083",
-    "MIDNAMED",
-    ULID_SHAPED_NAME,
-    ID_FOO,
-    ID_FOO[:8],
-    "090-array",
-    "091-empty-id",
-    "093-malformed",
-    "094-no-meta",
-    "095-file",
-    "array",
-    "missing",
-    "",
-    ".",
-    "..",
-    "kitty-specs",
-    "001-foo/",
-    "../kitty-specs/001-foo",
-]
-
-
-def _outcome(call: object) -> tuple[object, ...]:
-    """The comparable outcome of a resolution: the row, or the error type with its candidates."""
-    try:
-        resolved = call()  # type: ignore[operator]
-    except AmbiguousHandleError as error:
-        return ("ambiguous", error.handle, tuple(c.mission_slug for c in error.candidates))
-    except MissionNotFoundError as error:
-        return ("not-found", error.handle)
-    return ("resolved", resolved)
+    return build_mission_tree(tmp_path)
 
 
 @pytest.mark.parametrize("handle", HANDLES)
 def test_resolve_gives_the_full_walk_answer(repo_root: Path, handle: str) -> None:
-    walked = _outcome(lambda: mission_resolver._resolve_from_index(handle, mission_resolver._build_index(repo_root)))
-    assert _outcome(lambda: resolve_mission(handle, repo_root)) == walked
+    walked = outcome(lambda: mission_resolver._resolve_from_index(handle, mission_resolver._build_index(repo_root)))
+    assert outcome(lambda: resolve_mission(handle, repo_root)) == walked
 
 
 def test_the_fixture_exercises_every_ladder_outcome(repo_root: Path) -> None:
     """Without each outcome kind among the handles, the equivalence above would prove less than it claims."""
-    kinds = {_outcome(lambda h=handle: resolve_mission(h, repo_root))[0] for handle in HANDLES}
+    kinds = {outcome(partial(resolve_mission, handle, repo_root))[0] for handle in HANDLES}
     assert kinds == {"resolved", "ambiguous", "not-found"}
 
 
@@ -140,7 +77,7 @@ def test_a_non_string_mission_id_elsewhere_no_longer_breaks_an_exact_lookup(repo
     directory name reads only its own ``meta.json`` and now resolves; the odd directory itself
     still raises, as it always did.
     """
-    _write_meta(repo_root / "kitty-specs" / "092-numeric-id", {"mission_id": ID_NUMERIC})
+    write_meta(repo_root / "kitty-specs" / "092-numeric-id", {"mission_id": ID_NUMERIC})
     assert resolve_mission("001-foo", repo_root).mission_slug == "001-foo"
     with pytest.raises(TypeError):
         resolve_mission("092-numeric-id", repo_root)

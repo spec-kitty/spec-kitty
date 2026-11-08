@@ -28,9 +28,12 @@ from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_m
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Generator, Literal, cast
+from typing import TYPE_CHECKING, Any, Generator, Literal, cast
 
 from pydantic import BaseModel, ConfigDict
+
+if TYPE_CHECKING:
+    from mission_runtime import MissionResolver
 
 from specify_cli.retrospective.reader import (
     SchemaError,
@@ -204,16 +207,23 @@ _PROPOSAL_EVENTS = frozenset({
 def _read_proposal_events(
     project_path: Path,
     mission_slug: str | None,
+    *,
+    resolver: MissionResolver | None = None,
 ) -> tuple[int, int, int]:
     """Return (generated, applied, rejected) event counts for a mission.
 
     Reads kitty-specs/<slug>/status.events.jsonl.  Returns (0, 0, 0) on any
     error, including missing slug, missing log, or corrupt lines.
+
+    ``resolver`` is the caller's request-scoped resolver; ``build_summary``
+    passes one so its per-mission lookups share a single ``kitty-specs/``
+    walk instead of walking the tree on every lookup (#6788).
     """
     if not mission_slug:
         return 0, 0, 0
 
-    events_path = candidate_feature_dir_for_mission(project_path, mission_slug) / "status.events.jsonl"
+    feature_dir = candidate_feature_dir_for_mission(project_path, mission_slug, resolver=resolver)
+    events_path = feature_dir / "status.events.jsonl"
     if not events_path.exists():
         return 0, 0, 0
 
@@ -382,6 +392,7 @@ def build_summary(
     project_path: Path,
     since: date | None = None,
     limit_top_n: int = 20,
+    resolver: MissionResolver | None = None,
 ) -> SummarySnapshot:
     """Build a cross-mission SummarySnapshot from the project corpus.
 
@@ -390,6 +401,11 @@ def build_summary(
         since: If set, only include missions whose ``mission_started_at``
             is on or after this date.
         limit_top_n: Maximum entries in each top-N ranked section.
+        resolver: Request-scoped resolver for the per-Mission lookups. When
+            omitted, one ``WalkOnceMissionResolver`` is built for this call, so
+            ``kitty-specs/`` is walked once per call, not once per lookup
+            (#6788). Pass one to share the walk with other reads of the same
+            request.
 
     Returns:
         A :class:`SummarySnapshot` (always — never raises on malformed
@@ -420,6 +436,14 @@ def build_summary(
     applied_proposals = 0
     pending_proposals = 0
     superseded_proposals = 0
+
+    if resolver is None:
+        # #6788: one walk of kitty-specs/ for the whole call, not one per lookup.
+        # Imported here: ``specify_cli.context`` imports ``specify_cli.status``,
+        # which imports this package, so a module-level import would be circular.
+        from specify_cli.context.mission_resolver import WalkOnceMissionResolver
+
+        resolver = WalkOnceMissionResolver(project_path)
 
     for mission_dir in iter_mission_instance_dirs(project_path):
         retro_path = _resolve_summary_record_path(project_path, mission_dir)
@@ -479,7 +503,7 @@ def build_summary(
                 pending_proposals += len(gen_record.proposals)
 
                 slug = gen_record.mission_slug
-                gen_evt, app_evt, rej_evt = _read_proposal_events(project_path, slug)
+                gen_evt, app_evt, rej_evt = _read_proposal_events(project_path, slug, resolver=resolver)
                 _ = (gen_evt, app_evt, rej_evt)
                 continue
 
@@ -585,7 +609,7 @@ def build_summary(
 
         # Proposal-lifecycle events from status.events.jsonl
         slug = record.mission.mission_slug
-        gen_evt, app_evt, rej_evt = _read_proposal_events(project_path, slug)
+        gen_evt, app_evt, rej_evt = _read_proposal_events(project_path, slug, resolver=resolver)
         # Events supplement the YAML state — note we don't double-count,
         # events are informational for acceptance metrics when YAML state
         # is available.  The contract says "read ... events"; we track
