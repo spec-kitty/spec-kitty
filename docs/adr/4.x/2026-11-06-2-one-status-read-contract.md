@@ -345,21 +345,47 @@ while this door decides `CONSOLIDATED_TARGET` from `mission_runtime.mission_has_
 reopen-aware `merged_at` marker). Both now ask `mission_has_landed`; `mission_number` is display-only
 and is no landed signal. `committed_status_dir`, the status board's own committed-source probe, is
 removed: the board reads the door, which already answers `CONSOLIDATED_TARGET` for a landed Mission.
-A Mission merged before `merged_at` was written again (#4090) carries `mission_number` without
-`merged_at` (264 of the 819 Missions in this repository's `kitty-specs/` when this was measured).
-The door already treated it as not landed, and now `next` does too; a coordination-topology one,
+A Mission merged before `merged_at` was written again (#4090) has no `merged_at` (264 of the 819
+Missions in this repository's `kitty-specs/` carry `mission_number` without it, which counts some
+that never landed, see below). The door already treated such a Mission as not landed, and now `next` does too; a coordination-topology one,
 whose coordination branch consolidation removed, refuses with `COORDINATION_BRANCH_DELETED` in both.
-Reintroducing `mission_number` as a second landed signal was rejected (operator ruling 2026-11-08).
+Reintroducing `mission_number` as a second landed signal was rejected (operator ruling 2026-11-08):
+`doctor mission-state --fix` assigns it to Missions that never landed (#5471), so it is no evidence
+of a landing either.
+
 Instead the upgrade migration `4.0.0rc8_backfill_merged_at` (#7433) stamps `merged_at` once, from
-git, on every Mission with an assigned `mission_number`, no `merged_at` and no `MissionReopened`
-event: the committer date of `baseline_merge_commit` when it resolves, else that of the oldest commit
-that set `mission_number` in `meta.json`. A reopened Mission is never stamped, and a Mission with no
-such commit is reported and left alone. It writes through the canonical meta writer, records in the
-tracked ledger partition (`meta.json` travels with the commit), declares `requires_git_repository`,
-and is idempotent. So a pre-#4090 Mission is stamped on upgrade; without upgrading, a coordination
-one refuses. Its `COORDINATION_BRANCH_DELETED` remedy says so: when the PRIMARY `meta.json` records
-`mission_number` without `merged_at`, the remedy is `spec-kitty upgrade`, not flattening the Mission.
-That check only picks the remedy text; the landed verdict stays `mission_has_landed` alone.
+the committed status log only (operator rulings 2026-11-08). The rule lives in one place,
+`specify_cli.status.landing_evidence`:
+
+- **Evidence.** Every work package in the Mission's status log is terminal (`done` or `canceled`),
+  at least one is `done`, and the log records no `MissionReopened` event. The log is read through
+  this door: `resolve_landing_evidence_read` takes the door's own decision (the coordination
+  branch or worktree while it exists, the write checkout for a coordination-less Mission), with
+  one declared exception: when the door refuses with `CoordinationBranchDeleted`, the evidence is
+  the target's copy (`resolve_consolidated_target_read`), the only committed log left once
+  consolidation removed the coordination branch.
+- **Date.** The `at` of the latest transition to `done` in that log, normalized to aware UTC
+  (a naive stamp is read as UTC). No git history is read: neither `baseline_merge_commit` (the
+  target tip before the landing, a lower bound) nor the commit that set `mission_number` (often a
+  bulk `meta.json` rewrite) dates a landing.
+- **Skipped and reported.** A Mission without that evidence (unfinished work packages, all
+  canceled, reopened, no log, an unreadable log) is never stamped; the migration names it in a
+  warning, one per reason.
+
+It writes `merged_at` only, through the canonical meta writer, records in the tracked ledger
+partition (`meta.json` travels with the commit), declares `requires_git_repository` (the door reads
+the worktree registry and coordination refs), and is idempotent. A dry run on this repository's
+`kitty-specs/` (533 Missions without `merged_at`) would stamp 341 and skip 192: 172 with unfinished
+work packages, 15 whose log records no work package and 5 with no log.
+
+The `COORDINATION_BRANCH_DELETED` remedy asks the same predicate of the target's copy: when it
+holds, the remedy is `spec-kitty upgrade` (and names the latest done date), not flattening the
+Mission; otherwise the flatten remedy stands. `mission_number` plays no part in that choice, and
+the check only picks the remedy text; the landed verdict stays `mission_has_landed` alone.
+
+**Residual.** A Mission whose work packages are all `done` but which was never consolidated (a
+manual `move-task --to done`) also satisfies the evidence and is stamped. `done` is ordinarily
+written by consolidation itself, and the operator accepted this residual with the ruling.
 
 ### Moved onto the door in this change
 
