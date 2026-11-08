@@ -1777,7 +1777,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Check the site's folder contract against scripts/docs/_dockitty_contract.py
-        # Standard library only, so the runner's python3 is enough (no uv sync).
+        # Standard library plus src/kernel (the contract reads dates through the
+        # kernel.clock door), so the runner's python3 is enough (no uv sync).
+        env:
+          PYTHONPATH: .:src
         run: python3 -m scripts.docs.site_contract --check
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
