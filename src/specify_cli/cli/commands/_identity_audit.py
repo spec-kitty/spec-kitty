@@ -456,7 +456,16 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
 
 
 def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[str, object | None]]:
-    """Collect stored-topology rows for all missions (or one when scoped)."""
+    """Collect stored-topology rows for every Mission (or one when scoped).
+
+    Lists Missions only (#6758): a ``kitty-specs/`` child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir` rejects is
+    read-side residue, not a Mission, so it gets no row (a ``null`` topology, no
+    finding, no remedy is noise, not a report). ``spec-kitty doctor identity`` is the
+    surface that reports such a folder, with its reason and remedy. The walk is the
+    shared fail-soft one (:func:`~specify_cli.context.mission_resolver.iter_kitty_specs_children`)
+    with one per-walk ``TrackedMissionPaths`` memo, so the git probe runs at most once.
+    """
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.is_dir():
         return []
@@ -467,7 +476,16 @@ def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[st
         # ``meta.json``-bearing directory.
         target = placement_seam(repo_root, mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         return [_read_stored_topology(target)] if target.is_dir() else []
-    return [_read_stored_topology(entry) for entry in sorted(specs_dir.iterdir()) if entry.is_dir()]
+    from specify_cli.context.mission_resolver import (
+        TrackedMissionPaths,
+        is_selectable_mission_dir,
+        iter_kitty_specs_children,
+    )
+
+    tracked = TrackedMissionPaths(repo_root)
+    return [
+        _read_stored_topology(entry) for entry in iter_kitty_specs_children(repo_root) if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked)
+    ]
 
 
 def _print_topology_human(rows: list[dict[str, object | None]]) -> None:
