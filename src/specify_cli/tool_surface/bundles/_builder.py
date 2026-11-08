@@ -61,8 +61,12 @@ def to_semver(version: str) -> str:
     projection is deterministic and never guesses:
 
     * ``4.0.0rc8`` -> ``4.0.0-rc8`` (pre-release becomes a SemVer pre-release)
-    * ``4.0.0.dev1`` -> ``4.0.0-dev1``, ``4.0.0.post1`` -> ``4.0.0-post1``
-    * ``4.0.0+dev`` -> ``4.0.0+dev`` (a local segment is already SemVer build metadata)
+    * ``4.0.0.dev1`` -> ``4.0.0-dev1`` (a dev release sorts before its release in both)
+    * ``4.0.0.post1`` -> ``4.0.0+post1``: a post-release is newer than its
+      release, and a SemVer pre-release would sort it *below* ``4.0.0``, so it
+      becomes build metadata, which never orders it below the release it follows
+    * ``4.0.0+dev`` -> ``4.0.0+dev`` (a local segment is already SemVer build metadata;
+      after a post segment it joins it: ``4.0.0.post1+abc`` -> ``4.0.0+post1.abc``)
     * ``4.0.0`` -> ``4.0.0``, and an already-SemVer string passes through
 
     A string ``packaging`` cannot parse is returned unchanged: a plugin build
@@ -79,12 +83,15 @@ def to_semver(version: str) -> str:
         segments.append(f"{parsed.pre[0]}{parsed.pre[1]}")
     if parsed.dev is not None:
         segments.append(f"dev{parsed.dev}")
-    if parsed.post is not None:
-        segments.append(f"post{parsed.post}")
     if segments:
         base = f"{base}-{'.'.join(segments)}"
+    build = []
+    if parsed.post is not None:
+        build.append(f"post{parsed.post}")
     if parsed.local is not None:
-        base = f"{base}+{parsed.local}"
+        build.append(parsed.local)
+    if build:
+        base = f"{base}+{'.'.join(build)}"
     return base
 
 

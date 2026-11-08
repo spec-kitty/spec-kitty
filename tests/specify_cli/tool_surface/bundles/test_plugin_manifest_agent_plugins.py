@@ -123,7 +123,12 @@ def test_manifest_identity_and_links(tmp_path: Path, projector: type, label: str
         ("4.0.0a1", "4.0.0-a1"),
         ("4.0.0b2", "4.0.0-b2"),
         ("4.0.0.dev1", "4.0.0-dev1"),
-        ("4.0.0.post1", "4.0.0-post1"),
+        # A post-release is newer than its release, so it must not become a
+        # SemVer pre-release (which sorts below 4.0.0); build metadata keeps it
+        # from ever sorting below the release it follows.
+        ("4.0.0.post1", "4.0.0+post1"),
+        ("4.0.0.post1+abc", "4.0.0+post1.abc"),
+        ("4.0.0rc1.post2", "4.0.0-rc1+post2"),
         ("4.0.0+dev", "4.0.0+dev"),
         ("4.0.0rc8.dev3", "4.0.0-rc8.dev3"),
     ],
