@@ -42,8 +42,10 @@ def _cli(cwd: Path, *args: str, python: Path | None = None) -> subprocess.Comple
         for key in ("PYTHONPATH", "SPEC_KITTY_TEMPLATE_ROOT", "SPEC_KITTY_TEST_MODE", "SPEC_KITTY_CLI_VERSION"):
             env.pop(key, None)
     # Assign, never setdefault: an inherited SPEC_KITTY_HOME would otherwise leak a
-    # developer's real home into the test (home-pin gate, SKH-SETDEFAULT).
-    env["SPEC_KITTY_HOME"] = str(cwd / ".spec-kitty-home")
+    # developer's real home into the test (home-pin gate, SKH-SETDEFAULT). The home
+    # sits beside the checkout, never inside it: its cache files would otherwise
+    # dirty the write checkout, which ``mission create`` refuses since #7282.
+    env["SPEC_KITTY_HOME"] = str(cwd.parent / f".spec-kitty-home-{cwd.name}")
     return subprocess.run(
         [str(python) if python is not None else sys.executable, "-m", "specify_cli", *args],
         cwd=cwd,
@@ -62,8 +64,14 @@ def _missions(repo: Path) -> list[str]:
 
 
 def _declared_coordination_branch(repo: Path, mission: str) -> str | None:
+    """The branch ``meta.json`` declares the Mission's work lives on.
+
+    Since #7282 (ADR 2026-11-06-3) an unsettled default Mission declares a
+    ``mission_branch`` (its topic branch) and no ``coordination_branch`` until
+    ``finalize-tasks`` settles the topology; either must name a real ref (#4033).
+    """
     meta = json.loads((repo / "kitty-specs" / mission / "meta.json").read_text(encoding="utf-8"))
-    value = meta.get("coordination_branch")
+    value = meta.get("coordination_branch") or meta.get("mission_branch")
     return str(value) if value else None
 
 
@@ -179,28 +187,35 @@ def test_specify_on_main_discloses_uncommitted_scaffold(project: Path) -> None:
     assert len(missions) == 1
     mission_dir = project / "kitty-specs" / missions[0]
     artifacts = {Path(item["path"]).name for item in payload["uncommitted_artifacts"]}
-    assert {"spec.md", "meta.json"} <= artifacts
+    # Since #7282 create mints a Mission topic branch even from protected main and
+    # commits meta.json there; only the empty spec.md scaffold stays pending.
+    assert artifacts == {"spec.md"}
     assert (mission_dir / "meta.json").is_file()
+    assert _git(project, "ls-files", "--error-unmatch", str(mission_dir / "meta.json")).returncode == 0
     branch = _declared_coordination_branch(project, missions[0])
     assert branch is not None and _ref_exists(project, branch)
     assert _porcelain(project), "pending scaffold must remain visible to Git"
 
 
-def test_specify_on_main_human_output_reports_meta_not_committed(project: Path) -> None:
-    """#4608: the human path must not claim a commit the guard refused.
+def test_specify_on_main_human_output_reports_meta_truthfully(project: Path) -> None:
+    """#4608: the human path must claim only the commit that really landed.
 
-    ``--json`` discloses the uncommitted scaffold (test above); the plain
-    human output used to unconditionally print "Meta committed to main"
-    while no commit existed — the exact false report in the issue.
+    The plain output once printed "Meta committed to main" while no commit
+    existed. Since #7282 create from protected main switches to a Mission topic
+    branch and commits meta.json there, so the claim names that branch, main
+    itself gets no commit, and the empty spec.md stays untracked.
     """
     result = _cli(project, "specify", "task-list")
     assert result.returncode == 0, _unwrapped(result)
     output = _unwrapped(result)
-    assert "Meta not committed" in output
+    branch = _git(project, "branch", "--show-current").stdout.strip()
+    assert branch.startswith("kitty/mission-task-list-"), branch
+    assert f"Switched checkout to {branch} (was main); meta committed there" in output
+    assert "Meta committed to main" not in output
     assert "untracked" in output
-    assert "Meta committed to" not in output
-    # What actually happened: no new commit, scaffold on disk, untracked.
-    assert _git(project, "rev-list", "--count", "HEAD").stdout.strip() == "1"
+    # What actually happened: main untouched, one scaffold commit on the topic branch.
+    assert _git(project, "rev-list", "--count", "main").stdout.strip() == "1"
+    assert _git(project, "rev-list", "--count", "HEAD").stdout.strip() == "2"
     assert _porcelain(project)
     assert len(_missions(project)) == 1
 
@@ -212,10 +227,15 @@ def test_specify_on_feature_branch_human_output_reports_meta_committed(project: 
     result = _cli(project, "specify", "task-list")
     assert result.returncode == 0, _unwrapped(result)
     output = _unwrapped(result)
-    assert "Meta committed to my-first-mission" in output
+    # Since #7282 create mints a Mission topic branch on every target and commits
+    # meta.json there; the starting branch is the merge target, left untouched.
+    branch = _git(project, "branch", "--show-current").stdout.strip()
+    assert f"Switched checkout to {branch} (was my-first-mission); meta committed there" in output
+    assert "merges into my-first-mission" in output
     assert "Meta not committed" not in output
-    # The scaffold commit landed: HEAD moved past the init commit.
+    # The scaffold commit landed on the topic branch: HEAD moved past the init commit.
     assert _git(project, "rev-list", "--count", "HEAD").stdout.strip() == "2"
+    assert _git(project, "rev-list", "--count", "my-first-mission").stdout.strip() == "1"
 
 
 # ---------------------------------------------------------------------------
@@ -237,14 +257,21 @@ def test_protected_branch_continuation_keeps_exactly_one_mission(project: Path) 
 
 
 def test_protected_branch_notice_names_existing_artifacts(project: Path) -> None:
+    """Every pending artifact the payload names exists and names who commits it.
+
+    Before #7282 a create on protected main left meta.json pending with a
+    "protected" reason. Create now commits it on a Mission topic branch, so the
+    only pending artifact is the empty spec.md, owned by ``/spec-kitty.specify``.
+    """
     result = _cli(project, "specify", "task-list", "--json")
     assert result.returncode == 0, _unwrapped(result)
     payload = json.loads(result.stdout)
     pending = payload["uncommitted_artifacts"]
     assert pending
     assert all(Path(item["path"]).exists() for item in pending)
-    assert any("protected" in item["reason"] for item in pending)
-    assert any("non-protected" in item["responsible_command"] for item in pending)
+    assert all(item["reason"] and item["responsible_command"] for item in pending)
+    assert [Path(item["path"]).name for item in pending] == ["spec.md"]
+    assert pending[0]["responsible_command"] == "/spec-kitty.specify"
 
 
 # ---------------------------------------------------------------------------
@@ -289,9 +316,12 @@ def test_unborn_head_error_names_a_remedy_that_works(tmp_path: Path) -> None:
     assert _cli(repo, "init", ".", "--ai", "claude").returncode == 0
 
     blocked = _cli(repo, "specify", "task-list")
-    assert "git commit --allow-empty -m 'Initial commit'" in _unwrapped(blocked)
+    # The remedy must commit what ``init`` wrote: an empty commit leaves those
+    # files untracked, and the Mission-branch switch (#7282) refuses a dirty checkout.
+    assert "git add -- . && git commit -m 'Initial commit'" in _unwrapped(blocked)
 
-    _git(repo, "commit", "--allow-empty", "-m", "Initial commit")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "Initial commit")
     _git(repo, "checkout", "-b", "my-first-mission")
     retried = _cli(repo, "specify", "task-list")
 

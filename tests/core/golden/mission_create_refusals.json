@@ -1216,7 +1216,7 @@
       "outcome": {
         "error_code": null,
         "exc_type": "MissionCreationError",
-        "message": "This checkout has no commits yet, so Spec Kitty cannot commit the mission scaffold.\n\nMake an initial commit first, then create the mission:\n  git commit --allow-empty -m 'Initial commit'\n\nIf the repository already has files staged, commit those instead."
+        "message": "This checkout has no commits yet, so Spec Kitty cannot commit the mission scaffold.\n\nMake an initial commit first, then create the mission:\n  git add -- . && git commit -m 'Initial commit'\n\nIf there is nothing to commit yet, use: git commit --allow-empty -m 'Initial commit'"
       },
       "post": {
         "branches": [],
