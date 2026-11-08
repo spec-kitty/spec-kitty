@@ -187,6 +187,33 @@ def test_updates_task_prompt_template_override(tmp_path: Path) -> None:
     assert "role:" in content
 
 
+@pytest.mark.parametrize(
+    "heading",
+    [
+        pytest.param("## ⚡ Do This First: Load Agent Profile", id="old-emoji"),
+        pytest.param("## Do This First: Load Agent Profile", id="new-ascii"),
+    ],
+)
+def test_does_not_duplicate_profile_load_section_for_old_or_new_template(
+    tmp_path: Path, heading: str
+) -> None:
+    content = _TASK_PROMPT_WITHOUT_DO_THIS_FIRST.replace(
+        "dependencies: []",
+        'dependencies: []\nagent_profile: "implementer"\nrole: "implementer"',
+    ).replace(
+        "## Objective",
+        f"{heading}\n\nLoad the profile before continuing.\n\n## Objective",
+    )
+    p = _make_override_template(tmp_path, content)
+
+    result = KittifyProfileHandoffMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert result.changes_made == []
+    assert p.read_text(encoding="utf-8") == content
+    assert content.count("Do This First: Load Agent Profile") == 1
+
+
 def test_skips_if_kittify_dir_missing(tmp_path: Path) -> None:
     migration = KittifyProfileHandoffMigration()
     result = migration.apply(tmp_path)
