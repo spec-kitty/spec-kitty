@@ -28,6 +28,8 @@ residue child as a Mission; hence ``git_repo`` and not the ``fast`` tier.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -154,3 +156,29 @@ def test_changelog_excludes_residue_folder(tmp_path: Path) -> None:
 
     assert slugs == [MISSION_SLUG]
     assert RESIDUE_SLUG not in changelog
+
+
+def test_changelog_from_a_linked_worktree_judges_the_scanned_checkout(tmp_path: Path) -> None:
+    """Run from a linked worktree, the changelog judges the main checkout it scans.
+
+    ``build_changelog_block`` scans the main checkout's ``kitty-specs/`` (the root the
+    placement seam reads). The predicate and its git memo must be anchored at that same
+    root: anchored at the worktree, an untracked id-less folder in the main checkout
+    falls outside the worktree, the tracked-marker check falls back to file presence,
+    and the folder is published as a Mission.
+    """
+    main = tmp_path / "main"
+    main.mkdir()
+    seed_mission_and_residue(main)
+    # Same artefacts as the residue child (an accepted WP), plus an id-less meta.json git does not track.
+    untracked = main / "kitty-specs" / "020-untracked-idless"
+    shutil.copytree(main / "kitty-specs" / RESIDUE_SLUG, untracked)
+    (untracked / "meta.json").write_text(json.dumps({"mission_slug": untracked.name}), encoding="utf-8")
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "-C", str(main), "worktree", "add", "-q", "--detach", str(linked)], check=True)
+
+    _, from_main = build_changelog_block(main, since_tag=None)
+    _, from_linked = build_changelog_block(linked, since_tag=None)
+
+    assert from_main == [MISSION_SLUG], "the positive control: the main checkout lists only the Mission"
+    assert from_linked == from_main, "a linked worktree must judge the scanned checkout the same way"

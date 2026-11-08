@@ -285,9 +285,11 @@ def build_changelog_block(
 
     from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir
 
-    tracked = TrackedMissionPaths(repo_root)
+    # Judge the children against the checkout they are scanned from, so the
+    # tracked-marker check reads that checkout's index (not a linked worktree's).
+    tracked = TrackedMissionPaths(scan_root)
     mission_dirs = sorted(
-        [d for d in mission_specs_dir.iterdir() if d.is_dir() and is_selectable_mission_dir(d, repo_root=repo_root, tracked=tracked)],
+        [d for d in mission_specs_dir.iterdir() if d.is_dir() and is_selectable_mission_dir(d, repo_root=scan_root, tracked=tracked)],
         key=lambda d: d.name,
     )
 
