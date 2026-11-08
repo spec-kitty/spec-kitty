@@ -529,25 +529,44 @@ def test_approved_lane_branches_over_selects_when_status_is_unreadable(mission: 
     assert approved_lane_branches(mission.repo, mission.slug, manifest) == list(mission.lane_branches.values())
 
 
-def test_approved_lane_branches_over_selects_when_the_coordination_worktree_is_unmaterialized(mission: MissionWorld, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A removed coordination worktree is a status read refusal the selection absorbs, never a crash (#5780)."""
-    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+def test_approved_lane_branches_over_selects_when_the_status_ref_is_unreadable(mission: MissionWorld, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A status read refusal of the read door (here an unreadable coordination ref) is absorbed by
+    over-selecting, never a crash (#5780). An unmaterialized coordination worktree is no longer a
+    refusal: the door reads the committed coordination branch (ADR 2026-11-06-2, #7408)."""
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
 
     manifest = read_lanes_json(mission.feature_dir)
     assert manifest is not None
-    unmaterialized = CoordinationWorktreeUnmaterialized.for_mission(
-        repo_root=mission.repo,
-        mission_slug=mission.slug,
-        mid8="01M5001A",
-        coordination_branch="kitty/mission-x",
-        primary_candidate=mission.feature_dir,
-    )
 
     def refuse(*args: object, **kwargs: object) -> None:
-        raise unmaterialized
+        raise StatusSurfaceRefUnreadable(repo_root=mission.repo, ref="refs/heads/kitty/mission-x", path="status.events.jsonl", detail="planted")
 
-    monkeypatch.setattr("specify_cli.git.origin_freshness.read_events", refuse)
+    monkeypatch.setattr("specify_cli.git.origin_freshness.resolve_status_read", refuse)
     assert approved_lane_branches(mission.repo, mission.slug, manifest) == list(mission.lane_branches.values())
+
+
+def test_canceled_wp_ids_reads_the_committed_coordination_branch_without_a_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7408: with no coordination worktree on disk the canceled set comes from the committed
+    coordination branch (the read door's COORD_BRANCH_REF), not an over-selecting refusal and
+    not the repository root checkout's stale copy."""
+    from specify_cli.git.origin_freshness import _canceled_wp_ids
+
+    isolated_git_env(monkeypatch, tmp_path)
+    coord = build_coord_mission(tmp_path / "c", wps=("WP01", "WP02"))
+    coord_worktree = next(
+        Path(line.split(" ", 1)[1])
+        for line in _git(coord.repo, "worktree", "list", "--porcelain").splitlines()
+        if line.startswith("worktree ") and Path(line.split(" ", 1)[1]) != coord.repo
+    )
+    coord_log = coord_worktree / "kitty-specs" / coord.slug / _STATUS_LOG
+    canceled = _cancel_event(coord, "WP02", from_lane="approved")
+    coord_log.write_text(coord_log.read_text(encoding="utf-8") + json.dumps(canceled, sort_keys=True) + "\n", encoding="utf-8")
+    _git(coord_worktree, "add", "-A")
+    _git(coord_worktree, "commit", "-qm", "cancel WP02 on the coordination branch")
+    _git(coord.repo, "worktree", "remove", "--force", str(coord_worktree))
+    assert "canceled" not in (coord.feature_dir / _STATUS_LOG).read_text(encoding="utf-8")
+
+    assert _canceled_wp_ids(coord.repo, coord.slug, None) == frozenset({"WP02"})
 
 
 # --------------------------------------------------------------------------- mode

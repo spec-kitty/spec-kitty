@@ -151,8 +151,10 @@ def _clear_lane_tip_if_lane_fully_terminal(repo_root: Path, mission_slug: str, w
     from specify_cli.lanes.lane_tip import clear_tip
     from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
     from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane, is_terminal
+    from specify_cli.status import Lane, is_terminal, materialize_status, resolve_status_read
 
     try:
         planning_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
@@ -165,11 +167,13 @@ def _clear_lane_tip_if_lane_fully_terminal(repo_root: Path, mission_slug: str, w
     if lane is None or is_repo_root_lane(lane):
         return
 
+    # The one status read door (ADR 2026-11-06-2, #7408): a sibling absent from the
+    # snapshot (no event log yet, or never seeded) is not terminal, so the tip stays.
     try:
-        status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-        if any(not is_terminal(str(get_wp_lane(status_dir, sibling_id).value)) for sibling_id in lane.wp_ids):
-            return
-    except (CanonicalStatusNotFoundError, StatusReadPathNotFound):
+        lanes = materialize_status(resolve_status_read(repo_root, mission_slug)).work_packages
+    except (StatusReadPathNotFound, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable):
+        return
+    if any(not is_terminal(str(lanes.get(sibling_id, {}).get("lane", Lane.UNINITIALIZED))) for sibling_id in lane.wp_ids):
         return
 
     _, branch = predict_lane_worktree(repo_root, mission_slug, lane.lane_id)
