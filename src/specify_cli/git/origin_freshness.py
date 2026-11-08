@@ -554,7 +554,11 @@ def _unreachable_remedy(verdict: FreshnessVerdict) -> list[str]:
             f"  If it stays slow, opt out as below, or {ORIGIN_CHECK_ENV}=off to skip the contact.",
             _RERUN_LINE,
         ]
-    return [f"  Check network access and credentials for remote {verdict.remote}.", off_line, _RERUN_LINE]
+    askpass_line = (
+        f"  These contacts run without GIT_ASKPASS or SSH_ASKPASS. If your CI authenticates through an askpass helper, "
+        f"set {ORIGIN_CHECK_ENV}=warn (or --origin-check warn)."
+    )
+    return [f"  Check network access and credentials for remote {verdict.remote}.", askpass_line, off_line, _RERUN_LINE]
 
 
 def _ambiguous_remote_remedy(verdict: FreshnessVerdict) -> list[str]:
