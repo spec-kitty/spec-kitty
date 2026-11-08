@@ -185,7 +185,8 @@ def _agent_tasks_status(root: Path) -> str:
         return f"refused:exit {result.exit_code}"
     payload: dict[str, Any] = json.JSONDecoder().raw_decode(result.output[start:])[0]  # the indent=2 envelope
     if result.exit_code != 0:
-        return f"refused:{payload.get('error_code') or payload.get('error')}"
+        error = payload.get("error")
+        return f"refused:{error.get('code') if isinstance(error, dict) else error}"
     lanes = {wp["id"]: wp["lane"] for wp in payload["work_packages"]}
     return str(lanes.get("WP01", "<no WP01>"))
 

@@ -298,8 +298,8 @@ finding a status source: `resolve_status_surface` and `resolve_status_surface_wi
 `for_write=True` call is the write seam and is not scanned), `read_event_log` and
 `read_event_stream_log`, `resolve_surface_dir_or_typed_error`, and every `STATUS_STATE` read off the
 placement seam (`read_dir`, `resolve_partition_read_dir`, `resolve_artifact_surface`, and
-`ctx.artifact(STATUS_STATE)` unless only its `write_dir` or `commit_target` is used). Planted
-violations keep it non-vacuous.
+`ctx.artifact(STATUS_STATE)` unless only its `write_dir` or `commit_target` is used). A call
+through an import alias is matched by the name it imports. Planted violations keep it non-vacuous.
 
 Invariant 4 asks for an empty allowlist. The gate lands with a **transient, shrink-only allowlist**
 instead, because about 45 readers remain and draining them all exceeds one reviewable change. Per
@@ -307,7 +307,12 @@ charter Standing Order #5 and ADR [2026-09-30-1](2026-09-30-1-allowlist-ratchets
 the allowlist is priced debt: issue #7310 owns it, the follow-up Mission of #7310 drains it, and the
 drain date is the gate's `ALLOWLIST_DRAIN_BY` (2026-12-31, proposed here; the operator may move it).
 A new bypass fails, and an entry that no longer matches a reader fails too, so a migrated reader
-leaves the allowlist in the same change. Invariant 4 is reached when the allowlist is empty.
+leaves the allowlist in the same change. The allowlist size is registered in
+`tests/architectural/_baselines.yaml` (`test_status_read_single_door.legacy_read_allowlist`), so
+adding an entry also fails `test_ratchet_baselines.py` unless the baseline grows with a
+justification. An entry is keyed by enclosing function and form, not by call: a second legacy read
+of the same form inside an already-listed function is not caught. Invariant 4 is reached when the
+allowlist is empty.
 
 A second check pins the modules already moved onto the door (`DOOR_ONLY_MODULES`, grow-only): they may
 not call a legacy source finder or a path-typed log reader (`read_events`, `read_event_stream`,
@@ -340,10 +345,14 @@ while this door decides `CONSOLIDATED_TARGET` from `mission_runtime.mission_has_
 reopen-aware `merged_at` marker). Both now ask `mission_has_landed`; `mission_number` is display-only
 and is no landed signal. `committed_status_dir`, the status board's own committed-source probe, is
 removed: the board reads the door, which already answers `CONSOLIDATED_TARGET` for a landed Mission.
+A Mission merged before `merged_at` was written again (#4090) carries `mission_number` without
+`merged_at`; the door already treated it as not landed, and now `next` does too. A backfill of
+`merged_at` for those Missions is follow-up work under #7310, not part of this change.
 
 ### Moved onto the door in this change
 
-`agent tasks status` (one surface, one reduction; every row field from it), the canceled-set read of
+`agent tasks status` (one surface read; every row field from it; a log that cannot be read fails the
+command closed instead of rendering an empty board), the canceled-set read of
 `git/origin_freshness`, the lane-tip terminal hook of `lanes/claim_base` and the review dependents
 warning of `workflow_executor`. `tests/status/test_status_readers_cross_cwd_parity.py` carries
 `agent tasks status` in its matrix.

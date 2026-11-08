@@ -38,9 +38,6 @@ runner = CliRunner()
 
 _SLUG = "committed-board-01KZCD"
 
-#: How the board renders a WP with no recorded transition (distinct from any real lane).
-DEGRADED_LANE = "genesis"
-
 
 def _write_wp_file(tasks_dir: Path, wp_id: str) -> None:
     (tasks_dir / f"{wp_id}-test.md").write_text(
@@ -177,14 +174,15 @@ def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
 
 @pytest.mark.regression
 def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A corrupt ``status.events.jsonl`` on the door's source must not crash the
-    board (``agent tasks status``): it degrades to no recorded progress.
+    """A corrupt ``status.events.jsonl`` on the door's source fails the board
+    (``agent tasks status``) closed with an error, never a traceback and never a
+    board.
 
-    The degrade-not-crash contract predates the read door (a malformed
-    committed log once raised ``StoreError`` unwrapped inside the row loop).
-    Since #7335 the board has ONE source, so the degrade no longer falls back
-    to another checkout's lanes: the stale COORD copy's ``planned`` must not
-    appear; the WP renders as having no recorded transition.
+    Since #7335 the board has ONE source: it cannot fall back to another
+    checkout's lanes (the stale COORD copy's ``planned``), and an empty board
+    would read as "no progress" to an agent consuming ``--json``. Before the
+    read door a not-landed Mission already exited 1 here; a landed one fell
+    back to the coordination copy.
     """
     primary, coord = _build_corrupt_primary_fixture(tmp_path)
 
@@ -197,13 +195,12 @@ def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monk
     with setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace):
         result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
-    lanes_by_id = {wp["id"]: wp["lane"] for wp in payload["work_packages"]}
-
-    # Degraded to no recorded transition -- never the stale COORD copy's lane.
-    assert read_events(coord)[-1].to_lane == Lane.PLANNED
-    assert lanes_by_id == {"WP01": DEGRADED_LANE}
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "status_failed"
+    assert "status log" in payload["error"]["message"]
+    assert "work_packages" not in payload
 
 
 # ---------------------------------------------------------------------------

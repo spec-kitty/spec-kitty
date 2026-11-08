@@ -219,6 +219,13 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_doctrine_census",
         "ORPHAN_REACHED_EXCEPTIONS",
     ),
+    # #7408: the status read door gate's transient allowlist (owner #7310).
+    _SizeRatchet(
+        "test_status_read_single_door",
+        "legacy_read_allowlist",
+        "tests.architectural.test_status_read_single_door",
+        "LEGACY_READ_ALLOWLIST",
+    ),
     _SizeRatchet(
         "test_migration_chain_integrity",
         "known_line_jumps",

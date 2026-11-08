@@ -95,9 +95,18 @@ class Hit:
         return f"{self.path}::{self.function}::{self.form}"
 
 
-def _callee(func: ast.expr) -> str | None:
+def _import_aliases(tree: ast.AST) -> dict[str, str]:
+    """``{local alias: imported name}`` for every ``from x import name as alias`` in the module.
+
+    A call through an alias (``read_events as rw_read_events``) is matched by the name it
+    imports, so an alias cannot hide a read from the scan.
+    """
+    return {alias.asname: alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names if alias.asname}
+
+
+def _callee(func: ast.expr, aliases: dict[str, str] | None = None) -> str | None:
     if isinstance(func, ast.Name):
-        return func.id
+        return (aliases or {}).get(func.id, func.id)
     if isinstance(func, ast.Attribute):
         return func.attr
     return None
@@ -130,9 +139,9 @@ def _enclosing_function(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> str:
     return ".".join(reversed(names)) or "<module>"
 
 
-def _legacy_form(call: ast.Call, parents: dict[ast.AST, ast.AST]) -> str | None:
+def _legacy_form(call: ast.Call, parents: dict[ast.AST, ast.AST], aliases: dict[str, str]) -> str | None:
     """The legacy-read form of *call*, or ``None`` when it is not a legacy status read."""
-    name = _callee(call.func)
+    name = _callee(call.func, aliases)
     if name in _LEGACY_FINDERS:
         return None if _is_for_write(call) else name
     if name in _STATUS_STATE_READ_FORMS and _names_status_state(call):
@@ -147,13 +156,14 @@ def scan_source(source: str, rel_path: str, *, forms: frozenset[str] | None = No
     """Every legacy status read in *source*; with *forms*, also calls named in that set."""
     tree = ast.parse(source)
     parents = _parents(tree)
+    aliases = _import_aliases(tree)
     hits: list[Hit] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        form = _legacy_form(node, parents)
+        form = _legacy_form(node, parents, aliases)
         if form is None and forms is not None:
-            name = _callee(node.func)
+            name = _callee(node.func, aliases)
             form = name if name in forms else None
         if form is not None:
             hits.append(Hit(rel_path, _enclosing_function(node, parents), form, node.lineno))
@@ -247,8 +257,8 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
     {
         # #7335: the status board reads one door surface and reduces it once.
         "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
-        # #7408: the first lane readers moved onto the door.
-        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        # #7408: the first lane readers moved onto the door. (workflow_executor.py moved one
+        # reader but still makes path-typed reads, so it is not door-only yet.)
         "src/specify_cli/git/origin_freshness.py",
         "src/specify_cli/lanes/claim_base.py",
     }
@@ -331,6 +341,21 @@ def test_door_only_forms_catch_path_typed_readers() -> None:
     planted = "class S:\n    def g(self, d):\n        return read_events(d)\n"
     hits = scan_source(planted, "planted.py", forms=_PATH_TYPED_READERS)
     assert [(hit.function, hit.form) for hit in hits] == [("S.g", "read_events")]
+
+
+def test_an_import_alias_does_not_hide_a_read() -> None:
+    planted = (
+        "from specify_cli.coordination.status_service import read_event_log as rel\n"
+        "from specify_cli.status import read_events as rw_read_events\n"
+        "def f(c, d):\n"
+        "    rel(c)\n"
+        "    return rw_read_events(d)\n"
+    )
+    assert [(hit.form, hit.line) for hit in scan_source(planted, "planted.py")] == [("read_event_log", 4)]
+    assert [(hit.form, hit.line) for hit in scan_source(planted, "planted.py", forms=_PATH_TYPED_READERS)] == [
+        ("read_event_log", 4),
+        ("read_events", 5),
+    ]
 
 
 def test_allowlist_check_reds_on_an_unlisted_hit() -> None:
