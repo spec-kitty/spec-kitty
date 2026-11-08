@@ -134,9 +134,10 @@ def _read_id(
     *,
     text: str | None = None,
 ) -> str | None:
-    """Return the artifact ID from a YAML file, falling back to the file stem.
+    """Return the artifact ID authored in a YAML file, or ``None`` when it has none.
 
-    Mirrors the logic behind :func:`charter.activation.catalog._extract_artifact_id`
+    There is no filename-stem fallback (#4856): the filename is a cosmetic slug,
+    so an id-less artifact has no identity. Mirrors the logic behind :func:`charter.activation.catalog._extract_artifact_id`
     (without the language-scoping filter, which is not relevant to ID identity).
     With a *resolution_pass*, each file is parsed at most once per pass. A caller
     that already read the file (the :class:`~charter.activation.identity_index.IdentityIndex`
@@ -151,7 +152,7 @@ def _read_id(
 
 
 def _parse_id(path: Path, id_field: str, yaml: YAML, *, text: str | None = None) -> str | None:
-    """Parse *path* (or the already-read *text*) and return its declared ID, falling back to the file stem."""
+    """Parse *path* (or the already-read *text*) and return its authored ID, or ``None`` (no stem fallback, #4856)."""
     try:
         data = yaml.load(text if text is not None else path.read_text(encoding="utf-8")) or {}
     except (OSError, YAMLError, TypeError):
@@ -160,8 +161,7 @@ def _parse_id(path: Path, id_field: str, yaml: YAML, *, text: str | None = None)
         raw_id = str(data.get(id_field, "")).strip()
         if raw_id:
             return raw_id
-    fallback = path.stem.split(".")[0].strip()
-    return fallback or None
+    return None
 
 
 def _config_stem(path: Path) -> str:
