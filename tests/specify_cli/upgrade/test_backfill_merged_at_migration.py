@@ -269,6 +269,27 @@ def test_reopened_mission_is_never_stamped(repo: Path) -> None:
     assert not BackfillMergedAtMigration().detect(repo)
 
 
+def test_mission_with_an_active_consolidation_is_never_stamped(repo: Path) -> None:
+    """Consolidation bakes ``done`` before it stamps ``merged_at``; a killed run must not be stamped by upgrade."""
+    feature_dir = _mission(repo, "consolidating", _ALL_TERMINAL)
+    mission_id = str(_meta(feature_dir)["mission_id"])
+    state = repo / ".kittify" / "runtime" / "merge" / mission_id / "state.json"
+    state.parent.mkdir(parents=True)
+    state.write_text("{}", encoding="utf-8")
+    before = (feature_dir / "meta.json").read_bytes()
+    migration = BackfillMergedAtMigration()
+
+    assert not migration.detect(repo)
+    result = migration.apply(repo)
+
+    assert result.success, result.errors
+    assert (feature_dir / "meta.json").read_bytes() == before
+    assert result.changes_made == []
+    assert result.warnings == [f"merged_at not stamped on 1 Mission(s): a consolidation is in progress: consolidating ({state.relative_to(repo).as_posix()})"]
+    [row] = backfill_merged_at(repo)
+    assert (row.action, row.reason) == ("skipped", "a consolidation is in progress")
+
+
 def test_missions_without_status_or_with_an_unreadable_log_are_reported(repo: Path) -> None:
     no_log = repo / "kitty-specs" / "no-log"
     _write_meta(no_log, {"mission_slug": "no-log", "mission_id": _mission_id("nolog"), "mission_type": "software-dev", "topology": "lanes"})
