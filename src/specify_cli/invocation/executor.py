@@ -834,14 +834,14 @@ class ProfileInvocationExecutor:
         this executor (research R4): the spine append IS the canonical close
         path's write for the sweep caller.
 
-        ``co_author`` (#7013) is the operator attribution trailer for the
+        ``co_author`` (#7315) is the operator attribution trailer for the
         auto-commit made from this close, overriding the repository's
         ``commit.co_author``. An explicit value is validated BEFORE any write — a
         typo must not leave a half-closed Op — while an unusable *configured*
         value only refuses the commit (see ``_commit_op_record``): the trail is
         already durable by then, and a configuration defect must not cost it.
         """
-        # #7013: an explicit attribution value is a usage assertion; validate it
+        # #7315: an explicit attribution value is a usage assertion; validate it
         # before the first write.
         explicit_trailer = resolve_co_author_trailer(self._repo_root, explicit=co_author) if co_author is not None else None
 
@@ -1095,7 +1095,7 @@ class ProfileInvocationExecutor:
         — the doctor sweep reports it per entry and the CLI complete path
         prints it — rather than dying in a ``logger.warning``.
 
-        ``explicit_trailer`` (#7013) is an already-validated ``Co-Authored-By:``
+        ``explicit_trailer`` (#7315) is an already-validated ``Co-Authored-By:``
         line the caller passed for this close; when absent, the repository's
         ``commit.co_author`` is resolved here. A configured value that cannot be
         used refuses the commit (``refusal`` names the key) rather than
