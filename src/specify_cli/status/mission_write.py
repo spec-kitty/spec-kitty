@@ -269,6 +269,7 @@ def mission_write_lock(
     * ``migration/backfill_identity.py``: ``backfill_mission`` and ``backfill_mission_ids``
     * ``migration/backfill_topology.py``: ``_stamp_topology`` writer, ``restamp_single_branch_with_code_lanes``
     * ``migration/backfill_mission_type.py``: ``backfill_mission_mission_type``
+    * ``migration/backfill_merged_at.py``: ``_stamp`` (the pre-#4090 ``merged_at`` backfill, #7433)
     * ``migration/mission_state.py``: ``_repair_mission``, ``_repair_events_phase``, ``_repair_meta_phase``,
       ``_repair_quarantine_phase``
     * ``migration/runtime_state_cutover.py``: ``_flip_phase``
