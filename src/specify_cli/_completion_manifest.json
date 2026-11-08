@@ -741,7 +741,7 @@
      "deprecated": false
     },
     "mission-state": {
-     "help": "Audit, repair, or TeamSpace-validate mission-state shapes.",
+     "help": "Audit or repair mission-state shapes.",
      "hidden": false,
      "deprecated": false
     },
