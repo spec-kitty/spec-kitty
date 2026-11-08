@@ -48,7 +48,14 @@ _REPORTS = (
         )
         for number in range(1, 7)
     ),
-    ("integration", "out/reports/xunit-nightly-integration-next.xml", "Run integration + next suites by directory (full-mode, run-all-regardless)"),
+    *(
+        (
+            f"integration-next-shard-{number}",
+            f"out/reports/xunit-nightly-integration-next-shard-{number}.xml",
+            f"Run integration + next suites, shard {number} (full-mode, run-all-regardless)",
+        )
+        for number in range(1, 5)
+    ),
     (
         "specify-cli-out-of-matrix",
         "out/reports/xunit-nightly-specify-cli-out-of-matrix.xml",

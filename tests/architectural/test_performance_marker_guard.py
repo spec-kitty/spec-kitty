@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 import pytest
 import yaml
 
+from scripts.ci.integration_next_shard import SHARD_JOB_KEYS
 from tests.architectural._ast_scan import UnparseableSourceError, read_and_parse
 from tests.architectural._gate_coverage import join_continuations, load_spliced_workflow
 from tests.architectural._interpreter_shard_roster import INTERPRETER_SHARD_JOB_KEYS, INTERPRETER_SHARDS, InterpreterShard
@@ -646,11 +647,11 @@ def test_nightly_workflow_actions_are_sha_pinned() -> None:
 # ---------------------------------------------------------------------------
 # FR-015/SC-008: `--suite-key` uniqueness across every nightly job. A
 # copy-paste that forgets to renumber a shard's key (or collides with one of
-# performance/e2e/stress/integration-next's existing BARE keys) must be
+# performance/e2e/stress's existing BARE keys or an integration-next shard's) must be
 # caught by CI, not left to human inspection.
 # ---------------------------------------------------------------------------
 
-_SUITE_KEY_JOB_NAMES: tuple[str, ...] = ("performance", "e2e", "stress", *INTERPRETER_SHARD_JOB_KEYS, "integration-next", "acceptance-bdd-escalation")
+_SUITE_KEY_JOB_NAMES: tuple[str, ...] = ("performance", "e2e", "stress", *INTERPRETER_SHARD_JOB_KEYS, *SHARD_JOB_KEYS, "acceptance-bdd-escalation")
 
 # Matches THREE quoting forms: double-quoted, single-quoted, and bare/
 # unquoted (most of today's real committed keys -- performance/e2e/stress/

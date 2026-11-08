@@ -651,3 +651,12 @@ def test_junit_capture_without_matching_testcases_is_an_error(capture_shard_timi
     code = capture_shard_timings.main(["--suite", "architectural", "--from-junit", str(tmp_path / "run"), "--output", str(tmp_path / "out.json")])
     assert code == 1
     assert not (tmp_path / "out.json").exists(), "an empty capture must never be written as if measured"
+
+
+def test_integration_next_suite_names_its_own_file_universe(capture_shard_timings: ModuleType) -> None:
+    """#7456: ``--suite integration_next`` captures the nightly shards' files, not the architectural battery."""
+    assert "integration_next" in capture_shard_timings._BATTERY_SUITES
+    timings_key, base_files, selection, workers = capture_shard_timings._suite_inputs("integration_next")
+    assert timings_key == "integration_next" and workers == 4 and "no marker" in selection
+    assert base_files and all(file.startswith(("tests/integration/", "tests/next/")) for file in base_files)
+    assert "tests/integration/test_6715_lane_autowalk_guards.py" in base_files

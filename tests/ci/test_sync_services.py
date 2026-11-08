@@ -453,7 +453,9 @@ def nightly_jobs_running_pytest_unsynced(workflow: Path) -> tuple[list[str], lis
 
 def test_every_nightly_pytest_job_syncs_the_service_extras_first() -> None:
     running, unsynced = nightly_jobs_running_pytest_unsynced(_WORKFLOWS / "ci-nightly.yml")
-    assert {"performance", "stress", "integration-next"} <= set(running), f"the scan must see the nightly's pytest jobs, saw {running}"
+    assert {"performance", "stress", "integration-next-shard-1", "integration-next-shard-4"} <= set(running), (
+        f"the scan must see the nightly's pytest jobs, saw {running}"
+    )
     assert unsynced == [], f"ci-nightly.yml jobs run pytest before {_ACTION_REF} (extras-only): {unsynced}"
 
 

@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.ci.integration_next_shard import SHARD_JOB_KEYS
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _WORKFLOWS_DIR = Path(__file__).resolve().parents[2] / ".github" / "workflows"
@@ -62,14 +64,15 @@ def _required_cap(max_suite: str) -> int:
 
 # #6787: the integration+next lane was cancelled at its 45-minute cap, the
 # performance lane measured 32:51 against 35 and stress 6:48 against 10; their
-# caps now follow this record.
-_INTEGRATION_NEXT_JOB = "integration-next"
+# caps now follow this record. #7456 split the integration+next lane into
+# `integration-next-shard-<N>` jobs, each judged by the same record.
+_INTEGRATION_NEXT_PREFIX = "integration-next-shard-"
 _PERFORMANCE_JOB = "performance"
 _STRESS_JOB = "stress"
 
 
 def _is_nightly_target(key: str) -> bool:
-    return key.startswith(_SHARD_PREFIX) or key in {_OUT_OF_MATRIX_JOB, _INTEGRATION_NEXT_JOB, _PERFORMANCE_JOB, _STRESS_JOB}
+    return key.startswith(_SHARD_PREFIX) or key.startswith(_INTEGRATION_NEXT_PREFIX) or key in {_OUT_OF_MATRIX_JOB, _PERFORMANCE_JOB, _STRESS_JOB}
 
 
 def _is_module_tests_target(key: str) -> bool:
@@ -196,7 +199,7 @@ def test_nightly_timeout_caps_meet_recorded_headroom() -> None:
     shards = [key for key in blocks if key.startswith(_SHARD_PREFIX)]
     assert len(blocks) >= 10, f"non-vacuity: expected >=10 target jobs, found {sorted(blocks)}"
     assert len(shards) >= 6, f"non-vacuity: expected >=6 shards, found {sorted(shards)}"
-    assert {_OUT_OF_MATRIX_JOB, _INTEGRATION_NEXT_JOB, _PERFORMANCE_JOB, _STRESS_JOB} <= set(blocks)
+    assert {_OUT_OF_MATRIX_JOB, _PERFORMANCE_JOB, _STRESS_JOB, *SHARD_JOB_KEYS} <= set(blocks)
     assert _cap_violations(text) == []
 
 
