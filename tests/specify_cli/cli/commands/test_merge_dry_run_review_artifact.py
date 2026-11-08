@@ -151,6 +151,13 @@ def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: obje
         "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
+    # The Mission branch is not under test here: these tests pin the review-artifact gate.
+    # The fixture has no git repository, and since #7267 the dry run refuses a missing
+    # Mission branch (MISSION_BRANCH_MISSING) before that gate is reached.
+    monkeypatch.setattr(
+        "specify_cli.consolidation.forecast._check_mission_branch",
+        lambda *_a, **_k: (True, None),
+    )
 
 
 def test_preflight_detects_rejected_review_artifact_on_approved_wp(
