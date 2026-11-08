@@ -25,7 +25,6 @@ from mission_runtime import (
 from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_bookkeeping_churn
 from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.git.commit_helpers import SafeCommitPathPolicyError
-from specify_cli.meta_keys import TOPOLOGY_SOURCE_KEY, TopologySource
 
 
 def load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
@@ -213,30 +212,30 @@ def feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     return paths
 
 
+def _checkout_root_of(path: Path) -> Path | None:
+    """The git checkout (repository root or linked worktree) that contains *path*, else ``None``."""
+    for candidate in (path, *path.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
 def primary_partition_checkout(repo_root: Path, mission_slug: str) -> Path | None:
     """The checkout holding a default Mission's PRIMARY partition before its landing, else ``None`` (FR-061).
 
     Until a ``topology_source: default`` Mission lands, its PRIMARY partition lives on its topic
     branch, which the coordination worktree holds once the repository root checkout moved back to
     ``create_return_branch``. This is the one answer the planning-artifact commit, the claim commit
-    and the bookkeeping transaction share (#7372). The ref is the placement seam's PRIMARY write
-    target (topic branch before the landing, the target after), and the holder is the non-lane
-    checkout holding that ref -- the same topic-holder probe the status read door uses. ``None``
-    for every other Mission (explicit topology, legacy, landed), for a default Mission whose PRIMARY
-    ref no non-lane checkout other than *repo_root* holds, and when ``meta.json`` cannot be read
-    (the fail-closed guards downstream report that, e.g. the #4979 demotion refusal).
+    and the bookkeeping transaction share (#7372). It does not re-derive the holder: it asks the
+    placement seam for the PRIMARY metadata dir, which routes through the one topic-holder locator
+    (``default_mission_topic_dir``, including its rule that the holder must carry the Mission
+    directory), and returns the checkout containing that dir. ``None`` when that checkout is
+    *repo_root* itself -- every explicit-topology, legacy or landed Mission, a default Mission
+    whose topic holder carries no Mission directory, and an unreadable ``meta.json`` (the
+    fail-closed guards downstream report that, e.g. the #4979 demotion refusal).
     """
-    from specify_cli.status import non_lane_checkout_holding_branch
-
-    meta = load_primary_anchored_mission_meta(repo_root, mission_slug)
-    if not meta or meta.get(TOPOLOGY_SOURCE_KEY) != TopologySource.DEFAULT.value:
-        return None
-    topic = meta.get("mission_branch")
-    primary_ref = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC).ref
-    if not isinstance(topic, str) or primary_ref != topic:
-        # Landed (the seam resolves PRIMARY to the target) or no topic branch recorded.
-        return None
-    holder: Path | None = non_lane_checkout_holding_branch(repo_root, primary_ref)
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    holder = _checkout_root_of(Path(primary_dir))
     if holder is None or holder.resolve() == repo_root.resolve():
         return None
     return holder

@@ -398,40 +398,31 @@ class TestPrimaryPartitionCheckout:
         return repo, holder
 
     @staticmethod
-    def _stub(monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None, primary_ref: str) -> None:
-        seam = type("Seam", (), {"write_target": lambda _self, _kind: type("T", (), {"ref": primary_ref})()})()
-        monkeypatch.setattr(planning_commit, "load_primary_anchored_mission_meta", lambda *_a: meta)
+    def _stub(monkeypatch: pytest.MonkeyPatch, primary_dir: Path) -> None:
+        seam = type("Seam", (), {"read_dir": lambda _self, _kind: primary_dir})()
         monkeypatch.setattr(planning_commit, "placement_seam", lambda *_a: seam)
 
-    def _default_meta(self) -> dict[str, object]:
-        return {"topology_source": "default", "mission_branch": self._TOPIC}
-
     def test_default_mission_before_landing_is_held_by_the_topic_worktree(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The seam's PRIMARY dir lies in the topic worktree: that checkout is the holder."""
         repo, holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, self._default_meta(), self._TOPIC)
+        self._stub(monkeypatch, holder / "kitty-specs" / _SLUG)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) == holder
 
-    def test_landed_default_mission_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_primary_dir_in_the_root_checkout_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Explicit-topology, legacy, landed or unreadable-meta Missions read PRIMARY at the root."""
         repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, self._default_meta(), "work")
+        self._stub(monkeypatch, repo / "kitty-specs" / _SLUG)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
 
-    @pytest.mark.parametrize(
-        "meta",
-        [None, {}, {"topology_source": "explicit", "mission_branch": _COORD_BRANCH}, {"topology_source": "default"}],
-        ids=["unreadable-meta", "empty-meta", "explicit-topology", "no-topic-branch"],
-    )
-    def test_any_other_mission_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, meta: dict[str, object] | None) -> None:
+    def test_primary_dir_outside_any_checkout_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        self._stub(monkeypatch, meta, self._TOPIC)
+        self._stub(monkeypatch, tmp_path / "elsewhere" / "kitty-specs" / _SLUG)
         assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
 
-    def test_topic_branch_held_by_the_root_or_nobody_has_no_holder(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_real_seam_on_an_explicit_mission_has_no_holder(self, tmp_path: Path) -> None:
+        """Unstubbed: a non-default Mission's PRIMARY dir is the repository root's copy."""
         repo, _holder = self._repo_with_topic_worktree(tmp_path)
-        git_out(repo, "branch", "unheld")
-        for ref in ("work", "unheld"):
-            self._stub(monkeypatch, {"topology_source": "default", "mission_branch": ref}, ref)
-            assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
+        assert planning_commit.primary_partition_checkout(repo, _SLUG) is None
 
 
 class TestPlanningCheckoutRoot:
