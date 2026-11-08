@@ -72,6 +72,18 @@
       "verdict": "in-mission",
       "wp": "WP16"
     },
+    "#5569": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5703": {
       "evidence_ref": "Operator ruling 2026-11-08: out of scope for S1",
       "fr": null,
