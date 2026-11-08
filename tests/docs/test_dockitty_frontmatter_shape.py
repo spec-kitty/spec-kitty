@@ -13,6 +13,9 @@ Rules (ADR ``2026-10-31-1`` D-7/D-8, spec FR-006 as amended):
   page names only published pages; a draft page names no excluded page.
 * ``external_references`` entries carry ``url`` and ``title``.
 * Every dated ADR carries ``kind: ADR`` and the ``doc_status`` its ``status`` maps to.
+* Every page doc-kitty validates passes its frontmatter gate with zero errors
+  (``scripts.docs._dockitty_contract.validate_frontmatter``, #6931): ``kind``,
+  ``doc_status``, ``updated`` as an instant, and the rest of ``CANONICAL_REQUIRED``.
 
 Pages in the excluded folders (never read by doc-kitty, immutable history) and the
 four files #6928 resolves (the dual-index ``README.md`` stubs and the architecture
@@ -31,7 +34,7 @@ import pytest
 from scripts.docs._dockitty_contract import is_dated_adr, is_excluded, is_published, page_for_slug
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._page_scope import iter_docs_pages
-from scripts.docs.dockitty_frontmatter_migration import ADR_DOC_STATUS, ADR_KIND, is_skipped
+from scripts.docs.dockitty_frontmatter_migration import ADR_DOC_STATUS, ADR_KIND, is_skipped, validate_tree
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -42,6 +45,8 @@ _DOCS_ROOT: Final[Path] = Path(__file__).resolve().parents[2] / "docs"
 _MIN_AUDIENCE_PAGES: Final[int] = 240
 _MIN_ADRS: Final[int] = 200
 _MIN_RELATED_PAGES: Final[int] = 280
+#: Below today's 689 pages doc-kitty validates.
+_MIN_VALIDATED_PAGES: Final[int] = 600
 
 Page = tuple[str, Mapping[str, Any]]
 
@@ -151,6 +156,14 @@ def test_every_adr_carries_doc_status_and_kind() -> None:
     assert len(adrs) >= _MIN_ADRS, f"non-vacuity: only {len(adrs)} ADRs found"
     problems = [problem for rel, data in adrs for problem in adr_problems(rel, data)]
     assert problems == [], "\n".join(problems)
+
+
+def test_every_page_passes_doc_kittys_frontmatter_gate() -> None:
+    """Zero errors over doc-kitty's page set (drafts included); a new page without ``kind`` fails here."""
+    verdicts = validate_tree(_DOCS_ROOT)
+    assert len(verdicts) >= _MIN_VALIDATED_PAGES, f"non-vacuity: only {len(verdicts)} pages validated"
+    errors = [f"{page}: {error}" for page, findings in verdicts.items() for error in findings.errors]
+    assert errors == [], "\n".join(errors)
 
 
 # --- negative controls: each rule names an old-shape page -------------------
