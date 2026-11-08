@@ -61,19 +61,25 @@ def _seed(
     )
 
 
-def _write_meta(feature_dir: Path, *, mission_number: int | None) -> None:
+_MERGED_AT = "2026-01-02T00:00:00+00:00"
+_LANDED = object()
+
+
+def _write_meta(feature_dir: Path, *, mission_number: int | None, merged_at: object = _LANDED) -> None:
+    """Write PRIMARY meta. A consolidation stamps ``mission_number`` and ``merged_at`` together,
+    so a numbered Mission is landed unless *merged_at* says otherwise (``None``: a reopened
+    Mission, whose ``merged_*`` the reopen cleared while ``mission_number`` stays)."""
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_slug": _SLUG,
-                "mission_id": "01KZAB00000000000000000AB",
-                "mission_number": mission_number,
-                "mission_type": "software-dev",
-            }
-        ),
-        encoding="utf-8",
-    )
+    meta: dict[str, object] = {
+        "mission_slug": _SLUG,
+        "mission_id": "01KZAB00000000000000000AB",
+        "mission_number": mission_number,
+        "mission_type": "software-dev",
+    }
+    stamp = (_MERGED_AT if mission_number is not None else None) if merged_at is _LANDED else merged_at
+    if stamp is not None:
+        meta["merged_at"] = stamp
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +370,40 @@ class TestMissionTerminalVerdict:
             verdict = mission_terminal_verdict(tmp_path, _SLUG)
 
         assert verdict == "terminal"
+
+
+class TestLandedSignal:
+    """#7335: the committed reads ask the one landed signal (``mission_runtime.mission_has_landed``,
+    the read door's CONSOLIDATED_TARGET gate), not ``mission_number``, which a reopen keeps."""
+
+    def test_reopened_mission_with_mission_number_is_not_terminal(self, tmp_path: Path) -> None:
+        from runtime.next.committed_authority import committed_status_dir, mission_terminal_verdict
+
+        primary = tmp_path / "kitty-specs" / _SLUG
+        _write_meta(primary, mission_number=7, merged_at=None)
+        _seed(primary, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
+
+        with patch(
+            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+            return_value=primary,
+        ):
+            assert mission_terminal_verdict(tmp_path, _SLUG) == "none"
+            assert committed_status_dir(tmp_path, _SLUG) is None
+
+    def test_landed_mission_agrees_with_the_read_door(self, tmp_path: Path) -> None:
+        from mission_runtime import mission_has_landed
+        from runtime.next.committed_authority import committed_status_dir
+
+        primary = tmp_path / "kitty-specs" / _SLUG
+        _write_meta(primary, mission_number=7)
+        _seed(primary, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
+
+        with patch(
+            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+            return_value=primary,
+        ):
+            assert mission_has_landed(primary) is True
+            assert committed_status_dir(tmp_path, _SLUG) == primary
 
 
 class TestCommittedStatusDir:

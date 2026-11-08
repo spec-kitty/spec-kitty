@@ -76,6 +76,8 @@ def _build_two_surface_fixture(tmp_path: Path) -> tuple[Path, Path]:
                 "mission_slug": _SLUG,
                 "mission_id": "01KZCD00000000000000000AB",
                 "mission_number": 99,
+                # Consolidation stamps both; the landed signal is merged_at (#7335).
+                "merged_at": "2026-01-02T00:00:00+00:00",
                 "mission_type": "software-dev",
                 "coordination_branch": f"kitty/mission-{_SLUG}",
             }
@@ -297,6 +299,7 @@ def test_status_board_row_companions_still_follow_coord_surface_when_not_merged(
     # authority again.
     meta = json.loads((primary / "meta.json").read_text(encoding="utf-8"))
     meta["mission_number"] = None
+    meta.pop("merged_at", None)
     (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     _seed_companions(primary, "WP01", agent="committed-agent", model="committed-model", profile="committed-profile")
     _seed_companions(coord, "WP01", agent="stale-agent", model="stale-model", profile="stale-profile")
