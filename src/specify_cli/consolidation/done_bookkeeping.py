@@ -25,6 +25,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.consolidation._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.consolidation.git_probes import path_is_under_worktrees
 from specify_cli.consolidation.state import ConsolidationState, save_state
+from specify_cli.lanes.single_branch_landing import is_single_branch_meta, stored_mission_meta
 from specify_cli.status import build_system_actor
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -436,6 +437,14 @@ def _mark_wp_merged_done(
         # which target branch they landed on. The transition is emitted once
         # per WP after Stage 1 (lane->coord) completes and before Stage 2
         # (coord->target) runs the post-merge bookkeeping.
+        #
+        # #7354: that record is only honest on a lane topology. A
+        # ``single_branch`` Mission runs its WPs on the write checkout
+        # (``execution_mode: direct_repo``) and integrates no lanes, so its
+        # done event must state what actually happened — no lane integration —
+        # instead of carrying a ``lane_integrated`` + ``worktree`` audit stamp
+        # for a merge that never happened.
+        direct_repo = is_single_branch_meta(stored_mission_meta(repo_root, mission_slug))
         emit_status_transition_transactional(
             TransitionRequest(
                 feature_dir=feature_dir,
@@ -447,9 +456,10 @@ def _mark_wp_merged_done(
                 evidence=evidence.to_dict(),
                 workspace_context=f"merge:{repo_root}",
                 repo_root=repo_root,
+                execution_mode="direct_repo" if direct_repo else "worktree",
                 force=_force_done,
                 policy_metadata={
-                    "merge_phase": "lane_integrated",
+                    "merge_phase": "direct_repo" if direct_repo else "lane_integrated",
                     "target_branch": target_branch,
                 },
             ),

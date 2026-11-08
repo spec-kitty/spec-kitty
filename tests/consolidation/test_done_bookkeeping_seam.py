@@ -650,8 +650,54 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
     emit_mock.assert_not_called()
 
 
-# --- _assert_merged_wps_reached_done ----------------------------------------
+def test_mark_wp_merged_done_direct_repo_for_single_branch(tmp_path: Path) -> None:
+    """#7354: a single_branch Mission's done record states what actually happened.
 
+    Nothing was lane-integrated on a direct_repo ``single_branch`` Mission (the
+    WPs ran on the write checkout), so the done event must carry
+    ``execution_mode="direct_repo"`` and a ``merge_phase`` that does not claim a
+    two-stage lane integration — the previous ``merge_phase: lane_integrated``
+    + ``execution_mode: worktree`` pair was a false audit record.
+    """
+    wp_file = tmp_path / "WP01.md"
+    with (
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
+        patch.object(db, "_resolve_wp_path", return_value=wp_file),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
+        patch.object(db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)),
+        patch.object(db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)),
+        patch.object(db, "stored_mission_meta", return_value={"topology": "single_branch"}),
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
+    ):
+        db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    emit_mock.assert_called_once()
+    request = emit_mock.call_args.args[0]
+    assert request.execution_mode == "direct_repo"
+    assert request.policy_metadata["merge_phase"] == "direct_repo"
+
+
+def test_mark_wp_merged_done_lane_integrated_for_lane_topologies(tmp_path: Path) -> None:
+    """#7354 control: lane topologies keep the honest ``lane_integrated`` record."""
+    wp_file = tmp_path / "WP01.md"
+    with (
+        patch.object(db, "placement_seam", return_value=_primary_seam(tmp_path)),
+        patch.object(db, "_resolve_wp_path", return_value=wp_file),
+        patch(_READ_STREAM_TRANSACTIONAL, return_value=_review_stream()),
+        patch(_READ_STATE_TRANSACTIONAL, return_value=CurrentWpState(Lane.APPROVED, "merge", None)),
+        patch.object(db, "_resolve_lane_with_planned_fallback", return_value=(Lane.APPROVED, False)),
+        patch.object(db, "_emit_approved_replay_if_needed", return_value=(Lane.APPROVED, False)),
+        patch.object(db, "stored_mission_meta", return_value={"topology": "lanes_with_coord"}),
+        patch(_EMIT_TRANSACTIONAL) as emit_mock,
+    ):
+        db._mark_wp_merged_done(tmp_path, "m", "WP01", "main")
+    emit_mock.assert_called_once()
+    request = emit_mock.call_args.args[0]
+    assert request.execution_mode == "worktree"
+    assert request.policy_metadata["merge_phase"] == "lane_integrated"
+
+
+# --- _assert_merged_wps_reached_done ----------------------------------------
 
 _DOOR = "specify_cli.status"  # #7276: callers import the read door from the package
 
