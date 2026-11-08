@@ -9,6 +9,7 @@ from typing import Any, cast
 
 import pytest
 
+from specify_cli.status import ULID_PATTERN
 from specify_cli.migration.mission_state import (
     deterministic_ulid,
     repair_repo,
@@ -1911,7 +1912,7 @@ def test_repair_refuses_to_empty_a_populated_log_when_every_row_is_dropped(tmp_p
 _TRACKED_MISSION_ID = "01TRACKED00000000000000000"
 
 
-def _seed_6833_mission(repo: Path) -> Path:
+def _seed_6833_mission(repo: Path, mission_id: str = _TRACKED_MISSION_ID) -> Path:
     mission = repo / "kitty-specs" / "tracked-id-6833"
     mission.mkdir(parents=True)
     _write_json(
@@ -1919,7 +1920,7 @@ def _seed_6833_mission(repo: Path) -> Path:
         {
             "created_at": "2026-01-01T00:00:00+00:00",
             "friendly_name": "tracked id",
-            "mission_id": _TRACKED_MISSION_ID,
+            "mission_id": mission_id,
             "mission_slug": "tracked-id-6833",
             "mission_type": "software-dev",
             "slug": "tracked-id-6833",
@@ -1982,6 +1983,24 @@ def test_repair_restores_tracked_mission_id_when_worktree_meta_lost_it(tmp_path:
     result = report.missions[0]
     assert result.status == "updated", result.validation_errors
     assert _read_json(mission / "meta.json")["mission_id"] == _TRACKED_MISSION_ID
+
+
+def test_repair_remints_a_non_ulid_tracked_mission_id(tmp_path: Path) -> None:
+    """#6833 boundary (operator ruling): only a canonical ULID is reused from the
+    tracked copy. A legacy non-ULID tracked ``mission_id`` is re-minted
+    deterministically, as the repair did before #6833."""
+    mission = _seed_6833_mission(tmp_path, mission_id="legacy-mission-6833")
+    (mission / "meta.json").unlink()
+
+    report = repair_repo(tmp_path, allow_dirty=True)
+
+    result = report.missions[0]
+    assert result.status == "updated", result.validation_errors
+    minted = _read_json(mission / "meta.json")["mission_id"]
+    assert minted != "legacy-mission-6833"
+    assert ULID_PATTERN.match(minted)
+    assert "mission_id_deterministically_backfilled" in (result.meta_actions or ())
+    assert "mission_id_kept_from_tracked_meta" not in (result.meta_actions or ())
 
 
 def test_repair_refuses_to_mint_when_tracked_meta_cannot_give_the_id_back(tmp_path: Path) -> None:
