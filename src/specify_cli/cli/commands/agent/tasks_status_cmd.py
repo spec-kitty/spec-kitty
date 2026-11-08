@@ -69,7 +69,7 @@ from specify_cli.status import (
     Lane,
     StatusEvent,
     StatusSnapshot,
-    read_authored_wp_frontmatter,
+    read_authored_wp_frontmatter_lenient,
     resolve_lane_alias,
 )
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD, FrontmatterError
@@ -445,10 +445,13 @@ def _st_declared_dependencies(wp_file: Path) -> list[str]:
     is frontmatter-canonical, and a board over a corrupt status log must not
     crash on a dependency read when it already degrades that log. A WP file the
     typed parser refuses degrades to "no declared dependencies" for the same
-    reason.
+    reason. The LENIENT authored reader is used so an unknown frontmatter key
+    (the strict schema forbids extras) does not erase real dependencies and
+    show a gated WP as ready; known fields are still validated, so only
+    genuinely malformed frontmatter degrades.
     """
     try:
-        meta, _body = read_authored_wp_frontmatter(wp_file)
+        meta, _body = read_authored_wp_frontmatter_lenient(wp_file)
     except (FrontmatterError, OSError, ValueError) as exc:  # pydantic.ValidationError is a ValueError
         logger.debug("status: unparseable frontmatter in %s: %s", wp_file, exc)
         return []
