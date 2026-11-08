@@ -18,7 +18,6 @@ from kernel.git import GitCommandError, changed_paths, index_entries
 from kernel.git_topology import GitTopologyError, git_toplevel
 from mission_runtime import MissionArtifactKind, placement_seam
 import os
-import shutil
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -744,17 +743,9 @@ def _ephemeral_merge_driver_activation(
 def _make_merge_env() -> dict[str, str]:
     """Single environment authority for the lane-merge pipeline (AC-F1).
 
-    Prepends the directory that resolves the ``spec-kitty`` entry point to
-    PATH so that git's merge driver invocation of
-    ``spec-kitty merge-driver-event-log`` resolves to the same spec-kitty
-    binary that is currently running, not a stale global one. The entry point
-    is resolved the way the constructed environment will see it (#3074): the
-    running interpreter's bin directory first (the original #87 contract — a
-    wrapper- or shim-launched process must still beat an ambient PATH copy),
-    then the ambient PATH — which covers the ``uv run`` shape where
-    ``sys.executable`` sits in a uv-managed interpreter directory that holds
-    no ``spec-kitty`` entry point at all. When neither resolves it, the
-    interpreter's bin dir is prepended as before (best effort).
+    Prepends the current venv's bin directory to PATH so that git's merge
+    driver invocation of ``spec-kitty merge-driver-event-log`` resolves to the
+    same spec-kitty binary that is currently running, not a stale global one.
 
     Every subprocess invocation in this module routes its ``env`` through
     this helper — no inline ``os.environ`` copies with ad-hoc PATH/GIT_*
@@ -765,14 +756,9 @@ def _make_merge_env() -> dict[str, str]:
     and auto-rebases must stay base-aware, so only the mission→target overlay
     (:func:`_with_meta_two_way`) may set the two-way opt-out (#5460).
     """
-    interpreter_bin = str(Path(sys.executable).parent)
-    resolved = shutil.which(
-        "spec-kitty",
-        path=interpreter_bin + os.pathsep + os.environ.get("PATH", ""),
-    )
-    cli_bin = str(Path(resolved).parent) if resolved is not None else interpreter_bin
+    venv_bin = str(Path(sys.executable).parent)
     env = os.environ.copy()
-    env["PATH"] = cli_bin + os.pathsep + env.get("PATH", "")
+    env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
     env.pop(META_DRIVER_TWO_WAY_ENV, None)
     return env
 

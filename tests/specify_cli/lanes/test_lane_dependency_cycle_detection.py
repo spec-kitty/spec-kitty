@@ -182,3 +182,24 @@ def test_compute_lanes_rejects_cycle_beyond_recursion_limit() -> None:
     error_type = lanes_compute.LaneDependencyCycleError
     with pytest.raises(error_type):
         lanes_compute.compute_lanes(dependency_graph, manifests, "long-cycle")
+
+
+def test_find_lane_dependency_cycle_survives_a_lane_graph_deeper_than_the_recursion_limit() -> None:
+    """The lane-graph cycle walk is iterative, so a graph past the recursion limit is safe.
+
+    ``compute_lanes`` can no longer mint more than 26 lanes (#5155), so this pins
+    the helper's deep-graph safety directly, with lane ids it is never handed in
+    production: a ring of more lanes than ``sys.getrecursionlimit()``.
+    """
+    lane_count = sys.getrecursionlimit() + 1
+    lane_ids = [f"lane-{index:05d}" for index in range(lane_count)]
+    ring = {lane_id: {lane_ids[(index + 1) % lane_count]} for index, lane_id in enumerate(lane_ids)}
+
+    cycle_path = lanes_compute._find_lane_dependency_cycle(ring)
+
+    assert cycle_path is not None
+    assert cycle_path[0] == cycle_path[-1]
+    assert len(cycle_path) == lane_count + 1
+
+    chain = {lane_id: ({lane_ids[index + 1]} if index + 1 < lane_count else set()) for index, lane_id in enumerate(lane_ids)}
+    assert lanes_compute._find_lane_dependency_cycle(chain) is None
