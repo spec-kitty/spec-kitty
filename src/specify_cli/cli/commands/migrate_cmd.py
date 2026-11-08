@@ -205,7 +205,11 @@ def _scoped_mission_slug(mission: str | None, repo_root: Path, *, json_output: b
         resolve_mission_scope,
     )
 
-    return resolve_mission_scope(mission, repo_root, json_output=json_output)
+    # Typed local: the function-level import is opaque to mypy (follow_imports
+    # is skipped for specify_cli.* so narrow file checks stay narrow), so the
+    # call's Any would otherwise leak through this `str | None` return.
+    resolved: str | None = resolve_mission_scope(mission, repo_root, json_output=json_output)
+    return resolved
 
 
 class CorpusWideCommand(TyperCommand):
@@ -2177,7 +2181,12 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
 
     Dry-run reframes the primary count as "would seed (verify pending)" and never
     prints a Failed wall for verify-pending-pre-seed missions — only genuine hard
-    aborts (``error`` set) count as failed under ``--dry-run``.
+    aborts (``error`` set) count as failed under ``--dry-run``. Its Skipped
+    bucket counts ONLY ``already_migrated`` missions (#4044): a dry-run mission
+    that would neither flip nor seed but is not already migrated — e.g. one
+    whose fail-closed verify refuses (a live run FAILS it) — must not be
+    laundered into "Skipped (already migrated)"; it is reported in no bucket
+    rather than under a label that lies.
     """
     failed = [r for r in results if _cutover_failed(r, dry_run=dry_run)]
     active = [r for r in results if not _cutover_failed(r, dry_run=dry_run)]
@@ -2189,7 +2198,12 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
     if dry_run:
         would_flip = [r for r in active if r.would_flip and not r.already_migrated]
         would_seed = [r for r in active if r.seeded_count > 0]
-        skipped = [r for r in active if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0]
+        # #4044: only an actually-already-migrated mission is "Skipped (already
+        # migrated)". The previous "not would-flip and nothing to seed" bucket
+        # mislabeled a verify-refused mission (a live-run FAILED one) as benignly
+        # skipped — the label must be truthful, so such a mission lands in no
+        # bucket rather than this one.
+        skipped = [r for r in active if r.already_migrated]
         console.print(f"  {_LABEL_WOULD_FLIP:<27} : {len(would_flip)}")
         console.print(f"  {_LABEL_WOULD_SEED:<27} : {len(would_seed)}")
     else:
