@@ -45,7 +45,9 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -131,6 +133,44 @@ def test_changed_cells_compares_the_golden_at_a_ref_with_the_working_tree(tmp_pa
     assert cs.changed_cells("HEAD~1", repo=repo, golden_path=golden) == ["b|changed", "c|added"]
 
 
+def test_changed_cells_refuses_an_unresolvable_ref_and_reads_a_missing_golden_as_empty(tmp_path: Path) -> None:
+    """A ref that names no commit raises; only a valid ref whose tree lacks the golden reads as empty."""
+    repo = tmp_path / "repo"
+    golden = repo / "tests" / "consolidation" / "characterization" / "verdict_corpus.json"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    for key, value in (("user.name", "T"), ("user.email", "t@example.invalid"), ("commit.gpgsign", "false")):
+        subprocess.run(["git", "-C", str(repo), "config", key, value], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "--allow-empty", "-m", "no golden yet"], check=True)
+    cs.write_golden({"a|new": {"status": "pass"}}, golden)
+
+    assert cs.changed_cells("HEAD", repo=repo, golden_path=golden) == ["a|new"]
+    with pytest.raises(ValueError, match="does not resolve to a commit"):
+        cs.changed_cells("no-such-ref", repo=repo, golden_path=golden)
+
+
+def test_axis_commits_of_two_log_copies_are_one_commit_across_a_second_boundary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The WP02 flake: the two event-log copies' axis commits straddling a second must still be one commit.
+
+    ``set_window_state`` commits the repository root copy and the coordination copy separately;
+    a clock tick between them used to leave the target branch with a divergent commit, and the
+    landing refused with ``TARGET_BRANCH_CONTENT_CONFLICT``. The tick is forced here.
+    """
+    import time
+
+    mission = cs.build_shape(tmp_path / "m", "mixed_lane_canceled_wp")
+    assert cs._git(mission.repo, "rev-parse", mission.target_branch) == cs._git(mission.repo, "rev-parse", mission.mission_branch), "precondition: one shared tip"
+    real = cs._rewrite_one
+
+    def _tick_after(log: Path, edit: Callable[[dict[str, Any]], dict[str, Any] | None], message: str) -> None:
+        real(log, edit, message)
+        time.sleep(1.1)
+
+    monkeypatch.setattr(cs, "_rewrite_one", _tick_after)
+    cs.set_window_states(mission, "lane_branch_missing")
+
+    assert cs._git(mission.repo, "rev-parse", mission.target_branch) == cs._git(mission.repo, "rev-parse", mission.mission_branch)
+
+
 def test_normalization_and_code_extraction_are_stable() -> None:
     sha = "0123456789abcdef0123456789abcdef01234567"
     text = f"LANE_MOVED_AFTER_APPROVAL: commit {sha[:7]} on /tmp/x/repo after {sha} at 2026-11-08T10:00:00+00:00; SPEC_KITTY_HOME"
@@ -138,7 +178,7 @@ def test_normalization_and_code_extraction_are_stable() -> None:
     assert cs.normalize_text(text, (Path("/tmp/x"),)) == "LANE_MOVED_AFTER_APPROVAL: commit <sha:1> on <root0>/repo after <sha:2> at <ts>; SPEC_KITTY_HOME"
 
 
-@pytest.mark.timeout(600)  # the corpus budget (10 min serial); the forked workers finish it in about a minute
+@pytest.mark.timeout(600)  # the corpus budget (10 min serial); on >=8 cores the forked workers finish it in about a minute
 def test_verdict_corpus_matches_the_golden_file(tmp_path: Path) -> None:
     """Every cell recomputed; byte equality with the golden file (or a deterministic rewrite under the switch)."""
     names = list(cs.all_cells())

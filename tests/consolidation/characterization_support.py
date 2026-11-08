@@ -134,6 +134,28 @@ def _worktree_of(repo: Path, branch: str) -> Path | None:
     return None
 
 
+@contextlib.contextmanager
+def deterministic_commit_dates(repo: Path) -> Iterator[None]:
+    """Pin every git commit made inside the block to the newest committer date among *repo*'s refs.
+
+    The axes rewrite each copy of the event log (the repository root checkout and the
+    coordination worktree) and commit each copy where it lives. Two such commits on the same
+    parent with the same tree and message are one commit only when their dates match; with
+    wall-clock dates they diverge whenever the two commits straddle a second boundary, the target
+    branch then carries a commit the Mission branch does not, and the landing refuses with
+    ``TARGET_BRANCH_CONTENT_CONFLICT`` on the status log (the WP02 corpus flake). A date taken
+    from the repository makes the commit identity a function of the repository alone. The newest
+    date keeps every new commit no older than its parent (git's merge-base walk relies on dates).
+    """
+    newest = _git(repo, "for-each-ref", "--sort=-committerdate", "--count=1", "--format=%(committerdate:raw)")
+    if not newest:
+        raise AssertionError(f"deterministic_commit_dates: {repo} has no ref to take a date from")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("GIT_AUTHOR_DATE", newest)
+        patch.setenv("GIT_COMMITTER_DATE", newest)
+        yield
+
+
 # --------------------------------------------------------------------------- the mission a cell runs on
 
 
@@ -385,11 +407,10 @@ def interrupt_after_claim(mission: ShapeMission, *extra: str) -> dict[str, Any]:
     The child is a fork of this process, so any patch applied here also governs the claim the
     child persists. The global merge lock the killed run leaves is removed, as the operator is told
     to (``InterruptedConsolidate.operator_clears_stale_locks``). Only the coordination topology
-    persists frozen tips; the caller asserts ``pre_interrupt_lane_tips`` is present.
+    persists frozen tips; the caller asserts ``pre_interrupt_lane_tips`` is present. A child that
+    ends before the merge writes ``interrupt-not-reached.json`` (exit code, codes, and the
+    exception name of a crash), which :class:`ResumeUnreachableError` carries.
     """
-    from specify_cli import app as cli_app
-    from specify_cli.consolidation import executor
-
     _ensure_bootstrapped_home(mission.home)
     with warnings.catch_warnings():
         # Python 3.12+ warns that fork() in a multi-threaded process may deadlock; the child only
@@ -400,11 +421,9 @@ def interrupt_after_claim(mission: ShapeMission, *extra: str) -> dict[str, Any]:
     report.unlink(missing_ok=True)
     if pid == 0:  # pragma: no cover - the child never returns; it is SIGKILLed or exits 3
         try:
-            with mission_environment(mission) as patch:
-                patch.setattr(executor, "_phase_merge_lanes", lambda _run: os.kill(os.getpid(), signal.SIGKILL))
-                result = CliRunner().invoke(cli_app, consolidate_args(mission, "fresh", *extra))
-            output = result.output + (result.stderr if result.stderr_bytes is not None else "")
-            report.write_text(json.dumps({"exit_code": result.exit_code, "codes": list(refusal_codes(output))}), encoding="utf-8")
+            report.write_text(json.dumps(_interrupted_child_report(mission, extra)), encoding="utf-8")
+        except BaseException as crashed:  # the child must never return into the parent's stack
+            report.write_text(json.dumps({"exception": type(crashed).__name__}), encoding="utf-8")
         finally:
             os._exit(3)
     _, status = os.waitpid(pid, 0)
@@ -417,6 +436,24 @@ def interrupt_after_claim(mission: ShapeMission, *extra: str) -> dict[str, Any]:
     record: dict[str, Any] = json.loads(state.read_text(encoding="utf-8"))
     (mission.repo / _GLOBAL_MERGE_LOCK).unlink(missing_ok=True)
     return record
+
+
+def _interrupted_child_report(mission: ShapeMission, extra: Sequence[str]) -> dict[str, Any]:
+    """Run the fresh consolidate in the forked child; the report of a run that ended before its first lane merge.
+
+    A run that crashed carries the exception name (``exception``) beside its exit code and codes.
+    """
+    from specify_cli import app as cli_app
+    from specify_cli.consolidation import executor
+
+    with mission_environment(mission) as patch:
+        patch.setattr(executor, "_phase_merge_lanes", lambda _run: os.kill(os.getpid(), signal.SIGKILL))
+        result = CliRunner().invoke(cli_app, consolidate_args(mission, "fresh", *extra))
+    output = result.output + (result.stderr if result.stderr_bytes is not None else "")
+    reported: dict[str, Any] = {"exit_code": result.exit_code, "codes": list(refusal_codes(output))}
+    if result.exception is not None and not isinstance(result.exception, SystemExit):
+        reported["exception"] = type(result.exception).__name__
+    return reported
 
 
 def resume_after_interrupt(mission: ShapeMission, *, between: Callable[[ShapeMission], None] | None = None, extra: Sequence[str] = ()) -> CellResult:
@@ -448,8 +485,9 @@ def rewrite_events(mission: ShapeMission, edit: Callable[[dict[str, Any]], dict[
     copy whose bytes do not change is not committed. Modelled on
     ``canceled_dependency_support.strip_lane_head_stamps``.
     """
-    for log in _event_logs(mission.repo):
-        _rewrite_one(log, edit, message)
+    with deterministic_commit_dates(mission.repo):
+        for log in _event_logs(mission.repo):
+            _rewrite_one(log, edit, message)
 
 
 def _is_opening(event: Mapping[str, Any], wp_id: str) -> bool:
@@ -524,10 +562,12 @@ def set_window_state(mission: ShapeMission, wp_id: str, state: str, *, openers: 
             metadata[WP_WINDOW_KEY] = value
         return {**event, "policy_metadata": metadata or None}
 
-    # The counter restarts per log copy: every copy holds the same history.
-    for log in _event_logs(mission.repo):
-        counter["n"] = 0
-        _rewrite_one(log, _edit, f"test: wp_window={state} for {wp_id}")
+    # The counter restarts per log copy: every copy holds the same history. Pinned dates: two
+    # copies on one parent must stay one commit (see deterministic_commit_dates).
+    with deterministic_commit_dates(mission.repo):
+        for log in _event_logs(mission.repo):
+            counter["n"] = 0
+            _rewrite_one(log, _edit, f"test: wp_window={state} for {wp_id}")
 
 
 def _rewrite_one(log: Path, edit: Callable[[dict[str, Any]], dict[str, Any] | None], message: str) -> None:
@@ -550,11 +590,14 @@ def _rewrite_one(log: Path, edit: Callable[[dict[str, Any]], dict[str, Any] | No
 
 
 def set_window_states(mission: ShapeMission, window: str) -> None:
-    """The generic window axis: *window* on every approved code-lane work package of the shape."""
-    if window == WINDOW_ANY:
-        return
+    """The generic window axis: *window* on every approved code-lane work package of the shape.
+
+    ``window=any`` (the P1/P2 collapsed axis) is set explicitly to ``not_recorded``: any window a
+    builder wrote is stripped, so the cell never depends on which builder wrote the events (IC-02).
+    """
+    state = "not_recorded" if window == WINDOW_ANY else window
     for wp_id in mission.window_wps:
-        set_window_state(mission, wp_id, window)
+        set_window_state(mission, wp_id, state)
 
 
 def _rewrite_lane_tip(mission: ShapeMission, branch: str) -> None:
@@ -585,7 +628,9 @@ def apply_stamp(mission: ShapeMission, stamp: str) -> None:
     if stamp == "present":
         return
     if stamp == "missing":
-        strip_approval_stamps(mission.coord_mission(), mission.subject_wp)
+        # strip_approval_stamps commits each event-log copy where it lives: pin the dates.
+        with deterministic_commit_dates(mission.repo):
+            strip_approval_stamps(mission.coord_mission(), mission.subject_wp)
         return
     if stamp == "rewritten":
         if mission.topology == "single_branch":
@@ -1399,11 +1444,15 @@ def changed_cells(base_ref: str, *, repo: Path | None = None, golden_path: Path 
     """Sorted cell keys whose value differs between the golden file at *base_ref* and the working tree.
 
     Reads ``git show <base_ref>:tests/consolidation/characterization/verdict_corpus.json``; a key
-    added or removed counts as changed. A golden file absent at *base_ref* reads as empty.
+    added or removed counts as changed. *base_ref* must resolve to a commit (``ValueError``
+    otherwise: a typo must never read as "every cell added"); only a golden file absent at a valid
+    *base_ref* reads as empty.
     """
     root = repo if repo is not None else Path(_git(golden_path.parent, "rev-parse", "--show-toplevel"))
+    if _try_git(root, "rev-parse", "--verify", "-q", f"{base_ref}^{{commit}}") is None:
+        raise ValueError(f"changed_cells: {base_ref!r} does not resolve to a commit in {root}")
     relative = golden_path.resolve().relative_to(root.resolve()).as_posix()
-    shown = _try_git(root, "show", f"{base_ref}:{relative}")
-    before: dict[str, CellValue] = json.loads(shown) if shown else {}
+    present = _try_git(root, "cat-file", "-e", f"{base_ref}:{relative}") is not None
+    before: dict[str, CellValue] = json.loads(_git(root, "show", f"{base_ref}:{relative}")) if present else {}
     after = load_golden(golden_path)
     return sorted(key for key in set(before) | set(after) if before.get(key) != after.get(key))
