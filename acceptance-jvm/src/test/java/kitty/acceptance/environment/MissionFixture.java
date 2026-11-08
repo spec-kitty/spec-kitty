@@ -64,9 +64,15 @@ public final class MissionFixture {
 
     /**
      * Creates a coordination Mission and returns the full Mission slug the CLI assigned to it.
-     * The topology is explicit: since #7282 the default is an unsettled {@code single_branch}
-     * Mission whose create switches the checkout onto a Mission branch, which a second create
-     * then refuses while the first one's {@code spec.md} scaffold is uncommitted.
+     *
+     * <p>The topology is explicit because the scenarios that use this builder (abort, discard,
+     * per-Mission status) are about a coordination Mission. Since #7282 a create without
+     * {@code --topology} records an unsettled {@code single_branch} Mission instead: it switches the
+     * checkout onto that Mission's topic branch and leaves its {@code spec.md} scaffold uncommitted.
+     * A second such create is then refused with {@code WRITE_CHECKOUT_DIRTY}, and that refusal is
+     * intended: the first Mission's untracked scaffold would otherwise follow the checkout onto the
+     * second Mission's branch. A scenario about the default topology commits or discards the first
+     * scaffold before the next create.
      */
     public String createMission(String slug) {
         ensureProject();

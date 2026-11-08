@@ -99,7 +99,10 @@ worktree. A builder that means a coordination Mission therefore asks for one:
 `MissionLifecycle.planMission` and `createMission`, and `MissionFixture.createMission`, pass
 `--topology lanes_with_coord` (`MissionLifecycle.COORDINATION_TOPOLOGY`), and
 `planSingleBranchMission` passes `--topology single_branch`. A scenario about the size default
-itself must call `mission create` with no `--topology` explicitly. A Python acceptance helper
+itself must call `mission create` with no `--topology` explicitly, and must commit or discard each
+Mission's `spec.md` scaffold before the next create: a default create refuses a dirty checkout
+with `WRITE_CHECKOUT_DIRTY`, by design, so one Mission's untracked scaffold never follows the
+checkout onto another Mission's branch. A Python acceptance helper
 that pins `SPEC_KITTY_HOME` puts the home beside the project checkout, never inside it: cache
 files written there would dirty the write checkout, and the Mission-branch switch refuses a
 dirty one ([#7342](https://github.com/spec-kitty/spec-kitty/issues/7342)).
