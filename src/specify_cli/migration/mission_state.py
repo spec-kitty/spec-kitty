@@ -1530,7 +1530,9 @@ def _canonicalize_meta(
         tracked_id, tracked_refusal = _tracked_mission_id_for_repair(mission_dir)
         if tracked_refusal is not None:
             raise ValueError(tracked_refusal)
-        if tracked_id is not None:
+        # Only a canonical ULID is reused; a legacy non-ULID tracked id is
+        # re-minted deterministically, as the repair did before (operator ruling).
+        if tracked_id is not None and ULID_PATTERN.match(tracked_id):
             meta[MISSION_ID_KEY] = tracked_id
             actions.append("mission_id_kept_from_tracked_meta")
         else:
