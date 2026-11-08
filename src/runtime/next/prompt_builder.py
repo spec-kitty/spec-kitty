@@ -187,6 +187,14 @@ def _build_template_prompt(
     """Build prompt from a command template file."""
     result = resolve_command(f"{action}.md", repo_root, mission=mission_type)
     template_content = result.path.read_text(encoding="utf-8")
+    # The built-in mission-step templates carry ``<!-- spdd:reasons-block -->``
+    # markers; the slash-command and skills renderers process them through this
+    # one seam, so the runtime prompt path must too (#5129). Otherwise the
+    # agent-facing prompt shows the marker comments verbatim, and with SPDD
+    # inactive the block that should have been removed.
+    from charter.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415 — lazy: charter offering surface, not needed on the WP-prompt path
+
+    template_content = apply_spdd_blocks_for_project(template_content, repo_root)
 
     header = _mission_context_header(mission_slug, feature_dir, agent)
     governance = _governance_context(repo_root, action=action, feature_dir=feature_dir, owned=owned)

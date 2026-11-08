@@ -412,6 +412,62 @@ class TestBuildPromptWP:
 class TestBuildPromptTemplate:
     @patch("runtime.next.prompt_builder.resolve_command")
     @patch("runtime.next.prompt_builder.resolve_project_governance")
+    def test_template_prompt_processes_spdd_reasons_markers(self, mock_governance: MagicMock, mock_resolve: MagicMock, feature_with_wp: Path) -> None:
+        """#5129: the runtime prompt path applies the SPDD renderer to the template.
+
+        The built-in mission-step prompts carry ``<!-- spdd:reasons-block -->``
+        markers. The slash-command and skills renderers process them
+        (``apply_spdd_blocks_for_project``); the ``spec-kitty next`` prompt path
+        inserted the raw template, so an agent-facing prompt showed the marker
+        comments verbatim — and, with SPDD inactive, the whole block that should
+        have been removed.
+        """
+        from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
+
+        mock_path = feature_with_wp / "fake-template.md"
+        mock_path.write_text(
+            "# Specify Template\n"
+            "Create spec.md.\n"
+            "\n"
+            "<!-- spdd:reasons-block:start -->\n"
+            "\n"
+            "### REASONS Guidance\n"
+            "\n"
+            "Write a REASONS canvas.\n"
+            "\n"
+            "<!-- spdd:reasons-block:end -->\n",
+            encoding="utf-8",
+        )
+        mock_result = MagicMock()
+        mock_result.path = mock_path
+        mock_resolve.return_value = mock_result
+        mock_governance.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=["test-first"],
+            directives=["TEST_FIRST"],
+            tools=["git", "pytest"],
+            diagnostics=[],
+        )
+
+        repo_root = feature_with_wp.parent.parent
+        text, path = build_prompt(
+            action="specify",
+            feature_dir=feature_with_wp,
+            mission_slug="042-test-feature",
+            wp_id=None,
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+
+        assert "spdd:reasons-block" not in text
+        assert "Create spec.md." in text
+        active = is_spdd_reasons_active(repo_root)
+        assert ("Write a REASONS canvas." in text) is active
+        path.unlink()
+
+    @patch("runtime.next.prompt_builder.resolve_command")
+    @patch("runtime.next.prompt_builder.resolve_project_governance")
     def test_template_prompt_has_header(self, mock_governance: MagicMock, mock_resolve: MagicMock, feature_with_wp: Path) -> None:
         # Mock the resolver to return a fake template
         mock_path = feature_with_wp / "fake-template.md"
