@@ -102,12 +102,12 @@ Hand-authored companion to the generated `consolidate` section below. `consolida
 Mission on its **local** target branch only; it never publishes to a remote unless `--push`
 is passed.
 
-**What `--dry-run` does not check.** The dry run is allowed before the Mission's mission branch
-exists, so it does not report the real run's "Missing mission branch" refusal: a clean forecast
-does not prove that the mission branch is present. Under the default squash strategy the preview
+**What `--dry-run` does not check.** The dry run refuses with the real run's "Missing mission
+branch" refusal when the Mission's mission branch does not exist (#7267), so a clean forecast
+does prove that branch present. Under the default squash strategy the preview
 also leaves out lanes not yet merged into the mission branch, so it can refuse a landing that the
 real run makes (#7268). It does not run the real run's canceled-content checks, so it can also
-pass a landing that the real run refuses (#7296). See #7267.
+pass a landing that the real run refuses (#7296).
 
 | Exit code | Meaning |
 |---|---|

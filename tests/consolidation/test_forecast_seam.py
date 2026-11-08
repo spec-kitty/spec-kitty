@@ -69,6 +69,20 @@ def test_unresolved_slug_raises_exit_1(capsys: pytest.CaptureFixture[str]) -> No
     assert exc.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert payload["error"] == "Mission slug could not be resolved. Use --mission <slug>."
+    # #5373: every dry-run ``--json`` error envelope carries a stable code.
+    assert payload["error_code"] == forecast.MISSION_SLUG_UNRESOLVED
+
+
+def _mission_branch_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt a fake (non-git) fixture out of the #7267 mission-branch preflight.
+
+    ``run_dry_run_forecast`` refuses when the Mission branch is missing, like the
+    real run. The fixtures in this file are plain directory trees with no git
+    repository, so the branch can never exist; the tests below exercise OTHER
+    forecast concerns. The mission-branch refusal itself is covered end-to-end on
+    real repositories by ``test_dry_run_refuses_missing_mission_branch.py``.
+    """
+    monkeypatch.setattr(forecast, "_check_mission_branch", lambda *args, **kwargs: (True, None))
 
 
 def _lanes_json_for(mission: object) -> None:
@@ -104,6 +118,7 @@ def test_clean_forecast_json_payload_key_set(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
@@ -140,6 +155,7 @@ def test_squash_conflict_forecast_blocks_with_stable_json(
 ) -> None:
     """#4892: dry-run must forecast the real squash content blocker."""
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission,
@@ -196,6 +212,7 @@ def test_retaining_mission_forecast_reports_resolved_retention(
     decision (both False) plus ``retention`` provenance, not raw flag echo.
     """
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     meta_path = mission.mission_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["retain_branches"] = True
@@ -253,6 +270,7 @@ def test_forecast_retention_reads_primary_metadata_surface_across_topologies(
     ``resolve_merge_retention``.
     """
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     meta_path = mission.mission_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["retain_branches"] = True
@@ -341,6 +359,7 @@ def test_review_artifact_conflict_blocks_json(
     from specify_cli.review.artifacts import ReviewCycleArtifact
 
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
@@ -400,6 +419,40 @@ def test_missing_lanes_raises_exit_1(
     assert exc.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert "lanes.json is required" in payload["error"]
+    # #5373: a stable SCREAMING_SNAKE code, so a scripted preflight can act on
+    # the refusal without parsing prose.
+    assert payload["error_code"] == forecast.LANES_MANIFEST_UNREADABLE
+
+
+def test_corrupt_lanes_json_error_carries_error_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#5373: the corrupt-``lanes.json`` dry-run envelope carries ``error_code``.
+
+    Missing and corrupt ``lanes.json`` share one ``except`` arm in the forecast;
+    this pins the corrupt sibling so a future split of that arm cannot drop the
+    machine-readable code from either path.
+    """
+    mission = create_mission_fixture(tmp_path)
+    (mission.mission_dir / "lanes.json").write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(
+        "specify_cli.consolidation.forecast.get_main_repo_root", lambda _r: mission.repo_root
+    )
+    with pytest.raises(typer.Exit) as exc:
+        forecast.run_dry_run_forecast(
+            repo_root=mission.repo_root,
+            resolved_feature=mission.mission_slug,
+            resolved_target_branch="main",
+            resolved_strategy=MergeStrategy.SQUASH,
+            delete_branch=True,
+            remove_worktree=True,
+            push=False,
+            json_output=True,
+        )
+    assert exc.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert "lanes.json" in payload["error"]
+    assert payload["error_code"] == forecast.LANES_MANIFEST_UNREADABLE
 
 
 def test_scan_would_assign_mission_number_handles_failure(tmp_path: Path) -> None:
@@ -487,6 +540,7 @@ def test_clean_forecast_human_channel_prints_would_assign(
 ) -> None:
     """Human-output clean forecast with a would-assign number (line 201 + 207)."""
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
@@ -521,6 +575,7 @@ def test_squash_conflict_forecast_human_channel(
     branch is covered by ``test_squash_conflict_forecast_blocks_with_stable_json``).
     """
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission,
@@ -570,6 +625,7 @@ def test_preview_runtime_error_routes_through_dry_run_error(
     exits 1, rather than surfacing a traceback that corrupts the JSON stream.
     """
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission,
@@ -604,6 +660,8 @@ def test_preview_runtime_error_routes_through_dry_run_error(
     # --json output must remain valid JSON, carrying the error — never a traceback.
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert "Failed to create merge preview worktree" in payload["error"]
+    # #5373: a stable code on this envelope too, like every other dry-run refusal.
+    assert payload["error_code"] == forecast.TARGET_INTEGRATION_PREVIEW_FAILED
 
 
 def test_preview_oserror_routes_through_dry_run_error(
@@ -616,6 +674,7 @@ def test_preview_oserror_routes_through_dry_run_error(
     traceback.
     """
     mission = create_mission_fixture(tmp_path)
+    _mission_branch_present(monkeypatch)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
         mission,
@@ -649,3 +708,4 @@ def test_preview_oserror_routes_through_dry_run_error(
     assert exc.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert "No space left on device" in payload["error"]
+    assert payload["error_code"] == forecast.TARGET_INTEGRATION_PREVIEW_FAILED
