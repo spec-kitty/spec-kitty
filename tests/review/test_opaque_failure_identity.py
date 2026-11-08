@@ -173,6 +173,27 @@ def test_same_stderr_with_different_stdout_is_a_new_failure(tmp_path: Path) -> N
     assert new_failures == (candidate_failure,)
 
 
+def test_stream_boundary_cannot_be_forged_by_output_content(tmp_path: Path) -> None:
+    """Landing review fold (#6751): the two streams are framed by length.
+
+    A plain separator is not unambiguous when the output itself may contain it:
+    with ``stdout\\0<out>\\0stderr\\0<err>`` framing, text moved across the
+    stream boundary produced the same digest source, so two different runs
+    shared one identity. Length-prefixed framing makes the boundary part of the
+    identity.
+    """
+    marker = "\x00stderr\x00"
+    (baseline_failure,) = _parse(tmp_path, returncode=1, stdout=f"a{marker}b", stderr="c")
+    (candidate_failure,) = _parse(tmp_path, returncode=1, stdout="a", stderr=f"b{marker}c")
+
+    assert baseline_failure.output_digest != candidate_failure.output_digest
+
+    outcome, new_failures, _pre_existing = _classify((candidate_failure,), _baseline((baseline_failure,)))
+
+    assert outcome is GateOutcome.NEW_FAILURES
+    assert new_failures == (candidate_failure,)
+
+
 def test_named_and_opaque_failures_never_match() -> None:
     """A named entry that happens to sit in the opaque name is still a different identity."""
     named_in_placeholder = BaselineFailure(test=OPAQUE_FAILURE_TEST_ID, error="boom", file="unknown")
