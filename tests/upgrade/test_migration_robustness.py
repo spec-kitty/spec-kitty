@@ -375,7 +375,8 @@ class TestVenvCorruptionHazardFR003b:
     currently names to match it -- dropping extras -- REGARDLESS of whether
     that path is a dedicated, already-populated 3.13 venv.
 
-    Two live call sites do exactly this today:
+    Two call sites did exactly this (the docs-index one now runs
+    ``sys.executable`` instead and no longer starts ``uv``, #5441):
     ``tests/charter/test_interview_mapping_mission_alias.py`` (the
     ``subprocess.run(["uv", "run", "--frozen", "python", ...])`` call in
     ``test_synthetic_mission_type_is_picked_up_by_both_rosters``) and
@@ -527,6 +528,27 @@ class TestVenvCorruptionHazardFR003b:
             f"pyvenv.cfg changed:\nbefore={before!r}\nafter={after!r}"
         )
 
+    def test_docs_index_hash_seed_call_site_runs_no_uv_at_all(self) -> None:
+        """The docs-index hash-seed test no longer starts ``uv run`` (#5441).
+
+        It was the second named call site of the venv-corruption hazard below.
+        It now runs the test's own interpreter (``sys.executable``) with the repo
+        root and ``src`` on ``sys.path``, so it cannot resync any project
+        environment and drops out of the end-to-end hazard parametrization.
+        This keeps it that way: a revert to a ``uv`` argv goes red here.
+        """
+        source_path = Path(__file__).resolve().parents[2] / "tests/docs/test_docs_index.py"
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        func_node = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "test_render_index_is_byte_stable_across_hash_seeds")
+        runs = [
+            node
+            for node in ast.walk(func_node)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "run" and node.args and isinstance(node.args[0], ast.List)
+        ]
+        assert len(runs) == 1, f"expected exactly one .run([...]) call, found {len(runs)}"
+        first = runs[0].args[0].elts[0]
+        assert ast.unparse(first) == "sys.executable", f"the call site must run sys.executable, not {ast.unparse(first)!r}"
+
     @pytest.mark.slow
     @pytest.mark.parametrize(
         ("source_relpath", "function_name"),
@@ -534,10 +556,6 @@ class TestVenvCorruptionHazardFR003b:
             (
                 "tests/charter/test_interview_mapping_mission_alias.py",
                 "test_synthetic_mission_type_is_picked_up_by_both_rosters",
-            ),
-            (
-                "tests/docs/test_docs_index.py",
-                "test_render_index_is_byte_stable_across_hash_seeds",
             ),
         ],
     )
