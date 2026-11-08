@@ -192,6 +192,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6771": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#7358": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
