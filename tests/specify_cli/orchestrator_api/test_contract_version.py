@@ -3,7 +3,9 @@
 
 (Superseded repeatedly since. The pin's current value is whatever ``envelope.CONTRACT_VERSION``
 is — this module is the only place allowed to spell it, so read the assertion, not this paragraph.
-It read ``1.14.0`` after the safe-commit verbs gained three ``SAFE_COMMIT_*`` error codes (#5443);
+It read ``1.26.0`` after ``start-implementation``, ``start-review`` and ``transition`` gained the
+``BOOKKEEPING_FAILED`` envelope (#5642); before that it read ``1.14.0`` after the safe-commit verbs
+gained three ``SAFE_COMMIT_*`` error codes (#5443);
 it read ``1.13.0`` after ``start-implementation`` gained the ``STATUS_LOCK_HELD`` envelope (#5819); it read ``1.12.0`` after
 governed planning (#5846) added six verbs; it read ``1.11.0`` after ``accept-mission`` and
 ``consolidate-mission`` gained ``--origin-check`` and the stale/unreachable-origin refusal with
@@ -87,8 +89,8 @@ def test_contract_version_response_reports_the_current_contract_version() -> Non
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.25.0"
-    assert envelope["contract_version"] == "1.25.0"
+    assert envelope["data"]["api_version"] == "1.26.0"
+    assert envelope["contract_version"] == "1.26.0"
 
 
 def test_min_provider_version_unchanged() -> None:

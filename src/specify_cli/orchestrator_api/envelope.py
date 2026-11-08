@@ -200,7 +200,15 @@ from kernel.clock import now_utc_iso
 # ``topology_source`` / ``topology_provisional`` and ``tasks`` gains ``topology_decision``
 # (provisional topology settled at the first finalize). Additive fields plus a previously-failing
 # call that now succeeds, so a minor bump; no field or ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.25.0"
+# 1.26.0: ``start-implementation``, ``start-review`` and ``transition`` can newly fail with
+# ``BOOKKEEPING_FAILED`` (#5642). Their status write goes through the transactional shell, whose
+# ``BookkeepingError`` family (policy refusal, lock timeout, unresolvable worktree, diverged or
+# unreadable coordination status surface) is NOT a ``TransitionError``, so it escaped every
+# ``except`` arm as a raw traceback with an empty stdout. The envelope carries the exception's own
+# code in ``data.bookkeeping_error_code``, so a retryable lock timeout stays distinguishable from a
+# refusal that needs an operator. A new ``error_code`` on existing verbs, so a minor bump; no field
+# or ``error_code`` is removed or renamed.
+CONTRACT_VERSION = "1.26.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

@@ -572,6 +572,7 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             )
             return
 
+    from specify_cli.coordination.transaction_errors import BookkeepingError
     from specify_cli.status import TransitionError
     from specify_cli.status import WorkPackageClaimConflict, start_implementation_status
 
@@ -634,6 +635,12 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
+    except BookkeepingError as exc:
+        # #5642: the transactional status write's own refusal family (policy
+        # refusal, lock timeout, diverged/unreadable coordination status surface,
+        # unresolvable worktree). Not a ``TransitionError``, so before this arm it
+        # escaped as a raw traceback with nothing on stdout.
+        _common._fail_from_bookkeeping_error(cmd, exc)
 
     data = {
         **_common._mission_identity_payload(mission_dir),
@@ -696,6 +703,7 @@ def start_review(
         _fail_wp_not_found(cmd, wp, mission)
         return
 
+    from specify_cli.coordination.transaction_errors import BookkeepingError
     from specify_cli.status import TransitionError
     from specify_cli.status import WorkPackageClaimConflict, start_review_status
 
@@ -732,6 +740,12 @@ def start_review(
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
+    except BookkeepingError as exc:
+        # #5642: the transactional status write's own refusal family (policy
+        # refusal, lock timeout, diverged/unreadable coordination status surface,
+        # unresolvable worktree). Not a ``TransitionError``, so before this arm it
+        # escaped as a raw traceback with nothing on stdout.
+        _common._fail_from_bookkeeping_error(cmd, exc)
 
     data = {
         **_common._mission_identity_payload(mission_dir),
@@ -875,6 +889,7 @@ def transition(
         transition_ws = _existing_workspace_for_stamp(cmd, main_repo_root, mission, mission_dir, wp)
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
+    from specify_cli.coordination.transaction_errors import BookkeepingError
     from specify_cli.status import TransitionError
     from specify_cli.status import TransitionRequest
 
@@ -901,6 +916,12 @@ def transition(
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
+    except BookkeepingError as exc:
+        # #5642: the transactional status write's own refusal family (policy
+        # refusal, lock timeout, diverged/unreadable coordination status surface,
+        # unresolvable worktree). Not a ``TransitionError``, so before this arm it
+        # escaped as a raw traceback with nothing on stdout.
+        _common._fail_from_bookkeeping_error(cmd, exc)
 
     # T032 (#5115 review cycle 2, Issue 2): this for_review transition does
     # not always auto-commit, so under a foreign post-commit hook it is

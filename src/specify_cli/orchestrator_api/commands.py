@@ -17,6 +17,10 @@ Error codes used:
                                  (fail-closed read-path guard fired; carries coord/primary candidates)
   WP_NOT_FOUND                -- WP ID does not exist in the mission
   TRANSITION_REJECTED         -- transition not allowed by state machine
+  BOOKKEEPING_FAILED          -- #5642: the transactional status write refused
+                                 (a BookkeepingError, which is NOT a
+                                 TransitionError); the refusal's own code
+                                 travels in data.bookkeeping_error_code
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
   MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
   HISTORY_COMMIT_FAILED       -- append-history could not create its commit
@@ -139,7 +143,8 @@ from collections.abc import Callable
 
 import typer
 
-from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
+from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 
@@ -202,6 +207,11 @@ _CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exc
 # >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
 _EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
+# The read-path resolver's fail-closed refusal family (#5156). ``CoordinationBranchDeleted``
+# is a subclass, so the base class covers both the "neither surface carries the mission"
+# refusal and the data-loss "declared coordination branch is gone" one.
+_STATUS_READ_PATH_ERRORS = (StatusReadPathNotFound,)
+
 
 class _JSONErrorGroup(TyperGroup):
     """Click Group that guarantees JSON envelopes for all error paths.
@@ -247,6 +257,34 @@ class _JSONErrorGroup(TyperGroup):
             )
         )
 
+    def _emit_status_read_path_error(self, exc: BaseException) -> None:
+        """Emit the read-path resolver's typed refusal as a JSON envelope (#5156).
+
+        Every mission-scoped verb resolves its mission directory through
+        ``_common._resolve_mission_dir_or_fail``, which already maps
+        :class:`StatusReadPathNotFound` to this envelope. This arm is the
+        last-resort net for the same refusal raised anywhere else in a command
+        body (the transactional status write re-resolves its surface, and a
+        future caller may not route through the seam): without it the exception
+        escapes every ``except`` arm as a raw traceback and stdout stays empty,
+        breaking the JSON-first contract this group exists to guarantee.
+
+        The emitted ``error_code`` is the resolver's own code
+        (``STATUS_READ_PATH_NOT_FOUND``, or ``COORDINATION_BRANCH_DELETED`` for
+        the data-loss subclass) only when the contract registers it; otherwise
+        it degrades to the registered ``STATUS_READ_PATH_NOT_FOUND`` with the
+        real code in ``data.status_read_path_error_code``, so this net can never
+        itself emit an unregistered code.
+        """
+        real_code = getattr(exc, "error_code", None) or "STATUS_READ_PATH_NOT_FOUND"
+        data = _common._status_read_path_not_found_data(exc)
+        if is_allowed_error_code("orchestrator_api", real_code):
+            envelope_code = real_code
+        else:
+            envelope_code = "STATUS_READ_PATH_NOT_FOUND"
+            data["status_read_path_error_code"] = real_code
+        _emit(make_envelope(command="unknown", success=False, data=data, error_code=envelope_code))
+
     def make_context(self, info_name, args, parent=None, **extra):
         """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
 
@@ -276,6 +314,9 @@ class _JSONErrorGroup(TyperGroup):
         except _CLICK_ABORTS:
             self._emit_error("Command aborted")
             ctx.exit(2)
+        except _STATUS_READ_PATH_ERRORS as exc:
+            self._emit_status_read_path_error(exc)
+            ctx.exit(1)
 
     def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]
         try:
@@ -292,6 +333,9 @@ class _JSONErrorGroup(TyperGroup):
         except _CLICK_ABORTS:
             self._emit_error("Command aborted")
             raise SystemExit(2)
+        except _STATUS_READ_PATH_ERRORS as exc:
+            self._emit_status_read_path_error(exc)
+            raise SystemExit(1) from exc
         except _EXIT as exc:
             raise SystemExit(exc.exit_code) from exc
         except SystemExit:

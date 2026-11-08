@@ -922,6 +922,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_PROTECTED_BRANCH` | append-history | Safe commit refused a protected branch |
 | `SAFE_COMMIT_RECOVERY_FAILED` | append-history | Safe commit created or attempted a commit but could not restore caller staging |
 | `TRANSITION_REJECTED` | start-implementation, start-review, transition | Guard failure or invalid transition |
+| `BOOKKEEPING_FAILED` | start-implementation, start-review, transition | The transactional status write refused; `data.bookkeeping_error_code` carries the refusal's own code (`BOOKKEEPING_LOCK_TIMEOUT` is retryable, `BOOKKEEPING_POLICY_REFUSED` / `COORD_STATUS_SURFACE_DIVERGED` need an operator) |
 | `WP_ALREADY_CLAIMED` | start-implementation, start-review | Another actor owns the WP |
 | `MISSION_ALREADY_EXISTS` | specify | Delegate mission-creation call refused a duplicate (typed `MissionAlreadyExistsError` signal, #3861) |
 | `MISSION_CREATE_FAILED` | specify | Mission creation failed for a reason other than a typed duplicate signal |
