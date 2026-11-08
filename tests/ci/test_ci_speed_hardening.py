@@ -93,6 +93,7 @@ def test_static_checks_have_one_owner_and_required_router_waits() -> None:
         "tests-events-consumers",
         "tests-path-literal-audit",
         "mission-state-audit",
+        "docs-site",  # required since #6937 (QW11)
     ]
     # The clean-install-verification name is a dynamic expression; assert it
     # contains the static suffix (the label no-op branch is conditional).
