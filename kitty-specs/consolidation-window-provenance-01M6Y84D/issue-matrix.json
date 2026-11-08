@@ -61,7 +61,7 @@
       "wp": null
     },
     "#7362": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Operator ruling 2026-11-08: out of scope for S1",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#7403": {
