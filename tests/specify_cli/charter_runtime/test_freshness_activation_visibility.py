@@ -47,6 +47,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import yaml
 
 from specify_cli.charter_runtime.freshness import compute_freshness
 
@@ -248,15 +249,25 @@ def test_multi_edit_drift_reports_single_stale_signal(tmp_path: Path) -> None:
 
 
 def test_graph_schema_valid_seed_used_by_this_suite(tmp_path: Path) -> None:
-    """Sanity: ``seed_graph`` (shared fixture) produces a schema-conformant
-    graph accepted by this module's real ``compute_freshness`` path (no
-    pydantic validation surprises at the freshness layer, which only checks
-    existence/mtime of ``graph.yaml`` — unlike ``consistency_check``, which
-    this module no longer calls at all)."""
+    """Sanity: ``seed_graph`` (shared fixture) produces a graph the DRG model accepts.
+
+    The freshness layer only checks existence/mtime of ``graph.yaml``, so it never
+    noticed that the fixture's document was schema-invalid (missing the pydantic-
+    required ``generated_at``/``generated_by``) and that any suite reaching
+    ``load_validated_graph`` through it failed for a reason it did not cause (#2778).
+    """
     # The shared ``seed_graph`` fixture (tests/specify_cli/charter_preflight/_fixtures.py,
     # used by ~15 suites) still seeds the retired root; freshness reads it through
     # the temporary read fallback (FR-011) until WP14 removes it.
     graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     seed_graph(tmp_path)
     assert graph_path.exists()
-    assert "nodes" in graph_path.read_text(encoding="utf-8")
+
+    from charter.offering.drg.models import DRGGraph, load_graph_document
+
+    document = load_graph_document(
+        yaml.safe_load(graph_path.read_text(encoding="utf-8")),
+        source=str(graph_path),
+    )
+    assert isinstance(document, DRGGraph)
+    assert document.generated_at and document.generated_by

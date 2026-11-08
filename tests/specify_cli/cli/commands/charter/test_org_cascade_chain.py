@@ -475,7 +475,15 @@ class TestNoOrgPackRegression:
             project_root, self._CASCADE_SOURCE_KIND, self._CASCADE_SOURCE_ID
         )
         assert result.exit_code == 0, result.output
-        assert "not activated" in result.output.lower()
+        # #6685/#7112: an absent activation key for a kind whose ``effective_when_absent``
+        # is ``all`` puts every artifact in force, so the referenced built-in targets are
+        # reported as already in force (a note), not as "not activated" warnings.
+        output = result.output.lower()
+        assert "note: referenced" in output
+        assert "already in force" in output
+        assert "directive/001-architectural-integrity-standard" in output
+        assert "tactic/dependency-hygiene" in output
+        assert "was not activated" not in output
 
 
 # ---------------------------------------------------------------------------
@@ -517,7 +525,11 @@ class TestNoCascadeWarningNamesOrgPackArtifacts:
             f"no-cascade warning did not name the org-pack requires target "
             f"by its config-stem ID; output:\n{result.output}"
         )
-        assert "not activated" in result.output.lower()
+        # #7112: post-#6685 the reference is in force (kind ``directive`` has no written
+        # allow list, so ``effective_when_absent`` decides), so the report is the note that
+        # names the org-pack artifact -- not the retired "was not activated" warning.
+        assert "referenced directive/b-directive is already in force" in result.output.lower()
+        assert "was not activated" not in result.output.lower()
 
 
 # ---------------------------------------------------------------------------

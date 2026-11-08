@@ -220,10 +220,24 @@ def _resolve_bundle_hash(
 
 
 def seed_graph(repo: Path) -> Path:
-    """Create ``.kittify/charter-packs/graph.yaml`` (a minimal valid graph)."""
+    """Create ``.kittify/charter-packs/graph.yaml`` (a minimal, schema-VALID graph).
+
+    ``DRGGraph`` requires ``generated_at`` and ``generated_by`` (#2778). A graph
+    without them satisfies the freshness reader, which only stats the file, but
+    is rejected by ``load_validated_graph`` the moment a test reaches the real
+    validator -- so the shared fixture seeded a trap for every future
+    freshness-adjacent suite, not a valid project.
+    """
     graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
-    graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
+    graph_path.write_text(
+        "schema_version: '1.0'\n"
+        "generated_at: '2026-01-01T00:00:00+00:00'\n"
+        "generated_by: tests/specify_cli/charter_preflight/_fixtures.py (seed_graph)\n"
+        "nodes: []\n"
+        "edges: []\n",
+        encoding="utf-8",
+    )
     return graph_path
 
 
