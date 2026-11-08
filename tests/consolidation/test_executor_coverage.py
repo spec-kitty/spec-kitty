@@ -257,7 +257,9 @@ def test_phase_baseline_and_surface_resolves_paths(tmp_path: Path) -> None:
     # The run's status dir is resolved ONCE through the write accessor in the unlocked pre-phase.
     run.feature_dir = surface.parent
     with (
-        patch_executor_family("run_command", return_value=(0, "deadbeef\n", "")),
+        # #5058: the target tip read routes through ``capture_branch_tip``
+        # (``refs/heads/``-qualified), not a bare ``run_command`` rev-parse.
+        patch_executor_family("capture_branch_tip", return_value="deadbeef"),
         patch_executor_family("resolve_mission_identity", return_value=SimpleNamespace(mission_id="01XID")),
         patch_executor_family("is_under_worktrees_segment", return_value=True),
         patch_executor_family("get_state_path", return_value=tmp_path / "state.json"),

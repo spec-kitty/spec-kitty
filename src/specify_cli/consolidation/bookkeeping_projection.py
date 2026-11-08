@@ -28,6 +28,7 @@ from specify_cli.coordination.coherence import is_coordination_kind_file
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.meta_keys import COORDINATION_KEYS, MISSION_NUMBER_KEY
@@ -479,16 +480,17 @@ def _target_branch_still_at_baseline(
     target_branch: str,
     baseline_sha: str,
 ) -> bool:
-    """Return True when target still points at the pre-target-merge baseline."""
+    """Return True when target still points at the pre-target-merge baseline.
+
+    #5058: the tip read routes through ``capture_branch_tip`` — the canonical
+    ``refs/heads/``-qualified authority — so a tag sharing the target branch's
+    name can never make this comparison read the tag SHA (the #4857
+    tag-collision class, closed for classifiers by #5039).
+    """
     if not baseline_sha or baseline_sha == "HEAD~1":
         return False
-    ret, out, _err = run_command(
-        ["git", "rev-parse", target_branch],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    return bool(ret == 0 and out.strip() == baseline_sha)
+    tip = capture_branch_tip(main_repo, target_branch)
+    return tip == baseline_sha
 
 
 def _union_event_logs(

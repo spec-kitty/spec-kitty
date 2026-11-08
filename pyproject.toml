@@ -2452,6 +2452,8 @@ module = [
     "specify_cli.tasks.issue_matrix_migration",     # load_issue_matrix() -> list[IssueMatrixRow] (merge_gates)
     "specify_cli.cli.commands._test_env_check",     # assert_typer_click_lock_parity() -> list[PackageSkew] (review, #5222)
     "specify_cli.core.paths",                       # locate_project_root() -> Path | None (core.ledger_posture)
+    "specify_cli.core.git_ops",                     # is_git_repo() -> bool (core.vcs.git, #5058)
+    "specify_cli.core.vcs.git",                     # capture_branch_tip() -> str | None (consolidation target-tip captures, #5058)
     "specify_cli.core.errors",                      # error base classes subclassed by callers
     "specify_cli.core.subtask_recipe",              # mark_status_recipe() -> str (workflow_executor, prompt_builder, #7108)
     "specify_cli.requirement_mapping.grammar",      # requirement-mapping grammar types
