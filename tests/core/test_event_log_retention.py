@@ -1458,3 +1458,21 @@ def test_a_slug_naming_two_mission_dirs_is_ambiguous_and_not_found(project: Path
 
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
     assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
+
+
+# --- #6831 landing folds -------------------------------------------------------
+
+
+def test_non_utf8_op_record_counts_as_open_and_does_not_abort_the_scan(project: Path) -> None:
+    """A record that cannot be decoded is an open Op; the rest of the scan still runs."""
+    invocation_id = "01BAD000000000000000000000"
+    log = _op_log(project, invocation_id, 90)
+    (project / "kitty-ops" / f"{invocation_id}.jsonl").write_bytes(b"\xff\xfe{\n")
+    run_dir = _new_run_dir(project, {}, 90)
+
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+
+    items = _by_path(plan.items, project)
+    assert items[_rel(log, project)].reason == REASON_OP_OPEN
+    assert items[_rel(run_dir, project)].reason == REASON_NO_MISSION
+

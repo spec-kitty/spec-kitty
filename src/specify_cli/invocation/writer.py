@@ -116,7 +116,8 @@ def _record_has_completed_event(path: Path) -> bool:
                     continue
                 if isinstance(event, dict) and event.get("event") == "completed":
                     return True
-    except OSError:
+    except (OSError, UnicodeDecodeError):
+        # Unreadable or undecodable: not evidence of closure, so the Op stays open.
         return False
     return False
 
