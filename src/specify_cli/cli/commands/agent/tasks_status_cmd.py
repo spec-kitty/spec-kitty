@@ -407,21 +407,23 @@ def _st_status_surface(st: _StatusState) -> StatusReadSurface:
 
 
 def _st_reduce_surface(st: _StatusState, surface: StatusReadSurface) -> None:
-    """Read the surface once and reduce it once; every status field of the board reads the result.
+    """Read the surface once; every status field of the board reads the result.
 
     ``st.events`` / ``st.snapshot`` keep their lane-transition-only shape (the
     readiness reduction); ``st.wp_states`` is the full reduction (transitions and
     annotations) the row companions, review verdict and arbiter override read.
-    A corrupt log degrades to an empty board (render, not crash); an unreadable
-    ref is the door's typed refusal and propagates (never an empty history).
+    A log that cannot be read or parsed fails the command closed (exit 1): an
+    empty board would read as "no progress", and the board has no second source
+    to fall back to. An unreadable ref is the door's typed refusal and propagates
+    (never an empty history).
     """
     from specify_cli.status import StoreError, read_status_stream, reduce
 
     try:
         stream = read_status_stream(surface)
-    except (StoreError, OSError, ValueError):
-        st.events, st.snapshot, st.wp_states = [], None, {}
-        return
+    except (StoreError, OSError, ValueError) as exc:
+        _status_error(st.json_output, f"The status log of {st.mission_slug} cannot be read: {exc}")
+        raise typer.Exit(1) from exc
     st.events = list(stream.transitions)
     st.snapshot = reduce(st.events) if st.events else None
     st.wp_states = {wp_id: dict(state) for wp_id, state in reduce(stream.transitions, stream.annotations).work_packages.items()}
@@ -473,9 +475,9 @@ def _st_load_work_packages(st: _StatusState) -> None:
     each WP's frontmatter into a status row and freezes the declared dependencies
     for the pure ``build_status_view`` readiness map.
 
-    One source, one reduction per board (#3829 item 3, #7335): the read door
+    One source, read once per board (#3829 item 3, #7335): the read door
     (:func:`_st_status_surface`) declares the source and
-    :func:`_st_reduce_surface` reduces it once; the lane, the companion fields
+    :func:`_st_reduce_surface` reads it once; the lane, the companion fields
     (``resolved_agent_profile``/``resolved_model``/``agent``/``shell_pid``), the
     review verdict and the arbiter override all read that reduction, so a row
     never mixes two sources. A landed Mission's source is
