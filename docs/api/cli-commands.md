@@ -2134,7 +2134,7 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │ env-file                Report ``.kitty.env`` operator env-file health       │
 │                         (presence/tier/ignore).                              │
 │ event-logs              Preview, then prune, local run journals, event logs  │
-│                         and caches past retention (#6610).                   │
+│                         and caches past retention (#6610, #6739).            │
 │ provenance              Flag committed absolute built-in-pack leaks and      │
 │                         ambiguous template sources (C-PRV-5).                │
 │ run-index               Flag absolute run_dir paths in the run index that    │
@@ -2161,8 +2161,7 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │ invocation-pairing      List orphan profile-invocation lifecycle records.    │
 │ ops                     List orphan Op records; --close-stale sweeps stale   │
 │                         ones closed as abandoned.                            │
-│ mission-state           Audit, repair, or TeamSpace-validate mission-state   │
-│                         shapes.                                              │
+│ mission-state           Audit or repair mission-state shapes.                │
 │ charter-packs           Check org charter pack snapshot status and list      │
 │                         installed pack artifacts.                            │
 │ coordination            Run the WP04 #1348 coordination + sparse-checkout    │
@@ -5496,13 +5495,34 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ *  --mission-type          <str>                    Mission type (e.g.,      │
 │                                                     software-dev)            │
 │                                                     [required]               │
-│    --topology              <single_branch|lanes|co  Create-time mission      │
-│                            ord|lanes_with_coord>    shape: single_branch |   │
-│                                                     lanes | coord |          │
+│    --topology              <single_branch|lanes|co  Mission shape:           │
+│                            ord|lanes_with_coord>    single_branch | lanes |  │
+│                                                     coord |                  │
 │                                                     lanes_with_coord.        │
-│                                                     Default: context-derived │
-│                                                     (matches the host CLI's  │
-│                                                     own --topology default). │
+│                                                     Default (no --topology): │
+│                                                     create mints one Mission │
+│                                                     topic branch             │
+│                                                     (kitty/mission-<slug>-<… │
+│                                                     and checks it out, on    │
+│                                                     any target, with no      │
+│                                                     lanes, worktrees or      │
+│                                                     coordination branch; the │
+│                                                     first finalize-tasks     │
+│                                                     then settles the shape   │
+│                                                     by size: single_branch   │
+│                                                     for at most 2 work       │
+│                                                     packages or at most 1    │
+│                                                     code lane, else          │
+│                                                     lanes_with_coord with    │
+│                                                     the topic branch as the  │
+│                                                     coordination branch.     │
+│                                                     lanes and coord are      │
+│                                                     produced only by an      │
+│                                                     explicit --topology. An  │
+│                                                     explicit value always    │
+│                                                     wins and is settled at   │
+│                                                     create (--owned-checkout │
+│                                                     implies single_branch).  │
 │    --policy                <str>                    Policy metadata JSON     │
 │                                                     (required)               │
 │    --help          -h                               Show this message and    │
@@ -6213,7 +6233,7 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ```
  Usage: spec-kitty specify [OPTIONS] {mission}
 
- Create a feature scaffold in kitty-specs/.
+ Create a Mission scaffold in kitty-specs/.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    mission      <str>  Mission name or slug (e.g., user-authentication)    │
@@ -6222,25 +6242,32 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission-type          <str>                     Mission type (e.g.,        │
 │                                                   software-dev, research)    │
-│ --topology              <single_branch|lanes|coo  Create-time mission shape: │
+│ --topology              <single_branch|lanes|coo  Mission shape:             │
 │                         rd|lanes_with_coord>      single_branch | lanes |    │
 │                                                   coord | lanes_with_coord.  │
-│                                                   Coordination-bearing       │
-│                                                   shapes (coord,             │
-│                                                   lanes_with_coord) mint a   │
-│                                                   coordination branch;       │
-│                                                   branch-flat shapes         │
-│                                                   (single_branch, lanes) do  │
-│                                                   not. Default:              │
-│                                                   context-derived (#2581,    │
-│                                                   #2602) — coord on the      │
-│                                                   primary branch or with     │
-│                                                   --pr-bound when            │
-│                                                   coordination is reachable; │
-│                                                   lanes otherwise.           │
-│                                                   single_branch only when    │
-│                                                   requested explicitly (or   │
-│                                                   via --owned-checkout).     │
+│                                                   Default (no --topology):   │
+│                                                   create mints one Mission   │
+│                                                   topic branch               │
+│                                                   (kitty/mission-<slug>-<mi… │
+│                                                   and checks it out, on any  │
+│                                                   target, with no lanes,     │
+│                                                   worktrees or coordination  │
+│                                                   branch; the first          │
+│                                                   finalize-tasks then        │
+│                                                   settles the shape by size: │
+│                                                   single_branch for at most  │
+│                                                   2 work packages or at most │
+│                                                   1 code lane, else          │
+│                                                   lanes_with_coord with the  │
+│                                                   topic branch as the        │
+│                                                   coordination branch. lanes │
+│                                                   and coord are produced     │
+│                                                   only by an explicit        │
+│                                                   --topology. An explicit    │
+│                                                   value always wins and is   │
+│                                                   settled at create          │
+│                                                   (--owned-checkout implies  │
+│                                                   single_branch).            │
 │ --json                                            Emit JSON result           │
 │ --help          -h                                Show this message and      │
 │                                                   exit.                      │
