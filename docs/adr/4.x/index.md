@@ -96,3 +96,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-11-06 | [consolidation gates hold over a coordination branch with no worktree](2026-11-06-5-gates-over-worktree-less-coordination.md) |
 | 2026-11-06 | [the committed ledger of a coordination Mission is the blob on its coordination branch](2026-11-06-6-committed-ledger-is-the-coordination-blob.md) |
 | 2026-11-07 | [dossier commit SHAs are branch-relative provenance](2026-11-07-1-dossier-commit-shas-are-branch-relative-provenance.md) |
+| 2026-11-08 | [the upgrade worktree pass is plan-then-apply, and every registered migration must converge](2026-11-08-1-upgrade-worktree-pass-is-plan-then-apply-and-migrations-must-converge.md) |

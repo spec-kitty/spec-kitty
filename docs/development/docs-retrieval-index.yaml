@@ -4258,6 +4258,23 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+  - path: "docs/adr/4.x/2026-11-08-1-upgrade-worktree-pass-is-plan-then-apply-and-migrations-must-converge.md"
+    title: "ADR: the upgrade worktree pass is plan-then-apply, and every registered migration must converge"
+    divio_type: "none"
+    abstract: "The upgrade worktree pass becomes a read-only plan step plus an apply step, and a run-twice check holds migrations the fixtures reach, and each upgrade, to converge."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-private-methods-on-migrationrunner", text: "A. Private methods on `MigrationRunner`", level: 3}
+    - {slug: "b-plan-and-apply-module-runner-hooks", text: "B. Plan and apply module, runner hooks", level: 3}
+    - {slug: "c-move-everything", text: "C. Move everything", level: 3}
+    - {slug: "d-per-migration-authored-tests", text: "D. Per-migration authored tests", level: 3}
+    - {slug: "e-generated-run-twice-check", text: "E. Generated run-twice check", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "none"
