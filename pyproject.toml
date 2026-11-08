@@ -181,6 +181,10 @@ artifacts = [
     "src/specify_cli/**/*.yml",
     "src/specify_cli/**/*.json",
     "src/specify_cli/**/*.jsonl",
+    # Plugin bundle brand asset (#6479): the Codex/OpenAI manifest declares
+    # ``./assets/logo.png``, so the wheel must carry it or an installed CLI builds
+    # a manifest pointing at a file it never shipped.
+    "src/specify_cli/**/*.png",
     "src/runtime/**/*.md",
     "src/runtime/**/*.yaml",
     "src/runtime/**/*.yml",
