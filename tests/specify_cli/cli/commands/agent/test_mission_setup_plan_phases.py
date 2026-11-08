@@ -1257,6 +1257,24 @@ def test_evaluate_requirement_id_gate_refuses_malformed_declared_id(tmp_path: Pa
     assert "C-007-mission" in message
 
 
+def test_evaluate_requirement_id_gate_names_a_duplicate_as_a_duplicate(tmp_path: Path) -> None:
+    """#5674: a duplicate declaration refuses with a headline and remediation
+    that say so, not as a grammar violation."""
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n\n| ID | Title |\n|---|---|\n| FR-001 | a |\n| FR-001 | b |\n", encoding="utf-8")
+
+    outcome, message = seam._evaluate_requirement_id_gate(spec_file, feature_dir, "001-demo")
+
+    assert outcome is not None
+    assert outcome.payload["error_code"] == seam.SPEC_REQUIREMENT_IDS_INVALID
+    assert "declared more than once" in str(outcome.payload["error"])
+    assert any("Declare each requirement ID once" in line for line in outcome.payload["remediation"])
+    assert message is not None
+    assert "FR-001" in message
+
+
 def test_evaluate_requirement_id_gate_passes_corrected_spec(tmp_path: Path) -> None:
     feature_dir = tmp_path / "001-demo"
     feature_dir.mkdir()
