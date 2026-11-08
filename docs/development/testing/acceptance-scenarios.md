@@ -90,6 +90,20 @@ after it goes through the CLI. `tests/scenarios/status/event-traceability.featur
 only user, added for [#6260](https://github.com/spec-kitty/spec-kitty/issues/6260); do not
 copy the pattern for a behaviour a real CLI call can arrange.
 
+### Builders name the topology they mean
+
+Since [#7282](https://github.com/spec-kitty/spec-kitty/pull/7282) (ADR 2026-11-06-3),
+`agent mission create` without `--topology` records an unsettled `single_branch` Mission: it
+switches the checkout onto a Mission topic branch and makes no coordination branch and no lane
+worktree. A builder that means a coordination Mission therefore asks for one:
+`MissionLifecycle.planMission` and `createMission`, and `MissionFixture.createMission`, pass
+`--topology lanes_with_coord` (`MissionLifecycle.COORDINATION_TOPOLOGY`), and
+`planSingleBranchMission` passes `--topology single_branch`. A scenario about the size default
+itself must call `mission create` with no `--topology` explicitly. A Python acceptance helper
+that pins `SPEC_KITTY_HOME` puts the home beside the project checkout, never inside it: cache
+files written there would dirty the write checkout, and the Mission-branch switch refuses a
+dirty one ([#7342](https://github.com/spec-kitty/spec-kitty/issues/7342)).
+
 ## Tags
 
 | Tag | Rule |
