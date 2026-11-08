@@ -105,6 +105,14 @@ _INTERNAL_ASSET_IDS = sorted(
 )
 
 
+def test_at_least_one_internal_pack_asset_was_collected() -> None:
+    """An empty id list parametrizes zero cases and the suite would pass untested."""
+    assert _INTERNAL_ASSET_IDS, (
+        f"no *.asset.yaml sidecar found under {_INTERNAL_ASSETS_DIR}; "
+        "the internal-asset suite collected nothing. Run `make sync-packs`."
+    )
+
+
 @pytest.mark.parametrize("asset_id", _INTERNAL_ASSET_IDS)
 def test_asset_path_resolves_every_internal_pack_asset_to_its_blob(asset_id: str) -> None:
     """Each org-tier asset in ``packs/internal`` resolves to a file that exists.
