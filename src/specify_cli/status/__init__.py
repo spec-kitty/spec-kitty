@@ -487,6 +487,12 @@ from specify_cli.status.read_surface import (
     topic_holder_mission_dir,
 )
 from specify_cli.status.store import seed_scratch_event_log
+from specify_cli.status.landing_evidence import (
+    LandingEvidence,
+    LandingVerdict,
+    landing_evidence_at_target,
+    read_landing_evidence,
+)
 
 
 def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
@@ -506,6 +512,10 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 # 8 consumer call sites) was retired.
 
 __all__ = [
+    "LandingEvidence",
+    "LandingVerdict",
+    "landing_evidence_at_target",
+    "read_landing_evidence",
     "StatusReadSource",
     "StatusReadSurface",
     "checkout_holding_branch",

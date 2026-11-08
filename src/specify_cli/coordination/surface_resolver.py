@@ -159,7 +159,7 @@ def _target_log_shows_landing(repo_root: Path, primary_candidate: Path) -> str |
     (#5471 assigns it to Missions that never landed). Non-raising: an absent or unreadable log
     answers ``None`` (the ordinary flatten remedy).
     """
-    from specify_cli.status.landing_evidence import landing_evidence_at_target
+    from specify_cli.status import landing_evidence_at_target
 
     evidence = landing_evidence_at_target(repo_root, primary_candidate)
     return evidence.merged_at if evidence.holds else None

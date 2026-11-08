@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from specify_cli.status.landing_evidence import LandingVerdict, read_landing_evidence
+from specify_cli.status import LandingVerdict, read_landing_evidence
 
 __all__ = [
     "MergedAtBackfillAction",
