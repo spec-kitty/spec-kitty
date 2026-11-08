@@ -532,3 +532,110 @@ class TestCliWiring:
         assert payload["row_or_entry_ref"] == "#1726"
         assert payload["kind"] == "ISSUE_MATRIX"
         assert payload["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# #7348 --title stamps the issue's title on the matrix row
+# ---------------------------------------------------------------------------
+
+
+class TestIssueTitle:
+    def test_title_is_stamped_on_a_new_row(
+        self, tmp_path: Path, write_artifact_fake: _StatefulWriteArtifactFake
+    ) -> None:
+        from specify_cli.cli.commands.agent.issue_verdict import do_issue_verdict
+
+        feature_dir = _make_mission(tmp_path)
+
+        do_issue_verdict(
+            mission=_MISSION_SLUG,
+            issue="#7348",
+            verdict="fixed",
+            actor="claude",
+            title="agent issue-verdict cannot set issue titles",
+            repo_root=tmp_path,
+        )
+
+        row = _read_json(feature_dir / "issue-matrix.json")["rows"]["#7348"]
+        assert row["title"] == "agent issue-verdict cannot set issue titles"
+
+    def test_title_replaces_an_existing_placeholder_title(
+        self, tmp_path: Path, write_artifact_fake: _StatefulWriteArtifactFake
+    ) -> None:
+        from specify_cli.cli.commands.agent.issue_verdict import do_issue_verdict
+
+        feature_dir = _make_mission(tmp_path)
+        (feature_dir / "issue-matrix.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "rows": {"#7348": {"verdict": "unknown", "evidence_ref": "", "title": "placeholder"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        do_issue_verdict(
+            mission=_MISSION_SLUG, issue="#7348", verdict="fixed", actor="claude", title="Real title", repo_root=tmp_path
+        )
+
+        row = _read_json(feature_dir / "issue-matrix.json")["rows"]["#7348"]
+        assert row["title"] == "Real title"
+
+    def test_omitted_title_preserves_the_existing_one(
+        self, tmp_path: Path, write_artifact_fake: _StatefulWriteArtifactFake
+    ) -> None:
+        from specify_cli.cli.commands.agent.issue_verdict import do_issue_verdict
+
+        feature_dir = _make_mission(tmp_path)
+        (feature_dir / "issue-matrix.json").write_text(
+            json.dumps({"schema_version": 1, "rows": {"#7348": {"verdict": "unknown", "title": "Kept"}}}),
+            encoding="utf-8",
+        )
+
+        do_issue_verdict(mission=_MISSION_SLUG, issue="#7348", verdict="fixed", actor="claude", repo_root=tmp_path)
+
+        assert _read_json(feature_dir / "issue-matrix.json")["rows"]["#7348"]["title"] == "Kept"
+
+    def test_blank_title_is_refused(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.issue_verdict import IssueVerdictError, do_issue_verdict
+
+        _make_mission(tmp_path)
+
+        with pytest.raises(IssueVerdictError) as exc_info:
+            do_issue_verdict(
+                mission=_MISSION_SLUG, issue="#7348", verdict="fixed", actor="claude", title="   ", repo_root=tmp_path
+            )
+        assert exc_info.value.code == "empty_title"
+
+    def test_cli_threads_title(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, write_artifact_fake: _StatefulWriteArtifactFake
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent import app as agent_app
+        import specify_cli.cli.commands.agent.issue_verdict as issue_verdict
+
+        feature_dir = _make_mission(tmp_path)
+        monkeypatch.setattr(issue_verdict, "locate_project_root", lambda: tmp_path)
+
+        result = CliRunner().invoke(
+            agent_app,
+            [
+                "issue-verdict",
+                "--mission",
+                _MISSION_SLUG,
+                "--issue",
+                "#7348",
+                "--verdict",
+                "fixed",
+                "--actor",
+                "claude",
+                "--title",
+                "Threaded title",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert _read_json(feature_dir / "issue-matrix.json")["rows"]["#7348"]["title"] == "Threaded title"
