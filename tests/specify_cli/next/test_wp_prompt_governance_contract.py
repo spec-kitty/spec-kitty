@@ -1131,20 +1131,13 @@ class TestPerStanzaWhenDoingGrammaticality:
     unit coverage of the normalization helper itself (gerund clauses, full
     sentences, and the authored double-``when`` shape).
 
-    Scope note (WP01/#3082 discovery, flagged rather than silently
-    absorbed): ``section:*`` selector stanzas are rendered by a SEPARATE,
-    hand-rolled composer — ``charter.activation.context_renderers.section_bodies.
-    _render_fetch_stanza`` / ``CRITICAL_SECTION_WHEN_CLAUSES`` — that does
-    NOT go through ``fetch_stanza.fetch_stanza_lines`` and pre-dates this
-    mission. Two of its authored clauses ("prepare a WP for review",
-    "perform a terminology cutover") do not match the closed lead-in set
-    either, but fixing that duplicate choke point is outside WP01's
-    authoritative surface (``src/charter/activation/context_renderers/fetch_stanza.py``
-    only); ``section_bodies.py`` is not in WP01's owned files. This check is
-    scoped to the fetch_stanza.py-owned selector kinds (directive, tactic,
-    styleguide, toolguide, procedure, paradigm, mission_step_contract,
-    agent_profile) so it asserts what WP01 actually delivers, and the
-    ``section:`` gap is left for a follow-up rather than masked here.
+    Scope (#3093): the ``section:*`` stanzas were rendered by a SEPARATE,
+    hand-rolled composer (``charter.activation.context_renderers.section_bodies.
+    _render_fetch_stanza``) that bypassed ``fetch_stanza.fetch_stanza_lines``,
+    so two of its authored clauses ("prepare a WP for review", "perform a
+    terminology cutover") did not match the closed lead-in set. That composer
+    now delegates to the canonical one, so ``section:*`` is covered here like
+    every other selector kind.
     """
 
     def test_every_fetch_stanza_when_you_line_matches_the_closed_lead_in_set(
@@ -1161,18 +1154,18 @@ class TestPerStanzaWhenDoingGrammaticality:
             mission_type="software-dev",
         )
         stanzas = _when_you_stanzas(prompt)
-        fetch_stanza_owned = [
-            (selector, line)
-            for selector, line in stanzas
-            if selector is None or not selector.startswith("section:")
-        ]
-        assert fetch_stanza_owned, (
-            "Expected at least one fetch_stanza.py-rendered 'When you ...' "
-            "stanza line in the implement WP prompt for python-pedro (whose "
-            "profile carries directive/tactic references rendered via the "
-            "fetch stanza)."
+        assert stanzas, (
+            "Expected at least one rendered 'When you ...' stanza line in the "
+            "implement WP prompt for python-pedro (whose profile carries "
+            "directive/tactic references rendered via the fetch stanza, plus "
+            "the action-critical section stanzas)."
         )
-        for selector, line in fetch_stanza_owned:
+        selectors = {selector for selector, _line in stanzas}
+        assert any(selector and selector.startswith("section:") for selector in selectors), (
+            "Expected the action-critical section stanzas (``section:*``) to be "
+            "part of the per-stanza contract coverage (#3093)."
+        )
+        for selector, line in stanzas:
             assert _WHEN_DOING_RE.search(line), (
                 "Rendered stanza line does not match the closed _WHEN_DOING_RE "
                 f"lead-in set (#3082 SC-003 per-stanza guarantee) for selector "

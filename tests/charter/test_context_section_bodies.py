@@ -358,3 +358,58 @@ class TestActionSectionSets:
             _CHARTER_WITH_ALL_SECTIONS, action="unknown-action"
         )
         assert result == ""
+
+
+class TestSectionStanzaUsesTheCanonicalComposer:
+    """``section:*`` stanzas route through ``fetch_stanza.py`` (#3093).
+
+    The section renderer used to hand-roll the fetch + when-doing pair from
+    :data:`CRITICAL_SECTION_WHEN_CLAUSES`, bypassing the normalization
+    choke-point that #3082 established. Two of its authored clauses
+    (``prepare a WP for review``, ``perform a terminology cutover``) do not match
+    the closed ``_WHEN_DOING_RE`` lead-in set, so ``section:*`` selectors emitted
+    prompts that violated the per-stanza governance contract.
+    """
+
+    @pytest.mark.parametrize("heading", sorted(CRITICAL_SECTION_WHEN_CLAUSES))
+    def test_stanza_equals_the_canonical_composer_output(self, heading: str) -> None:
+        from charter.activation.context_renderers.fetch_stanza import (
+            fetch_stanza_lines,
+        )
+        from charter.activation.context_renderers.section_bodies import (
+            _render_fetch_stanza,
+            critical_section_selector,
+        )
+
+        expected = fetch_stanza_lines(
+            critical_section_selector(heading),
+            CRITICAL_SECTION_WHEN_CLAUSES[heading],
+            indent="  ",
+        )
+
+        assert _render_fetch_stanza(heading) == expected
+
+    @pytest.mark.parametrize("heading", sorted(CRITICAL_SECTION_WHEN_CLAUSES))
+    def test_rendered_when_clause_matches_the_closed_lead_in_set(self, heading: str) -> None:
+        import re
+
+        from charter.activation.context_renderers.section_bodies import (
+            _render_fetch_stanza,
+        )
+
+        when_doing_re = re.compile(r"when you (are about to|need to|encounter|introduce|rename|review)\b", re.IGNORECASE)
+        stanza = _render_fetch_stanza(heading)
+
+        assert when_doing_re.search(stanza[1]), stanza[1]
+
+    def test_section_block_emits_a_contract_matching_stanza(self) -> None:
+        import re
+
+        when_doing_re = re.compile(r"when you (are about to|need to|encounter|introduce|rename|review)\b", re.IGNORECASE)
+
+        result = render_critical_section_bodies(_CHARTER_WITH_ALL_SECTIONS, action="implement")
+
+        when_lines = [line for line in result.splitlines() if "When you " in line]
+        assert len(when_lines) == len(CRITICAL_SECTION_WHEN_CLAUSES)
+        for line in when_lines:
+            assert when_doing_re.search(line), line
