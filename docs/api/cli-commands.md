@@ -5729,6 +5729,8 @@ _Manage invocation records._
  Use --artifact (repeatable) to link output artifacts to this invocation.
  Use --commit (singular) to link the primary git commit produced.
  Use --evidence to promote a file to a Tier 2 evidence artifact.
+ Use --co-author to attribute this close's Op commit (overrides
+ commit.co_author).
  Note: --evidence is rejected for records that are not execution records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -5742,6 +5744,10 @@ _Manage invocation records._
 │                                      invocation. Repeatable.                 │
 │    --commit                  <str>   Git commit SHA most directly produced   │
 │                                      by this invocation. Singular.           │
+│    --co-author               <str>   Operator attribution trailer for this   │
+│                                      Op's auto-commit, as 'Name <email>'.    │
+│                                      Overrides the repository's              │
+│                                      commit.co_author for this close only.   │
 │    --json                            Output JSON payload                     │
 │    --owned-checkout          <path>  Keep this Op's record in an owned       │
 │                                      checkout: a linked checkout of this     │
