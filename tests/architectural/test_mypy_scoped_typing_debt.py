@@ -39,9 +39,11 @@ SCOPED_TARGETS: tuple[str, ...] = (
 
 @pytest.mark.slow  # mypy invocation is comparatively expensive
 @pytest.mark.parametrize("target", SCOPED_TARGETS)
-def test_scoped_module_is_mypy_strict_clean(target: str) -> None:
+def test_scoped_module_is_mypy_strict_clean(target: str, tmp_path: Path) -> None:
+    # A per-test --cache-dir keeps .mypy_cache/ out of the checkout (#6953,
+    # test_spec_kitty_home_pin_census::test_no_mypy_subprocess_writes_a_cache_into_the_checkout).
     result = subprocess.run(
-        [sys.executable, "-m", "mypy", "--strict", target],
+        [sys.executable, "-m", "mypy", "--strict", "--cache-dir", str(tmp_path / "mypy_cache"), target],
         cwd=REPO_ROOT,
         check=False,
         capture_output=True,
