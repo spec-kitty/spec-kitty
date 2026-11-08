@@ -272,6 +272,11 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "re-inferring from disk/git. Missions not yet backfilled surface",
         "``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist",
         "the computed value.",
+        # Re-pinned 2026-11-08 (#6758): doctor topology lists only selectable
+        # Missions and points at doctor identity for read-side residue.
+        "Lists Missions only: a ``kitty-specs/`` folder that Mission selection does",
+        "not list (residue) is not a row. ``spec-kitty doctor identity`` reports such",
+        "a folder with its reason and a remedy.",
         "Examples:",
         "spec-kitty doctor topology",
         "spec-kitty doctor topology --json",
