@@ -75,7 +75,7 @@ class ReviewBaselineReadError(GuardedReadError, ValueError):
 #: PLACEHOLDER, not a test name: two runs that both fail opaquely may have failed
 #: for entirely unrelated reasons (issue #6751), so an entry carrying this name is
 #: marked ``BaselineFailure.opaque`` and compared on its bound identity
-#: (exit status + summary), never on this name alone.
+#: (exit status + full-output digest), never on this name alone.
 OPAQUE_FAILURE_TEST_ID = "<declared-command>"
 
 
