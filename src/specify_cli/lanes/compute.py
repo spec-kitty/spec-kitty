@@ -283,9 +283,11 @@ class LaneIdExhaustedError(LaneComputationError):
     """Raised when every ``lane-<letter>`` id has already been claimed (#5155).
 
     Without this bound the minting loop walks past ``z`` into ``{``, ``|`` and
-    eventually non-character code points, minting an id that no consumer can
-    match and that violates the ``lane-[a-z]`` grammar. Refusing loudly keeps
-    the positional-id contract intact; the remedy is to reduce the number of
+    eventually non-character code points. Stopping at 26 is a deliberate cap
+    on single-letter positional ids, not a grammar limit: the lane-id pattern
+    (``_LANE_ID_RE`` in ``branch_naming``, ``lane-[a-z]+``) would accept a
+    multi-letter id, but nothing mints one. Refusing loudly keeps the
+    positional-id contract intact; the remedy is to reduce the number of
     concurrent lanes (collapse or re-slice the work packages).
     """
 
