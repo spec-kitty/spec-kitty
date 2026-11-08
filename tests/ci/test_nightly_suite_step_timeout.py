@@ -33,6 +33,7 @@ from typing import Any
 import pytest
 import yaml
 
+from scripts.ci.integration_next_shard import SHARD_JOB_KEYS
 from tests.ci.test_nightly_timeout_headroom import _is_nightly_target, headroom_record
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -44,10 +45,10 @@ _WORKFLOW_PATH = Path(__file__).resolve().parents[2] / ".github" / "workflows" /
 # escalation (GitHub API calls) and fail-loud steps after it.
 RESERVE_MINUTES = 5
 # Non-vacuity floor: the suite steps on 2026-11-08 (performance, e2e, stress,
-# p0-repro, six interpreter shards, integration-next, specify-cli-out-of-matrix,
+# p0-repro, six interpreter shards, four integration-next shards (#7456), specify-cli-out-of-matrix,
 # architectural-backstop, integration-slice, mission-state-audit, events-latest,
 # acceptance-bdd's gating run).
-_MIN_SUITE_STEPS = 17
+_MIN_SUITE_STEPS = 20
 _EXIT_WRITE_RE = re.compile(r"\b[A-Z][A-Z0-9_]*_EXIT=")
 _OUTCOME_REF_RE = re.compile(r"\bsteps\.([A-Za-z0-9_-]+)\.(?:outcome|conclusion)\b")
 _ESCALATION = "nightly_escalation.py"
@@ -209,5 +210,5 @@ def test_every_nightly_suite_step_times_out_before_its_job() -> None:
     steps = _suite_steps(workflow)
     jobs = {job_key for job_key, _, _ in steps}
     assert len(steps) >= _MIN_SUITE_STEPS, f"non-vacuity: expected >={_MIN_SUITE_STEPS} suite steps, found {sorted(jobs)}"
-    assert {"integration-next", "performance", "mission-state-audit"} <= jobs
+    assert {*SHARD_JOB_KEYS, "performance", "mission-state-audit"} <= jobs
     assert step_timeout_violations(workflow) == []

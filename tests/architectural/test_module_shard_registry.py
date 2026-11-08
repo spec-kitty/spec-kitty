@@ -17,7 +17,7 @@ fast roster and file-partitioned shards, every fact pinned against its other
 authority -- never the old ``always_on: true``), and — after
 ci-coverage-honesty-01M3CZVN WP03 (spec-kitty#4729) — that the dead
 ``integration_tests_next`` tier is RETIRED and its heavy-pole corpus is instead
-wired into ci-nightly.yml's ``integration-next`` job (both roots, by directory,
+wired into ci-nightly.yml's ``integration-next-shard-<N>`` jobs (both roots, by directory,
 in ``nightly-summary.needs``). The T044 architect HIGH folds — single-data-source
 (a new module is a row, not a workflow file) and the
 <=20-reusable-workflows-per-caller ceiling — are machine-checked here rather
@@ -328,7 +328,7 @@ def test_timings_excluded_dirs_are_documented() -> None:
 # invoked by no workflow (the #4729 honesty gap). This gate no longer requires
 # that dead tier to exist; instead it asserts the tier is GONE (a re-declaration
 # would resurrect the gap) AND that its heavy-pole corpus is really wired into
-# ci-nightly.yml's `integration-next` job (both roots, by directory, in
+# ci-nightly.yml's `integration-next-shard-<N>` jobs (both roots, by directory, in
 # nightly-summary.needs) -- deleted-and-rehomed, never silently dropped.
 # ---------------------------------------------------------------------------
 def test_retired_integration_tier_is_rehomed_in_the_nightly_workflow() -> None:
@@ -338,11 +338,11 @@ def test_retired_integration_tier_is_rehomed_in_the_nightly_workflow() -> None:
 
     assert "integration_tests_next" not in special, (
         "special_tiers.integration_tests_next was retired (spec-kitty#4729); its wired home is now "
-        "ci-nightly.yml's `integration-next` job -- do not re-declare the dead tier"
+        "ci-nightly.yml's `integration-next-shard-<N>` jobs -- do not re-declare the dead tier"
     )
 
     # The retired tier's heavy pole must be wired, not merely deleted: the
-    # nightly `integration-next` job runs BOTH roots by directory (not
+    # nightly `integration-next-shard-<N>` jobs run BOTH roots by directory (not
     # `-m integration`) and is in nightly-summary.needs so its red surfaces.
     import yaml  # local import: keep this gate's collection cost near-zero
 
@@ -350,15 +350,20 @@ def test_retired_integration_tier_is_rehomed_in_the_nightly_workflow() -> None:
     assert nightly_path.exists(), f"nightly workflow missing: {nightly_path.relative_to(_REPO_ROOT)}"
     nightly = yaml.safe_load(nightly_path.read_text(encoding="utf-8"))
     jobs = nightly.get("jobs", {})
-    assert "integration-next" in jobs, (
-        "ci-nightly.yml must define the `integration-next` job -- the wired home of the retired integration_tests_next heavy pole (spec-kitty#4729)"
-    )
-    integration_job_text = yaml.safe_dump(jobs["integration-next"])
-    assert "tests/integration tests/next" in integration_job_text, (
-        "the integration-next job must run `pytest tests/integration tests/next` BY DIRECTORY (not `-m integration`, which would drop tests/next's files)"
+    # #7456: the single `integration-next` job is split into `integration-next-shard-<N>` jobs; the
+    # directory roots live in the shard selector (the one place a file universe is named).
+    from scripts.ci.integration_next_shard import ROOTS, SHARD_JOB_KEYS
+
+    assert "integration-next" not in jobs, "the single `integration-next` job was split into integration-next-shard-<N> (#7456); do not re-add it"
+    assert ROOTS == ("tests/integration", "tests/next"), (
+        "the integration-next shards must select BY DIRECTORY both tests/integration and tests/next "
+        f"(not `-m integration`, which would drop tests/next's files); got {ROOTS}"
     )
     summary_needs = jobs.get("nightly-summary", {}).get("needs", [])
-    assert "integration-next" in summary_needs, "integration-next must be in nightly-summary.needs or its red never surfaces in the aggregator"
+    for key in SHARD_JOB_KEYS:
+        assert key in jobs, f"ci-nightly.yml must define `{key}` -- a wired home of the retired integration_tests_next heavy pole (spec-kitty#4729)"
+        assert "integration_next_shard.py" in yaml.safe_dump(jobs[key]), f"{key} must take its files from scripts/ci/integration_next_shard.py"
+        assert key in summary_needs, f"{key} must be in nightly-summary.needs or its red never surfaces in the aggregator"
 
 
 # ---------------------------------------------------------------------------

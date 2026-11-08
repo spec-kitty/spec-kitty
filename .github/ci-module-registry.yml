@@ -720,9 +720,10 @@ out_of_matrix_test_dirs:
   - tests/orchestrator_api
 
 - reason: >-
-    Nightly home is ci-nightly.yml's `integration-next` job
-    (`pytest tests/integration tests/next -n auto --dist loadfile`, if: always(), in
-    nightly-summary.needs), which runs this tree run-all-regardless. It is deliberately
+    Nightly home is ci-nightly.yml's `integration-next-shard-<N>` jobs (#7456: the
+    tests/integration + tests/next files split across four jobs by
+    scripts/ci/integration_next_shard.py, each `pytest @<files> -n auto --dist loadfile`,
+    if: always(), in nightly-summary.needs), which run this tree run-all-regardless. It is deliberately
     NOT a per-PR module row (C-003 -- per-PR promotion is the deferred spec-kitty#5037).
     This replaced the dead `integration_tests_next` special tier that declared these
     roots but was invoked by no workflow (spec-kitty#4729), retired in the same change
@@ -919,8 +920,8 @@ special_tiers:
   # RETIRED (ci-coverage-honesty-01M3CZVN WP03 T011, closes spec-kitty#4729): the dead
   # `integration_tests_next` tier -- declared here with roots tests/integration/** +
   # tests/next/** but invoked by no workflow -- was removed. Its real, wired home is now
-  # the `integration-next` job in .github/workflows/ci-nightly.yml, which runs
-  # `pytest tests/integration tests/next -n auto --dist loadfile` nightly (FR-006). The
+  # the `integration-next-shard-<N>` jobs in .github/workflows/ci-nightly.yml, which run
+  # every tests/integration + tests/next file once nightly under `-n auto --dist loadfile` (FR-006, #7456). The
   # honesty gap the old tier's own note surfaced is closed by wiring, not by re-declaring.
   architectural:
     # Facts with no other home (D-26). Trigger GROUPS are not copied here: the router job

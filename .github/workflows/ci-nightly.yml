@@ -1077,43 +1077,44 @@ jobs:
       test_dirs: ${{ matrix.test_dirs }}
 
   # ---------------------------------------------------------------------------
-  # integration-next: FR-006 / #4729 -- the nightly home for the integration +
-  # next behavioral corpus. Replaces the DEAD `integration_tests_next` special
-  # tier that ci-module-registry.yml declared but no workflow ever invoked (the
-  # #4729 honesty gap, retired in the same change that added this job). That
-  # tier declared roots tests/integration/** AND tests/next/**, so BOTH are run
-  # here BY DIRECTORY -- not `-m integration`: 843/1015 tests are
-  # integration-marked but no nightly marker suite selects them, and
-  # tests/next/** carries no such marker at all, so a marker-only lane would
-  # silently drop tests/next's 24 files. This is NOT a per-PR modules[] row
-  # (C-003 -- that per-PR promotion is the deferred #5037); it is a dedicated
-  # nightly lane.
+  # integration-next-shard-<N>: FR-006 / #4729 -- the nightly home for the integration +
+  # next behavioral corpus, split into N=4 independent jobs (#7456, #6787). Replaces the
+  # DEAD `integration_tests_next` special tier that ci-module-registry.yml declared but no
+  # workflow ever invoked (the #4729 honesty gap). That tier declared roots tests/integration/**
+  # AND tests/next/**, so BOTH are run here BY DIRECTORY -- not `-m integration`: tests/next/**
+  # carries no such marker, so a marker-only lane would silently drop its files. This is NOT a
+  # per-PR modules[] row (C-003 -- that promotion is the deferred #5037); it is a nightly lane.
   #
-  # Runs its xdist fan-out inside ONE job (`-n auto --dist loadfile`, the
-  # retired tier's own `parallel_mode`) rather than being split across separate
-  # registry shards. Sizing (NFR-004, measured not guessed): the retired tier
-  # recorded 69.2m fully-serial; a `-n auto --dist loadfile` run of the same
-  # 1582-test corpus measured ~2m wall on a 32-core host (=> ~64m serial,
-  # consistent with the tier's figure) and projects to ~15-20m on a 4-core
-  # ubuntu-24.04 runner. That projection held until the #6715 lifecycle files
-  # landed (2026-10-30); the lane now runs 24-40 min and its cap follows the
-  # #5378 headroom record on the job below (#6787). `--dist loadfile` keeps each file on one
-  # worker (file-scoped fixtures / collection semantics); per-worker HOME
-  # isolation (WP04, conftest) keeps parallel workers off the real
-  # ~/.spec-kitty. Same if: always() + set +e + exit-into-$GITHUB_ENV +
-  # terminal fail-loud (#4212) + FR-007 escalation pattern as the suites above.
+  # Why shards: one job ran `pytest tests/integration tests/next -n auto --dist loadfile` in
+  # 9-17 min until the #6715 lifecycle files landed (2026-10-30), then 24-40 min (run
+  # 42516534769: 40:41 of suite time, ~2.5 worker-hours of CPU on 4 cores; run 42442477189
+  # was cancelled at the old 45-minute cap). The work is CPU-bound, so one 4-core job cannot
+  # get faster; four jobs run it in parallel.
+  #
+  # Partition: `scripts/ci/integration_next_shard.py --shard <i>/4` -- a deterministic
+  # FILE-level LPT split (the battery's shard_select.battery_parts) weighted by
+  # battery_file_durations["integration_next"] in .github/ci-shard-timings.json. Each shard
+  # hands pytest its file list as an @argsfile (uploaded with the reports) under the same
+  # `-n auto --dist loadfile` the single job used (file-scoped fixtures, per-worker HOME
+  # isolation from WP04 conftest). A new test file lands in exactly one shard by itself;
+  # `tests/architectural/test_integration_next_shard_coverage.py` proves every file runs
+  # exactly once across the shards and that this block is wired consistently. The longest
+  # single file (test_6715_lane_autowalk_guards.py, ~15-19 min of CLI lifecycles on ONE
+  # worker) is the floor of the lane and sits in shard 1, which is sized for it.
+  #
+  # Same if: always() + set +e + exit-into-$GITHUB_ENV + terminal fail-loud (#4212) + FR-007
+  # escalation pattern as the suites above, per shard: its own exit variable, reports,
+  # deduped P0 (`--suite-key integration-next-shard-<N>`) and caps (#6787 / #5378, derived in
+  # the headroom comment of each job). Independent jobs, not a matrix, for the same reason as
+  # the interpreter shards: `nightly-summary` keeps one row per shard.
   # ---------------------------------------------------------------------------
-  integration-next:
+  integration-next-shard-1:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
-    name: Integration + next suite (nightly-only, #4729)
+    name: "Integration + next suite shard 1 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
-    # #6787: the suite grew from 9-17 min (2026-10-20..27) to 24-40 min once the #6715 lifecycle
-    # files landed (test_6715_lane_autowalk_guards.py alone runs ~15-19 min of 150-175 s CLI
-    # lifecycles on one --dist loadfile worker; the lane is CPU-bound at ~2.5 worker-hours on 4
-    # cores). Run 42442477189 was cancelled at the old 45-minute cap after >=44:34 of suite, so the
-    # cap follows the #5378 record. The suite step's own cap below makes a timeout escalate.
-    # headroom (#5378): max-suite>=44:34 runs=42442477189,42333589392,42156135564,41961190305,41766680757,41614103305,41609080994,41571798610,41382886325,41269035017,41163976364,40997330123,40812120655,40626642957,40444964589,40265057570,40158726274,40058682364,39895676431,39860951979 formula=ceil((max+0:30)*1.5)
-    timeout-minutes: 68
+    # #7456 / #6787: shard 1 holds test_6715_lane_autowalk_guards.py (~15-19 min of CLI lifecycles on one --dist loadfile worker), which is the floor of the whole lane; its cap follows that file, not the shard's share.
+    # headroom (#5378): max-suite>=19:00 runs=42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 30
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -1138,63 +1139,306 @@ jobs:
         with:
           extras-only: 'true'
 
-      - name: Run integration + next suites by directory (full-mode, run-all-regardless)
+      - name: Run integration + next suites, shard 1 (full-mode, run-all-regardless)
         if: always()
         # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
-        timeout-minutes: 63
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
-          uv run --frozen pytest tests/integration tests/next -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next.xml
+          python3 scripts/ci/integration_next_shard.py --shard 1/4 --out out/reports/integration-next-shard-1.args
           code=$?
-          echo "INTEGRATION_EXIT=$code" >> "$GITHUB_ENV"
-          echo "::notice::integration+next suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+          if [ "$code" -eq 0 ]; then
+            uv run --frozen pytest @out/reports/integration-next-shard-1.args -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next-shard-1.xml
+            code=$?
+          fi
+          echo "INTEGRATION_NEXT_SHARD_1_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::integration+next shard 1 suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
 
-      - name: Upload nightly integration+next reports
+      - name: Upload nightly integration+next shard 1 reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-nightly-integration-next-reports
+          name: ci-nightly-integration-next-shard-1-reports
           path: out/reports/
 
-      # Nightly red -> deduped-P0 escalation (FR-007): mirror of the suites
-      # above, scoped to the `integration` suite key. Fail-closed, if: always().
+      # Nightly red -> deduped-P0 escalation (FR-007): scoped per shard so a red in THIS slice gets its
+      # OWN standing issue (no two shards race to open one). Fail-closed, if: always().
       #
-      # FIND-2 (#5034): unlike the marker-based lanes above (performance/e2e/
-      # stress/interpreter, each `-m <marker>`), this job runs
-      # `pytest tests/integration tests/next` BY DIRECTORY. A pytest exit 5
-      # here means the corpus vanished or was fully deselected -- never a
-      # legitimate marker-empty skip -- so exit 5 is NOT exempted from
-      # failure for this job (every `modules[]` lane in module-tests.yml
-      # already fails closed on zero-collected the same way, ~L216-218,
-      # `sys.exit(64)`; this job is the one directory-based nightly lane that
-      # had been missing that floor). The `:-1` default (FIND-1) still
-      # applies: an unset/timeout-killed INTEGRATION_EXIT also fails closed.
-      - name: Escalate integration+next red -> deduped P0 (fail-closed)
+      # FIND-2 (#5034): this lane runs BY DIRECTORY, so a pytest exit 5 means the shard's files vanished
+      # or were fully deselected -- never a legitimate marker-empty skip -- and exit 5 is NOT exempted.
+      # An unset/timeout-killed exit also fails closed through the `:-1` default (FIND-1). The shard
+      # selector's own empty-shard refusal (exit 64) lands here as a failure too.
+      - name: Escalate integration+next shard 1 red -> deduped P0 (fail-closed)
         if: always() && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${INTEGRATION_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
-          python3 scripts/ci/nightly_escalation.py --suite-key integration --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next.xml
+          if [ "${INTEGRATION_NEXT_SHARD_1_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key "integration-next-shard-1" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next-shard-1.xml
 
-      # Terminal fail-loud gate (#4212): mirror of the performance job's gate,
-      # scoped to this suite/exit -- EXCEPT this directory-based lane does not
-      # exempt exit 5 (FIND-2, #5034; see the escalation step's comment above
-      # for why). Only exit 0 (all passed) passes; any nonzero exit, including
-      # 5 (zero collected) and an unset/timeout-killed exit (`:-1`, FIND-1),
-      # fails the job.
-      - name: Fail the job if the integration+next suite was red (run-all-then-fail-loud)
+      # Terminal fail-loud gate (#4212), applied per shard: only exit 0 passes; any nonzero exit,
+      # including 5 (zero collected) and an unset/timeout-killed exit (`:-1`, FIND-1), fails the job.
+      - name: Fail the job if integration+next shard 1 was red (run-all-then-fail-loud)
         if: always()
         shell: bash
         run: |
-          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration --xunit out/reports/xunit-nightly-integration-next.xml --log-step 'Run integration + next suites by directory (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
-          if [ "${INTEGRATION_EXIT:-1}" -ne 0 ]; then
-            echo "::error::integration+next suite exited ${INTEGRATION_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration-next-shard-1 --xunit out/reports/xunit-nightly-integration-next-shard-1.xml --log-step 'Run integration + next suites, shard 1 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${INTEGRATION_NEXT_SHARD_1_EXIT:-1}" -ne 0 ]; then
+            echo "::error::integration+next shard 1 suite exited ${INTEGRATION_NEXT_SHARD_1_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
             exit 1
           fi
-          echo "integration+next suite passed (exit 0)."
+          echo "integration+next shard 1 suite passed (exit 0)."
+
+  integration-next-shard-2:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: "Integration + next suite shard 2 (nightly-only, #4729, #7456)"
+    runs-on: ubuntu-24.04
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min. Provisional until the first per-shard xunit recapture (capture_shard_timings.py --suite integration_next).
+    # headroom (#5378): max-suite>=11:10 runs=42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 18
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      - name: Run integration + next suites, shard 2 (full-mode, run-all-regardless)
+        if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 13
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/ci/integration_next_shard.py --shard 2/4 --out out/reports/integration-next-shard-2.args
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            uv run --frozen pytest @out/reports/integration-next-shard-2.args -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next-shard-2.xml
+            code=$?
+          fi
+          echo "INTEGRATION_NEXT_SHARD_2_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::integration+next shard 2 suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly integration+next shard 2 reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-integration-next-shard-2-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): scoped per shard so a red in THIS slice gets its
+      # OWN standing issue (no two shards race to open one). Fail-closed, if: always().
+      #
+      # FIND-2 (#5034): this lane runs BY DIRECTORY, so a pytest exit 5 means the shard's files vanished
+      # or were fully deselected -- never a legitimate marker-empty skip -- and exit 5 is NOT exempted.
+      # An unset/timeout-killed exit also fails closed through the `:-1` default (FIND-1). The shard
+      # selector's own empty-shard refusal (exit 64) lands here as a failure too.
+      - name: Escalate integration+next shard 2 red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTEGRATION_NEXT_SHARD_2_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key "integration-next-shard-2" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next-shard-2.xml
+
+      # Terminal fail-loud gate (#4212), applied per shard: only exit 0 passes; any nonzero exit,
+      # including 5 (zero collected) and an unset/timeout-killed exit (`:-1`, FIND-1), fails the job.
+      - name: Fail the job if integration+next shard 2 was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration-next-shard-2 --xunit out/reports/xunit-nightly-integration-next-shard-2.xml --log-step 'Run integration + next suites, shard 2 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${INTEGRATION_NEXT_SHARD_2_EXIT:-1}" -ne 0 ]; then
+            echo "::error::integration+next shard 2 suite exited ${INTEGRATION_NEXT_SHARD_2_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "integration+next shard 2 suite passed (exit 0)."
+
+  integration-next-shard-3:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: "Integration + next suite shard 3 (nightly-only, #4729, #7456)"
+    runs-on: ubuntu-24.04
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min. Provisional until the first per-shard xunit recapture (capture_shard_timings.py --suite integration_next).
+    # headroom (#5378): max-suite>=11:10 runs=42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 18
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      - name: Run integration + next suites, shard 3 (full-mode, run-all-regardless)
+        if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 13
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/ci/integration_next_shard.py --shard 3/4 --out out/reports/integration-next-shard-3.args
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            uv run --frozen pytest @out/reports/integration-next-shard-3.args -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next-shard-3.xml
+            code=$?
+          fi
+          echo "INTEGRATION_NEXT_SHARD_3_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::integration+next shard 3 suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly integration+next shard 3 reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-integration-next-shard-3-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): scoped per shard so a red in THIS slice gets its
+      # OWN standing issue (no two shards race to open one). Fail-closed, if: always().
+      #
+      # FIND-2 (#5034): this lane runs BY DIRECTORY, so a pytest exit 5 means the shard's files vanished
+      # or were fully deselected -- never a legitimate marker-empty skip -- and exit 5 is NOT exempted.
+      # An unset/timeout-killed exit also fails closed through the `:-1` default (FIND-1). The shard
+      # selector's own empty-shard refusal (exit 64) lands here as a failure too.
+      - name: Escalate integration+next shard 3 red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTEGRATION_NEXT_SHARD_3_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key "integration-next-shard-3" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next-shard-3.xml
+
+      # Terminal fail-loud gate (#4212), applied per shard: only exit 0 passes; any nonzero exit,
+      # including 5 (zero collected) and an unset/timeout-killed exit (`:-1`, FIND-1), fails the job.
+      - name: Fail the job if integration+next shard 3 was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration-next-shard-3 --xunit out/reports/xunit-nightly-integration-next-shard-3.xml --log-step 'Run integration + next suites, shard 3 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${INTEGRATION_NEXT_SHARD_3_EXIT:-1}" -ne 0 ]; then
+            echo "::error::integration+next shard 3 suite exited ${INTEGRATION_NEXT_SHARD_3_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "integration+next shard 3 suite passed (exit 0)."
+
+  integration-next-shard-4:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: "Integration + next suite shard 4 (nightly-only, #4729, #7456)"
+    runs-on: ubuntu-24.04
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min. Provisional until the first per-shard xunit recapture (capture_shard_timings.py --suite integration_next).
+    # headroom (#5378): max-suite>=11:10 runs=42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 18
+    # `issues: write` for the FR-007 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PWHEADLESS: "1"
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Sync dev environment
+        shell: bash
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures); tests/pinned_service_assets.py fails closed without them. ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      - name: Run integration + next suites, shard 4 (full-mode, run-all-regardless)
+        if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 13
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/ci/integration_next_shard.py --shard 4/4 --out out/reports/integration-next-shard-4.args
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            uv run --frozen pytest @out/reports/integration-next-shard-4.args -q -n auto --dist loadfile --junitxml=out/reports/xunit-nightly-integration-next-shard-4.xml
+            code=$?
+          fi
+          echo "INTEGRATION_NEXT_SHARD_4_EXIT=$code" >> "$GITHUB_ENV"
+          echo "::notice::integration+next shard 4 suite exit=$code (if: always() -- full mode never short-circuits; a red suite is surfaced by the terminal fail-loud step, #4212)"
+
+      - name: Upload nightly integration+next shard 4 reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-nightly-integration-next-shard-4-reports
+          path: out/reports/
+
+      # Nightly red -> deduped-P0 escalation (FR-007): scoped per shard so a red in THIS slice gets its
+      # OWN standing issue (no two shards race to open one). Fail-closed, if: always().
+      #
+      # FIND-2 (#5034): this lane runs BY DIRECTORY, so a pytest exit 5 means the shard's files vanished
+      # or were fully deselected -- never a legitimate marker-empty skip -- and exit 5 is NOT exempted.
+      # An unset/timeout-killed exit also fails closed through the `:-1` default (FIND-1). The shard
+      # selector's own empty-shard refusal (exit 64) lands here as a failure too.
+      - name: Escalate integration+next shard 4 red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${INTEGRATION_NEXT_SHARD_4_EXIT:-1}" -ne 0 ]; then conclusion=failure; else conclusion=success; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key "integration-next-shard-4" --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --xunit out/reports/xunit-nightly-integration-next-shard-4.xml
+
+      # Terminal fail-loud gate (#4212), applied per shard: only exit 0 passes; any nonzero exit,
+      # including 5 (zero collected) and an unset/timeout-killed exit (`:-1`, FIND-1), fails the job.
+      - name: Fail the job if integration+next shard 4 was red (run-all-then-fail-loud)
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/ci/nightly_xunit.py summarize --suite-key integration-next-shard-4 --xunit out/reports/xunit-nightly-integration-next-shard-4.xml --log-step 'Run integration + next suites, shard 4 (full-mode, run-all-regardless)' || echo "::warning::nightly xunit summary helper failed"
+          if [ "${INTEGRATION_NEXT_SHARD_4_EXIT:-1}" -ne 0 ]; then
+            echo "::error::integration+next shard 4 suite exited ${INTEGRATION_NEXT_SHARD_4_EXIT} (a zero-collected exit 5 counts as failure for this directory-based lane, not a legitimate skip)"
+            exit 1
+          fi
+          echo "integration+next shard 4 suite passed (exit 0)."
 
   # ---------------------------------------------------------------------------
   # specify-cli-out-of-matrix (#5201): the tests/specify_cli/** trees that
@@ -2092,7 +2336,7 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next-shard-1, integration-next-shard-2, integration-next-shard-3, integration-next-shard-4, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -2108,7 +2352,10 @@ jobs:
           echo "interpreter-matrix-shard-4: ${{ needs.interpreter-matrix-shard-4.result }}"
           echo "interpreter-matrix-shard-5: ${{ needs.interpreter-matrix-shard-5.result }}"
           echo "interpreter-matrix-shard-6: ${{ needs.interpreter-matrix-shard-6.result }}"
-          echo "integration-next: ${{ needs.integration-next.result }}"
+          echo "integration-next-shard-1: ${{ needs.integration-next-shard-1.result }}"
+          echo "integration-next-shard-2: ${{ needs.integration-next-shard-2.result }}"
+          echo "integration-next-shard-3: ${{ needs.integration-next-shard-3.result }}"
+          echo "integration-next-shard-4: ${{ needs.integration-next-shard-4.result }}"
           echo "integration-slice: ${{ needs.integration-slice.result }}"
           echo "specify-cli-out-of-matrix: ${{ needs.specify-cli-out-of-matrix.result }}"
           echo "architectural-backstop: ${{ needs.architectural-backstop.result }}"

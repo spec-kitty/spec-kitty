@@ -142,7 +142,9 @@ _SECONDS_TOLERANCE = 1e-3
 _BATTERY_DURATIONS_KEY = "battery_file_durations"
 _BATTERY_PROVENANCE_KEY = "battery_capture_provenance"
 _BATTERY_REQUIRED_PROVENANCE = ("producer", "captured_at", "selection", "workers", "files_measured")
-_BATTERY_SUITES = ("architectural",)
+#: ``integration_next`` is the nightly ``integration-next-shard-<N>`` lane (#7456): a directory lane, not a registry battery.
+_INTEGRATION_NEXT_SUITE = "integration_next"
+_BATTERY_SUITES = ("architectural", _INTEGRATION_NEXT_SUITE)
 
 #: The ``producer`` recorded for junit-derived battery timings.
 BATTERY_PRODUCER = "scripts/ci/capture_shard_timings.py"
@@ -546,26 +548,36 @@ def _junit_files(directory: Path) -> list[Path]:
     return files
 
 
-def _battery_provenance(spec: Any, durations: Mapping[str, float], run_ids: Sequence[str], unresolved: int) -> dict[str, Any]:
+def _battery_provenance(selection: str, workers: int, durations: Mapping[str, float], run_ids: Sequence[str], unresolved: int) -> dict[str, Any]:
     return {
         "producer": BATTERY_PRODUCER,
         "source": "junit",
         "captured_at": now_utc_iso(),
-        "selection": spec.base.marker,
-        "workers": spec.workers,
+        "selection": selection,
+        "workers": workers,
         "files_measured": len(durations),
         "run_ids": list(run_ids),
         "unresolved_testcases": unresolved,
     }
 
 
-def _capture_suite(args: argparse.Namespace, payload: dict[str, Any]) -> tuple[dict[str, Any], str] | None:
-    """Fold the junit directories of ``--suite`` into *payload*; ``None`` when nothing resolved."""
-    from scripts.ci.battery_partition_plugin import load_battery_spec
+def _suite_inputs(suite: str) -> tuple[str, tuple[str, ...], str, int]:
+    """``(timings_key, base_files, selection, workers)`` of *suite*: the one place a suite names its file universe."""
     from scripts.ci.shard_select import enumerate_base_files
 
+    if suite == _INTEGRATION_NEXT_SUITE:
+        from scripts.ci.integration_next_shard import ROOTS, SUITE
+
+        return SUITE, enumerate_base_files(ROOTS, root=REPO_ROOT), "tests/integration tests/next by directory (no marker)", 4
+    from scripts.ci.battery_partition_plugin import load_battery_spec
+
     spec = load_battery_spec(_load_registry())
-    base_files = enumerate_base_files(spec.base.paths, deselect=spec.base.deselect, root=REPO_ROOT)
+    return spec.timings_key, enumerate_base_files(spec.base.paths, deselect=spec.base.deselect, root=REPO_ROOT), spec.base.marker, spec.workers
+
+
+def _capture_suite(args: argparse.Namespace, payload: dict[str, Any]) -> tuple[dict[str, Any], str] | None:
+    """Fold the junit directories of ``--suite`` into *payload*; ``None`` when nothing resolved."""
+    timings_key, base_files, selection, workers = _suite_inputs(args.suite)
     captures = [junit_capture(_junit_files(directory), base_files) for directory in args.junit_dirs]
     durations = median_across_runs([capture.seconds for capture in captures])
     if not durations:
@@ -573,9 +585,9 @@ def _capture_suite(args: argparse.Namespace, payload: dict[str, Any]) -> tuple[d
         return None
     run_ids = args.run_ids or [directory.name for directory in args.junit_dirs]
     unresolved = sum(capture.unresolved for capture in captures)
-    provenance = _battery_provenance(spec, durations, run_ids, unresolved)
-    merged = merge_battery_capture(payload, spec.timings_key, durations, provenance)
-    summary = f"{spec.timings_key} -> {len(durations)} files from {len(captures)} runs ({unresolved} unresolved testcases)"
+    provenance = _battery_provenance(selection, workers, durations, run_ids, unresolved)
+    merged = merge_battery_capture(payload, timings_key, durations, provenance)
+    summary = f"{timings_key} -> {len(durations)} files from {len(captures)} runs ({unresolved} unresolved testcases)"
     return merged, summary
 
 

@@ -15,7 +15,7 @@ steps:
   that never actually finished. This test asserts the workflow never defaults
   an unset nightly exit variable to the success sentinel `0`.
 
-- **FIND-2**: ``integration-next`` runs ``pytest tests/integration tests/next``
+- **FIND-2**: the ``integration-next-shard-<N>`` jobs run ``pytest`` over ``tests/integration`` + ``tests/next`` files
   BY DIRECTORY, not by marker (unlike performance/e2e/stress/interpreter-matrix,
   each ``-m <marker>``). For a marker lane, pytest exit 5 ("no tests
   collected") legitimately means "this marker selected nothing" -- a skip,
@@ -37,6 +37,7 @@ from typing import Any
 
 import pytest
 
+from scripts.ci.integration_next_shard import SHARD_JOB_KEYS
 from tests.architectural._gate_coverage import load_spliced_workflow
 from tests.architectural._interpreter_shard_roster import INTERPRETER_SHARD_JOB_KEYS, INTERPRETER_SHARDS
 
@@ -65,7 +66,7 @@ _MARKER_LANES = {
 # specify_cli out-of-matrix lane alongside integration-next; #5510 added the
 # architectural-backstop lane (the plain per-PR battery base, nightly-only).
 _DIRECTORY_LANES = {
-    "integration-next": "INTEGRATION_EXIT",
+    **{key: f"INTEGRATION_NEXT_SHARD_{key.rsplit('-', 1)[1]}_EXIT" for key in SHARD_JOB_KEYS},
     "specify-cli-out-of-matrix": "SPECIFY_CLI_OOM_EXIT",
     "architectural-backstop": "ARCH_BACKSTOP_EXIT",
     # The integration slice is marker-selected, but an empty collect is the
