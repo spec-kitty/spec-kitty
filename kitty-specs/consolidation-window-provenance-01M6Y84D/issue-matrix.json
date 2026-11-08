@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5022": {
+      "evidence_ref": "Cited for context only (prior ADR/fix history or follow-up issue); no work owed by S1",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5048": {
       "evidence_ref": "FR #5048(b) red-first fix in WP16",
       "fr": null,
