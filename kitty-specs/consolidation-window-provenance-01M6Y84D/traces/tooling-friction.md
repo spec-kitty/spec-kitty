@@ -1,0 +1,7 @@
+# Tooling friction — consolidation-window-provenance-01M6Y84D
+
+Running log of tooling friction (procedure `mission-tracer-files`). Tooling this Mission touches: `spec-kitty agent mission create` / `setup-plan` / `spec-commit`, the status pipeline (`move-task`, `agent status emit`), `spec-kitty consolidate` (fresh run, `--dry-run`, `--resume`), pytest real-git fixtures, ruff/mypy, the architectural gates (`test_dossier_sha_provenance.py`, `test_status_module_boundary.py`, `test_reducer_lock_census.py`, `dead_symbol_allowlist.yaml`).
+
+- **[2026-11-08][specify] `agent mission create` refused with WRITE_CHECKOUT_DIRTY over untracked scratch folders.** The operator's untracked `reports/` and `research_notes/` folders made the write checkout count as dirty. Workaround: added them to `.git/info/exclude`. Candidate gap: create could ignore untracked paths outside `kitty-specs/`, or name the `.git/info/exclude` remedy in its refusal.
+- **[2026-11-08][specify] `spec-kitty spec-commit` failed on a transient `.git/index.lock`.** A concurrent git process held the lock; a retry succeeded. Candidate gap: a bounded retry/backoff on `index.lock`, or a clearer message saying the lock is transient and how to check for a live git process.
+- **[2026-11-08][specify] First `mission create` output lost to a shell parse error; resume probe showed not_found.** The create output never reached the agent, and the resume probe correctly reported `not_found`, so the create was re-run cleanly. No change needed: the probe worked as designed.
