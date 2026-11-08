@@ -218,6 +218,11 @@ def test_ci_aggregate_empty_selection_skips_coverage_consumers() -> None:
     assert "coverage" in collect_outputs
     job_if = str(workflow["jobs"]["diff-cover"].get("if", ""))
     assert "needs.collect.outputs.coverage == 'true'" in job_if
+    # #4539: the informational sonar-pr job is a coverage consumer too. Without the
+    # same conjunct it started a runner on an empty selection whose only act was the
+    # gate printing its skip notice.
+    sonar_if = str(workflow["jobs"]["sonar-pr"].get("if", ""))
+    assert "needs.collect.outputs.coverage == 'true'" in sonar_if
 
 
 def test_ci_aggregate_diffcover_gate_fails_under_90_excluding_census_dead() -> None:
