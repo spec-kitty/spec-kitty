@@ -63,7 +63,6 @@ __all__ = [
     "MainTodayRemover",
     "apply",
     "branch_exists",
-    "absorbed_but_for_status_log",
     "branch_tip",
     "cleanup_expected_tips",
     "kept_after_coordination_refusal",
@@ -476,7 +475,7 @@ def _status_log_contained(repo_root: Path, tip: str, landing_ref: str, log_path:
     return all(line in landed_lines for line in lane.splitlines() if line.strip())
 
 
-def absorbed_but_for_status_log(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
+def _absorbed_but_for_status_log(repo_root: Path, tip: str, landing_ref: str, mission_slug: str) -> bool:
     """True when ``tip`` is absorbed by ``landing_ref`` except for the Mission's status log and snapshot (#6736).
 
     On a coordination topology a lane branch carries a copy of the Mission's status log and its
@@ -521,7 +520,7 @@ class GuardedLaneRemover:
 
     ``mission_slug`` (consolidate and ``orchestrator-api consolidate-mission``) lets the absorption
     proof set aside the Mission's own status log and snapshot under
-    :func:`absorbed_but_for_status_log`; without it the proof is the plain ``is_absorbed``.
+    :func:`_absorbed_but_for_status_log`; without it the proof is the plain ``is_absorbed``.
     """
 
     def __init__(
@@ -581,7 +580,7 @@ class GuardedLaneRemover:
         except AbsorptionUnsupported:
             return False
         # #6736: a coordination-topology lane carries an older copy of the Mission's status log.
-        return self._mission_slug is not None and absorbed_but_for_status_log(self._repo_root, tip, landing_ref, self._mission_slug)
+        return self._mission_slug is not None and _absorbed_but_for_status_log(self._repo_root, tip, landing_ref, self._mission_slug)
 
 
 def _guarded_removal(repo_root: Path, item: LaneCleanupItem, landing: LandingProof | None) -> LandedRemoval | None:
