@@ -6,7 +6,7 @@ behind ``materialize``), never a hand-rolled second copy that can silently drift
 The hand-rolled copy drifted once already: it lacked ``schema_version``, which
 the reducer stamps on every ``materialize`` output since #4786, so
 ``doctor mission-state --audit`` reported an info-level ``UNKNOWN_SHAPE``
-finding for Spec Kitty's own key (~90 on the corpus at the time).
+finding for Spec Kitty's own key (216 across the repository's 779 missions at the time).
 
 These tests fail loudly the moment the writer grows a key the audit registry
 does not know about, so the two can never re-diverge (the ``meta.json`` side
