@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from scripts.docs import dockitty_frontmatter_migration as mig
+from scripts.docs._dockitty_contract import validate_frontmatter
 from scripts.docs._inventory import parse_frontmatter
 from tests.docs.conftest import commit_all_changes, init_git_repo_with_base
 
@@ -28,7 +29,7 @@ def _write(root: Path, rel: str, text: str) -> Path:
 def repo(tmp_path: Path) -> Path:
     """A tiny repository: personas, published/draft/excluded pages, an ADR and a non-docs file."""
     _write(tmp_path, _MAINTAINER, "---\ntitle: 'Stakeholder Persona: Maintainer'\ndoc_status: active\n---\n")
-    _write(tmp_path, "docs/guides/a.md", "---\ntitle: A\ndoc_status: active\n---\n")
+    _write(tmp_path, "docs/guides/a.md", "---\ntitle: A\ndoc_status: active\ntype: how-to\n---\n")
     _write(tmp_path, "docs/guides/index.md", "---\ntitle: Guides\ndoc_status: active\n---\n")
     _write(tmp_path, "docs/plans/notes.md", "---\ntitle: Notes\ndoc_status: draft\n---\n")
     _write(tmp_path, "docs/archive/old.md", "---\ntitle: Old\ndoc_status: deprecated\n---\n")
@@ -43,8 +44,9 @@ def _corpus(repo: Path) -> mig.Corpus:
 
 
 def _migrate(repo: Path, rel: str, text: str) -> tuple[str, mig.MigrationReport]:
+    """The #6929 rules alone; the D-7 fields (#6931) have their own tests below."""
     report = mig.MigrationReport()
-    return mig.migrate_text(rel, text, _corpus(repo), report), report
+    return mig.migrate_text(rel, text, _corpus(repo), report, d7=False), report
 
 
 # --- audience ---------------------------------------------------------------
@@ -266,16 +268,138 @@ def test_body_guard_refuses_a_rewrite_whose_body_differs(repo: Path, monkeypatch
         _migrate(repo, "guides/p.md", f"---\ntitle: P\naudience: {_MAINTAINER}\n---\nbody\n")
 
 
+# --- D-7 fields: kind, doc_status, updated, type (#6931) ----------------------
+
+
+def _migrate_d7(repo: Path, rel: str, text: str) -> tuple[str, mig.MigrationReport]:
+    report = mig.MigrationReport()
+    return mig.migrate_text(rel, text, _corpus(repo), report), report
+
+
+@pytest.mark.parametrize(
+    ("rel", "frontmatter", "kind"),
+    [
+        ("guides/index.md", {"type": "how-to"}, "Hub"),
+        ("adr/4.x/index.md", {}, "Hub"),
+        ("guides/Readme.md", {}, "Hub"),
+        ("adr/4.x/2026-01-01-1-x.md", {"type": "reference"}, "ADR"),
+        ("guides/x.md", {"type": "tutorial"}, "Tutorial"),
+        ("guides/x.md", {"type": "how-to"}, "How-To"),
+        ("architecture/x.md", {"type": "reference"}, "Reference"),
+        ("architecture/x.md", {}, "Explanation"),
+        ("plans/engineering-notes/x.md", {}, "Planning"),
+        ("development/reference/x.md", {}, "Reference"),
+        ("guides/how-to/x.md", {}, "How-To"),
+        ("contracts/x.md", {}, "Reference"),
+        ("retrospective-learning-loop.md", {}, "Explanation"),
+        ("guides/x.md", {"kind": "Glossary", "type": "how-to"}, "Glossary"),
+    ],
+)
+def test_resolve_kind(rel: str, frontmatter: dict[str, str], kind: str) -> None:
+    assert mig.resolve_kind(rel, frontmatter) == kind
+
+
+def test_an_unclassified_page_fails_closed() -> None:
+    with pytest.raises(mig.MigrationError, match="no rule classifies"):
+        mig.resolve_kind("guides/x.md", {"type": "Guide"})
+
+
+@pytest.mark.parametrize(
+    ("rel", "status", "expected"),
+    [
+        ("guides/x.md", "point_in_time", "durable"),
+        ("guides/x.md", "closeout", "durable"),
+        ("guides/x.md", "proposal", "draft"),
+        ("plans/engineering-notes/x.md", "point_in_time", "draft"),
+        ("plans/research/x.md", "closeout", "draft"),
+        ("plans/engineering-notes/x.md", "active", "active"),
+        ("guides/x.md", "mystery", "mystery"),
+        ("guides/x.md", None, None),
+    ],
+)
+def test_normalise_doc_status(rel: str, status: str | None, expected: str | None) -> None:
+    assert mig.normalise_doc_status(rel, {} if status is None else {"doc_status": status}) == expected
+
+
+@pytest.mark.parametrize(
+    ("rel", "frontmatter", "expected"),
+    [
+        ("guides/x.md", {"updated": "2026-04-29"}, "2026-04-29T00:00:00Z"),
+        ("guides/x.md", {"updated": "2026-04-29T10:00:00+02:00"}, "2026-04-29T08:00:00Z"),
+        ("guides/x.md", {"updated": "2026-04-29T10:00:00Z"}, "2026-04-29T10:00:00Z"),
+        ("guides/x.md", {}, None),
+        ("adr/4.x/2026-01-01-1-x.md", {"date": "2026-01-01"}, "2026-01-01T00:00:00Z"),
+        ("adr/4.x/2026-01-01-1-x.md", {"date": "2026-01-01", "updated": "2026-03-01"}, "2026-03-01T00:00:00Z"),
+        ("adr/3.x/2026-06-19-1-x.md", {"date": "2026-06-19 (original) · **Amended**: 2026-10-01 · **Amended**: 2026-06-21"}, "2026-10-01T00:00:00Z"),
+    ],
+)
+def test_normalise_updated(rel: str, frontmatter: dict[str, str], expected: str | None) -> None:
+    assert mig.normalise_updated(rel, frontmatter) == expected
+
+
+@pytest.mark.parametrize(
+    ("rel", "frontmatter"),
+    [("guides/x.md", {"updated": "last week"}), ("adr/4.x/2026-01-01-1-x.md", {"date": "the day after"}), ("adr/4.x/2026-01-01-1-x.md", {})],
+)
+def test_an_updated_that_cannot_be_read_fails_closed(rel: str, frontmatter: dict[str, str]) -> None:
+    with pytest.raises(mig.MigrationError):
+        mig.normalise_updated(rel, frontmatter)
+
+
+def test_a_divio_page_folds_type_into_kind_and_gains_an_instant(repo: Path) -> None:
+    text = "---\ntitle: X\ndescription: d\ndoc_status: point_in_time\nupdated: '2026-04-29'\ntype: how-to\nowner: me\n---\nbody\n"
+    out, report = _migrate_d7(repo, "guides/x.md", text)
+    assert out == "---\ntitle: X\ndescription: d\ndoc_status: durable\nkind: How-To\nupdated: '2026-04-29T00:00:00Z'\nowner: me\n---\nbody\n"
+    assert (report.kind_files, report.doc_status_files, report.updated_files, report.type_files) == (1, 1, 1, 1)
+    assert _migrate_d7(repo, "guides/x.md", out)[0] == out
+
+
+def test_an_adr_takes_updated_from_date_after_it(repo: Path) -> None:
+    text = "---\ntitle: X\nstatus: Accepted\ndate: 2026-01-01\nother: kept\n---\nbody\n"
+    out, report = _migrate_d7(repo, "adr/4.x/2026-01-01-1-x.md", text)
+    assert out == "---\ntitle: X\nstatus: Accepted\ndoc_status: active\nkind: ADR\ndate: 2026-01-01\nupdated: '2026-01-01T00:00:00Z'\nother: kept\n---\nbody\n"
+    assert (report.adr_files, report.kind_files, report.updated_files) == (1, 0, 1)
+
+
+def test_a_page_with_a_section_type_keeps_it(repo: Path) -> None:
+    text = "---\ntitle: X\nkind: Reference\nupdated: '2026-04-29T00:00:00Z'\ntype: Guide\n---\n"
+    assert _migrate_d7(repo, "guides/x.md", text)[0] == text
+
+
+def test_d7_output_passes_the_doc_kitty_rules(repo: Path) -> None:
+    description = "A description long enough for doc-kitty's soft lower bound."
+    text = f"---\ntitle: X\ndescription: {description}\ndoc_status: active\nupdated: 2026-04-29\ntype: reference\n---\n"
+    out, _ = _migrate_d7(repo, "guides/x.md", text)
+    findings = validate_frontmatter("guides/x.md", parse_frontmatter(out))
+    assert findings.errors == ()
+    assert findings.warnings == ()
+
+
+def test_validate_reports_errors_and_exits_one(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    args = ["--docs-root", str(repo / "docs"), "--repo-root", str(repo)]
+    assert mig.main([*args, "--validate"]) == 1
+    out = capsys.readouterr().out
+    assert "ERROR docs/guides/a.md: `kind`: required" in out
+    assert "docs/archive/old.md" not in out
+    assert mig.main([*args, "--apply"]) == 0
+    _write(repo, "docs/log.md", "no frontmatter\n")
+    capsys.readouterr()
+    verdicts = mig.validate_tree(repo / "docs")
+    assert "docs/log.md" not in verdicts and "docs/archive/old.md" not in verdicts
+    assert "docs/plans/notes.md" in verdicts  # drafts are validated, as upstream does
+    assert all("`kind`: required" not in verdict.errors for verdict in verdicts.values())
+
+
 # --- tree, CLI, verify ------------------------------------------------------
 
 
 def test_migrate_tree_is_idempotent_and_cli_check_reports(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _write(repo, "docs/guides/p.md", f"---\ntitle: P\ndoc_status: active\naudience: {_MAINTAINER}\nrelated:\n- docs/gone.md\n---\nbody\n")
+    _write(repo, "docs/guides/p.md", f"---\ntitle: P\ndoc_status: active\ntype: how-to\naudience: {_MAINTAINER}\nrelated:\n- docs/gone.md\n---\nbody\n")
     args = ["--docs-root", str(repo / "docs"), "--repo-root", str(repo)]
     assert mig.main([*args, "--check"]) == 1
     assert "DROPPED docs/guides/p.md -> docs/gone.md" in capsys.readouterr().out
     assert mig.main([*args, "--apply", "--json"]) == 0
-    assert '"changed_files": 2' in capsys.readouterr().out
+    assert '"changed_files": 6' in capsys.readouterr().out  # every non-excluded page gains its D-7 kind
     assert mig.main([*args, "--check"]) == 0
     second = mig.migrate_tree(docs_root=repo / "docs", repo_root=repo, write=False)
     assert second.changed_files == []
@@ -286,7 +410,7 @@ def test_apply_writes_nothing_when_any_page_fails(repo: Path) -> None:
     _write(repo, "docs/adr/4.x/2026-02-02-1-y.md", "---\ntitle: Y\nstatus: Rejected\n---\n")
     before = good.read_text(encoding="utf-8")
     with pytest.raises(mig.MigrationError):
-        mig.migrate_tree(docs_root=repo / "docs", repo_root=repo, write=True)
+        mig.migrate_tree(docs_root=repo / "docs", repo_root=repo, write=True, d7=False)
     assert good.read_text(encoding="utf-8") == before
 
 
