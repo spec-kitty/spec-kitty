@@ -237,6 +237,35 @@ def _check_mission_branch(
     if _has_branch_ref(repo_root, expected_branch):
         return True, None
 
+    blocker_payload: MissionBranchBlocker = {
+        "ready": False,
+        "blocker": "missing_mission_branch",
+        "expected_branch": expected_branch,
+        "remediation": _missing_mission_branch_remediation(repo_root, expected_branch),
+    }
+    return False, blocker_payload
+
+
+def _missing_mission_branch_remediation(repo_root: Path, expected_branch: str) -> str:
+    """How to recreate a missing Mission branch, preferring its last recorded tip.
+
+    A deleted coordination or Mission branch must come back at the commit it last pointed
+    at. Its recorded lane-tip ref (``refs/spec-kitty/lane-tip/<branch>``) restores exactly
+    that; otherwise the reflog still holds it. Recreating the branch at the repository
+    root's HEAD is offered only as a last resort, because HEAD may not hold the Mission's
+    work.
+    """
+    from specify_cli.lanes.lane_tip import tip_ref
+
+    recorded = tip_ref(expected_branch)
+    retcode, _stdout, _stderr = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", recorded],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if retcode == 0:
+        return f"git branch {expected_branch} {recorded}"
     retcode, stdout, _stderr = run_command(
         ["git", "rev-parse", "HEAD"],
         capture=True,
@@ -244,14 +273,10 @@ def _check_mission_branch(
         cwd=repo_root,
     )
     base_sha = stdout.strip()[:12] if retcode == 0 else "<base-commit>"
-
-    blocker_payload: MissionBranchBlocker = {
-        "ready": False,
-        "blocker": "missing_mission_branch",
-        "expected_branch": expected_branch,
-        "remediation": f"git branch {expected_branch} {base_sha}",
-    }
-    return False, blocker_payload
+    return (
+        f"git branch {expected_branch} <last-tip-sha> (find its last tip with `git reflog`; "
+        f"recreate it at the current HEAD, {base_sha}, only as a last resort: HEAD may not hold the Mission's work)"
+    )
 
 
 def mission_branch_check_required(

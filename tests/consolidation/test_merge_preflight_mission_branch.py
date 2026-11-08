@@ -26,13 +26,27 @@ pytestmark = pytest.mark.fast
 MISSION_SLUG = "stable-320-release-blocker-cleanup-01KQW4DF"
 
 
+def _no_recorded_tip_then_head(argv: list[str], **_kwargs: object) -> tuple[int, str, str]:
+    """``git rev-parse``: no recorded lane-tip ref, then the repository root's HEAD."""
+    if "--verify" in argv:
+        return 1, "", ""
+    return 0, "abc1234def5678\n", ""
+
+
+def _last_resort_remediation(branch: str) -> str:
+    return (
+        f"git branch {branch} <last-tip-sha> (find its last tip with `git reflog`; "
+        "recreate it at the current HEAD, abc1234def56, only as a last resort: HEAD may not hold the Mission's work)"
+    )
+
+
 def _blocker(slug: str = MISSION_SLUG) -> dict[str, str | bool]:
     expected_branch = f"kitty/mission-{slug}"
     return {
         "ready": False,
         "blocker": "missing_mission_branch",
         "expected_branch": expected_branch,
-        "remediation": f"git branch {expected_branch} abc1234def56",
+        "remediation": _last_resort_remediation(expected_branch),
     }
 
 
@@ -145,7 +159,7 @@ class TestCheckMissionBranch:
             return_value=False,
         ), patch(
             "specify_cli.consolidation.preflight.run_command",
-            return_value=(0, "abc1234def5678\n", ""),
+            side_effect=_no_recorded_tip_then_head,
         ):
             exists, blocker = _check_mission_branch(
                 "my-mission", tmp_path, mission_id=self._RESOLVABLE_ID
@@ -156,7 +170,7 @@ class TestCheckMissionBranch:
         assert blocker["ready"] is False
         assert blocker["blocker"] == "missing_mission_branch"
         assert blocker["expected_branch"] == self._RESOLVED_BRANCH
-        assert blocker["remediation"] == f"git branch {self._RESOLVED_BRANCH} abc1234def56"
+        assert blocker["remediation"] == _last_resort_remediation(self._RESOLVED_BRANCH)
 
     def test_branch_missing_fail_closed_for_unresolvable_modern_slug(
         self, tmp_path: Path
@@ -177,7 +191,7 @@ class TestCheckMissionBranch:
             return_value=False,
         ), patch(
             "specify_cli.consolidation.preflight.run_command",
-            return_value=(0, "abc1234def5678\n", ""),
+            side_effect=_no_recorded_tip_then_head,
         ):
             exists, blocker = _check_mission_branch(
                 "my-mission-01KQ",
@@ -188,7 +202,22 @@ class TestCheckMissionBranch:
         assert exists is False
         assert blocker is not None
         assert blocker["expected_branch"] == manifest_branch
-        assert blocker["remediation"] == f"git branch {manifest_branch} abc1234def56"
+        assert blocker["remediation"] == _last_resort_remediation(manifest_branch)
+
+    def test_branch_missing_prefers_its_recorded_lane_tip(self, tmp_path: Path) -> None:
+        manifest_branch = "kitty/mission-my-mission-01KQ-01KQTEST"
+        with patch(
+            "specify_cli.consolidation.preflight._has_branch_ref",
+            return_value=False,
+        ), patch(
+            "specify_cli.consolidation.preflight.run_command",
+            return_value=(0, "f00dfacef00d\n", ""),
+        ):
+            exists, blocker = _check_mission_branch("my-mission-01KQ", tmp_path, expected_branch=manifest_branch)
+
+        assert exists is False
+        assert blocker is not None
+        assert blocker["remediation"] == f"git branch {manifest_branch} refs/spec-kitty/lane-tip/{manifest_branch}"
 
 
 class TestMergeDryRunMissingBranch:
@@ -589,7 +618,7 @@ class TestMergeDryRunMissingBranch:
         payload = json.loads(capsys.readouterr().out)
         assert payload["error"] == (
             f"Missing mission branch: kitty/mission-{MISSION_SLUG}. "
-            f"Run: git branch kitty/mission-{MISSION_SLUG} abc1234def56"
+            f"Run: {_last_resort_remediation(f'kitty/mission-{MISSION_SLUG}')}"
         )
         assert payload["error_code"] == "MISSION_BRANCH_MISSING"
 
@@ -609,7 +638,7 @@ class TestMergeDryRunMissingBranch:
         assert exc_info.value.exit_code == 1
         output = _compact_output(capsys.readouterr().out)
         assert f"Missing mission branch: kitty/mission-{MISSION_SLUG}" in output
-        assert f"git branch kitty/mission-{MISSION_SLUG} abc1234def56" in output
+        assert _last_resort_remediation(f"kitty/mission-{MISSION_SLUG}") in " ".join(output.split())
 
     def test_real_merge_blocked_missing_branch(
         self,
@@ -646,7 +675,7 @@ class TestMergeDryRunMissingBranch:
         acquire_lock.assert_not_called()
         output = _compact_output(capsys.readouterr().out)
         assert f"Missing mission branch: kitty/mission-{MISSION_SLUG}" in output
-        assert f"git branch kitty/mission-{MISSION_SLUG} abc1234def56" in output
+        assert _last_resort_remediation(f"kitty/mission-{MISSION_SLUG}") in " ".join(output.split())
 
     def test_resume_preserves_original_push_request_for_preflight(
         self,
