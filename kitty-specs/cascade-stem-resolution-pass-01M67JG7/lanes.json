@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "mission_slug": "cascade-stem-resolution-pass-01M67JG7",
+  "mission_id": "01M67JG7KAMYV4YFWN3YVZ5VTT",
+  "mission_branch": "kitty/mission-cascade-stem-resolution-pass-01M67JG7",
+  "target_branch": "issue-6777-cascade-stem-resolution-pass",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "tests/charter/activation/test_cascade_stem_resolution_6777.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/charter/activation/test_stored_spelling_6527.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T23:33:59.597034+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0997a65e9ea3635122eae62bbee5cc972fee0337"
+}
