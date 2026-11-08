@@ -6,6 +6,8 @@ dependencies:
 requirement_refs:
 - FR-019
 - C-006
+- NFR-001
+- NFR-008
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
@@ -437,7 +439,7 @@ grep -n "consolidation.reconciliation import" $C/reconciliation_verifier.py $C/r
 uv run --frozen pytest -q tests/consolidation/test_reconciliation_module_imports.py
 ```
 
-Step 3 must print exactly three lines: two in `reconciliation_verifier.py` and one in `reconciliation_closed_world.py`.
+Step 3 must print exactly two lines: one in `reconciliation_verifier.py` (the `unmet_approved_content` import T064 adds) and one in `reconciliation_closed_world.py` (WP11's). The two comment lines T064 adds above the import do not match the pattern. If you see any other count, stop and ask; never add or remove an import to make the count match (post-tasks squad R-04).
 
 Then the Phase 1/2 oracle block (counts equal to your BEFORE run), then the verifier rows by name:
 
@@ -489,7 +491,8 @@ Checklist:
 - [ ] `git diff --stat` shows only: the facade, `reconciliation_verifier.py`, `reconciliation_family.py`, `test_reconciliation_module_imports.py`, `test_reconciliation.py`, `test_canceled_dependency_attribution.py` (plus tracer notes). No suppression, allowlist row, registry entry, changelog fragment or version change.
 - [ ] `__all__` declared in the new module; the facade's own `__all__` still has its 10 names.
 - [ ] `tests/consolidation/test_single_rollback_authority.py` passes (C-009).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (`claim_integrity_refusal` moved with the verifier, the one forward reference and who removes it, the `path_state_at` retarget landing here, module sizes) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP12] <summary>.** <detail>`. If your checkout has no `kitty-specs/`, use `spec-kitty agent tasks add-history WP12 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP12" --entry "<summary>. <detail>"` for `claim_integrity_refusal` moved with the verifier, the one forward reference and who removes it, the `path_state_at` retarget landing here, module sizes; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a command passed that you did not run.
 
 ## Risks & Mitigations
@@ -512,6 +515,7 @@ Checklist:
   4. The pinned facade imports `merge_tree_write_tree_available` and `path_state_at` were kept in alias form, not deleted; the other seven unused imports were deleted.
   5. `test_canceled_dependency_attribution.py` changed in exactly one patch line plus one import; its other `{_RECONCILIATION}` patches are untouched (WP13's).
   6. Function-local imports inside moved bodies stayed function-local; no body was "tidied".
+- **Record the spot-check outcome** (post-tasks squad R-15): put each spot-check command you ran and the cell keys that went red into the review note (`spec-kitty agent tasks add-history <WP> --note ...` or the review verdict text), so the check stays verifiable after the review.
 - **Mutation spot-check on the moved code.** Back the module up, break one axis, expect the corpus to go red, restore:
 ```bash
 cp $C/reconciliation_verifier.py /tmp/verifier.good

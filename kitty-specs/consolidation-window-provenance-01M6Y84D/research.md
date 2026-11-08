@@ -241,3 +241,55 @@ Inputs: debugger-debbie (failure modes, 9 findings), reviewer-renata (verifiabil
 | G-03 | C-014 (code quality gates) cited nowhere in plan.md | accepted | Cross-cutting, every IC |
 
 **Counts**: 30 findings — accepted 21, changed 8, deferred_with_rationale 1. No finding was dropped.
+
+## Findings disposition (post-tasks squad, 2026-11-08, every finding)
+
+Inputs: python-pedro (implementability, 10 findings), reviewer-renata (reviewability and evidence, 16 findings) and the mechanical completeness check (reviewer-renata, 3 LOW plus 2 INFO). Orchestrator decisions of 2026-11-08 are applied as given; the rest is the planner's judgment. Every edit is in the named WP prompt(s) and `tasks.md`; no finding was dropped.
+
+### python-pedro
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| P-1 | [HIGH] WP06 `claim-orchestration` / `lane-tip-recheck` rows cannot reach the verdict: `phase_claim`, `phase_gate`, `forecast` bind the names by name | changed | Orchestrator decision: WP04 T021 adds one explicit `RECONCILIATION_CONSUMERS` list (`phase_claim`, `phase_gate`, `forecast`) and `family_modules_binding` extends a family patch to consumer bindings of the same object; new test `test_family_helper_patches_consumer_bindings`. WP06 rows keep `build_approved_wp_set` / `lane_tips_moved_refusal`. Follow-through found while folding: after WP09 the call sites go through `claim_inputs.build_claim`, so WP09 appends `claim_inputs` to the list (sanctioned one-line edit, owned file added) and reruns the mutation file |
+| P-2 | [HIGH] Four mutation rows have no corpus cell WP06 could turn red | accepted | WP02 T012 step 2a adds `lane_commit_during_run`, `dependency_ref`, `approved_content_missing` (resume, coordination), `unattributable_squash_path`; WP06 table names them as expected red cells and says it adds no cell |
+| P-3 | [HIGH] WP05 (d) fake also fires on the verifier's gate-time `blob_id_at(target_ref, P)`, so the strict xfail XPASSes | accepted | WP05 T026 and WP16 T083: fake raises only for `(touch_sha, P)`, the lane commit the walk reads P at; both assert claim-time refusal (claim-probe text, reflogs unchanged, no `pre_mutation_refs` snapshot left) |
+| P-4 | [MEDIUM] Resume cells cannot hold `pre_interrupt_lane_tips` without a coordination checkpoint | accepted | WP02 T008: resume cells coordination-only, others `mode_not_applicable` naming `_resolve_pre_mutation_coord_sha`; WP05 T027 pinned to coordination topology; DoD updated |
+| P-5 | [MEDIUM] "Import, do not copy" impossible for `single_branch`, `two_wp_lane`, `planning_lane`; `build_shape` typed `CoordMission` | accepted | WP02 T009: promote the `single_branch` helpers into `tests/integration/single_branch_window_support.py` (pure move; test module and support module added to owned files), write `two_wp_lane` and `planning_lane`, `build_shape -> ShapeMission` protocol |
+| P-6 | [MEDIUM] Corpus scope (315 cells) and no runtime budget | accepted | WP02 T012: written pruning rule P1 (stamp short-circuit), P2 (no lane window), P3 (resume topology); budget <= 10 min serial, <= 3 min `-n auto --dist loadfile`, both measured in the DoD; module marked `integration` + `git_repo` |
+| P-7 | [MEDIUM] WP04 forward-reference rule leaves three cases open for a cheap-tier implementer | changed | Precedence specified exactly (module-level binding wins; alias resolves to the imported name; the source module decides; non-reconciliation local imports ignored) with one control per rule (`test_forward_reference_precedence_and_alias`). Tier kept cheap rather than raised: with the rule written out and controlled, no judgment call is left |
+| P-8 | [LOW] WP09 cites a non-existent `_phase_claim` | accepted | Renamed to `_capture_reconciliation_claim` (~485-552) |
+| P-9 | [LOW] WP18 may reshape WP09's `dependency_anchors` without owning WP09's parity test | accepted | Shape fixed now in WP09 (`Mapping[str, str]`, created dependency-lane branch -> SHA, key space of `pre_interrupt_lane_tips`; parity test pins it); data-model section 6 updated; WP18 T095 step 3 stops instead of reshaping |
+| P-10 | [LOW] Dangling `not_on_lane` commit can be pruned in copied repos | accepted | WP02 T010 keeps it reachable from `refs/test/not-on-lane/<wp_id>` |
+
+### reviewer-renata
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| R-01 | [HIGH] Zero-diff checks use `git diff --exit-code` (working tree vs index) and miss a committed regeneration | accepted | WP02 exposes `changed_cells(base_ref)`; WP07-WP15 DoDs carry a base-relative check (`git diff --exit-code $WP_BASE HEAD -- <golden>` plus `changed_cells($WP_BASE) == []`, `WP_BASE` recorded and reviewer-verified); WP15 T082 step 2 narrowed to "newest golden commit is Phase 1" |
+| R-02 | [HIGH] Tracer DoDs hand-edit `traces/*.md` or fall back to `add-history` | accepted | Every DoD (WP01-WP21) and every in-body tracer instruction now uses `spec-kitty agent tracer-append --mission ... --category ... --actor "implement WPxx" --entry ...` (CLI checked with `--help`; it routes to the coordination surface from any checkout); no hand-edit, no fallback |
+| R-03 | [MEDIUM] WP19/WP20 have no machine check of the golden subset; WP16 compares with `HEAD:` | accepted | All five Phase 4 WPs run `changed_cells(<parent of red commit>)` and compare it with their named cells (WP19/WP20 with an explicit allowed list and `assert c == a`) |
+| R-04 | [MEDIUM] WP12 says both "three lines" and "two lines" | accepted | Exactly two lines everywhere, with a stop-and-ask on any other count |
+| R-05 | [MEDIUM] No WP owns the issue-matrix rows; out-of-scope rows stay `unknown` | changed | Orchestrator decision: WP21 T113 block 13 writes every row with `spec-kitty agent issue-verdict` (commands written out). The CLI has no `partial` verdict, so #5721 is `deferred-with-followup` with evidence leading "Partial:" and naming WW-6; #5703/#7359/#7362 are `not-applicable` (spec Out of Scope) rather than deferred, per the orchestrator |
+| R-06 | [MEDIUM] No Phase 4 WP owns precedence-matrix rows for the new window refusal | changed | WP19 owns the window refusal rows, but in a **new** file `test_refusal_precedence_matrix_windows.py` that imports WP03's fixtures. Editing WP03's lane-b file would have collapsed lane-b into lane-a; WP03's unchanged matrix staying green is the STOP check for existing rows. WP16-WP18 and WP20 add no new refusal text (WP16 reuses the existing claim-probe refusal, which refuses alone; WP20's gap report is output, not a refusal) |
+| R-07 | [MEDIUM] `single_branch` (c) may have no golden witness; (c) split not stated | accepted | WP02 T012 step 2 requires `fresh\|single_branch\|...\|rewound` plus its forecast twin; WP20 expects exactly those keys and records the WP05 pin's `xfailed` run at its red SHA; tasks.md coverage table states the WP19 / WP20 split |
+| R-08 | [MEDIUM] WP17 can change a `--dry-run` verdict but writes no fragment; WP16/WP18 fragments written by another agent | changed | Orchestrator decision: WP17 owns `7403-forecast-claim-inputs.fixed.md` (conditional on a visible change, otherwise a tracer entry). WP16/WP18 fragments stay with WP21 (earlier orchestrator decision 2026-11-08), but WP16 and WP18 now record the operator-visible Before/After sentence in a design-decisions tracer entry that their reviewers check and WP21 writes from |
+| R-09 | [MEDIUM] Dependency summary promises Phase 1/2 parallelism the serial lane-a cannot give | changed | tasks.md summary and per-WP "Parallel Opportunities" rewritten to match `lanes.json` (parallel across lanes, serial inside lane-a). The optional recovery (glob-discovered family so WP04 moves to lane-b) is deferred: the explicit family tuple is the audit point WP10-WP15 extend, and lane-a is serial anyway |
+| R-10 | [MEDIUM] Acceptance matrix is all placeholders; no owner | accepted | WP21 T113 block 14 fills every `FR-001`..`FR-023` row with `spec-kitty agent mission acceptance-verdict` (command written out; pending/deferred only when stated) |
+| R-11 | [LOW] WP21 diffs from a "phase-3 tip" no WP records | accepted | WP15 records `Phase 3 tip = <sha>` via `tracer-append`; WP21 block 11 cites it and uses `changed_cells` |
+| R-12 | [LOW] WP19 has no commit plan; pin flips could land after the fix | accepted | WP19 commit plan: red; fix + pin flips + named-cell regeneration + new matrix file; follow-up |
+| R-13 | [LOW] lane-a merges unapproved WP01/WP03 tips; a later rewrite orphans merged commits | accepted | WP01 and WP03 DoD: never rewrite a commit once on the lane branch (fix forward); tasks.md rewrite rule |
+| R-14 | [LOW] Red SHAs become unreachable after squash consolidation with cleanup | accepted | tasks.md: consolidate with `--keep-branch` until the PR is reviewed; WP16-WP20 DoDs also require each red test's id and assertion message in the history |
+| R-15 | [LOW] Cheap-tier spot-check outcomes are not recorded; WP04 review does not rerun the regeneration | accepted | WP04, WP10, WP11, WP12 review guidance: record the spot-check command and red cell keys; WP04 reviewer reruns the surface regeneration and checks zero diff |
+| R-16 | [LOW] Requirements Coverage Summary drifts from the prompts | accepted | tasks.md Requirement Refs: NFR-001 added to WP07-WP09, WP12-WP15; NFR-008 to WP10-WP12, WP14; coverage table updated, (c) split stated |
+
+### Mechanical completeness (reviewer-renata)
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| M-1 | [LOW] WP07 body cross-references WP02 T010 | accepted | Benign reference, not an assignment; no edit |
+| M-2 | [LOW] WP14 body cross-references T078 (WP15) | accepted | Intentional deferral note; no edit |
+| M-3 | [LOW] `model: ''` on mid/top WPs while cheap WPs carry `glm-5.3` | accepted | Intended: mid/top routing is profile-resolved, the "Model tier" line is the routing hint; no edit |
+| M-I1 | [INFO] WP10-WP12 are the largest prompts (under 700 lines) | accepted | No action; WP02/WP04 grew but stay under the threshold |
+| M-I2 | [INFO] `--agent <name>` placeholder in implement commands | accepted | Expected form; no action |
+
+**Counts**: 29 findings (10 pedro, 16 renata, 3 mechanical LOW) — accepted 23, changed 6, deferred_with_rationale 0; plus 2 INFO noted. No finding was dropped.

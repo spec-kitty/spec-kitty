@@ -143,12 +143,18 @@ A strict `xfail(raises=AssertionError)` turns **any** `AssertionError` into an e
 
 ### Subtask T026 – History-read error is never a deletion (d) [P]
 
-- **Fixture**: a lane whose spine changes path P. Patch the history probe used by `_final_authored_walk` (today `blob_id_at`, looked up in `specify_cli.consolidation.reconciliation`) through `setattr_reconciliation_family(monkeypatch, "blob_id_at", fake)`, where `fake` raises `GitProbeError` (from `specify_cli.consolidation.git_probes`) for P only and delegates otherwise.
-- **`test_history_read_error_refuses_instead_of_deleting`**: run `consolidate` in process. Intended: exit != 0, output names P and the read error, target branch unchanged. Today the error is recorded as a deletion of P.
-- **Notes**: WP16 will change the probe to `path_state_at`; the fix work package rewrites the patch target when it flips this test. Write the fake so it is easy to retarget (one helper `_failing_probe_for(path)`).
+- **Fixture**: a lane whose spine **modifies** (not deletes) path P. Find `touch_sha`, the newest commit on the lane's first-parent spine that touches P (the one commit `_final_authored_walk` reads P at; `git rev-list --first-parent <coord base>..<lane branch> -- P | head -1`). Patch the history probe used by `_final_authored_walk` (today `blob_id_at`, looked up in `specify_cli.consolidation.reconciliation`) through `setattr_reconciliation_family(monkeypatch, "blob_id_at", fake)`, where `fake` raises `GitProbeError` (from `specify_cli.consolidation.git_probes`) **only for `(touch_sha, P)`** and delegates for every other `(ref, path)`.
+  - **Why so narrow** (post-tasks squad pedro #3): the verifier also calls `blob_id_at(self._repo, target_ref, path)` at gate time (`reconciliation.py` ~1370 and ~1596, "raises -> REFUSE"). A fake that raises for P on **any** ref makes today's run refuse at the **gate** and roll back: exit != 0, P named, target unchanged. That satisfies loose assertions, the strict xfail XPASSes, and the WP is red on delivery. Never raise for `target_ref` or any ref other than `touch_sha`.
+- **`test_history_read_error_refuses_instead_of_deleting`**: run `consolidate` in process. Intended: refused **at claim time, before any mutation**:
+  - exit code 1 and the output contains `a git probe failed while building the approved-WP claim` (`phase_claim._exit_on_claim_probe_error`) and names P;
+  - no branch moved **and nothing was moved and rolled back**: record `rollback_harness.ref_shas(mission)` and the reflog of the target and coordination branches before the run; assert both unchanged after (a gate FAIL/REFUSE moves the target and restores it, which leaves a reflog entry; a claim-time refusal leaves none);
+  - no pre-mutation snapshot remains (`rollback_harness.state_path(mission)` absent, or its `pre_mutation_refs` empty: a claim-time exit clears the fresh record).
+  Today the error is recorded as a deletion of P, the claim builds, and the run continues past claim time, so these assertions fail with `AssertionError`.
+- **Notes**: WP16 will change the probe to `path_state_at`; the fix work package rewrites the patch target when it flips this test. Write the fake so it is easy to retarget (one helper `_failing_probe_for(path, touch_sha)`, scoped to that one pair).
 
 ### Subtask T027 – Resume reads frozen anchors (e, f, g) [P]
 
+- **Topology**: all three tests build their shapes on the **coordination** topology. `pre_interrupt_lane_tips` is persisted only when the coordination checkpoint resolves (`phase_claim._resolve_pre_mutation_coord_sha`); on LANES or `single_branch` there are no frozen tips to read (post-tasks squad pedro #4).
 - **Fixture**: `interrupt_after_claim(mission)` from WP02 (SIGKILL after the claim anchors were saved, before lanes are consolidated). Precondition via `require`: `state.json` holds `pre_interrupt_lane_tips` with the dependency lane's tip. Then add a commit D to the dependency lane (after the kill), then run `consolidate --resume` in process.
 - **(e) `test_resume_closed_world_reads_frozen_anchors`**: mixed lane (approved WP + canceled WP) whose closed-world anchors include the dependency lane. Intended: D does not widen the exempt set; the resume reaches the verdict the closed world reaches with the frozen tip (spec US4-3).
 - **(f) `test_resume_approved_bound_reads_frozen_anchors`**: a non-mixed lane whose dependency lane gained D after the interruption, and the dependent lane then merged D. Intended: `LANE_MOVED_AFTER_APPROVAL` instead of exempting D (spec US4-5).
@@ -185,7 +191,7 @@ make test-fast
 - [ ] Every `xfail` has `strict=True`, `raises=AssertionError` and a `reason=` naming cell, FR and flipping work package.
 - [ ] Temporarily break one fixture precondition locally and confirm the test **errors** (not xfails); discard the change.
 - [ ] No production code changed.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (your reading of (c) and (g), any unreachable flip) and `traces/tooling-friction.md` for friction. Format `- **[YYYY-MM-DD][implement WP05] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP05 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP05" --entry "<summary>. <detail>"` for your reading of (c) and (g), any unreachable flip, the `touch_sha` scoping of the (d) fake; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

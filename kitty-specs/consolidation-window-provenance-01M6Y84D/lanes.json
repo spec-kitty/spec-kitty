@@ -59,6 +59,7 @@
         "WP20"
       ],
       "write_scope": [
+        "docs/changelog/unreleased/7403-forecast-claim-inputs.fixed.md",
         "docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md",
         "docs/changelog/unreleased/7403-lane-approval-windows.changed.md",
         "docs/changelog/unreleased/7403-wp-window-capture.internal.md",
@@ -113,11 +114,14 @@
         "tests/consolidation/test_reconciliation_seeded_mutations.py",
         "tests/consolidation/test_reconciliation_split_shape.py",
         "tests/consolidation/test_reconciliation_surface_pin.py",
+        "tests/consolidation/test_refusal_precedence_matrix_windows.py",
         "tests/consolidation/test_resume_frozen_anchors.py",
         "tests/consolidation/test_window_gap_report.py",
         "tests/consolidation/test_window_gap_report_entry_points.py",
         "tests/consolidation/test_window_opener.py",
         "tests/consolidation/test_write_branch_bound.py",
+        "tests/integration/single_branch_window_support.py",
+        "tests/integration/test_single_branch_approval_windows.py",
         "tests/specify_cli/cli/commands/test_merge_cli_golden.py",
         "tests/status/test_lane_head.py",
         "tests/status/test_transition_pipeline.py",
@@ -162,7 +166,7 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-11-08T21:35:47.044731+00:00",
+  "computed_at": "2026-11-08T21:59:18.839802+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP01"
@@ -205,6 +209,12 @@
         "wp_b": "WP20",
         "rule": "write_scope_overlap",
         "evidence": "overlapping globs: 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'; WP09 depends on WP04"
       },
       {
         "wp_a": "WP04",
@@ -265,12 +275,6 @@
         "wp_b": "WP19",
         "rule": "write_scope_overlap",
         "evidence": "overlapping globs: 'src/specify_cli/consolidation/wp_attribution.py' vs 'src/specify_cli/consolidation/wp_attribution.py'"
-      },
-      {
-        "wp_a": "WP09",
-        "wp_b": "WP17",
-        "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'src/specify_cli/consolidation/claim_inputs.py' vs 'src/specify_cli/consolidation/claim_inputs.py', 'src/specify_cli/consolidation/forecast.py' vs 'src/specify_cli/consolidation/forecast.py', 'tests/consolidation/test_claim_inputs_parity.py' vs 'tests/consolidation/test_claim_inputs_parity.py'"
       }
     ],
     "total_merges": 17,

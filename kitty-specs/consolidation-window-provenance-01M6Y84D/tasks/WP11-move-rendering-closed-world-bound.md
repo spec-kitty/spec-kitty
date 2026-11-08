@@ -7,6 +7,7 @@ requirement_refs:
 - FR-019
 - FR-020
 - NFR-001
+- NFR-008
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
@@ -559,7 +560,8 @@ Checklist:
 - [ ] `git diff --stat` shows only the facade, the three new modules, `reconciliation_family.py` and `test_reconciliation_module_imports.py` (plus tracer notes). No suppression, allowlist row, registry entry, changelog fragment or version change.
 - [ ] Each new module declares `__all__`; the facade's own `__all__` still has its 10 names.
 - [ ] `tests/ci/test_reducer_lock_census.py` and `tests/consolidation/test_single_rollback_authority.py` pass (C-009).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (the forward reference and why, the `_refused` placement, module sizes) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP11] <summary>.** <detail>`. If your checkout has no `kitty-specs/`, use `spec-kitty agent tasks add-history WP11 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP11" --entry "<summary>. <detail>"` for the forward reference and why, the `_refused` placement, module sizes; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a command passed that you did not run.
 
 ## Risks & Mitigations
@@ -582,6 +584,7 @@ Checklist:
   5. Every pinned facade name that the move made unused is kept in alias form, not deleted; the facade `__all__` still has its 10 names.
   6. The family tuple holds the three new modules, and the seeded mutation rows for the moved checks still go red (not only "the corpus is green").
 - Re-run the three `rtool.py check` commands against `git show <parent of the first WP11 commit>:src/specify_cli/consolidation/reconciliation.py`.
+- **Record the spot-check outcome** (post-tasks squad R-15): put each spot-check command you ran and the cell keys that went red into the review note (`spec-kitty agent tasks add-history <WP> --note ...` or the review verdict text), so the check stays verifiable after the review.
 - **Mutation spot-check on the moved code.** Back the module up, break one check in the new module, expect the corpus to go red, restore:
 ```bash
 cp $C/reconciliation_bound.py /tmp/bound.good

@@ -8,6 +8,7 @@ requirement_refs:
 - FR-005
 - FR-021
 - FR-022
+- NFR-001
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
@@ -202,7 +203,8 @@ make test-fast
 - [ ] `approval_window_open_stamp` behaviour unchanged (integration tests green before and after).
 - [ ] The reader performs no git read (no import of `git_probes` / `kernel.git` used inside it).
 - [ ] Complexity <= 15 for every new function.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (any rule ambiguity you resolved and why) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP08] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP08 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP08" --entry "<summary>. <detail>"` for any rule ambiguity you resolved and why; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

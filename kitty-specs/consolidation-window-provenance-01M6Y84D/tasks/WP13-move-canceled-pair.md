@@ -6,6 +6,7 @@ dependencies:
 requirement_refs:
 - FR-019
 - FR-020
+- NFR-001
 - NFR-008
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
@@ -241,7 +242,8 @@ make test-fast
 - [ ] Every manifest symbol is defined in `reconciliation_canceled.py` only: `grep -n "^def _mixed_lanes\|^def _resolve_canceled_dependency_lanes" src/specify_cli/consolidation/reconciliation*.py` shows one hit each.
 - [ ] No `# noqa`, `# type: ignore` or allowlist/registry edit appears in `git diff`.
 - [ ] Module size recorded; `reconciliation_canceled.py` is at most 1,200 lines.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (confirmation that `_attest_tail` / `_join_refusals` / `_RECOVERY_TAIL` were imported from `reconciliation_rendering.py`, not moved; the new module's line count; any facade back-reference found) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP13] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP13 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP13" --entry "<summary>. <detail>"` for confirmation that `_attest_tail` / `_join_refusals` / `_RECOVERY_TAIL` were imported from `reconciliation_rendering.py`, not moved; the new module's line count; any facade back-reference found; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a test passed that you did not run.
 
 ## Risks & Mitigations

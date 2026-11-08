@@ -10,6 +10,7 @@ requirement_refs:
 - C-005
 - C-006
 - NFR-001
+- NFR-008
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
@@ -580,7 +581,8 @@ Checklist:
 - [ ] `git diff --stat` shows only: `reconciliation.py`, the two new modules, `reconciliation_family.py`, `test_reconciliation_module_imports.py` and `test_resume_refuses_committed_staged_deletions.py` (plus tracer notes). No `# noqa`, `# type: ignore`, allowlist row, registry entry or changelog fragment was added; `pyproject.toml` is untouched.
 - [ ] Both new modules declare `__all__`; the facade's own `__all__` still has its 10 names.
 - [ ] Rollback authority untouched: `tests/consolidation/test_single_rollback_authority.py` passes (C-009).
-- [ ] **Tracer files**: append dated entries to `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (the `_refused`/`ExternalDependencyAttribution` placement decision, the `commits_in_range` retarget and why, the `__all__` rule) and to `traces/tooling-friction.md` (any friction). Format `- **[YYYY-MM-DD][implement WP10] <summary>.** <detail>`. If your checkout has no `kitty-specs/`, record them with `spec-kitty agent tasks add-history WP10 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP10" --entry "<summary>. <detail>"` for the `_refused`/`ExternalDependencyAttribution` placement decision, the `commits_in_range` retarget and why, the `__all__` rule; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a command passed that you did not run.
 
 ## Risks & Mitigations
@@ -596,6 +598,7 @@ Checklist:
 - Reviewer profile: `reviewer-renata` (Claude reviewer for a cheap-tier implementer).
 - **Model tier: cheap** (implementer: TokenFactory glm-5.3; reviewer: Claude). Rerun every Definition-of-Done command yourself; do not trust pasted output.
 - Re-run both `rtool.py check` lines against `git show <parent of the first WP10 commit>:src/specify_cli/consolidation/reconciliation.py`.
+- **Record the spot-check outcome** (post-tasks squad R-15): put each spot-check command you ran and the cell keys that went red into the review note (`spec-kitty agent tasks add-history <WP> --note ...` or the review verdict text), so the check stays verifiable after the review.
 - **Mutation spot-check on the moved code (seeded-mutation proof).** Back up the kernel, break `_is_bookkeeping` in the new module, run the corpus, and expect it to go red, then restore:
 ```bash
 cp src/specify_cli/consolidation/reconciliation_kernel.py /tmp/kernel.good

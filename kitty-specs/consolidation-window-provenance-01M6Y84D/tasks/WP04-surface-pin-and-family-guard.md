@@ -92,9 +92,9 @@ You write **four test-side files** and **change no production code**. They prote
 **Expected test names** (use exactly these, the reviewer checks them):
 
 - `test_reconciliation_surface_pin.py`: `test_every_pinned_name_is_importable`, `test_pinned_names_keep_object_identity`, `test_scanned_surface_is_pinned`, `test_removed_name_fails_the_pin`.
-- `test_reconciliation_family_guard.py`: `test_patched_reconciliation_names_are_looked_up`, `test_stale_patch_fails_the_guard`, `test_narrowed_patch_fails_the_guard`, `test_facade_forward_reference_counts_as_a_facade_lookup`, `test_family_helper_patches_every_binding_module`, `test_family_helper_refuses_unbound_name`.
+- `test_reconciliation_family_guard.py`: `test_patched_reconciliation_names_are_looked_up`, `test_stale_patch_fails_the_guard`, `test_narrowed_patch_fails_the_guard`, `test_facade_forward_reference_counts_as_a_facade_lookup`, `test_forward_reference_precedence_and_alias`, `test_family_helper_patches_every_binding_module`, `test_family_helper_patches_consumer_bindings`, `test_family_helper_refuses_unbound_name`.
 
-All eight must **pass** on the current, unchanged code.
+All twelve must **pass** on the current, unchanged code.
 
 ## Context & Constraints
 
@@ -165,11 +165,13 @@ spec-kitty agent action implement WP04 --agent <name> --mission consolidation-wi
 
 - **Steps**: Copy the structure of `tests/consolidation/executor_family.py` exactly, renaming:
   - `EXECUTOR_FAMILY` -> `RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (reconciliation,)` — today only the facade exists; later work packages append `reconciliation_kernel`, `reconciliation_bound`, ... as they create them. Add a comment saying so.
-  - `family_modules_binding(name)` -> same body over `RECONCILIATION_FAMILY`, error text `no consolidation reconciliation-family module binds {name!r}`.
+  - **New, no executor counterpart** (post-tasks squad pedro #1): `RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast)` from `specify_cli.consolidation`. These modules sit **outside** the family but bind reconciliation names **by name** at import time (verified: `phase_claim.py:46-51` binds `build_approved_wp_set`, `claim_integrity_refusal`, `detect_legacy_in_flight_state`, `write_post_fix_marker`; `phase_gate.py:29-37` binds `ApprovedWpCommitSet`, `MergeOutcomeVerifier`, `VerifyResult`, `build_approved_wp_set`, `dependency_refs_moved_refusal`, `lane_tips_moved_refusal`, `route_terminus`; `forecast.py:30-36` binds `MergeOutcomeVerifier`, `VerifyStatus`, `_lane_branch_for`, `build_approved_wp_set`, `claim_integrity_refusal`). A patch of the family alone does not reach those bindings. This tuple is the **one explicit list**; a comment says so and says that a new by-name consumer must be added here.
+  - `family_modules_binding(name)` -> same body over `RECONCILIATION_FAMILY`, error text `no consolidation reconciliation-family module binds {name!r}`, then **append** every module of `RECONCILIATION_CONSUMERS` whose `vars()` binds `name` **to the same object** as the family binding (`vars(consumer)[name] is vars(family_module)[name]`; a consumer binding a different object is left alone). The refusal still fires when no **family** module binds the name: consumers only extend a family patch, they never stand in for one.
   - `setattr_executor_family` -> `setattr_reconciliation_family(monkeypatch, name, value)`.
   - `patch_executor_family` -> `patch_reconciliation_family(name, new=mock.DEFAULT, **kwargs)`.
   - Module docstring: explain that the split of `reconciliation.py` (Mission consolidation-window-provenance-01M6Y84D) spreads lookups over flat `reconciliation_<unit>.py` modules, and these helpers patch every binding module.
 - **Files**: `tests/consolidation/reconciliation_family.py`.
+- **Notes**: Say in the module docstring that the guard (T022) covers only `reconciliation*` modules; the by-name consumers are covered by the helper, not by the guard, and a direct string patch on `specify_cli.consolidation.phase_claim.<name>` (as WP02 T007 step 4 uses) is outside the guard's scope.
 
 ### Subtask T022 – Patch-lookup guard
 
@@ -183,6 +185,11 @@ spec-kitty agent action implement WP04 --agent <name> --mission consolidation-wi
      - Return one message per patch target whose module does not look the name up: `"{test_path}:{line}: patches {module}.{name}, but {module} never looks {name} up; patch it where it is looked up (see tests/consolidation/reconciliation_family.py)"`.
      - **Also** return one message per patch target where the name is looked up in **any reconciliation module other than the one patched** (orchestrator decision 2026-11-08, issue 8: a single-module patch on a name two modules look up narrows what the patch intercepted before the split, and the test can stay green while the other lookup goes unpatched): `"{test_path}:{line}: patches {module}.{name}, but {name} is also looked up in {others}; patch every binding module with setattr_reconciliation_family (see tests/consolidation/reconciliation_family.py)"`. `{others}` is the sorted, comma-joined list of the other modules.
      - **Forward-reference rule.** A lookup in module M of a name that M binds only through a function-local `from specify_cli.consolidation.reconciliation import <name>` (the Phase 3 `TEMPORARY FORWARD REFERENCE` convention) reads the **facade's** attribute at call time, so it counts as a lookup in the facade, not in M. Without this rule a facade patch on `_final_authored_walk` would be flagged during WP11 to WP14 although it still intercepts every call.
+     - **Precedence of the forward-reference rule** (post-tasks squad pedro MEDIUM; apply these exactly, in this order):
+       1. **Module-level binding wins.** If M binds `<name>` at module level (a `def`, `class`, assignment or module-level import) **and** also imports it function-locally, every lookup of `<name>` in M counts as a lookup in **M**.
+       2. **Alias resolves to the imported name.** A function-local `from specify_cli.consolidation.reconciliation<_unit> import Y as Z`: a load of `Z` in that function counts as a lookup of **`Y`** (not `Z`) in the source module.
+       3. **Source module decides.** A function-local import from a reconciliation module R (facade or a `reconciliation_<unit>`) counts as a lookup in **R**, not in M, and not in the facade unless R is the facade.
+       4. Function-local imports from any module outside `specify_cli.consolidation.reconciliation*` are ignored by this rule (the name then counts as a lookup in M as usual).
      - Patches made through `setattr_reconciliation_family` / `patch_reconciliation_family` are not string or module-object patches and are not scanned: they patch every binding module by construction.
      - Before the split there is one reconciliation module, so the second rule cannot fire on today's code.
   2. `test_patched_reconciliation_names_are_looked_up`: build `module_sources` from every `src/specify_cli/consolidation/reconciliation*.py` file (dotted name from the file stem), `test_sources` from every `tests/**/*.py`, call the core, assert the result is empty (print all messages).
@@ -195,7 +202,12 @@ spec-kitty agent action implement WP04 --agent <name> --mission consolidation-wi
   1. `test_stale_patch_fails_the_guard`: call `unlooked_up_patches` with a synthetic module source `{"specify_cli.consolidation.reconciliation": "Y = 2\n\ndef f():\n    return 1\n"}` and a synthetic test source `{Path("t.py"): 'def test(monkeypatch):\n    monkeypatch.setattr("specify_cli.consolidation.reconciliation.Y", 3)\n'}`; assert exactly one message, mentioning `Y`. Add a second case using the f-string constant form and a third using the module-object form (`from specify_cli.consolidation import reconciliation as rec` + `monkeypatch.setattr(rec, "Y", 3)`).
   2. `test_narrowed_patch_fails_the_guard`: two synthetic modules, `{"specify_cli.consolidation.reconciliation": "def f():\n    return Y\n", "specify_cli.consolidation.reconciliation_kernel": "def g():\n    return Y\n"}`, and a test source that string-patches only `specify_cli.consolidation.reconciliation.Y`; assert exactly one message, naming `reconciliation_kernel`. Then patch both modules (two `setattr` lines) and assert no message.
   3. `test_facade_forward_reference_counts_as_a_facade_lookup`: modules `{"specify_cli.consolidation.reconciliation": "def h():\n    return Y\n", "specify_cli.consolidation.reconciliation_kernel": "def g():\n    from specify_cli.consolidation.reconciliation import Y\n    return Y\n"}` and a facade-only patch of `Y`; assert no message. Control: the same kernel source with a **module-level** `from x import Y` instead yields one message.
+  3a. `test_forward_reference_precedence_and_alias`: one case per precedence rule of T022:
+     - rule 1: kernel source `"Y = 1\n\ndef g():\n    from specify_cli.consolidation.reconciliation import Y\n    return Y\n"` plus facade `"def h():\n    return Y\n"`, facade-only patch of `Y` -> exactly one message naming `reconciliation_kernel` (narrowed patch);
+     - rule 2: kernel source `"def g():\n    from specify_cli.consolidation.reconciliation import Y as Z\n    return Z\n"`, facade `"def h():\n    return Y\n"`, facade-only patch of `Y` -> no message; and a facade-only patch of `Z` -> one message (the facade never looks `Z` up);
+     - rule 3: kernel source `"def g():\n    from specify_cli.consolidation.reconciliation_bound import Y\n    return Y\n"`, bound `"def b():\n    return Y\n"`, facade `"X = 0\n"`, a patch of only `specify_cli.consolidation.reconciliation_bound.Y` -> no message.
   4. `test_family_helper_patches_every_binding_module`: with a fake module object created by `types.ModuleType("fake")` appended through `monkeypatch.setattr(reconciliation_family, "RECONCILIATION_FAMILY", (reconciliation, fake))`, bind the same name in both, call `setattr_reconciliation_family`, assert both now hold the new value.
+  4a. `test_family_helper_patches_consumer_bindings`: on the **real** modules, `setattr_reconciliation_family(monkeypatch, "build_approved_wp_set", sentinel)`; assert `reconciliation.build_approved_wp_set`, `phase_claim.build_approved_wp_set`, `phase_gate.build_approved_wp_set` and `forecast.build_approved_wp_set` are all `sentinel`. Then, with a fake consumer module bound to a **different** object of the same name appended to `RECONCILIATION_CONSUMERS`, assert that consumer is left unchanged.
   5. `test_family_helper_refuses_unbound_name`: `family_modules_binding("definitely_not_bound")` raises `AttributeError`.
 
 ## Test Strategy
@@ -216,12 +228,12 @@ uv run --frozen mypy tests/consolidation/reconciliation_family.py tests/consolid
 make test-fast
 ```
 
-Expected: the first command reports `8 passed` (the eight named tests; parametrized cases may add more). Every command exits 0.
+Expected: the first command reports `12 passed` (the twelve named tests; parametrized cases may add more). Every command exits 0.
 
-- [ ] The eight test names above exist exactly.
+- [ ] The twelve test names above exist exactly.
 - [ ] `reconciliation_surface.json` was produced by the regeneration command, not typed.
 - [ ] `git diff --stat` shows only the four owned files (plus tracer appends). No file under `src/` changed.
-- [ ] **Tracer files**: append a dated entry to `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (the identity rule you used and the pinned-name count) and to `traces/tooling-friction.md` for any friction. Format `- **[YYYY-MM-DD][implement WP04] <summary>.** <detail>`. If your checkout lacks `kitty-specs/`, use `spec-kitty agent tasks add-history WP04 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP04" --entry "<summary>. <detail>"` for the identity rule you used and the pinned-name count; `--category tooling-friction` for any friction.
 - [ ] Never run `make test-full`. Never claim a test passed that you did not run.
 
 ## Risks & Mitigations
@@ -236,6 +248,9 @@ Expected: the first command reports `8 passed` (the eight named tests; parametri
 - **Model tier: cheap** (implementer: TokenFactory glm-5.3; reviewer: Claude). Rerun every Definition-of-Done command yourself; do not trust pasted output.
 - Verify the identity rule holds for both functions and constants.
 - Temporarily add a stale patch to a scratch test locally and confirm the guard fails (then discard it).
+- Rerun `SPEC_KITTY_REGEN_RECONCILIATION_SURFACE=1 uv run --frozen pytest -q tests/consolidation/test_reconciliation_surface_pin.py::test_scanned_surface_is_pinned` and confirm `git diff --exit-code tests/consolidation/reconciliation_surface.json` is clean (the file came from the generator, not from typing).
+- Check `RECONCILIATION_CONSUMERS` against a fresh `grep -n "from specify_cli.consolidation.reconciliation import" src/specify_cli/consolidation/*.py` outside `reconciliation*.py`: every module that binds a reconciliation name by name and is reached by the corpus is listed.
+- **Record** in the review note each spot-check command you ran and its outcome (which test failed on the stale patch), so the check is verifiable afterwards (post-tasks squad R-15).
 
 ## Progress & Status
 

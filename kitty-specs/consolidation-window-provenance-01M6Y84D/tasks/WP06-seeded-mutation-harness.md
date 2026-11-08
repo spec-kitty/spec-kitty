@@ -98,20 +98,21 @@ The same file is re-run unchanged (or retargeted only through the family helper)
   | `kernel-bookkeeping` | `_is_bookkeeping` | always `False` (bookkeeping paths become content) or always `True` |
   | `kernel-anchors` | `_closed_world_anchors` | return `[]` |
   | `closed-world` | `_collect_excluded` | return an empty excluded set |
-  | `external-dependency-refs` | `resolve_external_dependency_refs` | accept every declared ref |
+  | `external-dependency-refs` | `resolve_external_dependency_refs` | accept every declared ref; expected red cell `fresh\|single_lane\|dependency_ref` |
   | `approved-bound` | `_approved_bound_verdict` / `approved_bound_refusal` | verdict forced to "no refusal" |
   | `write-branch` | `_write_branch_verdict` | verdict forced to pass |
-  | `lane-tip-recheck` | `lane_tips_moved_refusal` | return `None` |
+  | `lane-tip-recheck` | `lane_tips_moved_refusal` (bound by name in `phase_gate.py`) | return `None`; expected red cell `fresh\|single_lane\|lane_commit_during_run` (WP02 T012 step 2a) |
   | `mixed-lane` | `_resolve_mixed_lane` | resolve as clean |
   | `canceled-dependency` | `_resolve_canceled_dependency_lanes` | return no carried content |
   | `authorship` | `_collect_authored` / `_final_authored_walk` | drop every deletion or every authored blob |
   | `presence` | `unmet_approved_content` | return no gaps |
-  | `verifier-squash-axis` | `MergeOutcomeVerifier._unattributable_content_squash` | return no unattributable paths |
-  | `verifier-presence-axis` | `MergeOutcomeVerifier._approved_content_divergence` | return no divergence |
+  | `verifier-squash-axis` | `MergeOutcomeVerifier._unattributable_content_squash` | return no unattributable paths; expected red cell `fresh\|single_lane\|unattributable_squash_path` |
+  | `verifier-presence-axis` | `MergeOutcomeVerifier._approved_content_divergence` | return no divergence; expected red cell `resume\|single_lane\|approved_content_missing` |
   | `verifier-canceled-axis` | `MergeOutcomeVerifier._canceled_content_divergence` | return no divergence |
   | `rendering` | a text helper that moves to `reconciliation_rendering.py` in WP11: `_join_refusals`, `_attest_tail` or a `_describe_*` clause helper. **Not** `_compound_refusal`: it moves to `reconciliation_claim.py` in WP14, and WP15 asserts the `rendering` row's target is defined in `reconciliation_rendering.py` | drop a joined clause or the recovery/attest tail |
-  | `claim-orchestration` | `build_approved_wp_set` | skip one check (wrap and remove the bound refusal) |
+  | `claim-orchestration` | `build_approved_wp_set` (bound by name in `phase_claim.py`, `phase_gate.py`, `forecast.py`; after WP09 in `claim_inputs.py`) | skip one check (wrap and remove the bound refusal) |
 
+  **Mutation-target cells come from WP02.** WP06 owns only its test file: it adds no corpus cell and no builder. The four cells named above (`lane_commit_during_run`, `dependency_ref`, `approved_content_missing`, `unattributable_squash_path`) are built by WP02 T012 step 2a (post-tasks squad pedro #2). If one is missing or recorded `mode_not_applicable`, stop and ask the orchestrator; do not weaken the row.
   Confirm each target exists and its signature before writing the fake (`codegraph_explore` or read the function). Choose the expected red cells by running the mutation and looking at which cells change; then **pin** them in the table.
 - Cross-cutting: C-009, C-013, C-014.
 
@@ -140,7 +141,7 @@ spec-kitty agent action implement WP06 --agent <name> --mission consolidation-wi
 ### Subtask T031 – Apply through `RECONCILIATION_FAMILY`
 
 - **Steps**:
-  1. Every function target is patched with `setattr_reconciliation_family`, never with a string on the facade: after the split, the facade no longer looks names up (WP04 guard), and the family helper patches every module that binds the name.
+  1. Every function target is patched with `setattr_reconciliation_family`, never with a string on the facade: after the split, the facade no longer looks names up (WP04 guard), and the family helper patches every module that binds the name. **It also patches the by-name bindings in `RECONCILIATION_CONSUMERS`** (`phase_claim`, `phase_gate`, `forecast`; WP09 adds `claim_inputs`): that is how the `claim-orchestration` row (`build_approved_wp_set`) and the `lane-tip-recheck` row (`lane_tips_moved_refusal`) reach the verdict, since their callers bind the names at import time (post-tasks squad pedro #1). Do not retarget those two rows to family-internal functions.
   2. Do not patch the facade module object directly.
   3. If a check is only reachable in a subprocess (it should not be: WP02's runner is in process), use an env-gated shim in the child and say so in the row; never a parent-process monkeypatch on a child.
 
@@ -178,7 +179,7 @@ make test-fast
 - [ ] Coverage test lists all 16 check ids (or the reviewer agreed in writing to a merged id, recorded in the WP history).
 - [ ] No patch uses a facade string target.
 - [ ] No production code changed.
-- [ ] **Tracer files**: dated entry in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` with any check that needed an unusual mutation; `traces/tooling-friction.md` for friction. Format `- **[YYYY-MM-DD][implement WP06] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP06 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP06" --entry "<summary>. <detail>"` for any check that needed an unusual mutation; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

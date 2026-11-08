@@ -134,7 +134,7 @@ spec-kitty agent action implement WP20 --agent <name> --mission consolidation-wi
 
 ## Red-first order
 
-Write `tests/consolidation/test_window_gap_report_entry_points.py` (T108) and the `single_branch` unit tests (T107) **first** and commit them red (`test(WP20): red-first gap report and single_branch window tests`). Every entry-point test fails on the parent commit because no gap block / no `window_gaps` key exists; the rewound `single_branch` pin is still an `xfail`. Record the red SHA and failure summary with `spec-kitty agent tasks add-history WP20 --note "red: <sha> N failed"`. Then T104-T107, then the fix commit.
+Write `tests/consolidation/test_window_gap_report_entry_points.py` (T108) and the `single_branch` unit tests (T107) **first** and commit them red (`test(WP20): red-first gap report and single_branch window tests`). Every entry-point test fails on the parent commit because no gap block / no `window_gaps` key exists; the rewound `single_branch` pin is still an `xfail`. Record the red SHA and failure summary with `spec-kitty agent tasks add-history WP20 --note "red: <sha> N failed"`. **Also record the entry-point red for (c)-`single_branch`** (post-tasks squad R-07): at the red SHA, run `uv run --frozen pytest -q -rxX tests/consolidation/test_reconciliation_intended_verdicts.py -k "rewound and single_branch"` and paste its summary (`1 xfailed`) into the same note; that strict-`xfail` pin (WP05) is this WP's entry-point red under NFR-010, and the fix commit flips it. Then T104-T107, then the fix commit.
 
 ## Subtasks & Detailed Guidance
 
@@ -214,8 +214,14 @@ Write `tests/consolidation/test_window_gap_report_entry_points.py` (T108) and th
 
 ### Golden corpus
 
-- Expected change: **only** the NFR-002 (c) `single_branch` rewound cell (fresh, and its forecast twin if WP02 recorded one): pass → refuse `LANE_MOVED_AFTER_APPROVAL` naming the abandoned-cycle commit. If WP02 marked `single_branch` window cells `not_applicable`, there may be no such cell; then the intended-verdict test alone carries the flip, and you record that in the WP history.
-- Regenerate with WP02's `regenerate_cells([...])` (or `SPEC_KITTY_REGEN_VERDICT_CORPUS=1`) and check `git diff tests/consolidation/characterization/verdict_corpus.json`. **Any other changed cell is a STOP**: revert and report. The gap report is output, not verdict: it must not change any cell's status, code or exit code; if WP02 serialized raw output text for a cell (the FR-023 cell pins refusal text), the gap block must not appear in that text (all-gap lanes print the block **before** the refusal; confirm the serializer reads the refusal text, not the whole output, or stop and report).
+- Expected change: **only** the NFR-002 (c) `single_branch` rewound cells WP02 named (`fresh|single_branch|stamp=present|window=recorded|rewound` and its forecast twin; WP02 T012 step 2 requires both, post-tasks squad R-07): pass → refuse `LANE_MOVED_AFTER_APPROVAL` naming the abandoned-cycle commit. If either cell is missing, stop and ask the orchestrator (it is a WP02 defect, not a reason to skip the witness).
+- Regenerate with WP02's `regenerate_cells([...])` and run the machine check (post-tasks squad R-03) after the fix commit and on the final commit:
+  ```bash
+  BASE=$(git rev-parse <red-commit>^)   # WP19's tip
+  ALLOWED='<the two single_branch rewound keys, comma-separated>'
+  uv run --frozen python -c "import sys; from tests.consolidation.characterization_support import changed_cells; c = changed_cells('$BASE'); a = sorted(sys.argv[1].split(',')); print(c); assert c == a, ('changed cells differ from the allowed list', c, a)" "$ALLOWED"
+  ```
+  **Any other changed cell is a STOP**: revert and report. The gap report is output, not verdict: it must not change any cell's status, code or exit code; if WP02 serialized raw output text for a cell (the FR-023 cell pins refusal text), the gap block must not appear in that text (all-gap lanes print the block **before** the refusal; confirm the serializer reads the refusal text, not the whole output, or stop and report).
 
 ## Test Strategy
 
@@ -242,12 +248,13 @@ uv run --frozen python -m scripts.docs.check_spelling --pass unreleased
 make test-fast
 ```
 
-- [ ] Red-first evidence: red SHA (entry-point tests failing for "no gap block / no `window_gaps`") and fix SHA in the WP history.
+- [ ] Red-first evidence: red SHA (entry-point tests failing for "no gap block / no `window_gaps`") and fix SHA in the WP history. **Because lane SHAs can become unreachable after a squash consolidation with cleanup** (post-tasks squad R-14), also paste, for each red test, its full test id and the assertion message pytest printed (`uv run --frozen pytest -q -rf <test>` at the red SHA), so the PR and the post-merge mission review can check the red without checking out the SHA.
 - [ ] `-rxX`: the `single_branch` rewound case passes; WW-6 residual still `XFAIL`; no other pin changed.
-- [ ] Golden diff ⊆ the `single_branch` rewound cell(s).
+- [ ] `changed_cells(<red commit>^)` equals the two `single_branch` rewound keys (machine check above).
+- [ ] The (c)-`single_branch` pin's `xfailed` summary at the red SHA is in the history note.
 - [ ] `orchestrator-api` envelope and contract version untouched (`git diff --stat src/specify_cli/orchestrator_api` empty).
 - [ ] `pyproject.toml` version untouched; no new `# noqa` / `# type: ignore` / allowlist entry.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (gap report printed before a claim refusal; JSON on forecast refusals; `single_branch` gap reported although its verdict comes from the derived window) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP20] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP20 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP20" --entry "<summary>. <detail>"` for gap report printed before a claim refusal; JSON on forecast refusals; `single_branch` gap reported although its verdict comes from the derived window; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

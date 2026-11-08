@@ -49,7 +49,7 @@ T006 Run the docs gates and fix findings (WP01)
 
 ### Parallel Opportunities
 
-- Runs alongside WP02, WP03 and WP04.
+- Runs alongside lane-a (WP02 onward) and WP03 (lane `lane-b`).
 
 ### Dependencies
 
@@ -73,20 +73,23 @@ T006 Run the docs gates and fix findings (WP01)
 
 T007 Build the in-process corpus runner for forecast and fresh-run cells (WP02)
 T008 Build the resume-cell path: SIGKILL harness after claim capture, then in-process resume (WP02)
-T009 Assemble the lane-shape scenario builders from existing fixtures (WP02)
+T009 Assemble the lane-shape scenario builders from existing fixtures; write the missing `two_wp_lane` and `planning_lane` builders and promote the `single_branch` builder into `tests/integration/single_branch_window_support.py` (WP02)
 T010 Implement the explicit window-state injector (recorded, not recorded, capture failed, lane branch missing, not on lane) (WP02)
-T011 Implement golden serialization, SHA normalization, deterministic ordering and the regeneration switch (WP02)
-T012 Generate `verdict_corpus.json`, including the exception and weaker-check cells pinned as passing (WP02)
+T011 Implement golden serialization, SHA normalization, deterministic ordering, the regeneration switch and `changed_cells(base_ref)` (WP02)
+T012 Generate `verdict_corpus.json` under the documented pruning rule and runtime budget, including the NFR-002 named cells (both (c) cells: lanes and `single_branch`), the four mutation-target cells WP06 needs, and the exception and weaker-check cells pinned as passing (WP02)
 T013 Pin the `--dry-run` verdict on the post-approval fixture (R-09) and record the finding (WP02)
 
 ### Implementation Notes
 
 - Reuse `tests/terminus/post_approval_support.py`, `tests/terminus/approved_content_support.py`, `tests/terminus/rollback_harness.py` and the `tests/consolidation/test_reconciliation.py` fixtures.
 - Builders and runner live in `tests/consolidation/characterization_support.py` so WP05, WP06 and Phase 4 reuse them.
+- Resume cells exist only on the coordination topology (frozen tips need a coordination checkpoint); other resume combinations are `mode_not_applicable` cells.
+- Runtime budget: at most 10 minutes serial, 3 minutes with `-n auto --dist loadfile`; module marked `integration` + `git_repo`.
+- `changed_cells(base_ref)` is the one zero-diff / named-cells check every later work package uses (base-relative, so a committed regeneration cannot hide).
 
 ### Parallel Opportunities
 
-- Runs alongside WP01, WP03 and WP04.
+- Runs alongside WP01 and WP03 (other lanes). Inside lane-a it is the first work package; WP04 follows it in the same serial lane.
 
 ### Dependencies
 
@@ -119,7 +122,7 @@ T017 Add the swapped-order control and the "cannot co-occur" table with each sho
 
 ### Parallel Opportunities
 
-- Runs alongside WP01, WP02 and WP04.
+- Runs alongside lane-a (WP02, WP04, ...) and WP01 (lane `lane-planning`).
 
 ### Dependencies
 
@@ -143,17 +146,18 @@ T017 Add the swapped-order control and the "cannot co-occur" table with each sho
 T018 Write the name-list generator (AST scan of `src/` and `tests/` imports plus string-literal dotted patch targets) (WP04)
 T019 Generate and check in `tests/consolidation/reconciliation_surface.json` (WP04)
 T020 Write the surface-pin test (name set + object identity) and the removed-name control (WP04)
-T021 Write `tests/consolidation/reconciliation_family.py` modelled on `executor_family.py` (WP04)
+T021 Write `tests/consolidation/reconciliation_family.py` modelled on `executor_family.py`, plus the explicit `RECONCILIATION_CONSUMERS` list (`phase_claim`, `phase_gate`, `forecast`) whose by-name bindings a family patch also replaces (WP04)
 T022 Write the patch-lookup guard covering string, f-string-constant, `mock.patch` and module-object `setattr` forms; it also fails when the patched name is looked up in any other reconciliation module (narrowed interception), counting a facade forward reference as a facade lookup (WP04)
 T023 Add the stale-patch and narrowed-patch controls proving the guard fails (WP04)
 
 ### Implementation Notes
 
 - Before the split the family is `(reconciliation,)` and the guard passes.
+- The guard's forward-reference rule has a fixed precedence (module-level binding wins; an alias resolves to the imported name; the source module decides) with one control per rule.
 
 ### Parallel Opportunities
 
-- Runs alongside WP01, WP02 and WP03.
+- Runs alongside WP01 and WP03 (other lanes). In lane-a it follows WP02 (serial lane; shared golden file and family helper).
 
 ### Dependencies
 
@@ -176,8 +180,8 @@ T023 Add the stale-patch and narrowed-patch controls proving the guard fails (WP
 
 T024 Pin the commit-between-two-approvals intended refusal, incl. the gap-then-recorded mixed lane (NFR-002 a, b) (WP05)
 T025 Pin the rewound work package intended window (NFR-002 c) (WP05)
-T026 Pin the #5048(b) read-error intended refusal (NFR-002 d) (WP05)
-T027 Pin the three resume frozen-anchor intended verdicts (NFR-002 e, f, g) (WP05)
+T026 Pin the #5048(b) read-error intended refusal (NFR-002 d), fake scoped to the one lane commit that touches P, refusal asserted at claim time with no reflog move (WP05)
+T027 Pin the three resume frozen-anchor intended verdicts (NFR-002 e, f, g) on the coordination topology (WP05)
 T028 Pin the forecast's excluded canceled set and resolved coordination base (NFR-002 h) (WP05)
 T029 Pin the parallel-claims named residual (WW-6) (WP05)
 
@@ -218,7 +222,7 @@ T033 Verify every check scheduled to move in Phase 3 has a row (WP06)
 **Goal**: Record the window-open SHA, or a typed window gap (`lane_branch_missing`, `capture_failed`), under `policy_metadata.wp_window` on every non-migration move of a lane-mapped work package into `claimed` / `in_progress`, reusing the one lane-head reading; the move is never refused.
 **Independent Test**: `uv run --frozen pytest -q tests/status/test_wp_window_capture.py tests/status/test_lane_head.py tests/status/test_transition_pipeline.py` passes; the corpus is unchanged.
 **Prompt**: `tasks/WP07-wp-window-capture.md`
-**Requirement Refs**: FR-002, FR-003, NFR-006, C-002, C-003
+**Requirement Refs**: FR-002, FR-003, NFR-001, NFR-006, C-002, C-003
 
 ### Included Subtasks
 
@@ -245,7 +249,7 @@ T040 Add the changelog fragment (no version bump) (WP07)
 **Goal**: One reader `window_open_of` in `wp_attribution` implementing the FR-021 window opener and the four gap reasons, sharing one selector `window_opener_events(..., cycle)` with `approval_window_open_stamp`; classify the new SHA key `BRANCH_RELATIVE`.
 **Independent Test**: `uv run --frozen pytest -q tests/consolidation/test_window_opener.py tests/architectural/test_dossier_sha_provenance.py` passes; the corpus is unchanged.
 **Prompt**: `tasks/WP08-window-opener-reader.md`
-**Requirement Refs**: FR-004, FR-005, FR-021, FR-022
+**Requirement Refs**: FR-004, FR-005, FR-021, FR-022, NFR-001
 
 ### Included Subtasks
 
@@ -267,7 +271,7 @@ T046 Write unit tests: rewind, review rejection, leading branch-missing skip, sk
 **Goal**: One frozen `ClaimInputs` value with three sources (`LIVE`, `LIVE_THEN_SAVED`, `SAVED`) built by one constructor and adopted by `forecast.py`, `phase_claim.py` and `phase_gate.py`, keeping every per-mode quirk so zero verdicts change; a parity test pins equal fields and each known divergence as its own strict `xfail`.
 **Independent Test**: `uv run --frozen pytest -q tests/consolidation/test_claim_inputs_parity.py tests/consolidation/test_reconciliation_characterization.py` passes with the golden file unchanged.
 **Prompt**: `tasks/WP09-claim-inputs.md`
-**Requirement Refs**: FR-012, FR-013, C-004
+**Requirement Refs**: FR-012, FR-013, NFR-001, C-004
 
 ### Included Subtasks
 
@@ -292,7 +296,7 @@ T053 Write `tests/consolidation/test_claim_inputs_parity.py` with one strict `xf
 **Goal**: Move the shared kernel symbols into `reconciliation_kernel.py` and `ApprovedWpCommitSet` with its content dataclasses into `reconciliation_claim_types.py`, re-exported by the facade; zero verdict change.
 **Independent Test**: corpus, precedence matrix, surface pin, family guard and seeded mutations all pass unchanged.
 **Prompt**: `tasks/WP10-extract-kernel-and-claim-types.md`
-**Requirement Refs**: FR-019, C-005, C-006, NFR-001
+**Requirement Refs**: FR-019, C-005, C-006, NFR-001, NFR-008
 
 ### Included Subtasks
 
@@ -313,7 +317,7 @@ T058 Check `CHURN_SURFACE_MODULES` for the `_is_bookkeeping` home and run the or
 **Goal**: Move the refusal/clause text helpers, the closed-world check (with external dependency refs) and the approved bound (with write-branch and the lane-tip re-check) into their own modules behind the facade.
 **Independent Test**: oracle gates unchanged; the seeded mutations for the closed world and the bound still turn their cells red.
 **Prompt**: `tasks/WP11-move-rendering-closed-world-bound.md`
-**Requirement Refs**: FR-019, FR-020, NFR-001
+**Requirement Refs**: FR-019, FR-020, NFR-001, NFR-008
 
 ### Included Subtasks
 
@@ -334,7 +338,7 @@ T063 Run the oracle gates and record the module sizes (WP11)
 **Goal**: Move `VerifyStatus`, `Divergence` (whole), `VerifyResult`, `MergeOutcomeVerifier`, their helpers and `claim_integrity_refusal` (it and `MergeOutcomeVerifier` call each other, so they share a module) into `reconciliation_verifier.py`.
 **Independent Test**: oracle gates unchanged; the verifier mutations still turn their cells red.
 **Prompt**: `tasks/WP12-move-verifier.md`
-**Requirement Refs**: FR-019, C-006
+**Requirement Refs**: FR-019, C-006, NFR-001, NFR-008
 
 ### Included Subtasks
 
@@ -354,7 +358,7 @@ T067 Run the oracle gates and record the module size (WP12)
 **Goal**: Move the mixed-lane resolver and the canceled-dependency resolution as one slice into `reconciliation_canceled.py`, retargeting their patches.
 **Independent Test**: oracle gates unchanged; the canceled-pair mutations still turn their cells red.
 **Prompt**: `tasks/WP13-move-canceled-pair.md`
-**Requirement Refs**: FR-019, FR-020, NFR-008
+**Requirement Refs**: FR-019, FR-020, NFR-001, NFR-008
 
 ### Included Subtasks
 
@@ -374,7 +378,7 @@ T071 Run the oracle gates and record the module size (WP13)
 **Goal**: Move `build_approved_wp_set` (refusal order whole), the compound-refusal helper and the terminus vocabulary into `reconciliation_claim.py` (`claim_integrity_refusal` already moved with the verifier in WP12); update the reducer-lock census owner path and the dead-symbol allowlist keys with net 0.
 **Independent Test**: oracle gates unchanged; `tests/ci/test_reducer_lock_census.py` and `tests/architectural/test_dead_symbol_allowlist_contract.py` pass.
 **Prompt**: `tasks/WP14-move-claim-orchestration.md`
-**Requirement Refs**: FR-019, C-006, NFR-005
+**Requirement Refs**: FR-019, C-006, NFR-001, NFR-005, NFR-008
 
 ### Included Subtasks
 
@@ -395,7 +399,7 @@ T076 Run the oracle gates and the literal-pin gates (WP14)
 **Goal**: Move the authored walk and the presence check as one slice (one spine walk) into `reconciliation_authorship.py`, reduce `reconciliation.py` to docstring plus re-exports, verify module sizes, and re-run every seeded mutation against the moved checks.
 **Independent Test**: oracle gates byte-identical to Phase 1; facade has zero `def`/`class`; every module <= 1,200 lines.
 **Prompt**: `tasks/WP15-move-authorship-presence-and-facade.md`
-**Requirement Refs**: FR-019, FR-020, C-007, NFR-003, NFR-008, SC-006
+**Requirement Refs**: FR-019, FR-020, C-007, NFR-001, NFR-003, NFR-008, SC-006
 
 ### Included Subtasks
 
@@ -423,7 +427,7 @@ T082 Run the full Phase 3 verification set (WP15)
 
 ### Included Subtasks
 
-T083 Write the failing test through in-process `consolidate` with the probe patched at its lookup home; commit it red (WP16)
+T083 Write the failing test through in-process `consolidate` with the probe patched at its lookup home and raising only for the lane commit that touches P; assert a claim-time refusal with no reflog move; commit it red (WP16)
 T084 Add the genuine-deletion positive control (WP16)
 T085 Implement the fix with `path_state_at` and the existing unreadable-history refusal wording (WP16)
 T086 Flip the NFR-002 (d) intended-verdict pin and regenerate only its golden cells (WP16)
@@ -446,7 +450,7 @@ T086 Flip the NFR-002 (d) intended-verdict pin and regenerate only its golden ce
 T087 Write the red-first tests through `consolidate --dry-run --json` for the excluded canceled set (WP17)
 T088 Align the `LIVE` excluded canceled set with the fresh-run derivation (WP17)
 T089 Resolve the forecast coordination base to a SHA and read the fresh run's status directory (WP17)
-T090 Flip the parity `xfail`s and the NFR-002 (h) pin; regenerate only the named golden cells (WP17)
+T090 Flip the parity `xfail`s and the NFR-002 (h) pin; regenerate only the named golden cells; write the conditional forecast changelog fragment (WP17)
 
 ### Dependencies
 
@@ -491,7 +495,7 @@ T099 Generalise the `write_branch_bound` window machinery to lane windows with d
 T100 Implement the lane leg of `_approved_bound_verdict`: windows, exemption anchors, all-gap fallback (WP19)
 T101 Pass the one resolved lane tip to the classifier on every path incl. `approved_bound_refusal` (WP19)
 T102 Add the `window_gaps` field to the claim and populate it (WP19)
-T103 Add the NFR-007 query-count test; flip the NFR-002 (a, b, c-lanes) pins; regenerate only the named cells; write the FR-007 changelog fragment (WP19)
+T103 Add the NFR-007 query-count test; flip the NFR-002 (a, b, c-lanes) pins; regenerate only the named cells; add the window refusal's precedence-matrix rows in a new file; write the FR-007 changelog fragment (WP19)
 
 ### Dependencies
 
@@ -533,7 +537,7 @@ T109 Update `CLAUDE.md` consolidation sections (residual list, `--dry-run` sente
 T110 Add the amendment pointer and residual sync to `docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md` (WP21)
 T111 Sync the Mission ADR with what shipped (sanctioned out-of-map edit) (WP21)
 T112 Draft the spec-kitty-events#229 follow-up comment text for operator posting (WP21)
-T113 Run the Mission-wide verification sweep, the tracer assessment and the issue-matrix evidence collection, and record the results (WP21)
+T113 Run the Mission-wide verification sweep and the tracer assessment; write the issue-matrix rows with `spec-kitty agent issue-verdict` and fill the acceptance matrix with `spec-kitty agent mission acceptance-verdict` (WP21)
 
 ### Implementation Notes
 
@@ -547,8 +551,11 @@ T113 Run the Mission-wide verification sweep, the tracer assessment and the issu
 
 ## Dependency & Execution Summary
 
-- **Phase 1** (parallel): WP01, WP02, WP03, WP04 start immediately; WP05 and WP06 follow WP02 + WP04.
-- **Phase 2**: WP07 and WP09 start once all of WP01..WP06 are approved (in parallel); WP08 follows WP07.
+- **Lanes** (`lanes.json`, computed by `finalize-tasks`): `lane-planning` = WP01; `lane-b` = WP03; `lane-a` = WP02, WP04-WP20 in one **serial** lane (the shared golden file, `reconciliation_family.py`, the mutation file and `claim_inputs.py`/`forecast.py` collapse them; this is forced, not chosen); `lane-c` = WP21 behind lane-a. Lane-a depends on lane-b and lane-planning.
+- **Phase 1**: WP01 (lane-planning), WP03 (lane-b) and WP02 (lane-a) start immediately and run in parallel **across lanes**. Inside lane-a the order is serial: WP02 -> WP04 -> WP05 -> WP06. (Post-tasks squad R-09: the earlier "WP01..WP04 start immediately" did not hold inside one lane.)
+- **Phase 2**: WP07 starts once WP01..WP06 are approved; inside lane-a the order is WP07 -> WP08 -> WP09 (serial, not parallel).
+- **Consolidation retention** (post-tasks squad R-14): consolidate this Mission with `spec-kitty consolidate --keep-branch` (lane branches retained) until the PR is reviewed, so the red-first SHAs the Phase 4 work packages record stay reachable; the Phase 4 DoDs also require each red test's id and assertion message in the history.
+- **Rewrite rule**: WP01 and WP03 never rewrite a commit once it is on their lane branch (lane-a merges their tips on allocation and reuse; post-tasks squad R-13).
 - **Phase 3** (sequential, behind the facade): WP10 -> WP11 -> WP12 -> WP13 -> WP14 -> WP15. WP10 depends on WP07, WP08, WP09.
 - **Phase 4** (sequential, red-first): WP16 -> WP17 -> WP18 -> WP19 -> WP20 -> WP21.
 - **Routing hint**: WP02 (in-process runner) and WP18 (SIGKILL resume fixtures) decide which state a resume really reaches; route them to the same implementer or review them together.
@@ -577,13 +584,13 @@ T113 Run the Mission-wide verification sweep, the tracer assessment and the issu
 | FR-021 | WP08, WP19 |
 | FR-022 | WP08, WP19 |
 | FR-023 | WP19 |
-| NFR-001 | WP02, WP10, WP11 |
-| NFR-002 | WP05, WP16, WP17, WP18, WP19, WP20 |
+| NFR-001 | WP02, WP07, WP08, WP09, WP10, WP11, WP12, WP13, WP14, WP15 (base-relative `changed_cells` check in each DoD) |
+| NFR-002 | WP05 (pins), WP16 (d), WP17 (h), WP18 (e, f, g), WP19 (a, b, c-lanes), WP20 (c-`single_branch`); (c) is split WP19 / WP20 |
 | NFR-003 | WP15 |
 | NFR-004, NFR-005, NFR-009 | WP14, WP21 (and every WP's review) |
 | NFR-006 | WP07 |
 | NFR-007 | WP19 |
-| NFR-008 | WP06, WP13, WP15 |
+| NFR-008 | WP06, WP10, WP11, WP12, WP13, WP14, WP15 |
 | NFR-010 | WP16, WP17, WP18, WP19, WP20 |
 | SC-001 | WP19 |
 | SC-002 | WP20 |

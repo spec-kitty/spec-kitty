@@ -11,6 +11,7 @@ dependencies:
 requirement_refs:
 - FR-002
 - FR-003
+- NFR-001
 - NFR-006
 - C-002
 - C-003
@@ -150,7 +151,7 @@ spec-kitty agent action implement WP07 --agent <name> --mission consolidation-wi
   1. Add `class LaneHeadReader(Protocol)` returning `LaneHeadReading` and `def read_lane_head(*, repo_root, mission_slug, wp_id, owned=None) -> LaneHeadReading` that **never raises** (broad catch -> `failed(PROBE_ERROR, <exception class: message>)`, keeping the C-1 rationale comment).
   2. Refactor `_resolve_lane_head` into a reading-returning `_read_lane_head` that maps today's branches:
      - minted `single_branch` write branch exists -> `of_sha`; missing -> `failed(LANE_BRANCH_MISSING, "Mission branch <b> does not exist")` (keep the warning log);
-     - `CorruptLanesError` -> `failed(PROBE_ERROR, "corrupt lanes.json")` (W-3 "any other failed reading"; record this choice in `traces/design-decisions.md`);
+     - `CorruptLanesError` -> `failed(PROBE_ERROR, "corrupt lanes.json")` (W-3 "any other failed reading"; record this choice with `spec-kitty agent tracer-append --category design-decisions`);
      - no manifest / WP not in a lane / planning lane -> `not_applicable()`;
      - `_branch_head` raises -> `failed(GIT_ERROR, str(exc))`;
      - lane branch absent -> `failed(LANE_BRANCH_MISSING, "refs/heads/<branch> not found")` (keep today's warning vs debug log split).
@@ -225,7 +226,8 @@ make test-fast
 - [ ] Corpus golden file unchanged (`git diff --exit-code tests/consolidation/characterization/verdict_corpus.json`); intended-verdict tests still all `xfailed`.
 - [ ] `pyproject.toml` version untouched.
 - [ ] No new `# noqa` / `# type: ignore`; `_stamped_policy_metadata` and the reader functions <= 15 complexity (`uv run --frozen ruff check --select C901 src/specify_cli/status`).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (corrupt-`lanes.json` mapping, probe rename) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP07] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP07 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP07" --entry "<summary>. <detail>"` for the corrupt-`lanes.json` mapping, the probe rename; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

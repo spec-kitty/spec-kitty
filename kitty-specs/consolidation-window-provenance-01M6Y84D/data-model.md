@@ -141,7 +141,7 @@ One value per run, built by one constructor. It is consumed by claim building an
 | `target_base` | `str \| None` | live target tip | live target tip, saved as `pre_mutation_target_sha` | `pre_mutation_target_sha` |
 | `coord_base` | `str` | live `mission_branch` name (Phase 2: today's quirk kept) → resolved SHA (Phase 4, IC-16) | live coordination tip, saved as `pre_mutation_coord_sha` | `pre_mutation_coord_sha` (fail-closed anchor checks first) |
 | `lane_tips` | `Mapping[str, str]` | live lane tips | live, saved as `pre_interrupt_lane_tips` | `pre_interrupt_lane_tips` (CAS-checked, `lane_tip_cas_ok`) |
-| `dependency_anchors` | `Mapping[str, tuple[str, ...]]` | live dependency-lane tips | live, saved (via `lane_tips`) | frozen from `lane_tips`; from Phase 4 the **one** anchor set read by all four consumers: mixed-lane resolver, approved bound, fully-canceled lane, attestation (FR-015) |
+| `dependency_anchors` | `Mapping[str, str]` (created dependency-lane branch -> tip SHA, the key space of `pre_interrupt_lane_tips`) | live dependency-lane tips | live, saved (via `lane_tips`) | frozen from `lane_tips`; from Phase 4 the **one** anchor set read by all four consumers: mixed-lane resolver, approved bound, fully-canceled lane, attestation (FR-015) |
 | `dependency_refs` / `dependency_pins` | `tuple[str, ...]` / `Mapping[str, str]` | declared + recorded | declared, pinned once | `dependency_ref_pins` |
 | `excluded_canceled_wp_ids` | `frozenset[str]` | **empty (Phase 2 quirk)** → fresh-run derivation (Phase 4, FR-013) | `run.excluded_canceled_wp_ids` | saved |
 | `strategy` | `str` | requested | requested, saved | `ConsolidationState.strategy` |

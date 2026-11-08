@@ -11,6 +11,7 @@ dependencies:
 requirement_refs:
 - FR-012
 - FR-013
+- NFR-001
 - C-004
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
@@ -33,6 +34,7 @@ authoritative_surface: src/specify_cli/consolidation/claim_inputs.py
 create_intent:
 - src/specify_cli/consolidation/claim_inputs.py
 - tests/consolidation/test_claim_inputs_parity.py
+- tests/consolidation/reconciliation_family.py
 execution_mode: code_change
 model: ''
 owned_files:
@@ -41,6 +43,7 @@ owned_files:
 - src/specify_cli/consolidation/phase_claim.py
 - src/specify_cli/consolidation/phase_gate.py
 - tests/consolidation/test_claim_inputs_parity.py
+- tests/consolidation/reconciliation_family.py
 role: implementer
 tags: []
 task_type: implement
@@ -102,7 +105,7 @@ Done means:
 - `kitty-specs/consolidation-window-provenance-01M6Y84D/plan.md` — IC-08 (Risks: resume anchor checks first; frozen dependency anchors derived from `pre_interrupt_lane_tips`; parity equality definition; complexity).
 - `kitty-specs/consolidation-window-provenance-01M6Y84D/spec.md` — FR-012, FR-013 (equality: refs by resolved SHA, `status_dir` by resolved path and event-log digest), US5, C-004.
 - Today's three call sites (read them fully before changing anything):
-  - `phase_claim.py` `_phase_claim` (~495-545): `_enforce_resume_anchor_integrity(run, coord_topology=...)` **then** `_resolve_pre_mutation_coord_sha(run.state, run)`; `coord_base = coord_base_sha or checkpoint.sha or run.lanes_manifest.mission_branch`; `run.target_expected_old_sha = _resolve_pre_mutation_target_sha(...)`; kwargs `coord_base_ref`, `excluded_canceled_wp_ids=run.excluded_canceled_wp_ids`, `excluded_window_base=run.target_expected_old_sha`, `external_dependency_refs=run.dependency_refs`, `external_dependency_pins=run.dependency_ref_pins`. `run.is_resume` distinguishes `SAVED` from `LIVE_THEN_SAVED`.
+  - `phase_claim.py` `_capture_reconciliation_claim` (~485-552): `_enforce_resume_anchor_integrity(run, coord_topology=...)` **then** `_resolve_pre_mutation_coord_sha(run.state, run)`; `coord_base = coord_base_sha or checkpoint.sha or run.lanes_manifest.mission_branch`; `run.target_expected_old_sha = _resolve_pre_mutation_target_sha(...)`; kwargs `coord_base_ref`, `excluded_canceled_wp_ids=run.excluded_canceled_wp_ids`, `excluded_window_base=run.target_expected_old_sha`, `external_dependency_refs=run.dependency_refs`, `external_dependency_pins=run.dependency_ref_pins`. `run.is_resume` distinguishes `SAVED` from `LIVE_THEN_SAVED`.
   - `forecast.py` (~405-445): `window_base = resolve_commit(main_repo, resolved_target_branch)`; `status_dir = _forecast_claim_status_dir(...)`; `coord_base_ref=lanes_manifest.mission_branch` (live **name**); **no** `excluded_canceled_wp_ids` (empty quirk).
   - `phase_gate.py` (~70-82, defensive rebuild when `run.approved_wp_set is None`): `coord_base_ref=run.lanes_manifest.mission_branch` (live name quirk), the run's excluded set and target base.
 - `ConsolidationState` fields (`consolidation/state.py`): `pre_mutation_target_sha`, `pre_mutation_coord_sha`, `pre_interrupt_lane_tips`, `dependency_refs`, `dependency_ref_pins`, `strategy`.
@@ -126,8 +129,8 @@ spec-kitty agent action implement WP09 --agent <name> --mission consolidation-wi
 
 - **Steps**:
   1. `class ClaimInputSource(StrEnum)`: `LIVE = "live"`, `LIVE_THEN_SAVED = "live_then_saved"`, `SAVED = "saved"`.
-  2. `@dataclass(frozen=True) class ClaimInputs` with: `source`, `target_base: str | None`, `coord_base: str` (a SHA or, for the Phase 2 forecast quirk, the live branch **name**), `lane_tips: Mapping[str, str]`, `dependency_anchors: Mapping[str, tuple[str, ...]]`, `dependency_refs: tuple[str, ...]`, `dependency_pins: Mapping[str, str]`, `excluded_canceled_wp_ids: frozenset[str]`, `strategy: str`, `status_dir: Path`. Use `MappingProxyType` / tuples so the value is truly immutable.
-  3. `dependency_anchors` in this work package: computed for completeness (dependency lane id -> frozen tip(s) from `lane_tips`, `SAVED` from `pre_interrupt_lane_tips`) but **not passed** to the builder; WP18 consumes it. Document that in the field docstring.
+  2. `@dataclass(frozen=True) class ClaimInputs` with: `source`, `target_base: str | None`, `coord_base: str` (a SHA or, for the Phase 2 forecast quirk, the live branch **name**), `lane_tips: Mapping[str, str]`, `dependency_anchors: Mapping[str, str]`, `dependency_refs: tuple[str, ...]`, `dependency_pins: Mapping[str, str]`, `excluded_canceled_wp_ids: frozenset[str]`, `strategy: str`, `status_dir: Path`. Use `MappingProxyType` / tuples so the value is truly immutable.
+  3. `dependency_anchors` in this work package: computed for completeness but **not passed** to the builder; WP18 consumes it. Document that in the field docstring. **Its shape is fixed now** (post-tasks squad pedro LOW, so WP18 does not reshape a field this WP owns): `Mapping[str, str]` keyed by the **created dependency-lane branch** (the same key space as `ConsolidationState.pre_interrupt_lane_tips`, see `phase_claim._capture_pre_interrupt_lane_tips`, which keys by `_created_lane_branch` and skips `lane-planning` and fully canceled lanes) -> that lane's tip SHA. `SAVED` takes it from `pre_interrupt_lane_tips` filtered to dependency lanes; `LIVE`/`LIVE_THEN_SAVED` resolve the same keys live. The field type in T047 step 2 is therefore `dependency_anchors: Mapping[str, str]`. Pin the key space in the parity test (`test_saved_reads_the_persisted_record` asserts `inputs.dependency_anchors` keys are a subset of `state.pre_interrupt_lane_tips` keys).
 - **Files**: `src/specify_cli/consolidation/claim_inputs.py`.
 
 ### Subtask T048 – The constructor, one resolver per source
@@ -142,6 +145,7 @@ spec-kitty agent action implement WP09 --agent <name> --mission consolidation-wi
 
 - **Steps**: `build_claim(repo_root: Path, manifest: LanesManifest, inputs: ClaimInputs) -> ApprovedWpCommitSet` calls `build_approved_wp_set(repo_root, inputs.status_dir, manifest, coord_base_ref=inputs.coord_base, excluded_canceled_wp_ids=..., excluded_window_base=inputs.target_base, external_dependency_refs=inputs.dependency_refs, external_dependency_pins=inputs.dependency_pins)`. For the forecast, pass `excluded_canceled_wp_ids` exactly as today (omitted -> the builder default). Implement the omission faithfully: if today's forecast omits the kwarg, the `LIVE` inputs carry an empty frozenset **and** `build_claim` must produce the same call semantics (check the builder's default value; if the default is `frozenset()`, passing it explicitly is equivalent — confirm and note it in the docstring).
 - **Notes**: Import `build_approved_wp_set` from `specify_cli.consolidation.reconciliation` (facade). After the split (Phase 3) the facade re-exports it; the WP04 guard is about patches, not imports.
+- **Consumer binding** (post-tasks squad pedro #1, follow-through): after T050-T052 the three call sites no longer call `build_approved_wp_set` themselves; `claim_inputs.py` binds it by name. Append `claim_inputs` to `RECONCILIATION_CONSUMERS` in `tests/consolidation/reconciliation_family.py` (one line; this is the only sanctioned edit of that file in this WP). Without it WP06's `claim-orchestration` row patches bindings no call site reads any more and goes vacuous. Run the seeded-mutation file after the change (DoD).
 
 ### Subtask T050 – Adopt in `forecast.py`
 
@@ -182,6 +186,7 @@ ATDD: write the parity test first. Zero verdict change is proven by the unchange
 ```bash
 uv run --frozen pytest -q -rxX tests/consolidation/test_claim_inputs_parity.py
 uv run --frozen pytest -q tests/consolidation/test_reconciliation_characterization.py tests/consolidation/test_refusal_precedence_matrix.py tests/consolidation/test_reconciliation_intended_verdicts.py
+uv run --frozen pytest -q tests/consolidation/test_reconciliation_seeded_mutations.py tests/consolidation/test_reconciliation_family_guard.py
 uv run --frozen pytest -q tests/consolidation/ -k "forecast or phase_claim or phase_gate or resume or dry_run"
 uv run --frozen pytest -q tests/terminus/ -k "resume or dry_run or forecast"
 uv run --frozen pytest -q tests/consolidation/test_single_rollback_authority.py
@@ -194,7 +199,8 @@ make test-fast
 - [ ] `git diff --exit-code tests/consolidation/characterization/verdict_corpus.json` (golden unchanged).
 - [ ] The three divergence `xfail`s are strict, `raises=AssertionError`, one per divergence.
 - [ ] `reconciliation.py` untouched; no call site assembles claim kwargs itself (grep `build_approved_wp_set(` in `src/` shows only `claim_inputs.py` and the facade/definition).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (context shape, gate override, any default-kwarg equivalence) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP09] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP09 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP09" --entry "<summary>. <detail>"` for the context shape, the gate override, any default-kwarg equivalence, the `dependency_anchors` key space, the `claim_inputs` consumer binding; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

@@ -156,7 +156,8 @@ make test-fast
 - [ ] Every co-occurring pair asserts both markers before order.
 - [ ] The swapped-order control passes (it expects the assertion to fail).
 - [ ] No production code changed.
-- [ ] **Tracer files**: dated entry in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` with the verified order (and any difference from plan IC-03); `traces/tooling-friction.md` for friction. Format `- **[YYYY-MM-DD][implement WP03] <summary>.** <detail>`. No `kitty-specs/` in your checkout: use `spec-kitty agent tasks add-history WP03 --note "..."`.
+- [ ] **Never rewrite a pushed lane commit** (post-tasks squad R-13): lane-a merges this lane's tip when WP02 starts and again on every lane-a reuse (`allocate_lane_worktree` merges resolvable dependency-lane tips). Once a commit is on the lane branch, never amend, rebase, squash or force-push it, even before approval; fix forward with a new commit. A rewritten commit that lane-a already merged is reachable from no approval stamp and no window, and this Mission's own `consolidate` would refuse it. `git reflog` of the lane branch shows no rewrite at review.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP03" --entry "<summary>. <detail>"` for the verified refusal order and any difference from plan IC-03; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

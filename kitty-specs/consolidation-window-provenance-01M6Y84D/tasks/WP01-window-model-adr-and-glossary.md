@@ -208,7 +208,8 @@ uv run --frozen python -m scripts.docs.check_spelling --pass us
 - [ ] Every ADR citation uses the full slug (`grep -n "ADR \`20" <new ADR>` shows only full slugs).
 - [ ] No sentence states the `--dry-run` approved-bound behaviour (R-09).
 - [ ] Every rule in plan IC-01 "Post-plan rulings the ADR records" and "Named residuals the ADR records" appears.
-- [ ] **Tracer files**: append at least one dated entry to `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (format `- **[YYYY-MM-DD][implement WP01] <summary>.** <detail>`), and to `traces/tooling-friction.md` for any tooling friction you hit. If your checkout does not carry `kitty-specs/`, put the entry text in `spec-kitty agent tasks add-history WP01 --note "..."` and the orchestrator folds it.
+- [ ] **Never rewrite a pushed lane commit** (post-tasks squad R-13): lane-a merges this lane's tip when WP02 starts and again on every lane-a reuse (`allocate_lane_worktree` merges resolvable dependency-lane tips). Once a commit is on the lane branch, never amend, rebase, squash or force-push it, even before approval; fix forward with a new commit. A rewritten commit that lane-a already merged is reachable from no approval stamp and no window, and this Mission's own `consolidate` would refuse it. `git reflog` of the lane branch shows no rewrite at review.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP01" --entry "<summary>. <detail>"` for the ADR decisions you made and any gap you found (never decide a gap yourself); `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full` (C-013).
 
 ## Risks & Mitigations

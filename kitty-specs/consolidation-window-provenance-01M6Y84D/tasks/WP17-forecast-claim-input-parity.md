@@ -30,6 +30,7 @@ create_intent:
 - tests/consolidation/test_reconciliation_intended_verdicts.py
 - tests/consolidation/characterization/verdict_corpus.json
 - tests/consolidation/test_forecast_fresh_run_parity.py
+- docs/changelog/unreleased/7403-forecast-claim-inputs.fixed.md
 execution_mode: code_change
 model: ''
 owned_files:
@@ -39,6 +40,7 @@ owned_files:
 - tests/consolidation/test_claim_inputs_parity.py
 - tests/consolidation/test_reconciliation_intended_verdicts.py
 - tests/consolidation/characterization/verdict_corpus.json
+- docs/changelog/unreleased/7403-forecast-claim-inputs.fixed.md
 role: implementer
 tags: []
 task_type: implement
@@ -190,18 +192,10 @@ If T087 finds a visible verdict change for the coordination base too (see T087 s
   1. Run `uv run --frozen pytest -q -rxX tests/consolidation/test_claim_inputs_parity.py tests/consolidation/test_reconciliation_intended_verdicts.py`: the three parity tests and the two (h) pins now **pass**; every other intended-verdict test is still XFAIL (the (d) pin passes since WP16); zero XPASS.
   2. Golden subset against the WP16 tip (the parent of your red commit):
      ```bash
-     BASE=$(git rev-parse <red-commit>^)
-     uv run --frozen python - "$BASE" <<'EOF'
-     import json, subprocess, sys
-     path = "tests/consolidation/characterization/verdict_corpus.json"
-     old = json.loads(subprocess.run(["git", "show", f"{sys.argv[1]}:{path}"], capture_output=True, text=True, check=True).stdout)
-     new = json.load(open(path))
-     old, new = old.get("cells", old), new.get("cells", new)
-     changed = sorted(k for k in old.keys() | new.keys() if old.get(k) != new.get(k))
-     print(changed)
-     assert all(k.startswith("forecast|") for k in changed), "a non-forecast cell changed: C-004 violation"
-     EOF
+     BASE=$(git rev-parse <first-red-commit>^)   # parent of your first red commit (WP02 helper, post-tasks squad R-03)
+     uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; c = changed_cells('$BASE'); print(c); assert all(k.startswith('forecast|') for k in c), 'a non-forecast cell changed: C-004 violation'"
      ```
+     The printed list must **equal** the named forecast cells T087 step 1 listed (not merely be a subset of the forecast cells).
      Every changed key must be a forecast cell whose inputs carry an excluded canceled WP (or the named (h) cell). Paste the list into the history note.
   3. Run the golden test twice: zero diff.
   4. Confirm SC-003 on the corpus: for every scenario where all three modes apply, the forecast's claim-time verdict now equals the fresh run's. List any remaining mismatch in the history with its cause; a remaining mismatch caused by the verify-side checks the forecast skips (#7362) is out of scope and must be named, not fixed.
@@ -228,13 +222,14 @@ uv run --frozen mypy src/specify_cli/consolidation/claim_inputs.py src/specify_c
 make test-fast
 ```
 
-- [ ] Red evidence: each red commit SHA and its failing summary line are in the history note (and later the PR's *Tests run*).
+- [ ] Red evidence: each red commit SHA and its failing summary line are in the history note (and later the PR's *Tests run*). **Because lane SHAs can become unreachable after a squash consolidation with cleanup** (post-tasks squad R-14), also paste, for each red test, its full test id and the assertion message pytest printed (`uv run --frozen pytest -q -rf <test>` at the red SHA), so the PR and the post-merge mission review can check the red without checking out the SHA.
 - [ ] One fix commit per divergence; each removes exactly its own xfail marker(s).
-- [ ] Golden diff = forecast cells only (T090 step 2), keys recorded.
+- [ ] Golden diff = forecast cells only (T090 step 2), keys recorded; `changed_cells(<first red commit>^)` equals them.
+- [ ] **Changelog fragment** (post-tasks squad R-08; this WP owns it): if T087 found an operator-visible `consolidate --dry-run` verdict change, create `docs/changelog/unreleased/7403-forecast-claim-inputs.fixed.md`, one entry, section `fixed`, README style `- **\`spec-kitty consolidate --dry-run\` reports the claim verdict the real run reaches** (#7403). **Before:** ... **After:** ...`, written from the shipped red-first test, no version bump. Run `uv run --frozen python -m scripts.docs.check_changelog_style` and `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased`. If T087 found **no** operator-visible change, do not create the file; record "no operator-visible change, no fragment" in a design-decisions tracer entry instead.
 - [ ] The dry run moves nothing and seeds nothing (T087 step 3 assertions green).
 - [ ] No call site assembles claim inputs itself (`grep -n "build_approved_wp_set(" src/` shows only `claim_inputs.py` and the definition).
 - [ ] No new `# noqa` / `# type: ignore`; every resolver <= 15 complexity.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (visible differences found in T087, the status-dir resolution chosen, any remaining SC-003 mismatch and its cause) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP17] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP17 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP17" --entry "<summary>. <detail>"` for visible differences found in T087, the status-dir resolution chosen, any remaining SC-003 mismatch and its cause, and whether a changelog fragment was written; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

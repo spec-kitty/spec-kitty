@@ -43,6 +43,7 @@ create_intent:
 - tests/consolidation/test_lane_approval_windows.py
 - tests/consolidation/test_lane_window_query_count.py
 - docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md
+- tests/consolidation/test_refusal_precedence_matrix_windows.py
 execution_mode: code_change
 model: ''
 owned_files:
@@ -59,6 +60,7 @@ owned_files:
 - tests/consolidation/test_reconciliation_seeded_mutations.py
 - tests/consolidation/characterization/verdict_corpus.json
 - docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md
+- tests/consolidation/test_refusal_precedence_matrix_windows.py
 role: implementer
 tags: []
 task_type: implement
@@ -156,7 +158,7 @@ spec-kitty agent action implement WP19 --agent <name> --mission consolidation-wi
 
 ## Design in one paragraph (read before T099)
 
-Mirror `check_write_branch` (`write_branch_bound.py:142-190`) on each code lane. **Tier 1** is `check_lane` unchanged: stamp refusals first (`APPROVAL_STAMP_MISSING` / `APPROVAL_STAMP_NOT_ON_LANE`, WW-4), then content after every own approval stamp, rendered with today's text. **Tier 2** runs only when tier 1 passed: a content commit in `claim_base..tip` that is in no window's covered set and not in the exempt set is refused, one `BoundRefusal` per commit naming the preceding work package. The exempt set is computed **once per lane** from the exemption anchors (closed-world anchors + other lanes' stamps) and passed to both tiers (NFR-007). Removing the own stamps from tier 1's exempt set changes no tier-1 verdict, because `check_lane` already excludes everything its own stamps reach through `commits_beyond(tip, [claim_base, *own_stamps])` (`approved_bound.py:547`); write that argument into the docstring. Consequence (record it in `traces/design-decisions.md`): content after the last approval keeps today's tier-1 text; the new window text (NFR-002 (b)) appears for commits tier 1 cannot see (between approvals, abandoned cycle).
+Mirror `check_write_branch` (`write_branch_bound.py:142-190`) on each code lane. **Tier 1** is `check_lane` unchanged: stamp refusals first (`APPROVAL_STAMP_MISSING` / `APPROVAL_STAMP_NOT_ON_LANE`, WW-4), then content after every own approval stamp, rendered with today's text. **Tier 2** runs only when tier 1 passed: a content commit in `claim_base..tip` that is in no window's covered set and not in the exempt set is refused, one `BoundRefusal` per commit naming the preceding work package. The exempt set is computed **once per lane** from the exemption anchors (closed-world anchors + other lanes' stamps) and passed to both tiers (NFR-007). Removing the own stamps from tier 1's exempt set changes no tier-1 verdict, because `check_lane` already excludes everything its own stamps reach through `commits_beyond(tip, [claim_base, *own_stamps])` (`approved_bound.py:547`); write that argument into the docstring. Consequence (record it with `spec-kitty agent tracer-append --category design-decisions`): content after the last approval keeps today's tier-1 text; the new window text (NFR-002 (b)) appears for commits tier 1 cannot see (between approvals, abandoned cycle).
 
 ## Subtasks & Detailed Guidance
 
@@ -231,7 +233,7 @@ Mirror `check_write_branch` (`write_branch_bound.py:142-190`) on each code lane.
 - **Steps**:
   1. `_BoundVerdict` gains `window_gaps: tuple[GapEntry, ...] = ()`, sorted by `(lane_id, wp_id)`.
   2. `ApprovedWpCommitSet` gains `window_gaps: tuple[GapEntry, ...] = ()` appended **last** (data-model section 5; positional constructions stay valid; C-006).
-  3. Populate it on the passing claim (`:1845-1866` today) **and** on the claim produced by a bound refusal (`_refusal_claim`, add a defaulted keyword). On a `_compound_refusal` it may stay empty; record that choice in `traces/design-decisions.md`.
+  3. Populate it on the passing claim (`:1845-1866` today) **and** on the claim produced by a bound refusal (`_refusal_claim`, add a defaulted keyword). On a `_compound_refusal` it may stay empty; record that choice with `spec-kitty agent tracer-append --category design-decisions`.
   4. Do **not** render anything (WP20). Do not change `orchestrator-api` (no envelope change, spec Assumption).
 - **Check**: `tests/consolidation/test_reconciliation_surface_pin.py` stays green (new names are additions; if the pin rejects additions, stop and ask the orchestrator: WP04 owns it).
 
@@ -244,7 +246,13 @@ Mirror `check_write_branch` (`write_branch_bound.py:142-190`) on each code lane.
   - `test_window_check_cost_grows_linearly_with_wps`: `count(6) - count(3) <= 3 * _PER_WP_BUDGET` with `_PER_WP_BUDGET = 8` (a named constant with a comment deriving it: 1 `on_lane` merge-base, ≤ k² topology merge-bases, 2 window rev-lists, 1 tier-1 stamp rev-list).
   - `test_exempt_set_computed_once_per_lane`: spy `lane_exempt_commits` in the module that looks it up; exactly one call per window lane.
 - **Flip pins** in `tests/consolidation/test_reconciliation_intended_verdicts.py`: remove the `xfail` from `test_commit_between_two_approvals_is_refused`, `test_gap_then_recorded_stray_commit_is_refused`, `test_window_refusal_names_commit_and_preceding_wp`, and from the **`lanes`** case of `test_rewound_wp_window_opens_after_rewind`. If the `xfail` marks the whole parametrized test, split it: `pytest.param("lanes", id="lanes")` and `pytest.param("single_branch", id="single_branch", marks=pytest.mark.xfail(strict=True, raises=AssertionError, reason="NFR-002 (c) single_branch, FR-011/FR-021, flipped by WP20"))`. Leave `test_parallel_claims_window_is_not_over_wide` (named residual WW-6) and every WP16/17/18 test untouched.
-- **Regenerate only named cells** (WP02 helpers): `regenerate_cells([...])` with the keys of the (a), (a-mixed), (b) and (c-lanes) cells, or `SPEC_KITTY_REGEN_VERDICT_CORPUS=1` then inspect. Then `git diff tests/consolidation/characterization/verdict_corpus.json` must touch only these cells:
+- **Regenerate only named cells** (WP02 helpers): `regenerate_cells([...])` with the keys of the (a), (a-mixed), (b) and (c-lanes) cells, or `SPEC_KITTY_REGEN_VERDICT_CORPUS=1` then inspect. Then the machine check (post-tasks squad R-03; run after the fix commit and on the final commit) must print exactly the allowed keys below:
+  ```bash
+  BASE=$(git rev-parse <red-commit>^)   # WP18's tip
+  ALLOWED='<the (a), (a-mixed), (b), (c-lanes) keys and any applicable resume twins, comma-separated, recorded in the history note before regenerating>'
+  uv run --frozen python -c "import sys; from tests.consolidation.characterization_support import changed_cells; c = changed_cells('$BASE'); a = sorted(sys.argv[1].split(',')); print(c); assert c == a, ('changed cells differ from the allowed list', c, a)" "$ALLOWED"
+  ```
+  The table names the cells:
 
   | Cell (find the key with `grep -n` on the variant names WP02 used: `between_two_approvals`, `gap_then_recorded`, `rewound`) | Before | After |
   |---|---|---|
@@ -260,7 +268,16 @@ Mirror `check_write_branch` (`write_branch_bound.py:142-190`) on each code lane.
 - **Changelog fragment (this work package owns it; orchestrator decision 2026-11-08)**: create `docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md` with exactly one entry, section `changed`, no version bump:
   `- **\`spec-kitty consolidate\` refuses a commit made between two approvals on a lane** (#7403, #5721). **Before:** a commit made after one work package's approval and before the next one started landed, because the later approval stamp reached it. **After:** each approved work package covers only its recorded window, and such a commit is refused with \`LANE_MOVED_AFTER_APPROVAL\`, naming the commit and the work package approved before it. A commit another lane's approval stamp reaches stays exempt.`
   Run `uv run --frozen python -m scripts.docs.check_changelog_style` and `uv run --frozen python -m scripts.docs.check_spelling --pass unreleased`. WP20 keeps its own gap-report fragment; do not write that one.
-- **Fix commit**: one commit that removes the markers and regenerates the cells together with T099-T102 (or a separate commit right after them); record its SHA in the WP history.
+- **Precedence-matrix rows** (post-tasks squad R-06; this WP introduces the window refusal text, so it owns its rows): in a **new** file `tests/consolidation/test_refusal_precedence_matrix_windows.py` that imports WP03's pair fixtures and normalizer from `tests/consolidation/test_refusal_precedence_matrix.py` (do **not** edit WP03's file: it belongs to another lane, and editing it would merge the two lanes), **add** one pair row per refusal the tier-2 window refusal can compose with through `_compound_refusal` (mixed-lane, canceled-dependency) and per refusal it can precede or follow on the same claim, each with its full normalized text, using WP03's fixture conventions. **STOP rule**: if WP03's unchanged matrix goes red (an existing row's text or order changed) it is a STOP — revert, investigate (usually a WP03 fixture that commits lane work before its `claimed` event, which the window model now refuses), and report to the orchestrator. Record the new row count in the history note.
+- **Fix commit**: see the commit plan below; record its SHA in the WP history.
+
+## Commit plan (red first; post-tasks squad R-12)
+
+1. **Red commit** — T097 tests + T098 guards (`test(WP19): red-first lane window tests`): 5 red, guards green.
+2. **Fix commit** — T099-T102 **plus** the four WP05 pin flips (T103 "Flip pins", the `lanes` (c) case split out) **plus** the named-cell regeneration and the new precedence-matrix file. The pins flip in the **same** commit as the code that makes them pass, so no commit on the lane has a strict `xfail` XPASSing (red on that commit).
+3. **Follow-up commit** — the T103 query-count test, if not already in the red commit, and the changelog fragment.
+
+Never squash these, never amend the red commit. Each commit must be green except the red commit's five named tests.
 
 ## Test Strategy
 
@@ -273,7 +290,7 @@ Run and record exact commands with pass/fail counts in the WP history:
 ```bash
 uv run --frozen pytest -q tests/consolidation/test_lane_approval_windows.py tests/consolidation/test_lane_window_query_count.py tests/consolidation/test_write_branch_bound.py tests/consolidation/test_approved_bound.py tests/consolidation/test_approved_bound_residuals.py
 uv run --frozen pytest -q -rxX tests/consolidation/test_reconciliation_intended_verdicts.py
-uv run --frozen pytest -q tests/consolidation/test_reconciliation_characterization.py tests/consolidation/test_refusal_precedence_matrix.py tests/consolidation/test_reconciliation_surface_pin.py tests/consolidation/test_reconciliation_family_guard.py tests/consolidation/test_reconciliation_seeded_mutations.py tests/consolidation/test_claim_inputs_parity.py tests/consolidation/test_resume_frozen_anchors.py
+uv run --frozen pytest -q tests/consolidation/test_reconciliation_characterization.py tests/consolidation/test_refusal_precedence_matrix.py tests/consolidation/test_refusal_precedence_matrix_windows.py tests/consolidation/test_reconciliation_surface_pin.py tests/consolidation/test_reconciliation_family_guard.py tests/consolidation/test_reconciliation_seeded_mutations.py tests/consolidation/test_claim_inputs_parity.py tests/consolidation/test_resume_frozen_anchors.py
 uv run --frozen pytest -q tests/integration/test_single_branch_approval_windows.py tests/orchestrator_api/test_consolidate_mission_post_approval.py tests/orchestrator_api/test_single_branch_bound_preflight.py
 uv run --frozen pytest -q tests/consolidation/ tests/terminus/
 uv run --frozen pytest -q tests/consolidation/test_single_rollback_authority.py tests/architectural/test_no_dead_symbols.py tests/architectural/test_exemption_registry_ratchet.py tests/architectural/test_no_legacy_terminology.py
@@ -284,13 +301,15 @@ uv run --frozen mypy src/specify_cli/consolidation/write_branch_bound.py src/spe
 make test-fast
 ```
 
-- [ ] Red-first evidence: the red commit SHA (5 failed for "no refusal", guards green) and the fix commit SHA are in the WP history.
+- [ ] Red-first evidence: the red commit SHA (5 failed for "no refusal", guards green) and the fix commit SHA are in the WP history. **Because lane SHAs can become unreachable after a squash consolidation with cleanup** (post-tasks squad R-14), also paste, for each red test, its full test id and the assertion message pytest printed (`uv run --frozen pytest -q -rf <test>` at the red SHA), so the PR and the post-merge mission review can check the red without checking out the SHA.
 - [ ] `-rxX`: the four flipped tests now pass; `[single_branch]` rewound, the WW-6 residual and no other pin changed.
 - [ ] Golden diff ⊆ the named cells in the T103 table; no other cell changed.
 - [ ] Every refusal test asserts `ref_shas` unchanged (NFR-010).
 - [ ] No new `# noqa`, `# type: ignore` or allowlist entry; every added or changed function ≤ 15.
 - [ ] Classify every red in `tests/consolidation/` / `tests/terminus/` per the CLAUDE.md baseline-red gotcha; a red caused by a fixture that records a claim after its lane work is reported (file, test) to the orchestrator before you change any file outside `owned_files`.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (two-tier design and the tier-1 text consequence; other lanes selected by lane id; compound-refusal gaps choice; `_PER_WP_BUDGET` derivation) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP19] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP19 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP19" --entry "<summary>. <detail>"` for the two-tier design and the tier-1 text consequence; other lanes selected by lane id; the compound-refusal gaps choice; the `_PER_WP_BUDGET` derivation; the precedence-matrix row count before/after; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
+- [ ] `changed_cells(<red commit>^)` equals the allowed list recorded before regenerating (T103 machine check).
+- [ ] Precedence matrix: the new tier-2 rows live in `test_refusal_precedence_matrix_windows.py` and pass; WP03's `test_refusal_precedence_matrix.py` is unchanged and green (its existing rows are the STOP check); row count recorded.
 - [ ] `docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md` exists with the one FR-007 entry; the changelog style and spelling checks pass.
 - [ ] Never run `make test-full`.
 

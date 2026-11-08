@@ -218,7 +218,7 @@ Record each red SHA with its failing summary line in the history note.
 - **Design** (keep the change a threaded value, not new branching):
   1. `_closed_world_anchors(lanes_manifest, lane, target_base, *, excluded_canceled_wp_ids, frozen_tips: Mapping[str, str] | None = None)`: for each surviving dependency lane, `branch = _lane_branch_for(...)`; append `frozen_tips[branch]` when `frozen_tips` holds that key, else `branch` (degraded / fresh: today's live read). Filters unchanged. Document the degraded-anchor rule in the docstring with the ADR slug.
   2. `build_approved_wp_set(..., frozen_dependency_tips: Mapping[str, str] | None = None)` (now in `reconciliation_claim.py`) threads it into the mixed-lane scope (`_MixedLaneScope` gains one field), the approved-bound verdict and `_fully_canceled_lane_own_commits` / `_fully_canceled_lane_commits`. Default `None` = today's behaviour, so the orchestrator-api door `approved_bound_refusal` and every other caller are unchanged.
-  3. `claim_inputs.build_claim` passes `frozen_dependency_tips` from `inputs.dependency_anchors` **only for `SAVED`** (resume); `LIVE` and `LIVE_THEN_SAVED` pass `None`, so the forecast and the fresh run keep byte-identical verdicts. If `dependency_anchors`' WP09 shape (`Mapping[str, tuple[str, ...]]`, keyed by lane id) does not fit, adapt it to the created-branch → SHA mapping `pre_interrupt_lane_tips` already holds, and record the change in the tracer. `SAVED` reads only the persisted record (CI-3: never a live fallback for a saved value).
+  3. `claim_inputs.build_claim` passes `frozen_dependency_tips` from `inputs.dependency_anchors` **only for `SAVED`** (resume); `LIVE` and `LIVE_THEN_SAVED` pass `None`, so the forecast and the fresh run keep byte-identical verdicts. `dependency_anchors` already has the shape this needs (WP09 fixed it: `Mapping[str, str]`, created dependency-lane branch -> tip SHA, the key space of `pre_interrupt_lane_tips`); pass it through unchanged. If it does not fit, **stop and ask the orchestrator**: do not reshape a field WP09 owns (its parity test is not in your owned files). `SAVED` reads only the persisted record (CI-3: never a live fallback for a saved value).
   4. `phase_gate.py` defensive rebuild (only when no claim was captured): pass the same inputs the run used. `run.bound_anchor_shas` (gate lane re-check) stays as is; confirm in a comment that it already uses frozen SHAs.
   5. Attestation (consumer 4): `plan_approved_attestations(..., frozen_dependency_tips=None)` → `_refuse_moved_reattestations` → `_closed_world_anchors(..., frozen_tips=...)`. In `executor.py`, when the run is a `--resume` and a record exists, read it read-only with `load_state(main_repo, canonical_id)` **before** `_record_operator_attestations` and pass `state.pre_interrupt_lane_tips` (the same record `_load_or_create_merge_state` loads at `:491`; do not reorder `_refuse_unexplained_branch_moves`, which must stay first). On a fresh run pass `None` (live tips equal what the claim then freezes, CI-5). A missing key keeps the live read; H5 refuses a partial record moments later anyway.
 - **Must stay true**: no new `ConsolidationState` field; the planning-lane and fully-canceled exclusions unchanged; H3/H4/H5 order unchanged; no restore or rollback call added (C-009).
@@ -235,17 +235,8 @@ Record each red SHA with its failing summary line in the history note.
      Adjust the filter to WP02's actual variant suffix.
   3. Regenerate only those keys (`regenerate_cells(names)`), then check the subset against the WP17 tip (the parent of commit 1):
      ```bash
-     BASE=$(git rev-parse <commit-1>^)
-     uv run --frozen python - "$BASE" <<'EOF'
-     import json, subprocess, sys
-     path = "tests/consolidation/characterization/verdict_corpus.json"
-     old = json.loads(subprocess.run(["git", "show", f"{sys.argv[1]}:{path}"], capture_output=True, text=True, check=True).stdout)
-     new = json.load(open(path))
-     old, new = old.get("cells", old), new.get("cells", new)
-     changed = sorted(k for k in old.keys() | new.keys() if old.get(k) != new.get(k))
-     print(changed)
-     assert all(k.startswith("resume|") for k in changed), "a non-resume cell changed: C-004 violation"
-     EOF
+     BASE=$(git rev-parse <commit-1>^)   # parent of the red commit (WP02 helper, post-tasks squad R-03)
+     uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; c = changed_cells('$BASE'); print(c); assert all(k.startswith('resume|') for k in c), 'a non-resume cell changed: C-004 violation'"
      ```
      The changed set must equal the (e)/(f)/(g) keys. Any other change (a resume cell without an advance, any fresh or forecast cell) means the fix leaked: fix the code, never the golden.
 
@@ -274,13 +265,13 @@ make test-fast
 
 (Format/mypy: add any other owned module you changed, e.g. `phase_claim.py`, `phase_gate.py`, `run_state.py`, `reconciliation_closed_world.py`.)
 
-- [ ] Red evidence: commits 2-4 each have their SHA and failing summary line in the history note (and later the PR's *Tests run*); every red test asserted the `state.json` precondition before resuming.
+- [ ] Red evidence: commits 2-4 each have their SHA and failing summary line in the history note (and later the PR's *Tests run*); every red test asserted the `state.json` precondition before resuming. **Because lane SHAs can become unreachable after a squash consolidation with cleanup** (post-tasks squad R-14), also paste, for each red test, its full test id and the assertion message pytest printed (`uv run --frozen pytest -q -rf <test>` at the red SHA), so the PR and the post-merge mission review can check the red without checking out the SHA.
 - [ ] 0 hand-written `state.json` records (`grep -n "state.json" tests/consolidation/test_resume_frozen_anchors.py tests/consolidation/resume_frozen_anchors_support.py` shows reads only).
 - [ ] `-rxX`: (d), (e), (f), (g), (h) pins pass; the WP19/WP20 pins and the parallel-claims residual still XFAIL; zero XPASS.
 - [ ] Golden diff = the (e)/(f)/(g) resume keys only (T096 step 3), keys recorded.
 - [ ] All four consumers receive the same frozen set on a resume; fresh run and forecast pass `None`.
 - [ ] No new `ConsolidationState` field, no new rollback/restore caller, no new `# noqa` / `# type: ignore`; touched functions <= 15 complexity (`uv run --frozen ruff check --select C901 src/specify_cli/consolidation`).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (SIGKILL hook point confirmed or moved, topologies that freeze tips, `dependency_anchors` shape, (g) reachability, attestation reachability) and `traces/tooling-friction.md`. Format `- **[YYYY-MM-DD][implement WP18] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP18 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP18" --entry "<summary>. <detail>"` for SIGKILL hook point confirmed or moved, topologies that freeze tips, (g) reachability, attestation reachability; and the one-sentence operator-visible Before/After of the fix, which WP21 turns into the `7403-resume-frozen-anchors.fixed.md` fragment (so this WP's reviewer checks the claim); `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

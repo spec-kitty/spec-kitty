@@ -6,7 +6,9 @@ dependencies:
 requirement_refs:
 - FR-019
 - C-006
+- NFR-001
 - NFR-005
+- NFR-008
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
@@ -260,7 +262,8 @@ make test-fast
 - [ ] Allowlist entry count after is `<=` count before (record both numbers); no new `(module, name)` pair, no category, no widened entry.
 - [ ] No new `# noqa`, `# type: ignore`; the only `noqa` in the diff is the moved `BLE001` line (one `-`, one `+`).
 - [ ] No `src/` file other than `reconciliation.py` and `reconciliation_claim.py` changed.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (where `UnroutedTerminusPathError` landed; the allowlist outcome per name; module sizes; the temporary back-reference names WP15 must remove) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP14] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP14 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP14" --entry "<summary>. <detail>"` for where `UnroutedTerminusPathError` landed; the allowlist outcome per name; module sizes; the temporary back-reference names WP15 must remove; `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a test passed that you did not run.
 
 ## Risks & Mitigations

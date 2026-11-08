@@ -7,6 +7,7 @@ requirement_refs:
 - FR-019
 - FR-020
 - C-007
+- NFR-001
 - NFR-003
 - NFR-008
 - SC-006
@@ -268,7 +269,7 @@ spec-kitty agent action implement WP15 --agent <name> --mission consolidation-wi
 
 - **Steps**:
   1. Run every command in Definition of Done; paste the final summary lines into the WP history note.
-  2. **Zero corpus diff, Phase 3 as a whole**: `git log --oneline -- tests/consolidation/characterization/verdict_corpus.json` shows **no commit made during Phase 3** (its newest commit is from WP02/WP05/WP06-era Phase 1 or Phase 2 work), and `git diff --exit-code -- tests/consolidation/characterization/verdict_corpus.json` is clean. The regeneration variable `SPEC_KITTY_REGEN_VERDICT_CORPUS` was never set.
+  2. **Zero corpus diff, Phase 3 as a whole**: `git log --oneline -- tests/consolidation/characterization/verdict_corpus.json` shows that its newest commit is from **Phase 1** (WP02, WP05 or WP06; Phase 2 must not commit the golden file either, post-tasks squad R-01), and `changed_cells(<that Phase 1 commit>)` prints `[]`, and `git diff --exit-code -- tests/consolidation/characterization/verdict_corpus.json` is clean. The regeneration variable `SPEC_KITTY_REGEN_VERDICT_CORPUS` was never set.
   3. **Pure-move proof for the new module** (AST equality against the pre-WP15 facade snapshot):
 
      ```bash
@@ -324,7 +325,8 @@ make test-fast
 - [ ] `grep -rn "consolidation.reconciliation import\|consolidation import reconciliation" src/specify_cli/consolidation/reconciliation_*.py` prints nothing.
 - [ ] Every seeded mutation row is red under its mutation; the unmutated control is green; each check's real home matches the T080 table.
 - [ ] No new `# noqa`, `# type: ignore`, allowlist/registry entry; the dead-symbol allowlist count did not grow (compare `grep -c '^- module:' tests/architectural/dead_symbol_allowlist.yaml` with the WP14 value).
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (final module sizes; where each leftover constant landed; the check → module table; the back-references removed; the single-walk counts) and `traces/tooling-friction.md` (friction). Format `- **[YYYY-MM-DD][implement WP15] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP15 --note "..."`.
+- [ ] **Base-relative zero-diff check** (NFR-001; post-tasks squad R-01): `WP_BASE` is the lane commit this WP started from. Record it in your first history note (`git rev-parse HEAD` before your first commit); the reviewer confirms `git log --oneline "$WP_BASE"..HEAD` lists only this WP's commits. Both must hold on the final commit: `git diff --exit-code "$WP_BASE" HEAD -- tests/consolidation/characterization/verdict_corpus.json` exits 0, and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$WP_BASE'))"` prints `[]`. (A plain `git diff --exit-code` compares only the working tree with the index and misses a committed regeneration.)
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP15" --entry "<summary>. <detail>"` for final module sizes; where each leftover constant landed; the check → module table; the back-references removed; the single-walk counts; and one entry `Phase 3 tip = <sha>` (the lane commit WP15 ends on; WP21 diffs the golden file from it, post-tasks squad R-11); `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`. Never claim a test passed that you did not run.
 
 ## Risks & Mitigations

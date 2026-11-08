@@ -146,24 +146,25 @@ Do not squash them. Do not amend the red commit after the fix.
 - **Purpose**: Prove the defect through the entry point the operator runs, and prove the fix stops it before anything moves (NFR-010). A real git history-read failure on one path is hard to produce, so the probe is patched at its lookup home (plan IC-14).
 - **File**: `tests/consolidation/test_authored_walk_read_error.py` (new). Mark the module `pytest.mark.integration` and `pytest.mark.git_repo`, like `tests/consolidation/test_approved_bound_residuals.py`.
 - **Fixture**:
-  1. `mission = build_shape(tmp_path, "single_lane")` (a coordination Mission whose approved lane spine modifies at least one source path). Pick `P` = a non-bookkeeping path the lane's newest touching commit **modifies** (not deletes). Read the lane's first-parent spine with `git rev-list --first-parent <coord base>..<lane branch>` (or `tests/terminus/canceled_dependency_support.first_parent_shas`) and keep it as `spine_shas: frozenset[str]`.
+  1. `mission = build_shape(tmp_path, "single_lane")` (a coordination Mission whose approved lane spine modifies at least one source path). Pick `P` = a non-bookkeeping path the lane's newest touching commit **modifies** (not deletes). Find `touch_sha`, the newest commit on the lane's first-parent spine that touches `P` (`git rev-list --first-parent <coord base>..<lane branch> -- P | head -1`, or the first match in `tests/terminus/canceled_dependency_support.first_parent_shas`): the walk reads `P` at exactly that commit.
   2. Build one fake that raises for **both** probe names, so the test reaches the walk before and after the fix:
      ```python
-     def _failing_probe(original, *, path, spine):
+     def _failing_probe(original, *, path, touch_sha):
          def fake(repo_root, ref, p):
-             if p == path and ref in spine:
+             if p == path and ref == touch_sha:
                  raise GitProbeError(f"injected history-read failure for {p}")
              return original(repo_root, ref, p)
          return fake
      ```
-     Patch `blob_id_at` and `path_state_at` with `setattr_reconciliation_family(monkeypatch, name, _failing_probe(<original>, path=P, spine=spine_shas))`. Restricting to `ref in spine` keeps the verifier's target-tree reads (`MergeOutcomeVerifier`, `blob_id_at(target_ref, path)`) untouched, so the only failing read is the walk's.
+     Patch `blob_id_at` and `path_state_at` with `setattr_reconciliation_family(monkeypatch, name, _failing_probe(<original>, path=P, touch_sha=touch_sha))`. Raising **only for the lane commit that touches P** (post-tasks squad pedro #3) keeps every other read untouched: the verifier's gate-time target-tree reads (`blob_id_at(target_ref, path)`, `reconciliation.py` ~1370/~1596, and `path_state_at` ~1009-1076) and any other spine commit. A wider fake makes today's run refuse at the gate and roll back, which can look like the fix.
   3. Precondition (raise `RuntimeError`, never `assert`, so a broken fixture errors instead of looking like the defect): `family_modules_binding("path_state_at")` and `family_modules_binding("blob_id_at")` are non-empty; `P` is in the lane's changed paths.
 - **Test `test_history_read_error_refuses_the_claim_and_moves_nothing`**:
   1. Record `before = ref_shas(mission)` and `reflog_before = {b: reflog_shas(mission, b) for b in (target, coord)}`.
   2. `result = run_in_process(mission, ["consolidate", "--mission", mission.slug, "--yes"])`.
   3. Assert: `result.exit_code == 1`; the output contains `a git probe failed while building the approved-WP claim`; the output names `P`; the output contains `injected history-read failure`.
   4. Assert no branch moved: `ref_shas(mission) == before` **and** each reflog is unchanged. The reflog check is the one that tells a claim-time refusal apart from a gate FAIL that moved the target and rolled it back.
-- **Why it is red on the parent**: there the walk calls `blob_id_at`, the fake raises, the walk records a deletion of `P`, the claim builds, and the run continues past claim time (it then passes or gate-FAILs with a rollback). Either way the claim-refusal text is absent and/or the reflog changed. Before committing, read the failure output and confirm it fails **for that reason** (not a fixture error). Record which of the two happened today (pass, or gate FAIL + rollback) in `traces/design-decisions.md`; it should match the (d) golden cell WP02 recorded.
+  5. Assert the refusal was **claim-time, before any mutation**: the output contains `no refs/worktrees were mutated` (`phase_claim._exit_on_claim_probe_error`) and no pre-mutation snapshot remains (`rollback_harness.state_path(mission)` absent, or its `pre_mutation_refs` empty).
+- **Why it is red on the parent**: there the walk calls `blob_id_at`, the fake raises, the walk records a deletion of `P`, the claim builds, and the run continues past claim time (it then passes or gate-FAILs with a rollback). Either way the claim-refusal text is absent and/or the reflog changed. Before committing, read the failure output and confirm it fails **for that reason** (not a fixture error). Record which of the two happened today (pass, or gate FAIL + rollback) with `spec-kitty agent tracer-append --category design-decisions`; it should match the (d) golden cell WP02 recorded.
 - **Do not**: write `state.json` by hand; use the subprocess `run_terminus` (a monkeypatch cannot reach a child process); patch `specify_cli.consolidation.git_probes.<name>` (the walk does not look the name up there; the WP04 guard would flag it).
 
 ### Subtask T084 – Genuine-deletion positive control
@@ -211,18 +212,12 @@ Do not squash them. Do not amend the red commit after the fix.
      ```
      Record the exact keys in the history note.
   3. Regenerate **only** those keys with WP02's `regenerate_cells(names)` (or its documented command-line switch for named cells). Never regenerate the whole file.
-  4. Prove the golden diff is a subset of the (d) cells:
+  4. Prove the golden diff is a subset of the (d) cells, **against the parent of the red commit** (post-tasks squad R-01/R-03; comparing with `HEAD:` prints `[]` once the regeneration is committed):
      ```bash
-     uv run --frozen python - <<'EOF'
-     import json, subprocess
-     path = "tests/consolidation/characterization/verdict_corpus.json"
-     old = json.loads(subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True, text=True, check=True).stdout)
-     new = json.load(open(path))
-     old, new = old.get("cells", old), new.get("cells", new)
-     print(sorted(k for k in old.keys() | new.keys() if old.get(k) != new.get(k)))
-     EOF
+     RED=<the red commit's SHA from your history note>
+     uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('$RED^'))"
      ```
-     The printed list must equal the (d) keys. If any other cell changed, stop: the fix changed a verdict outside NFR-002 (C-004). Investigate and fix the code, never the golden.
+     Run it after the fix commit and again on the final commit. The printed list must equal the (d) keys. If any other cell changed, stop: the fix changed a verdict outside NFR-002 (C-004). Investigate and fix the code, never the golden.
   5. Expected new verdict in the (d) cells: refused at claim time (exit 1, the claim-probe text), for every mode the cell covers (fresh, resume, and forecast if WP02 recorded a forecast variant: the forecast reports `CLAIM_REFUSED_FORECAST`).
 
 ## Test Strategy
@@ -247,12 +242,12 @@ uv run --frozen mypy src/specify_cli/consolidation/reconciliation_authorship.py 
 make test-fast
 ```
 
-- [ ] Red evidence: the red commit SHA and the failing summary line of `test_history_read_error_refuses_the_claim_and_moves_nothing` on it are in the history note (and later in the PR's *Tests run*). The control `test_genuine_deletion_is_still_recorded_and_lands` passed on the red commit too.
+- [ ] Red evidence: the red commit SHA and the failing summary line of `test_history_read_error_refuses_the_claim_and_moves_nothing` on it are in the history note (and later in the PR's *Tests run*). The control `test_genuine_deletion_is_still_recorded_and_lands` passed on the red commit too. **Because lane SHAs can become unreachable after a squash consolidation with cleanup** (post-tasks squad R-14), also paste, for each red test, its full test id and the assertion message pytest printed (`uv run --frozen pytest -q -rf <test>` at the red SHA), so the PR and the post-merge mission review can check the red without checking out the SHA.
 - [ ] `-rxX` shows `test_history_read_error_refuses_instead_of_deleting` as **passed** (no longer XFAIL) and every other intended-verdict test still XFAIL; zero XPASS.
 - [ ] Golden diff = exactly the (d) cell keys (script in T086 step 4); keys recorded in the history.
 - [ ] No new refusal code or wording constant; no new `try/except` outside the walk; one probe call per path.
 - [ ] No new `# noqa` / `# type: ignore`; the walk <= 15 complexity.
-- [ ] **Tracer files**: dated entries in `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md` (today's verdict on the (d) fixture before the fix: pass or gate FAIL + rollback; the re-raise wording; the (d) keys) and `traces/tooling-friction.md` (any friction). Format `- **[YYYY-MM-DD][implement WP16] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP16 --note "..."`.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback; post-tasks squad R-02): `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category design-decisions --actor "implement WP16" --entry "<summary>. <detail>"` for today's verdict on the (d) fixture before the fix (pass or gate FAIL + rollback); the re-raise wording; the (d) keys; and the one-sentence operator-visible Before/After of the fix, which WP21 turns into the `7403-history-read-error-refuses.fixed.md` fragment (so this WP's reviewer checks the claim); `--category tooling-friction` for any friction. The command works from any checkout (lane worktree included) and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations

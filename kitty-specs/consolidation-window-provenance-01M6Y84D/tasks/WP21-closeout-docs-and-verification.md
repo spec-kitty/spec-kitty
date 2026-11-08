@@ -93,8 +93,9 @@ Every behaviour change of the Mission has landed (WP16-WP20). This work package 
 2. ADR `2026-10-04-5-approval-stamp-bounds-the-approved-claim`: an amendment pointer to the Mission ADR and a synced residual list (T110).
 3. The Mission ADR `2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition` matches the shipped design (sanctioned out-of-map edit, T111).
 4. A draft follow-up comment for spec-kitty/spec-kitty-events#229, ready for the operator to post (T112). **You do not post it.**
-5. Two changelog fragments for the operator-visible Phase 4 refusals that no earlier work package wrote (orchestrator decision 2026-11-08): `docs/changelog/unreleased/7403-history-read-error-refuses.fixed.md` (WP16, #5048(b)) and `docs/changelog/unreleased/7403-resume-frozen-anchors.fixed.md` (WP18, resume frozen anchors) (T109). WP07, WP19 and WP20 own their own fragments; do not edit them.
+5. Two changelog fragments for the operator-visible Phase 4 refusals that no earlier work package wrote (orchestrator decision 2026-11-08): `docs/changelog/unreleased/7403-history-read-error-refuses.fixed.md` (WP16, #5048(b)) and `docs/changelog/unreleased/7403-resume-frozen-anchors.fixed.md` (WP18, resume frozen anchors) (T109). Write each from the WP16 / WP18 design-decisions tracer entry that states the fix's operator-visible Before/After (the fix's reviewer already checked that sentence). WP07, WP17 (conditional), WP19 and WP20 own their own fragments; do not edit them.
 6. A recorded Mission-wide verification sweep (sizes, complexity, coverage, suppressions, gates) and the tracer-file assessment (procedure `mission-tracer-files`, "Assess" step) (T113).
+7. The issue matrix written with `spec-kitty agent issue-verdict` (every row a non-`unknown` verdict with evidence) and the acceptance matrix filled with `spec-kitty agent mission acceptance-verdict` (real criterion and evidence per `FR-001`..`FR-023`) (T113 blocks 13-14; post-tasks squad R-05/R-10).
 
 If the sweep finds a defect in code, **do not fix it here**: record it in the WP history with the failing command and output, and tell the orchestrator, who returns the owning work package.
 
@@ -223,12 +224,27 @@ Run every block, record each command with its pass/fail counts (or numbers) in t
    uv run --frozen python -m scripts.docs.check_changelog_style
    ```
 10. **Red-first evidence audit** (NFR-002, NFR-010): `git log --oneline main..HEAD -- tests/consolidation/test_lane_approval_windows.py tests/consolidation/test_resume_frozen_anchors.py tests/consolidation/test_claim_inputs_parity.py tests/consolidation/test_window_gap_report_entry_points.py tests/consolidation/test_reconciliation_intended_verdicts.py`; for each of WP16-WP20, confirm the WP history names a red commit that precedes its fix commit. List missing evidence.
-11. **Golden diff audit**: `git diff <phase-3 tip>..HEAD -- tests/consolidation/characterization/verdict_corpus.json`; list every changed cell key and map it to NFR-002 (a)-(h). Any unmapped cell is a finding.
+11. **Golden diff audit**: take `<phase-3 tip>` from WP15's design-decisions tracer entry `Phase 3 tip = <sha>` (post-tasks squad R-11; cite it in the history note), then `git diff <phase-3 tip>..HEAD -- tests/consolidation/characterization/verdict_corpus.json` and `uv run --frozen python -c "from tests.consolidation.characterization_support import changed_cells; print(changed_cells('<phase-3 tip>'))"`; list every changed cell key and map it to NFR-002 (a)-(h). Any unmapped cell is a finding.
 12. **Tracer assessment** (procedure "Assess" step): read all three files under `kitty-specs/consolidation-window-provenance-01M6Y84D/traces/`. Then:
-    - append one dated entry to `traces/approach.md`: `- **[YYYY-MM-DD][closeout WP21] Tracer assessment.** <the 3-5 most significant insights in 1-3 sentences>`;
+    - append one entry with `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category approach --actor "closeout WP21" --entry "Tracer assessment. <the 3-5 most significant insights in 1-3 sentences>"` (never hand-edit the file);
     - draft one tracker issue (title + 3-6 line body) per unresolved tooling-friction entry and put the drafts in the WP history. **Do not file them**: filing is an outward-facing write the operator authorizes;
     - list the insights the Mission retrospective should carry.
-13. **Issue references and issue-matrix evidence**: list in the WP history the issues the Mission owes a disposition for (#7403, the commit-between-two-approvals bullet of #5721, #5048(b)) with the evidence (test name and commit SHA). You collect the evidence only; the issue matrix itself is written at review by the orchestrator.
+13. **Issue matrix** (post-tasks squad R-05; this WP owns the write, through the canonical command only, never by editing `issue-matrix.json`). One call per row; every row ends with a non-`unknown` verdict and an `--evidence-ref` (test id plus commit SHA, or the spec section):
+    ```bash
+    M=consolidation-window-provenance-01M6Y84D
+    spec-kitty agent issue-verdict --mission $M --issue "#7403" --verdict fixed --wp WP19 --actor "closeout WP21" --title "<issue title>" --evidence-ref "WP19 red <sha> / fix <sha>: tests/consolidation/test_lane_approval_windows.py::test_stray_commit_between_two_approvals_refuses; WP07-WP20 window provenance"
+    spec-kitty agent issue-verdict --mission $M --issue "#5721" --verdict deferred-with-followup --wp WP19 --actor "closeout WP21" --title "<issue title>" --evidence-ref "Partial: the commit-between-two-approvals bullet is fixed by WP19 (<sha>, test_stray_commit_between_two_approvals_refuses); the parallel-claims residual WW-6 (test_parallel_claims_window_is_not_over_wide, strict xfail) and the other bullets stay open. Follow-up: #5721"
+    spec-kitty agent issue-verdict --mission $M --issue "#5048" --verdict fixed --wp WP16 --actor "closeout WP21" --title "<issue title>" --evidence-ref "Part (b): WP16 red <sha> / fix <sha>: tests/consolidation/test_authored_walk_read_error.py::test_history_read_error_refuses_the_claim_and_moves_nothing"
+    spec-kitty agent issue-verdict --mission $M --issue "#5703" --verdict not-applicable --actor "closeout WP21" --title "<issue title>" --evidence-ref "Out of scope: spec.md Out of Scope (lane-id rebuilds that orphan recorded windows)"
+    spec-kitty agent issue-verdict --mission $M --issue "#7359" --verdict not-applicable --actor "closeout WP21" --title "<issue title>" --evidence-ref "Out of scope: spec.md Out of Scope (interrupted-run recovery and teardown honesty)"
+    spec-kitty agent issue-verdict --mission $M --issue "#7362" --verdict not-applicable --actor "closeout WP21" --title "<issue title>" --evidence-ref "Out of scope: spec.md Out of Scope (forecast evaluating every verify-side check)"
+    ```
+    The CLI has no `partial` verdict: #5721 is `deferred-with-followup` with "Partial:" leading the evidence and the WW-6 residual named. Read each issue title with `gh issue view <n> --json title` (read-only). If a verdict above contradicts what shipped (for example WP16's fix was reverted), stop and ask the orchestrator.
+14. **Acceptance matrix** (post-tasks squad R-10; this WP owns it, canonical command only, never edit `acceptance-matrix.json`): for **every** criterion row (`FR-001` .. `FR-023`), replace the scaffold placeholder with a real criterion and record its evidence:
+    ```bash
+    spec-kitty agent mission acceptance-verdict --mission $M --criterion FR-007 --result pass --verification-method automated_test --description "<one-sentence testable criterion from spec.md FR-007>" --evidence "tests/consolidation/test_lane_approval_windows.py::test_stray_commit_between_two_approvals_refuses @ <sha>" --notes "<NFR-002 cell / SC it also proves>" --actor "closeout WP21"
+    ```
+    Use the test names collected in block 11 and in every WP's history. A criterion without passing evidence is `--result pending` with `--notes` saying what is missing, never `pass`; a criterion the Mission defers is `--result deferred --reason "..." --follow-up "#NNN"`. After the last call, `python3 -c "import json;d=json.load(open('kitty-specs/$M/acceptance-matrix.json'));print([c['criterion_id'] for c in d['criteria'] if 'TODO' in (c.get('notes') or '') or c['evidence'] is None])"` (run from a checkout carrying the coordination surface, or read it through `git show <coord branch>:...`) prints `[]` or only deliberately pending rows, listed in the history.
 
 ## Test Strategy
 
@@ -241,7 +257,10 @@ No new tests. The sweep re-runs the Mission's tests and gates and records the ev
 - [ ] T112 draft recorded and **not** posted.
 - [ ] T113 blocks 1-13 recorded with commands and counts; every red result reported to the orchestrator with its command and output.
 - [ ] No docs index or ADR inventory regenerated; `pyproject.toml` untouched.
-- [ ] **Tracer files**: the T113 assessment entry in `traces/approach.md`, plus `traces/design-decisions.md` entries for any wording choice in T109-T111 and `traces/tooling-friction.md` for friction. Format `- **[YYYY-MM-DD][implement WP21] <summary>.** <detail>`. No `kitty-specs/` in your checkout: `spec-kitty agent tasks add-history WP21 --note "..."`.
+- [ ] Issue matrix (T113 block 13): `#7403` fixed, `#5721` deferred-with-followup with "Partial:" evidence naming WW-6, `#5048` fixed (part (b)), `#5703` / `#7359` / `#7362` not-applicable (spec Out of Scope); every row has an `evidence_ref`; zero `unknown` verdicts; all written with `spec-kitty agent issue-verdict`.
+- [ ] Acceptance matrix (T113 block 14): every `FR-001`..`FR-023` row has a real description and evidence (or is deliberately `pending`/`deferred`, listed in the history); no `TODO` placeholder left; all written with `spec-kitty agent mission acceptance-verdict`.
+- [ ] Block 11 cites WP15's `Phase 3 tip = <sha>` tracer entry.
+- [ ] **Tracer files** (canonical writer only, no hand edits of `traces/*.md`, no `add-history` fallback): the T113 assessment entry via `spec-kitty agent tracer-append --mission consolidation-window-provenance-01M6Y84D --category approach --actor "closeout WP21" --entry "Tracer assessment. <the 3-5 most significant insights>"`; `--category design-decisions --actor "implement WP21"` for any wording choice in T109-T111; `--category tooling-friction` for friction. The command works from any checkout and commits to the coordination surface itself.
 - [ ] Never run `make test-full`.
 
 ## Risks & Mitigations
