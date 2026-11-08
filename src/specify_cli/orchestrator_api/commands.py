@@ -257,7 +257,7 @@ class _JSONErrorGroup(TyperGroup):
             )
         )
 
-    def _emit_status_read_path_error(self, exc: BaseException) -> None:
+    def _emit_status_read_path_error(self, exc: BaseException, command: str | None = None) -> None:
         """Emit the read-path resolver's typed refusal as a JSON envelope (#5156).
 
         Every mission-scoped verb resolves its mission directory through
@@ -275,6 +275,10 @@ class _JSONErrorGroup(TyperGroup):
         it degrades to the registered ``STATUS_READ_PATH_NOT_FOUND`` with the
         real code in ``data.status_read_path_error_code``, so this net can never
         itself emit an unregistered code.
+
+        ``command`` is the invoked verb (``ctx.invoked_subcommand``), so this arm
+        reports the same ``command`` as the per-verb seam; ``unknown`` only when
+        no verb was dispatched.
         """
         real_code = getattr(exc, "error_code", None) or "STATUS_READ_PATH_NOT_FOUND"
         data = _common._status_read_path_not_found_data(exc)
@@ -283,7 +287,7 @@ class _JSONErrorGroup(TyperGroup):
         else:
             envelope_code = "STATUS_READ_PATH_NOT_FOUND"
             data["status_read_path_error_code"] = real_code
-        _emit(make_envelope(command="unknown", success=False, data=data, error_code=envelope_code))
+        _emit(make_envelope(command=command or "unknown", success=False, data=data, error_code=envelope_code))
 
     def make_context(self, info_name, args, parent=None, **extra):
         """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
@@ -315,7 +319,7 @@ class _JSONErrorGroup(TyperGroup):
             self._emit_error("Command aborted")
             ctx.exit(2)
         except _STATUS_READ_PATH_ERRORS as exc:
-            self._emit_status_read_path_error(exc)
+            self._emit_status_read_path_error(exc, ctx.invoked_subcommand)
             ctx.exit(1)
 
     def main(self, *args, standalone_mode: bool = True, **kwargs):  # type: ignore[override]

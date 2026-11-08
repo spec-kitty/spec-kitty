@@ -856,3 +856,34 @@ def test_decision_write_verbs_map_a_status_read_path_refusal(
     assert envelope["data"]["coord_candidate"]
     assert envelope["data"]["primary_candidate"]
     assert result.exit_code == 1
+
+
+def test_group_level_status_read_path_envelope_names_the_invoked_verb(
+    tmp_path: Path,
+) -> None:
+    """The last-resort group arm reports the same ``command`` as the per-verb seam.
+
+    Red-first (#7414 landing pass): the arm hard-coded ``command: "unknown"`` while
+    the seam (``_resolve_mission_dir_or_fail``) names the verb, so the same
+    refusal reported two different ``command`` values depending on where it was
+    raised. The arm now derives the verb from the click context.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with (
+        patch.object(_common, "_get_main_repo_root", return_value=repo_root),
+        patch.object(_common, "_resolve_mission_dir", return_value=repo_root / "kitty-specs" / _MISSION_SLUG),
+        patch("specify_cli.status.read_events", side_effect=_status_read_path_refusal()),
+    ):
+        result = runner.invoke(
+            app,
+            ["mission-state", "--mission", _MISSION_SLUG],
+            catch_exceptions=True,
+        )
+
+    envelope = json.loads(result.output.strip().splitlines()[0])
+    assert envelope["error_code"] == "STATUS_READ_PATH_NOT_FOUND"
+    assert envelope["command"] == "orchestrator-api.mission-state"
+    assert result.exit_code == 1
+
