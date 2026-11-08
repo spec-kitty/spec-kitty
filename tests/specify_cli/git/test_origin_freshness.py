@@ -769,6 +769,11 @@ def test_unreachable_refusal_text_points_at_network_and_credentials() -> None:
     text = str(caught.value)
     assert text.startswith(f"{ORIGIN_UNREACHABLE}: develop is unreachable")
     assert "network" in text and "credentials" in text and "did not answer" not in text
+    # Askpass CI is pointed at a credential helper first; the origin-check opt-out is only a fallback.
+    assert "GIT_ASKPASS and SSH_ASKPASS for every remote contact" in text
+    assert "credential.helper" in text and "http.extraHeader" in text
+    assert text.index("credential.helper") < text.index(f"{ORIGIN_CHECK_ENV}=warn")
+    assert "fallback" in text
 
     # A timeout is "slow", not "down": the text names the bound and says to retry before opting out.
     slow = FreshnessVerdict("develop", "origin", FreshnessState.UNREACHABLE, detail="remote origin unreachable: timed out", timeout_seconds=15.0)
