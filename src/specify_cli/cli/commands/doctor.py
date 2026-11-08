@@ -149,7 +149,7 @@ from ._command_surface_doctor import (  # noqa: E402
     _repair_slash_command_state as _repair_slash_command_state,
 )
 
-# WP06 (#2059): the mission-state audit/repair/teamspace-dry-run cluster (H) was
+# WP06 (#2059): the mission-state audit/repair cluster (H) was
 # extracted to ``_mission_state_doctor``. The ``mission-state`` @app.command
 # shell delegates to ``run_mission_state``; the previous C901 complexity
 # suppression on the command is dropped (the dispatched helpers moved out).
@@ -1105,13 +1105,6 @@ def mission_state(
         bool,
         typer.Option("--fix", help="Repair mission-state artifacts in place and write a migration manifest"),
     ] = False,
-    teamspace_dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--teamspace-dry-run",
-            help="Synthesize canonical TeamSpace envelopes from local state and validate them",
-        ),
-    ] = False,
     json_output: Annotated[
         bool,
         typer.Option("--json", help="Emit JSON report to stdout"),
@@ -1147,14 +1140,13 @@ def mission_state(
         typer.Option("--allow-dirty", help="Allow --fix when relevant git paths are already dirty"),
     ] = False,
 ) -> None:
-    """Audit, repair, or TeamSpace-validate mission-state shapes."""
+    """Audit or repair mission-state shapes."""
     # The runner owns mode/fixture validation before rejecting a missing root.
     # A resolver exception remains an immediate failure, even with fixtures.
     resolved_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output, allow_none=True)
     run_mission_state(
         audit=audit,
         fix=fix,
-        teamspace_dry_run=teamspace_dry_run,
         json_output=json_output,
         mission=mission,
         fail_on=fail_on,

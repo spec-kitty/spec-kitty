@@ -439,7 +439,7 @@ def test_every_executed_audit_module_matches_the_group(executed_audit_modules: _
     what neither covers. The warm-up also folds out code that runs only at a cold process's
     import time. Nor does the test guard a module reachable only through a path no real mission
     takes (a legacy ``feature_slug`` shape routes through a slug-resolution module the real
-    corpus never runs) or a mode CI never invokes (``--fix`` / ``--teamspace-dry-run``). Widen
+    corpus never runs) or a mode CI never invokes (``--fix``). Widen
     the fixture if the audit later routes a verdict-affecting module through one of those paths.
     """
     router = load_router()

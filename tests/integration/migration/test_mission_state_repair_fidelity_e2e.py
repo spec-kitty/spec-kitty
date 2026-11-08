@@ -2,9 +2,9 @@
 
 This is the cross-lane integration gate for the doctor-mission-state repair
 mission. Unlike the WP02/WP03 CLI characterization tests (which mock
-``repair_repo`` / ``teamspace_dry_run`` and only assert the *shell's* exit codes
-and rendering), this suite drives the **real** ``repair_repo`` and
-``teamspace_dry_run`` objects over a seeded git repository, closing the WP02
+``repair_repo`` and only assert the *shell's* exit codes
+and rendering), this suite drives the **real** ``repair_repo``
+objects over a seeded git repository, closing the WP02
 reviewer's note that the report json shape was only ever mock-verified.
 
 The seeded repo carries two missions:
@@ -22,16 +22,14 @@ The suite asserts, against the real objects:
   gone, ``meta_actions`` records ``normalized_change_mode:regular`` (the
   dropped value, fidelity #4780), no ``ValueError``, no validation error (the
   pre-fix behavior aborted the mission).
-* SC-002/003 — the real ``RepairReport.to_json()`` and
-  ``TeamspaceDryRunReport.to_json()`` carry per-mission records, so triage is
+* SC-002/003 — the real ``RepairReport.to_json()``
+  carries per-mission records, so triage is
   possible from the command's own output WITHOUT reading the audit
   ``.kittify/mission-state-audit/`` manifest.
 * SC-004 — ``--audit`` and ``--fix`` agree that (a) is repairable, not fatal
   (audit raises no finding for the legacy value; fix heals it), and both agree
   that (b) is invalid.
 * SC-005 — re-running ``--fix`` after a successful repair is idempotent.
-* CRITICAL (additive-only guarantee) — ``teamspace_dry_run`` on the repo with
-  (b) STILL returns ``valid=False`` (would exit 1), before AND after ``--fix``.
 
 Tactic references:
 - ``atdd-adversarial-acceptance`` / ``function-over-form-testing``: assert the
@@ -52,7 +50,6 @@ from specify_cli.migration.mission_state import (
     MissionRepairResult,
     RepairReport,
     repair_repo,
-    teamspace_dry_run,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -179,29 +176,6 @@ def test_repair_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> N
     assert LEGACY_SLUG in serialized and BLOCKED_SLUG in serialized
 
 
-def test_dry_run_report_json_carries_per_mission_records_e2e(tmp_path: Path) -> None:
-    """SC-002/003: the REAL ``TeamspaceDryRunReport.to_json()`` carries per-mission
-    error records (dry-run parity), obtainable without an audit-manifest read.
-    """
-    primary = _seed_repo(tmp_path)
-
-    report = teamspace_dry_run(primary)
-
-    assert report.valid is False
-    payload = json.loads(report.to_json())
-    errors = payload["errors"]
-    assert errors, "dry-run must surface per-mission errors[]"
-    blocked = [e for e in errors if e.get("mission_slug") == BLOCKED_SLUG]
-    assert blocked, f"expected a per-mission record for {BLOCKED_SLUG}, got {errors!r}"
-    entry = blocked[0]
-    # Each record names the mission, its error code, and a human reason.
-    assert entry["mission_slug"] == BLOCKED_SLUG
-    assert "error" in entry
-    assert "message" in entry
-    # NFR-003: triage detail is present in the serialized dry-run output.
-    assert BLOCKED_SLUG in report.to_json()
-
-
 # ── SC-004: audit and fix agree on the legacy value (and on genuine invalidity) ─
 
 
@@ -254,31 +228,3 @@ def test_fix_is_idempotent_e2e(tmp_path: Path) -> None:
 
     persisted = json.loads((primary / "kitty-specs" / LEGACY_SLUG / "meta.json").read_text(encoding="utf-8"))
     assert "change_mode" not in persisted
-
-
-# ── CRITICAL: the dry-run refusal is preserved (additive-only guarantee) ─────
-
-
-def test_dry_run_still_refuses_audit_blocking_mission_e2e(tmp_path: Path) -> None:
-    """CRITICAL: ``teamspace_dry_run`` STILL refuses (b) — before AND after --fix.
-
-    The repair-fidelity change is additive-only: healing the legacy
-    ``change_mode`` must NOT weaken the dry-run's refusal of a genuinely-broken
-    mission. The dry-run must return ``valid=False`` (the CLI would exit 1) with
-    (b) named, both before any fix and after a ``--fix`` that heals (a) but
-    cannot heal (b).
-    """
-    primary = _seed_repo(tmp_path)
-
-    before = teamspace_dry_run(primary)
-    assert before.valid is False, "dry-run must refuse the audit-blocking mission before --fix"
-    assert BLOCKED_SLUG in {e.get("mission_slug") for e in before.errors}
-
-    # Run the real repair (heals (a), leaves (b) broken), commit the healed tree.
-    repair_repo(primary)
-    _git(primary, "add", ".")
-    _git(primary, "commit", "-q", "-m", "post-repair")
-
-    after = teamspace_dry_run(primary)
-    assert after.valid is False, "dry-run refusal must be preserved after --fix heals the legacy mission"
-    assert BLOCKED_SLUG in {e.get("mission_slug") for e in after.errors}

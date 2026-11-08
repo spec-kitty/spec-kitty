@@ -176,7 +176,6 @@ def _doctor_fix(
     cmd.run_mission_state(
         audit=False,
         fix=True,
-        teamspace_dry_run=False,
         json_output=False,
         mission=None,
         fail_on=None,

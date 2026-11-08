@@ -24,20 +24,19 @@ pytestmark = [pytest.mark.fast]
 
 def test_validate_modes_none_exits_0() -> None:
     with pytest.raises(typer.Exit) as exc:
-        ms._validate_modes(False, False, False)
+        ms._validate_modes(False, False)
     assert exc.value.exit_code == 0
 
 
 def test_validate_modes_multiple_exits_2() -> None:
     with pytest.raises(typer.Exit) as exc:
-        ms._validate_modes(True, True, False)
+        ms._validate_modes(True, True)
     assert exc.value.exit_code == 2
 
 
 def test_validate_modes_single() -> None:
-    assert ms._validate_modes(True, False, False) is ms._MissionStateMode.AUDIT
-    assert ms._validate_modes(False, True, False) is ms._MissionStateMode.FIX
-    assert ms._validate_modes(False, False, True) is ms._MissionStateMode.TEAMSPACE_DRY_RUN
+    assert ms._validate_modes(True, False) is ms._MissionStateMode.AUDIT
+    assert ms._validate_modes(False, True) is ms._MissionStateMode.FIX
 
 
 # --- _resolve_fail_on --------------------------------------------------------
@@ -189,7 +188,6 @@ def test_run_mission_state_no_mode_exits_0() -> None:
         ms.run_mission_state(
             audit=False,
             fix=False,
-            teamspace_dry_run=False,
             json_output=False,
             mission=None,
             fail_on=None,
@@ -214,7 +212,6 @@ def test_run_mission_state_dispatches_audit(
     ms.run_mission_state(
         audit=True,
         fix=False,
-        teamspace_dry_run=False,
         json_output=False,
         mission=None,
         fail_on=None,
@@ -235,7 +232,6 @@ def test_run_mission_state_dispatches_fix(
     ms.run_mission_state(
         audit=False,
         fix=True,
-        teamspace_dry_run=False,
         json_output=False,
         mission=None,
         fail_on=None,
@@ -245,29 +241,6 @@ def test_run_mission_state_dispatches_fix(
         allow_dirty=False,
     )
     assert "fix" in called
-
-
-def test_run_mission_state_dispatches_dry_run(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(ms, "locate_project_root", lambda: tmp_path)
-    called: dict[str, Any] = {}
-    monkeypatch.setattr(
-        ms, "_run_teamspace_dry_run_mode", lambda *a: called.setdefault("dry", a)
-    )
-    ms.run_mission_state(
-        audit=False,
-        fix=False,
-        teamspace_dry_run=True,
-        json_output=False,
-        mission=None,
-        fail_on=None,
-        fixture_dir=None,
-        include_fixtures=False,
-        manifest_path=None,
-        allow_dirty=False,
-    )
-    assert "dry" in called
 
 
 def test_print_rich_audit_report_with_findings() -> None:
