@@ -30,6 +30,7 @@ from specify_cli.core.constants import (
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
 import subprocess
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -1157,22 +1158,55 @@ def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded
     return actor
 
 
+def _resolve_history_note(note: str | None, note_file: str | None, json_output: bool) -> str:
+    """Resolve the ``add-history`` note text from ``--note`` or ``--note-file``.
+
+    ``--note`` is for simple inline text. ``--note-file`` exists so a shell-based
+    orchestrator can pass literal multiline Markdown (backticks, ``$``) that the
+    shell would otherwise expand or mangle before the CLI ever sees it (#2708);
+    ``-`` reads the note from stdin.
+    """
+    if note is not None and note_file is not None:
+        _output_error(json_output, "Pass either --note or --note-file, not both")
+        raise typer.Exit(1)
+    if note_file is None:
+        if note is None:
+            _output_error(json_output, "A history note is required: pass --note or --note-file")
+            raise typer.Exit(1)
+        return note
+    source = "stdin" if note_file == "-" else note_file
+    try:
+        raw = sys.stdin.read() if note_file == "-" else Path(note_file).read_text(encoding="utf-8")
+    except OSError as exc:
+        _output_error(json_output, f"Could not read --note-file {note_file}: {exc}")
+        raise typer.Exit(1) from exc
+    text = raw.rstrip()
+    if not text.strip():
+        _output_error(json_output, f"The note provided on {source} is empty")
+        raise typer.Exit(1)
+    return text
+
+
 @app.command(name="add-history")
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    note: Annotated[str, typer.Option("--note", help="History note")],
+    note: Annotated[str | None, typer.Option("--note", help="History note (inline; use --note-file for literal Markdown)")] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
 
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
+    note_file: Annotated[str | None, typer.Option("--note-file", help="Read the note from this file ('-' for stdin)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Record a history note in the WP status event log.
 
     Examples:
         spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
+        spec-kitty agent tasks add-history WP01 --note-file NOTES.md --json
+        git show -s --format=%B | spec-kitty agent tasks add-history WP01 --note-file -
     """
     try:
+        note = _resolve_history_note(note, note_file, json_output)
         # #6400: an explicit --agent that does not parse is refused before any write.
         _refuse_unparseable_agent(json_output, agent)
         # Get repo root and feature slug
