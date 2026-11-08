@@ -249,6 +249,27 @@ def test_st_status_surface_door_refusal_fails_closed(tmp_path: Path) -> None:
     assert "meta.json not found" in str(emit.call_args)
 
 
+def test_st_reduce_surface_unreadable_ref_fails_closed_with_the_mission_named(tmp_path: Path) -> None:
+    """An unreadable coordination ref is the door's typed refusal: exit 1 naming the Mission, never an empty board."""
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+
+    st = _make_state()
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    with (
+        patch(
+            "specify_cli.status.read_status_stream",
+            side_effect=StatusSurfaceRefUnreadable(repo_root=tmp_path, ref="refs/heads/coord", path="status.events.jsonl", detail="tip commit cannot be read"),
+        ),
+        patch.object(tasks.console, "emit_json") as emit,
+        pytest.raises(typer.Exit) as exit_info,
+    ):
+        tasks_status_cmd._st_reduce_surface(st, MagicMock())
+    assert exit_info.value.exit_code == 1
+    assert "Cannot resolve the status source for 034-feature: Cannot read status.events.jsonl from ref" in str(emit.call_args)
+    assert "STATUS_SURFACE_REF_UNREADABLE" in str(emit.call_args)
+
+
 def test_st_resolve_dirs_owned_arm_never_calls_non_owned_resolution_seams(tmp_path: Path) -> None:
     """Owned arm (review cycle 1 issue 3): once ``_st_resolve_owned`` resolves
     a fact, ``_st_resolve_dirs`` returns immediately and never reaches the

@@ -414,13 +414,18 @@ def _st_reduce_surface(st: _StatusState, surface: StatusReadSurface) -> None:
     annotations) the row companions, review verdict and arbiter override read.
     A log that cannot be read or parsed fails the command closed (exit 1): an
     empty board would read as "no progress", and the board has no second source
-    to fall back to. An unreadable ref is the door's typed refusal and propagates
-    (never an empty history).
+    to fall back to. An unreadable ref is the door's typed refusal (never an empty
+    history) and fails closed with the same message as a door refusal in
+    :func:`_st_status_surface`.
     """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.status import StoreError, read_status_stream, reduce
 
     try:
         stream = read_status_stream(surface)
+    except StatusSurfaceRefUnreadable as exc:
+        _status_error(st.json_output, f"Cannot resolve the status source for {st.mission_slug}: {exc}")
+        raise typer.Exit(1) from exc
     except (StoreError, OSError, ValueError) as exc:
         next_step = f"Run `spec-kitty agent status validate --mission {st.mission_slug}` to find the bad entries."
         _status_error(st.json_output, f"The status log of {st.mission_slug} cannot be read: {exc}. {next_step}")
