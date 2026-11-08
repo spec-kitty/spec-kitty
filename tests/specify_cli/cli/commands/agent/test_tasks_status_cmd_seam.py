@@ -205,7 +205,7 @@ def test_missing_lanes_fallback_forwards_owned_fact_to_get_normalized_wp(tmp_pat
 def test_st_status_surface_owned_arm_reads_the_owned_mission_dir(tmp_path: Path) -> None:
     """``_st_status_surface``'s owned arm: the read door returns the validated owned
     checkout's Mission dir (``WRITE_CHECKOUT``), never R's committed copy -- pinned with a
-    raising monkeypatch on the retired ``committed_status_dir`` probe (#7335)."""
+    raising monkeypatch on the committed-authority reader (#7335)."""
     from specify_cli.status import StatusReadSource
 
     fact = _mint_owned(tmp_path)
@@ -214,9 +214,9 @@ def test_st_status_surface_owned_arm_reads_the_owned_mission_dir(tmp_path: Path)
     st.feature_dir = tmp_path / "unrelated-coord-dir"
 
     def _raise(*args: object, **kwargs: object) -> None:
-        raise AssertionError("the board must not call committed_status_dir")
+        raise AssertionError("an owned run must not read R's committed copy")
 
-    with patch("runtime.next.committed_authority.committed_status_dir", side_effect=_raise):
+    with patch("runtime.next.committed_authority.mission_terminal_verdict", side_effect=_raise):
         surface = tasks_status_cmd._st_status_surface(st)
     assert surface.source is StatusReadSource.WRITE_CHECKOUT
     assert surface.path == fact.mission_dir

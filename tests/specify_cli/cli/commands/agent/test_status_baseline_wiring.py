@@ -115,6 +115,14 @@ def _lane_workspace(tmp_path: Path) -> ResolvedWorkspace:
     )
 
 
+def _mission_dir(tmp_path: Path) -> Path:
+    """A Mission directory the status read door resolves (``kitty-specs/mission`` with meta, #7408)."""
+    mission_dir = tmp_path / "kitty-specs" / "mission"
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text('{"mission_slug": "mission"}', encoding="utf-8")
+    return mission_dir
+
+
 def test_cli_reader_threads_baseline_into_row_dict(tmp_path: Path) -> None:
     """``_st_load_work_packages`` surfaces the SNAPSHOT ``shell_pid``/baseline into each row.
 
@@ -128,12 +136,13 @@ def test_cli_reader_threads_baseline_into_row_dict(tmp_path: Path) -> None:
     # Decoy frontmatter values the reader must IGNORE.
     _write_wp(tasks_dir, shell_pid="9999", baseline="0.0")
     # Authoritative snapshot slots.
-    _seed_snapshot_runtime(tmp_path, "WP01", shell_pid="4242", baseline="1700000000.5")
+    mission_dir = _mission_dir(tmp_path)
+    _seed_snapshot_runtime(mission_dir, "WP01", shell_pid="4242", baseline="1700000000.5")
 
     st = _StatusState(mission="mission", json_output=True, stale_threshold=10)
     st.mission_slug = "mission"
     st.main_repo_root = tmp_path
-    st.feature_dir = tmp_path
+    st.feature_dir = mission_dir
     st.tasks_dir = tasks_dir
 
     _st_load_work_packages(st)
@@ -153,12 +162,13 @@ def test_cli_reader_baseline_absent_defaults_to_none(tmp_path: Path) -> None:
     """
     tasks_dir = tmp_path / "tasks"
     _write_wp(tasks_dir, shell_pid="9999", baseline="0.0")
-    _seed_snapshot_runtime(tmp_path, "WP01", shell_pid="4242", baseline=None)
+    mission_dir = _mission_dir(tmp_path)
+    _seed_snapshot_runtime(mission_dir, "WP01", shell_pid="4242", baseline=None)
 
     st = _StatusState(mission="mission", json_output=True, stale_threshold=10)
     st.mission_slug = "mission"
     st.main_repo_root = tmp_path
-    st.feature_dir = tmp_path
+    st.feature_dir = mission_dir
     st.tasks_dir = tasks_dir
 
     _st_load_work_packages(st)
