@@ -4149,6 +4149,11 @@ pages:
     - {slug: "d-raise-on-an-unmaterialized-coordination-worktree", text: "D. Raise on an unmaterialized coordination worktree", level: 3}
     - {slug: "open-points", text: "Open points", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-11-08-proposed-the-call-site-gate-lands-with-a-priced-allowlist-and-landed-has-one-signal", text: "Amendment 2026-11-08 (Proposed): the call-site gate lands with a priced allowlist, and \"landed\" has one signal", level: 2}
+    - {slug: "the-gate-invariant-4-fr-006", text: "The gate (invariant 4, FR-006)", level: 3}
+    - {slug: "census-at-landing-45-entries", text: "Census at landing (45 entries)", level: 3}
+    - {slug: "one-landed-signal", text: "One landed signal", level: 3}
+    - {slug: "moved-onto-the-door-in-this-change", text: "Moved onto the door in this change", level: 3}
   - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
     title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
     divio_type: "none"
