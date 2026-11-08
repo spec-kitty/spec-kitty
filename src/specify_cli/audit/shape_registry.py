@@ -19,10 +19,12 @@ contracts/audit-row-family.md``.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import fields
 from typing import Any
 
 from specify_cli.mission_metadata import MissionMetaOptional, MissionMetaRequired
 from specify_cli.meta_keys import COORDINATION_KEYS, IDENTITY_KEYS
+from specify_cli.status.models import StatusSnapshot
 
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
@@ -63,25 +65,41 @@ _META_KNOWN_KEYS: frozenset[str] = (
 )
 
 # ---------------------------------------------------------------------------
+# status.json known-key set — DERIVED from the snapshot serializer, the single
+# ``status.json`` writer (#6111), for the same reason the ``meta.json`` set
+# above is derived from its writer TypedDicts. A hand-written key list drifted:
+# it lacked ``schema_version``, which ``materialize`` stamps on every snapshot
+# since #4786, so ``doctor mission-state --audit`` reported Spec Kitty's own key
+# as an info-level ``UNKNOWN_SHAPE`` finding across the corpus.
+#
+#   ``StatusSnapshot`` (``specify_cli.status.models``) is the dataclass whose
+#   ``to_dict`` is what ``materialize_to_json`` serializes, so its field names
+#   are exactly the keys the writer can emit.
+#
+#   ``feature_slug`` is a READ-COMPAT key, not a writer key: snapshots written
+#   before the Mission rename carry it (``StatusSnapshot.from_dict`` still reads
+#   it), while today's writer emits ``mission_slug`` only.
+#
+# ``tests/audit/test_shape_registry_status_json_parity.py`` asserts a freshly
+# reduced ``status.json`` audits clean and that the writer keys stay inside this
+# set, so the two can never re-drift.
+# ---------------------------------------------------------------------------
+
+#: Every top-level key the snapshot writer can emit.
+_STATUS_SNAPSHOT_WRITER_KEYS: frozenset[str] = frozenset(field_.name for field_ in fields(StatusSnapshot))
+
+#: Pre-rename snapshots carry ``feature_slug``; the writer never emits it.
+_STATUS_SNAPSHOT_READ_COMPAT_KEYS: frozenset[str] = frozenset({"feature_slug"})
+
+_STATUS_SNAPSHOT_KNOWN_KEYS: frozenset[str] = _STATUS_SNAPSHOT_WRITER_KEYS | _STATUS_SNAPSHOT_READ_COMPAT_KEYS
+
+# ---------------------------------------------------------------------------
 # Known key sets per artifact type
 # ---------------------------------------------------------------------------
 
 KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
     "meta.json": _META_KNOWN_KEYS,
-    "status.json": frozenset(
-        {
-            "mission_slug",
-            "feature_slug",  # back-compat alias
-            "mission_number",
-            "mission_type",
-            "materialized_at",
-            "event_count",
-            "last_event_id",
-            "work_packages",
-            "summary",
-            "retrospective",
-        }
-    ),
+    "status.json": _STATUS_SNAPSHOT_KNOWN_KEYS,
     "status_event_row": frozenset(
         {
             "actor",
