@@ -9,9 +9,10 @@ own ``[start, *start.parents]`` loop, and only three of them honoured
 ``GIT_CEILING_DIRECTORIES`` (#7022). This is the one walk, and the one reading of that
 variable.
 
-Not yet on it: ``cli.commands.session_start._find_project_root`` (#7122, with its own
-test-only ``stop=``) and five walks written as a ``while``/``range(N)`` loop over
-``.parent`` (#7269). A gate that keeps hand-rolled root walks out is still owed by #7056;
+``cli.commands.session_start._find_project_root`` joined the walk and retired its
+test-only ``stop=`` (#7122). Not yet on it: five walks written as a
+``while``/``range(N)`` loop over ``.parent`` (#7269). A gate that keeps hand-rolled root
+walks out is still owed by #7056;
 it lands separately, once it can start without an exemption list (#7304, ADR
 ``2026-09-30-1``).
 

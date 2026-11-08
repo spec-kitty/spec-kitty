@@ -21,41 +21,30 @@ import logging
 from pathlib import Path
 
 import typer
+from kernel.ancestor_walk import find_ancestor
 
 _logger = logging.getLogger(__name__)
 
 
-def _find_project_root(
-    start: Path | None = None,
-    *,
-    stop: Path | None = None,
-) -> Path | None:
+def _find_project_root(start: Path | None = None) -> Path | None:
     """Walk up from *start* looking for a ``.kittify/`` directory.
 
-    Returns the first directory at or above *start* that contains a
+    Returns the nearest directory at or above *start* that contains a
     ``.kittify/`` subdirectory, or ``None`` when no such directory is found
     (i.e. *start* is not inside a spec-kitty project). *start* defaults to the
-    cwd; the walk always terminates at the filesystem root.
+    cwd.
 
-    *stop* bounds the walk: it names the last directory examined, so nothing
-    above it is ever read (when *stop* is not an ancestor of *start* the walk
-    simply runs to the filesystem root). Production callers keep the unbounded
-    default; tests pass an explicit *stop* because nothing above ``tmp_path``
-    is under test control — on a shared machine any ancestor can gain a stray
-    ``.kittify/`` from a sibling test, which would flip outside-project
-    verdicts non-deterministically (#130).
+    The walk is the one ceiling-aware ancestor walk
+    (:func:`kernel.ancestor_walk.find_ancestor`), so ``GIT_CEILING_DIRECTORIES``
+    bounds it exactly as it bounds git and every other root walk, and it always
+    terminates — at a listed ceiling or at the filesystem root (#7122). The
+    test-only ``stop=`` bound this function used to carry is gone; tests narrow
+    the walk with ``GIT_CEILING_DIRECTORIES``, the production mechanism.
     """
-    current = (start if start is not None else Path.cwd()).resolve()
-    boundary = stop.resolve() if stop is not None else None
-    while True:
-        if (current / ".kittify").is_dir():
-            return current
-        if boundary is not None and current == boundary:
-            return None
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
+    return find_ancestor(
+        start if start is not None else Path.cwd(),
+        lambda candidate: (candidate / ".kittify").is_dir(),
+    )
 
 
 def session_start() -> None:

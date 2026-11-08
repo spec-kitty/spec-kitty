@@ -13,9 +13,10 @@ green.
 The cure is git's own mechanism: ``GIT_CEILING_DIRECTORIES``. Listing a
 directory there stops discovery from climbing above it, for git itself and for
 the migrated parent-enumerating repo/project-root ancestor walks, which share one
-ceiling-aware walk (:mod:`kernel.ancestor_walk`) that reads the same variable; the
-``while``/``range`` loop walks (#7269) and ``session_start``'s own walk with its
-``stop=`` (#7122) are not on it yet. ``tests/conftest.py`` installs the roots this harness owns -- the
+ceiling-aware walk (:mod:`kernel.ancestor_walk`) that reads the same variable;
+``session_start``'s project-root walk joined it when its test-only ``stop=`` retired
+(#7122). The ``while``/``range`` loop walks (#7269) are not on it yet.
+``tests/conftest.py`` installs the roots this harness owns -- the
 run's basetemp and the worker's isolated home base -- once per process from
 ``pytest_configure``, before collection, so every test and xdist worker sees
 it, and so does every subprocess spawned with the inherited environment. A
