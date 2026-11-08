@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
+from rich.markup import escape
 
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -429,8 +430,13 @@ def _iter_primary_mission_dirs(repo_root: Path) -> list[Path]:
     return sorted(p for p in specs_root.iterdir() if p.is_dir() and (p / "meta.json").exists())
 
 
-def _migrate_one_mission(feature_dir: Path, *, repo_root: Path, policy: ProtectionPolicyLike) -> tuple[str, bool]:
-    """Attempt migration for a single mission dir; returns ``(mission_slug, migrated)``."""
+def _migrate_one_mission(feature_dir: Path, *, repo_root: Path, policy: ProtectionPolicyLike) -> tuple[str, bool, str | None]:
+    """Attempt migration for a single mission dir.
+
+    Returns ``(mission_slug, migrated, skip_reason)``. ``skip_reason`` is the
+    refusal diagnostic when the migration was refused, and ``None`` for a
+    clean migrate or a benign skip (no legacy matrix, already structured).
+    """
     mission_slug = feature_dir.name
     try:
         result = migrate_issue_matrix_to_json(
@@ -439,12 +445,13 @@ def _migrate_one_mission(feature_dir: Path, *, repo_root: Path, policy: Protecti
             mission_slug=mission_slug,
             policy=policy,
         )
-    except IssueMatrixMigrationError:
+    except IssueMatrixMigrationError as exc:
         # Bulk migration is best-effort: a malformed mission is skipped, never
-        # aborts the sweep over its siblings (#4868).
-        return mission_slug, False
+        # aborts the sweep over its siblings (#4868). The diagnostic is carried
+        # out so the operator sees why (#5453).
+        return mission_slug, False, str(exc)
     migrated = result is not None and result.status in ("committed", "unchanged")
-    return mission_slug, migrated
+    return mission_slug, migrated, None
 
 
 @app.command("migrate")
@@ -480,16 +487,23 @@ def migrate_issue_matrix_cmd(
 
     migrated: list[str] = []
     skipped: list[str] = []
+    skip_reasons: dict[str, str] = {}
     for feature_dir in mission_dirs:
-        mission_slug, was_migrated = _migrate_one_mission(feature_dir, repo_root=repo_root, policy=policy)
+        mission_slug, was_migrated, skip_reason = _migrate_one_mission(feature_dir, repo_root=repo_root, policy=policy)
         (migrated if was_migrated else skipped).append(mission_slug)
+        if skip_reason is not None:
+            skip_reasons[mission_slug] = skip_reason
 
-    result_payload = {"ok": True, "migrated_missions": migrated, "skipped": skipped}
+    result_payload = {"ok": True, "migrated_missions": migrated, "skipped": skipped, "skip_reasons": skip_reasons}
     if json_output:
-        console.print(json.dumps(result_payload))
+        # typer.echo, not console.print: Rich hard-wraps long lines at the
+        # terminal width, which would corrupt JSON carrying a long reason.
+        typer.echo(json.dumps(result_payload))
         return
     console.print(f"[green]Migrated {len(migrated)} mission(s)[/green]: {', '.join(migrated) or '(none)'}")
     console.print(f"[dim]Skipped {len(skipped)} mission(s)[/dim]: {', '.join(skipped) or '(none)'}")
+    for slug, reason in skip_reasons.items():
+        console.print(f"[yellow]Refused {slug}[/yellow]: {escape(reason)}")
 
 
 # NOTE: ``migrate_issue_matrix_cmd`` is reachable via the ``@app.command``
