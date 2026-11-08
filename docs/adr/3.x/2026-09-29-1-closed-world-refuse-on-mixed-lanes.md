@@ -442,3 +442,12 @@ whose parents both touched one region.
   older than 2.38.
 - **Unchanged.** The approved bound (#5668) already drops merge commits; the mixed-lane work
   windows already skip merges; the canceled-content axes are not touched.
+
+
+## Amendment 2026-11-08: work-package windows are recorded at the opening transition (#7403)
+
+Work-package windows are recorded at the opening transition, and on `--resume` one frozen
+claim-time anchor set feeds the closed-world anchors; see
+`2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition`. The lane anchor
+(`first_governed_open_stamp`, where `blocked` counts as an opener) stays as a named window
+variant there, so no closed-world verdict changes through the window model itself.
