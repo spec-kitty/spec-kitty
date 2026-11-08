@@ -230,14 +230,15 @@ def _resolve_issue_row_update(
     verdict: str,
     evidence_ref: str | None,
     wp: str | None,
+    title: str | None = None,
 ) -> IssueMatrixEntry:
-    """Compute the updated row for *issue_ref* (verdict/evidence_ref/wp only).
+    """Compute the updated row for *issue_ref* (verdict/evidence_ref/wp/title).
 
-    Preserves every OTHER field on an existing row (title/scope/fr/nfr/sc/repo)
-    -- this command sets stored per-item status only (reviewer guidance);
-    derived/computed fields are never touched here because this schema has
-    none (``overall_verdict``-style computed fields live on the sibling
-    acceptance-matrix entity, not this one).
+    Preserves every OTHER field on an existing row (scope/fr/nfr/sc/repo) --
+    this command sets stored per-item status plus, when ``--title`` is given, the
+    operator-authored issue title (#7348). Derived/computed fields are never
+    touched here because this schema has none (``overall_verdict``-style
+    computed fields live on the sibling acceptance-matrix entity, not this one).
 
     #4884 (mirrors #4858's ``_resolve_criterion_update``): the row's VALUE
     never depends on locking -- it is computed once, from the pre-lock
@@ -250,12 +251,14 @@ def _resolve_issue_row_update(
             verdict=verdict,
             evidence_ref=evidence_ref or "",
             wp=wp,
+            title=title,
         )
     return replace(
         existing,
         verdict=verdict,
         evidence_ref=evidence_ref if evidence_ref is not None else existing.evidence_ref,
         wp=wp if wp is not None else existing.wp,
+        title=title if title is not None else existing.title,
     )
 
 
@@ -339,6 +342,7 @@ def do_issue_verdict(
     actor: str,
     wp: str | None = None,
     evidence_ref: str | None = None,
+    title: str | None = None,
     repo_root: Path | None = None,
     json_mode: bool = False,
     owned_checkout: OwnedCheckoutOption = None,
@@ -352,6 +356,8 @@ def do_issue_verdict(
         actor: Non-empty identity of the acting agent.
         wp: Optional owning work-package id to stamp on the row.
         evidence_ref: Optional evidence text/link.
+        title: Optional issue title to stamp on the row (#7348), replacing a
+            scaffold placeholder; omitted keeps the existing title.
         repo_root: Repository root; defaults to :func:`locate_project_root`.
         json_mode: Formats an unresolvable ``--mission`` handle's error as
             JSON (mirrors ``--json``); that error path calls ``sys.exit(2)``
@@ -368,6 +374,10 @@ def do_issue_verdict(
     """
     if not actor.strip():
         raise IssueVerdictError("--actor must be a non-empty string", code="empty_actor")
+    if title is not None:
+        title = title.strip()
+        if not title:
+            raise IssueVerdictError("--title must be a non-empty string when given", code="empty_title")
     verdict = _validate_verdict(verdict)
     issue_ref = _normalize_issue_ref(issue)
 
@@ -428,7 +438,7 @@ def do_issue_verdict(
     # ``_resolve_issue_row_update``'s docstring) -- computed once, here,
     # from the pre-lock snapshot.
     pre_lock_rows = _load_raw_rows(matrix_dir / ISSUE_MATRIX_JSON_FILENAME)
-    updated_entry = _resolve_issue_row_update(pre_lock_rows.get(issue_ref), verdict=verdict, evidence_ref=evidence_ref, wp=wp)
+    updated_entry = _resolve_issue_row_update(pre_lock_rows.get(issue_ref), verdict=verdict, evidence_ref=evidence_ref, wp=wp, title=title)
 
     policy = ProtectionPolicy.resolve(root)
     try:
@@ -501,6 +511,10 @@ def issue_verdict_command(
             ),
         ),
     ] = None,
+    title: Annotated[
+        str | None,
+        typer.Option("--title", help="Issue title to stamp on the matrix row (replaces a scaffold placeholder)."),
+    ] = None,
     owned_checkout: OwnedCheckoutOption = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format.")] = False,
 ) -> None:
@@ -513,6 +527,7 @@ def issue_verdict_command(
             actor=actor,
             wp=wp,
             evidence_ref=evidence_ref,
+            title=title,
             json_mode=json_output,
             owned_checkout=owned_checkout,
         )
