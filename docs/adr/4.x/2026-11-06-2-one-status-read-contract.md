@@ -368,6 +368,11 @@ the committed status log only (operator rulings 2026-11-08). The rule lives in o
   (a naive stamp is read as UTC). No git history is read: neither `baseline_merge_commit` (the
   target tip before the landing, a lower bound) nor the commit that set `mission_number` (often a
   bulk `meta.json` rewrite) dates a landing.
+  A `done` written by a migration actor (`migration:*`, e.g. the #5579 `backfill_wp_status` seed,
+  which restates history near the Mission's creation) supplies the date only when the log has no
+  other `done` event (operator ruling 2026-11-08); otherwise the latest non-migration `done` wins.
+  When the coordination branch is gone, the target's copy (the file `CONSOLIDATED_TARGET` reads) is
+  the evidence; the operator signed off this exception on 2026-11-08.
 - **Skipped and reported.** A Mission without that evidence (unfinished work packages, all
   canceled, reopened, no log, an unreadable log) is never stamped; the migration names it in a
   warning, one per reason.

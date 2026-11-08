@@ -107,10 +107,24 @@ def _aware_utc_iso(raw: str) -> str | None:
     return aware.isoformat()
 
 
-def _latest_done_at(transitions: Iterable[StatusEvent]) -> str | None:
-    stamps = (_aware_utc_iso(str(event.at)) for event in transitions if str(event.to_lane) == _DONE)
+def _latest_at(events: Iterable[StatusEvent]) -> str | None:
+    stamps = (_aware_utc_iso(str(event.at)) for event in events)
     parsed = [stamp for stamp in stamps if stamp is not None]
     return max(parsed, key=parse_iso) if parsed else None
+
+
+def _latest_done_at(transitions: Iterable[StatusEvent]) -> str | None:
+    """The latest ``done`` ``at``, preferring events a person or the tool wrote over migration seeds.
+
+    A migration-synthesized ``done`` (e.g. ``migration:backfill_wp_status``, #5579) restates
+    history at roughly the Mission's creation time, not its landing, so it supplies the date
+    only when no other ``done`` event exists (operator ruling, 2026-11-08).
+    """
+    from specify_cli.status.models import is_migration_actor
+
+    done = [event for event in transitions if str(event.to_lane) == _DONE]
+    real = [event for event in done if not is_migration_actor(event.actor)]
+    return _latest_at(real) or _latest_at(done)
 
 
 def _unfinished(work_packages: Mapping[str, Any]) -> list[str]:
