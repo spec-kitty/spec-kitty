@@ -151,18 +151,35 @@ def scan_inflight_missions(
 
 
 def _collect_inflight_missions(mission_specs_dir: Path) -> list[AffectedMission]:
-    """Return in-flight WPs across every mission under ``mission_specs_dir``.
+    """Return in-flight WPs across every Mission under ``mission_specs_dir``.
 
     Extracted from :func:`scan_inflight_missions` (S3776) so the per-mission
     scan is its own testable unit. Silently yields nothing when the directory
     is absent — the caller treats that as "no in-flight WPs found".
+
+    Scans Missions only (#6758): a child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir` rejects is
+    read-side residue, and a folder Mission selection never lists cannot be resolved or
+    advanced by the runtime, so a lane recorded there is stale state rather than a
+    reachable Mission's work in progress (``spec-kitty doctor identity`` reports the
+    folder itself, with its reason and remedy). One ``TrackedMissionPaths`` memo per
+    scan keeps the git probe to at most one.
     """
     if not mission_specs_dir.is_dir():
         return []
 
+    from specify_cli.context.mission_resolver import (
+        TrackedMissionPaths,
+        is_selectable_mission_dir,
+    )
+
+    repo_root = mission_specs_dir.parent
+    tracked = TrackedMissionPaths(repo_root)
     all_inflight: list[AffectedMission] = []
     for mission_dir in sorted(mission_specs_dir.iterdir()):
         if not mission_dir.is_dir():
+            continue
+        if not is_selectable_mission_dir(mission_dir, repo_root=repo_root, tracked=tracked):
             continue
         all_inflight.extend(_inflight_missions_for(mission_dir))
     return all_inflight
