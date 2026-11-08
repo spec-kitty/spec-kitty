@@ -65,6 +65,7 @@ from specify_cli.status import (
 if TYPE_CHECKING:
     from specify_cli.consolidation.push_preflight import TargetBranchSyncStatus
     from specify_cli.coordination.types import Refused
+    from specify_cli.consolidation.state import ConsolidationState
     from specify_cli.lanes.models import LanesManifest
     from specify_cli.status.models import StatusEvent
     from specify_cli.post_merge.review_artifact_consistency import (
@@ -251,6 +252,32 @@ def _check_mission_branch(
         "remediation": f"git branch {expected_branch} {base_sha}",
     }
     return False, blocker_payload
+
+
+def mission_branch_check_required(
+    main_repo: Path,
+    manifest: LanesManifest,
+    existing_state: ConsolidationState | None,
+) -> bool:
+    """Whether consolidation must find the recorded Mission branch before it starts.
+
+    The ONE predicate the real run (``executor``) and the dry-run forecast share, so a
+    forecast never refuses a run that would proceed (#7267). The check is skipped when:
+
+    * the manifest is planning-artifact-only and does not land a Mission branch — a
+      planning-only manifest records a ``mission_branch`` that is never created; the run
+      writes straight to the target instead; or
+    * a resume finds cleanup already started after a verified landing — the Mission branch
+      was torn down with the coordination triple and only cleanup is left (S5 FR-035).
+    """
+    from specify_cli.consolidation.run_state import landing_verified_for_resume
+    from specify_cli.lanes.compute import is_planning_artifact_only
+    from specify_cli.lanes.single_branch_landing import lands_mission_branch
+
+    if is_planning_artifact_only(manifest) and not lands_mission_branch(main_repo, manifest):
+        return False
+    resuming_cleanup = existing_state is not None and existing_state.cleanup_started
+    return not (resuming_cleanup and landing_verified_for_resume(main_repo, existing_state))
 
 
 def _enforce_planning_artifact_target_branch(repo_root: Path, target_branch: str) -> None:
