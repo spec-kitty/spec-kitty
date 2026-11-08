@@ -337,9 +337,6 @@ class _JSONErrorGroup(TyperGroup):
         except _CLICK_ABORTS:
             self._emit_error("Command aborted")
             raise SystemExit(2)
-        except _STATUS_READ_PATH_ERRORS as exc:
-            self._emit_status_read_path_error(exc)
-            raise SystemExit(1) from exc
         except _EXIT as exc:
             raise SystemExit(exc.exit_code) from exc
         except SystemExit:
