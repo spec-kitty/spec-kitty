@@ -13,11 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.cli.commands.agent.tasks_status_cmd import (
-    _StatusState,
-    _st_declared_dependencies,
-    _st_load_work_packages,
-)
+from specify_cli.cli.commands.agent.tasks_status_cmd import _st_declared_dependencies
 
 pytestmark = pytest.mark.fast
 
@@ -31,13 +27,14 @@ def _write_wp(tasks_dir: Path, wp_id: str, dependencies_yaml: str) -> None:
 
 
 def _load(tmp_path: Path, tasks_dir: Path) -> dict[str, list[str]]:
-    st = _StatusState(mission="mission", json_output=True, stale_threshold=10)
-    st.mission_slug = "mission"
-    st.main_repo_root = tmp_path
-    st.feature_dir = tmp_path
-    st.tasks_dir = tasks_dir
-    _st_load_work_packages(st)
-    return st.wp_dependencies
+    """The board's dependency map, built the way ``_st_load_work_packages`` builds it.
+
+    The loader keys ``wp_dependencies`` by WP id from ``_st_declared_dependencies(wp_file)``;
+    calling that seam directly keeps these parser cases free of the read-door fixture
+    (meta.json, event log) the full board load needs since #7431.
+    """
+    del tmp_path
+    return {path.stem.split("-")[0]: _st_declared_dependencies(path) for path in sorted(tasks_dir.glob("WP*.md"))}
 
 
 def test_empty_flow_list_has_no_dependencies(tmp_path: Path) -> None:
