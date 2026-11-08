@@ -19,13 +19,11 @@ Windows (T118, the characterization that decides the design):
   went there and the post-merge baseline validation rolled the whole run back. After the landing
   the anchor must be the target checkout.
 
-Fixture workarounds for gaps outside this work package, each recorded as tooling friction:
-``auto_commit: false`` (the claim commit expects the repository root checkout on the topic
-branch, which the coordination worktree holds), a shim that lets the implement planning-commit
-probe skip a coordination-worktree PRIMARY directory (``SafeCommitPathPolicyError``), the
-coordination worktree committed by hand after each claim, ``--force`` on ``for_review`` (the lane
-is cut from the topic branch and carries PRIMARY files), an unprotected target (``work``), and
-no approval attestation (the in_review -> approved hop records a review stamp).
+Fixture workarounds for gaps outside this work package, each recorded as tooling friction: an
+unprotected target (``work``), and no approval attestation (the in_review -> approved hop records
+a review stamp). The claim workarounds this fixture used to carry (``auto_commit: false``, a
+planning-commit shim for ``SafeCommitPathPolicyError``, hand commits of the coordination worktree
+after each claim, and ``--force`` on ``for_review``) were removed with the #7372 fix.
 """
 
 from __future__ import annotations
@@ -62,21 +60,12 @@ _ANALYSIS = (
     "# Specification Analysis Report\n\nNo blocking findings.\n"
 )
 
-#: The CLI entry the tests run. It applies the planning-commit workaround (module docstring)
-#: and three phase hooks read from the environment: ``WP20_COMMIT_AFTER`` (commit a PRIMARY
+#: The CLI entry the tests run. It applies three phase hooks read from the environment: ``WP20_COMMIT_AFTER`` (commit a PRIMARY
 #: edit on the topic branch right after that executor phase), ``WP20_FAIL_BEFORE`` (raise
 #: before that phase) and ``WP20_FAIL_KIND`` (``exit`` -> ``typer.Exit(1)``, else RuntimeError).
 _SHIM = """
 import json, os, subprocess, sys
 from pathlib import Path
-import specify_cli.coordination.planning_commit as pc
-_paths = pc.feature_dir_file_paths
-def _tolerant(repo_root, feature_dir):
-    try:
-        return _paths(repo_root, feature_dir)
-    except pc.SafeCommitPathPolicyError:
-        return []
-pc.feature_dir_file_paths = _tolerant
 
 def _commit_primary_edit():
     coord = Path(os.environ["WP20_COORD"])
@@ -175,10 +164,6 @@ def build(tmp_path: Path, *, explicit: str | None = None) -> Built:
     shim = tmp_path / "wp20_shim.py"
     shim.write_text(_SHIM, encoding="utf-8")
     built = Built(mission, shim)
-    config = built.root / ".kittify" / "config.yaml"
-    config.write_text(config.read_text(encoding="utf-8") + "auto_commit: false\n", encoding="utf-8")
-    git(built.root, "add", ".kittify/config.yaml")
-    git(built.root, "commit", "-qm", "fixture: no auto-commit")
     planning = built.coord_worktree if explicit is None else built.root
     (planning / built.rel / "plan.md").write_text("# Plan\n", encoding="utf-8")
     _commit_all(planning, "plan")
@@ -187,14 +172,13 @@ def build(tmp_path: Path, *, explicit: str | None = None) -> Built:
     _ok(cli(built, "agent", "mission", "record-analysis", "--mission", built.slug, "--input-file", str(analysis)))
     for index in (1, 2, 3):
         _ok(cli(built, "agent", "action", "implement", f"WP0{index}", "--agent", "impl", "--mission", built.slug))
-        _commit_all(built.coord_worktree, f"claim WP0{index}")
     for index, owned in enumerate(THREE_LANES, start=1):
         lane = _lane_worktree(built, index)
         (lane / owned).parent.mkdir(parents=True, exist_ok=True)
         (lane / owned).write_text(f"X = {index}\n", encoding="utf-8")
         git(lane, "add", owned)
         git(lane, "-c", "user.name=e", "-c", "user.email=e@x", "commit", "-qm", f"feat(WP0{index})")
-        for to, agent, force in (("for_review", "impl", ("--force",)), ("in_review", "rev", ()), ("approved", "rev", ("--force",))):
+        for to, agent, force in (("for_review", "impl", ()), ("in_review", "rev", ()), ("approved", "rev", ("--force",))):
             _ok(cli(built, "agent", "tasks", "move-task", f"WP0{index}", "--to", to, "--mission", built.slug, "--agent", agent, *force, "--note", agent))
     _commit_all(built.coord_worktree, "status")
     _commit_all(built.root, "status")
