@@ -172,9 +172,13 @@ class TestOwnedPromptCharterScope:
         assert executable.is_file()
         source_root = Path(__file__).parents[2]
         assert Path(specify_cli.__file__).resolve().is_relative_to(source_root / "src")
-        # Missing critical sections always generate actual fetch stanzas.
-        # Give the section a real body so fetching it proves owned authority.
+        # #7041: only critical sections the active charter resolves are
+        # advertised, so the owned charter authors one before the prompt is built.
+        from charter.activation.context_renderers.section_bodies import ACTION_CRITICAL_SECTIONS
+
         companion = self.owned / ".kittify/charter/charter.md"
+        authored = ACTION_CRITICAL_SECTIONS["implement"][0]
+        companion.write_text(companion.read_text() + f"\n## {authored}\n\nOWNED_PROMPT_BODY\n", encoding="utf-8")
         before_prompt = self.prompt()
         commands = [line.strip()[5:] for line in before_prompt.splitlines() if line.strip().startswith("Run: spec-kitty charter context ")]
         assert commands
@@ -184,10 +188,9 @@ class TestOwnedPromptCharterScope:
             assert argv[argv.index("--mission") + 1] == self.case.mission_slug
         command = next(c for c in commands if "--include section:" in c)
         selector = shlex.split(command)[shlex.split(command).index("--include") + 1]
-        from charter.activation.context_renderers.section_bodies import ACTION_CRITICAL_SECTIONS
-
-        heading = next(h for headings in ACTION_CRITICAL_SECTIONS.values() for h in headings if selector.endswith(h.lower().replace(" ", "-")))
-        companion.write_text(companion.read_text() + f"\n## {heading}\n\nOWNED_FETCH_BODY\n", encoding="utf-8")
+        assert selector.endswith(authored.lower().replace(" ", "-")), selector
+        # Change the body after the prompt was built: the fetch must read the live owned charter.
+        companion.write_text(companion.read_text().replace("OWNED_PROMPT_BODY", "OWNED_FETCH_BODY"), encoding="utf-8")
         env = dict(os.environ, PATH=str(executable.parent) + os.pathsep + os.environ.get("PATH", ""), NO_COLOR="1")
         result = subprocess.run(command, shell=True, cwd=self.owned, env=env, text=True, capture_output=True, timeout=60, check=False)
         assert result.returncode == 0, result.stdout + result.stderr

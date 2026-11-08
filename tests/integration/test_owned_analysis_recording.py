@@ -46,9 +46,14 @@ def record(owned: Path, *, explicit: bool, report_only: bool, claim: Path | None
     return CliRunner().invoke(app, args, input=BODY)
 
 
+# #7434: report_transaction.py still binds the repository-root charter for --report-only, which
+# `next` then reads as stale. strict, so these turn red the moment #7434 is fixed.
+_REPORT_ONLY_BINDS_PRIMARY_CHARTER = pytest.mark.xfail(strict=True, raises=AssertionError, reason="#7434: --report-only binds the repository-root charter")
+
+
 @pytest.mark.parametrize("protected", [False, True])
 @pytest.mark.parametrize("explicit", [False, True])
-@pytest.mark.parametrize("report_only", [False, True])
+@pytest.mark.parametrize("report_only", [False, pytest.param(True, marks=_REPORT_ONLY_BINDS_PRIMARY_CHARTER)])
 def test_analysis_records_in_owned_write_branch(analysis_checkouts, monkeypatch, explicit, report_only):
     from specify_cli.core import checkout_ownership
     from specify_cli.frontmatter import FrontmatterManager
@@ -78,8 +83,6 @@ def test_analysis_records_in_owned_write_branch(analysis_checkouts, monkeypatch,
     metadata, _ = FrontmatterManager().read(owned / REPORT)
     assert metadata["artifact_type"] == "spec-kitty.analysis-report"
     assert metadata["verdict"] == "ready"
-    assert metadata["input_artifacts"]["charter"] == collect_input_artifact_hashes(meta_path.parent, owned)["charter"]
-    assert check_analysis_report_current(meta_path.parent, owned).ok
     assert not git(owned, "status", "--porcelain")
     if report_only:
         qualified_head = git(owned, "rev-parse", "HEAD")
@@ -87,6 +90,12 @@ def test_analysis_records_in_owned_write_branch(analysis_checkouts, monkeypatch,
         assert repeated.exit_code == 0, repeated.output
         assert json.loads(repeated.output)["commit_status"] == "unchanged"
         assert git(owned, "rev-parse", "HEAD") == qualified_head
+    # #6846 (88ca02dbd): a validated owned checkout records and checks its OWN
+    # charter; the repository-root charter stays the default only off the owned path.
+    # Checked last so the transaction and idempotence assertions above still run
+    # for the --report-only parameters while #7434 keeps them xfail.
+    assert metadata["input_artifacts"]["charter"] == collect_input_artifact_hashes(meta_path.parent, owned, charter_root=owned)["charter"]
+    assert check_analysis_report_current(meta_path.parent, owned, charter_root=owned).ok
 
 
 @pytest.mark.parametrize("protected", [False, True])
