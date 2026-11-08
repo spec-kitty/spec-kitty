@@ -27,6 +27,7 @@ from kernel.git.runner import GitCommandError, decode_path, run_git
 
 __all__ = [
     "IndexEntry",
+    "MergeTreeResult",
     "NameStatusEntry",
     "NumstatEntry",
     "StatusEntry",
@@ -39,6 +40,7 @@ __all__ = [
     "index_entries",
     "is_tracked",
     "log_paths",
+    "merge_tree",
     "numstat_entries",
     "remerge_paths",
     "status_entries",
@@ -154,6 +156,19 @@ class TreeEntry:
     path: GitPath
 
 
+@dataclass(frozen=True)
+class MergeTreeResult:
+    """``git merge-tree --write-tree``: the merged ``tree`` and the paths that conflicted (empty for a clean merge).
+
+    A conflicted path's entry in ``tree`` holds conflict markers, or one side's version where git
+    cannot write markers (a binary file, a modify/delete), so a caller must read ``conflicted``
+    rather than infer conflicts from a tree diff.
+    """
+
+    tree: str
+    conflicted: tuple[GitPath, ...]
+
+
 # ---------------------------------------------------------------------------
 # Raw -z parsers (pure)
 # ---------------------------------------------------------------------------
@@ -236,6 +251,13 @@ def parse_numstat_z(raw: bytes) -> tuple[NumstatEntry, ...]:
         added, deleted, path = record.split(b"\t", 2)
         entries.append(NumstatEntry(added=_count(added.decode("ascii")), deleted=_count(deleted.decode("ascii")), path=_path(path)[0]))
     return tuple(entries)
+
+
+def parse_merge_tree_z(raw: bytes) -> MergeTreeResult:
+    """Parse ``merge-tree --write-tree --name-only --no-messages -z``: ``tree-oid\\0`` then one ``path\\0`` per conflicted path."""
+    tree, _, rest = raw.partition(_NUL)
+    conflicted = tuple(dict.fromkeys(parse_paths_z(rest)))  # a path conflicted at several stages is named once
+    return MergeTreeResult(tree=tree.decode("ascii").strip(), conflicted=conflicted)
 
 
 def parse_tree_z(raw: bytes) -> tuple[TreeEntry, ...]:
@@ -432,6 +454,21 @@ def commit_paths(
     if first_parent:
         args += ["--first-parent", "-m"]
     return parse_paths_z(_git(cwd, [*args, commit], (), env=env, timeout=timeout))
+
+
+def merge_tree(cwd: Path, ours: str, theirs: str, *, env: Env = None, timeout: float | None = None) -> MergeTreeResult:
+    """Merge *theirs* into *ours* in memory (``git merge-tree --write-tree``, git >= 2.38); nothing is checked out or committed.
+
+    Exit 0 (clean) and exit 1 (conflicts) both return a result.
+
+    Raises:
+        GitCommandError: any other exit (an unreadable ref, a git older than 2.38), a timeout, or a git that did not start.
+    """
+    args = ("merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", ours, theirs)
+    result = run_git(cwd, *args, env=env, timeout=timeout, check=False)
+    if result.returncode not in (0, 1):
+        raise GitCommandError(argv=args, cwd=cwd, returncode=result.returncode, stderr=result.stderr.decode("utf-8", "replace"))
+    return parse_merge_tree_z(result.stdout)
 
 
 def remerge_paths(cwd: Path, commit: str, *, env: Env = None, timeout: float | None = None) -> tuple[GitPath, ...]:

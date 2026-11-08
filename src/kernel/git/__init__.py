@@ -25,6 +25,7 @@ from __future__ import annotations
 from kernel.git.blame import BlameLine, DiffHunk, blame_lines, diff_hunks
 from kernel.git.listing import (
     IndexEntry,
+    MergeTreeResult,
     NameStatusEntry,
     NumstatEntry,
     StatusEntry,
@@ -36,6 +37,7 @@ from kernel.git.listing import (
     index_entries,
     is_tracked,
     log_paths,
+    merge_tree,
     remerge_paths,
     numstat_entries,
     status_entries,
@@ -74,6 +76,7 @@ __all__ = [
     "GitPath",
     "GitResult",
     "IndexEntry",
+    "MergeTreeResult",
     "NameStatusEntry",
     "NumstatEntry",
     "RemoteUnreachable",
@@ -94,6 +97,7 @@ __all__ = [
     "index_entries",
     "is_tracked",
     "log_paths",
+    "merge_tree",
     "remerge_paths",
     "no_prompt_env",
     "numstat_entries",
