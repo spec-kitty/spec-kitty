@@ -80,6 +80,7 @@ _WALKER_INVENTORY: dict[tuple[str, str], str] = {
     # The one walk every successor shares (WP02): it splits the children through is_kitty_specs_residue.
     ("src/specify_cli/upgrade/migrations/_residue_successor.py", "partition_kitty_specs"): _FILTERS,
     # Unchanged under the new rule: each reads meta.json first (a folder with meta.json is never residue).
+    ("src/specify_cli/migration/backfill_merged_at.py", "_mission_dirs"): _FILTERS,
     ("src/specify_cli/migration/backfill_identity.py", "backfill_mission_ids"): _REQUIRES_META,
     ("src/specify_cli/migration/backfill_identity.py", "backfill_repo"): _REQUIRES_META,
     ("src/specify_cli/migration/backfill_mission_type.py", "backfill_mission_type_repo"): _REQUIRES_META,

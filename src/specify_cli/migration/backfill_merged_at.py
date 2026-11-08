@@ -36,7 +36,6 @@ from typing import Any, Literal
 from specify_cli.status import LandingVerdict, read_landing_evidence
 
 __all__ = [
-    "MergedAtBackfillAction",
     "MergedAtBackfillResult",
     "backfill_merged_at",
     "has_merged_at_to_backfill",
@@ -69,7 +68,10 @@ def _mission_dirs(repo_root: Path) -> list[Path]:
     kitty_specs = repo_root / "kitty-specs"
     if not kitty_specs.is_dir():
         return []
-    return sorted(entry for entry in kitty_specs.iterdir() if entry.is_dir() and (entry / _META_JSON).is_file())
+    from specify_cli.context.mission_resolver import is_mission_dir
+
+    # Residue is never written (#6627): only a real Mission directory with a meta.json is a candidate.
+    return sorted(entry for entry in kitty_specs.iterdir() if entry.is_dir() and (entry / _META_JSON).is_file() and is_mission_dir(entry, repo_root=repo_root))
 
 
 def _needs_marker(meta: dict[str, Any]) -> bool:

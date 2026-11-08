@@ -178,29 +178,17 @@ def test_arbiter_write_path_keeps_latest_for_cycle_number_only() -> None:
     )
 
 
-def test_arbiter_verdict_read_is_event_sourced_via_get_arbiter_overrides_for_wp() -> None:
-    """``get_arbiter_overrides_for_wp`` -- the arbiter's actual verdict READ
-    surface -- is already event-sourced (``wp_snapshot_state``), with no
-    ``review-cycle-*.md`` frontmatter parse anywhere in its source. This was
-    true BEFORE WP07 (squad #1's finding) and this WP does not touch it --
-    the assertion exists so a future regression that reintroduces a
-    frontmatter verdict read on this path is caught here, not silently.
+def test_arbiter_verdict_read_is_event_sourced() -> None:
+    """The arbiter's verdict READ is event-sourced: ``arbiter_overrides_from_state`` reads the
+    reduced snapshot state the caller got through the status read door (#7335), with no
+    ``review-cycle-*.md`` frontmatter parse anywhere in its source. (It replaced
+    ``get_arbiter_overrides_for_wp``, whose last caller #7431 moved onto the door.)
     """
-    from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+    from specify_cli.review.arbiter import arbiter_overrides_from_state
 
-    source = inspect.getsource(get_arbiter_overrides_for_wp)
-    assert "wp_snapshot_state" in source, (
-        "get_arbiter_overrides_for_wp must resolve the override via the "
-        "event-sourced wp_snapshot_state surface"
-    )
-    assert "ReviewCycleArtifact" not in source, (
-        "get_arbiter_overrides_for_wp must not read review-cycle artifact "
-        "frontmatter -- its verdict/override read is event-sourced only"
-    )
-    assert ".from_file(" not in source, (
-        "get_arbiter_overrides_for_wp must not call ReviewCycleArtifact.from_file "
-        "-- that would be a frontmatter verdict read"
-    )
+    source = inspect.getsource(arbiter_overrides_from_state)
+    assert "ReviewCycleArtifact" not in source, "the override read must not parse review-cycle artifact frontmatter"
+    assert ".from_file(" not in source, "the override read must not load a review-cycle file"
 
 
 def test_no_frontmatter_verdict_read_survives_anywhere_in_arbiter_module() -> None:

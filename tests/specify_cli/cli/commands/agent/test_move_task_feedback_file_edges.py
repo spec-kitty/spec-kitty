@@ -48,7 +48,7 @@ from tests.specify_cli.cli.commands.agent._rework_loop_harness import (
     review_cycle_files,
 )
 from tests.specify_cli.cli.commands.agent.test_tasks_transition_core import _base_request
-from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+from tests._support.arbiter_overrides import get_arbiter_overrides_for_wp
 
 pytestmark = pytest.mark.slow
 

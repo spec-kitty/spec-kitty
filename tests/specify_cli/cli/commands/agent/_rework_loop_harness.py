@@ -224,7 +224,7 @@ def override_probes(m: ReworkMission, wp: str = WP, move_output: str = "") -> di
     NOTE: ``reduced_overrides`` and ``status_history`` share one source
     (``get_arbiter_overrides_for_wp``); they are NOT independent evidence.
     """
-    from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+    from tests._support.arbiter_overrides import get_arbiter_overrides_for_wp
 
     status_text = _status_output(m, wp)
     return {
