@@ -1,10 +1,11 @@
-"""Pin the ``docs-site`` job: the doc-kitty parallel-run build on pull requests (#6930).
+"""Pin the ``docs-site`` job: the doc-kitty build on pull requests (#6930, #6937).
 
 ADR ``docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md`` D-11 puts a
 ``docs-site`` job in ``ci-router.yml`` behind a ``docs/**`` + ``site/**`` path filter
 parsed by ``scripts/ci/gate_selection.py``. It installs the site with the frozen
-lockfile and no token, builds it, and uploads ``site/dist``. It is not required yet:
-``router-gate``'s ``needs:`` gains it in #6937. DocFX keeps deploying (D-13).
+lockfile and no token, builds it, and uploads ``site/dist``. Since #6937 it is
+**required**: ``router-gate``'s ``needs:`` names it and it carries no
+``continue-on-error``. DocFX keeps deploying (D-13).
 
 Every routing assertion reads the parsed router (``gate_selection.load_router``), the one
 routing authority. Each structural checker has a mutant fed through the same checker
@@ -172,7 +173,7 @@ def test_the_job_installs_frozen_and_checks_the_contract() -> None:
 
 
 def test_no_step_swallows_a_failure() -> None:
-    """Job-level ``continue-on-error`` is the advisory mechanism (below); a step never swallows a failure."""
+    """A required job never swallows a failure: no step-level ``continue-on-error`` and no shell fallback."""
     job = _job()
 
     assert all("continue-on-error" not in step for step in job["steps"])
@@ -201,12 +202,13 @@ def test_a_dockitty_call_without_the_astro_config_is_caught() -> None:
     assert _astro_config_violations(mutant) == ["run: pnpm exec dockitty-check-links ../docs --strict"]
 
 
-# --- advisory to the terminal gate until #6937 (FR-008) -----------------------------------------
+# --- required by the terminal gate since #6937 (FR-008) -----------------------------------------
 #
-# router-gate classifies EVERY jobs-API row of the run, not only its `needs:` (#4208), so a job kept
-# out of `needs:` would still block the gate on failure, and could be read as incomplete while it
-# runs. The classifier therefore skips the names in router_gate.ADVISORY_JOB_NAMES, and the
-# `needs:` invariant (tests/architectural/test_dual_mode_contract.py) subtracts the same set.
+# router-gate classifies EVERY jobs-API row of the run, not only its `needs:` (#4208). Leaving the
+# job out of `needs:` while it is not exempted would still block the gate on failure, and could be
+# read as incomplete while it runs. #6937 makes it required on both halves: it is in `needs:` (so
+# the classify-all == classify-needs invariant covers it) and its display name is not in
+# router_gate.ADVISORY_JOB_NAMES (which is empty), so its row is classified like any other.
 
 
 def _gate_verdict(rows: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> str:
@@ -218,43 +220,41 @@ def _gate_verdict(rows: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.Cap
     return capsys.readouterr().out
 
 
-def test_the_job_is_advisory_to_the_terminal_gate() -> None:
-    assert _job()["name"] in router_gate.ADVISORY_JOB_NAMES
+def test_the_job_is_required_by_the_terminal_gate() -> None:
+    workflow = _workflow()
+    needs = set(workflow["jobs"]["router-gate"]["needs"])
+
+    assert JOB in needs, "docs-site must stay in router-gate.needs: (required, #6937)"
+    assert JOB not in router_gate.ADVISORY_JOB_NAMES, "a required job is never advisory"
 
 
-@pytest.mark.parametrize("conclusion", ["failure", "", "timed_out", "cancelled"])
-def test_an_advisory_row_never_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_advisory_set_is_empty() -> None:
+    """#6937 drained its last entry; an advisory job is priced debt (Standing Order #5)."""
+    assert not router_gate.ADVISORY_JOB_NAMES
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "timed_out", "cancelled", ""])
+def test_a_failing_docs_site_row_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     rows = f"{_job()['name']}\t{conclusion}\nruff (fast, always-on)\tsuccess\n"
 
-    assert _gate_verdict(rows, monkeypatch, capsys).startswith("router-gate OK")
+    assert _gate_verdict(rows, monkeypatch, capsys).startswith("blocked")
 
 
-def test_a_required_row_still_blocks_beside_an_advisory_one(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_green_docs_site_row_passes_beside_another_failure_row(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The gate blocks on the OTHER job: docs-site's own green row never masks a red."""
     rows = f"{_job()['name']}\tsuccess\nruff (fast, always-on)\tfailure\n"
 
     assert _gate_verdict(rows, monkeypatch, capsys).startswith("blocked")
 
 
-def test_every_advisory_name_is_a_router_job_outside_router_gate_needs() -> None:
-    """Self-draining: #6937 adds the job to `needs:` and must then delete its advisory entry."""
-    jobs = _workflow()["jobs"]
-    needs = set(jobs["router-gate"]["needs"])
-    by_name = {str(job.get("name")): key for key, job in jobs.items() if isinstance(job, dict)}
-
-    assert router_gate.ADVISORY_JOB_NAMES, "the set is empty once #6937 lands; delete this test with it"
-    for name in router_gate.ADVISORY_JOB_NAMES:
-        assert name in by_name, f"advisory name {name!r} names no ci-router.yml job"
-        assert by_name[name] not in needs, f"{by_name[name]} is required (in router-gate needs); drop it from ADVISORY_JOB_NAMES"
-
-
-# --- advisory to the run conclusion too (review cycle 1) ----------------------------------------
+# --- required on the run conclusion too (#6937) ------------------------------------------------
 #
 # The fleet verdict (scripts/ci/fleet_verdict.py), the main-branch P0 intake (scripts/ci/fleet_main.py)
 # and skip-if-green (scripts/ci/green_match.py) read the CI Router RUN conclusion, not router-gate.
-# A failed advisory job must not turn the run red, so it carries job-level continue-on-error -- the
-# ci-aggregate.yml `sonar-pr` precedent ("the workflow-run-conclusion half of the non-blocking
-# guarantee"). The two halves travel together: a router job has job-level continue-on-error if and
-# only if its display name is in router_gate.ADVISORY_JOB_NAMES, so #6937 removes both at once.
+# A required job must therefore not turn its own failure into a non-blocking one via job-level
+# continue-on-error -- the ci-aggregate.yml `sonar-pr` precedent (the workflow-run-conclusion half of
+# "non-blocking"). The two halves travel together: a router job carries job-level
+# continue-on-error if and only if its display name is in router_gate.ADVISORY_JOB_NAMES.
 
 
 def _advisory_violations(jobs: dict[str, Any], advisory_names: frozenset[str]) -> list[str]:
@@ -273,15 +273,8 @@ def test_job_level_continue_on_error_is_exactly_the_advisory_set() -> None:
     assert _advisory_violations(_workflow()["jobs"], router_gate.ADVISORY_JOB_NAMES) == []
 
 
-def test_an_advisory_job_without_continue_on_error_is_caught() -> None:
-    jobs = copy.deepcopy(_workflow()["jobs"])
-    jobs[JOB].pop("continue-on-error", None)
-
-    assert _advisory_violations(jobs, router_gate.ADVISORY_JOB_NAMES) == [f"{JOB}: advisory=True, job-level continue-on-error=False"]
-
-
 def test_a_required_job_with_continue_on_error_is_caught() -> None:
     jobs = copy.deepcopy(_workflow()["jobs"])
-    jobs["ruff"]["continue-on-error"] = True
+    jobs[JOB]["continue-on-error"] = True
 
-    assert "ruff: advisory=False, job-level continue-on-error=True" in _advisory_violations(jobs, router_gate.ADVISORY_JOB_NAMES)
+    assert _advisory_violations(jobs, router_gate.ADVISORY_JOB_NAMES) == [f"{JOB}: advisory=False, job-level continue-on-error=True"]

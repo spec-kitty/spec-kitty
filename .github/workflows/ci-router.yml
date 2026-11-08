@@ -1750,19 +1750,19 @@ jobs:
           retention-days: 14
 
   # ---------------------------------------------------------------------------
-  # docs-site (#6930; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
+  # docs-site (#6930, required since #6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
   # D-1, D-2, D-11): the doc-kitty parallel run. Builds the published docs/ corpus with
   # the site/ project on every PR that touches docs/**, site/** or the inputs of the
   # site's folder contract (the `docs_site` group), and uploads site/dist. DocFX keeps
   # deploying (docs-pages.yml) until cutover (#6938). doc-kitty is a pnpm git dependency
   # pinned by commit in site/pnpm-lock.yaml; the install needs no token (the repository is
-  # public). NOT required yet; #6937 makes it required and adds the D-11 gates. Until then it
-  # is advisory on both halves of "non-blocking": router-gate skips its row
-  # (scripts/ci/router_gate.ADVISORY_JOB_NAMES; the gate reads every jobs-API row, not only
-  # its `needs:`), and job-level continue-on-error keeps a failed build out of the run
-  # conclusion that the fleet verdict, the main P0 intake and skip-if-green read (the
-  # ci-aggregate.yml `sonar-pr` precedent). #6937 removes both together. Every dockitty-* call
-  # must pass `--astro-config astro.config.mjs` (D-1). Pinned by tests/ci/test_docs_site_job.py.
+  # public).
+  #
+  # REQUIRED: the job is in `router-gate.needs:` and carries no job-level
+  # continue-on-error, so a failed build blocks the PR that caused it. It cannot join
+  # ci-aggregate.yml's `aggregate-gate` (that runs on `workflow_run`; Actions has no
+  # cross-workflow `needs:`). Every dockitty-* call must pass
+  # `--astro-config astro.config.mjs` (D-1). Pinned by tests/ci/test_docs_site_job.py.
   # ---------------------------------------------------------------------------
   docs-site:
     name: docs site (doc-kitty build)
@@ -1770,8 +1770,6 @@ jobs:
     timeout-minutes: 20
     needs: [changes]
     if: ${{ needs.changes.outputs.docs_site == 'true' }}
-    # Advisory until #6937 (see above); never on a step.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -1839,6 +1837,7 @@ jobs:
       - tests-events-consumers
       - tests-path-literal-audit
       - mission-state-audit
+      - docs-site
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Refuse while CI is paused by label
