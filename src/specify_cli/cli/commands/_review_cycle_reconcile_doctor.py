@@ -385,6 +385,14 @@ def _mission_dirs_for(
     *,
     json_mode: bool = False,
 ) -> list[Path]:
+    """The Mission directories to reconcile: every Mission, or the one *mission* resolves to.
+
+    The whole-repo walk asks the shared read-side Mission rule (#6758): a child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir` rejects is
+    read-side residue, so no reconciliation report is produced for a folder that is not
+    a Mission. One ``TrackedMissionPaths`` memo per walk keeps the git probe to at most
+    one.
+    """
     if mission is not None:
         # Function-local (H2/I-6 precedent): resolves --mission via the
         # canonical handle resolver (mission_id / mid8 / slug), matching
@@ -402,7 +410,10 @@ def _mission_dirs_for(
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
         return []
-    return [p for p in sorted(specs_dir.iterdir()) if p.is_dir()]
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir
+
+    tracked = TrackedMissionPaths(repo_root)
+    return [p for p in sorted(specs_dir.iterdir()) if p.is_dir() and is_selectable_mission_dir(p, repo_root=repo_root, tracked=tracked)]
 
 
 def _collect_reports(
