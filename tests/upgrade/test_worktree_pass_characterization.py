@@ -465,22 +465,23 @@ def test_worktrees_run_in_name_order_and_each_reports_its_own_outcome(project: t
             return True, ""
 
         def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-            if project_path.name == "wip-c":
-                return MigrationResult(success=False, errors=["c broke"])
+            # The first worktree fails, so the later ones prove the pass continues after a failure.
+            if project_path.name == "wip-a":
+                return MigrationResult(success=False, errors=["a broke"])
             return MigrationResult(success=True, changes_made=["ok"])
 
     result = _run(root, [_OrderProbe()])
 
     assert seen == ["wip-a", "wip-b", "wip-c"]
     assert _report(result) == {
-        "warnings": ["Worktree wip-c: " + autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING],
-        "errors": ["Worktree wip-c: c broke"],
-        "worktree_failures": ["Worktree wip-c: c broke"],
-        "outcomes": [("wip-a", "upgraded_committed"), ("wip-b", "upgraded_committed"), ("wip-c", "failed")],
+        "warnings": ["Worktree wip-a: " + autocommit.FAILED_RUN_LEFT_UNCOMMITTED_WARNING],
+        "errors": ["Worktree wip-a: a broke"],
+        "worktree_failures": ["Worktree wip-a: a broke"],
+        "outcomes": [("wip-a", "failed"), ("wip-b", "upgraded_committed"), ("wip-c", "upgraded_committed")],
     }
-    assert _ledger(wt_a) == [("char_order", "success")]
+    assert _ledger(wt_a) == [("char_order", "failed")]
     assert _ledger(wt_b) == [("char_order", "skipped")]
-    assert _ledger(wt_c) == [("char_order", "failed")]
+    assert _ledger(wt_c) == [("char_order", "success")]
 
 
 def test_upgrade_worktrees_only_runs_the_pass_with_no_migrations(project: tuple[Path, Path]) -> None:
