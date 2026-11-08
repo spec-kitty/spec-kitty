@@ -124,3 +124,26 @@ def test_for_review_accepts_a_lane_cut_from_the_topic_branch(settled: DefaultMis
     proc = _ok(_cli(settled, "agent", "tasks", "move-task", "WP01", "--to", "for_review", "--mission", settled.slug, "--agent", "impl", "--note", "ready"))
     assert "Committed kitty-specs files on this lane branch" not in proc.stdout
     assert _tracked_dirt(_coord_worktree(settled)) == ""
+
+
+def test_for_review_refuses_a_lane_that_edits_primary_planning_content(settled: DefaultMission) -> None:
+    """Negative end-to-end: a lane commit to the Mission's ``spec.md`` is still refused without ``--force``.
+
+    The guard measures the lane against the topic branch (the seam's PRIMARY ref) rather than
+    ``target_branch``; that must not turn it permissive: genuine planning-file edits on a lane
+    branch stay contamination.
+    """
+    lane = settled.root / ".worktrees" / f"{settled.slug}-lane-b"
+    if not lane.is_dir():
+        _ok(_cli(settled, "agent", "action", "implement", "WP02", "--agent", "impl", "--mission", settled.slug))
+    owned = lane / THREE_LANES[1]
+    owned.parent.mkdir(parents=True, exist_ok=True)
+    owned.write_text("Y = 2\n", encoding="utf-8")
+    spec = lane / "kitty-specs" / settled.slug / "spec.md"
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text("# Spec\n\nEdited on a lane branch.\n", encoding="utf-8")
+    git(lane, "add", "--sparse", "-f", THREE_LANES[1], str(spec.relative_to(lane)))
+    git(lane, "-c", "user.name=e", "-c", "user.email=e@x", "commit", "-qm", "feat(WP02): touch the spec")
+    proc = _cli(settled, "agent", "tasks", "move-task", "WP02", "--to", "for_review", "--mission", settled.slug, "--agent", "impl", "--note", "ready")
+    assert proc.returncode != 0, f"a lane editing spec.md must be refused\nSTDOUT:\n{proc.stdout[-3000:]}\nSTDERR:\n{proc.stderr[-2000:]}"
+    assert "Committed kitty-specs files on this lane branch" in proc.stdout + proc.stderr
