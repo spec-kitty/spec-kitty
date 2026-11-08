@@ -100,9 +100,10 @@ No `[NEEDS CLARIFICATION]` remains. Every fork the squad raised was settled by a
 
 - **Decision**: The corpus counts the strict-`xfail` residuals from the test files (`test_canceled_line_attribution_6309.py`, `test_canceled_content_residuals.py`, `test_approved_bound_residuals.py`, `tests/integration/test_single_branch_approval_windows.py`), not from ADR prose. The ADR cites by full slug, and names #5703 (lane-id rebuild orphans recorded windows) as a limit.
 
-## R-14 — Version-bump rule vs charter
+## R-14 — No version bump for the `status/__init__.py` re-export
 
-- **Decision**: Re-exporting `WP_WINDOW_KEY` touches `src/specify_cli/status/__init__.py`. Add a changelog fragment under `docs/changelog/unreleased/`. The `pyproject.toml` version bump is left to the release owner (charter standing order 7: "no version numbers in scope"; the charter wins over CLAUDE.md on conflict). Flagged for the operator on the PR.
+- **Decision**: Re-exporting `WP_WINDOW_KEY` touches `src/specify_cli/status/__init__.py`. **Operator ruling (2026-11-08): no version bump.** The Mission adds a changelog fragment under `docs/changelog/unreleased/` and does not change the `pyproject.toml` version. This is consistent with charter standing order 7 ("no version numbers in scope"), which wins over the CLAUDE.md `__init__.py` rule.
+- **Alternatives considered**: bumping `pyproject.toml` in the Mission PR. Rejected by the operator.
 
 ## Findings disposition (pre-spec squad, every finding)
 
