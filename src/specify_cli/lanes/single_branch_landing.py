@@ -263,8 +263,14 @@ def is_single_branch_mission(repo: Path, manifest: LanesManifest, *, owned: Owne
     is missing or malformed reads here as "not single_branch" (``load_meta_or_empty`` yields an
     empty mapping), so the axis no-ops rather than refusing -- but that case never reaches the
     axis unexploited: ``consolidate``'s earlier selector/identity/retention preflights hard-fail
-    on a corrupt or missing ``meta.json``, and an unmigrated single_branch mission with code
-    lanes trips ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED`` first. Topology is read STORED (never
+    on a corrupt or missing ``meta.json``. An unmigrated single_branch mission with code lanes
+    is NOT refused by ``consolidate``: ``SINGLE_BRANCH_CODE_LANES_UNMIGRATED``
+    (:func:`mission_runtime.assert_topology_matches_manifest`) has three callers --
+    the finalize-tasks writer chokepoint (``lanes/compute_and_persist.py``), ``implement``'s
+    lane allocation (``lanes/worktree_allocator.py``) and the review gate
+    (``cli/commands/agent/workflow_executor.py``) -- none of them on a consolidation path, so
+    by the time this axis runs the unmigrated shape is guarded at claim/review time, not
+    here (#7250). Topology is read STORED (never
     derived), so this is deliberate: the axis does not re-derive topology from in-flight
     ``lanes.json`` signals.
 

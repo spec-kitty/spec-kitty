@@ -19,6 +19,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.recovery import (
     RECOVERY_ACTOR,
     RecoveryState,
+    _list_mission_branches,
     recover_context,
     reconcile_status,
     run_recovery,
@@ -58,6 +59,14 @@ def _make_git_repo(path: Path) -> None:
     subprocess.run(
         ["git", "commit", "-m", "init"],
         cwd=str(path), capture_output=True, check=True,
+    )
+
+
+def _git(repo: Path, *args: str) -> None:
+    """Run a git command in ``repo``, raising on failure."""
+    subprocess.run(
+        ["git", *args],
+        cwd=str(repo), capture_output=True, check=True,
     )
 
 
@@ -232,6 +241,50 @@ class TestBranchHasCommitsBeyondSeparator:
         assert recovery_mod._branch_has_commits_beyond(
             repo, "kitty/mission-010-feat", "kitty/mission-010-feat"
         ) is False
+
+
+class TestListMissionBranchesSlugBoundary:
+    """#5152: ``kitty/mission-{slug}*`` must not leak longer-slug missions.
+
+    A glob cannot see the slug boundary, so ``kitty/mission-057-foo*`` also
+    matches ``kitty/mission-057-foobar-lane-a`` — a *different* mission whose
+    slug merely shares a prefix. The function must post-filter to the exact
+    slug, its ``-lane-<id>`` suffixed branches, and its ``-<mid8>`` suffixed
+    mission branch.
+    """
+
+    def test_prefix_sharing_mission_branches_do_not_leak_in(
+        self, tmp_path: Path,
+    ) -> None:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        for branch in (
+            "kitty/mission-057-foo",
+            "kitty/mission-057-foo-lane-a",
+            "kitty/mission-057-foobar",
+            "kitty/mission-057-foobar-lane-a",
+            "kitty/mission-057-foo-01KV6510",
+        ):
+            _git(repo, "branch", branch)
+
+        assert _list_mission_branches(repo, "057-foo") == [
+            "kitty/mission-057-foo",
+            "kitty/mission-057-foo-01KV6510",
+            "kitty/mission-057-foo-lane-a",
+        ]
+
+    def test_exact_slug_only(self, tmp_path: Path) -> None:
+        """A lone mission branch still resolves (no regression)."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        _git(repo, "branch", "kitty/mission-058-bar")
+
+        assert _list_mission_branches(repo, "058-bar") == [
+            "kitty/mission-058-bar",
+        ]
+        assert _list_mission_branches(repo, "058-baz") == []
 
 
 class TestScanRecoveryState:

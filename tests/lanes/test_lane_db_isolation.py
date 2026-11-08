@@ -82,6 +82,41 @@ class TestLaneTestDbName:
             lane_test_db_name("083-foo", "!!!")
 
 
+class TestLaneTestDbNameCap63:
+    """#3122 — the composed name must respect the 63-byte identifier cap.
+
+    PostgreSQL truncates identifiers at 63 bytes, so an over-long composed
+    name silently collides at the engine boundary. The cap keeps the name at
+    or under 63 bytes using a stable, input-derived suffix, so distinct
+    (mission, lane) pairs stay distinct after capping.
+    """
+
+    LONG_MISSION = "083-" + "m" * 80
+
+    def test_long_inputs_are_capped_at_63_bytes(self):
+        name = lane_test_db_name(self.LONG_MISSION, "lane-a")
+        assert len(name.encode("utf-8")) <= 63, f"DB name exceeds the 63-byte cap: {name!r}"
+
+    def test_cap_keeps_distinct_lanes_distinct(self):
+        """The lane segment can fall entirely outside the truncation window,
+        so the suffix — not the truncated prefix — must carry the distinction."""
+        a = lane_test_db_name(self.LONG_MISSION, "lane-a")
+        b = lane_test_db_name(self.LONG_MISSION, "lane-b")
+        assert a != b, f"the 63-byte cap collapsed distinct lanes into one DB name: {a!r}"
+
+    def test_cap_keeps_distinct_missions_distinct(self):
+        x = lane_test_db_name(self.LONG_MISSION, "lane-a")
+        y = lane_test_db_name("084-" + "m" * 80, "lane-a")
+        assert x != y
+
+    def test_capped_name_is_deterministic(self):
+        assert lane_test_db_name(self.LONG_MISSION, "lane-a") == lane_test_db_name(self.LONG_MISSION, "lane-a")
+
+    def test_short_names_are_unchanged_by_the_cap(self):
+        """Names already within the cap are returned verbatim (no suffix)."""
+        assert lane_test_db_name("083-my-feature", "lane-a") == "test_083_my_feature_lane_a"
+
+
 class TestLaneTestEnv:
     def test_exposes_canonical_env_var(self):
         env = lane_test_env("083-my-feature", "lane-a")

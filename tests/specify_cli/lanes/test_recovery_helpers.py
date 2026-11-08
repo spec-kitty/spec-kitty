@@ -207,6 +207,48 @@ def test_compute_ready_to_start_unblocks_when_deps_done(tmp_path: Path) -> None:
     assert ready == ["WP02"]
 
 
+def test_compute_ready_to_start_globs_tasks_once_for_n_wps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4523: the dependency read must not re-glob ``tasks/`` per WP.
+
+    Pre-fix, ``_read_wp_dependencies`` globbed ``tasks/WP*.md`` once per
+    candidate WP (N directory scans for N not-done WPs). The map is built
+    once and consulted per WP.
+    """
+    from collections.abc import Iterator
+
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    for wp_id in ("WP01", "WP02", "WP03"):
+        (tasks_dir / f"{wp_id}.md").write_text(
+            f'---\nwork_package_id: {wp_id}\ntitle: {wp_id}\ndependencies:\n  - "WP01"\n---\n',
+            encoding="utf-8",
+        )
+
+    glob_calls: list[str] = []
+    real_glob = Path.glob
+
+    def _counting_glob(self: Path, pattern: str) -> Iterator[Path]:
+        glob_calls.append(pattern)
+        return real_glob(self, pattern)
+
+    monkeypatch.setattr(Path, "glob", _counting_glob)
+
+    ready = _compute_ready_to_start(
+        tmp_path,
+        all_task_wp_ids=["WP01", "WP02", "WP03"],
+        done_wp_ids={"WP01"},
+        represented_wps=set(),
+        recovery_states=[],
+    )
+
+    assert ready == ["WP02", "WP03"]
+    assert glob_calls.count("WP*.md") == 1, (
+        f"tasks/WP*.md must be globbed exactly once for the whole scan, got {len(glob_calls)}: {glob_calls}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # _append_ready_to_start
 # ---------------------------------------------------------------------------

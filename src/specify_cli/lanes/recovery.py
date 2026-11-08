@@ -16,6 +16,7 @@ from __future__ import annotations
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.mission_metadata import load_meta
 import logging
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +27,7 @@ from specify_cli.lanes.branch_naming import (
     InvalidMissionIdentity,
     mission_branch_name_required,
     parse_lane_id_from_branch,
+    parse_mission_slug_from_branch,
 )
 from specify_cli.lanes.worktree_allocator import persist_lane_context, predict_lane_worktree
 from specify_cli.status import Lane, build_system_actor
@@ -133,8 +135,31 @@ class RecoveryReport:
         }
 
 
+def _branch_belongs_to_mission(branch: str, mission_slug: str) -> bool:
+    """Whether *branch* belongs to the mission recorded as *mission_slug*.
+
+    Recognition routes through the canonical seam parser
+    (:func:`parse_mission_slug_from_branch`) instead of trusting the glob's
+    prefix (#5152): ``kitty/mission-057-foo*`` also matches
+    ``kitty/mission-057-foobar-lane-a`` -- a *different* mission whose slug
+    merely shares a prefix. The branch belongs when its parsed slug IS the
+    recorded slug, or -- for a mid8-era recorded slug -- when the parsed
+    ``<slug>-<mid8>`` pair recombines to it.
+    """
+    parsed = parse_mission_slug_from_branch(branch)
+    if parsed is None:
+        return False
+    if parsed.slug == mission_slug:
+        return True
+    return parsed.mid8_token is not None and f"{parsed.slug}-{parsed.mid8_token}" == mission_slug
+
+
 def _list_mission_branches(repo_root: Path, mission_slug: str) -> list[str]:
-    """List all local branches matching kitty/mission-{slug}* pattern."""
+    """List local branches of *this* mission: slug, its lane branches, its mid8.
+
+    Globs ``kitty/mission-{slug}*`` then post-filters to the exact slug
+    boundary (:func:`_branch_belongs_to_mission`, #5152).
+    """
     pattern = f"kitty/mission-{mission_slug}*"
     result = subprocess.run(
         ["git", "branch", "--list", pattern, "--format=%(refname:short)"],
@@ -145,7 +170,11 @@ def _list_mission_branches(repo_root: Path, mission_slug: str) -> list[str]:
     )
     if result.returncode != 0:
         return []
-    return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
+    return [
+        line.strip()
+        for line in result.stdout.strip().splitlines()
+        if line.strip() and _branch_belongs_to_mission(line.strip(), mission_slug)
+    ]
 
 
 def _branch_has_commits_beyond(
@@ -301,26 +330,40 @@ def _read_all_wp_ids_from_tasks(feature_dir: Path) -> list[str]:
     return wp_ids
 
 
-def _read_wp_dependencies(feature_dir: Path, wp_id: str) -> list[str]:
-    """Read the dependencies list from a WP file's frontmatter.
+def _wp_files_by_id(feature_dir: Path) -> dict[str, Path]:
+    """Map ``WP`` id -> task file, from ONE ``tasks/`` glob (#4523).
 
-    Deliberately avoids importing anything from specify_cli.lanes.recovery
-    to prevent circular import chains.
+    The extraction regex matches the id at the head of the filename
+    (``WP01``, ``WP01-title.md``, ``WP01.title.md``, ``WP01_title.md``);
+    upper-cased keys keep lookups case-insensitive. The glob runs once per
+    scan instead of once per candidate WP, and first-sorted-wins via
+    ``setdefault`` replaces the previously OS-order-arbitrary first match.
     """
     tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
+    wp_id_re = re.compile(r"^(WP\d{2,})(?:[-_.].+)?\.md$", re.IGNORECASE)
+    wp_files: dict[str, Path] = {}
+    for md_file in sorted(tasks_dir.glob("WP*.md")):
+        m = wp_id_re.match(md_file.name)
+        if m:
+            wp_files.setdefault(m.group(1).upper(), md_file)
+    return wp_files
+
+
+def _read_wp_dependencies(wp_files: dict[str, Path], wp_id: str) -> list[str]:
+    """Read the dependencies list from a WP file's frontmatter.
+
+    Takes the ``wp_files`` map built by :func:`_wp_files_by_id` (one glob per
+    scan, #4523) rather than re-scanning ``tasks/`` per WP.
+    """
+    md_file = wp_files.get(wp_id.upper())
+    if md_file is None:
         return []
-    import re as _re
-    wp_id_re = _re.compile(rf"^{_re.escape(wp_id)}(?:[-_.].+)?\.md$", _re.IGNORECASE)
-    for md_file in tasks_dir.glob("WP*.md"):
-        if wp_id_re.match(md_file.name):
-            try:
-                from specify_cli.core.dependency_graph import parse_wp_dependencies
-                return list(parse_wp_dependencies(md_file))
-            except Exception:
-                logger.debug("Could not parse dependencies from %s", md_file)
-            break
-    return []
+    try:
+        from specify_cli.core.dependency_graph import parse_wp_dependencies
+        return list(parse_wp_dependencies(md_file))
+    except Exception:
+        logger.debug("Could not parse dependencies from %s", md_file)
+        return []
 
 
 def _get_all_wp_lanes_from_events(feature_dir: Path) -> dict[str, str]:
@@ -518,9 +561,12 @@ def _compute_ready_to_start(
 
     ``_read_wp_dependencies`` reads WP frontmatter from ``tasks/`` (WORK_PACKAGE_TASK,
     PRIMARY-partition) on *primary_dir*. Empty when there is no post-merge context.
+    The ``tasks/`` glob happens once for the whole scan (:func:`_wp_files_by_id`,
+    #4523), not once per candidate WP.
     """
     if not done_wp_ids:
         return []
+    wp_files = _wp_files_by_id(primary_dir)
     ready_to_start: list[str] = []
     for wp_id in all_task_wp_ids:
         if wp_id in done_wp_ids:
@@ -531,7 +577,7 @@ def _compute_ready_to_start(
                 "merged_and_deleted", "ready_to_start_from_target", "",
             ):
                 continue
-        deps = _read_wp_dependencies(primary_dir, wp_id)
+        deps = _read_wp_dependencies(wp_files, wp_id)
         if deps and all(dep in done_wp_ids for dep in deps):
             ready_to_start.append(wp_id)
     return ready_to_start

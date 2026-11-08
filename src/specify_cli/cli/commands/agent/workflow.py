@@ -1788,16 +1788,26 @@ def implement(
         # sequence) -- evaluating ancestry against a pre-merge HEAD deadlocks
         # an already-approved same-mission dependency that simply has not
         # been merged into this lane's worktree yet.
-        from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+        from specify_cli.lanes.implement_support import (
+            AncestryNotEstablishedError,
+            resolve_claim_ancestry_gate,
+        )
 
         # The predicate's dependency-status lookup reads the STATUS event log,
         # which is a DIFFERENT surface than the PRIMARY ``feature_dir`` above
         # (WORK_PACKAGE_TASK) for coord-topology missions -- reuse the same
         # coord-aware resolver ``implement_claim_transition`` below consults.
         status_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
-        ancestry = resolve_claim_ancestry_gate(
-            main_repo_root, mission_slug, status_feature_dir, normalized_wp_id, workspace_path
-        )
+        # #3763: a failure of the gate's recheck self-heal surfaces as the
+        # structured ANCESTRY_NOT_ESTABLISHED envelope (exit 1 with the error
+        # code rendered), never as a raw traceback out of ``implement``.
+        try:
+            ancestry = resolve_claim_ancestry_gate(
+                main_repo_root, mission_slug, status_feature_dir, normalized_wp_id, workspace_path
+            )
+        except AncestryNotEstablishedError as exc:
+            print(f"Error: {exc.error_code}: {exc}")
+            raise typer.Exit(1) from exc
         if not ancestry.ok:
             print(
                 f"Error: cannot claim {normalized_wp_id}: ancestry could not be "
