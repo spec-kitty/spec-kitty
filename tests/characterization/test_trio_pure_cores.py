@@ -254,7 +254,9 @@ class TestBuildRecommendedFixOrder:
 
 
 def _matrix(negative_invariants: list[Any] | None = None, overall_verdict: str = "pass") -> SimpleNamespace:
-    return SimpleNamespace(negative_invariants=negative_invariants or [], overall_verdict=overall_verdict)
+    # ``criteria`` is read by ``deferred_criteria_disclosures`` since #7308; a real
+    # ``AcceptanceMatrix`` always carries it.
+    return SimpleNamespace(negative_invariants=negative_invariants or [], overall_verdict=overall_verdict, criteria=[])
 
 
 class TestCheckLaneGates:
