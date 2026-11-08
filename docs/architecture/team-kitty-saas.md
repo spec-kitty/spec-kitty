@@ -2,7 +2,8 @@
 title: Team Kitty (SaaS) Hosted-Sync Flow (Removed)
 description: 'The hosted Team Kitty sync flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve.'
 doc_status: deprecated
-updated: '2026-10-18'
+kind: Explanation
+updated: '2026-10-18T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

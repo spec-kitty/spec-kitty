@@ -2,7 +2,8 @@
 title: 'Scoping brief: evict runtime-mutable WP state into the event log (#2684 cluster)'
 description: 'Scoping and code-grounding brief for the #2684 task-move / WP-metadata-split / task-status cluster: authority inventory, migration contract, and a proposed decomposition.'
 doc_status: deprecated
-updated: '2026-08-12'
+kind: Planning
+updated: '2026-08-12T00:00:00Z'
 related:
 - adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged
 ---

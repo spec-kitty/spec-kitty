@@ -2,11 +2,11 @@
 title: 'Context: Spec Kitty Inc. Product Lines'
 description: 'Glossary context for the Spec Kitty Inc. product lines (Build Kitty, Brain Kitty, Team Kitty) and how they differ from the Spec Kitty toolkit and CLI.'
 doc_status: active
-updated: '2026-10-19'
+kind: Reference
+updated: '2026-10-19T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
-type: reference
 related:
 - context/team-kitty
 - adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction

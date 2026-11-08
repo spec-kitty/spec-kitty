@@ -2,7 +2,8 @@
 title: "spk-start-here"
 description: "Start here for Spec Kitty. Orient CLI users and supported agent-harness users; choose the right command, skill family, and recovery path."
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/skills
 ---

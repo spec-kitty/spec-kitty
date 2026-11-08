@@ -2,11 +2,11 @@
 title: Understanding Spec Kitty Missions
 description: 'Tutorial for Understanding Spec Kitty Missions in Spec Kitty 3.2: Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal.'
 doc_status: active
-updated: '2026-08-09'
+kind: Tutorial
+updated: '2026-08-09T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: tutorial
 related:
 - guides/tutorials/getting-started
 - guides/tutorials/your-first-mission

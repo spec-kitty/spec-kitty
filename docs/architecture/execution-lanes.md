@@ -2,7 +2,8 @@
 title: Execution Lanes
 description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
-updated: '2026-11-07'
+kind: Explanation
+updated: '2026-11-07T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

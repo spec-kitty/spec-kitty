@@ -2,7 +2,8 @@
 title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the mission-data API (#645) and dashboard/UX (#650): the open-core producer API, its consumers, and retiring the Feature-labelled UI drift.'
 doc_status: durable
-updated: '2026-11-01'
+kind: Planning
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

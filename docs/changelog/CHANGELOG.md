@@ -2,11 +2,11 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-type: reference
+kind: Reference
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-updated: '2026-10-31'
+updated: '2026-10-31T00:00:00Z'
 ---
 # Changelog
 

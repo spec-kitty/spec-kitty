@@ -2,7 +2,8 @@
 title: 'Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net'
 description: Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation.
 doc_status: active
-updated: '2026-10-21'
+kind: Explanation
+updated: '2026-10-21T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

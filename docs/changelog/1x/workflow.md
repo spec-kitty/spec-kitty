@@ -2,7 +2,8 @@
 title: 1.x Workflow
 description: Historical Spec Kitty 1.x archive page for 1.x Workflow; use Spec Kitty 3.2 docs for current projects and upgrades.
 doc_status: deprecated
-updated: '2026-06-03'
+kind: Changelog
+updated: '2026-06-03T00:00:00Z'
 related:
 - context
 ---

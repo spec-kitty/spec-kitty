@@ -2,7 +2,8 @@
 title: Frontend Freddy — Agent Profile
 description: Browser-side implementer for HTML/CSS/JavaScript/TypeScript with component frameworks, accessibility, and frontend testing
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/agent_profiles
 - context/charter

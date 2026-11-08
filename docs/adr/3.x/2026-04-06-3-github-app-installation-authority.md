@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-04-06'
+updated: '2026-04-06T00:00:00Z'
 related:
 - adr/3.x/2026-04-06-2-connector-auth-binding-separation
 ---

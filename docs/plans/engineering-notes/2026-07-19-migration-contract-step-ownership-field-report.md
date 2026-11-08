@@ -2,7 +2,8 @@
 title: 'Field report: a migration-contract step with no owning WP (caught at closeout, not planning)'
 description: 'Field report: a #2684 staged migration passed every planning gate with a contract step no WP owned, caught only at closeout. Proposes a step-ownership lint.'
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

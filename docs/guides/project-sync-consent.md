@@ -2,8 +2,8 @@
 title: Per-Project Sync Consent
 description: 'Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state.'
 doc_status: deprecated
-updated: '2026-08-31'
-type: how-to
+kind: How-To
+updated: '2026-08-31T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

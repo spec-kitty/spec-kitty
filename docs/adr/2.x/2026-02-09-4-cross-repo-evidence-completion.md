@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-02-09'
+updated: '2026-02-09T00:00:00Z'
 ---
 
 > Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`.

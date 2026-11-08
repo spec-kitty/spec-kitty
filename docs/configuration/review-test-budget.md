@@ -2,7 +2,8 @@
 title: Review test execution budget
 description: Configure a bounded per-run budget for complete baseline and candidate review tests.
 doc_status: active
-updated: '2026-10-28'
+kind: Reference
+updated: '2026-10-28T00:00:00Z'
 related:
 - configuration
 ---

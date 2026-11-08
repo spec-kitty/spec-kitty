@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-04-26'
+updated: '2026-04-26T00:00:00Z'
 ---
 
 - `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md` (D9, D12)

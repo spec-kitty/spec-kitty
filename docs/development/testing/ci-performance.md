@@ -2,8 +2,8 @@
 title: CI performance and evidence boundaries
 description: Explain how CI reuses immutable inputs without weakening test and coverage evidence.
 doc_status: active
-type: explanation
-updated: 2026-11-02
+kind: Explanation
+updated: '2026-11-02T00:00:00Z'
 ---
 
 # CI performance and evidence boundaries

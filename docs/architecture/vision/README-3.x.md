@@ -2,7 +2,8 @@
 title: 3.x — vision (history slot)
 description: Per-era vision record for the 3.x architecture track, the prior era that closed with the 3.2.7 release; forward vision lives in the living vision page.
 doc_status: active
-updated: '2026-09-30'
+kind: Explanation
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

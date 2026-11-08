@@ -2,8 +2,8 @@
 title: How to Install and Upgrade Spec Kitty
 description: 'How to install and upgrade spec kitty with Spec Kitty 3.2: Spec Kitty has two distinct upgrade concepts:.'
 doc_status: active
-updated: '2026-08-16'
-type: how-to
+kind: How-To
+updated: '2026-08-16T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

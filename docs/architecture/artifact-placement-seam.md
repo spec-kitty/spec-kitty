@@ -2,7 +2,8 @@
 title: The Artifact Placement Seam
 description: How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam.
 doc_status: active
-updated: '2026-10-17'
+kind: Explanation
+updated: '2026-10-17T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

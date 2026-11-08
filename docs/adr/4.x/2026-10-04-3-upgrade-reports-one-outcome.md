@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
 ---
 
 **Status:** Accepted, except the exit-code rule for unresolved drift, which is the current contract and is **pending operator confirmation** in [#5745](https://github.com/spec-kitty/spec-kitty/issues/5745) (see [Open decision](#open-decision-exit-code-for-unresolved-drift)).

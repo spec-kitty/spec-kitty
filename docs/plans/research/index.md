@@ -2,7 +2,8 @@
 title: Research
 description: Landing page for the plans research artifacts — live research notes, superseded syntheses, and the retired per-era history slots.
 doc_status: draft
-updated: '2026-09-30'
+kind: Hub
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

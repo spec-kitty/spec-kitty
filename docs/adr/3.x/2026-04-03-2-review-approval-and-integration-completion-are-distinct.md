@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-04-03'
+updated: '2026-04-03T00:00:00Z'
 ---
 
 > **Partial supersession (2026-04-06):** The core decision of this ADR — adding an explicit `approved` lane and separating reviewer approval from integration-complete — remains in force. However, the `in_review` lane promotion section is superseded by `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`, which promotes `in_review` from an alias for `for_review` to a first-class 9th lane with its own concrete `WPState` class and conflict-detection guard. The transition model in the *Decision Outcome* section below reflects the pre-`in_review`-promotion design; see `2026-04-06-1` for the current canonical transition set.

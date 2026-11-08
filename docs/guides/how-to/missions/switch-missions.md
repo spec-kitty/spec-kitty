@@ -2,8 +2,8 @@
 title: How to Switch Missions
 description: Choose and change missions to match software, research, or documentation workflows.
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

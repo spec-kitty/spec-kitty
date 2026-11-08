@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-01'
+updated: '2026-05-01T00:00:00Z'
 ---
 
 - `2026-02-09-1-canonical-wp-status-model.md`

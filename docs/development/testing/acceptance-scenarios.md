@@ -2,11 +2,11 @@
 title: CLI Acceptance Scenarios (Cucumber-JVM nightly)
 description: How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows.
 doc_status: active
-updated: '2026-11-02'
+kind: How-To
+updated: '2026-11-02T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
-type: how-to
 related:
 - development/testing
 - development/testing/testing-flakiness

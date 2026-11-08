@@ -2,7 +2,8 @@
 title: 'Context: Identity Fields'
 description: 'Glossary context for the 3-tier identity model from mission 081: the repository, collaboration, and build/machine identity fields and their boundaries.'
 doc_status: active
-updated: '2026-04-10'
+kind: Explanation
+updated: '2026-04-10T00:00:00Z'
 related:
 - context/orchestration
 ---

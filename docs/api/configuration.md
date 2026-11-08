@@ -2,7 +2,8 @@
 title: Configuration Reference
 description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-10-21'
+kind: Reference
+updated: '2026-10-21T00:00:00Z'
 related:
 - api/agent-subcommands
 - api/cli-commands

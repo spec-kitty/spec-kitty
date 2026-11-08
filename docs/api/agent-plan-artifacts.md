@@ -2,7 +2,8 @@
 title: Agent Plan Artifacts Reference
 description: Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md.
 doc_status: active
-updated: '2026-08-13'
+kind: Reference
+updated: '2026-08-13T00:00:00Z'
 ---
 # Agent Plan Artifacts Reference
 

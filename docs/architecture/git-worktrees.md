@@ -2,7 +2,8 @@
 title: Git Worktrees Explained
 description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
-updated: '2026-11-07'
+kind: Explanation
+updated: '2026-11-07T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

@@ -2,7 +2,8 @@
 title: Common-Docs section audit (docs-wide structural concern baseline)
 description: 'Post-#2851 concern-bucket audit of every docs/ section: misfiled files, redistribution tally, follow-up proposals, and the durable ratchet-replacement recommendation (#2302).'
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

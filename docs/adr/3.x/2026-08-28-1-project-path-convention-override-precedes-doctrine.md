@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-28'
+updated: '2026-08-28T00:00:00Z'
 ---
 
 # ADR: A project `path_conventions` override precedes the doctrine default, without changing the blocking policy

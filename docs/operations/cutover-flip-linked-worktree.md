@@ -2,7 +2,8 @@
 title: 'Recovery: Cutover Flip Fails From a Linked Worktree'
 description: 'Recovery when the runtime-state cutover flip fails closed with PlacementMismatchError inside a linked git worktree, even though migration events seeded.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 external_references:

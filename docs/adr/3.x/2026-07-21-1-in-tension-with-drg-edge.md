@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 ---
 # in_tension_with and reconciles_tension DRG edges (retiring opposed_by)
 

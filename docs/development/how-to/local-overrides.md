@@ -2,11 +2,11 @@
 title: Local Overrides for Cross-Package Development
 description: Dev-only patterns for editable cross-package installs of spec-kitty-events and -tracker, and why committing [tool.uv.sources] path overrides in pyproject.toml is prohibited.
 doc_status: active
-updated: '2026-09-30'
+kind: How-To
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
-type: how-to
 ---
 # Local Overrides for Cross-Package Development
 

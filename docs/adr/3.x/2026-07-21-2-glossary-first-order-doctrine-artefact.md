@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 ---
 
 **Status:** Accepted

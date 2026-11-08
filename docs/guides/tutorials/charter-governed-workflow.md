@@ -2,11 +2,11 @@
 title: 'Tutorial: Governed Charter Workflow End-to-End'
 description: A guided tour connecting charter setup, doctrine synthesis, a governed mission run, and the retrospective loop into one journey.
 doc_status: active
-updated: '2026-08-11'
+kind: Tutorial
+updated: '2026-08-11T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: tutorial
 related:
 - context/charter-overview
 - guides/how-to/governance/setup-governance

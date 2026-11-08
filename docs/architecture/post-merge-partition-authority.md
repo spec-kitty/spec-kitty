@@ -2,7 +2,8 @@
 title: Post-Merge Partition Authority
 description: One model for post-merge partition authority — the write half (which bytes win per artifact) and the read half (which surface a reader trusts).
 doc_status: active
-updated: '2026-09-30'
+kind: Explanation
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

@@ -2,7 +2,8 @@
 title: 'Recovery: Coordination Branch Created Off main (Add/Add Conflict)'
 description: 'Recovery when a coord-topology mission''s coordination branch was created off main instead of the target branch, causing an add/add merge conflict.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/start-branch-coord-divergence

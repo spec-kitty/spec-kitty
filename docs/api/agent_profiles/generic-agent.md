@@ -2,7 +2,8 @@
 title: Generic Agent — Agent Profile
 description: General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package.
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/agent_profiles
 - context/charter

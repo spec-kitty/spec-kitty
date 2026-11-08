@@ -2,11 +2,11 @@
 title: How to fetch, verify and bump the pinned service binaries
 description: Fetch and verify the pinned service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor.
 doc_status: active
-updated: '2026-11-01'
+kind: How-To
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: how-to
 related:
 - adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events
 - development/how-to/sync-packs

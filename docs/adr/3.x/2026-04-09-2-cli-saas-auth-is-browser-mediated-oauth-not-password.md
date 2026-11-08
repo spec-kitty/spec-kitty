@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-04-09'
+updated: '2026-04-09T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -2,8 +2,8 @@
 title: Use Spec Kitty in Kiro
 description: 'How to use Spec Kitty in Kiro (partial tier): a bootstrap-only surface in 3.2, to be promoted once the full /spec-kitty.* command set is verified end-to-end.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

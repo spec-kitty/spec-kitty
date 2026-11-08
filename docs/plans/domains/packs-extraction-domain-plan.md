@@ -2,7 +2,8 @@
 title: 'Packs Extraction — Domain Plan'
 description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
 doc_status: durable
-updated: '2026-10-19'
+kind: Planning
+updated: '2026-10-19T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

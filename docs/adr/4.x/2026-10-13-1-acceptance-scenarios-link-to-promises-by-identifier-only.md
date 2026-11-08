@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
 ---
 
 **Status:** Accepted, accepted by the owner on 2026-10-13. Amended 2026-10-15, see [Amendment](#amendment-2026-10-15-authored-files-in-fixture-builders).

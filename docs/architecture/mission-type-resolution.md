@@ -2,11 +2,11 @@
 title: Mission-Type Resolution — the doctrine → charter → core seam
 description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off mission_type in meta.json."
 doc_status: active
-updated: '2026-10-08'
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
-type: explanation
 related:
 - architecture/mission-system
 - architecture/runtime-loop

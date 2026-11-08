@@ -2,7 +2,8 @@
 title: 'Charter as Sole Door: Deferred Issues Record'
 description: Citable record of the six GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons.
 doc_status: active
-updated: '2026-08-03'
+kind: Planning
+updated: '2026-08-03T00:00:00Z'
 related:
 - plans
 external_references:

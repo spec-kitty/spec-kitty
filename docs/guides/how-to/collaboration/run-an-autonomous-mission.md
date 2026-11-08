@@ -2,8 +2,8 @@
 title: Run an Autonomous Mission
 description: Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds.
 doc_status: active
-updated: '2026-11-01'
-type: how-to
+kind: How-To
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

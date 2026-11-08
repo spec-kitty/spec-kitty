@@ -2,7 +2,8 @@
 title: Handoff Packet v1
 description: Tool-agnostic optional YAML-frontmatter contract for seeding a Spec Kitty mission from an upstream requirements tool.
 doc_status: durable
-updated: '2026-08-13'
+kind: Reference
+updated: '2026-08-13T00:00:00Z'
 related:
 - api/agent-plan-artifacts
 - contracts

@@ -2,7 +2,8 @@
 title: Implementation Mapping (living)
 description: 'Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map.'
 doc_status: active
-updated: '2026-10-12'
+kind: Hub
+updated: '2026-10-12T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

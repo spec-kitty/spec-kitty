@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 ---
 
 # ADR: allowlist ratchets are priced debt

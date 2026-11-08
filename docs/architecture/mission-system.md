@@ -2,7 +2,8 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-10-08'
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

@@ -2,7 +2,8 @@
 title: "spk-meta-skill-map"
 description: "Reference for the spk-meta-skill-map skill: discovering the spk-* skill hierarchy, naming convention, and legacy aliases."
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/skills
 ---

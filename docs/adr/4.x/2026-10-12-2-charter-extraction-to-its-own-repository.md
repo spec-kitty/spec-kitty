@@ -5,7 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-10-12'
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 ---
 
 **Status:** Superseded (2026-10-19) by `spec-kitty-charter` ADR-0008 and ADR-0010. Accepted

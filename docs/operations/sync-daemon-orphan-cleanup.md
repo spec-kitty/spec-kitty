@@ -2,7 +2,8 @@
 title: Sync Daemon Orphan Cleanup — Operator Runbook
 description: How to inspect, classify, and clean up stale Spec Kitty sync daemons.
 doc_status: deprecated
-updated: '2026-08-31'
+kind: How-To
+updated: '2026-08-31T00:00:00Z'
 related:
 - adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification
 ---

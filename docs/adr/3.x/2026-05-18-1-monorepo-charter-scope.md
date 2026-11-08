@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-18'
+updated: '2026-05-18T00:00:00Z'
 ---
 
 ## Context

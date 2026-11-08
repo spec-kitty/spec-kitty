@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
+updated: '2026-11-06T00:00:00Z'
 ---
 
 # A coordination branch is written by commit, not through a coordination worktree

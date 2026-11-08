@@ -2,8 +2,8 @@
 title: How to Create an Org Charter Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack.
 doc_status: active
-updated: '2026-11-01'
-type: how-to
+kind: How-To
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

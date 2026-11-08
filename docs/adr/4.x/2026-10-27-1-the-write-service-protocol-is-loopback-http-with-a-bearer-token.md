@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-27'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
 ---
 
 # The write-service protocol is loopback HTTP with a bearer token from the git common dir

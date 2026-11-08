@@ -2,7 +2,8 @@
 title: Core Code Patterns Applied in the Codebase
 description: The core code patterns applied across the Spec Kitty codebase, mapping recurring implementation idioms to the architecture components they realize (2.x-era record).
 doc_status: active
-updated: '2026-10-08'
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

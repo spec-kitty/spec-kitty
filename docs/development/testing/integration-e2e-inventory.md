@@ -2,11 +2,11 @@
 title: Integration and e2e test inventory (2026-10-15)
 description: The per-file audit of tests/integration and tests/e2e behind the test-pyramid rebalance plan, with each file's layer verdict and what an acceptance scenario would need.
 doc_status: active
-updated: '2026-10-15'
+kind: Reference
+updated: '2026-10-15T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
-type: reference
 related:
 - development/testing/test-pyramid-rebalance
 - adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger

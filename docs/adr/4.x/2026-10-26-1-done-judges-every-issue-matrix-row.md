@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-26'
+updated: '2026-10-26T00:00:00Z'
 ---
 
 # At `done`, every issue-matrix row is judged, cited or not

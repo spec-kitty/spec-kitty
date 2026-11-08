@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-09-06'
+updated: '2026-09-06T00:00:00Z'
 supersedes:
 - docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md
 - docs/adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md

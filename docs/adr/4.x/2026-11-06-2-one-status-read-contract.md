@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
+updated: '2026-11-06T00:00:00Z'
 ---
 
 # One status read contract

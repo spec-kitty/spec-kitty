@@ -2,11 +2,11 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-11-01'
+kind: How-To
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
-type: how-to
 related:
 - guides
 - development/how-to/review-gates

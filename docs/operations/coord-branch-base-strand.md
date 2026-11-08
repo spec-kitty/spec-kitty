@@ -2,7 +2,8 @@
 title: 'Recovery: Coordination Branch Stranded After a Base Rebase'
 description: 'Recovery when a coord-topology mission was created on an old base and the working branch was later rebased, leaving lanes forking from a stale coord branch.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/coord-off-main-addadd

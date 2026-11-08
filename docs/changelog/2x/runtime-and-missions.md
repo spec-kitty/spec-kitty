@@ -2,7 +2,8 @@
 title: 2.x Runtime, Mission Types, and Missions
 description: Historical Spec Kitty 2.x archive page for 2.x Runtime, Mission Types, and Missions; use Spec Kitty 3.2 docs for current Charter-era workflows.
 doc_status: deprecated
-updated: '2026-06-03'
+kind: Changelog
+updated: '2026-06-03T00:00:00Z'
 related:
 - context
 - changelog/2x/orchestration-and-api

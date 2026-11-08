@@ -2,7 +2,8 @@
 title: 'Recovery: Stale Lane Seed After Re-Finalizing Tasks'
 description: 'Recovery for a post-finalize planning commit that stale-seeds a lane, plus the related sparse-checkout false-positive and sync-fan-out hang seen at the same step.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/coord-worktree-missing

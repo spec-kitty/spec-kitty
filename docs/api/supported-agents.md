@@ -2,7 +2,8 @@
 title: Supported AI Agents Reference
 description: Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management.
 doc_status: active
-updated: '2026-10-21'
+kind: Reference
+updated: '2026-10-21T00:00:00Z'
 related:
 - api/cli-commands
 - api/slash-commands

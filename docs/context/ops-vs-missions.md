@@ -2,8 +2,8 @@
 title: Ops vs. Missions
 description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
-updated: '2026-11-01'
-type: explanation
+kind: Explanation
+updated: '2026-11-01T00:00:00Z'
 related:
 - context/mission-types
 - api/profile-invocation

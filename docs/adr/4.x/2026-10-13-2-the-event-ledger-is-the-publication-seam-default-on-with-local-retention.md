@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-13'
-updated: '2026-10-22'
+updated: '2026-10-22T00:00:00Z'
 ---
 
 # The event ledger is the publication seam, on by default, with a versioned row contract and local-log retention

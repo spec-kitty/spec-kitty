@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-10-15'
+updated: '2026-10-15T00:00:00Z'
 ---
 
 **Status:** Proposed, 2026-10-15. Needs the owner's acceptance. Decision 5 also needs the agreement of the spec-kitty-qa lead, because it settles open item 3 of spec-kitty-qa ADR-0001.

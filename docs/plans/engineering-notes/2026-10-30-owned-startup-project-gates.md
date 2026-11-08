@@ -1,12 +1,12 @@
 ---
 title: Owned checkout startup admission repair
 description: Evidence and decisions for correcting startup admission of explicitly selected migrated linked checkouts.
-doc_status: point_in_time
-type: reference
+doc_status: draft
+kind: Reference
 audience:
 - profile: internal/system-architect
   guidance_text: Review the startup admission and checkout authority decisions.
-updated: '2026-10-30'
+updated: '2026-10-30T00:00:00Z'
 ---
 # Owned checkout startup admission repair
 

@@ -2,8 +2,8 @@
 title: spec-kitty upgrade lifecycle
 description: Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization.
 doc_status: active
-updated: '2026-10-31'
-type: reference
+kind: Reference
+updated: '2026-10-31T00:00:00Z'
 related:
 - api/cli-commands
 - api/environment-variables

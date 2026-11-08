@@ -2,7 +2,8 @@
 title: System Context (living)
 description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-11-04'
+kind: Hub
+updated: '2026-11-04T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

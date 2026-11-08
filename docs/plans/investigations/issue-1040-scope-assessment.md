@@ -2,7 +2,8 @@
 title: 'Issue #1040 — ADRs as First-Class Primitive: Scope Inclusion Assessment'
 description: "Architect Alphonso's scope-inclusion assessment for issue #1040 (ADRs as a first-class primitive): whether and how to fold it into the mission (2026-05-18)."
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

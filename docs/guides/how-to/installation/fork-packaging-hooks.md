@@ -2,8 +2,8 @@
 title: Fork packaging hooks
 description: How renamed or private-index forks customize Spec Kitty upgrade checks and package identity via entry points—without overlaying core sources.
 doc_status: active
-updated: '2026-09-30'
-type: how-to
+kind: How-To
+updated: '2026-09-30T00:00:00Z'
 related:
 - guides/how-to/installation/upgrade-cli
 - guides/how-to/installation/install-and-upgrade

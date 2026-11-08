@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-28'
+updated: '2026-05-28T00:00:00Z'
 ---
 
   for `feat/pre-doctrine-stabilization-remediation` (GitHub Actions run 26558837157).

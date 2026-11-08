@@ -2,7 +2,8 @@
 title: 'Pack-level metadata manifest: constituent parts + lineage'
 description: 'Corroborates one pack-level manifest recording each pack''s enumerated constituents and parent/lineage — a consolidation of two divergent existing manifests, not a new format.'
 doc_status: deprecated
-updated: '2026-08-16'
+kind: Planning
+updated: '2026-08-16T00:00:00Z'
 related:
 - plans/3-2-x-milestone-roadmap
 - plans/domains/doctrine-charter-domain-plan

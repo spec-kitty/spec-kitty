@@ -2,7 +2,8 @@
 title: 'Stakeholder Persona: External Tech Lead Evaluator'
 description: 'External tech-lead-evaluator persona: judges whether Spec Kitty improves team delivery quality and predictability without adding unsustainable process overhead.'
 doc_status: active
-updated: '2026-06-12'
+kind: Explanation
+updated: '2026-06-12T00:00:00Z'
 ---
 # Stakeholder Persona: External Tech Lead Evaluator
 

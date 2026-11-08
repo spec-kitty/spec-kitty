@@ -2,7 +2,8 @@
 title: Profile-Load Reliability (Squads & WP Prompts)
 description: 'Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile.'
 doc_status: active
-updated: '2026-10-08'
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

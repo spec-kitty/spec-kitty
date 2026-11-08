@@ -2,7 +2,8 @@
 title: Development
 description: The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides.
 doc_status: active
-updated: '2026-11-01'
+kind: Hub
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

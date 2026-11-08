@@ -2,8 +2,8 @@
 title: Recover from an Interrupted Consolidation
 description: 'How to recover from an interrupted consolidation: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.'
 doc_status: active
-updated: '2026-11-02'
-type: how-to
+kind: How-To
+updated: '2026-11-02T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

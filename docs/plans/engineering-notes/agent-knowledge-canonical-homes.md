@@ -2,7 +2,8 @@
 title: 'Agent knowledge: canonical homes for rules, practices, reference, and learned facts'
 description: "Where durable agent knowledge belongs — charter, doctrine, Common Docs, and the orphaned .kittify/memory store — and how to stop a per-agent memory duplicating the repo."
 doc_status: active
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-07'
+updated: '2026-11-07T00:00:00Z'
 ---
 
 # Dossier commit SHAs are branch-relative provenance

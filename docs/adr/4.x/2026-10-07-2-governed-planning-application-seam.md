@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-07'
+updated: '2026-10-07T00:00:00Z'
 ---
 # Governed planning application seam and status integration
 

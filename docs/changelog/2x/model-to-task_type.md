@@ -2,7 +2,8 @@
 title: 'Appendix: Model-to-Task Type Mapping Schema'
 description: 'Historical Spec Kitty 2.x archive page for Appendix: Model-to-Task Type Mapping Schema; use Spec Kitty 3.2 docs for current Charter-era workflows.'
 doc_status: deprecated
-updated: '2026-06-03'
+kind: Changelog
+updated: '2026-06-03T00:00:00Z'
 related:
 - context
 ---

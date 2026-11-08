@@ -2,7 +2,8 @@
 title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
-updated: '2026-10-22'
+kind: Planning
+updated: '2026-10-22T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

@@ -2,7 +2,8 @@
 title: 'Migration: Mission ID as Canonical Identity'
 description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
-updated: '2026-10-30'
+kind: How-To
+updated: '2026-10-30T00:00:00Z'
 related:
 - migrations/feature-flag-deprecation
 ---

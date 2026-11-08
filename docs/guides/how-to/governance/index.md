@@ -2,8 +2,8 @@
 title: Governance & Doctrine
 description: "Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions."
 doc_status: active
-updated: '2026-10-08'
-type: explanation
+kind: Hub
+updated: '2026-10-08T00:00:00Z'
 ---
 
 # Governance & Doctrine

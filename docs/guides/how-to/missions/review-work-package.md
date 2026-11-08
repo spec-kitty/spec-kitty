@@ -2,11 +2,11 @@
 title: How to review a work package
 description: 'How to review a work package with Spec Kitty 3.2: Use this guide to review a completed work package and update its lane.'
 doc_status: active
-updated: '2026-09-28'
+kind: How-To
+updated: '2026-09-28T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: how-to
 related:
 - guides/how-to/missions/accept-and-merge
 - guides/how-to/missions/implement-work-package

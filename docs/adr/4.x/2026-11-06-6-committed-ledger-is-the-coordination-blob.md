@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
+updated: '2026-11-06T00:00:00Z'
 ---
 
 # The committed ledger of a coordination Mission is the blob on its coordination branch

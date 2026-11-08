@@ -2,8 +2,8 @@
 title: Diagnose Installation Problems
 description: 'How to diagnose installation problems with Spec Kitty 3.2: When Spec Kitty stops working -- skills go missing, slash commands vanish, or the runtime reports.'
 doc_status: active
-updated: '2026-06-14'
-type: how-to
+kind: How-To
+updated: '2026-06-14T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

@@ -2,8 +2,8 @@
 title: Recovery & Troubleshooting
 description: "Recover from implementation crashes and interrupted merges, and troubleshoot merge failures."
 doc_status: active
-updated: '2026-08-15'
-type: explanation
+kind: Hub
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 ---

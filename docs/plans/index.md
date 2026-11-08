@@ -2,7 +2,8 @@
 title: Plans
 description: 'Plans landing page: durable domain throughlines plus the distil-then-retire working surface of investigations, research, initiatives, and release-scoped plans.'
 doc_status: active
-updated: '2026-09-30'
+kind: Hub
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

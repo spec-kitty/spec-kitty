@@ -2,8 +2,8 @@
 title: Deep Research Mission Workflow
 description: Run systematic, evidence-based research investigations with Spec Kitty's research mission template, from switching modes to collecting and citing findings.
 doc_status: active
-updated: '2026-08-10'
-type: how-to
+kind: How-To
+updated: '2026-08-10T00:00:00Z'
 audience:
 - profile: external/architect-evaluator
   guidance_text: Written for the External Architect Evaluator reader.

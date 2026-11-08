@@ -2,8 +2,8 @@
 title: AI Agent Harnesses
 description: "Set up and run Spec Kitty inside each supported AI coding agent, plus post-edit lint hooks."
 doc_status: active
-updated: '2026-10-21'
-type: explanation
+kind: Hub
+updated: '2026-10-21T00:00:00Z'
 ---
 
 # AI Agent Harnesses

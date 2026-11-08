@@ -2,7 +2,8 @@
 title: 'Recovery: --start-branch Coordination Divergence'
 description: 'Recovery when agent mission create <mission_slug> --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/coord-off-main-addadd

@@ -2,11 +2,11 @@
 title: 'Auditing special-case workarounds'
 description: 'How to find, classify and remove the branches that tolerate a wrong input, a private seam or a test double instead of fixing the cause, with the dispositions from issue #6745.'
 doc_status: active
-updated: '2026-10-31'
+kind: How-To
+updated: '2026-10-31T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: how-to
 related:
 - development/how-to/review-gates
 - development/how-to/pr-landing

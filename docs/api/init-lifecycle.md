@@ -2,8 +2,8 @@
 title: spec-kitty init lifecycle
 description: Reference for the spec-kitty init command lifecycle. Understand what files are created, ignored, and how options behave in non-interactive environments.
 doc_status: active
-updated: '2026-10-21'
-type: reference
+kind: Reference
+updated: '2026-10-21T00:00:00Z'
 related:
 - api/cli-commands
 - api/supported-agents

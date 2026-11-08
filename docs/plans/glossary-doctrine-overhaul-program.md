@@ -2,7 +2,8 @@
 title: 'Glossary Doctrine Overhaul — Program Plan'
 description: 'Program plan: promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, wire terminology enforcement, and build the ASSET gate.'
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

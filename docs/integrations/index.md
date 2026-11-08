@@ -2,7 +2,8 @@
 title: Integrations
 description: 'AI harness and external-system integration for Spec Kitty. This forward-looking section collects connector and harness integration guidance.'
 doc_status: active
-updated: '2026-06-27'
+kind: Hub
+updated: '2026-06-27T00:00:00Z'
 related:
 - api
 - guides

@@ -2,7 +2,8 @@
 title: 'Spec Kitty Architecture: User Journeys'
 description: 'Landing page for the Spec Kitty architecture user journeys: end-to-end narratives that drive the evolution and refinement of the system.'
 doc_status: draft
-updated: '2026-09-30'
+kind: Hub
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

@@ -2,8 +2,8 @@
 title: 1.x ADRs
 description: Index and era history for the archived 1.x decisions — workspace provenance, dependency auto-merge, config-driven agents, CLI-first commands, and deterministic CSV schemas.
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+kind: Hub
+updated: '2026-08-10T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

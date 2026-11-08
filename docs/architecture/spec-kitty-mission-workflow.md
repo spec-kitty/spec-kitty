@@ -2,8 +2,8 @@
 title: Spec Kitty Mission Workflow
 description: 'End-to-end authority for a local autonomous mission: the nine phases from specify through retrospective, and the focused-PR path when the target branch is not synchronized.'
 doc_status: active
-updated: '2026-11-01'
-type: explanation
+kind: Explanation
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

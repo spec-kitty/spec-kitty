@@ -2,7 +2,8 @@
 title: 'Stakeholder Persona: AI Collaboration Agent'
 description: 'Internal AI-collaboration-agent persona: an LLM actor that executes architecture and workflow tasks accurately under explicit human and policy constraints.'
 doc_status: active
-updated: '2026-03-10'
+kind: Explanation
+updated: '2026-03-10T00:00:00Z'
 ---
 # Stakeholder Persona: AI Collaboration Agent
 

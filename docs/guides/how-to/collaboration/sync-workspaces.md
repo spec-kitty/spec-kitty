@@ -2,8 +2,8 @@
 title: How to Sync Workspaces
 description: 'How to sync workspaces with Spec Kitty 3.2: Keep your workspace up to date with upstream changes from dependent work packages.'
 doc_status: deprecated
-updated: '2026-08-31'
-type: how-to
+kind: How-To
+updated: '2026-08-31T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

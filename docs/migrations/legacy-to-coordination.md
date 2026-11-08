@@ -2,7 +2,8 @@
 title: 'Migration: Legacy Topology to the Coordination Model'
 description: 'Operator runbook for the legacy-topology bookkeeping warning: what a pre-coordination mission is, how to detect one, and the supported paths forward.'
 doc_status: active
-updated: '2026-09-26'
+kind: How-To
+updated: '2026-09-26T00:00:00Z'
 related:
 - architecture/branch-target-routing
 - architecture/execution-lanes
