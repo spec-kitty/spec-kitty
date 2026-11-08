@@ -62,10 +62,16 @@ public final class MissionFixture {
         projectReady = true;
     }
 
-    /** Creates a Mission and returns the full Mission slug the CLI assigned to it. */
+    /**
+     * Creates a coordination Mission and returns the full Mission slug the CLI assigned to it.
+     * The topology is explicit: since #7282 the default is an unsettled {@code single_branch}
+     * Mission whose create switches the checkout onto a Mission branch, which a second create
+     * then refuses while the first one's {@code spec.md} scaffold is uncommitted.
+     */
     public String createMission(String slug) {
         ensureProject();
-        CliResult result = succeed(List.of("spec-kitty", "agent", "mission", "create", slug, "--json"));
+        CliResult result = succeed(List.of("spec-kitty", "agent", "mission", "create", slug, "--json",
+                "--topology", "lanes_with_coord"));
         Matcher matcher = MISSION_SLUG.matcher(result.stdout());
         if (!matcher.find()) {
             throw new IllegalStateException("No mission_slug in the output of 'mission create':\n" + result);

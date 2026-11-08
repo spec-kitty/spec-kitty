@@ -81,7 +81,7 @@ public final class MissionLifecycle {
      * a recorded analysis. Returns the full Mission slug.
      */
     public String planMission(String name, List<String> workPackages) {
-        return planMission(name, workPackages, List.of());
+        return planMission(name, workPackages, COORDINATION_TOPOLOGY);
     }
 
     /** Plans a Mission with explicit {@code mission create} options, such as {@code --topology lanes}. */
@@ -164,9 +164,17 @@ public final class MissionLifecycle {
         return slug;
     }
 
+    /**
+     * The topology the builders ask for when a scenario names none. Since #7282 (ADR 2026-11-06-3)
+     * {@code mission create} without {@code --topology} records an unsettled {@code single_branch}
+     * Mission with no coordination branch and no lane worktree; these scenarios are about a
+     * coordination Mission, so they ask for one explicitly.
+     */
+    static final List<String> COORDINATION_TOPOLOGY = List.of("--topology", "lanes_with_coord");
+
     /** Creates the Mission {@code name} on the topic branch and nothing else: its spec is the scaffold. */
     public String createMission(String name) {
-        return createMission(name, List.of());
+        return createMission(name, COORDINATION_TOPOLOGY);
     }
 
     private String createMission(String name, List<String> createOptions) {
