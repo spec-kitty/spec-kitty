@@ -270,8 +270,10 @@ def _extract_artifact_id(
         raw_id = str(data.get(id_field, "")).strip()
         if raw_id:
             return raw_id
-    fallback = path.stem.split(".")[0].strip()
-    return fallback or None
+    # No authored id means no identity (#4856). The filename is a cosmetic
+    # kebab slug since #4852; keying the catalog on the stem would resurrect
+    # the retired filename==id assumption, so such an artifact is skipped.
+    return None
 
 
 def _collect_ids_from_roots(
@@ -288,7 +290,8 @@ def _collect_ids_from_roots(
         id_field: YAML key containing the artifact ID.
 
     Returns:
-        Set of discovered IDs (falls back to stem when YAML id_field is absent).
+        Set of discovered IDs (an artifact with no authored ``id_field`` is
+        skipped — identity never comes from the filename, #4856).
     """
     yaml = YAML(typ="safe")
     ids: set[str] = set()
