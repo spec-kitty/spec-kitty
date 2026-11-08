@@ -100,7 +100,7 @@ def _cache_header_is_trusted(source_path: Path, header: bytes) -> bool:
     if header[0:4] != importlib.util.MAGIC_NUMBER:
         return False
     flags = struct.unpack("<I", header[4:8])[0]
-    if flags & _CHECK_SOURCE_FLAG:
+    if flags & _HASH_BASED_FLAG and flags & _CHECK_SOURCE_FLAG:
         try:
             source_bytes = source_path.read_bytes()
         except OSError:
