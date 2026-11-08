@@ -712,3 +712,34 @@ def test_catalogue_spans_the_project_layer(tmp_path: Path) -> None:
     )
     assert identity.knows(ArtifactKind.DIRECTIVE, "proj-dir")
     assert run_consistency_check(ctx).unknown_references == []
+
+
+class _KnowsNothing:
+    """An identity index stand-in that knows no artifact of any kind."""
+
+    def knows(self, kind: object, token: str) -> bool:
+        return False
+
+
+def test_unverifiable_mission_type_is_neither_unknown_nor_an_owner() -> None:
+    """#6749 fail-closed arm: a kind with no catalogue entry is unverifiable, not empty.
+
+    When the layered mission-type roster could not be read, the run records a
+    verification error and leaves ``mission-type`` out of the catalogue. Its
+    activated tokens must then not be reported as unknown, and the kind must not be
+    named as the owner of a token misplaced under another kind.
+    """
+    from typing import cast
+
+    import charter.activation.consistency_check as consistency_check
+    from charter.activation.identity_index import IdentityIndex
+
+    identity = cast(IdentityIndex, _KnowsNothing())
+
+    assert consistency_check._is_known("mission-type", "proj-mission", identity, {}) is True
+    assert consistency_check._find_owning_kind("proj-mission", "directive", identity, {}) is None
+
+    # Control: with a resolved roster the same token is decided by membership.
+    resolved = {"mission-type": frozenset({"software-dev"})}
+    assert consistency_check._is_known("mission-type", "proj-mission", identity, resolved) is False
+    assert consistency_check._find_owning_kind("software-dev", "directive", identity, resolved) == "mission-type"

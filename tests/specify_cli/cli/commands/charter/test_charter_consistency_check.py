@@ -144,6 +144,10 @@ def test_malformed_project_mission_type_fails_closed(tmp_path: Path) -> None:
     assert payload["coherent"] is False
     assert payload["verification_errors"], "an unreadable mission-type layer must surface a verification error"
     assert any("mission-type" in entry for entry in payload["verification_errors"]), payload["verification_errors"]
+    # Unverifiable is not unknown: the activated token is neither confirmed nor
+    # misreported as missing from the doctrine.
+    assert not [entry for entry in payload["unknown_references"] if "proj-mission" in entry], payload["unknown_references"]
+    assert not [entry for entry in payload["kind_violations"] if "proj-mission" in entry], payload["kind_violations"]
 
 
 def test_project_layer_directive_and_styleguide_are_coherent(tmp_path: Path) -> None:
