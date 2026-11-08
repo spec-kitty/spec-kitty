@@ -16,10 +16,10 @@ from specify_cli.status.landing_evidence import LandingEvidence, LandingVerdict,
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _event(wp_id: str, from_lane: str, to_lane: str, at: str) -> str:
+def _event(wp_id: str, from_lane: str, to_lane: str, at: str, actor: str = "t") -> str:
     return json.dumps(
         {
-            "actor": "t",
+            "actor": actor,
             "at": at,
             "event_id": f"{wp_id}-{to_lane}-{at}",
             "evidence": None,
@@ -56,6 +56,32 @@ def test_landed_log_yields_the_latest_done_date(tmp_path: Path) -> None:
     assert evidence == LandingEvidence(LandingVerdict.LANDED, merged_at="2026-01-03T00:00:00+00:00")
     assert evidence.holds
     assert "every work package is done or canceled" in evidence.reason
+
+
+def test_migration_seeded_done_does_not_set_the_date_when_a_real_done_exists(tmp_path: Path) -> None:
+    """A ``migration:*`` done event (e.g. #5579's backfill) restates history near creation time;
+    the date comes from the latest done event a person or the tool wrote."""
+    feature_dir = _mission(
+        tmp_path,
+        _event("WP01", "approved", "done", "2026-09-03T00:00:00+00:00"),
+        _event("WP02", "approved", "done", "2026-09-05T00:00:00+00:00", actor="migration:backfill_wp_status"),
+    )
+
+    evidence = landing_evidence_at_target(tmp_path, feature_dir)
+
+    assert evidence == LandingEvidence(LandingVerdict.LANDED, merged_at="2026-09-03T00:00:00+00:00")
+
+
+def test_only_migration_seeded_done_events_still_supply_the_date(tmp_path: Path) -> None:
+    """With no other done event, the migration seed is the only date there is (operator ruling)."""
+    feature_dir = _mission(
+        tmp_path,
+        _event("WP01", "approved", "done", "2026-08-31T00:00:01+00:00", actor="migration:backfill_wp_status"),
+    )
+
+    evidence = landing_evidence_at_target(tmp_path, feature_dir)
+
+    assert evidence == LandingEvidence(LandingVerdict.LANDED, merged_at="2026-08-31T00:00:01+00:00")
 
 
 def test_log_with_only_lifecycle_events_records_no_work_package(tmp_path: Path) -> None:
