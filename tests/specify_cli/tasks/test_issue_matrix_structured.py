@@ -409,6 +409,35 @@ class TestMigrateIssueMatrixToJson:
         assert result is None
         assert not calls
 
+    def test_refuses_when_an_unknown_verdict_row_would_be_dropped(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5453: a legacy matrix holding one valid row and one row whose
+        verdict is outside the allow-list (here: bare ``deferred``) used to
+        migrate at exit 0 with the invalid row SILENTLY DROPPED -- the
+        zero-rows-only guard never fired because the valid row survived. The
+        migration must refuse instead of writing a lossy issue-matrix.json."""
+        from specify_cli.tasks.issue_matrix_migration import IssueMatrixMigrationError, migrate_issue_matrix_to_json
+
+        calls = _stub_write_artifact_committed(monkeypatch)
+        feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "issue-matrix.md").write_text(
+            "| Issue | Title | Verdict | Evidence ref |\n"
+            "|-------|-------|---------|--------------|\n"
+            "| #1726 | Fix the thing | fixed | commit abc123 |\n"
+            "| #1727 | Other thing | deferred | commit def456 |\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(IssueMatrixMigrationError, match="#1727"):
+            migrate_issue_matrix_to_json(
+                feature_dir, repo_root=tmp_path, mission_slug=_MISSION_SLUG, policy=_Policy()
+            )
+
+        assert not (feature_dir / "issue-matrix.json").exists()
+        assert not calls
+
     @staticmethod
     def _record_writer_owned(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, list[object]]:
         from specify_cli.tasks import issue_matrix_migration
