@@ -1146,9 +1146,12 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
         snapshot = reduce(event_stream.transitions, event_stream.annotations)
     except StoreError as exc:
         raise AcceptanceError(f"Status event log is corrupted for mission '{feature}': {exc}") from exc
-    if not snapshot.work_packages:
+    # ``snapshot`` comes from mypy-skipped status modules (#7334): the typed
+    # local keeps the return honest instead of leaking ``Any``.
+    work_packages: dict[str, dict[str, Any]] = snapshot.work_packages
+    if not work_packages:
         activity_issues.append(_missing_msg)
-    return snapshot.work_packages
+    return work_packages
 
 
 def _status_read_feature_dir(
@@ -1425,6 +1428,15 @@ def _gather_work_packages(
     gathered = _GatheredWorkPackages(lanes={lane: [] for lane in LANES})
     lanes = gathered.lanes
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
+    # #3656: WP paths come from the placement seam, whose PRIMARY-partition
+    # reads resolve against the seam's checkout root -- the owned checkout
+    # root when owned, otherwise the MAIN repo root (it applies
+    # get_main_repo_root to repo_root first). Anchor the relative WP path on
+    # that same root, never the raw repo_root, so a linked-worktree invocation
+    # does not raise ValueError from relative_to.
+    from specify_cli.core.paths import get_main_repo_root
+
+    wp_path_root = owned.owned_root if owned is not None else get_main_repo_root(repo_root)
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, primary_slug, owned=owned):
         wp_id = wp.work_package_id or wp.path.stem
@@ -1435,7 +1447,7 @@ def _gather_work_packages(
             wp,
             wp_id,
             wp_snapshot,
-            repo_root=repo_root,
+            wp_path_root=wp_path_root,
             strict_metadata=strict_metadata,
         )
         bucket_lane = state.lane
@@ -1696,6 +1708,8 @@ def _stamp_acceptance_record(
     actor_name: str,
     mode: AcceptanceMode,
     parent_commit: str | None,
+    *,
+    lenient: bool = False,
 ) -> None:
     """FR-010: record acceptance only after the locked pre-stamp verdict re-check.
 
@@ -1724,7 +1738,7 @@ def _stamp_acceptance_record(
     matrix_dir = summary.acceptance_matrix_dir
     if matrix_dir is None:
         if summary.acceptance_matrix_gate_skip_reason == PLANNING_ARTIFACT_ONLY_SKIP_REASON:
-            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
+            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None, lenient=lenient)
             return
         raise AcceptanceError(
             "Cannot record acceptance: no acceptance-matrix gate outcome was recorded for "
@@ -1737,7 +1751,7 @@ def _stamp_acceptance_record(
 
     try:
         with locked_acceptance_verdict_guard(summary.repo_root, matrix_dir):
-            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None)
+            record_acceptance(summary.feature_dir, accepted_by=actor_name, mode=mode, from_commit=parent_commit, accept_commit=None, lenient=lenient)
     except AcceptanceVerdictNotReadyError as exc:
         raise AcceptanceError(f"Acceptance matrix verdict is not ready to accept: {exc}") from exc
     except FeatureStatusLockTimeoutError as exc:
@@ -1776,6 +1790,8 @@ def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
     mode: AcceptanceMode,
+    *,
+    lenient: bool = False,
 ) -> tuple[str | None, str | None, bool]:
     """Record acceptance in meta.json and commit; return (parent_commit, accept_commit, commit_created).
 
@@ -1809,7 +1825,7 @@ def _commit_acceptance_meta(
     except TaskCliError:
         parent_commit = None
 
-    _stamp_acceptance_record(summary, actor_name, mode, parent_commit)
+    _stamp_acceptance_record(summary, actor_name, mode, parent_commit, lenient=lenient)
 
     meta_path = summary.feature_dir / "meta.json"
     meta_rel = str(meta_path.relative_to(repo_root))
@@ -1992,13 +2008,19 @@ def _build_acceptance_instructions(
         cleanup_instructions.append(f"Lanes the pushed pull request head does not carry yet stay in place; after it lands, run `{_PRUNE_BACKSTOP}`.")
         return instructions, cleanup_instructions
     if summary.worktree_root != summary.primary_repo_root:
-        cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")
+        # #7327: like the pr arm (FR-036), never hand the operator a raw
+        # ``git worktree remove`` recipe; the guarded removal is the CLI's own,
+        # with the prune backstop behind it.
+        cleanup_instructions.append(f"After merging, reap the landed worktree with `{_PRUNE_BACKSTOP}`.")
     if landed_by_consolidate:
         cleanup_instructions.append(
             f"`spec-kitty consolidate` lands the Mission branch `{branch}` onto its target branch and removes it; there is nothing to delete by hand."
         )
     elif not is_integration_branch:
-        cleanup_instructions.append(f"Delete the Mission branch when done: `git branch -d {branch}`")
+        cleanup_instructions.append(
+            f"`spec-kitty consolidate --mission {summary.feature}` owns the Mission branch removal through its "
+            f"guarded cleanup; run `{_PRUNE_BACKSTOP}` for anything it leaves behind."
+        )
 
     return instructions, cleanup_instructions
 
@@ -2082,7 +2104,10 @@ def _consolidate_lands_branch(summary: AcceptanceSummary, branch: str, target_br
     from specify_cli.lanes.single_branch_landing import minted_branch_from_meta
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    return minted_branch_from_meta(load_meta_or_empty(summary.feature_dir), target_branch) == branch
+    # ``minted_branch_from_meta`` comes from a mypy-skipped module (#7334): the
+    # typed local keeps the return honest instead of leaking ``Any``.
+    minted: str | None = minted_branch_from_meta(load_meta_or_empty(summary.feature_dir), target_branch)
+    return minted == branch
 
 
 def perform_acceptance(
@@ -2092,6 +2117,7 @@ def perform_acceptance(
     actor: str | None,
     tests: Sequence[str] | None = None,
     auto_commit: bool | None = None,
+    lenient: bool = False,
 ) -> AcceptanceResult:
     if auto_commit is None:
         auto_commit = get_auto_commit_default(summary.repo_root)
@@ -2107,7 +2133,7 @@ def perform_acceptance(
     commit_created = False
 
     if auto_commit and mode != "checklist":
-        parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode)
+        parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode, lenient=lenient)
 
     branch = summary.branch or summary.feature
     # FR-008 / #2139: delegate to the single target_branch read authority

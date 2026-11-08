@@ -70,6 +70,16 @@ class TestValidateNoOverlap:
         errors = validate_no_overlap(manifests)
         assert errors == []
 
+    def test_sibling_prefix_component_no_overlap(self) -> None:
+        """#6312 — ``src/p1/**`` vs ``src/p10/**`` share a string prefix but not
+        a path component: they are disjoint directories and must not overlap."""
+        manifests = {
+            "WP01": _manifest(owned=("src/p1/**",), surface="src/p1/"),
+            "WP02": _manifest(owned=("src/p10/**",), surface="src/p10/"),
+        }
+        errors = validate_no_overlap(manifests)
+        assert errors == []
+
     def test_single_wp_no_overlap(self) -> None:
         manifests = {"WP01": _manifest()}
         errors = validate_no_overlap(manifests)

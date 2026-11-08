@@ -128,6 +128,7 @@ _PATH_RULES: list[tuple[str, list[str]]] = [
         [
             r"\.ya?ml$",
             r"\.json$",
+            r"\.jsonl$",
             r"\.toml$",
             r"\.ini$",
             r"\.cfg$",

@@ -1273,7 +1273,7 @@
    "deprecated": false,
    "commands": {
     "complete": {
-     "help": "Close an open invocation record. --invocation-id and --outcome are required.\n\nUse --artifact (repeatable) to link output artifacts to this invocation.\nUse --commit (singular) to link the primary git commit produced.\nUse --evidence to promote a file to a Tier 2 evidence artifact.\nNote: --evidence is rejected for records that are not execution records.",
+     "help": "Close an open invocation record. --invocation-id and --outcome are required.\n\nUse --artifact (repeatable) to link output artifacts to this invocation.\nUse --commit (singular) to link the primary git commit produced.\nUse --evidence to promote a file to a Tier 2 evidence artifact.\nUse --co-author to attribute this close's Op commit (overrides commit.co_author).\nNote: --evidence is rejected for records that are not execution records.",
      "hidden": false,
      "deprecated": false
     }

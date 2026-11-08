@@ -66,6 +66,20 @@ class TestRenderMigrationRequired:
         assert "Upgrade available" not in rendered
 
 
+class TestRenderAsciiOnly:
+    """#5757: the orientation block is injected into agent instruction files
+    that some projects require to be ASCII-only, so the rendered text must
+    never contain non-ASCII characters (em dash, arrow, warning glyph)."""
+
+    @pytest.mark.parametrize(
+        "fixture_name",
+        ["healthy_content", "upgrade_content", "migration_content"],
+    )
+    def test_render_is_ascii_only(self, fixture_name: str, request: pytest.FixtureRequest) -> None:
+        rendered = request.getfixturevalue(fixture_name).render()
+        assert rendered.isascii()
+
+
 class TestRenderDelimiters:
     def test_starts_with_section_open(self, healthy_content: SessionPresenceContent) -> None:
         rendered = healthy_content.render()

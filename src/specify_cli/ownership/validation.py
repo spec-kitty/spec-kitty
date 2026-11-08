@@ -112,9 +112,14 @@ def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
     prefix_a = _prefix(pattern_a)
     prefix_b = _prefix(pattern_b)
 
-    # One prefix is a path-prefix of the other → the globs overlap.
+    # One prefix is a path-prefix of the other (on a component boundary,
+    # #6312: "src/p1" is not inside "src/p10") -> the globs overlap.
     if prefix_a and prefix_b:
-        if prefix_b.startswith(prefix_a) or prefix_a.startswith(prefix_b):
+        if (
+            prefix_a == prefix_b
+            or prefix_b.startswith(prefix_a + "/")
+            or prefix_a.startswith(prefix_b + "/")
+        ):
             return True
 
     # Fnmatch cross-check: does pattern_a match the literal prefix_b (or vice versa)?

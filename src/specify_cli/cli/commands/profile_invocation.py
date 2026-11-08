@@ -21,6 +21,7 @@ from specify_cli.cli.commands._owned_checkout import (
 )
 from specify_cli.cli.commands.dispatch import _build_executor
 from specify_cli.cli.op_write_refusal import exit_op_write_refused
+from specify_cli.git.commit_attribution import CONFIG_KEY, InvalidCoAuthor
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
     ContextUnavailableError,  # noqa: F401 — re-exported for callers/tests
@@ -140,6 +141,14 @@ def complete_invocation(
         "--commit",
         help="Git commit SHA most directly produced by this invocation. Singular.",
     ),
+    co_author: str | None = typer.Option(
+        None,
+        "--co-author",
+        help=(
+            "Operator attribution trailer for this Op's auto-commit, as 'Name <email>'. "
+            f"Overrides the repository's {CONFIG_KEY} for this close only."
+        ),
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
     owned_checkout: Annotated[Path | None, owned_checkout_option(help=OP_RECORD_OWNED_CHECKOUT_HELP)] = None,
 ) -> None:
@@ -148,6 +157,7 @@ def complete_invocation(
     Use --artifact (repeatable) to link output artifacts to this invocation.
     Use --commit (singular) to link the primary git commit produced.
     Use --evidence to promote a file to a Tier 2 evidence artifact.
+    Use --co-author to attribute this close's Op commit (overrides commit.co_author).
     Note: --evidence is rejected for records that are not execution records.
     """
     # Explicit-outcome guard (schema v2): a missing or invalid outcome is a
@@ -157,6 +167,13 @@ def complete_invocation(
         "failed": "failed",
         "abandoned": "abandoned",
     }
+    # #7013: a blank attribution value is a usage error, not "no attribution".
+    if co_author is not None and not co_author.strip():
+        raise typer.BadParameter(
+            "--co-author cannot be empty: pass 'Name <email>' or omit it",
+            param_hint="--co-author",
+        )
+
     checked_outcome = valid_outcomes.get(outcome)
     if checked_outcome is None:
         raise typer.BadParameter(
@@ -184,7 +201,12 @@ def complete_invocation(
             # The CLI surface is the manual/agent close path; the doctor sweep
             # (the only other closer) calls the executor directly (FR-003).
             closed_by="agent",
+            co_author=co_author,
         )
+    except InvalidCoAuthor as e:
+        # Raised before anything was written: a usage error, not a failed close.
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(2) from e
     except OpWriteRefused as e:
         exit_op_write_refused(e, json_output=json_output)
     except InvalidModeForEvidenceError as e:

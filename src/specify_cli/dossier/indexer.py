@@ -38,7 +38,17 @@ _WP_FILENAME_RE = re.compile(r"^WP\d{2,}", re.IGNORECASE)
 
 
 def _is_wp_artifact(file_path: Path) -> bool:
-    """True if *file_path* is a ``WP##`` markdown work-package file."""
+    """True if *file_path* is a ``WP##`` markdown work-package file under ``tasks/``.
+
+    The parent-directory requirement (#2900) scopes the ``WP##``-prefix
+    heuristic to genuine task work packages: an auxiliary file elsewhere in
+    the mission tree (a glossary fragment, an activity log) that merely
+    shares the name prefix carries its own schema, so it must be hashed as a
+    generic raw-byte artifact instead of failing closed through the
+    ``WPMetadata`` projection path.
+    """
+    if file_path.parent.name != "tasks":
+        return False
     return file_path.suffix.lower() == ".md" and bool(_WP_FILENAME_RE.match(file_path.stem))
 
 

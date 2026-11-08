@@ -1056,8 +1056,14 @@ def record_acceptance(
     mode: str,
     from_commit: str | None = None,
     accept_commit: str | None = None,
+    lenient: bool = False,
 ) -> dict[str, Any]:
-    """Record acceptance metadata.  Appends to bounded history."""
+    """Record acceptance metadata.  Appends to bounded history.
+
+    ``lenient`` (#7356): records ``lenient: true`` on the history entry so a
+    later reader can tell a lenient acceptance from a strict one; a strict
+    acceptance keeps the existing entry shape (the key stays absent).
+    """
     now = _now_iso()
 
     def mutate(meta: dict[str, Any]) -> None:
@@ -1070,6 +1076,8 @@ def record_acceptance(
             entry["accepted_from_commit"] = from_commit
         if accept_commit is not None:
             entry["accept_commit"] = accept_commit
+        if lenient:
+            entry["lenient"] = True
 
         # Set top-level fields — always clear stale commit fields first
         meta["accepted_at"] = now

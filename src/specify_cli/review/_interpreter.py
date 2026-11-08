@@ -66,18 +66,22 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
 
     Resolution order:
 
-    1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` exists ->
-       Run ``python -m pytest`` in the project's own managed virtualenv.
-       Request ``--extra test`` (or ``--group test``) when declared, so pytest is
-       installed there without rejecting projects that have no such extra.
+    1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` and
+       ``<repo_root>/uv.lock`` exist -> Run ``python -m pytest`` in the
+       project's own managed virtualenv. Request ``--extra test`` (or
+       ``--group test``) when declared, so pytest is installed there without
+       rejecting projects that have no such extra. The lockfile is required
+       (#3594): ``uv run --frozen`` refuses without one, so a project with
+       only a ``pyproject.toml`` is not proof a frozen run can be built.
     2. Otherwise -> ``[sys.executable, "-m", "pytest", *pytest_args]``, the
        universal fallback used when ``uv`` is unavailable, or when
        ``repo_root`` is not a ``uv``-managed project (no ``pyproject.toml``
-       at its root — a named edge case: the AND's second leg). This path
-       runs in spec-kitty's own interpreter, so it is not isolated to the
-       lane's environment (the #2803 residual when ``uv`` is unavailable).
+       and ``uv.lock`` pair at its root — a named edge case: the AND's
+       second leg). This path runs in spec-kitty's own interpreter, so it is
+       not isolated to the lane's environment (the #2803 residual when
+       ``uv`` is unavailable).
     """
-    if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file():
+    if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file() and (repo_root / "uv.lock").is_file():
         extra = _test_dependency_flags(repo_root / "pyproject.toml")
         return [
             "uv",

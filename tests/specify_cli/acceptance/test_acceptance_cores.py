@@ -101,7 +101,7 @@ class TestBuildWorkPackageState:
             wp,
             "WP01",
             {"lane": "in_progress"},
-            repo_root=tmp_path,
+            wp_path_root=tmp_path,
             strict_metadata=True,
         )
 
@@ -124,7 +124,7 @@ class TestBuildWorkPackageState:
             wp,
             "WP01",
             {"lane": "done", "agent": "claude"},
-            repo_root=tmp_path,
+            wp_path_root=tmp_path,
             strict_metadata=True,
         )
 
@@ -133,7 +133,7 @@ class TestBuildWorkPackageState:
     def test_terminal_lane_still_requires_canonical_runtime_agent(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="authored-only")
 
-        _state, issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
+        _state, issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
 
         assert issues == [
             "WP01: missing agent in canonical runtime state (never claimed; run `spec-kitty agent tasks move-task WP01 --to approved --agent <name>` to repair)"
@@ -146,7 +146,7 @@ class TestBuildWorkPackageState:
             wp,
             "WP01",
             {"lane": "in_progress"},
-            repo_root=tmp_path,
+            wp_path_root=tmp_path,
             strict_metadata=False,
         )
 
@@ -169,7 +169,7 @@ class TestBuildWorkPackageState:
                 "assignee": "resolved-assignee",
                 "shell_pid": "222",
             },
-            repo_root=tmp_path,
+            wp_path_root=tmp_path,
             strict_metadata=True,
         )
 
@@ -184,7 +184,7 @@ class TestBuildWorkPackageState:
     def test_canonical_lane_none_buckets_to_planned(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md")
 
-        state, _issues = build_work_package_state(wp, "WP01", None, repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", None, wp_path_root=tmp_path, strict_metadata=True)
 
         assert state.lane == "planned"
         assert state.has_lane_entry is False
@@ -194,14 +194,14 @@ class TestBuildWorkPackageState:
         wp_path = tmp_path / "kitty-specs" / "trio-mission" / "tasks" / "WP01.md"
         wp = _wp(path=wp_path)
 
-        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
 
         assert state.path == str(Path("kitty-specs") / "trio-mission" / "tasks" / "WP01.md")
 
     def test_title_strips_surrounding_quotes(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "WP01.md", title='"Quoted Title"')
 
-        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, repo_root=tmp_path, strict_metadata=True)
+        state, _issues = build_work_package_state(wp, "WP01", {"lane": "approved"}, wp_path_root=tmp_path, strict_metadata=True)
 
         assert state.title == "Quoted Title"
 

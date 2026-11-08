@@ -1186,8 +1186,11 @@ class MergeOutcomeVerifier:
             own_paths = merge_own_changed_paths(self._repo, sha)
             if not any(not self._is_bookkeeping_path(path, claim) for path in own_paths):
                 return None  # a clean merge, or one resolving only bookkeeping — no content of its own
-            return patch_id_of(self._repo, sha)
-        pid = patch_id_of(self._repo, sha)
+            # ``patch_id_of`` comes from a mypy-skipped module (#7334): the typed
+            # local keeps the return honest instead of leaking ``Any``.
+            merge_pid: str = patch_id_of(self._repo, sha)
+            return merge_pid
+        pid: str = patch_id_of(self._repo, sha)
         if not pid:
             return None  # empty diff — never content
         if not self._commit_is_content(sha, claim):
@@ -3346,7 +3349,10 @@ def _own_dependency_merges(
         for dep in lanes_manifest.lanes
         if dep.lane_id in tuple(getattr(lane, "depends_on_lanes", ()) or ()) and _lane_is_approved(dep, work_packages)
     ]
-    return lane_dependency_merges(repo_root, spine, tips)
+    # ``lane_dependency_merges`` comes from a mypy-skipped module (#7334): the
+    # typed local keeps the return honest instead of leaking ``Any``.
+    merges: frozenset[str] = lane_dependency_merges(repo_root, spine, tips)
+    return merges
 
 
 def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:

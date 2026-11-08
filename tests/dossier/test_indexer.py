@@ -716,6 +716,24 @@ class TestUnparseableWPHandling:
         assert wp.content_hash_sha256 == ""
         assert wp.error_reason and "invalid" in wp.error_reason
 
+    def test_wp_named_file_outside_tasks_is_a_generic_artifact(self, tmp_path):
+        """#2900: the WP##-prefix heuristic is scoped to ``tasks/``. An
+        auxiliary file that merely shares the prefix (a glossary fragment, an
+        activity log) carries its own schema, never WPMetadata's, so it must
+        be hashed as a generic raw-byte artifact instead of failing closed
+        through the WP-projection path."""
+        (tmp_path / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        notes = tmp_path / "WP01-notes.md"
+        notes.write_text("---\nwp: WP01\nnote: auxiliary schema\n---\nbody\n", encoding="utf-8")
+        raw_hash, raw_error = hasher_module.hash_file_with_validation(notes)
+        assert raw_error is None
+
+        dossier = Indexer(ManifestRegistry()).index_feature(tmp_path, "software-dev")
+
+        artifact = next(a for a in dossier.artifacts if a.relative_path.endswith("WP01-notes.md"))
+        assert artifact.is_present is True
+        assert artifact.content_hash_sha256 == raw_hash
+
 
 class TestIndexerOrgAwareManifest:
     """#3525 Fold C: ``ManifestRegistry.load_manifest`` already builds the

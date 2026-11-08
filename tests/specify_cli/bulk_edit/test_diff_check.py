@@ -86,6 +86,7 @@ class TestClassifyPath:
             ("pkg/config.yaml", "serialized_keys"),
             ("pyproject.toml", "serialized_keys"),
             ("data/thing.json", "serialized_keys"),
+            ("status.events.jsonl", "serialized_keys"),
             # code_symbols
             ("src/pkg/module.py", "code_symbols"),
             ("src/app.ts", "code_symbols"),

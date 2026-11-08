@@ -69,6 +69,7 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     """Branch (i): both legs of the AND hold -> route through ``uv run`` in the
     project, requesting the declared test extra/group (if any) so pytest exists."""
     (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
+    (tmp_path / "uv.lock").touch()
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
@@ -97,6 +98,23 @@ def test_uv_present_but_no_pyproject_falls_back_to_sys_executable(
     ``repo_root`` even though ``uv`` is on PATH -> fall back."""
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
     assert not (tmp_path / "pyproject.toml").exists()
+
+    command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
+
+    assert command == [sys.executable, "-m", "pytest", "--junitxml=out.xml", "-q"]
+
+
+@pytest.mark.fast
+def test_uv_present_pyproject_without_uv_lock_falls_back_to_sys_executable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#3594 — a ``pyproject.toml`` alone is not proof of a uv-managed project:
+    without ``uv.lock`` the frozen ``uv run`` command would fail, so fall back
+    to ``sys.executable`` like any non-uv project."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    assert not (tmp_path / "uv.lock").exists()
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
@@ -166,6 +184,7 @@ def test_pytest_lacking_sys_executable_still_yields_real_verdict_via_uv(
     instead, never touching the broken interpreter at all."""
     project_dir = tmp_path
     (project_dir / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    (project_dir / "uv.lock").touch()
     _write_tiny_pytest_project(project_dir)
 
     bin_dir = tmp_path / "fakebin"
