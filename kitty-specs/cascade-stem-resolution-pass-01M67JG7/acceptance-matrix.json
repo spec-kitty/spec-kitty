@@ -1,0 +1,79 @@
+{
+  "mission_slug": "cascade-stem-resolution-pass-01M67JG7",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest (deterministic call counts)",
+      "evidence": "test_cascade_stem_resolution_6777.py::test_every_cascade_target_resolves_through_the_same_resolution_pass (RED on main: \"resolved its targets with no resolution pass\"; green after)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:06:55.046618+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "pytest (event ordering)",
+      "evidence": "test_cascade_stem_resolution_6777.py::test_the_whole_lookup_batch_precedes_the_first_activation_write (RED on main: interleaved resolve/activate order)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:06:59.227104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "pytest (pre-existing entry point)",
+      "evidence": "test_writer_stores_stems_only: 10 passed in 87.13s under the default 240 s timeout; stored-list/_non_stems assertions unchanged",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:07:03.642516+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "pytest (collected marks) + grep",
+      "evidence": "test_the_cascade_case_runs_under_the_suite_wide_timeout; _CASCADE_TIMEOUT_S and pytest.mark.timeout gone from the module",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:07:07.466391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "pytest (collected marks)",
+      "evidence": "same guard: cascade is the only case on the slow tier; module-tests selects -m \"not performance and not stress\"",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:07:11.430443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "pytest (unit, no wall clock)",
+      "evidence": "both guards in test_cascade_stem_resolution_6777.py fail when the per-target pass returns",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:07:15.458398+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "make docs-lint + check_docs_freshness --ci",
+      "evidence": "changelog style 0 errors / 27 pre-existing warnings; docs freshness exit=0 findings=5 errors=0; flakiness-policy audit row added",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:07:19.576847+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

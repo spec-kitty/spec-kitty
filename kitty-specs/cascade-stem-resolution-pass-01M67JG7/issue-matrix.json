@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3143": {
+      "evidence_ref": "context-only citation: pytest.ini is the single 240 s timeout authority this mission returns the case to; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5526": {
+      "evidence_ref": "context-only citation: the ResolutionPass seam #5526 gave the render loops is reused unchanged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6776": {
+      "evidence_ref": "PR #6776's interim 600 s marker is removed by this mission; the PR owes no further work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6777": {
+      "evidence_ref": "PR #6858 head 53bc9affa9: all 60 checks green, charter shard 6/7 pass (1309 passed, 1 skipped, 640.23s); cascade writer 5028 -> 240 artifact-file parses, 0.62-0.70x interleaved wall clock; case runs under the 240 s backstop with no per-test override",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6854": {
+      "evidence_ref": "follow-up issue filed: batch activation seam for the remaining per-target list_available_detailed scan (~36 s of the original walk); named in the PR's ## Deferred",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
