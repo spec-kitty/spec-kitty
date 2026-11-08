@@ -248,7 +248,7 @@ def intake(
     clear: bool = typer.Option(
         False,
         "--clear",
-        help="Delete the intake brief, provenance and ticket-origin artifacts; no writes.",
+        help="Delete the intake brief, provenance and ticket-origin artifacts.",
     ),
 ) -> None:
     """Ingest a plan document as a mission brief for /spec-kitty.specify."""
