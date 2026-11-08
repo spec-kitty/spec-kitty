@@ -120,7 +120,7 @@ def test_project_local_and_tool_merges_code_selection_merged(tmp_path: Path, mon
     """The tool-union and project-local-directive notes are ``SELECTION_MERGED`` too."""
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010"}),
             template_sets=frozenset({"software-dev-default"}),

@@ -121,7 +121,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=_CATALOG_DEFAULT_DIRECTIVES,
             template_sets=frozenset({"software-dev-default"}),
