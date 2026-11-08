@@ -264,7 +264,7 @@ pages:
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/1.x/index.md"
     title: "1.x ADRs"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Index and era history for the archived 1.x decisions — workspace provenance, dependency auto-merge, config-driven agents, CLI-first commands, and deterministic CSV schemas."
     anchors:
     - {slug: "era-history", text: "Era history", level: 2}
@@ -897,7 +897,7 @@ pages:
     - {slug: "decision-2-networkx", text: "Decision 2 (networkx)", level: 3}
   - path: "docs/adr/2.x/index.md"
     title: "2.x ADRs"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Index and era history for the 2.x decisions — event-sourced status, doctrine and glossary governance, tracker connectors, and the canonical runtime next command loop."
     anchors:
     - {slug: "era-history", text: "Era history", level: 2}
@@ -2779,7 +2779,7 @@ pages:
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md"
     title: "ADR: Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams — a New Genre Beside the Hand-Authored C4 Lane"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Why doctrine schema diagrams render locally at build time from a pinned, network-isolated PlantUML — a genre distinct from C4 progressive-zoom, carving R-04 accordingly."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
@@ -3363,7 +3363,7 @@ pages:
     - {slug: "erratum-2026-10-04-5627", text: "Erratum (2026-10-04, #5627)", level: 2}
   - path: "docs/adr/3.x/index.md"
     title: "3.x Architectural Decision Records"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry."
     anchors:
     - {slug: "era-history", text: "Era history", level: 2}
@@ -4260,7 +4260,7 @@ pages:
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one."
     anchors:
     - {slug: "era-history", text: "Era history", level: 2}
@@ -4278,7 +4278,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent-plan-artifacts.md"
     title: "Agent Plan Artifacts Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md."
     anchors:
     - {slug: "harness-sections", text: "Harness Sections", level: 2}
@@ -4302,7 +4302,7 @@ pages:
     - {slug: "how-to-update", text: "How to Update", level: 2}
   - path: "docs/api/agent-subcommands.md"
     title: "Agent Subcommand Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
     anchors:
     - {slug: "ambiguous-mission-selectors", text: "Ambiguous mission selectors", level: 2}
@@ -4374,7 +4374,7 @@ pages:
     - {slug: "spec-kitty-agent-tracer-append", text: "spec-kitty agent tracer-append", level: 2}
   - path: "docs/api/agent_profiles/architect-alphonso.md"
     title: "Architect Alphonso — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "System architecture and technical design specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4384,7 +4384,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/curator-carla.md"
     title: "Curator Carla — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Knowledge base and doctrine maintenance specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4394,7 +4394,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/debugger-debbie.md"
     title: "Debugger Debbie — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4404,7 +4404,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/designer-dagmar.md"
     title: "Designer Dagmar — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "UX/UI and interaction design specialist for accessible, consistent design specifications"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4414,7 +4414,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/doctrine-daphne.md"
     title: "Doctrine Daphne — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "External-agent onboarding and doctrine artifact curation specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4424,7 +4424,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/frontend-freddy.md"
     title: "Frontend Freddy — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Browser-side implementer for HTML/CSS/JavaScript/TypeScript with component frameworks, accessibility, and frontend testing"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4434,7 +4434,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/generic-agent.md"
     title: "Generic Agent — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package."
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4444,7 +4444,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/human-in-charge.md"
     title: "Human in Charge — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Workflow sentinel indicating this work package requires direct human execution"
     anchors:
     - {slug: "what-it-signals", text: "What it signals", level: 2}
@@ -4453,7 +4453,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/implementer-ivan.md"
     title: "Implementer Ivan — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "General-purpose software implementation specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4463,12 +4463,12 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/index.md"
     title: "Agent Profiles"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Catalog of the 18 built-in agent profiles Spec Kitty ships, with identity, routing, and role for each."
     anchors: []
   - path: "docs/api/agent_profiles/java-jenny.md"
     title: "Java Jenny — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Java-specialist implementer applying ATDD/TDD discipline, Maven build tooling, and idiomatic Java style enforcement"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4478,7 +4478,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/node-norris.md"
     title: "Node Norris — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Server-side Node.js implementer for HTTP APIs, event-loop discipline, streaming, and npm ecosystem"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4488,7 +4488,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/paula-patterns.md"
     title: "Paula Patterns — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4498,7 +4498,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/planner-priti.md"
     title: "Planner Priti — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Work decomposition and delivery sequencing specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4508,7 +4508,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/python-pedro.md"
     title: "Python Pedro — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4518,7 +4518,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/randy-reducer.md"
     title: "Randy Reducer — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Semantic compression specialist for behavior-preserving code reduction"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4528,7 +4528,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/researcher-robbie.md"
     title: "Researcher Robbie — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Domain knowledge acquisition and synthesis specialist"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4538,7 +4538,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/retrospective-facilitator.md"
     title: "Retrospective Facilitator — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Facilitates a structured mission retrospective at terminus"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4548,7 +4548,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/agent_profiles/reviewer-renata.md"
     title: "Reviewer Renata — Agent Profile"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Code and design quality assurance specialist for correctness, security, and standards review"
     anchors:
     - {slug: "what-this-profile-is-for", text: "What this profile is for", level: 2}
@@ -4607,7 +4607,7 @@ pages:
     - {slug: "appendix-b-source-file-reference", text: "Appendix B: Source File Reference", level: 2}
   - path: "docs/api/bulk-edit-gate.md"
     title: "Bulk-edit gate reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation."
     anchors:
     - {slug: "required-schema", text: "Required schema", level: 2}
@@ -4620,7 +4620,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/charter-commands.md"
     title: "Charter CLI Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output."
     anchors:
     - {slug: "spec-kitty-charter", text: "spec-kitty charter", level: 2}
@@ -4647,7 +4647,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/api/cli-commands.md"
     title: "CLI Command Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output."
     anchors:
     - {slug: "getting-started", text: "Getting Started", level: 2}
@@ -4867,7 +4867,7 @@ pages:
     - {slug: "spec-kitty-workflow-list", text: "spec-kitty workflow list", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings."
     anchors:
     - {slug: "env-file-pointer", text: "env_file Pointer", level: 2}
@@ -4897,7 +4897,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
   - path: "docs/api/environment-variables.md"
     title: "Environment Variables Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Environment variable reference for Spec Kitty 3.2 runtime, CI, tracker, and test configuration."
     anchors:
     - {slug: "runtime-and-installation", text: "Runtime and Installation", level: 2}
@@ -4937,7 +4937,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
   - path: "docs/api/event-envelope.md"
     title: "Event Envelope Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for Spec Kitty event envelopes. Understand the 3.0.0 contract schema, canonical terms, and validation parameters for outbound payloads."
     anchors:
     - {slug: "canonical-terms", text: "Canonical Terms", level: 2}
@@ -4948,7 +4948,7 @@ pages:
     - {slug: "migration", text: "Migration", level: 2}
   - path: "docs/api/file-structure.md"
     title: "File Structure Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for Spec Kitty file and directory structure. Learn the roles of .kittify/, kitty-specs/, .worktrees/, and agent directories."
     anchors:
     - {slug: "project-root-overview", text: "Project Root Overview", level: 2}
@@ -4969,7 +4969,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
   - path: "docs/api/finalize-tasks-internals.md"
     title: "finalize-tasks internals reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning-pin refresh (override and automatic), and the LANE_MEMBERSHIP_FROZEN refusal."
     anchors:
     - {slug: "1-explicit-empty-owned-files", text: "1. Explicit empty `owned_files`", level: 2}
@@ -4987,7 +4987,7 @@ pages:
     - {slug: "module-map", text: "Module map", level: 2}
   - path: "docs/api/index.md"
     title: "Reference"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Authoritative Spec Kitty specifications: CLI and agent subcommands, slash commands, charter commands, configuration, environment variables, schemas, skills, and agent profiles."
     anchors:
     - {slug: "commands", text: "Commands", level: 2}
@@ -5022,7 +5022,7 @@ pages:
     - {slug: "where-to-add-a-create-time-decision", text: "Where to add a create-time decision", level: 2}
   - path: "docs/api/missions.md"
     title: "Mission Types Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows."
     anchors:
     - {slug: "mission-type-overview", text: "Mission Type Overview", level: 2}
@@ -5069,7 +5069,7 @@ pages:
     - {slug: "background", text: "Background", level: 2}
   - path: "docs/api/orchestrator-api.md"
     title: "Orchestrator API Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Machine-contract API for external orchestration providers."
     anchors:
     - {slug: "canonical-terms", text: "Canonical Terms", level: 2}
@@ -5119,7 +5119,7 @@ pages:
     - {slug: "status-api-and-go-progress-mapping", text: "Status API and Go progress mapping", level: 3}
   - path: "docs/api/profile-invocation.md"
     title: "Profile Invocation Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states."
     anchors:
     - {slug: "spec-kitty-dispatch", text: "spec-kitty dispatch", level: 2}
@@ -5136,7 +5136,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/api/retrospective-schema.md"
     title: "Retrospective Schema and Events Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes."
     anchors:
     - {slug: "retrospective-yaml-schema", text: "retrospective.yaml schema", level: 2}
@@ -5155,7 +5155,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/api/skills/index.md"
     title: "Skills"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Catalog of Spec Kitty's operator-facing skills — the spk-* public hierarchy, their legacy spec-kitty-* aliases, and which skills have a deep reference page."
     anchors:
     - {slug: "spk-start", text: "spk-start-*", level: 2}
@@ -5171,7 +5171,7 @@ pages:
     - {slug: "legacy-detailed-workflow-skills", text: "Legacy / Detailed Workflow Skills", level: 2}
   - path: "docs/api/skills/spk-admin-setup-doctor.md"
     title: "spk-admin-setup-doctor"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Install, verify, and repair Spec Kitty commands, skills, agent paths, runtime prerequisites, and common setup failures."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5182,7 +5182,7 @@ pages:
     - {slug: "legacy-alias", text: "Legacy alias", level: 2}
   - path: "docs/api/skills/spk-charter-profile-load.md"
     title: "spk-charter-profile-load"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5193,14 +5193,14 @@ pages:
     - {slug: "detailed-mechanics", text: "Detailed mechanics", level: 2}
   - path: "docs/api/skills/spk-gate-mission-review.md"
     title: "Skill: spk-gate-mission-review"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Post-merge Spec Kitty mission review — spec-to-code fidelity, FR coverage, drift, risk, and final verdict."
     anchors:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "invoking-it", text: "Invoking it", level: 2}
   - path: "docs/api/skills/spk-meta-skill-map.md"
     title: "spk-meta-skill-map"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for the spk-meta-skill-map skill: discovering the spk-* skill hierarchy, naming convention, and legacy aliases."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5211,7 +5211,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/skills/spk-run-implement-review.md"
     title: "spk-run-implement-review"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for the spk-run-implement-review skill: orchestrating the claim/implement/review loop across a mission's work packages."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5222,7 +5222,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/api/skills/spk-run-next.md"
     title: "spk-run-next"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for the spk-run-next skill: driving the canonical spec-kitty next control loop and routing its decision kinds."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5232,7 +5232,7 @@ pages:
     - {slug: "legacy-alias", text: "Legacy alias", level: 2}
   - path: "docs/api/skills/spk-start-here.md"
     title: "spk-start-here"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Start here for Spec Kitty. Orient CLI users and supported agent-harness users; choose the right command, skill family, and recovery path."
     anchors:
     - {slug: "what-it-does", text: "What it does", level: 2}
@@ -5242,7 +5242,7 @@ pages:
     - {slug: "what-it-does-not-do", text: "What it does not do", level: 2}
   - path: "docs/api/slash-commands.md"
     title: "Spec Kitty slash commands reference — CLI quick reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and consolidate within AI coding agents."
     anchors:
     - {slug: "spec-kitty-specify", text: "/spec-kitty.specify", level: 2}
@@ -5263,7 +5263,7 @@ pages:
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
   - path: "docs/api/supported-agents.md"
     title: "Supported AI Agents Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management."
     anchors:
     - {slug: "agent-overview", text: "Agent Overview", level: 2}
@@ -5298,7 +5298,7 @@ pages:
     - {slug: "background", text: "Background", level: 2}
   - path: "docs/api/supported-harnesses.md"
     title: "Supported Harnesses"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Support matrix for Spec Kitty 3.2 AI coding harnesses, including first-class, supported, experimental, and unsupported hosts."
     anchors:
     - {slug: "tier-legend", text: "Tier legend", level: 2}
@@ -5308,7 +5308,7 @@ pages:
     - {slug: "maintenance", text: "Maintenance", level: 2}
   - path: "docs/api/terminology.md"
     title: "Terminology Reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Terminology reference for Spec Kitty. Clear vocabulary definitions for missions, work packages, lanes, charters, and status event logs."
     anchors:
     - {slug: "the-three-domain-terms", text: "The Three Domain Terms", level: 2}
@@ -5404,7 +5404,7 @@ pages:
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/04_implementation_mapping/code-patterns.md"
     title: "Core Code Patterns Applied in the Codebase"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The core code patterns applied across the Spec Kitty codebase, mapping recurring implementation idioms to the architecture components they realize (2.x-era record)."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
@@ -5416,7 +5416,7 @@ pages:
     - {slug: "how-to-extend-this-catalog", text: "How to Extend This Catalog", level: 2}
   - path: "docs/architecture/05_ownership_map.md"
     title: "Functional Ownership Map (demoted — narrative only)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain."
     anchors:
     - {slug: "the-canonical-modularity-ssot-is-the-enforced-pair", text: "The canonical modularity SSOT is the enforced pair", level: 2}
@@ -5424,7 +5424,7 @@ pages:
     - {slug: "historical-note", text: "Historical note", level: 2}
   - path: "docs/architecture/06_unified_charter_bundle.md"
     title: "06 — Unified Charter Bundle"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The unified charter bundle architecture: the canonical manifest, its module and JSON Schema, inverted to a single-file authoritative charter.yaml model (#2773)."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
@@ -5472,7 +5472,7 @@ pages:
     - {slug: "references", text: "References", level: 2}
   - path: "docs/architecture/adr-template.md"
     title: "[Short descriptive title]"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The ADR authoring template for Spec Kitty: the filename convention, status/date/decider header, and section structure every architecture decision record follows."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
@@ -5489,7 +5489,7 @@ pages:
     - {slug: "template-notes", text: "Template Notes", level: 2}
   - path: "docs/architecture/ai-agent-architecture.md"
     title: "AI Agent Architecture Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How Spec Kitty stays agent-agnostic: slash commands and Agent Skills rendered from one shared command-template source, per agent format, driving the same lane workflow."
     anchors:
     - {slug: "how-slash-commands-work", text: "How Slash Commands Work", level: 2}
@@ -5518,7 +5518,7 @@ pages:
     - {slug: "reference", text: "Reference", level: 2}
   - path: "docs/architecture/artifact-placement-seam.md"
     title: "The Artifact Placement Seam"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam."
     anchors:
     - {slug: "what-routing-means-here", text: "What \"routing\" means here", level: 2}
@@ -5534,7 +5534,7 @@ pages:
     - {slug: "citations", text: "Citations", level: 2}
   - path: "docs/architecture/assessments/code-as-a-crime-scene-overview.md"
     title: "Code as a Crime Scene — High-Level Overview"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Pedagogical overview of the Code-as-a-Crime-Scene (CaaCS) auditing technique, with empirical observations from the 2026-05 forensic run on the spec-kitty repository."
     anchors:
     - {slug: "1-what-caacs-is", text: "1. What CaaCS is", level: 2}
@@ -5572,7 +5572,7 @@ pages:
     - {slug: "reports", text: "Reports", level: 2}
   - path: "docs/architecture/calibration/documentation.md"
     title: "Calibration Report: documentation"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Calibration report for the documentation mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay."
     anchors:
     - {slug: "summary", text: "Summary", level: 2}
@@ -5586,7 +5586,7 @@ pages:
     - {slug: "step-retrospect", text: "Step: retrospect", level: 3}
   - path: "docs/architecture/calibration/erp-custom.md"
     title: "Calibration Report: erp-custom"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Calibration report for the erp-custom (ERP integration) mission: the §4.5.1 inequality check per step against its overlay and ERP-integration fixture."
     anchors:
     - {slug: "summary", text: "Summary", level: 2}
@@ -5601,7 +5601,7 @@ pages:
     - {slug: "step-retrospective", text: "Step: retrospective", level: 3}
   - path: "docs/architecture/calibration/research.md"
     title: "Calibration Report: research"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Calibration report for the research mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay."
     anchors:
     - {slug: "summary", text: "Summary", level: 2}
@@ -5614,7 +5614,7 @@ pages:
     - {slug: "step-retrospect", text: "Step: retrospect", level: 3}
   - path: "docs/architecture/calibration/software-dev.md"
     title: "Calibration Report: software-dev"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Calibration report for the software-dev mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay."
     anchors:
     - {slug: "summary", text: "Summary", level: 2}
@@ -5627,7 +5627,7 @@ pages:
     - {slug: "step-retrospect", text: "Step: retrospect", level: 3}
   - path: "docs/architecture/charter-backend-service-future.md"
     title: "Charter Backend Service (Future — Backlog)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Backlog."
     anchors:
     - {slug: "1-motivation", text: "1. Motivation", level: 2}
@@ -5637,7 +5637,7 @@ pages:
     - {slug: "5-non-goals", text: "5. Non-goals", level: 2}
   - path: "docs/architecture/charter-pack-usage-journey.md"
     title: "Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation."
     anchors:
     - {slug: "tl-dr", text: "TL;DR", level: 2}
@@ -5652,7 +5652,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/charter-synthesis-drg.md"
     title: "Understanding Charter: Synthesis, DRG, and Governed Context"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How charter synthesize works, what the DRG is, how governed context flows to agents, the shipped-graph orphan residual, and known limitations."
     anchors:
     - {slug: "what-the-charter-bundle-is", text: "What the charter bundle is", level: 2}
@@ -5707,7 +5707,7 @@ pages:
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/diagrams/02_containers/runtime-execution-domain.md"
     title: "Runtime/Execution Domain (living container detail)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Living container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
@@ -5750,7 +5750,7 @@ pages:
     - {slug: "convention", text: "Convention", level: 2}
   - path: "docs/architecture/divio-documentation.md"
     title: "Why the Divio Documentation System?"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Why Spec Kitty organizes docs with the Divio four-type system, tutorials, how-to, reference, and explanation, so each user need maps to one doc type, not mixed-concern pages."
     anchors:
     - {slug: "the-problem-with-traditional-documentation", text: "The Problem with Traditional Documentation", level: 2}
@@ -5797,7 +5797,7 @@ pages:
     - {slug: "where-to-go-next", text: "Where to go next", level: 2}
   - path: "docs/architecture/doctrine-relationships.md"
     title: "Doctrine relationships: lineage, delegation, augmentation, and action resolution"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How Spec Kitty models each DRG relation type — lineage, delegation, augmentation, obligation, scope, and the tension edges — as a typed graph edge, not as artifact fields."
     anchors:
     - {slug: "drg-schema-at-a-glance", text: "DRG schema at a glance", level: 2}
@@ -5828,7 +5828,7 @@ pages:
     - {slug: "drg-edges-are-the-canonical-relationship-authority", text: "DRG edges are the canonical relationship authority", level: 2}
   - path: "docs/architecture/documentation-mission.md"
     title: "Documentation Mission Guide"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -5890,7 +5890,7 @@ pages:
     - {slug: "citations", text: "Citations", level: 2}
   - path: "docs/architecture/execution-lanes.md"
     title: "Execution Lanes"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
     anchors:
     - {slug: "core-rules", text: "Core Rules", level: 2}
@@ -5905,14 +5905,14 @@ pages:
     - {slug: "lane-specific-test-database-isolation-fr-006", text: "Lane-Specific Test Database Isolation (FR-006)", level: 2}
   - path: "docs/architecture/explanation-index.md"
     title: "Explanation"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Understanding-oriented background on Spec Kitty: spec-driven development, the mission system, execution lanes, git workflow, and multi-agent orchestration."
     anchors:
     - {slug: "key-pages", text: "Key pages", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/git-workflow.md"
     title: "Git Workflow: Who Does What"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The boundary between infrastructure git that Python owns (worktrees, status commits, merges) and content git that agents own (code, rebases, conflicts), plus auto-commit rules."
     anchors:
     - {slug: "the-responsibility-boundary", text: "The Responsibility Boundary", level: 2}
@@ -5945,7 +5945,7 @@ pages:
     - {slug: "reference", text: "Reference", level: 2}
   - path: "docs/architecture/git-worktrees.md"
     title: "Git Worktrees Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
     anchors:
     - {slug: "what-is-a-git-worktree", text: "What is a Git Worktree?", level: 2}
@@ -5978,7 +5978,7 @@ pages:
     - {slug: "reference", text: "Reference", level: 2}
   - path: "docs/architecture/governed-profile-invocation.md"
     title: "Understanding Governed Profile Invocation"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How standalone dispatch works under governance: route, inject context, open an Op, do work, close the trail."
     anchors:
     - {slug: "the-governed-invocation-primitive", text: "The Governed Invocation Primitive", level: 2}
@@ -6019,7 +6019,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/kanban-workflow.md"
     title: "Kanban Workflow Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How Spec Kitty tracks work-package progress: the nine lanes, the 27 allowed transitions and their guards, the append-only event log, and who moves work between them."
     anchors:
     - {slug: "the-nine-lanes", text: "The Nine Lanes", level: 2}
@@ -6068,7 +6068,7 @@ pages:
     - {slug: "reference", text: "Reference", level: 2}
   - path: "docs/architecture/launch-readiness-future.md"
     title: "Launch-Readiness Behavior (Archived)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Redirect stub: the superseded launch-readiness plan moved to the docs archive; this page remains so that old links resolve."
     anchors: []
   - path: "docs/architecture/mission-gates.md"
@@ -6087,7 +6087,7 @@ pages:
     - {slug: "relationship-to-the-mission-subtree", text: "Relationship to the mission subtree", level: 2}
   - path: "docs/architecture/mission-system.md"
     title: "The Mission System Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
     anchors:
     - {slug: "why-different-missions", text: "Why Different Missions?", level: 2}
@@ -6144,7 +6144,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/multi-agent-orchestration.md"
     title: "Multi-Agent Orchestration"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers."
     anchors:
     - {slug: "why-this-model-exists", text: "Why this model exists", level: 2}
@@ -6160,7 +6160,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/org-doctrine-layer.md"
     title: "Understanding the Org Layer of the Charter Offering"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
     anchors:
     - {slug: "the-three-layer-model", text: "The three-layer model", level: 2}
@@ -6198,7 +6198,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/post-merge-partition-authority.md"
     title: "Post-Merge Partition Authority"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "One model for post-merge partition authority — the write half (which bytes win per artifact) and the read half (which surface a reader trusts)."
     anchors:
     - {slug: "the-one-question", text: "The one question", level: 2}
@@ -6209,7 +6209,7 @@ pages:
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/profile-load-reliability.md"
     title: "Profile-Load Reliability (Squads & WP Prompts)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile."
     anchors:
     - {slug: "1-symptoms", text: "1. Symptoms", level: 2}
@@ -6234,7 +6234,7 @@ pages:
     - {slug: "new-tickets-surfaced-by-the-dialectic-filed-post-review", text: "New tickets surfaced by the dialectic (filed post-review)", level: 3}
   - path: "docs/architecture/retrospective-learning-loop.md"
     title: "Understanding the Retrospective Learning Loop"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Conceptual explanation of the four-category model, bounded contexts, event-model layering, and the synthesize anti-corruption layer."
     anchors:
     - {slug: "why-retrospectives-exist", text: "Why retrospectives exist", level: 2}
@@ -6249,7 +6249,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/runtime-loop.md"
     title: "The Runtime Loop Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
     anchors:
     - {slug: "what-is-spec-kitty-next", text: "What Is `spec-kitty next`?", level: 2}
@@ -6288,7 +6288,7 @@ pages:
     - {slug: "related-artifacts", text: "Related artifacts", level: 2}
   - path: "docs/architecture/spec-driven-development.md"
     title: "Spec-Driven Development Explained"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Why Spec Kitty writes a full specification before any code: the spec becomes the executable contract that drives specify, plan, and tasks and enables parallel work packages."
     anchors:
     - {slug: "what-is-spec-driven-development", text: "What is Spec-Driven Development?", level: 2}
@@ -6358,7 +6358,7 @@ pages:
     - {slug: "pre-3-0-layout-rejection", text: "Pre-3.0 layout rejection", level: 3}
   - path: "docs/architecture/team-kitty-saas.md"
     title: "Team Kitty (SaaS) Hosted-Sync Flow (Removed)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The hosted Team Kitty sync flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
     anchors: []
   - path: "docs/architecture/trail-model.md"
@@ -6386,17 +6386,17 @@ pages:
     - {slug: "spec-kitty-explain-deferred-to-phase-5", text: "`spec-kitty explain` — Deferred to Phase 5", level: 2}
   - path: "docs/architecture/vision/README-1.x.md"
     title: "1.x — vision (history slot)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Per-era vision record for the 1.x architecture track: part of the versioned history beneath the living architecture, giving the decay path a home as content ages out."
     anchors: []
   - path: "docs/architecture/vision/README-2.x.md"
     title: "2.x — vision (history slot)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Per-era vision record for the 2.x architecture track: part of the versioned history beneath the living architecture, giving the decay path a home as content ages out."
     anchors: []
   - path: "docs/architecture/vision/README-3.x.md"
     title: "3.x — vision (history slot)"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Per-era vision record for the 3.x architecture track, the prior era that closed with the 3.2.7 release; forward vision lives in the living vision page."
     anchors:
     - {slug: "3-x-era-forward-signal-2026-08-12", text: "3.x-era forward signal (2026-08-12)", level: 2}
@@ -6411,7 +6411,7 @@ pages:
     - {slug: "forward-signal-for-the-4-x-line-2026-09-30", text: "Forward signal for the 4.x line (2026-09-30)", level: 2}
   - path: "docs/architecture/wp-runtime-state-eviction.md"
     title: "WP Runtime-State Eviction — Architecture Design"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1."
     anchors:
     - {slug: "1-the-axis-problem-why-this-is-not-a-move-a-field-change", text: "1. The axis problem (why this is not a \"move a field\" change)", level: 2}
@@ -6593,7 +6593,7 @@ pages:
     - {slug: "bottom-line", text: "Bottom Line", level: 2}
   - path: "docs/archive/architecture/launch-readiness-future.md"
     title: "Launch-Readiness Behavior (Coming Soon)"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
     anchors:
     - {slug: "why-this-doc-exists", text: "Why this doc exists", level: 2}
@@ -6606,7 +6606,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/archive/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Audit manifest mapping every migrated agent-memory entry to its repo-native home, tracker issue, or retirement, with the completeness test that enforces it."
     anchors:
     - {slug: "resolution-vocabulary", text: "Resolution vocabulary", level: 2}
@@ -6619,7 +6619,7 @@ pages:
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
   - path: "docs/archive/development/agent-memory-workflow-migration-manifest.md"
     title: "Agent-Memory Workflow Migration Manifest (Bucket 2)"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Audit manifest mapping 49 workflow/CI/git/status-and-sync mechanics memory entries to their repo-native home, an echo, a learned fact, or a private disposition."
     anchors:
     - {slug: "resolution-vocabulary", text: "Resolution vocabulary", level: 2}
@@ -6629,7 +6629,7 @@ pages:
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
   - path: "docs/archive/development/reference/process-global-inventory-3115.md"
     title: "tests/sync/ process-global and thread-seam inventory (#3115)"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "FR-006: a narrowed inventory of process-global mutable state and thread-spawning seams in the tests/sync/ cone, with reset-seam and dependence classification."
     anchors:
     - {slug: "method", text: "Method", level: 2}
@@ -6893,7 +6893,7 @@ pages:
     - {slug: "summary-of-live-mutations", text: "Summary of live mutations", level: 2}
   - path: "docs/archive/plans/doctrine/built-in-doctrine-repo-coupling-audit.md"
     title: "Repo-Coupling Audit of Built-In Doctrine"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Classified audit of repository-local references in shipped built-in doctrine, the gate that currently requires one, and the relocation order for follow-on missions."
     anchors:
     - {slug: "1-counts-and-why-the-raw-number-is-a-trap", text: "1. Counts, and why the raw number is a trap", level: 2}
@@ -6906,7 +6906,7 @@ pages:
     - {slug: "8-recommended-order", text: "8. Recommended order", level: 2}
   - path: "docs/archive/plans/doctrine/charter-activation-reachability-assessment.md"
     title: "Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering."
     anchors:
     - {slug: "1-what-was-measured", text: "1. What was measured", level: 2}
@@ -7305,7 +7305,7 @@ pages:
     - {slug: "files-owned-by-this-mission", text: "Files Owned by This Mission", level: 2}
   - path: "docs/archive/plans/engineering-notes/01KYW895-verification-evidence.md"
     title: "Verification evidence — egress-refusal-consolidation-3110-01KYW895"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Closeout evidence for mission 01KYW895: the 3.11 portability run, isolated single-file runs, per-clause criterion reporting, and the conditionality ledger."
     anchors:
     - {slug: "verification-evidence-egress-refusal-consolidation-3110-01kyw895", text: "Verification evidence — `egress-refusal-consolidation-3110-01KYW895`", level: 2}
@@ -7350,7 +7350,7 @@ pages:
     - {slug: "tooling-friction-met-while-producing-this-page", text: "Tooling friction met while producing this page", level: 3}
   - path: "docs/archive/plans/engineering-notes/2026-06-12-coordination-topology-stabilization.md"
     title: "Working Plan — Coordination Topology Stabilization (Post-3.2.0)"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Point-in-time working plan synthesizing findings for the coordination-topology split-brain and fail-open gate issues under umbrella #1878; the planned work is now done."
     anchors:
     - {slug: "1-executive-summary", text: "1. Executive Summary", level: 2}
@@ -7780,7 +7780,7 @@ pages:
     - {slug: "5-what-a-maintainer-should-know", text: "5. What a maintainer should know", level: 2}
   - path: "docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md"
     title: "Mission #883 Brief: Doctrine as Mission-Type Authority"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Lead-architect debrief for mission #883 — intent, operator guidance, research, adversarial second opinion, and a conversation transcript for maintainer review."
     anchors:
     - {slug: "1-executive-lead-architect-debrief", text: "1. Executive / lead-architect debrief", level: 2}
@@ -7794,7 +7794,7 @@ pages:
     - {slug: "appendix-a-conversation-transcript-for-maintainer-review", text: "Appendix A — Conversation transcript (for maintainer review)", level: 2}
   - path: "docs/archive/plans/engineering-notes/883-research-synthesis.md"
     title: "Mission #883 Research Dossier (pre-spec, 4-lens squad)"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Point-in-time pre-spec research synthesis for mission #883 with file:line evidence; superseded by the ADR and brief where they differ."
     anchors:
     - {slug: "0-operator-decisions-2026-07-14-authoritative-overrides-defaults-below", text: "0. OPERATOR DECISIONS (2026-07-14) — authoritative, overrides defaults below", level: 2}
@@ -8282,7 +8282,7 @@ pages:
     - {slug: "biggest-split-brain-callout", text: "Biggest split-brain (callout)", level: 2}
   - path: "docs/archive/plans/engineering-notes/research-notes-csf-2670.md"
     title: "Pre-spec research — CSF #2670 landing-pass campsite follow-ups"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Closeout of the pre-spec research squad for CSF #2670: root-cause findings on the shard-map gap, xdist flake, sync remediation-guard, and mypy debt tickets."
     anchors:
     - {slug: "scope-tickets-all-open-children-of-epic-1928-ruff-mypy-sonar-debt", text: "Scope tickets (all OPEN, children of epic #1928 ruff/mypy/Sonar debt)", level: 2}
@@ -8585,7 +8585,7 @@ pages:
     - {slug: "how-to-engage", text: "How to engage", level: 2}
   - path: "docs/archive/plans/engineering-notes/terminology-sweep-report.md"
     title: "Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Closing terminology/glossary check status and Divio frontmatter coverage record for the docs IA overhaul mission."
     anchors:
     - {slug: "mission-diff-scope", text: "Mission diff scope", level: 2}
@@ -9931,7 +9931,7 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
   - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md"
     title: "R2-T1 historical program evidence"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "This directory preserves two immutable historical program documents. The original bundle described R2-T1 retirement scope and commit attribution. It was not a mission record and had no mission identity metadata. Moving it outside the immediate mission corpus preserves that distinction."
     anchors:
     - {slug: "original-documents", text: "Original Documents", level: 2}
@@ -10820,7 +10820,7 @@ pages:
     - {slug: "changed-96", text: "Changed", level: 3}
   - path: "docs/changelog/index.md"
     title: "Changelog"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Changelog landing page: the canonical CHANGELOG.md, the forward-looking release goals, and the historical 1.x/2.x archive folded into this section."
     anchors:
     - {slug: "release-goals", text: "Release goals", level: 2}
@@ -10879,7 +10879,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/configuration/linting-cutoff-policy.md"
     title: "Linting Cutoff Policy"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "How the CI Quality workflow applies commitlint and markdownlint only to commits and files after the 2026-02-25 cutoff, so legacy history is not retroactively failed."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -10894,7 +10894,7 @@ pages:
     - {slug: "best-practices", text: "Best Practices", level: 2}
   - path: "docs/configuration/pack-yaml.md"
     title: "pack.yaml reference"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Field reference for a Charter Pack pack.yaml descriptor: identity, lineage, the declared pack_level, requires_core and layout pointers, plus regenerate-graph --pack-root."
     anchors:
     - {slug: "fields", text: "Fields", level: 2}
@@ -10902,12 +10902,12 @@ pages:
     - {slug: "regenerating-a-built-in-pack-s-graph", text: "Regenerating a built-in pack's graph", level: 2}
   - path: "docs/configuration/review-test-budget.md"
     title: "Review test execution budget"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Configure a bounded per-run budget for complete baseline and candidate review tests."
     anchors: []
   - path: "docs/configuration/yaml-libraries.md"
     title: "YAML library choice: ruamel.yaml vs PyYAML"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "When Spec Kitty uses ruamel.yaml versus PyYAML: the round-trip-vs-read-only deciding criterion and the named codebase sites that currently deviate from it."
     anchors:
     - {slug: "1-the-deciding-criterion", text: "1. The deciding criterion", level: 2}
@@ -10923,7 +10923,7 @@ pages:
     - {slug: "5-quick-reference", text: "5. Quick reference", level: 2}
   - path: "docs/context/audience/external/architect-evaluator.md"
     title: "Stakeholder Persona: External Architect Evaluator"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "External architect-evaluator persona: assesses whether Spec Kitty's architecture and decision model are robust enough for long-term organizational adoption."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -10943,7 +10943,7 @@ pages:
     - {slug: "index", text: "Index", level: 2}
   - path: "docs/context/audience/external/product-manager-evaluator.md"
     title: "Stakeholder Persona: External Product Manager Evaluator"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "External product-manager-evaluator persona: gauges whether Spec Kitty improves discovery-to-delivery flow while preserving product intent and decision accountability."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -10957,7 +10957,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/external/project-owner.md"
     title: "Stakeholder Persona: Project Owner"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "External project-owner persona: ships meaningful outcomes quickly while keeping project direction coherent, valuing fast onboarding and clear governance defaults."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -10971,7 +10971,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/external/tech-lead-evaluator.md"
     title: "Stakeholder Persona: External Tech Lead Evaluator"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "External tech-lead-evaluator persona: judges whether Spec Kitty improves team delivery quality and predictability without adding unsustainable process overhead."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -10992,7 +10992,7 @@ pages:
     - {slug: "conventions", text: "Conventions", level: 2}
   - path: "docs/context/audience/internal/ai-collaboration-agent.md"
     title: "Stakeholder Persona: AI Collaboration Agent"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal AI-collaboration-agent persona: an LLM actor that executes architecture and workflow tasks accurately under explicit human and policy constraints."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11012,7 +11012,7 @@ pages:
     - {slug: "index", text: "Index", level: 2}
   - path: "docs/context/audience/internal/lead-developer.md"
     title: "Stakeholder Persona: Lead Developer"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal lead-developer persona: translates architecture and governance intent into practical, day-to-day implementation behavior across the codebase."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11026,7 +11026,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/internal/maintainer.md"
     title: "Stakeholder Persona: Maintainer"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal maintainer persona: keeps governance operations sustainable, auditable, and low-friction for contributors across the Spec Kitty project."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11040,7 +11040,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/internal/project-codebase.md"
     title: "Stakeholder Persona: Project Codebase"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal project-codebase persona (system actor): preserves structural coherence while enabling safe, incremental change throughout the repository."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11054,7 +11054,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/internal/spec-kitty-cli-runtime.md"
     title: "Stakeholder Persona: Spec Kitty CLI Runtime"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal Spec Kitty CLI-runtime persona (system actor): enforces deterministic command behavior, artifact lifecycle rules, and governance boundaries."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11068,7 +11068,7 @@ pages:
     - {slug: "narrative-summary", text: "Narrative Summary", level: 2}
   - path: "docs/context/audience/internal/system-architect.md"
     title: "Stakeholder Persona: System Architect"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Internal system-architect persona: establishes architecture boundaries that stay coherent as the Spec Kitty system evolves, making trade-offs explicit."
     anchors:
     - {slug: "overview", text: "Overview", level: 2}
@@ -11094,7 +11094,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/context/charter.md"
     title: "Context: Charter"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints."
     anchors:
     - {slug: "context-charter", text: "Context: Charter", level: 2}
@@ -11162,7 +11162,7 @@ pages:
     - {slug: "all-declaration-convention", text: "`__all__` Declaration Convention", level: 3}
   - path: "docs/context/configuration-project-structure.md"
     title: "Context: Configuration and Project Structure"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms)."
     anchors:
     - {slug: "context-configuration-and-project-structure", text: "Context: Configuration and Project Structure", level: 2}
@@ -11187,7 +11187,7 @@ pages:
     - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
   - path: "docs/context/dossier.md"
     title: "Context: Dossier"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for the dossier: the local artifact inventory, integrity validation, and drift-detection system covering mission-lifecycle artifacts."
     anchors:
     - {slug: "context-dossier", text: "Context: Dossier", level: 2}
@@ -11208,7 +11208,7 @@ pages:
     - {slug: "missing-detection", text: "Missing Detection", level: 3}
   - path: "docs/context/execution.md"
     title: "Context: Execution"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission."
     anchors:
     - {slug: "context-execution", text: "Context: Execution", level: 2}
@@ -11251,7 +11251,7 @@ pages:
     - {slug: "pdr-alignment-notes", text: "PDR Alignment Notes", level: 2}
   - path: "docs/context/governance-files.md"
     title: "Governance Files Reference"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it."
     anchors:
     - {slug: "file-table", text: "File Table", level: 2}
@@ -11265,7 +11265,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/context/governance.md"
     title: "Context: Governance"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms."
     anchors:
     - {slug: "context-governance", text: "Context: Governance", level: 2}
@@ -11284,12 +11284,12 @@ pages:
     - {slug: "abstract-base-profile", text: "Abstract Base Profile", level: 3}
   - path: "docs/context/historical-terms.md"
     title: "Historical Terms and Mappings"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Legacy Spec Kitty terminology mapped to its current canonical term, with applicable version scope and migration notes for each historical wording."
     anchors: []
   - path: "docs/context/identity-fields.md"
     title: "Context: Identity Fields"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for the 3-tier identity model from mission 081: the repository, collaboration, and build/machine identity fields and their boundaries."
     anchors:
     - {slug: "context-identity-fields", text: "Context: Identity Fields", level: 2}
@@ -11301,7 +11301,7 @@ pages:
     - {slug: "node-id", text: "node_id", level: 3}
   - path: "docs/context/identity.md"
     title: "Context: Identity"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles."
     anchors:
     - {slug: "context-identity", text: "Context: Identity", level: 2}
@@ -11319,7 +11319,7 @@ pages:
     - {slug: "engagement", text: "engagement", level: 3}
   - path: "docs/context/index.md"
     title: "Context"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
     anchors:
     - {slug: "glossary-reference-notes", text: "Glossary reference notes", level: 3}
@@ -11331,7 +11331,7 @@ pages:
     - {slug: "what-is-archived", text: "What is archived", level: 3}
   - path: "docs/context/lexical.md"
     title: "Context: Lexical"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for the glossary's own data model: how terms are represented, resolved, and tracked, including the term-surface concept."
     anchors:
     - {slug: "context-lexical", text: "Context: Lexical", level: 2}
@@ -11352,7 +11352,7 @@ pages:
     - {slug: "verifying-this-list-yourself", text: "Verifying this list yourself", level: 2}
   - path: "docs/context/naming-decision-tool-vs-agent.md"
     title: "Naming Decision: Tool vs Agent"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "The canonical naming decision separating tool (the concrete execution product) from agent (the logical collaborator identity and role) across Spec Kitty."
     anchors:
     - {slug: "decision", text: "Decision", level: 2}
@@ -11370,7 +11370,7 @@ pages:
     - {slug: "examples", text: "Examples", level: 2}
   - path: "docs/context/orchestration.md"
     title: "Context: Orchestration"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms."
     anchors:
     - {slug: "context-orchestration", text: "Context: Orchestration", level: 2}
@@ -11435,7 +11435,7 @@ pages:
     - {slug: "residue", text: "Residue", level: 3}
   - path: "docs/context/planning-and-tracking.md"
     title: "Context: Planning & Tracking"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for planning and tracking: how work is organized, classified, and dispatched across the tracker and execution tiers (companion to the seed)."
     anchors:
     - {slug: "context-planning-tracking", text: "Context: Planning & Tracking", level: 2}
@@ -11449,7 +11449,7 @@ pages:
     - {slug: "glossary-scope-planning-tracking-subset-deferred-runtime-scope", text: "Glossary Scope — Planning & Tracking subset (deferred runtime scope)", level: 2}
   - path: "docs/context/practices-principles.md"
     title: "Context: Practices and Principles"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for practices and principles: the operating principles guiding glossary-semantic-integrity execution, such as the mostly-invisible process."
     anchors:
     - {slug: "context-practices-and-principles", text: "Context: Practices and Principles", level: 2}
@@ -11508,7 +11508,7 @@ pages:
     - {slug: "qualified-citation", text: "Qualified citation", level: 3}
   - path: "docs/context/system-events.md"
     title: "Context: System Events"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for system events: Spec Kitty's append-only event model, replay behavior, and system-level event types like the event envelope."
     anchors:
     - {slug: "context-system-events", text: "Context: System Events", level: 2}
@@ -11538,7 +11538,7 @@ pages:
     - {slug: "stale-surfaces-you-will-meet", text: "Stale surfaces you will meet", level: 2}
   - path: "docs/context/technology-foundations.md"
     title: "Context: Technology Foundations"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for technology foundations: general technology terms (API and others) recurring throughout Spec Kitty docs, defined for unfamiliar readers."
     anchors:
     - {slug: "context-technology-foundations", text: "Context: Technology Foundations", level: 2}
@@ -11551,7 +11551,7 @@ pages:
     - {slug: "sha256", text: "SHA256", level: 3}
   - path: "docs/context/testing-taxonomy.md"
     title: "Context: Testing Taxonomy"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Glossary context for the testing taxonomy: the canonical pytest-marker categories for the tests/ tree and how to choose markers for a new test file."
     anchors:
     - {slug: "context-testing-taxonomy", text: "Context: Testing Taxonomy", level: 2}
@@ -11580,7 +11580,7 @@ pages:
     - {slug: "exploratory", text: "Exploratory", level: 3}
   - path: "docs/context/topology.md"
     title: "Context: Topology"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Topology glossary: the four topologies, size default, topic branch, write checkout, repo-root and code lanes, mission branch, lane work tip, started work package."
     anchors:
     - {slug: "context-topology", text: "Context: Topology", level: 2}
@@ -11599,7 +11599,7 @@ pages:
     - {slug: "lane-membership-frozen", text: "LANE_MEMBERSHIP_FROZEN", level: 3}
   - path: "docs/contracts/handoff-packet-v1.md"
     title: "Handoff Packet v1"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "Tool-agnostic optional YAML-frontmatter contract for seeding a Spec Kitty mission from an upstream requirements tool."
     anchors:
     - {slug: "design-rules", text: "Design rules", level: 2}
@@ -12211,7 +12211,7 @@ pages:
     - {slug: "updating-this-policy", text: "Updating This Policy", level: 2}
   - path: "docs/development/reference/version-taxonomy.md"
     title: "Version taxonomy"
-    divio_type: "none"
+    divio_type: "reference"
     abstract: "The five version-relevance tags every docs page carries, what each means for the active release line, and how the leakage check enforces them."
     anchors:
     - {slug: "the-five-tags", text: "The five tags", level: 2}
@@ -12409,7 +12409,7 @@ pages:
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/collaboration/index.md"
     title: "Parallel & Multi-Agent Work"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Coordinate multiple agents, worktrees, orchestrators, and dependencies across parallel work packages."
     anchors: []
   - path: "docs/guides/how-to/collaboration/manage-agents.md"
@@ -12594,7 +12594,7 @@ pages:
     - {slug: "what-spec-kitty-review-reports-for-non-python-missions", text: "What `spec-kitty review` reports for non-Python Missions", level: 2}
   - path: "docs/guides/how-to/governance/index.md"
     title: "Governance & Doctrine"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Set up a project charter, synthesize doctrine, manage the glossary, and run governed missions."
     anchors: []
   - path: "docs/guides/how-to/governance/init-and-project-charter.md"
@@ -12839,7 +12839,7 @@ pages:
     - {slug: "where-to-learn-more-about-gemini-cli", text: "Where to learn more about Gemini CLI", level: 2}
   - path: "docs/guides/how-to/harnesses/index.md"
     title: "AI Agent Harnesses"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Set up and run Spec Kitty inside each supported AI coding agent, plus post-edit lint hooks."
     anchors: []
   - path: "docs/guides/how-to/harnesses/kilocode.md"
@@ -12960,7 +12960,7 @@ pages:
     - {slug: "where-to-learn-more-about-windsurf", text: "Where to learn more about Windsurf", level: 2}
   - path: "docs/guides/how-to/index.md"
     title: "How-To Guides"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Task-oriented Spec Kitty guides grouped by concern: installation, harnesses, missions, governance, collaboration, monitoring, recovery, and scenarios."
     anchors: []
   - path: "docs/guides/how-to/installation/diagnose-installation.md"
@@ -12996,7 +12996,7 @@ pages:
     - {slug: "related-guides", text: "Related guides", level: 2}
   - path: "docs/guides/how-to/installation/index.md"
     title: "Installation & Upgrade"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Install, upgrade, repair, and uninstall the Spec Kitty CLI and project across macOS, Linux, and Windows."
     anchors: []
   - path: "docs/guides/how-to/installation/install-and-upgrade.md"
@@ -13316,7 +13316,7 @@ pages:
     - {slug: "getting-started", text: "Getting Started", level: 2}
   - path: "docs/guides/how-to/missions/index.md"
     title: "Run a Mission"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Author and drive a mission from specification through plan, tasks, implementation, review, and merge."
     anchors: []
   - path: "docs/guides/how-to/missions/keep-main-clean.md"
@@ -13432,7 +13432,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/guides/how-to/monitoring/index.md"
     title: "Status & History"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Check mission progress from the CLI and review your git operation history."
     anchors: []
   - path: "docs/guides/how-to/monitoring/use-dashboard.md"
@@ -13452,7 +13452,7 @@ pages:
     - {slug: "command-reference", text: "Command reference", level: 2}
   - path: "docs/guides/how-to/recovery/index.md"
     title: "Recovery & Troubleshooting"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Recover from implementation crashes and interrupted merges, and troubleshoot merge failures."
     anchors:
     - {slug: "see-also", text: "See also", level: 2}
@@ -13592,7 +13592,7 @@ pages:
     - {slug: "agent-strengths", text: "Agent Strengths", level: 2}
   - path: "docs/guides/how-to/scenarios/index.md"
     title: "Scenario Walkthroughs"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "End-to-end, role-based walkthroughs showing how real teams and solo developers run Spec Kitty."
     anchors: []
   - path: "docs/guides/how-to/scenarios/multi-agent-mission-development.md"
@@ -13708,7 +13708,7 @@ pages:
     - {slug: "summary", text: "Summary", level: 2}
   - path: "docs/guides/index.md"
     title: "Guides"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "End-user Spec Kitty guides: learning-oriented tutorials and task-oriented how-tos for installing, running, governing, and monitoring your missions."
     anchors:
     - {slug: "how-to-concerns", text: "How-To concerns", level: 2}
@@ -13821,7 +13821,7 @@ pages:
     - {slug: "learn-more", text: "Learn More", level: 3}
   - path: "docs/guides/tutorials/index.md"
     title: "Tutorials"
-    divio_type: "explanation"
+    divio_type: "none"
     abstract: "Learning-oriented Spec Kitty walkthroughs that teach the workflow end to end, from first install to a full multi-agent mission."
     anchors: []
   - path: "docs/guides/tutorials/missions-overview.md"
@@ -13927,7 +13927,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/migrations/2-1-main-cutover-checklist.md"
     title: "2.1 Main-Branch Cutover Checklist"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Checklist for promoting the 2.x line to main, parking the old line as 1.x-maintenance, and shipping 2.1.0 as the first stable PyPI release on the new main."
     anchors:
     - {slug: "desired-end-state", text: "Desired End State", level: 2}
@@ -13956,7 +13956,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/migrations/charter-ownership-consolidation.md"
     title: "Migration — Charter ownership consolidation"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration for the charter-ownership consolidation whose shim was removed in 3.2.0: what changed and the steps required to move onto the consolidated ownership."
     anchors:
     - {slug: "what-changed", text: "What changed", level: 2}
@@ -14004,7 +14004,7 @@ pages:
     - {slug: "known-follow-ups", text: "Known follow-ups", level: 2}
   - path: "docs/migrations/cross-repo-e2e-gate.md"
     title: "Cross-Repo E2E Gate — Operator Migration Guide"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Operator migration guide for the cross-repo E2E gate, active since the stability-and-hygiene-hardening mission (2026-04-26): how the gate works and what operators do."
     anchors:
     - {slug: "what-the-gate-is", text: "What the gate is", level: 2}
@@ -14020,7 +14020,7 @@ pages:
     - {slug: "cross-references", text: "Cross-references", level: 2}
   - path: "docs/migrations/doctrine-local-overlay-to-org-layer.md"
     title: "Migrating Shared Doctrine to the Org Layer"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Move shared governance artifacts out of project-local `.kittify/doctrine/` and into a proper org doctrine pack, including how to deal with deprecated constitution-era paths."
     anchors:
     - {slug: "who-this-guide-is-for", text: "Who this guide is for", level: 2}
@@ -14042,7 +14042,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/migrations/feature-flag-deprecation.md"
     title: "Migration: --feature to --mission"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration from the --feature flag to --mission, deprecated in mission 077 and fully removed as of 3.2.3 (#1060): the timeline and the required call-site changes."
     anchors:
     - {slug: "why-this-change", text: "Why This Change", level: 2}
@@ -14054,7 +14054,7 @@ pages:
     - {slug: "references", text: "References", level: 2}
   - path: "docs/migrations/from-charter-2x.md"
     title: "Migrating from 2.x / Early 3.x Charter Projects"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "What changed when upgrading from Spec Kitty 2.x or early 3.x to current Charter-era 3.x, migration steps, and known failure modes."
     anchors:
     - {slug: "what-changed", text: "What changed", level: 2}
@@ -14085,7 +14085,7 @@ pages:
     - {slug: "historical-and-internal-runbooks", text: "Historical and internal runbooks", level: 2}
   - path: "docs/migrations/legacy-to-coordination.md"
     title: "Migration: Legacy Topology to the Coordination Model"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Operator runbook for the legacy-topology bookkeeping warning: what a pre-coordination mission is, how to detect one, and the supported paths forward."
     anchors:
     - {slug: "the-warning-you-saw", text: "The warning you saw", level: 2}
@@ -14101,7 +14101,7 @@ pages:
     - {slug: "related-documentation", text: "Related Documentation", level: 2}
   - path: "docs/migrations/migration-and-shim-rules.md"
     title: "Migration and Shim Ownership Rules"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "The migration and shim ownership rulebook governing bundle/runtime migrations and back-compat shims during package extraction, which every extraction mission must cite."
     anchors:
     - {slug: "1-scope-and-purpose", text: "1. Scope and Purpose", level: 2}
@@ -14123,7 +14123,7 @@ pages:
     - {slug: "8-reference-index", text: "8. Reference Index", level: 2}
   - path: "docs/migrations/mission-id-canonical-identity.md"
     title: "Migration: Mission ID as Canonical Identity"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
     anchors:
     - {slug: "why-this-matters", text: "Why This Matters", level: 2}
@@ -14139,7 +14139,7 @@ pages:
     - {slug: "related-documentation", text: "Related Documentation", level: 2}
   - path: "docs/migrations/mission-type-flag-deprecation.md"
     title: "Migration: --mission to --mission-type"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration from --mission to --mission-type, deprecated in mission 077: why the rename, the condition-gated removal (no calendar date), and the required changes."
     anchors:
     - {slug: "why-this-change", text: "Why This Change", level: 2}
@@ -14151,7 +14151,7 @@ pages:
     - {slug: "references", text: "References", level: 2}
   - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
     title: "Migration: Relocate Built-In Doctrine to packs/built-in"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration for the built-in doctrine relocation: content moved from src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam."
     anchors:
     - {slug: "what-changed", text: "What changed", level: 2}
@@ -14165,7 +14165,7 @@ pages:
     - {slug: "why-this-happened", text: "Why this happened", level: 2}
   - path: "docs/migrations/retrospective-events-upstream.md"
     title: "Cutover Runbook: Retrospective Events — Local to Upstream"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Cutover runbook for moving retrospective events from local emission to the upstream spec_kitty_events package, pending its release: the steps and the relevant ADR."
     anchors:
     - {slug: "background", text: "Background", level: 2}
@@ -14181,7 +14181,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/migrations/shared-package-boundary-cutover.md"
     title: "Migration: Shared Package Boundary Cutover"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Migration for the shared-package-boundary cutover (mission 01KQ22DS, released in 3.2.0): how vendored copies were removed in favor of the external PyPI packages."
     anchors:
     - {slug: "what-changed", text: "What changed", level: 2}
@@ -14193,7 +14193,7 @@ pages:
     - {slug: "supersedes", text: "Supersedes", level: 2}
   - path: "docs/migrations/teamspace-mission-state-920-closeout.md"
     title: "TeamSpace Mission-State 920 Closeout Evidence"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly."
     anchors:
     - {slug: "current-conclusion", text: "Current conclusion", level: 2}
@@ -14201,7 +14201,7 @@ pages:
     - {slug: "verification-run", text: "Verification run", level: 2}
   - path: "docs/migrations/teamspace-mission-state-repair.md"
     title: "TeamSpace Mission-State Repair"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run."
     anchors:
     - {slug: "distributed-git-safety", text: "Distributed Git Safety", level: 2}
@@ -14210,7 +14210,7 @@ pages:
     - {slug: "release-sequencing", text: "Release Sequencing", level: 2}
   - path: "docs/migrations/tracker-egress-refusal.md"
     title: "Migration: Tracker Egress Refusal"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Why every existing beads/fp tracker binding now needs a recorded consent decision, what the two channels are, and how to remediate each refusing state."
     anchors:
     - {slug: "what-changed-and-why-it-breaks-you", text: "What Changed and Why It Breaks You", level: 2}
@@ -14226,7 +14226,7 @@ pages:
     - {slug: "related-documentation", text: "Related Documentation", level: 2}
   - path: "docs/migrations/upgrade-to-0-12-0.md"
     title: "Upgrading to Spec Kitty 0.12.0"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Historical upgrade path to Spec Kitty 0.12.0, where agent management became config-driven so migrations respect configuration instead of recreating deleted agent dirs."
     anchors:
     - {slug: "what-changed", text: "What Changed", level: 2}
@@ -14240,7 +14240,7 @@ pages:
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
   - path: "docs/migrations/verdict-provenance-backfill.md"
     title: "Migration: Verdict-Provenance Backfill"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Upgrade-time backfill (FR-012/SC-008) reducing each mission's terminal review-cycle .md verdict into the event log, completing event authority after the verdict-reader collapse."
     anchors:
     - {slug: "why-this-matters", text: "Why This Matters", level: 2}
@@ -14251,7 +14251,7 @@ pages:
     - {slug: "rationale-references", text: "Rationale / References", level: 2}
   - path: "docs/operations/coord-branch-base-strand.md"
     title: "Recovery: Coordination Branch Stranded After a Base Rebase"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery when a coord-topology mission was created on an old base and the working branch was later rebased, leaving lanes forking from a stale coord branch."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14261,7 +14261,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/coord-off-main-addadd.md"
     title: "Recovery: Coordination Branch Created Off main (Add/Add Conflict)"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery when a coord-topology mission's coordination branch was created off main instead of the target branch, causing an add/add merge conflict."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14270,7 +14270,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/coord-worktree-missing.md"
     title: "Recovery: Coordination Branch Declared but Worktree Missing"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery when a mission's meta.json declares coordination_branch but the -coord worktree was never created, using spec-kitty doctor coordination --fix."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14279,7 +14279,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/cutover-flip-linked-worktree.md"
     title: "Recovery: Cutover Flip Fails From a Linked Worktree"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery when the runtime-state cutover flip fails closed with PlacementMismatchError inside a linked git worktree, even though migration events seeded."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14305,13 +14305,13 @@ pages:
     - {slug: "quick-maintainer-checklist", text: "Quick maintainer checklist", level: 3}
   - path: "docs/operations/identity-boundary-ci-gate.md"
     title: "Identity-Boundary CI Gate"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Retired record of the former drift-detector required CI check, which ran the canonical-registry recognition test on every PR until the sync transport it policed was deleted."
     anchors:
     - {slug: "admin-action", text: "Admin Action", level: 2}
   - path: "docs/operations/index.md"
     title: "Operations"
-    divio_type: "reference"
+    divio_type: "none"
     abstract: "Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission."
     anchors:
     - {slug: "pages", text: "Pages", level: 2}
@@ -14413,7 +14413,7 @@ pages:
     - {slug: "wp05-post-fix-results-1304", text: "WP05 Post-Fix Results (#1304)", level: 2}
   - path: "docs/operations/recovery-index.md"
     title: "Recovery guides"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery procedures for Spec Kitty operational states, such as a coord/lane split-brain or a refusal after an upgrade mid-Mission."
     anchors:
     - {slug: "in-this-section", text: "In this section", level: 2}
@@ -14421,7 +14421,7 @@ pages:
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/operations/ssh-deploy-keys.md"
     title: "SSH Deploy Key Setup for CI/CD"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "One-time setup for the SSH deploy key that lets CI/CD clone the private spec-kitty-events repository during builds: generating the keypair and registering the public key."
     anchors:
     - {slug: "purpose", text: "Purpose", level: 2}
@@ -14435,7 +14435,7 @@ pages:
     - {slug: "key-rotation", text: "Key Rotation", level: 2}
   - path: "docs/operations/stale-lane-seed.md"
     title: "Recovery: Stale Lane Seed After Re-Finalizing Tasks"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery for a post-finalize planning commit that stale-seeds a lane, plus the related sparse-checkout false-positive and sync-fan-out hang seen at the same step."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14445,7 +14445,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/start-branch-coord-divergence.md"
     title: "Recovery: --start-branch Coordination Divergence"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "Recovery when agent mission create <mission_slug> --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
@@ -14454,7 +14454,7 @@ pages:
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/operations/sync-daemon-orphan-cleanup.md"
     title: "Sync Daemon Orphan Cleanup — Operator Runbook"
-    divio_type: "none"
+    divio_type: "how-to"
     abstract: "How to inspect, classify, and clean up stale Spec Kitty sync daemons."
     anchors:
     - {slug: "why-orphans-accumulate", text: "Why orphans accumulate", level: 2}
@@ -16234,7 +16234,7 @@ pages:
     - {slug: "covered-sanity-pass-45-clusters", text: "COVERED sanity pass (45 clusters)", level: 2}
   - path: "docs/retrospective-learning-loop.md"
     title: "Retrospective Learning Loop"
-    divio_type: "none"
+    divio_type: "explanation"
     abstract: "Redirect stub: this page moved to architecture/retrospective-learning-loop.md; retained so existing links to the old docs-root path continue to resolve cleanly."
     anchors: []
   - path: "docs/security/index.md"
