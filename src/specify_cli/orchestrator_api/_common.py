@@ -70,6 +70,45 @@ def _fail(command: str, error_code: str, message: str, data: dict[str, Any] | No
     raise typer.Exit(1)
 
 
+#: Envelope ``error_code`` for a status transition refused by the transactional
+#: bookkeeping shell (#5642). The refusal's own code -- a
+#: ``BookkeepingError.error_code`` such as ``BOOKKEEPING_LOCK_TIMEOUT``,
+#: ``BOOKKEEPING_POLICY_REFUSED``, ``COORD_STATUS_SURFACE_DIVERGED`` or
+#: ``COORD_STATUS_SURFACE_UNREADABLE`` -- travels in
+#: ``data.bookkeeping_error_code``, the shape ``data.teardown_error_code`` and
+#: ``data.preflight_error_code`` already use. One registered envelope code keeps
+#: every ``BookkeepingError`` subclass (and any future one) inside the contract's
+#: ``allowed_error_codes`` without registering each subclass's code as a public
+#: top-level code.
+_BOOKKEEPING_FAILED_CODE = "BOOKKEEPING_FAILED"
+
+
+def _fail_from_bookkeeping_error(cmd: str, exc: Exception) -> NoReturn:
+    """Envelope a ``BookkeepingError`` instead of letting it escape as a traceback (#5642).
+
+    The status-writing verbs (``start-implementation``, ``start-review``,
+    ``transition``) wrap their write in ``except TransitionError``, but the
+    transactional shell reaches :class:`BookkeepingTransaction`, whose failures
+    are ``BookkeepingError`` subclasses -- a plain ``Exception`` hierarchy,
+    deliberately NOT ``TransitionError``. Before this helper they escaped every
+    arm: an external orchestrator got a Python traceback on stderr and nothing on
+    stdout, against a contract whose first rule is one JSON envelope per call.
+
+    The exception's own ``error_code`` is preserved in
+    ``data.bookkeeping_error_code`` (``None`` only for an exception that carries
+    none; every ``BookkeepingError`` declares one, the base class as
+    ``BOOKKEEPING_ERROR``), so a caller can still tell a retryable lock timeout
+    from a refusal that needs an operator.
+    """
+    error_code = getattr(exc, "error_code", None)
+    _fail(
+        cmd,
+        _BOOKKEEPING_FAILED_CODE,
+        str(exc),
+        {"bookkeeping_error_code": error_code},
+    )
+
+
 def _parse_policy_or_fail(cmd: str, policy: str) -> dict[str, Any]:
     """Parse+validate a ``--policy`` JSON string, or ``_fail`` (NoReturn) on invalid JSON.
 
@@ -99,6 +138,30 @@ def _get_main_repo_root() -> Path:
         # Fall back to canonical resolver for worktree-aware behavior.
         return get_main_repo_root(cwd)
     return root
+
+
+def _status_read_path_not_found_data(exc: Exception) -> dict[str, Any]:
+    """Return the envelope ``data`` for a typed :class:`StatusReadPathNotFound`.
+
+    The ONE builder of that payload: the mission-resolution seam
+    (:func:`_resolve_mission_dir_or_fail`) and the group's last-resort arm
+    (``_JSONErrorGroup``, #5156) both emit it, so a caller sees the same keys
+    whichever door the refusal came through. ``coord_candidate`` /
+    ``primary_candidate`` name the two surfaces the fail-closed resolver
+    checked, which is what makes the refusal actionable without string parsing.
+
+    ``exc`` is a ``StatusReadPathNotFound`` (or its ``CoordinationBranchDeleted``
+    subclass, which passes the same constructor arguments through). Attributes are
+    read with ``getattr`` defaults so a future subclass cannot turn envelope
+    construction itself into a traceback.
+    """
+    return {
+        "message": str(exc),
+        "mission_slug": getattr(exc, "mission_slug", None),
+        "mid8": getattr(exc, "mid8", None),
+        "coord_candidate": str(getattr(exc, "coord_candidate", "")),
+        "primary_candidate": str(getattr(exc, "primary_candidate", "")),
+    }
 
 
 def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
@@ -177,13 +240,7 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
             command,
             exc.error_code,
             str(exc),
-            data={
-                "message": str(exc),
-                "mission_slug": exc.mission_slug,
-                "mid8": exc.mid8,
-                "coord_candidate": str(exc.coord_candidate),
-                "primary_candidate": str(exc.primary_candidate),
-            },
+            data=_status_read_path_not_found_data(exc),
         )
     except ValueError as exc:
         # #2879 (machine contract): the read-side seam's traversal guard

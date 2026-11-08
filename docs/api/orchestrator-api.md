@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.25.0`
+- `CONTRACT_VERSION`: `1.26.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -250,6 +250,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
 
   Additive fields, and a call that used to fail after a landing now succeeds, so a minor bump; no
   field or `error_code` is removed or renamed.
+- `1.26.0` — `start-implementation`, `start-review` and `transition` can newly fail with
+  `BOOKKEEPING_FAILED` (#5642). Their status write goes through the transactional bookkeeping shell,
+  whose `BookkeepingError` family — a policy refusal, a lock timeout, an unresolvable worktree, a
+  diverged or unreadable coordination status surface — is not a `TransitionError`, so it escaped every
+  `except` arm as a raw traceback with an empty stdout. The failure's `data.bookkeeping_error_code`
+  carries the exception's own code, so a retryable `BOOKKEEPING_LOCK_TIMEOUT` stays distinguishable
+  from a refusal that needs an operator. A new `error_code` on existing verbs, so a minor bump; no
+  field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -257,7 +265,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.25.0",
+  "contract_version": "1.26.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1060,6 +1068,7 @@ documented in the same change that registers it.
 - `STATUS_READ_PATH_NOT_FOUND`
 - `WP_NOT_FOUND`
 - `TRANSITION_REJECTED`
+- `BOOKKEEPING_FAILED` — `start-implementation`, `start-review`, `transition`: the transactional status write refused; `data.bookkeeping_error_code` carries the refusal's own code (`BOOKKEEPING_LOCK_TIMEOUT` retryable, `BOOKKEEPING_POLICY_REFUSED`, `BOOKKEEPING_WORKTREE_MISSING`, `BOOKKEEPING_COMMIT_FAILED`, `BOOKKEEPING_DOUBLE_EVENT_ID`, `BOOKKEEPING_LEGACY_RESOLUTION_FAILED`, `COORD_STATUS_SURFACE_DIVERGED`, `COORD_STATUS_SURFACE_UNREADABLE`)
 - `WP_ALREADY_CLAIMED` (for `start-implementation` on an `in_progress` WP after a reviewer's rework verdict, the WP's implementer of record is admitted as a `no_op` resume rather than refused; an unrelated actor is still refused)
 - `MISSION_NOT_READY` (on `accept-mission`, `data.preflight_error_code` can refine it with an origin freshness code; see below)
 - `WORKFLOW_EVIDENCE_REQUIRED` — a terminal transition's required structured workflow evidence is missing; the current host derives those facts instead of returning this code, but the contract registers it
