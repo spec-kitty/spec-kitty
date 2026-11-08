@@ -93,6 +93,16 @@ def _prepare_dry_run(
             None if branch_ok else _blocker(),
         ),
     )
+    # #7267: the dry-run forecast now refuses on a missing Mission branch with
+    # the SAME preflight the real run uses, so the stub must cover the forecast
+    # seam too (it imports ``_check_mission_branch`` into its own namespace).
+    monkeypatch.setattr(
+        "specify_cli.consolidation.forecast._check_mission_branch",
+        lambda _mission_slug, _repo_root, **_kwargs: (
+            branch_ok,
+            None if branch_ok else _blocker(),
+        ),
+    )
 
 
 def _invoke_merge_dry_run(*, json_output: bool) -> None:
@@ -557,41 +567,49 @@ class TestMergeDryRunMissingBranch:
         assert load_state(tmp_path, mission_id) is not None
         assert load_state(tmp_path, mission_slug) is None
 
-    def test_dry_run_json_missing_branch_still_previews(
+    def test_dry_run_json_missing_branch_refuses(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """merge --dry-run --json does not require a local mission branch."""
+        """merge --dry-run --json refuses on a missing local mission branch (#7267).
+
+        The dry run must not report a clean forecast for a run that would
+        refuse: it exits 1 with the same "Missing mission branch" refusal as
+        the real run, carrying a stable ``MISSION_BRANCH_MISSING`` error code.
+        """
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
         monkeypatch.setattr("specify_cli.consolidation.forecast.needs_number_assignment", lambda _feature_dir: False)
 
-        _invoke_merge_dry_run(json_output=True)
+        with pytest.raises(typer.Exit) as exc_info:
+            _invoke_merge_dry_run(json_output=True)
 
+        assert exc_info.value.exit_code == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload["mission_slug"] == MISSION_SLUG
-        assert payload["mission_branch"] == f"kitty/mission-{MISSION_SLUG}"
-        assert payload["target_branch"] == "main"
-        assert payload["would_assign_mission_number"] is None
+        assert payload["error"] == (
+            f"Missing mission branch: kitty/mission-{MISSION_SLUG}. "
+            f"Run: git branch kitty/mission-{MISSION_SLUG} abc1234def56"
+        )
+        assert payload["error_code"] == "MISSION_BRANCH_MISSING"
 
-    def test_dry_run_human_missing_branch_still_previews(
+    def test_dry_run_human_missing_branch_refuses(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """merge --dry-run (no --json) still emits the preview payload."""
+        """merge --dry-run (no --json) refuses with the real run's refusal (#7267)."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
         monkeypatch.setattr("specify_cli.consolidation.forecast.needs_number_assignment", lambda _feature_dir: False)
 
-        _invoke_merge_dry_run(json_output=False)
+        with pytest.raises(typer.Exit) as exc_info:
+            _invoke_merge_dry_run(json_output=False)
 
-        payload = json.loads(capsys.readouterr().out)
-        assert payload["mission_slug"] == MISSION_SLUG
-        assert payload["mission_branch"] == f"kitty/mission-{MISSION_SLUG}"
-        assert payload["target_branch"] == "main"
-        assert payload["would_assign_mission_number"] is None
+        assert exc_info.value.exit_code == 1
+        output = _compact_output(capsys.readouterr().out)
+        assert f"Missing mission branch: kitty/mission-{MISSION_SLUG}" in output
+        assert f"git branch kitty/mission-{MISSION_SLUG} abc1234def56" in output
 
     def test_real_merge_blocked_missing_branch(
         self,

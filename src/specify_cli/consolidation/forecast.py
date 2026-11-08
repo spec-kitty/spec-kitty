@@ -51,6 +51,7 @@ from specify_cli.consolidation._constants import (
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.preflight import (
+    _check_mission_branch,
     refuse_protected_status_target,
     refuse_protected_target_override,
 )
@@ -273,6 +274,22 @@ UNATTRIBUTABLE_CONTENT_FORECAST = "UNATTRIBUTABLE_CONTENT_FORECAST"
 #: mis-declared ``--dependency-ref``, an unevaluable claim): the preview must not be green
 #: while the run refuses.
 CLAIM_REFUSED_FORECAST = "CLAIM_REFUSED_FORECAST"
+#: ``--dry-run`` error code for an unresolved Mission slug (#5373): no Mission could be
+#: auto-detected and none was named with ``--mission``. Stable so a scripted preflight can
+#: act on the refusal without parsing prose.
+MISSION_SLUG_UNRESOLVED = "MISSION_SLUG_UNRESOLVED"
+#: ``--dry-run`` error code for an unreadable ``lanes.json`` (missing or corrupt, #5373):
+#: the LANE_STATE manifest the forecast — and the real run — require.
+LANES_MANIFEST_UNREADABLE = "LANES_MANIFEST_UNREADABLE"
+#: ``--dry-run`` error code for a failed mission→target integration preview (#5373): the
+#: scratch-worktree preview could not be built (unrelated histories, a failed
+#: ``git worktree add``, an OS-level failure).
+TARGET_INTEGRATION_PREVIEW_FAILED = "TARGET_INTEGRATION_PREVIEW_FAILED"
+#: ``--dry-run`` error code for the #7267 refusal: the Mission branch is missing, so the
+#: real run would refuse with the same "Missing mission branch" preflight
+#: (``executor.py``). The dry run refuses identically instead of reporting a clean
+#: forecast.
+MISSION_BRANCH_MISSING = "MISSION_BRANCH_MISSING"
 
 
 def _declared_with_recorded(
@@ -487,6 +504,7 @@ def run_dry_run_forecast(
         _emit_dry_run_error(
             error_msg="Mission slug could not be resolved. Use --mission <slug>.",
             json_output=json_output,
+            error_code=MISSION_SLUG_UNRESOLVED,
         )
         raise typer.Exit(1)
 
@@ -503,8 +521,28 @@ def run_dry_run_forecast(
         # the dry-run reads the real PRIMARY lane manifest.
         lanes_manifest = require_lanes_json(seam.read_dir(MissionArtifactKind.LANE_STATE))
     except (MissingLanesError, CorruptLanesError) as exc:
-        _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
+        _emit_dry_run_error(error_msg=str(exc), json_output=json_output, error_code=LANES_MANIFEST_UNREADABLE)
         raise typer.Exit(1) from exc
+    # #7267 (operator ruling 2026-11-08): the dry run refuses on a missing Mission
+    # branch with the SAME refusal as the real run's preflight (executor.py's
+    # ``_check_mission_branch``), instead of reporting a clean forecast for a run
+    # that would refuse. Placed after ``require_lanes_json`` — the check needs the
+    # manifest's recorded ``mission_branch`` — and before every status read, so a
+    # deleted branch cannot surface as an unhandled status-read error either.
+    branch_ok, branch_blocker = _check_mission_branch(
+        resolved_feature,
+        get_main_repo_root(repo_root),
+        expected_branch=lanes_manifest.mission_branch,
+        mission_id=lanes_manifest.mission_id,
+    )
+    if not branch_ok:
+        assert branch_blocker is not None
+        _emit_dry_run_error(
+            error_msg=(f"Missing mission branch: {branch_blocker['expected_branch']}. Run: {branch_blocker['remediation']}"),
+            json_output=json_output,
+            error_code=MISSION_BRANCH_MISSING,
+        )
+        raise typer.Exit(1)
     _refuse_protected_status_target_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
     # #6464: the forecast holds the UN-retargeted manifest, so the recorded target is its
     # ``target_branch`` while the effective one is the resolved ``--target``.
@@ -557,7 +595,7 @@ def run_dry_run_forecast(
         # through the same channel as every other dry-run error so ``--json``
         # output stays valid JSON (a raw traceback would corrupt it) and
         # terminate the path.
-        _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
+        _emit_dry_run_error(error_msg=str(exc), json_output=json_output, error_code=TARGET_INTEGRATION_PREVIEW_FAILED)
         raise typer.Exit(1) from exc
     if integration_preview.conflicting_paths:
         _emit_target_content_conflict(

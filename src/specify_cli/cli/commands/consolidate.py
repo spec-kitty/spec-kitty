@@ -1098,7 +1098,9 @@ def consolidate(
     ),
     push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
     target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing; does not check that the mission branch exists"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would be done without executing; refuses like the real run when the mission branch is missing"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from the last incomplete WP"),

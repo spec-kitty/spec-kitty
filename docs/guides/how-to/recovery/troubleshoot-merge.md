@@ -26,12 +26,12 @@ Each section gives what you see, what it means, and the command to run. The full
 | --- | --- |
 | The run was interrupted (terminal closed, process killed, a lane failed to merge) | `spec-kitty consolidate --resume` (a run that failed and rolled back completely: `spec-kitty consolidate --mission <slug>`, see [below](#a-failed-run-that-rolled-back-completely-drops-its-baseline)) |
 | You want to undo what the run moved and start over | `spec-kitty consolidate --abort` |
-| You want to check readiness without changing anything | `spec-kitty consolidate --dry-run` (it does not check that the mission branch exists; see the note below the table) |
+| You want to check readiness without changing anything | `spec-kitty consolidate --dry-run` (it refuses like the real run when the mission branch is missing) |
 | `UNEXPLAINED_BRANCH_MOVE` on a re-run or `--resume` | Inspect the branch, see [A branch moved without a record](#a-branch-moved-without-a-record) |
 | `--abort` keeps reporting a branch `NOT restored` | `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`, see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored) |
 | Exit code 75, `COORD_MOVED_AFTER_LANDING` | `spec-kitty consolidate --resume`, see [Exit code 75](#exit-code-75-the-landing-stands) |
 
-A clean `--dry-run` does not prove the real run will land. The dry run is allowed before the mission branch exists, so it never reports the real run's "Missing mission branch" refusal (#7267). Under the default squash strategy it also previews only what is already merged into the mission branch, so it can refuse a landing the real run makes (#7268). It does not run the real run's canceled-content checks, so it can also pass a landing the real run refuses (#7296).
+A clean `--dry-run` does not prove the real run will land. The dry run refuses with the real run's "Missing mission branch" refusal when the mission branch does not exist (#7267). Under the default squash strategy it also previews only what is already merged into the mission branch, so it can refuse a landing the real run makes (#7268). It does not run the real run's canceled-content checks, so it can also pass a landing the real run refuses (#7296).
 
 ## Resume an Interrupted Consolidation
 
