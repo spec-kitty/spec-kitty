@@ -78,6 +78,12 @@ DEFAULT_KEEP_FAILED_RUNS = 3
 # ---------------------------------------------------------------------------
 
 
+def _is_link(entry: Path) -> bool:
+    """Return True for a symlink or (Python 3.12+) a Windows junction."""
+    is_junction = getattr(entry, "is_junction", None)
+    return entry.is_symlink() or bool(is_junction is not None and is_junction())
+
+
 def _preserved_failure_dirs(
     staging_root: Path,
 ) -> list[tuple[float, str, Path]]:
@@ -85,7 +91,8 @@ def _preserved_failure_dirs(
 
     Only entries whose name ends in :data:`_FAILED_SUFFIX` and that are
     directories are returned: a live ``<run_id>/`` staging directory of a
-    running synthesis is never a candidate, whatever its age. Entries that
+    running synthesis is never a candidate, whatever its age, and neither is a
+    link named ``*.failed`` (it is never followed or removed). Entries that
     cannot be stat'ed are skipped — retention is best-effort and must not fail
     the refusal.
     """
@@ -98,6 +105,11 @@ def _preserved_failure_dirs(
         if not entry.name.endswith(_FAILED_SUFFIX):
             continue
         try:
+            # A link (symlink, or a Windows junction on 3.12+) named ``*.failed``
+            # is not a preserved failure: following it would let it take a slot
+            # of the bound and prune a real diagnostic in its place.
+            if _is_link(entry):
+                continue
             if entry.is_dir():
                 found.append((entry.stat().st_mtime, entry.name, entry))
         except OSError:
