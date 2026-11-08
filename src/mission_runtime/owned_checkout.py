@@ -220,6 +220,16 @@ class OwnedCheckout:
         *leads* rather than what a commit stores: the final component is
         resolved too (:func:`kernel.resolution.resolve_rejecting_loops`), so a
         link inside the mission that points outside it is refused.
+
+        **Writer contract (#5923, operator ruling 2026-11-08):** a caller that
+        *opens* a returned path WRITES THROUGH a link nested in the Mission
+        directory. Under the default ``follow_links=False`` such a link is
+        judged by where it sits — inside the mission — so it is returned as a
+        valid write path even when it points outside the owned checkout, and a
+        writer can reach outside the checkout through a link the operator
+        planted. That is the documented contract: no containment change. A
+        caller that must refuse such a link (a boundary screen deciding where a
+        path leads) passes ``follow_links=True``.
         """
         resolved: list[Path] = []
         for path in paths:
