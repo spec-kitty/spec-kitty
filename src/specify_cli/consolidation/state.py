@@ -311,6 +311,13 @@ class ConsolidationState:
     # the gate against lane branches it already deleted. Additive, read with a default; the
     # record is cleared at the end of the run, so it is never carried across ``--abort``.
     cleanup_started: bool = False
+    # #6736: lane branch -> ``[claim-validated tip, tip after this run's own auto-rebase]``,
+    # recorded by ``phase_advance`` only when the lane moved by exactly that merge
+    # (``lane_cleanup.own_auto_rebase_move``) and saved, so a ``--resume`` cleanup still knows the
+    # lane's new tip. Cleanup follows a move only from the snapshot tip it starts from
+    # (``lane_cleanup.cleanup_expected_tips``). Absent or malformed -> ``{}`` (fail closed: the
+    # cleanup expects the snapshot tip and keeps a moved lane).
+    lane_rebase_moves: dict[str, list[str]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -337,6 +344,8 @@ class ConsolidationState:
             filtered["unsettled_refs"] = _unsettled_or_all(filtered["unsettled_refs"])
         if "advance_intents" in filtered:
             filtered["advance_intents"] = _intent_chains_or_empty(filtered["advance_intents"])
+        if "lane_rebase_moves" in filtered:
+            filtered["lane_rebase_moves"] = _intent_chains_or_empty(filtered["lane_rebase_moves"])
         if "cleanup_started" in filtered:
             filtered["cleanup_started"] = filtered["cleanup_started"] is True  # never truthiness-coerced
         return cls(**filtered)

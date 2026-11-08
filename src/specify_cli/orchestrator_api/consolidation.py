@@ -401,6 +401,32 @@ def _lane_tips(main_repo_root: Path, lanes_manifest: LanesManifest) -> dict[str,
     return tips
 
 
+def _lane_and_mission_tips(main_repo_root: Path, lanes_manifest: LanesManifest, lane_id: str) -> tuple[str, str | None, str | None]:
+    """``(lane branch, its tip, the mission branch tip)`` read just before the lane is consolidated (#6736)."""
+    from specify_cli.consolidation.lane_cleanup import branch_tip
+    from specify_cli.lanes.compute import lane_created_branch
+
+    branch = lane_created_branch(lanes_manifest, lane_id)
+    return branch, branch_tip(main_repo_root, branch), branch_tip(main_repo_root, lanes_manifest.mission_branch)
+
+
+def _follow_own_auto_rebase(main_repo_root: Path, lane_tips: dict[str, str], before: tuple[str, str | None, str | None]) -> None:
+    """#6736: advance a lane's validated tip over this call's own auto-rebase merge, and only that move.
+
+    Without it the cleanup compares the rebased lane worktree with the pre-rebase tip and keeps
+    every auto-rebased lane (``WORKTREE_TIP_MOVED``). Any other move leaves the validated tip in
+    place, so the cleanup still refuses it.
+    """
+    from specify_cli.consolidation.lane_cleanup import own_auto_rebase_move
+
+    branch, lane_before, mission_before = before
+    if lane_before is None or lane_tips.get(branch) != lane_before:
+        return
+    move = own_auto_rebase_move(main_repo_root, branch, before=lane_before, mission_before=mission_before)
+    if move is not None:
+        lane_tips[branch] = move[-1]
+
+
 def _apply_lane_merge_cleanup(
     main_repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -431,7 +457,8 @@ def _apply_lane_merge_cleanup(
     target = lanes_manifest.target_branch
     landing = lane_cleanup.LocalTargetAtPass(target_ref=target, passed_sha=_branch_tip_sha(main_repo_root, target) or "")
     retention_legs = lane_cleanup.LaneRetention(remove_worktree=retention.remove_worktree, delete_branch=retention.delete_branch)
-    report = lane_cleanup.apply(items, lane_cleanup.GuardedLaneRemover(main_repo_root, context=context), landing=landing, retention=retention_legs)
+    remover = lane_cleanup.GuardedLaneRemover(main_repo_root, context=context, mission_slug=lanes_manifest.mission_slug)
+    report = lane_cleanup.apply(items, remover, landing=landing, retention=retention_legs)
     for kept in report.kept:
         logger.warning("Lane %s was kept (%s): %s", kept.item.lane_id, kept.code, kept.remedy)
     return report
@@ -703,9 +730,11 @@ def _execute_lane_merge(
     for lane in lanes_manifest.lanes:
         if lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue  # #5814: never integrate a fully-canceled lane's content (host parity)
+        before = _lane_and_mission_tips(main_repo_root, lanes_manifest, lane.lane_id)
         lane_result = consolidate_lane_into_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
         if not lane_result.success:
             raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
+        _follow_own_auto_rebase(main_repo_root, lane_tips, before)
 
     mission_result = integrate_mission_into_target(
         main_repo_root,
