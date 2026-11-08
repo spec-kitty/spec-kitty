@@ -109,9 +109,13 @@ def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = N
     An askpass helper (``GIT_ASKPASS`` / ``SSH_ASKPASS``) would pop a GUI
     credential dialog even with ``GIT_TERMINAL_PROMPT=0`` and ``BatchMode``
     (#5860), so both variables are popped from the returned environment on
-    every return path — including the ``GIT_SSH`` early return, which skips
-    the ``BatchMode`` append and would otherwise leave the askpass dialog as
-    the only prompt left unneutralised.
+    every return path, including the ``GIT_SSH`` early return, which skips the
+    ``BatchMode`` append.
+
+    Residual (#5860, still open): on that ``GIT_SSH`` path popping
+    ``SSH_ASKPASS`` is not a full guarantee of no prompt. OpenSSH can still
+    fall back to a compiled-in askpass program when ``DISPLAY`` is set and
+    there is no TTY, and ``SSH_ASKPASS_REQUIRE`` is left in place.
 
     Args:
         base: Environment to extend; ``None`` uses ``os.environ``.
