@@ -1913,7 +1913,10 @@ def _local_support_content_lines(
 
 
 def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, object]]:
-    """Index YAML assets in *directory* by ``id`` (or file stem fallback).
+    """Index YAML assets in *directory* by authored ``id``.
+
+    An entry with no authored ``id`` is skipped: there is no filename-stem
+    fallback (#4856), matching ``catalog._extract_artifact_id``.
 
     *directory* is always a flat content dir (the ``built_in_dir(kind)``
     authority, or a caller-supplied flat directory in tests); the
@@ -1928,9 +1931,6 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
     for path in sorted(directory.glob(pattern)):
         loaded = _load_yaml_asset(path)
         raw_id = str(loaded.get("id", "")).strip() if isinstance(loaded, dict) else ""
-        if not raw_id:
-            raw_id = path.stem.split(".")[0]
-
         if raw_id:
             index[raw_id.casefold()] = loaded
     return index
