@@ -54,18 +54,15 @@ ROUTER_GATE_JOB_NAME = "router gate"
 # every jobs-API row of the run, not only its ``needs:``, so a job kept out of ``needs:`` would
 # still block on failure and could read as incomplete while it runs; these rows are skipped like
 # the gate's own. tests/architectural/test_dual_mode_contract.py subtracts the same set from its
-# ``needs:`` invariant, and tests/ci/test_docs_site_job.py requires every name to be a router job
-# outside ``needs:`` that also carries job-level ``continue-on-error`` (the run-conclusion half of
-# "non-blocking": the fleet verdict, the main P0 intake and skip-if-green read the run conclusion).
-# Priced debt (charter Standing Order #5, ADR 2026-09-30-1): one entry, issue #6937, owner the
-# operator, exit when #6937 adds the job to ``needs:`` and removes both the entry and the job's
-# ``continue-on-error``.
-ADVISORY_JOB_NAMES: frozenset[str] = frozenset(
-    {
-        # The doc-kitty docsite build of the parallel run (#6930; ADR 2026-10-31-1 D-11, D-13).
-        "docs site (doc-kitty build)",
-    }
-)
+# ``needs:`` invariant, and tests/ci/test_docs_site_job.py requires every job carrying job-level
+# ``continue-on-error`` to be named here (the run-conclusion half of "non-blocking": the fleet
+# verdict, the main P0 intake and skip-if-green read the run conclusion).
+#
+# EMPTY on purpose (charter Standing Order #5, ADR 2026-09-30-1): the doc-kitty docsite build was
+# the only entry, and #6937 added it to ``router-gate.needs:`` without ``continue-on-error``. Keep
+# the set empty — an advisory job is priced debt (it needs an issue, an owner and an exit), and a
+# new entry must be added together with the job's ``continue-on-error``.
+ADVISORY_JOB_NAMES: frozenset[str] = frozenset()
 
 # The conclusion recorded for a job the jobs API reports without one (still in
 # progress or missing). It is not in NON_BLOCKING_CONCLUSIONS, so it blocks.
