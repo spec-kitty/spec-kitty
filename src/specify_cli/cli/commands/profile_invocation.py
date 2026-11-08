@@ -167,7 +167,7 @@ def complete_invocation(
         "failed": "failed",
         "abandoned": "abandoned",
     }
-    # #7013: a blank attribution value is a usage error, not "no attribution".
+    # #7315: a blank attribution value is a usage error, not "no attribution".
     if co_author is not None and not co_author.strip():
         raise typer.BadParameter(
             "--co-author cannot be empty: pass 'Name <email>' or omit it",
