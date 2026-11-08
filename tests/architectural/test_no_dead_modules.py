@@ -381,6 +381,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register, ordered first in the manifest, never
         # statically imported; verified by registry lookup in
         # tests/upgrade/test_backfill_ledger.py and test_backfill_migration.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_merged_at",
         "specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger",
         "specify_cli.upgrade.migrations.m_4_0_0rc8_project_intent_directive_rename",  # #6443: auto-discovered slug rename, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections",  # #6629: auto-discovered interview promotion, never statically imported
