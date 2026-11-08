@@ -3,7 +3,7 @@ title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-07T00:00:00Z'
+updated: '2026-11-08T00:00:00Z'
 related:
 - context/charter
 - context/identity
@@ -631,6 +631,110 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Applicable to** | `4.x` |
 | **Do NOT use when** | The concept is the commit that landed a Mission on `main`: that is `pr_merge_commit` where it was recorded, or the pull request's landed commit. Do not call an unreachable branch-relative SHA "stale" or "corrupt", and never ask for an archive-freeze exception to correct one. |
 | **Related terms** | [Publish to origin/main](#publish-to-originmain), [Lane Consolidation](#lane-consolidation), [Evidence gate](#evidence-gate) |
+
+---
+
+### Work-package window
+
+| | |
+|---|---|
+| **Definition** | The span of lane history one approved work package is accountable for: from its [window-open SHA](#window-open-sha) (exclusive) to its newest approval stamp (inclusive). A work package with a [window gap](#window-gap) gets a degraded window from the claim base to its approval stamp. ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the canceled-content implementation and review windows of a mixed lane (`WorkWindow`): that is a [named window variant](#named-window-variant), never "work-package window". Do not write "work window" or "WP range" for this sense. |
+| **Related terms** | [Window-open SHA](#window-open-sha), [Window opener](#window-opener), [Window gap](#window-gap), [Exemption anchor](#exemption-anchor), [Named window variant](#named-window-variant) |
+
+---
+
+### Window-open SHA
+
+| | |
+|---|---|
+| **Definition** | The lane head recorded under `policy_metadata.wp_window.open_sha` on the status event of a non-migration move into `claimed` or `in_progress`. The window opens at the one recorded on the [window opener](#window-opener). It is [branch-relative provenance](#branch-relative-provenance), valid for one consolidation attempt. ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the approval stamp (`lane_head` on the newest approval transition): that is the window's closing edge. Do not write "open stamp", "base SHA" or "fork point" for this sense. |
+| **Related terms** | [Work-package window](#work-package-window), [Window opener](#window-opener), [Window gap](#window-gap), [Branch-relative provenance](#branch-relative-provenance) |
+
+---
+
+### Window opener
+
+| | |
+|---|---|
+| **Definition** | The opening event a work package's window binds to: the first non-migration move into `claimed` or `in_progress` after the work package last returned to `planned` from a non-review lane (a review rejection does not reset it), skipping leading `lane_branch_missing` openers, with the openers of that cycle ordered by lane topology and by event-log order when their SHAs are unrelated (FR-021). ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the closed-world lane anchor, where `blocked` also counts as an opener (`first_governed_open_stamp`): that is a [named window variant](#named-window-variant). Do not write "first claim"; it is no longer exact. |
+| **Related terms** | [Window-open SHA](#window-open-sha), [Work-package window](#work-package-window), [Named window variant](#named-window-variant) |
+
+---
+
+### Window gap
+
+| | |
+|---|---|
+| **Definition** | The explicit, typed absence of a recorded window for a work package: "not recorded" (no value on the opener), "capture failed" (with the recorded cause), "lane branch missing" (no opener of the cycle carries a SHA) or "not on lane" (the SHA is not an ancestor of the lane tip, or does not resolve in this clone). A gap never refuses by itself: the work package is judged by the approval-stamp bound and listed in the [gap report](#gap-report). ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is a missing approval stamp: that is `APPROVAL_STAMP_MISSING`, a different refusal. Do not write "missing stamp" for a window gap. |
+| **Related terms** | [Gap report](#gap-report), [Work-package window](#work-package-window), [Window-open SHA](#window-open-sha) |
+
+---
+
+### Gap report
+
+| | |
+|---|---|
+| **Definition** | The part of the `consolidate` output (fresh run, resume and forecast; `window_gaps` in the JSON) that lists every work package judged by the fallback approval-stamp bound, with its [window gap](#window-gap) reason. ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is a refusal or a warning about the work itself: a gap report lists the weaker check a work package got, and refuses nothing. Do not write "warning list". |
+| **Related terms** | [Window gap](#window-gap), [Work-package window](#work-package-window) |
+
+---
+
+### Exemption anchor
+
+| | |
+|---|---|
+| **Definition** | A commit whose reach exempts lane commits from the window refusal: the closed-world anchors (dependency-lane tips of lanes that are not fully canceled, the target's pre-consolidation tip) and the approval stamps of **other** bounded lanes. A lane's own approval stamps are not exemption anchors on the window path. ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is an approval stamp of the lane under check, which does not exempt on the window path. Do not write "stamp anchor" without naming the lane. |
+| **Related terms** | [Work-package window](#work-package-window), [Claim inputs](#claim-inputs), [Lane Consolidation](#lane-consolidation) |
+
+---
+
+### Claim inputs
+
+| | |
+|---|---|
+| **Definition** | `ClaimInputs`: the one frozen value the consolidation gate's claim is built from, with one constructor and three sources (`LIVE` for the forecast, `LIVE_THEN_SAVED` for a fresh run, `SAVED` for a resume). It holds the target base, the coordination base, the frozen lane tips, the frozen dependency anchors, the dependency pins, the excluded canceled work packages, the strategy and the status directory read. ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is the target branch's tip before the run mutated anything (the claim base), which is one field of the claim inputs. Do not write "claim args" or "gate params". |
+| **Related terms** | [Lane Consolidation](#lane-consolidation), [Exemption anchor](#exemption-anchor), [Work-package window](#work-package-window) |
+
+---
+
+### Named window variant
+
+| | |
+|---|---|
+| **Definition** | A deliberate difference between window definitions that ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md) records by name instead of unifying: "lane anchor" (`blocked` opens), "canceled-content windows" (`WorkWindow`), "owned-file evidence", and the `single_branch` authorship window. |
+| **Context** | Orchestration |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Do NOT use when** | The concept is an accident or an unrecorded difference between two checks: a named variant is recorded and has a reason. Do not write "exception" or "special case". |
+| **Related terms** | [Work-package window](#work-package-window), [Window opener](#window-opener), [Exemption anchor](#exemption-anchor) |
 
 ---
 
