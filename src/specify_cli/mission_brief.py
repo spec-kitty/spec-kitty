@@ -22,6 +22,7 @@ import yaml
 
 from kernel.clock import now_utc_iso
 from specify_cli.asset_preservation import guard_destructive_overwrite
+from specify_cli.core.adapters import PENDING_ORIGIN_FILENAME
 from specify_cli.intake.brief_writer import write_brief_atomic
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
@@ -33,6 +34,20 @@ from specify_cli.intake.scanner import load_allow_cross_fs
 
 MISSION_BRIEF_FILENAME = "mission-brief.md"
 BRIEF_SOURCE_FILENAME = "brief-source.yaml"
+#: Tracker-ticket context written by ``mission create --from-ticket`` and read by
+#: the specify step's brief-intake mode, beside the brief pair.
+TICKET_CONTEXT_FILENAME = "ticket-context.md"
+
+#: Every ``.kittify/`` artifact the specify step's brief-intake mode consumes and
+#: then deletes. One list, one cleaner (``clear_intake_artifacts``, the surface
+#: behind ``spec-kitty intake --clear``) so the cleanup scope cannot drift from
+#: the read scope (#706).
+_INTAKE_ARTIFACT_FILENAMES: tuple[str, ...] = (
+    MISSION_BRIEF_FILENAME,
+    BRIEF_SOURCE_FILENAME,
+    TICKET_CONTEXT_FILENAME,
+    PENDING_ORIGIN_FILENAME,
+)
 
 
 class BriefExistsError(Exception):
@@ -258,7 +273,7 @@ __all__ = [  # noqa: PLE0604 — module-level export contract
     "BriefExistsError",
     "IntakeFileMissingError",
     "IntakeFileUnreadableError",
-    "clear_mission_brief",
+    "clear_intake_artifacts",
     "read_brief_source",
     "read_mission_brief",
     "write_mission_brief",
@@ -270,8 +285,19 @@ __all__ = [  # noqa: PLE0604 — module-level export contract
 # ---------------------------------------------------------------------------
 
 
-def clear_mission_brief(repo_root: Path) -> None:
-    """Remove both brief artefacts if they exist (idempotent)."""
-    for filename in (MISSION_BRIEF_FILENAME, BRIEF_SOURCE_FILENAME):
+def clear_intake_artifacts(repo_root: Path) -> list[str]:
+    """Remove every intake artifact, returning the filenames actually removed.
+
+    Idempotent: absent artifacts are skipped, so a second call returns ``[]``.
+    Files outside :data:`_INTAKE_ARTIFACT_FILENAMES` are never touched — the
+    specify step's brief-intake cleanup is scoped to the artifacts it read.
+    """
+    removed: list[str] = []
+    for filename in _INTAKE_ARTIFACT_FILENAMES:
         path = repo_root / ".kittify" / filename
-        path.unlink(missing_ok=True)
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            continue
+        removed.append(filename)
+    return removed

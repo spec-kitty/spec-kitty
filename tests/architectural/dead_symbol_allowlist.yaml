@@ -716,9 +716,6 @@ entries:
 - module: specify_cli.mission_brief
   name: IntakeFileUnreadableError
   category: category_b_grandfathered_legacy
-- module: specify_cli.mission_brief
-  name: clear_mission_brief
-  category: category_b_grandfathered_legacy
 - module: specify_cli.missions
   name: PrimitiveExecutionContext
   category: category_b_grandfathered_legacy

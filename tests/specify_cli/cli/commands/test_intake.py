@@ -446,3 +446,75 @@ def test_manual_intake_of_packet_writes_sidecar_overlay(
     assert source_data["source_agent"] == "example-tool"
     expected_hash = hashlib.sha256(packet.encode()).hexdigest()  # noqa: TID251 — mission-brief content fingerprint
     assert source_data["brief_hash"] == expected_hash
+
+
+# ---------------------------------------------------------------------------
+# #706: --clear is the canonical post-specify cleanup surface
+# ---------------------------------------------------------------------------
+
+#: The cleanup scope the specify step's brief-intake mode documents (pinned here
+#: as the contract, not read from the implementation).
+INTAKE_ARTIFACTS = ("mission-brief.md", "brief-source.yaml", "ticket-context.md", "pending-origin.yaml")
+
+
+def _intake_artifacts(tmp_path: Path) -> Path:
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    for name in INTAKE_ARTIFACTS:
+        (kittify / name).write_text("staged\n", encoding="utf-8")
+    (kittify / "keep-me.md").write_text("user-owned\n", encoding="utf-8")
+    return kittify
+
+
+def test_clear_removes_every_intake_artifact(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """--clear removes the brief pair and the ticket-origin artifacts, and nothing else."""
+    kittify = _intake_artifacts(tmp_path)
+
+    with patched_intake_command_environment(tmp_path):
+        result = runner.invoke(intake_app, ["--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 0, f"output: {result.output}"
+    assert sorted(path.name for path in kittify.iterdir()) == ["keep-me.md"]
+    for name in INTAKE_ARTIFACTS:
+        assert f"Removed .kittify/{name}" in result.output.replace("\n", "")
+
+
+def test_clear_with_nothing_to_clear_exits_zero(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """--clear is idempotent: a second run reports nothing to clear and exits 0."""
+    with patched_intake_command_environment(tmp_path):
+        first = runner.invoke(intake_app, ["--clear"], catch_exceptions=False)
+        second = runner.invoke(intake_app, ["--clear"], catch_exceptions=False)
+
+    assert first.exit_code == 0
+    assert second.exit_code == 0
+    assert "No intake artifacts to clear." in second.output
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [["plan.md"], ["--auto"], ["--show"], ["--force"]],
+    ids=["path", "auto", "show", "force"],
+)
+def test_clear_refuses_mixed_modes(intake_app: typer.Typer, tmp_path: Path, extra: list[str]) -> None:
+    """--clear is a mode of its own: combining it with another mode is refused."""
+    kittify = _intake_artifacts(tmp_path)
+
+    with patched_intake_command_environment(tmp_path, mock_sources=[]):
+        result = runner.invoke(intake_app, [*extra, "--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "--clear cannot be combined" in result.output
+    for name in INTAKE_ARTIFACTS:
+        assert (kittify / name).exists(), f"{name} must survive a refused --clear"
+
+
+def test_clear_reports_an_unremovable_artifact(intake_app: typer.Typer, tmp_path: Path) -> None:
+    """A path that cannot be unlinked (here, a directory) is a clean refusal, not a traceback."""
+    kittify = tmp_path / ".kittify"
+    (kittify / "mission-brief.md").mkdir(parents=True)
+
+    with patched_intake_command_environment(tmp_path):
+        result = runner.invoke(intake_app, ["--clear"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "Could not clear the intake artifacts" in result.output

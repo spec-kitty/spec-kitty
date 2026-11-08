@@ -29,6 +29,7 @@ from specify_cli.intake.scanner import (
 from specify_cli.intake_sources import scan_for_plans
 from specify_cli.mission_brief import (
     BriefExistsError,
+    clear_intake_artifacts,
     read_brief_source,
     read_mission_brief,
     write_mission_brief,
@@ -239,14 +240,36 @@ def _auto_branch(repo_root: Path, *, force: bool) -> None:
 def intake(
     path: str | None = typer.Argument(
         None,
-        help="Path to plan document, or '-' to read from stdin. Omit when using --show or --auto.",
+        help="Path to plan document, or '-' to read from stdin. Omit when using --show, --auto or --clear.",
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing brief."),
     show: bool = typer.Option(False, "--show", help="Print current brief and provenance; no writes."),
     auto: bool = typer.Option(False, "--auto", help="Scan known harness plan locations and ingest automatically."),
+    clear: bool = typer.Option(
+        False,
+        "--clear",
+        help="Delete the intake brief, provenance and ticket-origin artifacts; no writes.",
+    ),
 ) -> None:
     """Ingest a plan document as a mission brief for /spec-kitty.specify."""
     repo_root = _resolve_repo_root()
+
+    # --clear branch: the canonical post-specify cleanup (the specify step's
+    # brief-intake mode used to shell out with raw ``rm -f`` calls).
+    if clear:
+        if path is not None or auto or show or force:
+            err_console.print("[red]--clear cannot be combined with a path, --auto, --show, or --force.[/red]")
+            raise typer.Exit(1)
+        try:
+            removed = clear_intake_artifacts(repo_root)
+        except OSError as exc:
+            err_console.print(f"[red]Could not clear the intake artifacts: {exc}[/red]")
+            raise typer.Exit(1) from None
+        if not removed:
+            console.print("No intake artifacts to clear.")
+        for filename in removed:
+            console.print(f"[green]\u2713[/green] Removed .kittify/{filename}")
+        return
 
     # --show branch: print and exit, no writes
     if show:
@@ -289,9 +312,9 @@ def intake(
         _auto_branch(repo_root, force=force)
         return
 
-    # No path, no --show, no --auto: print usage hint and exit 1
+    # No path, no --show, no --auto, no --clear: print usage hint and exit 1
     if path is None:
-        err_console.print("[red]Provide a file path, '-' for stdin, --show, or --auto[/red]")
+        err_console.print("[red]Provide a file path, '-' for stdin, --show, --auto, or --clear[/red]")
         raise typer.Exit(1)
 
     # Normal write branch. The overwrite gate is delegated to the write
