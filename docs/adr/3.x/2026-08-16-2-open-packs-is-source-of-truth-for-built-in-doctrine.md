@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-16'
+updated: '2026-08-16T00:00:00Z'
 related:
 - adr/3.x/2026-04-25-1-shared-package-boundary
 - adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics

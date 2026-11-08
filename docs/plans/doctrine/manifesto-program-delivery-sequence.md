@@ -2,7 +2,8 @@
 title: FoundationalValues/creed program — delivery sequence
 description: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, superseding-ADR scope, park register, and effort envelope."
 doc_status: draft
-updated: '2026-10-22'
+kind: Planning
+updated: '2026-10-22T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

@@ -2,7 +2,8 @@
 title: 3.2.x Milestone — Roadmap (prior cycle)
 description: 'Prior-cycle record: the operator roadmap for the 3.2.x milestone, with its epic spine, degod/unshim waves, census and exit criteria.'
 doc_status: superseded
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

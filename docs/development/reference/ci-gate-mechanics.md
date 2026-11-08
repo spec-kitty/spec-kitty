@@ -2,11 +2,11 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-11-01'
+kind: Reference
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: reference
 related:
 - development/reference/known-friction-points
 - development/reference/red-main-and-release-readiness

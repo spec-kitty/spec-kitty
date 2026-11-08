@@ -6,6 +6,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-24'
+updated: '2026-05-24T00:00:00Z'
 ---
 
 - [`2026-05-24-1-charter-freshness-ux-contract.md`](2026-05-24-1-charter-freshness-ux-contract.md) (sibling — surfaces `overrides` / `enhances` in the freshness banners and preflight checks)

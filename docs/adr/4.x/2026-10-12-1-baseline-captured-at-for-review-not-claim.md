@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-12'
+updated: '2026-10-12T00:00:00Z'
 related:
 - adr/4.x/2026-10-07-3-review-lane-exit-requires-verdict-or-forced-note
 ---

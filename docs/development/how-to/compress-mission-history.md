@@ -2,11 +2,11 @@
 title: 'Compress mission history: path-bucket snapshot-chain recipe'
 description: 'The path-bucket git commit-tree recipe for compressing a noisy mission branch into a clean, reviewable history with a proven tree-parity guarantee, and why not git rebase -i.'
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: how-to
 related:
 - development/how-to/pr-landing
 - development/how-to/review-gates

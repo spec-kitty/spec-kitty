@@ -2,7 +2,8 @@
 title: 'Context: Technology Foundations'
 description: 'Glossary context for technology foundations: general technology terms (API and others) recurring throughout Spec Kitty docs, defined for unfamiliar readers.'
 doc_status: active
-updated: '2026-03-10'
+kind: Explanation
+updated: '2026-03-10T00:00:00Z'
 related:
 - context/dossier
 ---

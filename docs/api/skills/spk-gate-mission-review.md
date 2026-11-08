@@ -2,7 +2,8 @@
 title: "Skill: spk-gate-mission-review"
 description: Post-merge Spec Kitty mission review — spec-to-code fidelity, FR coverage, drift, risk, and final verdict.
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/skills
 ---

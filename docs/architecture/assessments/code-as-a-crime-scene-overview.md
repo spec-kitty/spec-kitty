@@ -2,7 +2,8 @@
 title: Code as a Crime Scene — High-Level Overview
 description: Pedagogical overview of the Code-as-a-Crime-Scene (CaaCS) auditing technique, with empirical observations from the 2026-05 forensic run on the spec-kitty repository.
 doc_status: active
-updated: '2026-09-30'
+kind: Explanation
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

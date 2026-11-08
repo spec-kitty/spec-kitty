@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-05-12'
+updated: '2026-05-12T00:00:00Z'
 ---
 
 - rev 1 (2026-05-12 AM): initial proposal, three open sub-questions.

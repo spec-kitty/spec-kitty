@@ -2,8 +2,8 @@
 title: Scenario Walkthroughs
 description: "End-to-end, role-based walkthroughs showing how real teams and solo developers run Spec Kitty."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+kind: Hub
+updated: '2026-08-10T00:00:00Z'
 ---
 
 # Scenario Walkthroughs

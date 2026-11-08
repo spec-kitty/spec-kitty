@@ -2,8 +2,8 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-10-08'
-type: explanation
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

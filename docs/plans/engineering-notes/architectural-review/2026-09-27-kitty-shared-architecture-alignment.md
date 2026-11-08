@@ -1,9 +1,9 @@
 ---
 title: Engine-side alignment review against the Kitty Shared Architecture — 2026-09-27
 description: 'Engine-side, point-in-time review of what spec-kitty offers and lacks for a proposed hosted target architecture: 29 findings, term collisions, next steps.'
-doc_status: point_in_time
-type: explanation
-updated: '2026-09-27'
+doc_status: draft
+kind: Explanation
+updated: '2026-09-27T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

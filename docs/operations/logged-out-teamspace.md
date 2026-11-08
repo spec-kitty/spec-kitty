@@ -2,8 +2,8 @@
 title: Logged Out on a Connected Teamspace (Removed)
 description: 'The logged-out teamspace recovery flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve.'
 doc_status: deprecated
-updated: '2026-10-18'
-type: how-to
+kind: How-To
+updated: '2026-10-18T00:00:00Z'
 related:
 - context/team-kitty
 ---

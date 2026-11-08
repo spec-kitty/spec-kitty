@@ -2,8 +2,8 @@
 title: Use Spec Kitty in Kilo Code
 description: 'How to use Spec Kitty in Kilo Code (supported tier) via the workflow mechanism: prerequisites, workflow install, and the Spec Kitty command flow.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

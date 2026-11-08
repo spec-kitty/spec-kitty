@@ -1,8 +1,8 @@
 ---
 title: Zeitgeist publisher and lease identity
-type: explanation
 doc_status: deprecated
-updated: '2026-11-04'
+kind: Explanation
+updated: '2026-11-04T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

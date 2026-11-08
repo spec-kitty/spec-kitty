@@ -2,8 +2,8 @@
 title: Parallel & Multi-Agent Work
 description: "Coordinate multiple agents, worktrees, orchestrators, and dependencies across parallel work packages."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+kind: Hub
+updated: '2026-08-10T00:00:00Z'
 ---
 
 # Parallel & Multi-Agent Work

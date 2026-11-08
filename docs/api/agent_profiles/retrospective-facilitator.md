@@ -2,7 +2,8 @@
 title: Retrospective Facilitator — Agent Profile
 description: Facilitates a structured mission retrospective at terminus
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/agent_profiles
 - context/charter

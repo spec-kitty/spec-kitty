@@ -2,7 +2,8 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-11-06'
+kind: Reference
+updated: '2026-11-06T00:00:00Z'
 related:
 - context/charter-overview
 - context/governance-files

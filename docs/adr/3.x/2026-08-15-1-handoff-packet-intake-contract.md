@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-15'
+updated: '2026-08-15T00:00:00Z'
 related:
 - contracts/handoff-packet-v1
 ---

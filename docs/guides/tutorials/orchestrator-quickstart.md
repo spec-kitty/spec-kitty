@@ -2,11 +2,11 @@
 title: Orchestrator Quickstart
 description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
 doc_status: active
-updated: '2026-08-11'
+kind: Tutorial
+updated: '2026-08-11T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: tutorial
 related:
 - guides/tutorials/your-first-mission
 ---

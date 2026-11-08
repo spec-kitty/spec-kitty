@@ -2,8 +2,8 @@
 title: Install Spec Kitty — macOS, Linux, and Windows Installation Guide
 description: Step-by-step guide to install Spec Kitty on macOS, Linux, and Windows. Set up the CLI, initialize your project, and configure AI coding agents.
 doc_status: active
-updated: '2026-08-11'
-type: how-to
+kind: How-To
+updated: '2026-08-11T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

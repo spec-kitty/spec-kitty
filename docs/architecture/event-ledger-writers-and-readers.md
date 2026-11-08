@@ -2,8 +2,8 @@
 title: Event Ledger Writers and Readers
 description: 'Current-state map of every event log and ledger core writes and reads, the target the event ADRs set, and a cited gap table with remedies and tracker items.'
 doc_status: active
-updated: '2026-10-28'
-type: explanation
+kind: Explanation
+updated: '2026-10-28T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

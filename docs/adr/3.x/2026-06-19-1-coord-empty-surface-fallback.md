@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-01'
+updated: '2026-10-01T00:00:00Z'
 ---
 
 **loud primary fallback** decision in the Amendment section below.

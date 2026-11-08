@@ -2,7 +2,8 @@
 title: 'Migration: Tracker Egress Refusal'
 description: 'Why every existing beads/fp tracker binding now needs a recorded consent decision, what the two channels are, and how to remediate each refusing state.'
 doc_status: active
-updated: '2026-08-04'
+kind: How-To
+updated: '2026-08-04T00:00:00Z'
 related:
 - migrations
 ---

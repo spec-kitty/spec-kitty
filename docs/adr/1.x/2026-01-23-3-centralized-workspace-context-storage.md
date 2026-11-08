@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-01-23'
+updated: '2026-01-23T00:00:00Z'
 ---
 
 > Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.

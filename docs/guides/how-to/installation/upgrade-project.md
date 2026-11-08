@@ -2,8 +2,8 @@
 title: Upgrade an existing Spec Kitty project
 description: Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps.
 doc_status: active
-updated: '2026-11-06'
-type: how-to
+kind: How-To
+updated: '2026-11-06T00:00:00Z'
 related:
 - guides/how-to/installation/install-and-upgrade
 - guides/how-to/installation/uninstall

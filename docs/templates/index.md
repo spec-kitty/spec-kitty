@@ -2,7 +2,8 @@
 title: Documentation templates
 description: Static templates and front-end assets used to render the Spec Kitty documentation site, including the public stylesheet and script bundle.
 doc_status: active
-updated: '2026-06-27'
+kind: Hub
+updated: '2026-06-27T00:00:00Z'
 related:
 - assets
 - ''

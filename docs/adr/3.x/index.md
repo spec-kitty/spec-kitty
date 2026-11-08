@@ -2,8 +2,8 @@
 title: '3.x Architectural Decision Records'
 description: 'Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
 doc_status: active
-updated: '2026-11-01'
-type: explanation
+kind: Hub
+updated: '2026-11-01T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

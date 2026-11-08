@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-01-30'
+updated: '2026-01-30T00:00:00Z'
 ---
 
 > Superseded on 2026-04-05 by

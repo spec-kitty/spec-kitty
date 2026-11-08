@@ -2,7 +2,8 @@
 title: Implementer Ivan — Agent Profile
 description: General-purpose software implementation specialist
 doc_status: active
-updated: '2026-09-28'
+kind: Reference
+updated: '2026-09-28T00:00:00Z'
 related:
 - api/agent_profiles
 - context/charter

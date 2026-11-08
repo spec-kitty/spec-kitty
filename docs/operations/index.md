@@ -2,11 +2,11 @@
 title: Operations
 description: 'Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission.'
 doc_status: active
-type: reference
+kind: Hub
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-10-04'
+updated: '2026-10-04T00:00:00Z'
 related:
 - configuration
 - guides

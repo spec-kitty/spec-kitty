@@ -2,11 +2,11 @@
 title: Release notes — 3.2.6
 description: 'Consolidated 3.2.6 release notes: the stabilization release hardening fail-loud honesty across the workflow, plus orchestrator-api 1.4.0 for external-host design pipelines.'
 doc_status: active
-type: reference
+kind: Reference
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-09-03'
+updated: '2026-09-03T00:00:00Z'
 related:
 - changelog/CHANGELOG
 - changelog

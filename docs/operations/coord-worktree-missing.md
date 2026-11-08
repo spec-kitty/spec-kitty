@@ -2,7 +2,8 @@
 title: 'Recovery: Coordination Branch Declared but Worktree Missing'
 description: "Recovery when a mission's meta.json declares coordination_branch but the -coord worktree was never created, using spec-kitty doctor coordination --fix."
 doc_status: active
-updated: '2026-08-15'
+kind: How-To
+updated: '2026-08-15T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/stale-lane-seed

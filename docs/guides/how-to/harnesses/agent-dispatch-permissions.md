@@ -2,8 +2,8 @@
 title: Set Agent Dispatch Permissions
 description: 'Spec Kitty dispatches implementer and reviewer agents with their sandbox on. Allow only the git and spec-kitty commands they need, and know what elevated dispatch means.'
 doc_status: active
-updated: '2026-10-21'
-type: how-to
+kind: How-To
+updated: '2026-10-21T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

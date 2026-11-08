@@ -2,7 +2,8 @@
 title: 'Consumer-repo layout portability: disposition and sequencing'
 description: 'Planner disposition for the consumer-repo layout blind spot (#3016/#2330): a bounded 3.2.x correctness down-payment now, broad portability deferred to mission-types-as-doctrine.'
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

@@ -1,8 +1,9 @@
 ---
 title: Owned prompt charter scope repair
 description: Typed scope propagation keeps prompt policy and charter context reads within the validated owned checkout.
-doc_status: point_in_time
-updated: '2026-10-30'
+doc_status: draft
+kind: Planning
+updated: '2026-10-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Review the owned prompt and charter context repair.

@@ -2,7 +2,8 @@
 title: 'Understanding Charter: Synthesis, DRG, and Governed Context'
 description: How charter synthesize works, what the DRG is, how governed context flows to agents, the shipped-graph orphan residual, and known limitations.
 doc_status: active
-updated: '2026-10-08'
+kind: Explanation
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

@@ -2,11 +2,11 @@
 title: How to Create a Technical Plan
 description: 'How to create a technical plan with Spec Kitty 3.2: Use this guide to turn a finished spec into a technical plan with /spec-kitty.plan.'
 doc_status: active
-updated: '2026-10-04'
+kind: How-To
+updated: '2026-10-04T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: how-to
 related:
 - guides/how-to/missions/create-specification
 - guides/how-to/missions/generate-tasks

@@ -2,8 +2,8 @@
 title: How to Synthesize and Maintain Doctrine
 description: Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state.
 doc_status: active
-updated: '2026-10-08'
-type: how-to
+kind: How-To
+updated: '2026-10-08T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

@@ -6,7 +6,8 @@
 title: 'Domain Throughlines — Catalog'
 description: 'One-hop catalog of the durable domain throughlines under docs/plans/domains/: doctrine & charter, packs extraction, and API & dashboard.'
 doc_status: active
-updated: '2026-09-30'
+kind: Hub
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

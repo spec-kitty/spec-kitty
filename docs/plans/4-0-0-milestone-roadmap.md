@@ -2,11 +2,11 @@
 title: 4.0.0 Milestone — Roadmap
 description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction.'
 doc_status: active
-type: explanation
+kind: Explanation
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 related:
 - changelog/4.0.0
 - changelog

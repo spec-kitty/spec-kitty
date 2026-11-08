@@ -2,7 +2,8 @@
 title: 'pack.yaml reference'
 description: 'Field reference for a Charter Pack pack.yaml descriptor: identity, lineage, the declared pack_level, requires_core and layout pointers, plus regenerate-graph --pack-root.'
 doc_status: active
-updated: '2026-10-11'
+kind: Reference
+updated: '2026-10-11T00:00:00Z'
 related:
 - adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml
 - guides/how-to/governance/create-an-org-doctrine-pack

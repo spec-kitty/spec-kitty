@@ -2,11 +2,11 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-11-06'
+kind: How-To
+updated: '2026-11-06T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: how-to
 related:
 - guides/how-to/missions/accept-and-merge
 - guides/how-to/missions/handle-dependencies

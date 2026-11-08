@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-19'
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 ---
 
 # One activation ledger persists deactivation, and nothing silently reinstalls it

@@ -2,8 +2,8 @@
 title: How to Keep MCP Agents in the Worktree
 description: Keep MCP-backed editors and agents pointed at the active Spec Kitty worktree instead of the repository root.
 doc_status: active
-updated: '2026-06-12'
-type: how-to
+kind: How-To
+updated: '2026-06-12T00:00:00Z'
 related:
 - guides/how-to/missions/implement-work-package
 - guides/how-to/collaboration/parallel-development

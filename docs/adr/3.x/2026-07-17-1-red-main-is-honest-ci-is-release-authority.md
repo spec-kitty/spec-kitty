@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-07-17'
+updated: '2026-07-17T00:00:00Z'
 ---
 
 # Red main is honest signal; CI status is the release authority

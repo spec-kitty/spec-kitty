@@ -1,8 +1,9 @@
 ---
 title: Lane and worktree friction research
 description: How much recent friction the lane and worktree execution model causes, why, and which direction to take.
-doc_status: point_in_time
-updated: '2026-11-06'
+doc_status: draft
+kind: Planning
+updated: '2026-11-06T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: For the operator and maintainers deciding the direction of the lane and worktree execution model.

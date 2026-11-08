@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-07-16'
+updated: '2026-07-16T00:00:00Z'
 ---
 
 **Status:** Proposed

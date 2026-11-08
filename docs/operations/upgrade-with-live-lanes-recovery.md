@@ -2,11 +2,11 @@
 title: 'Recovery: consolidate, review or implement refuses after an upgrade mid-Mission'
 description: "Recovery when spec-kitty consolidate, review or implement refuses on .kittify/metadata.yaml after an upgrade run while a Mission had live lanes."
 doc_status: active
-type: how-to
+kind: How-To
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-10-05'
+updated: '2026-10-05T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/stale-lane-seed

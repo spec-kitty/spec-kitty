@@ -2,8 +2,8 @@
 title: Upgrade the Spec Kitty CLI
 description: Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required.
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 related:
 - guides/how-to/installation/install-and-upgrade
 - guides/how-to/installation/upgrade-project

@@ -2,7 +2,8 @@
 title: Doctrine Daphne — Agent Profile
 description: External-agent onboarding and doctrine artifact curation specialist
 doc_status: active
-updated: '2026-10-08'
+kind: Reference
+updated: '2026-10-08T00:00:00Z'
 related:
 - api/agent_profiles
 - context/charter

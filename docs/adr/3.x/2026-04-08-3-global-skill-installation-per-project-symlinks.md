@@ -5,6 +5,7 @@ status: Superseded
 doc_status: superseded
 kind: ADR
 date: '2026-04-08'
+updated: '2026-04-08T00:00:00Z'
 ---
 
 > **Superseded (2026-07-19):** the per-project **symlink** wiring decided here is

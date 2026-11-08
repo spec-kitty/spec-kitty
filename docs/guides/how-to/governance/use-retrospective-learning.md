@@ -2,11 +2,11 @@
 title: How to Use Retrospective Learning
 description: Understand the four retrospective commands, configure policy, author records on demand, backfill historical missions, and apply proposals to governance.
 doc_status: active
-updated: '2026-06-03'
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.
-type: how-to
 ---
 # How to Use Retrospective Learning
 

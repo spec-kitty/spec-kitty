@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
 ---
 
 # The events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service

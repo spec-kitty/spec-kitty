@@ -2,7 +2,8 @@
 title: 'Context: Topology'
 description: 'Topology glossary: the four topologies, size default, topic branch, write checkout, repo-root and code lanes, mission branch, lane work tip, started work package.'
 doc_status: active
-updated: '2026-11-07'
+kind: Explanation
+updated: '2026-11-07T00:00:00Z'
 related:
 - context/orchestration
 - context/execution

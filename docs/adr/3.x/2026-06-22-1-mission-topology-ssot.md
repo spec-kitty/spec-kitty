@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-06-22'
+updated: '2026-06-22T00:00:00Z'
 ---
 
 `src/runtime/next/runtime_bridge.py`, `src/specify_cli/core/mission_creation.py`,

@@ -2,11 +2,11 @@
 title: Events domain move — core-side plan
 description: 'Core-side inventory, pin/fetch/launcher design and cut-over runbook for moving the Java event services to spec-kitty-events (ADR 2026-10-29-1).'
 doc_status: active
-type: explanation
+kind: Explanation
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 ---
 # Events domain move: core-side plan
 

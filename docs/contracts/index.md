@@ -2,7 +2,8 @@
 title: Contracts
 description: 'Contract-ownership boundary registry for Spec Kitty: the seeded contract manifest and its validation schema, checked by the doctor contracts gate.'
 doc_status: active
-updated: '2026-08-14'
+kind: Hub
+updated: '2026-08-14T00:00:00Z'
 related:
 - api/cli-commands
 - ''

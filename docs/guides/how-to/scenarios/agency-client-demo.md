@@ -2,8 +2,8 @@
 title: Agency Client Transparency Workflow
 description: Give agency clients read-only visibility into Spec Kitty mission progress through status reports without exposing any source code.
 doc_status: active
-updated: '2026-08-10'
-type: how-to
+kind: How-To
+updated: '2026-08-10T00:00:00Z'
 audience:
 - profile: external/product-manager-evaluator
   guidance_text: Written for the External Product Manager Evaluator reader.

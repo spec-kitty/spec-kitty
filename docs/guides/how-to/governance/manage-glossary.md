@@ -2,8 +2,8 @@
 title: How to Manage the Glossary
 description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
 doc_status: active
-updated: '2026-11-03'
-type: how-to
+kind: How-To
+updated: '2026-11-03T00:00:00Z'
 audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.

@@ -2,11 +2,11 @@
 title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-09-14'
+kind: Tutorial
+updated: '2026-09-14T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: tutorial
 related:
 - guides/tutorials/getting-started
 - guides/tutorials/multi-agent-workflow

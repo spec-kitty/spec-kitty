@@ -2,8 +2,8 @@
 title: Reference
 description: 'Authoritative Spec Kitty specifications: CLI and agent subcommands, slash commands, charter commands, configuration, environment variables, schemas, skills, and agent profiles.'
 doc_status: active
-updated: '2026-08-10'
-type: reference
+kind: Hub
+updated: '2026-08-10T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

@@ -1,8 +1,9 @@
 ---
 title: Approved implementation reopen feedback
 description: Preserve explicitly supplied reopen references through canonical CLI planning and actor guards.
-doc_status: point_in_time
-updated: '2026-10-31'
+doc_status: draft
+kind: Planning
+updated: '2026-10-31T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Review the approved implementation reopen feedback contract.

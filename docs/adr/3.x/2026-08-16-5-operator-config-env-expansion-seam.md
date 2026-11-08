@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-16'
+updated: '2026-08-16T00:00:00Z'
 ---
 # Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens
 

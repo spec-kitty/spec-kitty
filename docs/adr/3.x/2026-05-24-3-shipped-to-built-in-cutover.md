@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-24'
+updated: '2026-05-24T00:00:00Z'
 ---
 
 - [ADR 2026-05-16-1 — Doctrine Layer Merge Semantics](2026-05-16-1-doctrine-layer-merge-semantics.md)

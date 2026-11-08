@@ -2,11 +2,11 @@
 title: The Bundled Dashboard Was Removed
 description: The spec-kitty dashboard command and its local web UI were removed in 4.0.0rc5; check mission status from the CLI instead.
 doc_status: deprecated
-updated: '2026-10-01'
+kind: How-To
+updated: '2026-10-01T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: how-to
 related:
 - guides/how-to/monitoring
 ---

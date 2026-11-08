@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-03'
-updated: '2026-10-22'
+updated: '2026-10-22T00:00:00Z'
 ---
 # Replace charter reads and writes through a staged Java service strangler
 

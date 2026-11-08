@@ -2,8 +2,8 @@
 title: Use Spec Kitty in Amazon Q CLI
 description: 'How to use Spec Kitty in Amazon Q CLI (supported tier), retained as legacy alongside the Kiro rebrand: prerequisites, prompt install, and the command workflow.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

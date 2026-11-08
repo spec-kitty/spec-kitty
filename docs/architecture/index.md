@@ -2,7 +2,8 @@
 title: Architecture
 description: 'Landing page and page index for docs/architecture/: the boundary rule between decisions and consumption, living and frozen pages, the decay rule, and ADR locations.'
 doc_status: active
-updated: '2026-11-04'
+kind: Hub
+updated: '2026-11-04T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

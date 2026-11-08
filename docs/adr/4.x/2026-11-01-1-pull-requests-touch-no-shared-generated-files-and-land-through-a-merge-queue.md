@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 ---
 
 # Pull requests touch no shared generated file and land through a merge queue

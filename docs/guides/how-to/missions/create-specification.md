@@ -2,11 +2,11 @@
 title: How to Create a Feature Specification
 description: 'How to create a feature specification with Spec Kitty 3.2: Use this guide to capture a new feature specification with /spec-kitty.specify.'
 doc_status: active
-updated: '2026-06-03'
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.
-type: how-to
 related:
 - guides/how-to/missions/create-plan
 - guides/how-to/missions/keep-main-clean

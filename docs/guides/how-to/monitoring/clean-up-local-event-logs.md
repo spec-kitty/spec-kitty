@@ -2,8 +2,8 @@
 title: Clean Up Local Event Logs
 description: 'Preview, then remove, the local run journals, event logs and caches under .kittify/ that are past retention, with spec-kitty doctor event-logs.'
 doc_status: active
-updated: '2026-10-30'
-type: how-to
+kind: How-To
+updated: '2026-10-30T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

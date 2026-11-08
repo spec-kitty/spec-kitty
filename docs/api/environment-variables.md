@@ -2,7 +2,8 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, tracker, and test configuration.
 doc_status: active
-updated: '2026-10-22'
+kind: Reference
+updated: '2026-10-22T00:00:00Z'
 related:
 - api/cli-commands
 - api/configuration

@@ -2,7 +2,8 @@
 title: Verification round — three-lens review of the finalized authorities
 description: "Final review squad before handover: sequence executability, fresh-eyes fix verification, and adversarial number-by-number reproduction. Verdict plus the applied fix list."
 doc_status: deprecated
-updated: '2026-07-26'
+kind: Planning
+updated: '2026-07-26T00:00:00Z'
 external_references:
 - url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/foundational-values-and-creed.md
   title: FoundationalValues and Creed — canonical design

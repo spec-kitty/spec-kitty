@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-04-26'
+updated: '2026-04-26T00:00:00Z'
 ---
 
 `tests/contract/test_cross_repo_consumers.py`

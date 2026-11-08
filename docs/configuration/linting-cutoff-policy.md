@@ -2,7 +2,8 @@
 title: Linting Cutoff Policy
 description: How the CI Quality workflow applies commitlint and markdownlint only to commits and files after the 2026-02-25 cutoff, so legacy history is not retroactively failed.
 doc_status: active
-updated: '2026-02-25'
+kind: Reference
+updated: '2026-02-25T00:00:00Z'
 ---
 # Linting Cutoff Policy
 

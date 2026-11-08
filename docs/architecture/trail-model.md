@@ -2,8 +2,8 @@
 title: Trail Model
 description: 'Operator reference for the Phase 4 trail model: how every standalone spec-kitty dispatch writes an auditable JSONL trail for accountability, SaaS coherence, and provenance.'
 doc_status: active
-updated: '2026-10-18'
-type: explanation
+kind: Explanation
+updated: '2026-10-18T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.

@@ -2,8 +2,8 @@
 title: Use Spec Kitty in Cursor
 description: 'How to use Spec Kitty in Cursor (supported tier): prerequisites, command install, and the Spec Kitty slash-command workflow inside the editor.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

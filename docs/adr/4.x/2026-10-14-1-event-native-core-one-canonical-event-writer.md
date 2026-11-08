@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-14'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
 ---
 
 # An event-native core with one canonical event writer behind a domain port

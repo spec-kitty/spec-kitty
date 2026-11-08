@@ -2,7 +2,8 @@
 title: "spk-admin-setup-doctor"
 description: "Install, verify, and repair Spec Kitty commands, skills, agent paths, runtime prerequisites, and common setup failures."
 doc_status: active
-updated: '2026-07-21'
+kind: Reference
+updated: '2026-07-21T00:00:00Z'
 related:
 - api/skills
 ---

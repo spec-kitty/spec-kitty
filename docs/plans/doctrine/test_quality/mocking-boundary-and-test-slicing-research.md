@@ -2,7 +2,8 @@
 title: "Test Slicing & Mocking-Boundary Discipline — Research Findings"
 description: "Research for refining Spec Kitty's test-boundary doctrine after #2934, covering functional slicing, internal mocks, and outcome assertions."
 doc_status: draft
-updated: '2026-07-26'
+kind: Planning
+updated: '2026-07-26T00:00:00Z'
 related:
 - plans/doctrine
 ---

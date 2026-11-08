@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-11'
+updated: '2026-10-11T00:00:00Z'
 ---
 
 **Status:** Accepted — Amended 2026-10-11 — see [Amendment](#amendment-2026-10-11-owner-ruling); the promise-machinery paragraphs below are narrowed by it (never built in core).

@@ -2,8 +2,8 @@
 title: Use Spec Kitty in Windsurf
 description: 'How to use Spec Kitty in Windsurf (supported tier) via the workflow mechanism: prerequisites, workflow install, and the Spec Kitty command flow.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+kind: How-To
+updated: '2026-06-03T00:00:00Z'
 audience:
 - profile: external/project-owner
   guidance_text: Written for the Project Owner reader.

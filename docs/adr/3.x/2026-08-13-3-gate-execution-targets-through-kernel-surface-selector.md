@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-08-13'
+updated: '2026-08-13T00:00:00Z'
 related:
 - architecture/mission-gates
 - architecture/artifact-placement-seam

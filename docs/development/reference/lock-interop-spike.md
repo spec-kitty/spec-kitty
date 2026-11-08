@@ -2,11 +2,11 @@
 title: Lock-interop spike (#6193)
 description: 'Pointer: the #6193 lock-interop spike report moved to spec-kitty-events with the services it verifies.'
 doc_status: active
-updated: '2026-11-05'
+kind: Reference
+updated: '2026-11-05T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: reference
 related:
 - adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer
 - development/reference/events-in-core

@@ -2,8 +2,8 @@
 title: Skills
 description: Catalog of Spec Kitty's operator-facing skills — the spk-* public hierarchy, their legacy spec-kitty-* aliases, and which skills have a deep reference page.
 doc_status: active
-updated: '2026-08-10'
-type: reference
+kind: Hub
+updated: '2026-08-10T00:00:00Z'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.

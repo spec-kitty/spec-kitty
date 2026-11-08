@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-31'
+updated: '2026-08-31T00:00:00Z'
 ---
 
 # ADR: Relocate the `expected-artifacts.yaml` loader authority into `charter`, sibling error model

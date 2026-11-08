@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-13'
+updated: '2026-08-13T00:00:00Z'
 related:
 - architecture/mission-gates
 - adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts

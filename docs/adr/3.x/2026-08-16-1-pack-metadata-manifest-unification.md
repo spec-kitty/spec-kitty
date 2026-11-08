@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-16'
+updated: '2026-08-16T00:00:00Z'
 related:
 - plans/investigations/2026-08-pack-level-metadata-manifest
 - plans/domains/doctrine-charter-domain-plan

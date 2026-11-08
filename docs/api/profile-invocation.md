@@ -2,7 +2,8 @@
 title: Profile Invocation Reference
 description: Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states.
 doc_status: active
-updated: '2026-11-01'
+kind: Reference
+updated: '2026-11-01T00:00:00Z'
 related:
 - context/charter-overview
 ---

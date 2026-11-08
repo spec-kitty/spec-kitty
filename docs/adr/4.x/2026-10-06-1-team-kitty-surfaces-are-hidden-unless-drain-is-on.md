@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-06'
-updated: '2026-10-14'
+updated: '2026-10-14T00:00:00Z'
 ---
 
 **Status:** Accepted. **Amended 2026-10-12** — the "do not build toward Team Kitty" rule is

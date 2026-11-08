@@ -2,11 +2,11 @@
 title: Issue-Matrix Verdict Reference
 description: The five issue-matrix verdict values, which transitions each one gates, the reference-classification model that decides whether a row is required, and the evidence-token rule.
 doc_status: active
+kind: Reference
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
-type: reference
-updated: '2026-10-26'
+updated: '2026-10-26T00:00:00Z'
 related:
 - api/cli-commands
 - api/agent-subcommands

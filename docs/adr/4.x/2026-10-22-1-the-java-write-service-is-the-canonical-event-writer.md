@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-22'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
 ---
 
 # The Java write service is the canonical event writer, one resident service per repository

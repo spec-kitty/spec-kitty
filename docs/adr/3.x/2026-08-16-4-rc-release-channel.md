@@ -5,6 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-16'
+updated: '2026-08-16T00:00:00Z'
 ---
 # Default-off pre-release (rc) consumer channel, gated by `SPEC_KITTY_PRERELEASE`
 

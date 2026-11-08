@@ -2,7 +2,8 @@
 title: Terminology Reference
 description: Terminology reference for Spec Kitty. Clear vocabulary definitions for missions, work packages, lanes, charters, and status event logs.
 doc_status: active
-updated: '2026-06-13'
+kind: Reference
+updated: '2026-06-13T00:00:00Z'
 related:
 - migrations/mission-id-canonical-identity
 ---

@@ -6,6 +6,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-05-11'
+updated: '2026-05-11T00:00:00Z'
 ---
 
 - Epic [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) — 3.2.0 stabilization and release readiness

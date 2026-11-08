@@ -2,7 +2,8 @@
 title: 'Field report: a doctrine-driven P0 remediation, end to end'
 description: 'Field report: remediating the merge-core P0 pair #2709/#2711 under Spec Kitty''s own doctrine — process, operator decisions, and doctrine effects.'
 doc_status: draft
-updated: '2026-09-30'
+kind: Planning
+updated: '2026-09-30T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

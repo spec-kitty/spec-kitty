@@ -2,11 +2,11 @@
 title: Context
 description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
 doc_status: active
-updated: '2026-10-13'
+kind: Hub
+updated: '2026-10-13T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
-type: explanation
 ---
 # Context
 

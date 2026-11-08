@@ -2,7 +2,8 @@
 title: Launch-Readiness Behavior (Archived)
 description: 'Redirect stub: the superseded launch-readiness plan moved to the docs archive; this page remains so that old links resolve.'
 doc_status: deprecated
-updated: '2026-10-19'
+kind: Explanation
+updated: '2026-10-19T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.

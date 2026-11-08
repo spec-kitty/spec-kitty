@@ -5,6 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-06-25'
+updated: '2026-06-25T00:00:00Z'
 ---
 
 `src/specify_cli/retrospective/*`, `src/specify_cli/cli/commands/{merge,mission_type}.py`

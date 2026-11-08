@@ -2,7 +2,8 @@
 title: Migrations
 description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current migration paths, historical cutover runbooks, and the migration/shim ruleset with its registry.'
 doc_status: active
-updated: '2026-10-21'
+kind: Hub
+updated: '2026-10-21T00:00:00Z'
 related:
 - context
 - changelog
