@@ -1476,3 +1476,21 @@ def test_non_utf8_op_record_counts_as_open_and_does_not_abort_the_scan(project: 
     assert items[_rel(log, project)].reason == REASON_OP_OPEN
     assert items[_rel(run_dir, project)].reason == REASON_NO_MISSION
 
+
+def test_preview_reports_a_held_lock_on_an_unlinked_run(project: Path) -> None:
+    """Locks win in the preview too, not only at apply: an unlinked run under its lock is kept."""
+    run_dir = _new_run_dir(project, {}, 90)
+    with run_cursor_lock(run_dir):
+        plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    item = _by_path(plan.items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason) == ("kept", REASON_LOCK_HELD)
+
+
+def test_preview_reports_a_held_lock_on_an_unlinked_op_log(project: Path) -> None:
+    log = _op_log(project, "01NOREC0000000000000000000", 90)
+    lock_path = event_log_lock_path(log)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with machine_file_lock(lock_path, blocking=False):
+        plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    item = _by_path(plan.items, project)[_rel(log, project)]
+    assert (item.verdict, item.reason) == ("kept", REASON_LOCK_HELD)
