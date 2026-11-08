@@ -30,6 +30,8 @@ import pytest
 from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import LiteralScalarString
 
+import kernel.yaml_io as yaml_io_module
+from kernel.no_follow import NoFollowPathError, open_no_follow as real_open_no_follow
 from kernel.yaml_io import (
     CANONICAL_YAML_WIDTH,
     _normalize_nonsemantic_trailing_whitespace,
@@ -243,6 +245,60 @@ def test_write_mapping_atomic_dir_fsync_failure_is_non_fatal(
 
     write_mapping_atomic({"x": 1}, target)
 
+    assert target.exists()
+
+
+def test_write_mapping_atomic_refuses_preplanted_symlink_at_tmp_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4847: a pre-planted symlink at the predicted temp path is refused —
+    the atomic write never creates through it, and the link's target is left
+    untouched (the failure-path unlink removes the link itself, not the
+    sentinel).
+    """
+    target = tmp_path / "record.yaml"
+    sentinel = tmp_path / "sentinel.txt"
+    sentinel.write_text("do not touch\n", encoding="utf-8")
+
+    # Deterministic temp name so the symlink can be planted on the exact path
+    # write_mapping_atomic will try to create.
+    monkeypatch.setattr(_os, "urandom", lambda n: (b"\xde\xad\xbe\xef" * n)[:n])
+    tmp_name = f"{target.name}.tmp.{_os.getpid()}.deadbeef"
+    (tmp_path / tmp_name).symlink_to(sentinel)
+
+    with pytest.raises((OSError, NoFollowPathError)):
+        write_mapping_atomic({"x": 1}, target)
+
+    assert not target.exists()
+    assert sentinel.read_text(encoding="utf-8") == "do not touch\n"
+
+
+def test_write_mapping_atomic_temp_create_routes_through_open_no_follow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#4847: the temp-file create must go through
+    ``kernel.no_follow.open_no_follow`` (the single symlink-refusing open
+    primitive), not a bare ``os.open`` — the refusal the previous test pins
+    is only guaranteed on hosts whose kernel translates the flags; the shared
+    primitive also carries the best-effort pre-open check elsewhere.
+    """
+    target = tmp_path / "record.yaml"
+    calls: list[tuple[Path, int, int]] = []
+
+    def spying_open_no_follow(path: Path, flags: int, mode: int = 0o666) -> int:
+        calls.append((path, flags, mode))
+        return real_open_no_follow(path, flags, mode)
+
+    monkeypatch.setattr(yaml_io_module, "open_no_follow", spying_open_no_follow)
+
+    write_mapping_atomic({"x": 1}, target)
+
+    assert len(calls) == 1, "the temp create must be opened via open_no_follow exactly once"
+    called_path, called_flags, _mode = calls[0]
+    assert called_path.parent == target.parent
+    assert ".tmp" in called_path.name
+    assert called_flags & _os.O_CREAT
+    assert called_flags & _os.O_EXCL
     assert target.exists()
 
 

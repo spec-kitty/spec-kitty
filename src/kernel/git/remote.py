@@ -106,6 +106,13 @@ def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = N
     ``-o BatchMode=yes`` is appended only to an ssh-like effective command that
     does not already carry ``BatchMode``.
 
+    An askpass helper (``GIT_ASKPASS`` / ``SSH_ASKPASS``) would pop a GUI
+    credential dialog even with ``GIT_TERMINAL_PROMPT=0`` and ``BatchMode``
+    (#5860), so both variables are popped from the returned environment on
+    every return path — including the ``GIT_SSH`` early return, which skips
+    the ``BatchMode`` append and would otherwise leave the askpass dialog as
+    the only prompt left unneutralised.
+
     Args:
         base: Environment to extend; ``None`` uses ``os.environ``.
         cwd: Directory whose git config is read for ``core.sshCommand``;
@@ -116,6 +123,8 @@ def no_prompt_env(base: Mapping[str, str] | None = None, *, cwd: Path | None = N
     source = os.environ if base is None else base
     env = dict(source)
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env.pop("GIT_ASKPASS", None)
+    env.pop("SSH_ASKPASS", None)
     command = source.get("GIT_SSH_COMMAND", "").strip() or _configured_ssh_command(None if clone else (cwd or Path.cwd()))
     if command is None and source.get("GIT_SSH", "").strip():
         return env

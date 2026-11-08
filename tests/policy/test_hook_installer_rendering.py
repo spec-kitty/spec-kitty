@@ -7,6 +7,7 @@ and mode 0o700.  No windows_ci marker — pure-Python rendering check.
 
 import os
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -15,13 +16,18 @@ from specify_cli.policy.hook_installer import HOOK_MODE, HookInstallRecord, inst
 
 import pytest
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 def test_hook_rendering_shape(tmp_path: Path) -> None:
-    """Install into a fake repo .git dir and assert the rendered hook shape."""
-    # Fake repo with .git dir (not a real git repo — install() only needs the dir)
+    """Install into a real git repo and assert the rendered hook shape.
+
+    #5756: ``install()`` resolves the hooks dir through git, so the fixture
+    must be an actual repository (it previously faked a bare ``.git``
+    directory, which the resolver now correctly rejects).
+    """
     repo = tmp_path / "repo"
-    (repo / ".git").mkdir(parents=True)
+    repo.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
 
     record = install(repo)
     hook = repo / ".git" / "hooks" / "pre-commit"

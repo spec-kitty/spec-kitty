@@ -135,6 +135,16 @@ def test_planning_kind_protected_primary_refuses() -> None:
     assert _exit_code_for(verdict.non_committable) == 1
 
 
+def test_remedy_protected_primary_names_branch_escape_first_and_labels_env_var_operator_only() -> None:
+    """#5319: the shared remedy leads with the branch-level escapes
+    (``--start-branch`` / ``--to-branch``) and labels
+    ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` as the operator-only
+    override it is."""
+    assert "--to-branch" in REMEDY_PROTECTED_PRIMARY
+    assert "operator-only" in REMEDY_PROTECTED_PRIMARY
+    assert REMEDY_PROTECTED_PRIMARY.index("--start-branch") < REMEDY_PROTECTED_PRIMARY.index("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
+
+
 def test_primary_kind_unprotected_commits_directly() -> None:
     """Rule 4: primary-kind on an unprotected branch → primary, committable."""
     verdict = resolve_surface_authority(MissionTopology.SINGLE_BRANCH, "feature/x", False, "feature/x", _PRIMARY_KIND)

@@ -135,6 +135,30 @@ logger = logging.getLogger(__name__)
 _EVENTS_FILENAME = "status.events.jsonl"
 _SNAPSHOT_FILENAME = "status.json"
 
+#: How many staged-path areas the implicit commit subject names before the
+#: rest collapse into ``+N more`` (#4837).
+_IMPLICIT_SUBJECT_MAX_AREAS = 3
+
+
+def _staged_path_areas(worktree_root: Path, staged_paths: list[Path]) -> list[str]:
+    """First-two-component areas of the worktree-relative staged paths (#4837).
+
+    Deduped in first-seen order. A staged path outside *worktree_root*
+    resolves to no area (it is skipped), so an all-outside changeset yields
+    an empty list and the caller keeps its operation-only subject.
+    """
+    worktree_resolved = worktree_root.resolve()
+    areas: list[str] = []
+    for path in staged_paths:
+        try:
+            rel = path.resolve(strict=False).relative_to(worktree_resolved)
+        except ValueError:
+            continue
+        area = "/".join(rel.parts[:2])
+        if area and area not in areas:
+            areas.append(area)
+    return areas
+
 
 def _canonical_coord_mission_slug(
     seam_repo_root: Path,
@@ -950,6 +974,24 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
 
     # ---- context-manager protocol ----
 
+    def _implicit_commit_subject(self) -> str:
+        """The implicit-commit subject: the operation plus the staged areas (#4837).
+
+        A bare ``chore(spec-kitty): <operation>`` names nothing about WHAT was
+        committed, and on a coordination branch that subject is the only
+        commit-level context an operator sees in ``git log`` — several
+        missions' bookkeeping commits would be indistinguishable. Names at
+        most :data:`_IMPLICIT_SUBJECT_MAX_AREAS` areas, collapsing the rest
+        into ``+N more``; keeps the historical operation-only shape when no
+        area resolves (every staged path outside the worktree).
+        """
+        areas = _staged_path_areas(self.worktree_root, self._staged_paths)
+        if not areas:
+            return f"chore(spec-kitty): {self.operation}"
+        shown = areas[:_IMPLICIT_SUBJECT_MAX_AREAS]
+        suffix = f" (+{len(areas) - len(shown)} more)" if len(areas) > len(shown) else ""
+        return f"chore(spec-kitty): {self.operation} ({' + '.join(shown)}{suffix})"
+
     def __enter__(self) -> BookkeepingTransaction:
         return self
 
@@ -966,7 +1008,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # Happy path: implicit commit if the caller did not call
                 # commit() explicitly. Then run deferred outbound.
                 if not self._committed and (self._event_ids or self._staged_paths):
-                    msg = self._explicit_commit_message or (f"chore(spec-kitty): {self.operation}")
+                    msg = self._explicit_commit_message or self._implicit_commit_subject()
                     try:
                         self.commit(msg)
                     except BookkeepingCommitFailed:

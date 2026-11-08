@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.commit_router import _is_empty_changeset_error
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitStagedTreeUnchanged, safe_commit
 
 pytestmark = pytest.mark.git_repo
 
@@ -145,6 +145,33 @@ def test_hook_failure_that_prints_nothing_to_commit_is_not_classified_as_empty(r
         cwd=repo, capture_output=True, text=True, check=True,
     ).stdout.strip()
     assert head_files == "", "hook aborted the commit, so the spec must not be tracked"
+
+
+def test_typed_staged_tree_unchanged_classifies_as_empty_even_with_drifted_message() -> None:
+    """#4610: the typed signal is the primary classifier. A
+    ``SafeCommitStagedTreeUnchanged`` whose message drifted (wording change,
+    wrapping, a future rephrase) must still report as a benign empty
+    changeset — the prose match is only a fallback for pre-type exceptions.
+    """
+    exc = SafeCommitStagedTreeUnchanged(destination_ref=_UNPROTECTED_BRANCH)
+    # Simulate wording drift: the TYPE is the signal, not the prose.
+    exc.args = ("safe_commit: a completely different message",)
+
+    assert _is_empty_changeset_error(exc), (
+        "a typed SafeCommitStagedTreeUnchanged must classify as an empty "
+        "changeset regardless of its message text"
+    )
+
+
+def test_prose_fallback_still_matches_a_bare_runtime_error() -> None:
+    """#4610: a plain ``RuntimeError`` carrying the historical prose keeps
+    classifying as empty, so consumers that wrap or re-raise the message as a
+    bare RuntimeError (the pre-#3861 shape) are not broken.
+    """
+    exc = RuntimeError(
+        f"safe_commit: nothing to commit for destination_ref={_UNPROTECTED_BRANCH!r} (empty changeset)"
+    )
+    assert _is_empty_changeset_error(exc)
 
 
 def test_fresh_untracked_file_commits_cleanly(repo: Path) -> None:

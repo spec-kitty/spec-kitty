@@ -20,6 +20,33 @@ if TYPE_CHECKING:
     from specify_cli.policy.commit_guard import OwnershipScope
 
 
+def _resolve_policy_root(worktree_root: Path) -> Path:
+    """Resolve the repository root that owns this worktree's POLICY config.
+
+    ``git rev-parse --git-common-dir`` names the shared git dir, which is
+    ``<project>/.git`` only for a plain repository and a linked worktree
+    (where it is the MAIN repo's ``.git``); a submodule
+    (``<super>/.git/modules/<name>``) and a separate git dir live elsewhere,
+    so their parents are not a project root. When the common dir is named
+    ``.git`` its parent is the project root (the main repo for a linked
+    worktree); otherwise the working tree itself is the best policy root
+    (#5756).
+    """
+    result = subprocess.run(
+        ["git", "-C", str(worktree_root), "rev-parse", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return worktree_root
+    common_dir = Path(result.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = worktree_root / common_dir
+    if common_dir.name == ".git":
+        return common_dir.parent
+    return worktree_root
+
+
 def main() -> int:
     """Run the commit guard. Returns exit code."""
     from specify_cli.policy.commit_guard import validate_staged_files
@@ -36,13 +63,9 @@ def main() -> int:
 
     worktree_root = Path(result.stdout.strip())
 
-    # Find main repo root (for policy config).
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        capture_output=True,
-        text=True,
-    )
-    repo_root = Path(result.stdout.strip()).parent if result.returncode == 0 else worktree_root
+    # Find the policy config root, resolved from the real git topology
+    # (#5756) rather than by parent-joining the common git dir.
+    repo_root = _resolve_policy_root(worktree_root)
 
     # Get current branch.
     result = subprocess.run(

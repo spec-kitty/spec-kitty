@@ -20,6 +20,7 @@ bare path. See ``docs/adr/3.x/2026-08-27-1-precommit-hook-stable-entrypoint-and-
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 from contextlib import suppress
@@ -28,6 +29,7 @@ from kernel.clock import now_utc_seconds
 from pathlib import Path
 
 from specify_cli.asset_preservation.backup import backup_before_overwrite
+from specify_cli.policy.hooks_dir import resolve_hooks_dir
 
 #: The install-agnostic fallback entrypoint (issue #254). Whatever install
 #: method (pipx, uv tool install, ...) put a working ``spec-kitty`` on PATH,
@@ -134,13 +136,17 @@ def install(repo_root: Path) -> HookInstallRecord:
     ``specify_cli`` unimportable from the hook (issue #669).
 
     Args:
-        repo_root: Path to the root of the git repository (must contain ``.git``).
+        repo_root: Path to the root of a git repository (a working-tree root;
+            the hooks dir is resolved through git, so linked worktrees and
+            ``--separate-git-dir`` layouts land in the real hooks dir, #5756).
+        The path need not be the main repository root.
 
     Returns:
         A :class:`HookInstallRecord` describing the installed hook.
 
     Raises:
-        RuntimeError: If ``sys.executable`` does not refer to an existing file.
+        RuntimeError: If ``sys.executable`` does not refer to an existing
+            file, or ``repo_root`` is not a git repository.
     """
     interpreter = Path(os.path.abspath(sys.executable))
     if not interpreter.is_file():
@@ -158,8 +164,14 @@ def install(repo_root: Path) -> HookInstallRecord:
         repin_command=REPIN_COMMAND,
     )
 
-    hooks_dir = repo_root / ".git" / "hooks"
-    # The admitted repository supplies .git; only its hooks directory may be created.
+    try:
+        hooks_dir = resolve_hooks_dir(repo_root)
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"Cannot install pre-commit hook: {repo_root} is not a git "
+            f"repository (git rev-parse --git-path hooks failed)."
+        ) from exc
+    # Only the resolved hooks directory may be created.
     hooks_dir.mkdir(exist_ok=True)
     hook_path = hooks_dir / "pre-commit"
 

@@ -518,6 +518,37 @@ def test_no_prompt_env_accepts_base_mapping() -> None:
     assert env["GIT_TERMINAL_PROMPT"] == "0"
 
 
+def test_no_prompt_env_pops_askpass_helpers_from_base() -> None:
+    """#5860: an askpass helper would pop a GUI credential dialog even with
+    ``GIT_TERMINAL_PROMPT=0``, so both askpass variables must be absent from
+    the returned environment when the caller supplied them in *base*."""
+    env = no_prompt_env(
+        {
+            "GIT_ASKPASS": "/usr/bin/vscode-askpass",
+            "SSH_ASKPASS": "/usr/bin/ssh-askpass",
+        }
+    )
+    assert "GIT_ASKPASS" not in env
+    assert "SSH_ASKPASS" not in env
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_no_prompt_env_pops_askpass_helpers_on_the_git_ssh_early_return(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#5860: the ``GIT_SSH`` early return must not carry the askpass helpers
+    through either — that path skips the ``BatchMode`` append, so an askpass
+    dialog is the only prompt left unneutralised there."""
+    isolated_git_env(monkeypatch, tmp_path)
+    _clean_ssh_env(monkeypatch)
+    monkeypatch.setenv("GIT_ASKPASS", "/usr/bin/vscode-askpass")
+    monkeypatch.setenv("SSH_ASKPASS", "/usr/bin/ssh-askpass")
+    monkeypatch.setenv("GIT_SSH", "/opt/wrap/ssh")
+    env = no_prompt_env(cwd=tmp_path)
+    assert "GIT_ASKPASS" not in env
+    assert "SSH_ASKPASS" not in env
+    assert env["GIT_SSH"] == "/opt/wrap/ssh"
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
+
+
 def test_timeouts_are_bounded() -> None:
     assert LS_REMOTE_TIMEOUT == 5.0
     assert FETCH_TIMEOUT == 15.0

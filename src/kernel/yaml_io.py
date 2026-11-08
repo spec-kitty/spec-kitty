@@ -25,6 +25,8 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.no_follow import open_no_follow
+
 __all__ = [
     "serialize_mapping",
     "write_mapping_atomic",
@@ -102,8 +104,11 @@ def write_mapping_atomic(
     Sequence:
     1. Serialize ``data`` via :func:`serialize_mapping`.
     2. Write to a uniquely-named ``.tmp`` file in ``path.parent`` (created
-       ``O_WRONLY | O_CREAT | O_EXCL`` so two concurrent writers never
-       collide), ``fsync`` the file descriptor, close.
+       ``O_WRONLY | O_CREAT | O_EXCL`` — through
+       :func:`kernel.no_follow.open_no_follow`, so a symlink pre-planted at
+       the temp path is refused rather than written through — so two
+       concurrent writers never collide), ``fsync`` the file descriptor,
+       close.
     3. ``os.replace(tmp, path)`` — atomic rename.
     4. Best-effort ``fsync`` on the parent directory fd to flush the rename
        into the directory inode (non-fatal on failure).
@@ -121,7 +126,7 @@ def write_mapping_atomic(
     tmp_path = path.parent / tmp_name
 
     try:
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        fd = open_no_follow(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         try:
             os.write(fd, serialized)
             os.fsync(fd)

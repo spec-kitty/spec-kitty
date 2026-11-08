@@ -50,6 +50,7 @@ from specify_cli.coordination.coherence import is_coord_residue_churn, kind_acro
 from specify_cli.coordination.commit_outcome import PathFate, SurfaceOutcome
 from specify_cli.coordination.surface_authority import Refuse, resolve_surface_authority
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import SafeCommitStagedTreeUnchanged
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import FeatureStatusLockTimeoutError
 
@@ -2021,10 +2022,16 @@ def _paths_uncommitted_in_primary(repo_root: Path, files: tuple[Path, ...]) -> b
 
 
 def _is_empty_changeset_error(exc: RuntimeError) -> bool:
-    # Match ONLY the genuine empty-changeset signal safe_commit now raises with a
-    # distinct message. A generic "safe_commit: git commit failed …" (a rejecting
-    # pre-commit hook, a lock error, etc.) must fall through to a real error,
-    # never be silently reported as "unchanged".
+    # Match the typed empty-changeset signal first (#4610):
+    # SafeCommitStagedTreeUnchanged is raised ONLY on the index authority,
+    # so its TYPE is the classifier and the message is free to drift. The
+    # prose match stays as a fallback for a pre-type exception (a caller
+    # that wraps/re-raises the message as a bare RuntimeError). A generic
+    # "safe_commit: git commit failed …" (a rejecting pre-commit hook, a
+    # lock error, etc.) must fall through to a real error, never be
+    # silently reported as "unchanged".
+    if isinstance(exc, SafeCommitStagedTreeUnchanged):
+        return True
     return "safe_commit: nothing to commit" in str(exc)
 
 
