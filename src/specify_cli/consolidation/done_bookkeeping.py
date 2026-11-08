@@ -452,7 +452,7 @@ def _mark_wp_merged_done(
                 wp_id=wp_id,
                 to_lane="done",
                 actor=build_system_actor(MERGE_ACTOR),
-                reason=f"Merged {wp_id} into {target_branch}",
+                reason=(f"{wp_id} landed on {target_branch} (single_branch, no lane merge)" if direct_repo else f"Merged {wp_id} into {target_branch}"),
                 evidence=evidence.to_dict(),
                 workspace_context=f"merge:{repo_root}",
                 repo_root=repo_root,
