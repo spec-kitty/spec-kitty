@@ -549,7 +549,7 @@ def _repair(
     *,
     repo_root: Path | None = None,
     mission_slug: str | None = None,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str]] | None:
     """Rebuild ``index.json`` from a FRESH in-lock read of the event log,
     under the sidecar lock (I8: the SAME lock the write path uses, T010) — a
     concurrent open/resolve cannot race a repair, and a repair cannot race a
@@ -571,6 +571,10 @@ def _repair(
     :func:`_rebuild_index_from_log` refused to rewrite (Fold A) and the
     decision_ids whose event group raised ``FoldError`` (Fold C), so the
     caller can report both conditions loudly instead of crashing.
+
+    Returns ``None`` when the in-lock re-read found unreadable lines and the
+    repair REFUSED (nothing saved): the caller must treat that as "no repair
+    happened" -- not as an empty-but-successful rebuild.
     """
     with _lock.decisions_lock(_lock.lock_path(ledger_dir), timeout_s=_lock.ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         grouped, unreadable_in_lock = _read_decision_events(_events_path(events_dir))
@@ -583,7 +587,7 @@ def _repair(
             # window. Nothing is saved, and the caller's post-repair
             # re-diagnose re-reads the file and names the unreadable lines in
             # the final report (exit 1), so the refusal is loud.
-            return [], []
+            return None
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
         if repo_root is not None and mission_slug is not None:
@@ -836,8 +840,12 @@ def _run_repair_phases(
     repo_root: Path,
     mission_slug: str,
     progress: dict[str, bool],
-) -> tuple[list[str], list[str], bool]:
+) -> tuple[list[str], list[str], bool] | None:
     """Run ``--repair``'s two locked phases; return ``(lossy, malformed, ledger_copied)``.
+
+    Returns ``None`` when the index rebuild refused inside its lock (unreadable
+    log lines): nothing was written, so neither the ledger copy nor the
+    ``index_rebuilt`` progress flag happens.
 
     Each phase takes the decisions lock through ``decisions/lock.py`` and may
     raise its refusal. ``progress["index_rebuilt"]`` turns true once the first
@@ -854,7 +862,10 @@ def _run_repair_phases(
     else:
         # Positive control (US4.4): an unforked Mission still repairs a genuine
         # orphan exactly as before.
-        lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+        repaired = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+        if repaired is None:
+            return None
+        lossy_ids, malformed_ids = repaired
         progress["index_rebuilt"] = True
     if ledger_only_coord:
         # FR-009c / contract rule 4: additive-only, independent of the
@@ -862,6 +873,14 @@ def _run_repair_phases(
         # otherwise unforked Mission, e.g. NFR-002 fixture (d)).
         _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
     return lossy_ids, malformed_ids, ledger_only_coord
+
+
+def _emit_report(report: DecisionsReconciliationReport, json_output: bool) -> None:
+    """Emit the ONE report document in the requested mode."""
+    if json_output:
+        _emit_json(report)
+    else:
+        _emit_human(report)
 
 
 def _emit_lock_refusal(exc: DecisionError, json_output: bool, *, index_rebuilt: bool) -> None:
@@ -943,16 +962,11 @@ def run_decisions_reconciliation(
             # fully parsed -- the rebuild would silently drop every decision
             # whose events sit on an unreadable line. Report loudly (exactly
             # one report, same as the malformed-fold refusal) and refuse.
-            if json_output:
-                _emit_json(report)
-            else:
-                _emit_human(report)
+            _emit_report(report, json_output)
             raise typer.Exit(1)
         progress: dict[str, bool] = {"index_rebuilt": False}
         try:
-            lossy_ids, malformed_ids, ledger_only_coord = _run_repair_phases(
-                report, events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug, progress=progress
-            )
+            phases = _run_repair_phases(report, events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug, progress=progress)
         except DecisionError as exc:
             # #6763: only the decisions-lock refusal is this command's refusal;
             # any other DecisionError is not ours to reinterpret, so it keeps
@@ -962,15 +976,18 @@ def run_decisions_reconciliation(
             _emit_lock_refusal(exc, json_output, index_rebuilt=progress["index_rebuilt"])
             raise typer.Exit(1) from exc
         report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
+        if phases is None:
+            # The in-lock re-read refused (a line went unreadable after the
+            # diagnose read): nothing was repaired, so say so and exit 1.
+            _emit_report(report, json_output)
+            raise typer.Exit(1)
+        lossy_ids, malformed_ids, ledger_only_coord = phases
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)
         report.malformed_folds = sorted(malformed_ids)
         report.ledger_copied = ledger_only_coord
 
-    if json_output:
-        _emit_json(report)
-    else:
-        _emit_human(report)
+    _emit_report(report, json_output)
 
     # #4919 / WP17: --repair exits non-zero when it could not reconcile
     # every decision -- a malformed decision that remains after the rebuild
