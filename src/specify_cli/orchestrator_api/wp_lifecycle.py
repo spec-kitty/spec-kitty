@@ -242,8 +242,9 @@ def _enforce_claim_ancestry(
 def _self_heal_failure_cause(failure: BaseException) -> dict[str, object]:
     """Describe the self-heal failure behind an ``ANCESTRY_NOT_ESTABLISHED`` refusal.
 
-    A structured failure (a ``StructuredError`` such as a dependency-lane merge
-    conflict) keeps its own ``error_code`` and ``next_step`` via ``to_dict()``;
+    A structured failure (a ``StructuredError`` such as
+    ``DependencyLaneMergeConflictError``) keeps its own ``error_code`` and
+    ``next_step`` via ``to_dict()``;
     any other exception is reported by type and message.
     """
     to_dict = getattr(failure, "to_dict", None)
