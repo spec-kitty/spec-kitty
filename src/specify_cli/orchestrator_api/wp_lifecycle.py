@@ -220,6 +220,9 @@ def _enforce_claim_ancestry(
             {
                 **_common._mission_identity_payload(mission_dir),
                 "wp_id": wp,
+                # Same shape as the not-ok path below, so a caller reads one envelope.
+                "missing_refs": [],
+                "cause": _self_heal_failure_cause(exc.failure),
             },
         )
     if result.ok:
@@ -234,6 +237,21 @@ def _enforce_claim_ancestry(
             "missing_refs": list(result.missing_refs),
         },
     )
+
+
+def _self_heal_failure_cause(failure: BaseException) -> dict[str, object]:
+    """Describe the self-heal failure behind an ``ANCESTRY_NOT_ESTABLISHED`` refusal.
+
+    A structured failure (a ``StructuredError`` such as a dependency-lane merge
+    conflict) keeps its own ``error_code`` and ``next_step`` via ``to_dict()``;
+    any other exception is reported by type and message.
+    """
+    to_dict = getattr(failure, "to_dict", None)
+    if callable(to_dict):
+        payload = to_dict()
+        if isinstance(payload, dict):
+            return dict(payload)
+    return {"error_type": type(failure).__name__, "message": str(failure)}
 
 
 def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
