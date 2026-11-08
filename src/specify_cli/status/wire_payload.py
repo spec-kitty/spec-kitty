@@ -1,10 +1,9 @@
 """Canonical ``WPStatusChanged`` wire-payload builder (#6449).
 
-One authority for the payload the TeamSpace replay envelope carries for a lane
-transition. Before this module the mission-state dry-run
-(``migration/mission_state._status_event_to_teamspace_envelope``) assembled the
-payload as a plain dict, so the shape could drift from the contract model and
-only surface later, as a conformance report; that dict is gone.
+One authority for the payload a ``WPStatusChanged`` wire event carries for a
+lane transition. Before this module the payload was assembled as a plain
+dict, so the shape could drift from the contract model and only surface
+later, as a conformance report; that dict is gone.
 
 The construction pattern mirrors ``core/mission_payload.build_mission_created_payload``
 (#2270): build the contract model, then shape the wire dict through the shared

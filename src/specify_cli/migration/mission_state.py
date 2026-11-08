@@ -1,8 +1,8 @@
-"""Deterministic mission-state repair and TeamSpace dry-run helpers.
+"""Deterministic mission-state repair helpers.
 
 This module is the mutating counterpart to ``specify_cli.audit``.  The audit
 package remains read-only; this module is only reached from
-``doctor mission-state --fix`` or ``--teamspace-dry-run``.
+``doctor mission-state --fix``.
 """
 
 from __future__ import annotations
@@ -14,13 +14,11 @@ import logging
 import re
 import subprocess
 import sys
-import uuid
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
-from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from mission_runtime import MissionTopology
@@ -29,9 +27,6 @@ if TYPE_CHECKING:
     from specify_cli.status.dup_key_repair import ArtifactRepairPlan, DuplicateKeyFinding
     from specify_cli.status.models import StatusSnapshot
     from specify_cli.status.wp_metadata import WPMetadata
-
-from packaging.version import Version
-from pydantic import BaseModel, ConfigDict, ValidationError
 
 from kernel.git import GitCommandError, is_tracked, status_entries
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
@@ -67,7 +62,6 @@ from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, extend_mission_w
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
-    build_status_event_payload,
     decode_actor,
     is_non_lane_event,
     serialize_event_line,
@@ -76,8 +70,6 @@ from specify_cli.status import (
 logger = logging.getLogger(__name__)
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
-CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
-REQUIRED_EVENTS_PACKAGE = Version("5.0.0")
 
 EVENTS_FILENAME = "status.events.jsonl"
 STATUS_FILENAME = "status.json"
@@ -289,15 +281,10 @@ _UUID_HYPHEN_RE = re.compile(
     re.IGNORECASE,
 )
 _UUID_BARE_RE = re.compile(r"^[0-9a-f]{32}$", re.IGNORECASE)
-_REMOTE_URL_SCHEMES = frozenset({"http", "https"})
 
 
 class MissionStateRepairError(RuntimeError):
     """Raised when mission-state repair cannot proceed safely."""
-
-
-class MissionStateDryRunError(RuntimeError):
-    """Raised when TeamSpace dry-run validation cannot proceed."""
 
 
 @dataclass(frozen=True)
@@ -432,63 +419,6 @@ class RepairReport:
 
 
 @dataclass(frozen=True)
-class TeamspaceDryRunRowMapping:
-    """Mapping from one local status row to its synthesized TeamSpace event."""
-
-    mission_slug: str
-    artifact_path: str
-    line_number: int | None
-    source_event_id: str
-    synthesized_event_id: str
-    synthesized_event_type: str
-    aggregate_id: str
-    row_sha256: str | None
-    envelope_sha256: str
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "mission_slug": self.mission_slug,
-            "artifact_path": self.artifact_path,
-            "line_number": self.line_number,
-            "source_event_id": self.source_event_id,
-            "synthesized_event_id": self.synthesized_event_id,
-            "synthesized_event_type": self.synthesized_event_type,
-            "aggregate_id": self.aggregate_id,
-            "row_sha256": self.row_sha256,
-            "envelope_sha256": self.envelope_sha256,
-        }
-
-
-@dataclass(frozen=True)
-class TeamspaceDryRunReport:
-    """Validation report for canonical envelopes synthesized from local state."""
-
-    schema_version: str
-    events_package_version: str
-    envelope_count: int
-    valid: bool
-    errors: tuple[dict[str, object], ...]
-    row_mappings: tuple[TeamspaceDryRunRowMapping, ...] = ()
-    context_warnings: tuple[dict[str, object], ...] = ()
-    side_logs: tuple[dict[str, object], ...] = ()
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "schema_version": self.schema_version,
-            "events_package_version": self.events_package_version,
-            "envelope_count": self.envelope_count,
-            "valid": self.valid,
-            "errors": list(self.errors),
-            "row_mappings": [mapping.to_dict() for mapping in self.row_mappings],
-            "context_warnings": list(self.context_warnings),
-            "side_logs": list(self.side_logs),
-        }
-
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
-
-
-@dataclass(frozen=True)
 class _RawJsonlRow:
     line_number: int
     text: str
@@ -524,20 +454,6 @@ def deterministic_ulid(seed: bytes | str) -> str:
         chars.append(_CROCKFORD[value & 31])
         value >>= 5
     return "".join(reversed(chars))
-
-
-def envelope_sha256(envelope: Mapping[str, Any]) -> str:
-    """Canonical-JSON SHA-256 of a TeamSpace envelope (single recipe owner).
-
-    The migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256`` hashes
-    envelopes with this exact shape; hoisted here so callers cannot drift
-    (#2884). (The import-history provenance manifest's own use of this recipe,
-    #2262, was removed with the sync transport -- issue #5 -- and its
-    re-export seam, ``migration.envelope_seam``, was pruned as dead collateral
-    -- issue #116.)
-    """
-    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(canonical).hexdigest()  # noqa: TID251 - production raw SHA-256 owner (canonical envelope body checksum)
 
 
 def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
@@ -964,547 +880,6 @@ def repair_duplicate_key_artifacts(
         if file_changes:
             atomic_write(manifest_abs, report.to_json(), mkdir=True)
         return report
-
-
-def teamspace_dry_run(
-    repo_root: Path,
-    *,
-    scan_root: Path | None = None,
-    mission: str | None = None,
-) -> TeamspaceDryRunReport:
-    """Synthesize TeamSpace envelopes from local status logs and validate them."""
-    event_cls, validate_event, package_version = _load_events_contract()
-    mission_dirs, _ = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
-    audit_errors = _teamspace_audit_blockers(repo_root.resolve(), scan_root=scan_root, mission_dirs=mission_dirs)
-    audit_errors = [error for error in audit_errors if not _is_nonfatal_side_log_record(error)]
-    if audit_errors:
-        return TeamspaceDryRunReport(
-            schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
-            events_package_version=package_version,
-            envelope_count=0,
-            valid=False,
-            errors=tuple(audit_errors),
-            side_logs=tuple(side_log for mission_dir in mission_dirs for side_log in _classify_side_logs(repo_root.resolve(), mission_dir)),
-        )
-    project_uuid = uuid.uuid5(
-        uuid.NAMESPACE_URL,
-        "spec-kitty:teamspace-dry-run:" + "|".join(path.name for path in mission_dirs),
-    )
-    errors: list[dict[str, object]] = []
-    side_logs: list[dict[str, object]] = []
-    count = 0
-    repo_slug = _repo_slug(repo_root.resolve())
-    project_slug = repo_slug or repo_root.resolve().name
-    row_mappings: list[TeamspaceDryRunRowMapping] = []
-    context_warnings = _teamspace_context_warnings(repo_root.resolve(), project_uuid)
-
-    from specify_cli.status import read_events
-
-    for mission_dir in mission_dirs:
-        side_logs.extend(_classify_side_logs(repo_root.resolve(), mission_dir))
-        raw_status_errors = _scan_raw_status_rows(repo_root.resolve(), mission_dir)
-        errors.extend(raw_status_errors)
-        if raw_status_errors:
-            continue
-        row_locations = _status_row_locations(mission_dir)
-        try:
-            events = read_events(mission_dir)
-        except Exception as exc:
-            errors.append(
-                {
-                    "mission_slug": mission_dir.name,
-                    "error": "STATUS_EVENTS_UNREADABLE",
-                    "message": str(exc),
-                }
-            )
-            continue
-        for index, status_event in enumerate(sorted(events, key=lambda e: (e.at, e.event_id)), start=1):
-            try:
-                envelope = _status_event_to_teamspace_envelope(
-                    status_event,
-                    project_uuid=project_uuid,
-                    lamport_clock=index,
-                    project_slug=project_slug,
-                    repo_slug=repo_slug,
-                )
-            except ValidationError as exc:
-                # The payload is now constructed THROUGH the contract model (#6449),
-                # so an unrepresentable row is rejected here rather than at the
-                # conformance pass below. One bad row must not abort the whole
-                # run: report it and move on, as the PAYLOAD_INVALID contract
-                # always promised. (In practice this is the payload model: the
-                # envelope shell is unconstrained strings and cannot reject.)
-                errors.append(
-                    {
-                        "mission_slug": status_event.mission_slug,
-                        "event_id": status_event.event_id,
-                        "error": "PAYLOAD_INVALID",
-                        "model_violations": [
-                            {
-                                "field": ".".join(str(part) for part in violation["loc"]),
-                                "message": violation["msg"],
-                                "violation_type": violation["type"],
-                            }
-                            for violation in exc.errors()
-                        ],
-                    }
-                )
-                continue
-            # Count only rows that produced an envelope, so ``envelope_count``
-            # keeps its documented meaning (and its 1:1 relation to
-            # ``row_mappings``) even when a row is rejected.
-            count += 1
-            row_location = row_locations.get(status_event.event_id)
-            row_mappings.append(
-                TeamspaceDryRunRowMapping(
-                    mission_slug=status_event.mission_slug,
-                    artifact_path=_repo_relpath(repo_root.resolve(), mission_dir / EVENTS_FILENAME),
-                    line_number=row_location.line_number if row_location is not None else None,
-                    source_event_id=status_event.event_id,
-                    synthesized_event_id=envelope["event_id"],
-                    synthesized_event_type=envelope["event_type"],
-                    aggregate_id=envelope["aggregate_id"],
-                    row_sha256=(
-                        hashlib.sha256(row_location.text.encode("utf-8")).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-                        if row_location is not None
-                        else None
-                    ),
-                    envelope_sha256=envelope_sha256(envelope),
-                )
-            )
-            try:
-                event_cls.model_validate(envelope)
-            except Exception as exc:
-                errors.append(
-                    {
-                        "mission_slug": status_event.mission_slug,
-                        "event_id": status_event.event_id,
-                        "error": "ENVELOPE_INVALID",
-                        "message": str(exc),
-                    }
-                )
-                continue
-            payload_result = validate_event(envelope["payload"], envelope["event_type"])
-            if not payload_result.valid:
-                errors.append(
-                    {
-                        "mission_slug": status_event.mission_slug,
-                        "event_id": status_event.event_id,
-                        "error": "PAYLOAD_INVALID",
-                        "model_violations": [
-                            {
-                                "field": v.field,
-                                "message": v.message,
-                                "violation_type": v.violation_type,
-                            }
-                            for v in payload_result.model_violations
-                        ],
-                    }
-                )
-
-    fatal_errors = [error for error in errors if not _is_nonfatal_side_log_record(error)]
-    return TeamspaceDryRunReport(
-        schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
-        events_package_version=package_version,
-        envelope_count=count,
-        valid=not fatal_errors,
-        errors=tuple(fatal_errors),
-        row_mappings=tuple(row_mappings),
-        context_warnings=tuple(context_warnings),
-        side_logs=tuple(side_logs),
-    )
-
-
-def _teamspace_audit_blockers(
-    repo_root: Path,
-    *,
-    scan_root: Path | None,
-    mission_dirs: Sequence[Path],
-) -> list[dict[str, object]]:
-    """Return audit findings that must block TeamSpace historical import."""
-    from specify_cli.audit import AuditOptions, run_audit
-    from specify_cli.audit.models import is_teamspace_blocker
-
-    report = run_audit(AuditOptions(repo_root=repo_root, scan_root=scan_root))
-    selected_slugs = {path.name for path in mission_dirs}
-    errors: list[dict[str, object]] = []
-    for result in report.missions:
-        if result.mission_slug not in selected_slugs:
-            continue
-        for finding in result.findings:
-            if not is_teamspace_blocker(finding):
-                continue
-            if _is_out_of_scope_side_log_path(finding.artifact_path):
-                continue
-            errors.append(
-                {
-                    "mission_slug": result.mission_slug,
-                    "artifact_path": finding.artifact_path,
-                    "error": "MISSION_STATE_AUDIT_BLOCKER",
-                    "finding_code": finding.code,
-                    "severity": finding.severity.value,
-                    "message": finding.detail or finding.code,
-                    "remediation": (
-                        "Run `spec-kitty doctor mission-state --audit --fail-on "
-                        "teamspace-blocker`, then `--fix`, then "
-                        "`--teamspace-dry-run` before TeamSpace import/sync."
-                    ),
-                }
-            )
-    return sorted(
-        errors,
-        key=lambda item: (
-            str(item["mission_slug"]),
-            str(item["artifact_path"]),
-            str(item["finding_code"]),
-        ),
-    )
-
-
-def _is_out_of_scope_side_log_path(artifact_path: str) -> bool:
-    return (
-        artifact_path.endswith("/mission-events.jsonl")
-        or "/decisions/events.jsonl" in artifact_path
-        or "/handoff/events.jsonl" in artifact_path
-        or "/_archive/" in artifact_path
-        or artifact_path.endswith("/run.events.jsonl")
-    )
-
-
-def _is_nonfatal_side_log_record(record: Mapping[str, object]) -> bool:
-    return record.get("reason") == "out_of_scope_for_launch_import" and str(record.get("disposition", "")).startswith("skipped_")
-
-
-def _teamspace_context_warnings(repo_root: Path, project_uuid: uuid.UUID) -> list[dict[str, object]]:
-    warnings: list[dict[str, object]] = []
-    try:
-        from specify_cli.identity.project import load_identity
-
-        identity = load_identity(repo_root / ".kittify" / "config.yaml")
-    except Exception:
-        identity = None
-
-    if identity is None or identity.project_uuid is None:
-        warnings.append(
-            {
-                "code": "TEAMSPACE_PROJECT_CONTEXT_MISSING",
-                "message": ("No persisted project.uuid was found; dry-run used a deterministic offline project_uuid for schema validation only."),
-                "dry_run_project_uuid": str(project_uuid),
-            }
-        )
-
-    warnings.append(
-        {
-            "code": "TEAMSPACE_TEAM_CONTEXT_NOT_VALIDATED",
-            "message": "Team/private TeamSpace membership is not checked by offline dry-run.",
-        }
-    )
-    return warnings
-
-
-def _status_row_locations(mission_dir: Path) -> dict[str, _RawJsonlRow]:
-    status_path = mission_dir / EVENTS_FILENAME
-    if not status_path.exists():
-        return {}
-    try:
-        rows = _read_jsonl_rows(status_path)
-    except Exception:
-        return {}
-
-    locations: dict[str, _RawJsonlRow] = {}
-    for row in rows:
-        event_id = _event_id(row.data)
-        if event_id is not None:
-            locations.setdefault(event_id, row)
-    return locations
-
-
-def _load_events_contract() -> tuple[type[Any], Any, str]:
-    import spec_kitty_events
-    from spec_kitty_events import Event
-    from spec_kitty_events.conformance import validate_event
-
-    package_version = Version(spec_kitty_events.__version__)
-    if package_version < REQUIRED_EVENTS_PACKAGE:
-        raise MissionStateDryRunError(f"TeamSpace dry-run requires spec-kitty-events >= {REQUIRED_EVENTS_PACKAGE}; installed {package_version}.")
-    return Event, validate_event, str(package_version)
-
-
-class _TeamspaceEnvelope(BaseModel):
-    """The SINGLE TeamSpace replay-envelope shape (#2891, CP001/CP002 #2884).
-
-    The migration ``WPStatusChanged`` builder assembles the 15-key envelope
-    this model owns, so a new envelope-level field cannot be added and silently
-    forgotten elsewhere -- ``extra="forbid"`` turns a mismatched key set into a
-    construction-time error instead of a silent drift. (The history-import
-    creation-prefix builder that formerly shared this recipe via the
-    ``envelope_seam`` re-export was removed with the sync transport -- issue
-    #5 -- and the seam itself was pruned as dead collateral -- issue #116.)
-    Callers compute the field VALUES (``build_id`` /
-    ``correlation_id`` / ... differ per producer); the KEY SET and
-    ``schema_version`` live here.
-
-    Fields deliberately keep their raw wire types (``str`` for ``timestamp``
-    and ``project_uuid``, not ``datetime``/``UUID``): this is a structural
-    shape guard for the replay/synthesis producers, not the
-    ``spec_kitty_events.Event`` wire contract (that separate validation
-    already happens via ``event_cls.model_validate(envelope)`` in
-    ``teamspace_dry_run``). Constructing through ``Event`` here instead would
-    silently drop ``aggregate_type``/``repo_slug`` -- fields ``Event`` does not
-    declare -- and coerce ``timestamp``/``project_uuid`` to
-    ``datetime``/``UUID``, changing the on-wire envelope shape asserted by
-    ``tests/sync/test_history_import_synthesize.py``.
-    """
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    event_id: str
-    event_type: str
-    aggregate_id: str
-    aggregate_type: str
-    payload: dict[str, Any]
-    timestamp: str
-    build_id: str
-    node_id: str
-    lamport_clock: int
-    causation_id: str | None = None
-    project_uuid: str
-    project_slug: str
-    repo_slug: str | None
-    correlation_id: str
-    schema_version: str = CANONICAL_ENVELOPE_SCHEMA_VERSION
-
-
-def _build_teamspace_envelope(
-    *,
-    event_id: str,
-    event_type: str,
-    aggregate_id: str,
-    aggregate_type: str,
-    payload: dict[str, Any],
-    timestamp: str,
-    build_id: str,
-    node_id: str,
-    lamport_clock: int,
-    project_uuid: str,
-    project_slug: str,
-    repo_slug: str | None,
-    correlation_id: str,
-    causation_id: str | None = None,
-) -> _TeamspaceEnvelope:
-    """Construct the SINGLE TeamSpace replay-envelope shell (#2891).
-
-    Callers that need the wire-format dict (JSONL rows, hashing, upload
-    payloads) call ``.model_dump()`` at their own serialization boundary --
-    this builder's job is only to close the "hand-rolled dict, key typo, or
-    forgotten key" defect class by construction.
-    """
-    return _TeamspaceEnvelope(
-        event_id=event_id,
-        event_type=event_type,
-        aggregate_id=aggregate_id,
-        aggregate_type=aggregate_type,
-        payload=payload,
-        timestamp=timestamp,
-        build_id=build_id,
-        node_id=node_id,
-        lamport_clock=lamport_clock,
-        causation_id=causation_id,
-        project_uuid=project_uuid,
-        project_slug=project_slug,
-        repo_slug=repo_slug,
-        correlation_id=correlation_id,
-        schema_version=CANONICAL_ENVELOPE_SCHEMA_VERSION,
-    )
-
-
-def _status_event_to_teamspace_envelope(
-    status_event: StatusEvent,
-    *,
-    project_uuid: uuid.UUID,
-    lamport_clock: int,
-    project_slug: str,
-    repo_slug: str | None,
-) -> dict[str, Any]:
-    evidence = status_event.evidence.to_dict() if status_event.evidence else None
-    if str(status_event.to_lane) in {"approved", "done"}:
-        evidence = _historical_teamspace_evidence(
-            status_event,
-            evidence=evidence,
-            project_slug=project_slug,
-            repo_slug=repo_slug,
-        )
-
-    from_lane = str(status_event.from_lane)
-    if status_event.from_lane is Lane.IN_PROGRESS and status_event.to_lane is Lane.IN_REVIEW:
-        # Older local logs skipped the explicit for_review queue lane.
-        from_lane = str(Lane.FOR_REVIEW)
-
-    # ONE authority for the payload shape (#6449): the CORE builder constructs it
-    # through ``StatusTransitionPayload``, so the dry-run cannot drift from the
-    # contract model. The two historical rewrites above are the only overrides.
-    payload = build_status_event_payload(
-        status_event,
-        overrides={"from_lane": from_lane, "evidence": evidence},
-    )
-    return _build_teamspace_envelope(
-        event_id=status_event.event_id,
-        event_type="WPStatusChanged",
-        aggregate_id=status_event.wp_id,
-        aggregate_type="WorkPackage",
-        payload=payload,
-        timestamp=status_event.at,
-        build_id="mission-state-dry-run",
-        node_id="mission-state-dry-run",
-        lamport_clock=lamport_clock,
-        project_uuid=str(project_uuid),
-        project_slug=project_slug,
-        repo_slug=repo_slug,
-        correlation_id=deterministic_ulid(f"teamspace-dry-run:{status_event.mission_slug}:{status_event.event_id}"),
-    ).model_dump()
-
-
-def _historical_teamspace_evidence(
-    status_event: StatusEvent,
-    *,
-    evidence: dict[str, Any] | None,
-    project_slug: str,
-    repo_slug: str | None,
-) -> dict[str, Any]:
-    """Return deterministic evidence for historical approval/done rows.
-
-    Older local status rows may have no evidence at all, or may have review
-    evidence without repo evidence. The TeamSpace 5.0.0 event contract requires
-    evidence for both approved and done transitions, including at least one repo
-    entry, so dry-run/import synthesis fills only the missing historical facts.
-    """
-    resolved = dict(evidence or {})
-    if not resolved.get("review"):
-        resolved["review"] = {
-            "reviewer": status_event.actor or "historical-mission-state-repair",
-            "verdict": "approved",
-            "reference": status_event.review_ref or f"historical-mission-state-repair:{status_event.mission_slug}:{status_event.wp_id}:{status_event.event_id}",
-        }
-    if not resolved.get("repos"):
-        resolved["repos"] = [
-            {
-                "repo": repo_slug or project_slug,
-                "branch": "historical-mission-state-repair",
-                "commit": "historical-mission-state-repair",
-            }
-        ]
-    resolved.setdefault("verification", [])
-    return resolved
-
-
-def _scan_raw_status_rows(repo_root: Path, mission_dir: Path) -> list[dict[str, object]]:
-    status_path = mission_dir / EVENTS_FILENAME
-    if not status_path.exists():
-        return []
-    try:
-        rows = _read_jsonl_rows(status_path)
-    except Exception as exc:
-        return [
-            {
-                "mission_slug": mission_dir.name,
-                "artifact_path": _repo_relpath(repo_root, status_path),
-                "error": "STATUS_EVENTS_UNREADABLE",
-                "message": str(exc),
-            }
-        ]
-
-    errors: list[dict[str, object]] = []
-    rel = _repo_relpath(repo_root, status_path)
-    for row in rows:
-        # Preserved-class non-lane rows (retrospective + canonical lifecycle
-        # events, issue #2376) legitimately live in status.events.jsonl and are
-        # left in place by the repair. They are not lane events, so the
-        # lane-event scans below (typed-row + forbidden-legacy-key, which recurse
-        # into another subsystem's payload) do not apply to them.
-        if _is_preserved_non_lane_row(row.data):
-            continue
-        if "event_type" in row.data or "event_name" in row.data:
-            errors.append(
-                {
-                    "mission_slug": mission_dir.name,
-                    "artifact_path": rel,
-                    "line_number": row.line_number,
-                    "event_id": _event_id(row.data),
-                    "error": "STATUS_ROW_NOT_REPAIRED",
-                    "message": "typed side-log row remains in status.events.jsonl; run --fix before dry-run",
-                }
-            )
-        for path, key in _find_forbidden_key_paths(row.data):
-            errors.append(
-                {
-                    "mission_slug": mission_dir.name,
-                    "artifact_path": rel,
-                    "line_number": row.line_number,
-                    "event_id": _event_id(row.data),
-                    "error": "FORBIDDEN_LEGACY_KEY",
-                    "path": path,
-                    "key": key,
-                }
-            )
-    return errors
-
-
-def _classify_side_logs(repo_root: Path, mission_dir: Path) -> list[dict[str, object]]:
-    candidates: list[Path] = [
-        mission_dir / "decisions" / "events.jsonl",
-        mission_dir / "handoff" / "events.jsonl",
-        mission_dir / "mission-events.jsonl",
-    ]
-    archive = mission_dir / "_archive"
-    if archive.exists():
-        candidates.extend(sorted(archive.glob("*.events.jsonl")))
-
-    side_logs: list[dict[str, object]] = []
-    for path in candidates:
-        if not path.exists():
-            continue
-        side_logs.append(
-            {
-                "artifact_path": _repo_relpath(repo_root, path),
-                "row_count": _count_jsonl_rows(path),
-                "disposition": "skipped_local_side_log",
-                "reason": "out_of_scope_for_launch_import",
-            }
-        )
-
-    runtime_root = repo_root / ".kittify" / "runtime"
-    if runtime_root.exists():
-        for path in sorted(runtime_root.glob("**/run.events.jsonl")):
-            side_logs.append(
-                {
-                    "artifact_path": _repo_relpath(repo_root, path),
-                    "row_count": _count_jsonl_rows(path),
-                    "disposition": "skipped_runtime_side_log",
-                    "reason": "out_of_scope_for_launch_import",
-                }
-            )
-    return side_logs
-
-
-def _find_forbidden_key_paths(value: Any, *, prefix: str = "$") -> list[tuple[str, str]]:
-    findings: list[tuple[str, str]] = []
-    if isinstance(value, Mapping):
-        for key, child in value.items():
-            child_path = f"{prefix}.{key}"
-            if key in FORBIDDEN_LEGACY_KEYS:
-                findings.append((child_path, str(key)))
-            findings.extend(_find_forbidden_key_paths(child, prefix=child_path))
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            findings.extend(_find_forbidden_key_paths(child, prefix=f"{prefix}[{index}]"))
-    return findings
-
-
-def _count_jsonl_rows(path: Path) -> int:
-    try:
-        return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
-    except OSError:
-        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -2326,9 +1701,6 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     treats as non-lane -- including an ``event_type`` the reader has never
     seen before, closing the unregistered-future gap that a registry
     ALLOWLIST (the pre-inversion shape of this function) could never close.
-
-    ``_scan_raw_status_rows`` (the TeamSpace dry-run scanner) shares this
-    predicate, so it is fixed by the same edit -- no second site.
     """
     if row.get("kind") == ANNOTATION_KIND:
         return True
@@ -2450,9 +1822,7 @@ def _is_legacy_typed_lane_transition(row: Mapping[str, Any]) -> bool:
 
     The mission's own ``WPStatusChanged`` writer emits
     ``event_type == "WPStatusChanged"`` alongside the TOP-LEVEL lane fields
-    ``wp_id`` / ``from_lane`` / ``to_lane`` (see
-    :func:`_status_event_to_teamspace_envelope`, which stamps the same
-    ``event_type``). Such a row is a fully-formed lane transition that merely
+    ``wp_id`` / ``from_lane`` / ``to_lane``. Such a row is a fully-formed lane transition that merely
     carries a typed discriminator: routing it via passthrough lets the rest of
     the canonicalization pipeline strip ``event_type`` through the
     ``_build_canonical_row`` allowlist and fold it into ``status.json``.
@@ -2491,8 +1861,7 @@ def _rule_reject_non_status_event(row: _Row, _ctx: MigrationContext) -> Canonica
       mission logs.
     - Any other ``event_type`` / ``event_name`` row is QUARANTINED (its canonical
       state, if any, lives elsewhere — a genuinely non-status row, not a mirror
-      of anything in this log). ``_scan_raw_status_rows`` flags the same class
-      before a TeamSpace dry-run.
+      of anything in this log).
     """
     # MUST stay first: a legacy typed WPStatusChanged lane row (top-level
     # wp_id/from_lane/to_lane) is a lane transition to be canonicalized into
@@ -3009,25 +2378,6 @@ def _resolve_repo_relative(repo_root: Path, path: Path) -> Path:
     return repo_root / path
 
 
-def _is_remote_url(slug: str) -> bool:
-    """Return True when *slug* is an HTTP(S) remote URL."""
-    return urlsplit(slug).scheme in _REMOTE_URL_SCHEMES
-
-
-def _repo_slug(repo_root: Path) -> str | None:
-    result = _git(repo_root, "config", "--get", "remote.origin.url", check=False)
-    remote = result.stdout.strip()
-    if not remote:
-        return repo_root.name
-    slug = remote.removesuffix(".git").rstrip("/")
-    if ":" in slug and not _is_remote_url(slug):
-        slug = slug.rsplit(":", 1)[1]
-    elif "/" in slug:
-        parts = slug.split("/")
-        slug = "/".join(parts[-2:]) if len(parts) >= 2 else parts[-1]
-    return slug or repo_root.name
-
-
 def _git_head(repo_root: Path) -> str | None:
     result = _git(repo_root, "rev-parse", "HEAD", check=False)
     if result.returncode != 0:
@@ -3216,27 +2566,21 @@ def rebuild_mission_event_log(
 
 
 __all__ = [
-    # CANONICAL_ENVELOPE_SCHEMA_VERSION, MIGRATION_SCHEMA_VERSION,
-    # MissionEventRebuildResult, RepairReport, TeamspaceDryRunRowMapping,
+    # MIGRATION_SCHEMA_VERSION, MissionEventRebuildResult, RepairReport,
     # deterministic_ulid: demoted — migration-internal; no cross-module
     # src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     # The former sanctioned cross-module surface, migration/envelope_seam.py
-    # (#2262/#2884), re-exported the shared subset (envelope constants,
-    # deterministic_ulid, envelope_sha256, the status-envelope builder, and the
-    # selection/audit seams) under public names for the import-history
-    # pipeline. That pipeline was deleted with the sync transport (issue #5)
-    # and the seam itself was pruned as dead collateral (issue #116); any new
-    # cross-module consumer of these internals would need a fresh seam, not a
-    # direct import.
+    # (#2262/#2884), re-exported a shared subset of these internals under
+    # public names for the import-history pipeline. That pipeline was deleted
+    # with the sync transport (issue #5) and the seam itself was pruned as
+    # dead collateral (issue #116); any new cross-module consumer of these
+    # internals would need a fresh seam, not a direct import.
     "CheckoutDisagreement",
-    "MissionStateDryRunError",
     "MissionStateRepairError",
     "MissionStateWriteRefused",
-    "TeamspaceDryRunReport",
     "audit_invocation_disagreement",
     "enforce_primary_write_ownership",
     "rebuild_mission_event_log",
     "repair_duplicate_key_artifacts",
     "repair_repo",
-    "teamspace_dry_run",
 ]

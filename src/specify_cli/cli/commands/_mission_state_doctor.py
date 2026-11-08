@@ -1,4 +1,4 @@
-"""Mission-state audit / repair / teamspace-dry-run cluster for ``doctor`` (WP06, #2059).
+"""Mission-state audit / repair cluster for ``doctor`` (WP06, #2059).
 
 Extracts Cluster H out of ``doctor.py``. The ``mission-state`` command is already
 dispatch-thin (it delegates to ``_validate_modes`` / ``_run_*`` helpers); those
@@ -102,26 +102,23 @@ class _MissionStateMode(_enum.Enum):
 
     AUDIT = "audit"
     FIX = "fix"
-    TEAMSPACE_DRY_RUN = "teamspace_dry_run"
 
 
-def _validate_modes(audit: bool, fix: bool, teamspace_dry_run: bool) -> _MissionStateMode:
+def _validate_modes(audit: bool, fix: bool) -> _MissionStateMode:
     """Validate mutually exclusive mode flags and return the active Mode.
 
     Raises typer.Exit(0) if no mode was selected (with usage hint).
     Raises typer.Exit(2) if more than one mode was selected.
     """
-    selected_modes = sum(1 for selected in (audit, fix, teamspace_dry_run) if selected)
+    selected_modes = sum(1 for selected in (audit, fix) if selected)
     if selected_modes == 0:
-        typer.echo("Use --audit, --fix, or --teamspace-dry-run. See --help for options.")
+        typer.echo("Use --audit or --fix. See --help for options.")
         raise typer.Exit(0)
     if selected_modes > 1:
-        typer.echo("Choose exactly one of --audit, --fix, or --teamspace-dry-run.", err=True)
+        typer.echo("Choose exactly one of --audit or --fix.", err=True)
         raise typer.Exit(2)
     if fix:
         return _MissionStateMode.FIX
-    if teamspace_dry_run:
-        return _MissionStateMode.TEAMSPACE_DRY_RUN
     return _MissionStateMode.AUDIT
 
 
@@ -209,7 +206,7 @@ def _emit_mission_state(report: object, *, json_output: bool, pretty_renderer: C
     """Emit a mission-state report as JSON or via a pretty renderer.
 
     Collapses the triplicated 'if json_output: dump JSON else: pretty-print'
-    pattern across the three dispatch arms.
+    pattern across the dispatch arms.
     """
     if json_output:
         sys.stdout.write(report.to_json())  # type: ignore[attr-defined]
@@ -348,71 +345,6 @@ def _run_mission_repair(
         raise typer.Exit(1)
 
 
-def _run_teamspace_dry_run_mode(
-    repo_root: Path,
-    fixture_dir: Path | None,
-    mission: str | None,
-    json_output: bool,
-) -> None:
-    """Execute the --teamspace-dry-run dispatch arm: synthesize and validate envelopes."""
-    from specify_cli.migration.mission_state import (
-        MissionStateDryRunError,
-        TeamspaceDryRunReport,
-    )
-    from specify_cli.migration.mission_state import teamspace_dry_run as run_teamspace_dry_run
-
-    try:
-        dry_run_report = run_teamspace_dry_run(
-            repo_root,
-            scan_root=fixture_dir,
-            mission=mission,
-        )
-    except MissionStateDryRunError as exc:
-        if json_output:
-            sys.stdout.write(json.dumps({"error": "TEAMSPACE_DRY_RUN_FAILED", "message": str(exc)}) + "\n")
-            sys.stdout.flush()
-        else:
-            typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(1) from exc
-
-    def _pretty_dry_run(r: object) -> None:
-        # pretty_renderer is typed Callable[[object], None] so one shape serves both
-        # the repair and dry-run reports; narrow to the concrete dry-run report here
-        # so attribute access type-checks without per-line suppressions.
-        report = cast(TeamspaceDryRunReport, r)
-        if report.valid:
-            console.print(f"[green]TeamSpace dry-run valid[/green] ({report.envelope_count} envelopes, spec-kitty-events {report.events_package_version}).")
-        else:
-            # ADDITIVE (FR-007/OUT-2): keep the count header, then name each
-            # affected mission + reason so triage needs no gitignored read
-            # (NFR-003). Does NOT touch the ``report.valid`` gate or the Exit(1)
-            # refusal below (C-006 / ADR 2026-05-10-1).
-            console.print(f"[red]TeamSpace dry-run failed[/red] ({len(report.errors)} validation issues).")
-            for entry in report.errors:
-                console.print(_format_dry_run_error(entry), soft_wrap=True)
-
-    _emit_mission_state(dry_run_report, json_output=json_output, pretty_renderer=_pretty_dry_run)
-    if not dry_run_report.valid:
-        raise typer.Exit(1)
-
-
-def _format_dry_run_error(entry: dict[str, object]) -> str:
-    """Render one dry-run error record as a per-mission terminal line.
-
-    Reuses the already-collected per-error dict (NFR-004, no second scan). The
-    location tolerates both ``line_number`` (real dry-run records) and ``line``
-    (contract sample) so either shape renders. Missing keys degrade to
-    placeholders rather than raising.
-    """
-    slug = entry.get("mission_slug", "<unknown>")
-    artifact = entry.get("artifact_path", "")
-    line = entry.get("line_number", entry.get("line"))
-    code = entry.get("error", entry.get("finding_code", ""))
-    message = entry.get("message", "")
-    location = f"{artifact}:{line}" if line is not None else str(artifact)
-    return f"  - {slug} ({location}): {code} — {message}"
-
-
 def _emit_json_error(error_code: str, **extra: object) -> None:
     """Write a JSON error envelope to stdout and flush."""
     payload = {"error": error_code, **extra}
@@ -548,7 +480,6 @@ def run_mission_state(
     *,
     audit: bool,
     fix: bool,
-    teamspace_dry_run: bool,
     json_output: bool,
     mission: str | None,
     fail_on: str | None,
@@ -565,7 +496,7 @@ def run_mission_state(
     (#2059 — mirrors ``run_workspaces``). Omitting it makes this helper discover
     the root itself, preserving the standalone entrypoint contract.
     """
-    mode = _validate_modes(audit, fix, teamspace_dry_run)
+    mode = _validate_modes(audit, fix)
     fail_on_severity, fail_on_teamspace_blocker = _resolve_fail_on(fail_on)
     resolved_root, resolved_fixture_dir = _resolve_audit_root(fixture_dir, include_fixtures, repo_root, json_output=json_output)
 
@@ -591,9 +522,6 @@ def run_mission_state(
         if resolved_fixture_dir is None:
             _refuse_foreign_lane_fix(resolved_root)
         _run_mission_repair(resolved_root, resolved_fixture_dir, mission, manifest_path, allow_dirty, json_output)
-        return
-    if mode == _MissionStateMode.TEAMSPACE_DRY_RUN:
-        _run_teamspace_dry_run_mode(resolved_root, resolved_fixture_dir, mission, json_output)
         return
     disagreement = _surface_audit_disagreement(resolved_root, mission, json_output) if resolved_fixture_dir is None else False
     _run_audit_mode(

@@ -111,7 +111,6 @@ def test_audit_from_worktree_anchors_on_primary(tmp_path: Path, monkeypatch: pyt
     mod.run_mission_state(
         audit=True,
         fix=False,
-        teamspace_dry_run=False,
         json_output=True,
         mission=None,
         fail_on=None,

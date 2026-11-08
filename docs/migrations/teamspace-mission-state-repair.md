@@ -56,13 +56,8 @@ Then repair the repository:
 spec-kitty doctor mission-state --fix
 ```
 
-After repair, validate the TeamSpace import shape without sending anything to the server:
-
-```bash
-spec-kitty doctor mission-state --teamspace-dry-run --json
-```
-
-The dry-run synthesizes canonical Spec Kitty event envelopes in memory and validates them with `spec-kitty-events` 5.0.0. The on-wire `schema_version` remains `3.0.0`; package version `5.0.0` is the contract-library release that defines and validates that canonical envelope.
+(The former post-repair `--teamspace-dry-run` envelope-validation step was
+removed with the hosted teamspace surface, #7389.)
 
 ## Distributed Git Safety
 
@@ -79,8 +74,7 @@ For teams, use this sequence:
 3. Run `spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json` and save the report.
 4. Run `spec-kitty doctor mission-state --fix`.
 5. Review the generated manifest and mission diffs.
-6. Run `spec-kitty doctor mission-state --teamspace-dry-run --json`.
-7. Commit the repair as one coordinated migration commit.
+6. Commit the repair as one coordinated migration commit.
 
 If another contributor has mission changes in flight, merge those changes first and rerun the repair. Do not hand-edit the generated manifest; it is checksum evidence for the repair.
 
@@ -93,35 +87,21 @@ If another contributor has mission changes in flight, merge those changes first 
 - `status.json` is regenerated with the same production reducer/materializer semantics used by normal status writes.
 - Typed side-log rows found in `status.events.jsonl` are quarantined under the migration manifest directory instead of being imported into TeamSpace.
 
-Runtime and decision side logs are launch-local evidence. The dry-run reports them with an explicit skipped disposition; they are not treated as TeamSpace status authority during the launch migration.
+Runtime and decision side logs are launch-local evidence. They are not treated as TeamSpace status authority during the launch migration.
 
 ## Cross-Repo Rehearsal
 
-The launch rehearsal for historical mission-state import is encoded in
-`tests/migration/test_teamspace_migration_rehearsal.py`. It creates two
-independent clones of the same historical fixture repository, runs repair on
-both, verifies byte-identical local migration diffs, reruns repair to prove
-idempotency, and validates that TeamSpace dry-run output is identical across
-clones. It also proves raw historical status rows are rejected by the
-`spec-kitty-events` 5.0.0 envelope model before they can reach live ingress.
+The launch rehearsal for historical mission-state import was encoded in
+`tests/migration/test_teamspace_migration_rehearsal.py` (removed with the
+hosted teamspace surface, #7389). It created two
+independent clones of the same historical fixture repository, ran repair on
+both, verified byte-identical local migration diffs, and reran repair to prove
+idempotency.
 
-Run the CLI-side rehearsal with:
-
-```bash
-uv run python -m pytest tests/migration/test_teamspace_migration_rehearsal.py -q
-```
-
-Then run the SaaS import/idempotency side from `spec-kitty-saas`:
-
-```bash
-make local-db-bootstrap
-make test-pytest ARGS='apps/sync/tests/test_cutover_contract.py apps/sync/tests/test_batch_sync.py apps/sync/tests/test_projection_pipeline.py -q'
-make local-db-down
-```
-
-Those SaaS tests validate canonical historical preflight, import
-deduplication, no persistence for rejected raw rows, and canonical mission
-identity behavior when the CLI supplies a mission ID.
+The SaaS import/idempotency side lived in `spec-kitty-saas` and validated
+canonical historical preflight, import deduplication, no persistence for
+rejected raw rows, and canonical mission identity behavior when the CLI
+supplies a mission ID.
 
 ## Release Sequencing
 
@@ -133,8 +113,9 @@ Use this rollout order for public TeamSpace launch:
    `--fail-on teamspace-blocker`.
 3. Phase 2: ship deterministic local `--fix`, rehearse it across cloned
    historical repositories, and review generated manifests.
-4. Phase 3: ship `--teamspace-dry-run` and validate against SaaS dev without
-   uploading raw historical rows.
+4. Phase 3: validate the repaired import shape against SaaS dev without
+   uploading raw historical rows (the former `--teamspace-dry-run` flag was
+   removed with the hosted teamspace surface, #7389).
 5. Phase 4: enable the explicit TeamSpace import/sync path only after audit
    and dry-run pass. Keep the GitHub readiness gate opt-in for repositories
    that want CI enforcement.
@@ -143,5 +124,5 @@ Use this rollout order for public TeamSpace launch:
 
 No public user should be forced through an untested repo-wide rewrite. Local
 CLI workflows continue to tolerate legacy missions where safe; TeamSpace
-import remains an explicit operator step after audit, repair, manifest review,
-and dry-run pass.
+import remains an explicit operator step after audit, repair, and manifest
+review.

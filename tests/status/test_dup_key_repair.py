@@ -286,7 +286,6 @@ def test_cli_fix_heals_duplicate_key_artifact(tmp_path: Path, monkeypatch: pytes
     cmd.run_mission_state(
         audit=False,
         fix=True,
-        teamspace_dry_run=False,
         json_output=False,
         mission=None,
         fail_on=None,
@@ -318,7 +317,6 @@ def test_cli_fix_aborts_on_unrepairable(tmp_path: Path, monkeypatch: pytest.Monk
         cmd.run_mission_state(
             audit=False,
             fix=True,
-            teamspace_dry_run=False,
             json_output=False,
             mission=None,
             fail_on=None,

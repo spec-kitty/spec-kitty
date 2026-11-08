@@ -2600,27 +2600,24 @@ _Project health diagnostics; a bare invocation runs the default check set_
 ```
  Usage: spec-kitty doctor mission-state [OPTIONS]
 
- Audit, repair, or TeamSpace-validate mission-state shapes.
+ Audit or repair mission-state shapes.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --audit                              Run mission-state audit (required to    │
-│                                      proceed)                                │
-│ --fix                                Repair mission-state artifacts in place │
-│                                      and write a migration manifest          │
-│ --teamspace-dry-run                  Synthesize canonical TeamSpace          │
-│                                      envelopes from local state and validate │
-│                                      them                                    │
-│ --json                               Emit JSON report to stdout              │
-│ --mission                    <str>   Scope to a single mission handle        │
-│ --fail-on                    <str>   Exit 1 if findings meet a gate          │
-│                                      (error|warning|info|teamspace-blocker)  │
-│ --fixture-dir                <path>  Override scan root (for testing)        │
-│ --include-fixtures                   Audit the bundled mission-state survey  │
-│                                      fixtures                                │
-│ --manifest-path              <path>  Path for --fix migration manifest       │
-│ --allow-dirty                        Allow --fix when relevant git paths are │
-│                                      already dirty                           │
-│ --help               -h              Show this message and exit.             │
+│ --audit                             Run mission-state audit (required to     │
+│                                     proceed)                                 │
+│ --fix                               Repair mission-state artifacts in place  │
+│                                     and write a migration manifest           │
+│ --json                              Emit JSON report to stdout               │
+│ --mission                   <str>   Scope to a single mission handle         │
+│ --fail-on                   <str>   Exit 1 if findings meet a gate           │
+│                                     (error|warning|info|teamspace-blocker)   │
+│ --fixture-dir               <path>  Override scan root (for testing)         │
+│ --include-fixtures                  Audit the bundled mission-state survey   │
+│                                     fixtures                                 │
+│ --manifest-path             <path>  Path for --fix migration manifest        │
+│ --allow-dirty                       Allow --fix when relevant git paths are  │
+│                                     already dirty                            │
+│ --help              -h              Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
