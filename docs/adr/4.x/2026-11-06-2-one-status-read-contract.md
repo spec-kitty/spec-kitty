@@ -375,7 +375,10 @@ the committed status log only (operator rulings 2026-11-08). The rule lives in o
   the evidence; the operator signed off this exception on 2026-11-08.
 - **Skipped and reported.** A Mission without that evidence (unfinished work packages, all
   canceled, reopened, no log, an unreadable log) is never stamped; the migration names it in a
-  warning, one per reason.
+  warning, one per reason. So is a Mission with a consolidation in progress (its
+  `.kittify/runtime/merge/<mission_id>/state.json` exists), whatever its log shows: consolidation
+  bakes `done` before it stamps `merged_at`, so an interrupted run meets the evidence, and stamping
+  it would point `consolidate --resume` at the target's copy, which has no log yet.
 
 It writes `merged_at` only, through the canonical meta writer, records in the tracked ledger
 partition (`meta.json` travels with the commit), declares `requires_git_repository` (the door reads

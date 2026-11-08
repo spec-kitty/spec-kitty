@@ -17,7 +17,7 @@ This backfill stamps the marker once, from the committed status log only (operat
 * **Date:** the ``at`` of the latest transition to ``done`` in that log, as aware-UTC ISO-8601.
   No git history is read.
 * **Skipped and reported** otherwise, with the reason (unfinished work packages, all canceled,
-  reopened, no log, unreadable log).
+  reopened, no log, unreadable log, a consolidation in progress).
 * **Write:** ``merged_at`` only, through the canonical meta writer
   :func:`~specify_cli.mission_metadata.locked_update_meta`. Nothing is committed here; the
   upgrade auto-commit or the operator owns that.
@@ -45,6 +45,7 @@ MergedAtBackfillAction = Literal["stamped", "skipped", "error"]
 
 _META_JSON = "meta.json"
 _MERGED_AT = "merged_at"
+_CONSOLIDATION_IN_PROGRESS = "a consolidation is in progress"
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,24 @@ def _needs_marker(meta: dict[str, Any]) -> bool:
     return not str(meta.get(_MERGED_AT) or "").strip()
 
 
+def _active_consolidation_state(repo_root: Path, meta: dict[str, Any]) -> str | None:
+    """The repo-relative consolidation state file when one exists for this Mission, else ``None``.
+
+    Consolidation bakes ``done`` into the status log before it stamps ``merged_at``; a run killed
+    in between leaves the evidence rule met. Stamping then would make ``consolidate --resume``
+    read the target's copy (CONSOLIDATED_TARGET), which has no log yet. The state file is the
+    signal, not :func:`specify_cli.consolidation.has_active_consolidation`, which reads "no WP
+    left" as inactive although the run has not finished. Read-only: an existence check.
+    """
+    mission_id = str(meta.get("mission_id") or "").strip()
+    if not mission_id:
+        return None
+    from specify_cli.consolidation.state import get_state_path
+
+    state = get_state_path(repo_root, mission_id)
+    return state.relative_to(repo_root).as_posix() if state.is_file() else None
+
+
 def _stamp(feature_dir: Path, repo_root: Path, merged_at: str) -> bool:
     """Write ``merged_at`` under the Mission write lock unless a writer got there first."""
     from specify_cli.mission_metadata import locked_update_meta
@@ -107,6 +126,9 @@ def _backfill_one(repo_root: Path, feature_dir: Path, *, dry_run: bool) -> Merge
         return MergedAtBackfillResult(slug, "error", reason="meta.json is unreadable", detail=str(exc))
     if not _needs_marker(meta):
         return None
+    active = _active_consolidation_state(repo_root, meta)
+    if active is not None:
+        return MergedAtBackfillResult(slug, "skipped", reason=_CONSOLIDATION_IN_PROGRESS, detail=active)
     evidence = read_landing_evidence(repo_root, slug)
     if not evidence.holds or evidence.merged_at is None:
         action: MergedAtBackfillAction = "error" if evidence.verdict is LandingVerdict.UNREADABLE else "skipped"
