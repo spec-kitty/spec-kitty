@@ -29,11 +29,11 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/cli/commands/materialize.py",
         "src/specify_cli/cli/commands/_coordination_doctor.py",
         "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
-        "src/specify_cli/cli/commands/_identity_audit.py",
-        # `doctor identity` (status/identity_audit.py) and `doctor mission-type`
-        # (cli/commands/_mission_type_audit.py) no longer walk kitty-specs/
-        # themselves (#5875): both share mission_resolver.iter_kitty_specs_children
-        # (the sanctioned module), so neither has an entry.
+        # `doctor identity` (status/identity_audit.py), `doctor mission-type`
+        # (cli/commands/_mission_type_audit.py) and `doctor topology`
+        # (cli/commands/_identity_audit.py, #6758) no longer walk kitty-specs/
+        # themselves: all three share mission_resolver.iter_kitty_specs_children
+        # (the sanctioned module), so none has an entry here.
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
         # #3619 / PR #3660: the pre-create collision probe must see partial
         # and legacy numbered directories that MissionResolver intentionally
@@ -63,6 +63,38 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/tasks/issue_matrix_migration.py",
     }
 )
+#: The read-side Mission predicate. Every walker below must ask it, not re-derive the rule.
+_SELECTABLE_PREDICATE = "is_selectable_mission_dir"
+#: The read-surface walkers `#6758` routed through :func:`is_selectable_mission_dir`.
+#: **Shrink-only ledger**: a walker may be added here, never removed — removal is how a
+#: walker-local "is this a Mission?" rule comes back unseen. Each entry names the walker
+#: (module, function) and the surface whose rows, reports or derived views it decides.
+_PREDICATE_ROUTED_WALKERS: dict[tuple[str, str], str] = {
+    (
+        "src/specify_cli/cli/commands/_identity_audit.py",
+        "_collect_topology_rows",
+    ): "doctor topology: a stored-topology row is a Mission, so residue gets no row",
+    (
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "_resolve_mission_dirs",
+    ): "doctor coordination: findings are reported for Missions only (#3194 raise kept)",
+    (
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
+        "_mission_dirs_for",
+    ): "doctor review-cycle-reconcile: reconciliation reports name Missions only",
+    (
+        "src/specify_cli/cli/commands/materialize.py",
+        "_mission_dirs_to_process",
+    ): "materialize: derived views and coordination probes are for Missions only",
+    (
+        "src/specify_cli/charter_activate.py",
+        "_collect_inflight_missions",
+    ): "charter-activate warning: only a Mission the runtime can reach has in-flight WPs",
+    (
+        "src/specify_cli/release/changelog.py",
+        "build_changelog_block",
+    ): "release changelog: a leftover folder is not a released Mission",
+}
 _MIGRATION_WALKER_DIR_PREFIXES = (
     "src/specify_cli/upgrade/migrations/",
     "src/specify_cli/migration/",
@@ -181,3 +213,58 @@ def test_scaffold_snapshot_exception_does_not_hide_another_walker(tmp_path: Path
     violations = _scan_tree_for_violations(src)
     assert set(violations) == {target.relative_to(tmp_path).as_posix()}
     assert len(violations[target.relative_to(tmp_path).as_posix()]) == 1
+
+
+def _is_predicate_call(node: ast.AST) -> bool:
+    """Whether *node* is a call to the read-side predicate, bare or attribute-qualified."""
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    return (isinstance(func, ast.Name) and func.id == _SELECTABLE_PREDICATE) or (isinstance(func, ast.Attribute) and func.attr == _SELECTABLE_PREDICATE)
+
+
+def _function_calls_selectable_predicate(module_rel: str, function: str, *, repo_root: Path | None = None) -> bool:
+    """Whether *function* in *module_rel* calls the read-side predicate anywhere in its body.
+
+    Raises :class:`LookupError` when the function does not exist, so a renamed or moved
+    walker fails loudly instead of passing the ledger vacuously.
+    """
+    path = (repo_root or _REPO_ROOT) / module_rel
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    node = next(
+        (candidate for candidate in ast.walk(tree) if isinstance(candidate, ast.FunctionDef | ast.AsyncFunctionDef) and candidate.name == function),
+        None,
+    )
+    if node is None:
+        raise LookupError(f"{function} is not defined in {module_rel}; update _PREDICATE_ROUTED_WALKERS, do not drop the entry")
+    return any(_is_predicate_call(call) for call in ast.walk(node))
+
+
+@pytest.mark.parametrize(("module_rel", "function"), sorted(_PREDICATE_ROUTED_WALKERS))
+def test_named_walker_asks_the_selectable_predicate(module_rel: str, function: str) -> None:
+    """Every shrink-only ledger walker decides "is this a Mission?" through the one rule."""
+    assert _function_calls_selectable_predicate(module_rel, function), (
+        f"{module_rel}::{function} must route its Mission decision through {_SELECTABLE_PREDICATE} ({_PREDICATE_ROUTED_WALKERS[(module_rel, function)]})"
+    )
+
+
+def test_predicate_ledger_checker_can_fail(tmp_path: Path) -> None:
+    """Non-vacuity: the checker reports a missing call, an attribute call, and an unknown name."""
+    module = tmp_path / "planted_walkers.py"
+    module.write_text(
+        "from somewhere import is_selectable_mission_dir as _predicate\n\n\n"
+        "def routed(path, repo_root):\n"
+        "    return is_selectable_mission_dir(path, repo_root=repo_root)\n\n\n"
+        "def routed_by_attribute(path, repo_root):\n"
+        "    from specify_cli.context import mission_resolver\n"
+        "    return mission_resolver.is_selectable_mission_dir(path, repo_root=repo_root)\n\n\n"
+        "def walker_local(path, repo_root):\n"
+        "    return (path / 'meta.json').is_file()\n",
+        encoding="utf-8",
+    )
+
+    assert _function_calls_selectable_predicate("planted_walkers.py", "routed", repo_root=tmp_path)
+    assert _function_calls_selectable_predicate("planted_walkers.py", "routed_by_attribute", repo_root=tmp_path)
+    assert not _function_calls_selectable_predicate("planted_walkers.py", "walker_local", repo_root=tmp_path)
+    with pytest.raises(LookupError):
+        _function_calls_selectable_predicate("planted_walkers.py", "renamed_walker", repo_root=tmp_path)
