@@ -1,6 +1,6 @@
 """Frontmatter migration that lets doc-kitty build ``docs/`` (#6929, ADR 2026-10-31-1 D-7/D-8).
 
-Three rewrites, each frontmatter-only, each idempotent:
+Four rewrites, each frontmatter-only, each idempotent:
 
 * **audience** — a persona path (``docs/context/audience/internal/maintainer.md``,
   scalar or list) becomes doc-kitty's profile list
@@ -13,17 +13,26 @@ Three rewrites, each frontmatter-only, each idempotent:
   else (a path outside ``docs/``, a non-Markdown file, a draft or excluded page) moves
   to ``external_references`` as a repository URL; an entry whose target no longer
   exists is dropped and reported.
+* **D-7 fields** (#6931) — every page gains the ``kind`` doc-kitty requires
+  (:func:`resolve_kind`: ``Hub`` for a section index, the Divio ``type`` folded in,
+  else :data:`KIND_BY_PATH` / :data:`KIND_BY_PATH_PREFIX`; a page no rule classifies
+  aborts the run); a Divio ``type`` line is removed, because doc-kitty reads ``type``
+  as the section; a legacy ``doc_status`` is normalised (:func:`normalise_doc_status`);
+  ``updated`` is written as a UTC instant, an ADR without one taking it from ``date``
+  (:func:`normalise_updated`).
 
-How it edits: only the ``audience``/``related`` blocks are replaced and the
-``doc_status``/``kind``/``external_references`` lines inserted; every other line, and
-every character after the closing fence, is kept as it is. Each rewrite is re-parsed
-and compared key by key, and any difference outside the intended keys aborts.
+How it edits: only the ``audience``/``related`` blocks and the ``doc_status``/
+``updated`` lines are replaced, the ``doc_status``/``kind``/``updated``/
+``external_references`` lines inserted and a Divio ``type`` line removed; every other
+line, and every character after the closing fence, is kept as it is. Each rewrite is
+re-parsed and compared key by key, and any difference outside the intended keys aborts.
 
 Usage::
 
     python -m scripts.docs.dockitty_frontmatter_migration --check
     python -m scripts.docs.dockitty_frontmatter_migration --apply
     python -m scripts.docs.dockitty_frontmatter_migration --verify-against origin/main
+    python -m scripts.docs.dockitty_frontmatter_migration --validate
 
 Kept for the migration and its re-runs (a later conflict with another docs PR is
 resolved by re-running ``--apply``); dropped with the other migration-era tools at
@@ -35,6 +44,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -45,21 +55,33 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 
 from scripts.docs._dockitty_contract import (
+    INDEX_BASENAMES,
+    FrontmatterFindings,
     body_of,
+    format_instant,
     is_dated_adr,
     is_excluded,
     is_published,
     page_for_slug,
+    parse_instant,
     persona_page,
     profile_of_persona_path,
     slug_of,
     split_frontmatter,
+    validate_frontmatter,
 )
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "ADR_DOC_STATUS",
     "ADR_KIND",
+    "DIVIO_TYPE_TO_KIND",
+    "DOC_STATUS_ALIASES",
+    "DRAFT_SECTIONS",
+    "HUB_KIND",
+    "KIND_BY_PATH",
+    "KIND_BY_PATH_PREFIX",
     "Corpus",
     "MigrationError",
     "MigrationIntegrityError",
@@ -69,12 +91,58 @@ __all__ = [
     "main",
     "migrate_text",
     "migrate_tree",
+    "normalise_doc_status",
+    "normalise_updated",
+    "resolve_kind",
+    "validate_tree",
     "verify_against",
 ]
 
 #: MADR ``status`` -> doc-kitty ``doc_status`` (ADR D-7; ruling 5: Proposed stays published).
 ADR_DOC_STATUS: Final[Mapping[str, str]] = {"Accepted": "active", "Proposed": "active", "Superseded": "superseded"}
 ADR_KIND: Final[str] = "ADR"
+
+#: ADR D-7: a section index is a hub over its pages.
+HUB_KIND: Final[str] = "Hub"
+
+#: ADR D-7: the Divio ``type`` values fold into doc-kitty's ``kind`` (``type`` names the section there).
+DIVIO_TYPE_TO_KIND: Final[Mapping[str, str]] = {
+    "tutorial": "Tutorial",
+    "how-to": "How-To",
+    "reference": "Reference",
+    "explanation": "Explanation",
+}
+
+#: ADR D-7, "the rest are classified in the migration step": pages with no Divio
+#: ``type`` and no index or ADR role take the kind of their section. The longest
+#: matching prefix wins; a page no row (and no :data:`KIND_BY_PATH` entry) matches
+#: aborts the run instead of being guessed.
+KIND_BY_PATH_PREFIX: Final[tuple[tuple[str, str], ...]] = (
+    ("plans/", "Planning"),
+    ("changelog/", "Changelog"),
+    ("api/", "Reference"),
+    ("configuration/", "Reference"),
+    ("contracts/", "Reference"),
+    ("development/reference/", "Reference"),
+    ("guides/how-to/", "How-To"),
+    ("guides/tutorials/", "Tutorial"),
+    ("architecture/", "Explanation"),
+    ("context/", "Explanation"),
+    ("migrations/", "How-To"),
+    ("operations/", "How-To"),
+)
+
+#: Single pages outside every section of :data:`KIND_BY_PATH_PREFIX`.
+#: ``retrospective-learning-loop.md`` is the redirect stub of an architecture page.
+KIND_BY_PATH: Final[Mapping[str, str]] = {"retrospective-learning-loop.md": "Explanation"}
+
+#: ADR D-7: the legacy ``doc_status`` values and their canonical replacements.
+DOC_STATUS_ALIASES: Final[Mapping[str, str]] = {"closeout": "durable", "point_in_time": "durable", "proposal": "draft"}
+
+#: ADR D-8: these subtrees take ``doc_status: draft`` and are not published. A legacy
+#: value there becomes ``draft``, not the ``durable`` of :data:`DOC_STATUS_ALIASES`,
+#: which would publish pages the operator ruled unpublished.
+DRAFT_SECTIONS: Final[tuple[str, ...]] = ("plans/engineering-notes/", "plans/investigations/", "plans/research/")
 
 _AUDIENCE: Final[str] = "audience"
 _RELATED: Final[str] = "related"
@@ -83,10 +151,16 @@ _DOC_STATUS: Final[str] = "doc_status"
 _KIND: Final[str] = "kind"
 _STATUS: Final[str] = "status"
 _TITLE: Final[str] = "title"
+_TYPE: Final[str] = "type"
+_UPDATED: Final[str] = "updated"
+_DATE: Final[str] = "date"
+_DRAFT: Final[str] = "draft"
+_ISO_DATE: Final[re.Pattern[str]] = re.compile(r"\d{4}-\d{2}-\d{2}")
+_INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(f"{name.lower()}.md" for name in INDEX_BASENAMES)
 _DOCS_PREFIX: Final[str] = "docs/"
 _REPO_URL: Final[str] = "https://github.com/spec-kitty/spec-kitty"
 _PERSONA_TITLE_PREFIXES: Final[tuple[str, ...]] = ("Stakeholder Persona: ",)
-_INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND})
+_INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND, _UPDATED, _TYPE})
 
 #: Files the migration never edits:
 #:
@@ -120,6 +194,10 @@ class MigrationReport:
     adr_files: int = 0
     related_files: int = 0
     external_references: int = 0
+    kind_files: int = 0
+    doc_status_files: int = 0
+    updated_files: int = 0
+    type_files: int = 0
     dropped_references: list[dict[str, str]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, object]:
@@ -130,6 +208,10 @@ class MigrationReport:
             "adr_files": self.adr_files,
             "related_files": self.related_files,
             "external_references": self.external_references,
+            "kind_files": self.kind_files,
+            "doc_status_files": self.doc_status_files,
+            "updated_files": self.updated_files,
+            "type_files": self.type_files,
             "dropped_references": self.dropped_references,
         }
 
@@ -245,6 +327,106 @@ def adr_fields(rel: str, frontmatter: Mapping[str, Any]) -> dict[str, str]:
         if present is not None and present != wanted:
             raise MigrationError(f"{rel}: {key} is {present!r}, expected {wanted!r} for status {status!r}")
     return {_DOC_STATUS: mapped, _KIND: ADR_KIND}
+
+
+def _is_index(rel: str) -> bool:
+    return rel.rsplit("/", 1)[-1].lower() in _INDEX_BASENAMES_FOLDED
+
+
+def resolve_kind(rel: str, frontmatter: Mapping[str, Any]) -> str:
+    """Rule for ``kind``: the authored value, else the first rule that classifies the page.
+
+    Order: an authored ``kind``; a dated ADR (``ADR``); a section index (``Hub``); a
+    Divio ``type`` (:data:`DIVIO_TYPE_TO_KIND`); :data:`KIND_BY_PATH`; the longest row
+    of :data:`KIND_BY_PATH_PREFIX`. A page none of them classifies is refused (ADR D-7:
+    "any page left unclassified is a migration failure").
+    """
+    authored = frontmatter.get(_KIND)
+    if isinstance(authored, str) and authored:
+        return authored
+    if is_dated_adr(rel):
+        return ADR_KIND
+    if _is_index(rel):
+        return HUB_KIND
+    divio = frontmatter.get(_TYPE)
+    if isinstance(divio, str) and divio in DIVIO_TYPE_TO_KIND:
+        return DIVIO_TYPE_TO_KIND[divio]
+    if rel in KIND_BY_PATH:
+        return KIND_BY_PATH[rel]
+    matches = [(len(prefix), kind) for prefix, kind in KIND_BY_PATH_PREFIX if rel.startswith(prefix)]
+    if not matches:
+        raise MigrationError(f"{rel}: no rule classifies this page's kind; add it to KIND_BY_PATH or KIND_BY_PATH_PREFIX")
+    return max(matches)[1]
+
+
+def normalise_doc_status(rel: str, frontmatter: Mapping[str, Any]) -> object:
+    """Rule for a non-ADR ``doc_status``: a legacy value becomes canonical; anything else is kept.
+
+    In a :data:`DRAFT_SECTIONS` subtree a legacy value becomes ``draft`` (ADR D-8);
+    elsewhere it follows :data:`DOC_STATUS_ALIASES` (ADR D-7). A canonical value, an
+    absent one and an unknown one are returned as they are (doc-kitty warns on the
+    unknown one; the migration does not guess).
+    """
+    current = frontmatter.get(_DOC_STATUS)
+    if not isinstance(current, str) or current not in DOC_STATUS_ALIASES:
+        return current
+    if rel.startswith(DRAFT_SECTIONS):
+        return _DRAFT
+    return DOC_STATUS_ALIASES[current]
+
+
+def _instant_from_adr_date(rel: str, value: object) -> str:
+    instant = parse_instant(value)
+    if instant is not None:
+        return format_instant(instant.moment)
+    dates = _ISO_DATE.findall(value) if isinstance(value, str) else []
+    named = [parse_instant(found) for found in dates]
+    moments = [instant.moment for instant in named if instant is not None]
+    if not moments:
+        raise MigrationError(f"{rel}: ADR has no updated and its date {value!r} names no date")
+    return format_instant(max(moments))
+
+
+def normalise_updated(rel: str, frontmatter: Mapping[str, Any]) -> str | None:
+    """Rule for ``updated``: the canonical UTC instant (``YYYY-MM-DDTHH:MM:SSZ``).
+
+    A present value is respelled (a date-only value becomes midnight UTC); one that is
+    not an instant is refused. A dated ADR with no ``updated`` takes its ``date``; a
+    ``date`` holding prose with amendment dates takes the latest date it names (ADR
+    D-7: "ADRs from ``date``"). Any other page without ``updated`` stays without one.
+    """
+    current = frontmatter.get(_UPDATED)
+    if current is not None:
+        instant = parse_instant(current)
+        if instant is None:
+            raise MigrationError(f"{rel}: updated {current!r} is not an instant")
+        return format_instant(instant.moment)
+    if is_dated_adr(rel):
+        return _instant_from_adr_date(rel, frontmatter.get(_DATE))
+    return None
+
+
+def _d7_changes(rel: str, data: Mapping[str, Any], report: MigrationReport) -> dict[str, Any]:
+    """The ``kind``/``doc_status``/``updated``/``type`` keys this page needs changed (#6931)."""
+    intended: dict[str, Any] = {}
+    if not is_dated_adr(rel):  # a dated ADR's kind and doc_status belong to adr_fields
+        kind = resolve_kind(rel, data)
+        if data.get(_KIND) != kind:
+            intended[_KIND] = kind
+            report.kind_files += 1
+        status = normalise_doc_status(rel, data)
+        if status != data.get(_DOC_STATUS):
+            intended[_DOC_STATUS] = status
+            report.doc_status_files += 1
+    updated = normalise_updated(rel, data)
+    if updated is not None and updated != data.get(_UPDATED):
+        intended[_UPDATED] = updated
+        report.updated_files += 1
+    divio = data.get(_TYPE)
+    if isinstance(divio, str) and divio in DIVIO_TYPE_TO_KIND:
+        intended[_TYPE] = None
+        report.type_files += 1
+    return intended
 
 
 def _repo_url(repo_root: Path, repo_path: str) -> str:
@@ -403,7 +585,7 @@ def is_skipped(rel: str) -> bool:
     return rel in _SKIPPED_FILES or is_excluded(rel)
 
 
-def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport) -> dict[str, Any]:
+def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport, *, d7: bool) -> dict[str, Any]:
     """The new value of every key this page needs changed (``None`` deletes the key)."""
     intended: dict[str, Any] = {}
     if _AUDIENCE in data:
@@ -415,6 +597,8 @@ def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report:
     if adr:
         intended.update(adr)
         report.adr_files += 1
+    if d7:
+        intended.update(_d7_changes(rel, data, report))
     if _RELATED in data:
         outcome = migrate_related(_Source.of(rel, data), data[_RELATED], data.get(_EXTERNAL), corpus)
         report.dropped_references.extend({"from": f"{_DOCS_PREFIX}{rel}", "to": d} for d in outcome.dropped)
@@ -432,9 +616,19 @@ def _apply_edits(editor: _Editor, intended: Mapping[str, Any]) -> None:
     if _AUDIENCE in intended:
         editor.replace(_AUDIENCE, intended[_AUDIENCE])
     if _DOC_STATUS in intended:
-        editor.insert_after(_STATUS, _DOC_STATUS, intended[_DOC_STATUS])
+        if _block_span(editor.lines, _DOC_STATUS) is None:
+            editor.insert_after(_STATUS, _DOC_STATUS, intended[_DOC_STATUS])
+        else:
+            editor.replace(_DOC_STATUS, intended[_DOC_STATUS])
     if _KIND in intended:
         editor.insert_after(_DOC_STATUS, _KIND, intended[_KIND])
+    if _UPDATED in intended:
+        if _block_span(editor.lines, _UPDATED) is None:
+            editor.insert_after(_DATE, _UPDATED, intended[_UPDATED])
+        else:
+            editor.replace(_UPDATED, intended[_UPDATED])
+    if _TYPE in intended:
+        editor.replace(_TYPE, None)
     if _RELATED in intended:
         external = intended.get(_EXTERNAL)
         if external is not None:
@@ -450,11 +644,12 @@ def _apply_edits(editor: _Editor, intended: Mapping[str, Any]) -> None:
             editor.replace(_RELATED, intended[_RELATED])
 
 
-def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | None = None) -> str:
+def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | None = None, *, d7: bool = True) -> str:
     """Return *text* with its frontmatter migrated; the body is never touched.
 
     *rel* is the page's path under ``docs/``. Files the migration skips, and files
-    without frontmatter, come back unchanged.
+    without frontmatter, come back unchanged. ``d7=False`` runs only the #6929 rules
+    (audience, ADRs, related), leaving out the D-7 fields of #6931.
     """
     report = report if report is not None else MigrationReport()
     parts = split_frontmatter(text)
@@ -462,7 +657,7 @@ def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | 
         return text
     block, body = parts
     data = parse_frontmatter(text)
-    intended = _intended_changes(rel, data, corpus, report)
+    intended = _intended_changes(rel, data, corpus, report, d7=d7)
     if not intended:
         return text
     lines = block.splitlines(keepends=True)
@@ -480,15 +675,15 @@ def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | 
     return migrated
 
 
-def migrate_tree(*, docs_root: Path, repo_root: Path, write: bool) -> MigrationReport:
-    """Migrate every page under *docs_root*; write only when *write* is true."""
+def migrate_tree(*, docs_root: Path, repo_root: Path, write: bool, d7: bool = True) -> MigrationReport:
+    """Migrate every page under *docs_root*; write only when *write* is true (``d7`` as in :func:`migrate_text`)."""
     corpus = Corpus.load(docs_root=docs_root, repo_root=repo_root)
     report = MigrationReport()
     pending: list[tuple[Path, str]] = []
     for path in sorted(docs_root.rglob("*.md")):
         rel = path.relative_to(docs_root).as_posix()
         before = path.read_text(encoding="utf-8")
-        after = migrate_text(rel, before, corpus, report)
+        after = migrate_text(rel, before, corpus, report, d7=d7)
         if after != before:
             report.changed_files.append(f"{_DOCS_PREFIX}{rel}")
             pending.append((path, after))
@@ -496,6 +691,38 @@ def migrate_tree(*, docs_root: Path, repo_root: Path, write: bool) -> MigrationR
         for path, after in pending:
             path.write_bytes(after.encode("utf-8"))
     return report
+
+
+# ---------------------------------------------------------------------------
+# Validate the tree against doc-kitty's frontmatter gate
+# ---------------------------------------------------------------------------
+
+
+def validate_tree(docs_root: Path) -> dict[str, FrontmatterFindings]:
+    """doc-kitty's frontmatter verdict on every page it validates, keyed by ``docs/<rel>``.
+
+    The page set is doc-kitty's: every page outside the excluded folders, drafts
+    included, ``log.md`` left out (reserved and frontmatter-free upstream).
+    """
+    verdicts: dict[str, FrontmatterFindings] = {}
+    for path in iter_docs_pages(docs_root):
+        rel = path.relative_to(docs_root).as_posix()
+        if is_excluded(rel) or path.name.lower() == "log.md":
+            continue
+        verdicts[f"{_DOCS_PREFIX}{rel}"] = validate_frontmatter(rel, parse_frontmatter(path.read_text(encoding="utf-8")))
+    return verdicts
+
+
+def _report_validation(verdicts: Mapping[str, FrontmatterFindings], *, show_warnings: bool) -> int:
+    errors = sum(len(findings.errors) for findings in verdicts.values())
+    warnings = sum(len(findings.warnings) for findings in verdicts.values())
+    for page, findings in verdicts.items():
+        for error in findings.errors:
+            sys.stdout.write(f"  ERROR {page}: {error}\n")
+        for warning in findings.warnings if show_warnings else ():
+            sys.stdout.write(f"  WARN  {page}: {warning}\n")
+    sys.stdout.write(f"validate: {len(verdicts)} page(s); {errors} error(s), {warnings} warning(s).\n")
+    return 1 if errors else 0
 
 
 # ---------------------------------------------------------------------------
@@ -555,7 +782,9 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--check", action="store_true", help="Report what would change; exit 1 when anything would.")
     mode.add_argument("--apply", action="store_true", help="Rewrite the frontmatter in place.")
     mode.add_argument("--verify-against", metavar="REF", help="Fail when a changed docs file's body differs from REF.")
+    mode.add_argument("--validate", action="store_true", help="Run doc-kitty's frontmatter rules; exit 1 on any error.")
     parser.add_argument("--json", action="store_true", help="Emit the report as JSON.")
+    parser.add_argument("--warnings", action="store_true", help="With --validate, also list every warning.")
     return parser
 
 
@@ -566,7 +795,9 @@ def _emit_report(report: MigrationReport, *, as_json: bool, mode: str) -> None:
     sys.stdout.write(
         f"{mode}: {len(report.changed_files)} file(s); audience {report.audience_files}, "
         f"ADR {report.adr_files}, related {report.related_files} "
-        f"({report.external_references} external reference(s), {len(report.dropped_references)} dropped).\n"
+        f"({report.external_references} external reference(s), {len(report.dropped_references)} dropped), "
+        f"kind {report.kind_files}, doc_status {report.doc_status_files}, updated {report.updated_files}, "
+        f"type {report.type_files}.\n"
     )
     for dropped in report.dropped_references:
         sys.stdout.write(f"  DROPPED {dropped['from']} -> {dropped['to']}\n")
@@ -580,6 +811,8 @@ def _print_lines(lines: Iterable[str]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point; returns the process exit code."""
     args = build_parser().parse_args(argv)
+    if args.validate:
+        return _report_validation(validate_tree(args.docs_root), show_warnings=args.warnings)
     if args.verify_against:
         offenders = verify_against(repo_root=args.repo_root, ref=args.verify_against)
         sys.stdout.write(f"verify-against {args.verify_against}: {len(offenders)} body change(s).\n")
