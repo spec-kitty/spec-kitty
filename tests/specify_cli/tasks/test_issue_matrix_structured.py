@@ -548,6 +548,56 @@ class TestBulkMigrateCommand:
         assert (legacy_dir / "issue-matrix.json").exists()
         assert len(calls) == 1
 
+    def test_refused_mission_is_skipped_with_its_reason(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#5453: a mission refused for a dropped row is listed under
+        ``skipped`` WITH the validation error (``skip_reasons``), in both the
+        JSON payload and the human output. The sweep stays best-effort (#4868),
+        so the exit code stays 0 and a sibling still migrates."""
+        from typer.testing import CliRunner
+
+        from specify_cli.tasks import issue_matrix_migration
+
+        calls = _stub_write_artifact_committed(monkeypatch)
+        import specify_cli.core.paths as core_paths
+
+        monkeypatch.setattr(core_paths, "locate_project_root", lambda *a, **k: tmp_path)
+
+        bad_dir = tmp_path / "kitty-specs" / "070-bad-verdict"
+        bad_dir.mkdir(parents=True)
+        (bad_dir / "meta.json").write_text(json.dumps({"mission_slug": bad_dir.name}), encoding="utf-8")
+        (bad_dir / "issue-matrix.md").write_text(
+            "| Issue | Title | Verdict | Evidence ref |\n"
+            "|-------|-------|---------|--------------|\n"
+            "| #1726 | Fix the thing | fixed | commit abc123 |\n"
+            "| #1727 | Other thing | wont-fix | commit def456 |\n",
+            encoding="utf-8",
+        )
+        good_dir = tmp_path / "kitty-specs" / "071-good"
+        good_dir.mkdir(parents=True)
+        (good_dir / "meta.json").write_text(json.dumps({"mission_slug": good_dir.name}), encoding="utf-8")
+        (good_dir / "issue-matrix.md").write_text(
+            "| Issue | Verdict | Evidence ref |\n|---|---|---|\n| #7 | fixed | y |\n",
+            encoding="utf-8",
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(issue_matrix_migration.app, ["--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        assert payload["migrated_missions"] == ["071-good"]
+        assert payload["skipped"] == ["070-bad-verdict"]
+        assert set(payload["skip_reasons"]) == {"070-bad-verdict"}
+        assert "#1727" in payload["skip_reasons"]["070-bad-verdict"]
+        assert len(calls) == 1
+
+        human = runner.invoke(issue_matrix_migration.app, [])
+        assert human.exit_code == 0, human.output
+        assert "070-bad-verdict" in human.output
+        assert "#1727" in human.output
+
 
 # ---------------------------------------------------------------------------
 # #4825 -- IssueReference identity: ALL fields participate in ==/hash
