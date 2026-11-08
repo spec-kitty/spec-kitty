@@ -305,7 +305,7 @@ def _lane_cleanup_run(mission: CoordMission) -> _MergeRunState:
             lanes_manifest=require_lanes_json(mission.feature_dir),
             remove_worktree=True,
             delete_branch=False,
-            state=SimpleNamespace(pre_mutation_refs={}, reconciliation_passed_target_sha=None, cleanup_started=True),
+            state=SimpleNamespace(pre_mutation_refs={}, lane_rebase_moves={}, reconciliation_passed_target_sha=None, cleanup_started=True),
         ),
     )
 

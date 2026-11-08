@@ -886,7 +886,7 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     if state.pre_mutation_target_sha is not None:
         state.pre_mutation_target_sha = None
         changed = True
-    for field_name in ("pre_mutation_refs", "restore_targets", "post_mutation_refs", "advance_intents", "released_refs", "release_reasons"):
+    for field_name in ("pre_mutation_refs", "restore_targets", "post_mutation_refs", "advance_intents", "lane_rebase_moves", "released_refs", "release_reasons"):
         value = getattr(state, field_name)
         if value:
             setattr(state, field_name, {})
