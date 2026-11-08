@@ -805,8 +805,14 @@ class TestOwnedGuardFailurePaths:
 
 
 def _merge_stale_copy_in_r(copy_dir: Path, mission_slug: str) -> None:
-    """Make R's stale copy of M look MERGED: a committed ``mission_number`` and
-    every WP at an acceptable ending on its own status log."""
+    """Make R's stale copy of M look MERGED: a ``merged_at`` landing marker (with the
+    ``mission_number`` consolidation assigns) and every WP at an acceptable ending on its
+    own status log.
+
+    ``merged_at`` is the one landed signal (#7431, ``mission_runtime.mission_has_landed``);
+    ``mission_number`` alone is no evidence of a landing (#5471), so it no longer makes a
+    copy look merged.
+    """
     import json
 
     from specify_cli.status.models import Lane, StatusEvent
@@ -815,6 +821,7 @@ def _merge_stale_copy_in_r(copy_dir: Path, mission_slug: str) -> None:
     meta_path = copy_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["mission_number"] = 7
+    meta["merged_at"] = "2026-01-02T00:00:00+00:00"
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
     for wp_id in ("WP01", "WP02", "WP03", "WP04", "WP05"):
         seed_status_event(
@@ -836,7 +843,7 @@ def _merge_stale_copy_in_r(copy_dir: Path, mission_slug: str) -> None:
 class TestOwnedMergedShortCircuit:
     """FR-007 (review cycle 2 finding 1): the committed-authority short-circuit
     must read the owned mission on P. A stale copy of M in R that looks merged
-    (``mission_number`` set, every WP acceptable) must not declare the
+    (``merged_at`` set, every WP acceptable) must not declare the
     unmerged owned mission finished."""
 
     def test_stale_merged_copy_in_r_does_not_short_circuit_decide_next(self, owned_checkouts, stale_root_copy) -> None:
