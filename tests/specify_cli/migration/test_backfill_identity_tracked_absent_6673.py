@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from kernel.git.runner import refuses_ownership
 from specify_cli.migration.backfill_identity import backfill_mission
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -102,6 +103,32 @@ def _mission_with_lost_identity(root: Path, tracked_state: str) -> tuple[Path, s
     return mission_dir, lost
 
 
+def _assume_different_owner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make git treat the fixture as another user's checkout, whatever the host's git config says.
+
+    ``GIT_TEST_ASSUME_DIFFERENT_OWNER`` only reaches git's ``safe.directory`` lookup, which reads
+    the system, global and command-line configuration. GitHub's Ubuntu runner image ships
+    ``safe.directory = *`` in ``/etc/gitconfig``, so on that host git trusts every checkout,
+    answers, and the tracked identity is (correctly) restored (#7061). Shut every protected
+    configuration source so the refusal these cases are about actually happens.
+    """
+    empty_global = tmp_path / "empty-global-gitconfig"
+    empty_global.write_text("", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty_global))
+    for name in ("GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+
+
+def _require_ownership_refusal(mission_dir: Path) -> None:
+    """Fail loudly when the host still makes git trust the fixture: the case would test nothing."""
+    probe = subprocess.run(["git", "rev-parse", "--show-prefix"], cwd=mission_dir, capture_output=True, text=True, check=False)
+    assert probe.returncode != 0 and refuses_ownership(probe.stderr), (
+        f"precondition: git must refuse this checkout's ownership, got exit {probe.returncode}: {probe.stderr!r}"
+    )
+
+
 @pytest.mark.parametrize(
     "tracked_state",
     [
@@ -141,17 +168,17 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
             alias.symlink_to(mission_dir.parent, target_is_directory=True)
         except (OSError, NotImplementedError):  # pragma: no cover - platform without symlinks
             pytest.skip("platform cannot create directory symlinks")
-        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        _assume_different_owner(tmp_path, monkeypatch)
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{alias}")
     elif tracked_state == "post-empty-lexical-ownership":
         # Path drops this trailing dot, but Git keeps post-empty spellings lexical.
         # Turning it into a canonical ceiling hides the anchor whose ownership Git refused.
-        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        _assume_different_owner(tmp_path, monkeypatch)
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", f"{os.pathsep}{mission_dir.parent}/.")
     elif tracked_state == "start-ceiling-ownership":
         # Git ignores a ceiling equal to its starting directory. Its ownership refusal
         # must not become an absence merely because the general walk stops at the start.
-        monkeypatch.setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+        _assume_different_owner(tmp_path, monkeypatch)
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir))
     elif tracked_state in {"config-error", "config-warning"}:
         # The strict-parent ceiling hides the anchor, so the configuration witness must
@@ -164,6 +191,9 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
             global_config.mkdir()
             monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
         monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(mission_dir.parent))
+
+    if tracked_state.endswith("-ownership"):
+        _require_ownership_refusal(mission_dir)
 
     result = backfill_mission(mission_dir)
 
