@@ -94,17 +94,16 @@ def _write_meta(
     mission_type: str = "software-dev",
 ) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_slug": mission_slug,
-                "mission_id": "01KZEE00000000000000000EE",
-                "mission_number": mission_number,
-                "mission_type": mission_type,
-            }
-        ),
-        encoding="utf-8",
-    )
+    meta: dict[str, object] = {
+        "mission_slug": mission_slug,
+        "mission_id": "01KZEE00000000000000000EE",
+        "mission_number": mission_number,
+        "mission_type": mission_type,
+    }
+    if mission_number is not None:
+        # Consolidation stamps both; the committed reads ask the landed signal (#7335).
+        meta["merged_at"] = "2026-01-02T00:00:00+00:00"
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
 def _mission_context_for_coord(mission_slug: str, coord_dir: Path, mission_type: str = "software-dev"):

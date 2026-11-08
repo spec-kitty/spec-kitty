@@ -35,7 +35,7 @@ every WP from that single reduced snapshot (never re-reducing per WP).
 
 Primary-surface contract (D9/D14/BLOCKER-1, unified #3829 items 1+4):
 ``mission_terminal_verdict`` and ``committed_status_dir`` anchor BOTH reads —
-the ``mission_number`` gate AND the committed status surface — on the ONE
+the landed gate AND the committed status surface — on the ONE
 sanctioned identity-seam dir (``runtime_bridge_identity.
 _primary_runtime_feature_dir``), reading the meta from that dir through the
 ONE fail-closed reader (:func:`specify_cli.core.paths.load_meta_fail_closed`
@@ -78,10 +78,10 @@ from specify_cli.status_lanes import has_operator_provenance, is_acceptable_endi
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
-#: The mission-terminal-verdict outcomes (FR-009): ``mission_number`` present
-#: and every WP an acceptable ending -> ``"terminal"``; ``mission_number``
-#: present and NOT every WP acceptable -> ``"blocked_conflict"``;
-#: ``mission_number`` absent, OR the committed status log is genuinely absent
+#: The mission-terminal-verdict outcomes (FR-009): the Mission has landed
+#: (``mission_runtime.mission_has_landed``, #7335) and every WP an acceptable ending
+#: -> ``"terminal"``; landed and NOT every WP acceptable -> ``"blocked_conflict"``;
+#: not landed (never merged, or reopened), OR the committed status log is genuinely absent
 #: on the PRIMARY surface -> ``"none"`` (a genuinely-absent log is NOT a
 #: conflict — C-003/D9).
 TerminalVerdict = Literal["terminal", "blocked_conflict", "none"]
@@ -178,11 +178,12 @@ def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout 
 
     Returns the identity-seam PRIMARY feature dir
     (:func:`runtime.next.runtime_bridge_identity._primary_runtime_feature_dir`)
-    when the mission is MERGED — the committed ``mission_number`` is present
-    in that dir's meta, read through the ONE fail-closed
-    :func:`specify_cli.core.paths.load_meta_fail_closed` reader — else
-    ``None`` (not merged / no primary meta). Both the ``mission_number`` gate
-    and the status read anchor on this ONE dir, so a non-composed handle can
+    when the mission has LANDED — :func:`mission_runtime.mission_has_landed`, the
+    reopen-aware ``merged_at`` signal the read door uses for ``CONSOLIDATED_TARGET``
+    (#7335), after the ONE fail-closed
+    :func:`specify_cli.core.paths.load_meta_fail_closed` reader has kept the
+    corruption verdict — else ``None`` (not landed, reopened, or no primary meta).
+    Both the landed gate and the status read anchor on this ONE dir, so a non-composed handle can
     never split them across two resolvers (#3829 item 4: before the
     unification, ``read_primary_meta``'s canonicalize cascade and the seam's
     caller-canonicalization disagreed for a bare human-slug handle, yielding
@@ -201,7 +202,7 @@ def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout 
     from specify_cli.core.paths import UnsafePathSegmentError, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-    from mission_runtime import ActionContextError
+    from mission_runtime import ActionContextError, mission_has_landed
 
     try:
         feature_dir = primary_surface_dir(repo_root, mission_slug, owned)
@@ -210,8 +211,11 @@ def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout 
         # coordination surface) is the caller's own typed classification to make
         # (``_dn_bootstrap`` maps it to a blocked decision); this pre-check declines.
         return None
-    meta = load_meta_fail_closed(feature_dir) or {}
-    if meta.get("mission_number") is None:
+    # The fail-closed reader keeps the corruption verdict (a corrupt meta raises); the landed
+    # answer itself is the one signal the read door uses for CONSOLIDATED_TARGET (#7335):
+    # ``mission_number`` survives a reopen, ``mission_has_landed`` does not.
+    load_meta_fail_closed(feature_dir)
+    if not mission_has_landed(feature_dir):
         return None
     return feature_dir
 
@@ -219,12 +223,14 @@ def _committed_surface(repo_root: Path, mission_slug: str, owned: OwnedCheckout 
 def mission_terminal_verdict(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None = None) -> TerminalVerdict:
     """Return the mission's committed-authority terminal verdict (IC-02).
 
-    Anchors BOTH reads — the ``mission_number`` gate and the committed status
+    Anchors BOTH reads — the landed gate and the committed status
     surface — on the ONE identity-seam PRIMARY dir via
     :func:`_committed_surface` (#3829 item 4) — never the coordination
-    checkout, and never a hand-composed primary path. Keys ONLY on the
-    committed ``mission_number`` (assigned at merge time, ``merge/ordering.py``);
-    never ``merge-state.json`` / ``MERGE_HEAD`` (C-005). A genuinely-absent
+    checkout, and never a hand-composed primary path. Keys ONLY on the one
+    landed signal (``mission_runtime.mission_has_landed``: the reopen-aware
+    ``merged_at`` marker consolidation stamps, the read door's CONSOLIDATED_TARGET
+    gate, #7335); never ``mission_number`` (a reopen keeps it), never
+    ``merge-state.json`` / ``MERGE_HEAD`` (C-005). A genuinely-absent
     committed status log is ``"none"``, not a conflict (D9/C-003). A
     traversal-unsafe or ambiguous handle declines to ``"none"`` (#3829 item
     1) so the caller's own typed read path classifies it.
@@ -253,7 +259,7 @@ def committed_status_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckou
     """Return the committed PRIMARY status dir when authoritative, or ``None`` (#3829 item 3).
 
     The board's ONE-reduction anchor: the same identity-seam PRIMARY dir and
-    the same ``mission_number`` merge gate as
+    the same landed gate as
     :func:`mission_terminal_verdict`, additionally requiring the committed status
     log to be present (``has_event_log``). ``None`` means PRIMARY is not the
     authoritative status surface for this mission (not merged, no committed
