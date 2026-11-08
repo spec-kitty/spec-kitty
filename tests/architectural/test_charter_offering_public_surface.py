@@ -556,6 +556,10 @@ def test_census_checks_reject_planted_mutations() -> None:
     added["surface"] = [*added["surface"], {**copy.deepcopy(census["surface"][-1]), "name": "NotExported"}]
     assert _name_set_problems(added), "A census row for an unexported name must fail the name-set freeze."
 
+    reordered = copy.deepcopy(census)
+    reordered["surface"][0], reordered["surface"][1] = reordered["surface"][1], reordered["surface"][0]
+    assert _name_set_problems(reordered), "A census whose order differs from api.__all__ must fail the name-set freeze."
+
     wrong_origin = copy.deepcopy(census)
     wrong_origin["surface"][0]["origin"] = "charter.offering.nope"
     assert _provenance_problems(wrong_origin), "A wrong origin must fail the provenance check."
