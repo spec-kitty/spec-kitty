@@ -504,11 +504,14 @@ def resolve_owned_mission(
     # full-tree scan. ``directory.rglob("*")`` stat'd every entry of the mission
     # tree on every resolve (~8 call sites, several calls per command) — an
     # O(tree) latency cliff whose only unique value was catching a symlink
-    # escape before write time; ``OwnedCheckout.files`` re-validates the actual
-    # written paths at write time anyway, so a nested symlink escape is still
-    # refused there. Validating the top level keeps the boundary tripwire (a
-    # symlinked mission-root entry escaping the checkout is refused at resolve,
-    # before any effects) at O(top-level entries) instead of O(tree).
+    # escape before write time. A nested symlink escape is NOT refused at write
+    # time: owned-checkout writers follow links (the documented contract,
+    # #5923), so a link nested in the Mission directory is a valid write path
+    # even when it points outside the checkout, and only a boundary screen
+    # (``follow_links=True``) refuses it. Validating the top level keeps the
+    # boundary tripwire (a symlinked mission-root entry escaping the checkout
+    # is refused at resolve, before any effects) at O(top-level entries)
+    # instead of O(tree).
     # ``follow_links``: this screen decides where an entry leads (#5671 made the
     # default commit semantics keep a link leaf, which would admit an escape).
     result.files(list(directory.iterdir()), follow_links=True)

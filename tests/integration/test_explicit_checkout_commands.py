@@ -893,14 +893,19 @@ def test_accept_writing_modes_refuse_staged_changes(ready_accept_checkouts, extr
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
-def test_nested_symlink_escape_is_refused_at_write_time_not_resolve(checkouts):
-    """#3866: resolve no longer stats the whole mission tree per call.
+def test_nested_symlink_escape_follows_the_documented_writer_contract(checkouts):
+    """#3866/#5923: resolve no longer stats the whole mission tree per call,
+    and owned-checkout WRITERS follow links — that is the documented contract
+    (operator ruling 2026-11-08).
 
-    The resolve-time validation is a top-level boundary tripwire only, so a
-    symlink nested deeper than the mission root no longer fails the resolve
-    (the old O(tree) scan's only unique catch) — it is refused by
-    ``OwnedCheckout.files`` at write time, which re-validates the actual
-    written paths.
+    The resolve-time validation is a top-level boundary tripwire only
+    (``follow_links=True`` at the mission root), so a symlink nested deeper
+    than the mission root does not fail the resolve. ``OwnedCheckout.files``
+    with the default ``follow_links=False`` judges the link by where it SITS:
+    a link inside the Mission directory is returned as a valid write path even
+    when it points outside the owned checkout — a writer that opens it writes
+    through the link. Callers that must refuse such a link (boundary screens)
+    pass ``follow_links=True``.
     """
     from mission_runtime import ActionContextError
     from specify_cli.core.owned_mission import resolve_owned_mission
@@ -915,6 +920,13 @@ def test_nested_symlink_escape_is_refused_at_write_time_not_resolve(checkouts):
     context = resolve_owned_mission(primary, owned, SLUG)
     assert context.mission_dir == owned / "kitty-specs" / SLUG
 
+    # The writer contract: the nested link is returned as its own path (where
+    # it sits), NOT refused — the link may point outside the checkout.
+    resolved = context.files([Path("kitty-specs") / SLUG / "tasks" / "escaped.txt"])
+    assert resolved == [link]
+
+    # The boundary-screen contract: deciding where the path LEADS refuses the
+    # same link, because it resolves outside the owned checkout.
     with pytest.raises(ActionContextError) as refused:
-        context.files([Path("tasks") / "escaped.txt"])
+        context.files([Path("kitty-specs") / SLUG / "tasks" / "escaped.txt"], follow_links=True)
     assert refused.value.code == "OWNED_MISSION_PATH_REFUSED"
