@@ -4,8 +4,10 @@ import pytest
 
 from specify_cli.lanes.compute import (
     LaneComputationError,
+    LaneIdExhaustedError,
     _are_disjoint,
     _describe_overlap,
+    _next_free_lane_id,
     compute_lanes,
     find_overlap_pairs,
     infer_surfaces,
@@ -765,3 +767,33 @@ class TestHelpers:
         mb = _manifest(["src/b/**"])
         desc = _describe_overlap(ma, mb)
         assert "write-scope overlap" in desc
+
+    def test_next_free_lane_id_skips_used(self):
+        """The lowest unclaimed id is minted (#5152 control path)."""
+        assert _next_free_lane_id(set()) == "lane-a"
+        assert _next_free_lane_id({"lane-a"}) == "lane-b"
+        assert _next_free_lane_id({"lane-a", "lane-b", "lane-d"}) == "lane-c"
+
+    def test_next_free_lane_id_exhaustion_raises(self):
+        """#5155: all 26 letters claimed → LaneIdExhaustedError, not chr overflow.
+
+        Without a bound the loop walks past ``z`` into ``{``, ``|``, … and
+        eventually non-character code points. Exhaustion must refuse loudly
+        with a structured error instead.
+        """
+        used = {f"lane-{chr(letter)}" for letter in range(ord("a"), ord("z") + 1)}
+
+        with pytest.raises(LaneIdExhaustedError) as excinfo:
+            _next_free_lane_id(used)
+
+        assert isinstance(excinfo.value, LaneComputationError)
+        assert excinfo.value.error_code == "LANE_ID_EXHAUSTED"
+
+    def test_next_free_lane_id_still_mints_after_z_when_gaps_exist(self):
+        """Exhaustion is about a full alphabet, not reaching 'z' with gaps.
+
+        If earlier letters free up (read-back released them), ``z`` being
+        claimed must not matter — the lowest gap is minted.
+        """
+        used = {f"lane-{chr(letter)}" for letter in range(ord("b"), ord("z") + 1)}
+        assert _next_free_lane_id(used) == "lane-a"

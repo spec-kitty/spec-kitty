@@ -279,6 +279,22 @@ _UNREADABLE_MESSAGE_PREFIX = "Cannot re-finalize: "
 FROZEN_LANE_MEMBERSHIP_RULE = "frozen_lane_membership"
 
 
+class LaneIdExhaustedError(LaneComputationError):
+    """Raised when every ``lane-<letter>`` id has already been claimed (#5155).
+
+    Without this bound the minting loop walks past ``z`` into ``{``, ``|`` and
+    eventually non-character code points, minting an id that no consumer can
+    match and that violates the ``lane-[a-z]`` grammar. Refusing loudly keeps
+    the positional-id contract intact; the remedy is to reduce the number of
+    concurrent lanes (collapse or re-slice the work packages).
+    """
+
+    error_code: ClassVar[str] = "LANE_ID_EXHAUSTED"
+
+    def __init__(self) -> None:
+        super().__init__("All 26 lane ids (lane-a … lane-z) are already claimed; cannot mint a new positional lane id.")
+
+
 # Keywords that map to surface tags (case-insensitive substring match).
 # If two WPs predict the same surface, they are presumed to overlap.
 _SURFACE_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -547,14 +563,17 @@ def _next_free_lane_id(used: set[str]) -> str:
     With no read-back (``used`` filling in group order) this reproduces the
     historical ``lane-a``, ``lane-b``, … minting byte-for-byte; when some ids
     are already bound by read-back it skips them so a freshly minted lane never
-    collides with a bound one.
+    collides with a bound one. When all 26 letters are claimed it raises
+    :class:`LaneIdExhaustedError` instead of walking past ``z`` into
+    non-``[a-z]`` code points (#5155).
     """
     letter = ord("a")
-    while True:
+    while letter <= ord("z"):
         candidate = f"lane-{chr(letter)}"
         if candidate not in used:
             return candidate
         letter += 1
+    raise LaneIdExhaustedError()
 
 
 def _prior_code_lane_members(previous_lanes: LanesManifest | None) -> dict[str, set[str]]:

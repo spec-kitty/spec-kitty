@@ -161,10 +161,23 @@ def test_cycle_diagnostics_include_planning_lane_membership() -> None:
 
 
 def test_compute_lanes_rejects_cycle_beyond_recursion_limit() -> None:
-    lane_count = sys.getrecursionlimit() + 1
-    wp_ids = [f"WP{index:05d}" for index in range(lane_count)]
-    dependency_graph = {wp_id: [wp_ids[(index + 1) % lane_count]] for index, wp_id in enumerate(wp_ids)}
-    manifests = {wp_id: _manifest(f"src/{index:05d}/**") for index, wp_id in enumerate(wp_ids)}
+    """A WP cycle deeper than the recursion limit is still rejected (#5155 companion).
+
+    Before #5155 the WPs here each got their own lane and the minting walked
+    past ``lane-z`` into garbage ids (``lane-{``, …) that the later cycle
+    error masked. Positional lane ids are now capped at 26, so the WPs are
+    grouped into 26 write-scope blocks: the cycle still spans more WPs than
+    the recursion limit, the lane graph stays within the id budget, and the
+    rejection stays the typed cycle error.
+    """
+    wp_count = sys.getrecursionlimit() + 1
+    wp_ids = [f"WP{index:05d}" for index in range(wp_count)]
+    dependency_graph = {wp_id: [wp_ids[(index + 1) % wp_count]] for index, wp_id in enumerate(wp_ids)}
+    # One write-scope block per mintable lane id (lane-a … lane-z): WPs that
+    # share a block's scope collapse into one lane, keeping the lane count
+    # at exactly 26 while the WP-level cycle wraps through all of them.
+    block_count = ord("z") - ord("a") + 1
+    manifests = {wp_id: _manifest(f"src/block{index % block_count:02d}/**") for index, wp_id in enumerate(wp_ids)}
 
     error_type = lanes_compute.LaneDependencyCycleError
     with pytest.raises(error_type):

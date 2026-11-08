@@ -99,6 +99,25 @@ class WriteCheckoutDirtyError(StructuredError):
     error_code: str = "WRITE_CHECKOUT_DIRTY"
 
 
+class AncestryNotEstablishedError(StructuredError):
+    """The claim self-heal failed, so lane ancestry could not be re-established (#3763).
+
+    Raised by :func:`resolve_claim_ancestry_gate` when the recheck
+    :func:`reenter_lane_self_heal` itself raises. Before #3763 the original
+    failure escaped raw through every claim seam (a traceback at the CLI, a
+    non-JSON crash at the orchestrator-api boundary); the gate now translates
+    it into this structured envelope, chaining the original failure as
+    ``__cause__`` for diagnostics.
+    """
+
+    error_code: str = "ANCESTRY_NOT_ESTABLISHED"
+
+    def __init__(self, wp_id: str, failure: BaseException) -> None:
+        super().__init__(f"cannot claim {wp_id}: the post-check self-heal failed ({failure!r}); lane ancestry could not be established")
+        self.wp_id = wp_id
+        self.failure = failure
+
+
 def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
     """Spec-kitty-owned path prefixes to exclude from the dirty-checkout scan.
 
@@ -944,11 +963,19 @@ def resolve_claim_ancestry_gate(
     check, so a workspace that simply had not been self-healed yet never
     spuriously blocks a legitimate claim (a gate without self-heal is a
     dead-end retry, FR-005+FR-007's explicit pairing).
+
+    A failure of the self-heal itself is translated to
+    :class:`AncestryNotEstablishedError` (chaining the original failure,
+    #3763) so every claim seam renders the structured
+    ``ANCESTRY_NOT_ESTABLISHED`` envelope instead of a raw traceback.
     """
     result = check_claim_ancestry(main_repo_root, mission_slug, mission_dir, wp_id, workspace_path)
     if result.ok:
         return result
-    reenter_lane_self_heal(main_repo_root, mission_slug, wp_id)
+    try:
+        reenter_lane_self_heal(main_repo_root, mission_slug, wp_id)
+    except Exception as exc:
+        raise AncestryNotEstablishedError(wp_id, exc) from exc
     return check_claim_ancestry(main_repo_root, mission_slug, mission_dir, wp_id, workspace_path)
 
 

@@ -10,6 +10,8 @@ import pytest
 
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.implement_support import (
+    AncestryCheckResult,
+    AncestryNotEstablishedError,
     check_claim_ancestry,
     create_lane_workspace,
     reenter_lane_self_heal,
@@ -142,11 +144,46 @@ def test_conflicting_dependency_refuses_claim_and_restores_root(tmp_path: Path) 
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "divergent root output")
     head = _git(repo, "rev-parse", "HEAD")
-    with pytest.raises(DependencyLaneMergeConflictError):
+    # #3763: the recheck self-heal failure surfaces as the structured
+    # ANCESTRY_NOT_ESTABLISHED envelope (the allocator's own conflict stays
+    # chained as __cause__), never as a raw DependencyLaneMergeConflictError.
+    with pytest.raises(AncestryNotEstablishedError) as excinfo:
         resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo)
+    assert excinfo.value.error_code == "ANCESTRY_NOT_ESTABLISHED"
+    assert isinstance(excinfo.value.__cause__, DependencyLaneMergeConflictError)
     assert _git(repo, "rev-parse", "HEAD") == head
     assert (repo / "lane_a_output.txt").read_text() == "independent root output\n"
     assert not (repo / ".git" / "MERGE_HEAD").exists()
+
+
+def test_self_heal_failure_raises_structured_ancestry_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#3763: any failure of the recheck self-heal is translated at the gate.
+
+    The gate's recheck path re-enters the idempotent self-heal; before #3763
+    an exception there escaped raw (a traceback at every claim seam). The
+    gate now wraps it in the structured ``AncestryNotEstablishedError``
+    envelope, chaining the original failure for diagnostics.
+    """
+    import specify_cli.lanes.implement_support as implement_support
+
+    repo, _tip = _planning_repo(tmp_path)
+
+    def _fail_heal(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("self-heal exploded")
+
+    monkeypatch.setattr(
+        implement_support,
+        "check_claim_ancestry",
+        lambda *args, **kwargs: AncestryCheckResult(ok=False, missing_refs=("bogus-ref",)),
+    )
+    monkeypatch.setattr(implement_support, "reenter_lane_self_heal", _fail_heal)
+
+    with pytest.raises(AncestryNotEstablishedError) as excinfo:
+        resolve_claim_ancestry_gate(repo, _MISSION_SLUG, _feature_dir(repo), _WP_SELF, repo)
+
+    assert excinfo.value.error_code == "ANCESTRY_NOT_ESTABLISHED"
+    assert isinstance(excinfo.value.__cause__, RuntimeError)
+    assert "self-heal" in str(excinfo.value)
 
 
 def test_recorded_planning_commit_heals_without_pulling_unapproved_code(tmp_path: Path) -> None:

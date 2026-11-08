@@ -200,11 +200,28 @@ def _enforce_claim_ancestry(
     calls -- so this module and the CLI can never independently diverge on
     the ancestry decision. Fails with the structured ``ANCESTRY_NOT_ESTABLISHED``
     envelope (never a bare exception) so an external orchestrator gets the
-    same contract every other claim-time refusal here already provides.
+    same contract every other claim-time refusal here already provides;
+    since #3763 that covers a failure of the gate's recheck self-heal too
+    (:class:`AncestryNotEstablishedError` from the shared gate), not just a
+    not-ok ancestry result.
     """
-    from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+    from specify_cli.lanes.implement_support import (
+        AncestryNotEstablishedError,
+        resolve_claim_ancestry_gate,
+    )
 
-    result = resolve_claim_ancestry_gate(main_repo_root, mission, mission_dir, wp, workspace_path)
+    try:
+        result = resolve_claim_ancestry_gate(main_repo_root, mission, mission_dir, wp, workspace_path)
+    except AncestryNotEstablishedError as exc:
+        _fail(
+            cmd,
+            exc.error_code,
+            str(exc),
+            {
+                **_common._mission_identity_payload(mission_dir),
+                "wp_id": wp,
+            },
+        )
     if result.ok:
         return
     _fail(
