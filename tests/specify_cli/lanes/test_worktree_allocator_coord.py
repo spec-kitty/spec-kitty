@@ -5,9 +5,10 @@ Covers the WP04 contract (#1348):
 * New-topology missions (``meta.json`` has ``coordination_branch``):
   lane branches are parented on the coordination branch, and lane
   worktrees receive the status-files sparse-checkout exclusion.
-* Legacy missions (no ``coordination_branch``): allocator falls back to
-  the manifest's ``mission_branch`` and skips sparse-checkout, matching
-  the pre-WP04 behaviour.
+* Missions without ``coordination_branch``: allocator falls back to the
+  manifest's ``mission_branch``. A stamped ``lanes`` Mission still gets the
+  status exclusion (FR-040); a genuinely-legacy one (no stored topology)
+  keeps its lane status files, because it writes status from the lane.
 """
 
 from __future__ import annotations
@@ -217,13 +218,41 @@ def test_new_topology_applies_sparse_checkout(
     assert not (lane_spec_dir / "status.json").exists()
 
 
-def test_legacy_topology_applies_sparse_checkout_too(
+def _sparse_checkout_flag(worktree_path: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(worktree_path), "config",
+         "--get", "core.sparseCheckout"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def _stamp_legacy_meta(repo: Path, **fields: str) -> None:
+    """Add *fields* to the legacy fixture's ``meta.json`` and commit a status log beside it."""
+    meta_path = repo / "kitty-specs" / LEGACY_MISSION_SLUG / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    meta.update(fields)
+    meta_path.write_text(json.dumps(meta))
+    (meta_path.parent / "status.events.jsonl").write_text('{"actor":"test","wp_id":"WP01"}\n')
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "stamp topology and seed status")
+
+
+def test_legacy_topology_keeps_lane_status_files(
     legacy_repo: Path,
 ) -> None:
-    """No ``coordination_branch`` => parent on mission_branch, and the status
-    exclusion is registered all the same (Mission WP09, FR-040: every topology
-    with code lanes, ``lanes`` included).
+    """No ``coordination_branch`` and no stored topology => a genuinely-legacy
+    Mission: parent on mission_branch, and NO status exclusion.
+
+    Such a Mission still writes its status from the lane checkout and
+    ``safe_commit`` cannot stage a sparse-excluded path, so the lane keeps its
+    status files (#7316 landing fold "leave a legacy Mission's lane status
+    files in place"; ``lane_checkout._mission_is_genuinely_legacy``).
     """
+    (legacy_repo / "kitty-specs" / LEGACY_MISSION_SLUG / "status.events.jsonl").write_text(
+        '{"actor":"test","wp_id":"WP01"}\n'
+    )
+    _git(legacy_repo, "add", ".")
+    _git(legacy_repo, "commit", "-q", "-m", "seed legacy status")
     manifest = _make_manifest(
         mission_branch=LEGACY_MISSION_BRANCH,
         mission_id="legacy",  # too short for mid8(); irrelevant on legacy path
@@ -237,10 +266,32 @@ def test_legacy_topology_applies_sparse_checkout_too(
     assert worktree_path.exists()
     assert branch == f"kitty/mission-{LEGACY_MISSION_SLUG}-lane-a"
 
-    result = subprocess.run(
-        ["git", "-C", str(worktree_path), "config",
-         "--get", "core.sparseCheckout"],
-        capture_output=True, text=True,
+    assert _sparse_checkout_flag(worktree_path) != "true"
+    lane_spec_dir = worktree_path / "kitty-specs" / LEGACY_MISSION_SLUG
+    assert (lane_spec_dir / "spec.md").exists()
+    assert (lane_spec_dir / "status.events.jsonl").exists()
+
+
+def test_lanes_topology_without_coordination_branch_applies_sparse_checkout(
+    legacy_repo: Path,
+) -> None:
+    """A stamped ``lanes`` Mission (no ``coordination_branch``) is not legacy:
+    the status exclusion is registered all the same (Mission WP09, FR-040:
+    every topology with code lanes, ``lanes`` included).
+    """
+    _stamp_legacy_meta(legacy_repo, topology="lanes")
+    manifest = _make_manifest(
+        mission_branch=LEGACY_MISSION_BRANCH,
+        mission_id="legacy",  # too short for mid8(); no coordination branch to key
     )
-    assert result.stdout.strip() == "true"
-    assert (worktree_path / "kitty-specs" / LEGACY_MISSION_SLUG / "spec.md").exists()
+    worktree_path, _ = allocate_lane_worktree(
+        repo_root=legacy_repo,
+        mission_slug=LEGACY_MISSION_SLUG,
+        wp_id="WP01",
+        lanes_manifest=manifest,
+    )
+
+    assert _sparse_checkout_flag(worktree_path) == "true"
+    lane_spec_dir = worktree_path / "kitty-specs" / LEGACY_MISSION_SLUG
+    assert (lane_spec_dir / "spec.md").exists()
+    assert not (lane_spec_dir / "status.events.jsonl").exists()

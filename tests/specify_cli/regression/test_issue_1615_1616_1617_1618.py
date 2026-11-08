@@ -92,6 +92,9 @@ def test_implement_finalization_gate_reads_the_resolved_coordination_status_surf
     finalized only on the status surface the canonical resolver returns, the way a coord-topology
     mission is. implement must get past the finalization gate (and stop later, at the missing
     ``lanes.json``). If it read the primary surface instead, it would refuse with "not finalized".
+
+    The resolver stub sits on the one status read door, ``specify_cli.status.resolve_status_read``
+    (ADR 2026-11-06-2, #7277), the seam implement's claim preflight reads through.
     """
     import json
     import subprocess
@@ -101,7 +104,8 @@ def test_implement_finalization_gate_reads_the_resolved_coordination_status_surf
 
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
     from specify_cli.cli.commands.implement import implement
-    from specify_cli.coordination.surface_resolver import ResolvedStatusSurface
+    from mission_runtime import MissionTopology
+    from specify_cli.status import StatusReadSource, StatusReadSurface
     from tests.specify_cli.cli.commands._implement_fixtures import create_meta_json, seed_planned
 
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
@@ -138,8 +142,15 @@ def test_implement_finalization_gate_reads_the_resolved_coordination_status_surf
     monkeypatch.chdir(tmp_path)
     with (
         patch(
-            "specify_cli.coordination.surface_resolver.resolve_status_surface_with_anchor",
-            return_value=ResolvedStatusSurface(surface_path=coord_surface / "status.events.jsonl", primary_anchor=primary),
+            "specify_cli.status.resolve_status_read",
+            return_value=StatusReadSurface(
+                topology=MissionTopology.LANES_WITH_COORD,
+                source=StatusReadSource.COORD_WORKTREE,
+                mission_dir_name="010-feature",
+                path=coord_surface,
+                repo_root=tmp_path,
+                ref=None,
+            ),
         ),
         pytest.raises(typer.Exit),
     ):
