@@ -1478,6 +1478,34 @@ def _repair_mission(
         return state.result("error")
 
 
+def _tracked_mission_id_for_repair(feature_dir: Path) -> tuple[str | None, str | None]:
+    """``(mission_id, refusal_notice)`` git holds for *feature_dir* (#6833).
+
+    Mirrors ``backfill_identity._tracked_mission_id``: when the worktree copy
+    of ``meta.json`` has lost its ``mission_id`` (or the whole file), the
+    tracked copy's identity is reused rather than minted -- minting would fork
+    the Mission's history under a second identity -- and a tracked copy git
+    cannot give back (corrupt, index-only, a staged edit, unreadable) is a
+    REFUSAL notice, never a mint.
+    """
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.mission_metadata import read_tracked_meta
+    from specify_cli.upgrade.tracked_meta_notice import tracked_meta_refusal
+
+    tracked = read_tracked_meta(feature_dir)
+    if tracked.unavailable:
+        refusal = tracked_meta_refusal(feature_dir, locate_project_root(feature_dir) or feature_dir, tracked)
+        # ``tracked.unavailable`` is exactly the branch in which the helper yields a refusal (it
+        # returns None only for a usable tracked copy), so the guard the analyzer proved dead
+        # (pythonbugs:S2583) is stated as the invariant instead (#7113).
+        assert refusal is not None
+        return None, refusal.notice
+    tracked_id = (tracked.meta or {}).get("mission_id")
+    if isinstance(tracked_id, str) and tracked_id.strip():
+        return tracked_id, None
+    return None, None
+
+
 def _canonicalize_meta(
     mission_dir: Path,
     raw_rows: Sequence[_RawJsonlRow],
@@ -1507,11 +1535,23 @@ def _canonicalize_meta(
 
     existing_id = meta.get("mission_id")
     if not isinstance(existing_id, str) or not ULID_PATTERN.match(existing_id):
-        minted = deterministic_ulid(_mission_seed(mission_dir, meta, raw_rows))
-        meta[MISSION_ID_KEY] = minted
-        if generated_ids is not None:
-            generated_ids.append(minted)
-        actions.append("mission_id_deterministically_backfilled")
+        # #6833: the worktree copy lost its mission_id (or the whole file).
+        # Before minting a fresh deterministic ULID -- which would fork the
+        # Mission's history under a second identity -- ask git for the id the
+        # tracked copy holds, exactly as ``backfill_identity`` does. A tracked
+        # copy git cannot give back is a refusal, never a mint.
+        tracked_id, tracked_refusal = _tracked_mission_id_for_repair(mission_dir)
+        if tracked_refusal is not None:
+            raise ValueError(tracked_refusal)
+        if tracked_id is not None:
+            meta[MISSION_ID_KEY] = tracked_id
+            actions.append("mission_id_kept_from_tracked_meta")
+        else:
+            minted = deterministic_ulid(_mission_seed(mission_dir, meta, raw_rows))
+            meta[MISSION_ID_KEY] = minted
+            if generated_ids is not None:
+                generated_ids.append(minted)
+            actions.append("mission_id_deterministically_backfilled")
 
     for key in sorted(META_LEGACY_ALIASES):
         if key in meta:

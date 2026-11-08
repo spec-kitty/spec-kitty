@@ -1901,3 +1901,105 @@ def test_repair_refuses_to_empty_a_populated_log_when_every_row_is_dropped(tmp_p
     assert result.status == "error"
     assert any("Refusing to empty" in e for e in result.validation_errors), result.validation_errors
     assert log.read_bytes() == log_before
+
+
+# ---------------------------------------------------------------------------
+# #6833 — a Mission whose worktree meta.json lost its mission_id must keep
+# the identity git tracks for it, never mint a second one.
+# ---------------------------------------------------------------------------
+
+_TRACKED_MISSION_ID = "01TRACKED00000000000000000"
+
+
+def _seed_6833_mission(repo: Path) -> Path:
+    mission = repo / "kitty-specs" / "tracked-id-6833"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "friendly_name": "tracked id",
+            "mission_id": _TRACKED_MISSION_ID,
+            "mission_slug": "tracked-id-6833",
+            "mission_type": "software-dev",
+            "slug": "tracked-id-6833",
+            "target_branch": "main",
+        },
+    )
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "Claude Code",
+                "at": "2026-01-01T00:00:00+00:00",
+                "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGR",
+                "execution_mode": "worktree",
+                "feature_slug": "tracked-id-6833",
+                "force": False,
+                "from_lane": "doing",
+                "to_lane": "in_review",
+                "work_package_id": "WP01",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo)
+    return mission
+
+
+def test_repair_keeps_tracked_mission_id_when_worktree_meta_is_deleted(tmp_path: Path) -> None:
+    """#6833 (the issue's exact scenario): the worktree copy of ``meta.json`` is
+    gone (accidental ``rm``, sparse checkout) while git holds a valid
+    ``mission_id``. The repair used to mint a fresh deterministic ULID, giving
+    the Mission a second identity and forking its history; it must rebuild the
+    file around the identity git tracks."""
+    mission = _seed_6833_mission(tmp_path)
+    (mission / "meta.json").unlink()
+
+    # The deleted worktree copy leaves the repo dirty by construction; that is
+    # exactly the accidental-``rm`` state the repair runs against.
+    report = repair_repo(tmp_path, allow_dirty=True)
+
+    result = report.missions[0]
+    assert result.status == "updated", result.validation_errors
+    meta = _read_json(mission / "meta.json")
+    assert meta["mission_id"] == _TRACKED_MISSION_ID
+    assert "mission_id_kept_from_tracked_meta" in (result.meta_actions or ())
+
+
+def test_repair_restores_tracked_mission_id_when_worktree_meta_lost_it(tmp_path: Path) -> None:
+    """#6833 variant: the worktree ``meta.json`` is PRESENT but id-less (an
+    edit that dropped ``mission_id``), unstaged, while HEAD still holds the
+    identity. The repair must write the tracked id back, not mint."""
+    mission = _seed_6833_mission(tmp_path)
+    meta = _read_json(mission / "meta.json")
+    del meta["mission_id"]
+    _write_json(mission / "meta.json", meta)
+
+    report = repair_repo(tmp_path, allow_dirty=True)
+
+    result = report.missions[0]
+    assert result.status == "updated", result.validation_errors
+    assert _read_json(mission / "meta.json")["mission_id"] == _TRACKED_MISSION_ID
+
+
+def test_repair_refuses_to_mint_when_tracked_meta_cannot_give_the_id_back(tmp_path: Path) -> None:
+    """#6833 refusal: the worktree copy is id-less and the tracked copy cannot
+    supply the identity (here: a staged edit differs from HEAD, so writing
+    HEAD's bytes would discard it). Minting would fork the Mission, so the
+    repair must refuse loudly -- status ``error`` with the tracked-meta
+    notice -- and leave the file untouched."""
+    mission = _seed_6833_mission(tmp_path)
+    meta = _read_json(mission / "meta.json")
+    del meta["mission_id"]
+    _write_json(mission / "meta.json", meta)
+    subprocess.run(["git", "add", "kitty-specs/tracked-id-6833/meta.json"], cwd=tmp_path, check=True, capture_output=True)
+    before = (mission / "meta.json").read_bytes()
+
+    report = repair_repo(tmp_path, allow_dirty=True)
+
+    result = report.missions[0]
+    assert result.status == "error"
+    assert any("mission_id" in e for e in result.validation_errors), result.validation_errors
+    assert (mission / "meta.json").read_bytes() == before  # untouched: no mint, no rewrite
