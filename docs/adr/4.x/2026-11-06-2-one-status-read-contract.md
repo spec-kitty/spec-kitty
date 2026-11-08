@@ -324,6 +324,16 @@ legacy finder (the census counted `get_wp_lane` 52, `has_event_log` 26, `WorkPac
 and `reconstruct_wp_view` 15 call sites), and `resolve_handle_to_read_path`, which also serves
 non-status reads. Modules leave that blind spot by joining `DOOR_ONLY_MODULES`.
 
+**Known blind spots of the call-site scan.** Each is a way a legacy read passes the gate unseen:
+
+- the allowlist is keyed `path::function::form`, so a second legacy call of the same form inside a
+  function already listed passes;
+- `MissionArtifactKind.STATUS_STATE` bound to a variable first and read through that alias;
+- a rebound `read_event_log` (`r = read_event_log; r(d)`);
+- `getattr(x, "read_event_log")`;
+- a direct read of a `status.events.jsonl` path;
+- `for_write=True` is a syntactic exemption: a call passing it is skipped whatever it reads.
+
 ### Census at landing (45 entries)
 
 | Reason | Entries | What has to happen |
@@ -394,6 +404,10 @@ the check only picks the remedy text; the landed verdict stays `mission_has_land
 **Residual.** A Mission whose work packages are all `done` but which was never consolidated (a
 manual `move-task --to done`) also satisfies the evidence and is stamped. `done` is ordinarily
 written by consolidation itself, and the operator accepted this residual with the ruling.
+
+**Residual.** The backfill settles even when a Mission's status log is unreadable; once that log is
+repaired, `spec-kitty upgrade` no longer re-selects it and the `COORDINATION_BRANCH_DELETED` remedy
+is inert until a re-run path exists (#7449).
 
 ### Moved onto the door in this change
 
