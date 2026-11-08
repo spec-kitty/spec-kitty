@@ -72,6 +72,9 @@ def test_materialize_partial_failure_json(tmp_path: Path, monkeypatch: pytest.Mo
     (tmp_path / ".kittify").mkdir()
     mission = tmp_path / "kitty-specs" / "broken"
     mission.mkdir(parents=True)
+    # A meta.json with a mission_id keeps "broken" a Mission: materialize skips
+    # read-side residue (a folder Mission selection does not list) since #6758.
+    (mission / "meta.json").write_text(json.dumps({"mission_id": "01KV0S99" + "C" * 18, "mission_slug": "broken"}), encoding="utf-8")
     (mission / "status.events.jsonl").write_text("not json\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     app = typer.Typer()
