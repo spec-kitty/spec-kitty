@@ -9,7 +9,7 @@ No `[NEEDS CLARIFICATION]` remains. Every fork the squad raised was settled by a
 
 - **Decision**: On the status transition event, under one namespaced key `policy_metadata.wp_window`, written on each non-migration move of a lane-mapped work package into `claimed` / `in_progress`. Readers bind to the **first** such event (Decision Moments `window_source`, `window_writer`).
 - **Rationale**: The event log is already the only authority (`2026-09-29-1-closed-world-refuse-on-mixed-lanes` Decision 2; `2026-10-04-5-approval-stamp-bounds-the-approved-claim` Options 4 and 10 reject a second store). `policy_metadata` already carries `lane_head`, so the extension ships from core alone; the spec-kitty-events payload types it as `dict[str, Any]`. A typed gap value distinguishes "capture failed" from "never recorded", which the best-effort `lane_head` stamp cannot do (`status/lane_head.py` C-1).
-- **Writing on every opening move, reading the first**: the pure pipeline cannot know whether a move is a work package's first entry without reading its history, and it must stay history-free and git-free. Writing on every entry into `claimed` / `in_progress` costs nothing (the reading is already taken for `lane_head`). The reader rule then matches `approval_window_open_stamp`: later entries are never consulted.
+- **Writing on every opening move, reading the window opener**: the pure pipeline cannot know whether a move is a work package's first entry without reading its history, and it must stay history-free and git-free. Writing on every entry into `claimed` / `in_progress` costs nothing (the reading is already taken for `lane_head`). The reader picks the window opener (R-16, FR-021); it superseded the original "first entry, later entries never consulted" rule after the post-plan squad.
 - **Alternatives considered**:
   - (a) Derive windows only from existing `lane_head` stamps, with no new key (robbie Q1-a, alphonso "Layer 1"). Rejected by the operator: it cannot express a typed gap, and the lane path must not re-derive the opening from older stamps.
   - (b) A separate provenance file or sidecar. Rejected: a second authority and a second read door (ADR `2026-11-06-2-one-status-read-contract`), already rejected twice.
@@ -44,7 +44,7 @@ No `[NEEDS CLARIFICATION]` remains. Every fork the squad raised was settled by a
 
 ## R-04 — Typed gap reasons and recorded causes
 
-- **Decision**: Three reader-level reasons: `not_recorded`, `capture_failed`, `not_on_lane`. Only `capture_failed` is ever written to an event, with a closed `cause` set (`lane_branch_missing`, `git_error`, `probe_error`) and a free-text `detail`. A not-applicable reading (planning lane, work package not in `lanes.json`, no `lanes.json`) writes no key.
+- **Decision** (amended after the post-plan squad, R-16): four reader-level reasons: `not_recorded`, `capture_failed`, `lane_branch_missing`, `not_on_lane`. Two are written to an event: `capture_failed`, with a closed `cause` set (`git_error`, `probe_error`) and a free-text `detail`, and `lane_branch_missing` (no `cause`), its own reason because a missing lane branch is the normal state before `implement`. `not_on_lane` also covers a SHA that does not resolve in this clone (FR-022). A not-applicable reading (planning lane, work package not in `lanes.json`, no `lanes.json`) writes no key.
 - **Rationale**: The writer can only know what it observed. "Not recorded" and "not on lane" are facts about the log and the lane at read time. A closed cause set keeps the contract checkable by the Java writer.
 - **Alternatives considered**: writing a gap for not-applicable readings. Rejected: it would add noise on planning lanes, which are never windowed.
 
@@ -93,7 +93,7 @@ No `[NEEDS CLARIFICATION]` remains. Every fork the squad raised was settled by a
 
 ## R-12 — Cross-repository writer and durability horizon
 
-- **Decision**: Python writes the key now. A spec-kitty-events issue asks the Java write service to write, preserve and type it (FR-006). The durability horizon is **one consolidation attempt** (forecast, fresh run, resume, teardown); surviving a rebase landing is not a goal. The key is classified `BRANCH_RELATIVE` in `DOSSIER_SHA_FIELDS` (ADR `2026-11-07-1-dossier-commit-shas-are-branch-relative-provenance`).
+- **Decision**: Python writes the key now. A spec-kitty-events issue asks the Java write service to write, preserve and type it (FR-006): filed as spec-kitty/spec-kitty-events#229 (operator ruling 2026-11-08, Decision Moment `01M6YAG2HE6Q2XNQMGK6X3MBEK`). The durability horizon is **one consolidation attempt** (forecast, fresh run, resume, teardown); surviving a rebase landing is not a goal. The key is classified `BRANCH_RELATIVE` in `DOSSIER_SHA_FIELDS` (ADR `2026-11-07-1-dossier-commit-shas-are-branch-relative-provenance`).
 - **Rationale**: The stamp writer moves to the Java service (`2026-10-22-1-the-java-write-service-is-the-canonical-event-writer` D-4), and the write-service pin is still pending. Plain SHAs from ref reads are what a GitPort can produce.
 
 ## R-13 — Residual counts and ADR hygiene
@@ -104,6 +104,30 @@ No `[NEEDS CLARIFICATION]` remains. Every fork the squad raised was settled by a
 
 - **Decision**: Re-exporting `WP_WINDOW_KEY` touches `src/specify_cli/status/__init__.py`. **Operator ruling (2026-11-08): no version bump.** The Mission adds a changelog fragment under `docs/changelog/unreleased/` and does not change the `pyproject.toml` version. This is consistent with charter standing order 7 ("no version numbers in scope"), which wins over the CLAUDE.md `__init__.py` rule.
 - **Alternatives considered**: bumping `pyproject.toml` in the Mission PR. Rejected by the operator.
+
+## R-15 — Exemption anchors on the window path (post-plan ruling)
+
+- **Decision** (operator, Decision Moment `01M6YAFYHT0RMVZB03THW1WWSE`): on the lane window path, a lane's **own** approval stamps no longer exempt its commits; the windows decide. The approval stamps of **other** lanes stay exemption anchors, beside the closed-world anchors, because a commit another lane's approval stamp reaches is content inside a reviewed tip. FR-007 and SC-001 state that exception; a dependency-chain fixture pins it (US2-6), and the own-lane variant refuses (US2-7).
+- **Rationale**: today `_approved_bound_verdict` passes `stamp_anchors` of every bounded lane, the lane's own included (`reconciliation.py:2188-2192, 2254-2268`), and `write_branch_bound._outside` skips the exempt set, so the US2 stray commit (reachable from WP02's own stamp) would never be "outside" and FR-007 could not go green (debbie D-1). Dropping every cross-lane exemption would refuse dependency chains in every multi-lane Mission.
+- **Consequence**: a lane on which every work package has a gap keeps today's anchors, own stamps included, by running today's check unchanged (FR-023).
+
+## R-16 — The window opener (post-plan ruling)
+
+- **Decision** (operator, Decision Moment `01M6YAG16WDVMM37HCJCHAC5YW`): the window opens at the first non-migration move into `claimed` / `in_progress` after the work package last returned to `planned`, skipping leading openers that recorded "lane branch missing" (written as its own gap reason, not `capture_failed`), with the cycle's openers ordered by lane topology and by event-log order when their SHAs are unrelated (FR-021).
+- **Interpretation recorded for review**: review rejections move a work package `in_review → planned` (`review/arbiter.py:270`, `tasks_transition_core.py:583`), and the transition matrix allows `approved → planned`. Reading every move to `planned` as a reset would put a reworked work package's own earlier commits outside its window, refused with no attestation route, and would contradict US2-4. A move to `planned` out of `for_review`, `in_review`, `approved` or `done` is therefore rework (no reset); any other move to `planned` (today `in_progress → planned`, or a forced move) is a rewind (reset). The operator can overturn this in review; the spec Assumptions and the ADR state it.
+- **Rationale**: a "first claim forever" rule makes `move-task --to claimed` before `implement` a permanent gap (debbie D-2, renata F-12), lets a skewed-clock rework narrow the window into an un-attestable over-refusal (D-3, `event_log_merge.py:178-184` re-sorts by `at`), and over-widens the window of a rewound work package (D-5). The skip is sound because a "lane branch missing" reading proves no lane commit existed at that instant; a deleted-and-recreated lane is guarded at `implement` by `DESTROYED_LANE` / `LANE_WORK_TIP_UNKNOWN`.
+- **Residuals named in the ADR**: parallel claims on one lane and a claim parked without returning to `planned` (over-wide; strict `xfail`); the rewind boundary is located in event-log order, not topology.
+- **One selector**: `window_opener_events(events, wp_id, *, cycle)` serves the recorded-window reader (`cycle=True`) and `approval_window_open_stamp`'s `single_branch` derivation (`cycle=False`, today's rule, FR-011), so the rule lives once (debbie D-7).
+
+## R-17 — One frozen anchor set on resume (post-plan ruling)
+
+- **Decision** (operator, Decision Moment `01M6YAFZVZAYR4G20Q2X4PN0FT`): on `--resume` one frozen claim-time anchor set feeds every consumer of `_closed_world_anchors`: the mixed-lane resolver (`reconciliation.py:2116`), the approved bound (`:2268`), the fully-canceled lane's own commits (`:2529`) and the approved-reviewed attestation (`approved_attestation.py:198`; `SAVED` on a resume, live on a fresh run, where live equals what the claim freezes). That is four callers, not the "five" the plan first said (renata F-01). FR-015 is widened; NFR-002 names each flip, (e) closed world, (f) approved bound, (g) fully-canceled lane, each with its own red-first test through `consolidate --resume` on the SIGKILL harness (renata F-07, NFR-010).
+- **Coverage of `pre_interrupt_lane_tips`** (renata, IC-15 question): whenever a resume passes H5 (`_refuse_unanchored_resume`), every dependency lane the closed world anchors on has a frozen tip. Holes, each named in the ADR: (H1) no capture when the status surface does not resolve (degraded anchor, live read kept); (H2) a full-restore rollback re-baselines the record and drops the tips on LANES/`single_branch` (#6770), so the next resume is a fresh capture by design; (H3) the attestation caller, now covered by CI-5; (H4) a canceled set that changes between capture and resume only refuses or drops anchors, both safe.
+
+## R-18 — Proving the corpus can fail, and what it records (post-plan)
+
+- **Decision**: the corpus runner computes verdicts **in process** (Typer `CliRunner` or the direct `consolidate` entry), so seeded mutations applied through `RECONCILIATION_FAMILY` reach it; resume cells reach their interrupted state with the SIGKILL harness, then resume in process. The mutation test (IC-17) lands in Phase 1 with a mutation table (check → mutated function → mutation → expected red cell), against the unsplit module, and is re-run after the split (renata F-02, F-09). The golden file records today's actual verdict for every cell; intended verdicts are separate strict `xfail(raises=AssertionError)` tests; a window-state axis is set explicitly per cell (renata F-03, F-04).
+- **Supersedes** R-07's "monkeypatched verdict" mechanism wording, which a subprocess corpus could not honour.
 
 ## Findings disposition (pre-spec squad, every finding)
 
@@ -166,3 +190,54 @@ Dispositions: **accepted** (taken as stated), **changed** (taken in altered form
 | F-14 | `lane_head` is best-effort; no silent fallback | changed | The fallback is reported (gap report) and distinct from `APPROVAL_STAMP_MISSING`, which still refuses (R-03); operator `missing_window_rule` |
 
 No contested finding was dropped. The squad's open questions are all closed by the six Decision Moments and the Engineering Alignment.
+
+## Findings disposition (post-plan squad, 2026-11-08, every finding)
+
+Inputs: debugger-debbie (failure modes, 9 findings), reviewer-renata (verifiability and soundness, 14 findings plus 4 IC-15 coverage holes), and the mechanical coverage check (glm-5.3; 3 unmapped constraints). Dispositions as above. Rulings: Decision Moments `01M6YAFYHT0RMVZB03THW1WWSE` (anchors), `01M6YAFZVZAYR4G20Q2X4PN0FT` (resume anchors), `01M6YAG16WDVMM37HCJCHAC5YW` (window opener), `01M6YAG2HE6Q2XNQMGK6X3MBEK` (events issue, filed as spec-kitty/spec-kitty-events#229).
+
+### debugger-debbie
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| D-1 | [HIGH] Lane anchors include the lane's own approval stamps, which exempt the very commit FR-007 must refuse; dependency chains exempt via another lane's stamp | changed | Ruling `01M6YAFYHT0RMVZB03THW1WWSE`: own stamps dropped on the window path, other lanes' stamps kept as the named exception; FR-007/SC-001 reworded; US2-6/US2-7; dependency-chain fixture (IC-02, IC-13); R-15, data-model WW-2a |
+| D-2 | [MEDIUM] A first opener before the lane branch exists becomes a permanent `capture_failed` gap | changed | Ruling `01M6YAG16WDVMM37HCJCHAC5YW`: written as its own gap reason `lane_branch_missing` and skipped when leading (FR-003, FR-021, US1-5, contract W-3/R-1); test in `test_wp_window_capture.py` |
+| D-3 | [MEDIUM] "First opener" is order-ambiguous; wall-clock re-sort makes skewed rework an un-attestable over-refusal | changed | Ruling: topology order with log-order fallback (FR-021, contract R-1); skewed-clock fixture (IC-07, IC-02); the rewind boundary itself stays log-ordered, named residual (R-16) |
+| D-4 | [MEDIUM] Unresolvable `open_sha` undefined; the `on_lane` tip has no source on two paths | accepted | FR-022: unresolvable = `not on lane`; the one tip the bound resolves is passed to the classifier on every path incl. `approved_bound_refusal`, with a parity case (IC-07, IC-13, data-model §3, contract R-4) |
+| D-5 | [MEDIUM] First-opener window is over-wide for claimed-early, parked, rewound and parallel-claim WPs | changed | Ruling: rewinds start a new cycle (FR-021, US1-6). Review rejections do not reset (interpretation, R-16). Parallel claims and parked-without-rewind stay a named residual, strict `xfail` (IC-02, data-model WW-6, ADR) |
+| D-6 | [LOW] Mixed gap/recorded lanes argued only for the all-degraded case | accepted | US3-3 reworded ("every work package predates the upgrade"); US3-4 pins the pass and gap line; gap-then-recorded with a stray is NFR-002 (a); data-model WW-7 |
+| D-7 | [LOW] Two (three) implementations of the opener rule | changed | One selector `window_opener_events(..., cycle)` for the reader and `approval_window_open_stamp` (legacy rule kept for `single_branch`, FR-011); `first_governed_open_stamp` stays the named variant (IC-07, R-16) |
+| D-8 | [LOW] NFR-007 "≤ 2 queries per WP" is not what the reused machinery does | accepted | NFR-007 reworded: O(WPs + anchors) plus a constant per refused commit, exempt set computed once per lane and shared by tier 1 and tier 2; counted seam named |
+| D-9 | [LOW] Java writer dropping the key is a silent downgrade, invisible on `orchestrator-api` | deferred_with_rationale | The envelope stays unchanged (spec Assumption, no contract bump); a stderr log is no contract and invisible to orchestrators; named as an ADR residual (contract "Not affected"); the gap report joins the envelope with the next contract version |
+
+### reviewer-renata
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| F-01 | [HIGH] `_closed_world_anchors` also feeds the approved bound; caller count wrong; IC-15 leaves the bound's verdict open | changed | Ruling `01M6YAFZVZAYR4G20Q2X4PN0FT`: one frozen anchor set for all four callers; FR-015 widened; NFR-002 (e)/(f)/(g); US4-3, US4-5; caller count corrected (R-17, IC-15) |
+| F-02 | [HIGH] Seeded mutations cannot reach a subprocess corpus | accepted | In-process corpus runner; env-gated child shim only if a cell needs a subprocess; mutation table (NFR-008, IC-02, IC-17, R-18) |
+| F-03 | [HIGH] No window-state axis; "0 other changes" can pass vacuously | accepted | Window-state axis set explicitly per cell (FR-016, IC-02) |
+| F-04 | [HIGH] Strict-`xfail` cells cannot be compared byte-for-byte; xfail without `raises` | accepted | Golden records actual verdicts for every cell; intended verdicts in strict `xfail(raises=AssertionError)` tests; NFR-001 = golden unchanged, NFR-002 = golden diff ⊆ named cells (FR-016, NFR-001, NFR-002, IC-02) |
+| F-05 | [HIGH] Fallback gives today's refused set but not today's output | accepted | FR-023: all-gap lane runs today's `check_lane` unchanged; WW-2 restates `stamp_refusal` first and `content_commits` filtering; corpus cell pins the refusal text (US3-5, IC-13) |
+| F-06 | [MEDIUM] IC-16 alone does not make forecast and fresh inputs equal | accepted | FR-013 defines equality (resolved SHAs, status dir by path + digest); IC-16 also resolves the forecast's coordination base and status directory; one strict `xfail` per divergence (US5-1, data-model CI-2) |
+| F-07 | [MEDIUM] Resume fixtures unspecified; easy routes reach a fresh run | accepted | SIGKILL harness, kill after anchor `save_state` and before `_phase_merge_lanes`, `state.json` precondition, no hand-written records (NFR-010, IC-15) |
+| F-08 | [MEDIUM] Red-first through the entry point not required | accepted | NFR-010; IC-13 (`consolidate`, `--dry-run`), IC-14 (in-process `consolidate`, probe patched at its lookup home), IC-15 (`--resume`), IC-16 (`--dry-run --json`); red SHAs in the PR |
+| F-09 | [MEDIUM] Mutations land only after the move | accepted | IC-17 in Phase 1 against the unsplit module, re-run after the split (NFR-008) |
+| F-10 | [MEDIUM] Swapped-order control does not show the pair co-occurs | accepted | IC-03 asserts both markers before order; non-co-occurring pairs listed with their short-circuit site |
+| F-11 | [MEDIUM] Query-count requirement names no counting seam | accepted | NFR-007 names the seam (`git_probes` / `kernel.git` history helpers; `rev-list` / `merge-base` count, `rev-parse` does not) |
+| F-12 | [LOW] A gap on the first event hides a later recorded SHA | changed | Resolved by the opener ruling (skip leading `lane_branch_missing`), pinned in `test_wp_window_capture.py`; quickstart demonstrates `implement` and the `move-task` case |
+| F-13 | [LOW] Surface pin's scan may miss string patch targets | accepted | IC-04 generator also collects string-literal dotted targets |
+| F-14 | [LOW] A mixed lane weakens the check without saying so | accepted | US3-4 pins the pass and the gap-report line; data-model WW-7 |
+| H-1 | IC-15 hole: no capture when the status surface does not resolve | accepted | Named degraded anchor (FR-015, data-model CI-3, ADR); live read kept |
+| H-2 | IC-15 hole: full-restore re-baseline drops the tips on LANES/`single_branch` | accepted | By design (#6770): the next resume is a fresh capture; FR-015 fixtures use SIGKILL so they cannot be vacuous (NFR-010, ADR) |
+| H-3 | IC-15 hole: the attestation caller is outside the claim | changed | Covered by the ruling: on a resume it reads the `SAVED` anchor set; on a fresh run live tips (equal to the frozen ones on an unmutated state) (data-model CI-5, IC-15) |
+| H-4 | IC-15 hole: frozen set judged against the live canceled set | accepted | Harmless (H5 refuses or anchors drop); stated in the ADR |
+
+### Mechanical coverage check (glm-5.3)
+
+| ID | Finding (short) | Disposition | Where / rationale |
+|---|---|---|---|
+| G-01 | C-009 (rollback authority untouched) maps to no IC | accepted | Cross-cutting, every IC (plan note above Phase 1; coverage table) |
+| G-02 | C-013 (targeted test runs only) maps to no IC | accepted | Cross-cutting, every IC |
+| G-03 | C-014 (code quality gates) cited nowhere in plan.md | accepted | Cross-cutting, every IC |
+
+**Counts**: 30 findings — accepted 21, changed 8, deferred_with_rationale 1. No finding was dropped.
