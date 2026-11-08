@@ -172,10 +172,6 @@ REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {
         frozenset({"status", "core_misc", "consolidation"}),
         "no registry row roots src/specify_cli/status_lanes.py; tests/status, tests/specify_cli/core and tests/consolidation exercise it",
     ),
-    "src/specify_cli/migration/mission_state.py": (
-        frozenset({"status", "unit", "upgrade"}),
-        "no registry row roots src/specify_cli/migration/**; tests/status, tests/unit/migration and tests/upgrade exercise it",
-    ),
     "src/specify_cli/retrospective/": (
         frozenset({"agent", "cli", "status"}),
         "no registry row roots src/specify_cli/retrospective/**; tests/agent, tests/cli and tests/status exercise its events module",
