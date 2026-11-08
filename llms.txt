@@ -1,0 +1,13 @@
+# spec-kitty
+
+> Spec-Driven Development with organizational governance. Specs tell AI agents what to build; Charter governs how they build it. Git-native missions, enforceable workflows, and consistent engineering standards across AI coding agents and harnesses.
+
+## Core Resources
+
+- [GitHub Repository](https://github.com/spec-kitty/spec-kitty): Source code, documentation, and issue tracker.
+- [Website](https://spec-kitty.ai): Official website and documentation.
+
+## AI Agent & LLM Indexing
+
+- Structured following the standard /llms.txt specification for AI search engines and coding assistants.
+- Validated via [AccessGuard AI-Readiness Suite](https://ronanchnlps-bit.github.io/).
