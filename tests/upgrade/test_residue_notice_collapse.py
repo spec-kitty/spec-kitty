@@ -1,7 +1,7 @@
 """WP04 (FR-008, #6669): a residue folder is named at most once per upgrade run.
 
 Collapse happens at the runner's warning-collection points
-(``_append_warnings`` for the main checkout and the worktree loop, sharing one
+(``worktree_pass.append_warnings`` for the main checkout and the worktree loop, sharing one
 seen-set); there is no rendering-side filter, so ``--json`` shows the same list.
 """
 
@@ -21,7 +21,8 @@ from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.context.mission_resolver import residue_notice
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
-from specify_cli.upgrade.runner import MigrationRunner, _append_warnings
+from specify_cli.upgrade.runner import MigrationRunner
+from specify_cli.upgrade.worktree_pass import append_warnings
 from specify_cli.upgrade.worktree_selection import WorktreeSelection
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -54,14 +55,14 @@ _METADATA_YAML = (
 def test_identical_residue_notices_collapse_to_one(tmp_path: Path) -> None:
     notice = residue_notice("kitty-specs/x")
     target: list[str] = []
-    _append_warnings(target, [notice, f"slug: {notice}", notice], notice_root=tmp_path, seen=set())
+    append_warnings(target, [notice, f"slug: {notice}", notice], notice_root=tmp_path, seen=set())
     assert target == [notice]
 
 
 def test_different_folders_keep_one_line_each(tmp_path: Path) -> None:
     first, second = residue_notice("kitty-specs/x"), residue_notice("kitty-specs/y")
     target: list[str] = []
-    _append_warnings(target, [first, second, first], notice_root=tmp_path, seen=set())
+    append_warnings(target, [first, second, first], notice_root=tmp_path, seen=set())
     assert target == [first, second]
 
 
@@ -69,14 +70,14 @@ def test_non_residue_warnings_pass_through_unchanged_and_in_order(tmp_path: Path
     notice = residue_notice("kitty-specs/x")
     lines = ["plain", notice, "plain", "other", notice, "plain"]
     target: list[str] = ["existing"]
-    _append_warnings(target, lines, notice_root=tmp_path, seen=set())
+    append_warnings(target, lines, notice_root=tmp_path, seen=set())
     assert target == ["existing", "plain", notice, "plain", "other", "plain"]
 
 
 def test_first_line_seen_for_a_folder_is_kept(tmp_path: Path) -> None:
     notice = residue_notice("kitty-specs/x")
     target: list[str] = []
-    _append_warnings(target, [f"x: {notice}", notice], notice_root=tmp_path, seen=set())
+    append_warnings(target, [f"x: {notice}", notice], notice_root=tmp_path, seen=set())
     assert target == [f"x: {notice}"]
 
 
@@ -84,16 +85,16 @@ def test_same_relative_path_in_two_checkouts_is_two_folders(tmp_path: Path) -> N
     notice = residue_notice("kitty-specs/x")
     seen: set[Path] = set()
     target: list[str] = []
-    _append_warnings(target, [notice], notice_root=tmp_path / "a", seen=seen)
-    _append_warnings(target, [notice], notice_root=tmp_path / "b", seen=seen)
+    append_warnings(target, [notice], notice_root=tmp_path / "a", seen=seen)
+    append_warnings(target, [notice], notice_root=tmp_path / "b", seen=seen)
     assert target == [notice, notice]
 
 
 def test_nested_path_in_main_equals_relative_path_in_worktree(tmp_path: Path) -> None:
     seen: set[Path] = set()
     target: list[str] = []
-    _append_warnings(target, [residue_notice(".worktrees/wt1/kitty-specs/x")], notice_root=tmp_path, seen=seen)
-    _append_warnings(target, [f"Worktree wt1: {residue_notice('kitty-specs/x')}"], notice_root=tmp_path / ".worktrees" / "wt1", seen=seen)
+    append_warnings(target, [residue_notice(".worktrees/wt1/kitty-specs/x")], notice_root=tmp_path, seen=seen)
+    append_warnings(target, [f"Worktree wt1: {residue_notice('kitty-specs/x')}"], notice_root=tmp_path / ".worktrees" / "wt1", seen=seen)
     assert target == [residue_notice(".worktrees/wt1/kitty-specs/x")]
 
 
