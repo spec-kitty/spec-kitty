@@ -432,3 +432,25 @@ def test_symlinked_failed_entry_is_neither_counted_nor_removed(tmp_path: Path) -
     assert link not in removed
     assert link.is_symlink(), "a symlinked entry is left alone"
     assert (target / "keep.txt").read_text(encoding="utf-8") == "keep\n"
+
+
+@pytest.mark.unit
+def test_silently_failed_removal_is_not_reported_as_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``PathGuard.rmtree`` ignores removal errors, so the result is checked."""
+    from charter.activation.synthesizer import path_guard as path_guard_module
+    from charter.activation.synthesizer.staging import retain_failed_staging_dirs
+
+    repo = _make_repo_root(tmp_path)
+    staging = repo / STAGING_REL
+    for n in range(DEFAULT_KEEP_FAILED_RUNS + 1):
+        failed = staging / f"{_run_id(n)}.failed"
+        failed.mkdir(parents=True)
+        _set_mtime(failed, 1_700_000_000.0 + n)
+    oldest = staging / f"{_run_id(0)}.failed"
+
+    monkeypatch.setattr(path_guard_module.shutil, "rmtree", lambda *_a, **_k: None)
+
+    removed = retain_failed_staging_dirs(PathGuard(repo), staging)
+
+    assert oldest.is_dir()
+    assert removed == ()

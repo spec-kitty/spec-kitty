@@ -161,6 +161,9 @@ def retain_failed_staging_dirs(
         except (OSError, PathGuardViolation):
             # Best-effort: the directory stays and the refusal is still reported.
             continue
+        if path.exists():
+            # PathGuard.rmtree ignores removal errors; only report what is gone.
+            continue
         removed.append(path)
     return tuple(removed)
 
