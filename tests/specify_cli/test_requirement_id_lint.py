@@ -97,6 +97,53 @@ def test_distinct_declared_ids_do_not_refuse() -> None:
     assert not result.blocking
 
 
+_REQUIREMENTS_TABLE = "# Spec\n\n## Requirements\n\n| ID | Requirement |\n|---|---|\n| FR-001 | Login |\n| FR-002 | Export CSV |\n| FR-005 | Audit |\n"
+
+
+@pytest.mark.parametrize(
+    "restating_tail",
+    [
+        pytest.param("\n- **FR-005 has a second leg**: narrowed in review.\n", id="bold-led-review-note"),
+        pytest.param("\n- FR-002's export must stream.\n", id="bullet-led-citation"),
+        pytest.param(
+            "\n## Traceability\n\n| Requirement | Success criterion |\n|---|---|\n| FR-002 | SC-001 |\n| FR-005 | SC-002 |\n",
+            id="traceability-table",
+        ),
+        pytest.param("\n### FR-005 Detail: audit fields\n\nThe audit row carries the actor.\n", id="detail-heading"),
+    ],
+)
+def test_restating_an_id_after_its_declaration_does_not_refuse(restating_tail: str) -> None:
+    """#5674 must refuse a duplicate DECLARATION only. A bullet- or bold-led
+    note, a later table whose lead column cites the ids, and a detail heading
+    under a table-declared id restate the id; none may block setup-plan (the
+    first cut refused 58 of 816 existing specs on exactly these shapes)."""
+    result = lint_spec_requirement_ids(_REQUIREMENTS_TABLE + restating_tail)
+    assert [error for error in result.errors if error.rule == RULE_DUPLICATE_DECLARED] == []
+
+
+def test_a_table_restating_bullet_declared_ids_does_not_refuse() -> None:
+    """An id first declared as a bullet keeps that declaring site: a later
+    table that repeats it across several rows restates it."""
+    text = "# Spec\n\n- **SC-001**: fast.\n\n| SC | Cheat |\n|---|---|\n| SC-001 | delete it |\n| SC-001 | narrow it |\n"
+    result = lint_spec_requirement_ids(text)
+    assert [error for error in result.errors if error.rule == RULE_DUPLICATE_DECLARED] == []
+
+
+def test_double_declaration_in_the_requirements_table_still_refuses_beside_restatements() -> None:
+    """Positive control for the narrowing: a genuine double row in the
+    requirements table still refuses, even with every restating shape present."""
+    text = (
+        _REQUIREMENTS_TABLE
+        + "| FR-002 | Audit log of every export |\n"
+        + "\n- **FR-005 has a second leg**: narrowed.\n"
+        + "\n## Traceability\n\n| Requirement | SC |\n|---|---|\n| FR-002 | SC-001 |\n"
+    )
+    result = lint_spec_requirement_ids(text)
+    duplicate_errors = [error for error in result.errors if error.rule == RULE_DUPLICATE_DECLARED]
+    assert [(error.token, error.line) for error in duplicate_errors] == [("FR-002", 10)]
+    assert result.blocking
+
+
 @pytest.mark.parametrize(
     ("malformed_row", "control_row", "expected_token", "expected_rule"),
     [

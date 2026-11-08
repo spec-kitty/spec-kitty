@@ -122,20 +122,39 @@ _REF_FIND_PATTERN = grammar._LEGACY_REF_FIND_PATTERN
 # silently truncated to a shorter well-formed prefix.
 
 
-def _declared_id_lines(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[int]]:
-    """Declared id -> the 1-based line numbers of its declaration lines.
+#: Shape tags for a declaration occurrence. Only these two shapes can carry a
+#: duplicate DECLARATION (#5674); a bullet- or bold-led line restates or cites
+#: an id far more often than it re-declares one, so it never counts.
+_SHAPE_TABLE_ROW = "table"
+_SHAPE_HEADING = "heading"
+_SHAPE_OTHER = "other"
 
-    The occurrence list (not a set) is what makes a duplicate declaration
-    detectable (#5674): ``len(lines) > 1`` means the spec declares the same
-    id twice, which :func:`duplicate_declared_ids` surfaces to the lint.
+
+def _declaration_occurrences(spec_content: str, *, mission_type: str = "software-dev") -> list[tuple[str, int, str, int]]:
+    """Every first-id-per-line declaration: ``(id, line_no, shape, table_block)``.
+
+    ``shape`` is ``table`` (the lead cell of a table row), ``heading`` (an
+    id-naming heading) or ``other`` (a list item or bold-led paragraph).
+    ``table_block`` numbers contiguous runs of table lines, so two rows of the
+    same table share it and a second table (for example a traceability table
+    whose lead column cites the ids) gets a new one. It is ``0`` for a
+    non-table shape.
 
     Line numbers are counted over ``grammar.blank_html_comments`` output,
     which preserves line count, so they address the original spec text.
     """
-    found: dict[str, list[int]] = {}
+    occurrences: list[tuple[str, int, str, int]] = []
+    patterns = grammar.declared_shape_patterns(mission_type)
+    table_row, heading = patterns[0], patterns[1]
     blanked = grammar.blank_html_comments(spec_content)
+    block = 0
+    in_table = False
     for line_no, line in enumerate(blanked.splitlines(), start=1):
-        for pattern in grammar.declared_shape_patterns(mission_type):
+        is_table_line = line.lstrip().startswith("|")
+        if is_table_line and not in_table:
+            block += 1
+        in_table = is_table_line
+        for pattern in patterns:
             match = pattern.match(line)
             if match is None:
                 continue
@@ -143,9 +162,14 @@ def _declared_id_lines(spec_content: str, *, mission_type: str = "software-dev")
                 continue
             canonical_id = grammar.canonical(match.group(1), mission_type=mission_type)
             if canonical_id is not None:
-                found.setdefault(canonical_id, []).append(line_no)
+                if pattern is table_row:
+                    occurrences.append((canonical_id, line_no, _SHAPE_TABLE_ROW, block))
+                elif pattern is heading:
+                    occurrences.append((canonical_id, line_no, _SHAPE_HEADING, 0))
+                else:
+                    occurrences.append((canonical_id, line_no, _SHAPE_OTHER, 0))
             break
-    return found
+    return occurrences
 
 
 def duplicate_declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[int]]:
@@ -154,8 +178,25 @@ def duplicate_declared_ids(spec_content: str, *, mission_type: str = "software-d
     A duplicate declaration is an authoring slip: the declared-id collector
     is a set, so the second row silently merges into the first and a WP
     mapping the id reads as covering both requirements.
+
+    Only a genuine re-declaration counts. An id's declaring site is its first
+    occurrence; a duplicate is a later occurrence of the same shape at the
+    same site: another lead row of the SAME table when the id was first
+    declared in a table, or another id-naming heading when it was first
+    declared by a heading. A bullet- or bold-led line (a review note such as
+    ``- **FR-005 has a second leg**``), a row of a later table (a traceability
+    table mapping ``FR-002 | SC-001``, or a table restating ids declared
+    earlier), and a detail heading under a table-declared id
+    (``### FR-004 Detail: ...``) restate or cite the id rather than declare it
+    again, so none is reported.
     """
-    return {req_id: lines for req_id, lines in _declared_id_lines(spec_content, mission_type=mission_type).items() if len(lines) > 1}
+    first_site: dict[str, tuple[str, int]] = {}
+    lines_at_site: dict[str, list[int]] = {}
+    for req_id, line_no, shape, block in _declaration_occurrences(spec_content, mission_type=mission_type):
+        site = first_site.setdefault(req_id, (shape, block))
+        if site[0] != _SHAPE_OTHER and (shape, block) == site:
+            lines_at_site.setdefault(req_id, []).append(line_no)
+    return {req_id: lines for req_id, lines in lines_at_site.items() if len(lines) > 1}
 
 
 def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> set[str]:
@@ -179,7 +220,7 @@ def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> s
     -- removing it would let a table row's description-cell citations leak back
     in as declarations, reintroducing #3394.
     """
-    return set(_declared_id_lines(spec_content, mission_type=mission_type))
+    return {req_id for req_id, _line, _shape, _block in _declaration_occurrences(spec_content, mission_type=mission_type)}
 
 
 _BARE_PROSE_KINDS: frozenset[str] = frozenset({"FR", "NFR", "C"})
