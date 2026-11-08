@@ -340,7 +340,9 @@ def legacy_registry_record_dir(project_path: Path, mission_id: str) -> Path:
     return project_path / KITTIFY_DIR / "missions" / str(mission_id)
 
 
-def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
+def _resolve_summary_record_path(
+    project_path: Path, mission_dir: Path, *, resolver: MissionResolver | None = None
+) -> Path:
     """Resolve the retrospective.yaml path to read for a discovered mission dir.
 
     FR-006 (#1771) + FR-013 (#2717): discovery now anchors on the canonical
@@ -356,6 +358,9 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
 
     When no record exists, the in-place path is returned so the caller
     classifies the mission as no-retrospective.
+
+    ``resolver`` is ``build_summary``'s request-scoped resolver, so the slug
+    fold for the tracked path shares the run's single walk (#6788).
     """
     # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
     # malformed meta.json to {}; mission_slug stays None, matching the prior
@@ -365,7 +370,7 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     if mission_slug:
         from specify_cli.retrospective.writer import canonical_record_path
 
-        tracked: Path = canonical_record_path(project_path, mission_slug)
+        tracked: Path = canonical_record_path(project_path, mission_slug, resolver=resolver)
         if tracked.exists():
             return tracked
     in_place: Path = mission_dir / RETROSPECTIVE_FILENAME
@@ -446,7 +451,7 @@ def build_summary(
         resolver = WalkOnceMissionResolver(project_path)
 
     for mission_dir in iter_mission_instance_dirs(project_path):
-        retro_path = _resolve_summary_record_path(project_path, mission_dir)
+        retro_path = _resolve_summary_record_path(project_path, mission_dir, resolver=resolver)
 
         if not retro_path.exists():
             # No retrospective file — classify the mission.

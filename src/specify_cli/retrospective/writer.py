@@ -14,9 +14,12 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from ruamel.yaml import YAML
+
+if TYPE_CHECKING:
+    from mission_runtime import MissionResolver
 
 from kernel.yaml_io import write_mapping_atomic
 from charter.activation.api import read_mission_type
@@ -34,7 +37,7 @@ from specify_cli.retrospective.schema import (
 )
 
 
-def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
+def resolve_retrospective_home(repo_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> Path:
     """Return the durable PRIMARY home dir for a mission's retrospective record.
 
     The SINGLE home-resolution authority for ``retrospective.yaml`` (FR-001/003,
@@ -85,6 +88,12 @@ def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
             re-partition reintroducing the coord-leak).
         MissionSelectorAmbiguous: When ``mission_slug`` matches >1 mission.
         ValueError: When ``mission_slug`` is not a safe path segment.
+
+    ``resolver`` (#6788): an optional request-scoped
+    :class:`~mission_runtime.MissionResolver` threaded into the handle fold, so
+    a read-only caller resolving many Missions (the cross-mission summary)
+    shares one ``kitty-specs/`` walk. ``None`` preserves the historical
+    behaviour exactly.
     """
     from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
     from specify_cli.missions._read_path_resolver import (
@@ -112,12 +121,12 @@ def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
     # leaf's body is byte-identical to what the wrapper composed before Half B
     # made it delegate to the seam), so no NFR-001 divergence remains on this
     # write path: no backfill recovery, no double handle-fold.
-    canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)
+    canonical = _canonicalize_primary_read_handle(repo_root, mission_slug, resolver=resolver)
     feature_dir: Path = _compose_primary_feature_dir(repo_root, canonical)
     return feature_dir
 
 
-def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
+def canonical_record_path(repo_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None) -> Path:
     """Return the canonical (tracked) retrospective.yaml path for a mission.
 
     FR-001/003 (#2119): the record lives in the mission's durable PRIMARY home
@@ -125,7 +134,7 @@ def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
     :func:`resolve_retrospective_home` authority for every topology — never the
     ephemeral coordination worktree (the #1771 coord-leak).
     """
-    path: Path = resolve_retrospective_home(repo_root, mission_slug) / RETROSPECTIVE_FILENAME
+    path: Path = resolve_retrospective_home(repo_root, mission_slug, resolver=resolver) / RETROSPECTIVE_FILENAME
     return path
 
 

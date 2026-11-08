@@ -2955,3 +2955,70 @@ class TestBackfillHarness:
             }
         ]
         assert project.rows("RetrospectiveCaptured") == []
+
+
+# ---------------------------------------------------------------------------
+# #6788: the summary walks kitty-specs/ once per run
+# ---------------------------------------------------------------------------
+
+
+def _walk_once_corpus(root: Path) -> None:
+    """Missions whose slug resolves by exact directory name and only through the index."""
+    from tests.context._mission_tree import write_meta
+    from tests.retrospective.test_summary_tolerance import _make_completed_yaml
+
+    specs = root / "kitty-specs"
+    for i in range(6):
+        mission_id = f"01KQ6YEGT4YBZ3GZF7XWXYZ{i:03d}"
+        # Index-only: the directory name is not the recorded slug.
+        directory = specs / f"{80 + i:03d}-human-{i}"
+        write_meta(directory, {"mission_id": mission_id, "mission_slug": f"human-{i}"})
+        if i % 2 == 0:
+            (directory / "retrospective.yaml").write_text(_make_completed_yaml(mission_id=mission_id, slug=f"human-{i}"), encoding="utf-8")
+    named = specs / "named-mission"
+    write_meta(named, {"mission_id": "01KQ6YEGT4YBZ3GZF7XNAMED00", "mission_slug": "named-mission"})
+
+
+def _summary_missions(root: Path) -> list[dict[str, Any]]:
+    result = RUNNER.invoke(retrospect_app, ["summary", "--project", str(root), "--json"])
+    assert result.exit_code == 0, result.output
+    missions: list[dict[str, Any]] = json.loads(result.output)["missions"]
+    return sorted(missions, key=lambda m: str(m["mission_id"]))
+
+
+class TestSummaryWalksOnce:
+    """`retrospect summary` shares one kitty-specs/ walk across the summary and its per-Mission table (#6788)."""
+
+    def _count_walks(self, monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+        from specify_cli.context import mission_resolver
+
+        calls: list[Path] = []
+        real = mission_resolver._build_index
+
+        def counting(root: Path) -> Any:
+            calls.append(root)
+            return real(root)
+
+        monkeypatch.setattr(mission_resolver, "_build_index", counting)
+        return calls
+
+    def test_summary_run_walks_kitty_specs_once(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _setup_project(tmp_path)
+        _walk_once_corpus(tmp_path)
+        walks = self._count_walks(monkeypatch)
+        missions = _summary_missions(tmp_path)
+        assert len(missions) == 7
+        assert len(walks) == 1
+
+    def test_summary_states_match_a_fresh_walk_per_lookup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.cli.commands import retrospect
+        from specify_cli.context import mission_resolver
+        from specify_cli.context.mission_resolver import FsMissionResolver
+
+        _setup_project(tmp_path)
+        _walk_once_corpus(tmp_path)
+        shared = _summary_missions(tmp_path)
+        assert len({m["findings_status"] for m in shared}) >= 2
+        monkeypatch.setattr(retrospect, "WalkOnceMissionResolver", FsMissionResolver)
+        monkeypatch.setattr(mission_resolver, "WalkOnceMissionResolver", FsMissionResolver)
+        assert _summary_missions(tmp_path) == shared
