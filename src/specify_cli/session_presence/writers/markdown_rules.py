@@ -350,7 +350,7 @@ def _section_bounds(text: str) -> tuple[int, int]:
 
 
 def _invocation_line(content: SessionPresenceContent) -> str:
-    return f"  → run {content.specify_invocation}\n"
+    return f"  -> run {content.specify_invocation}\n"
 
 
 def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
@@ -366,12 +366,14 @@ def _canonical_section(block: str, content: SessionPresenceContent) -> bool:
 
 
 _HEADER_PREFIX = "**Spec Kitty v"
-_HEADER_SEPARATOR = "** — project: "
+# #5757: the ASCII separator renders today; the em dash is the pre-#5757 form,
+# still accepted so an older block keeps parsing as ours.
+_HEADER_SEPARATORS = ("** - project: ", "** — project: ")
 _HEADER_HEALTHS = ("healthy", "upgrade-available", "migration-required")
 
 
 def _parse_header_line(line: str) -> tuple[str, str, str] | None:
-    """Parse ``**Spec Kitty v<version>** — project: <slug> (<health>)`` from one line.
+    """Parse ``**Spec Kitty v<version>** - project: <slug> (<health>)`` from one line.
 
     Plain string scanning, linear in the line length. It returns what the former
     regex ``^\\*\\*Spec Kitty v([^\\n]+?)\\*\\* — project: ([^\\n]+?) \\((healthy|…)\\)$``
@@ -385,9 +387,14 @@ def _parse_header_line(line: str) -> tuple[str, str, str] | None:
     if health is None:
         return None
     slug_end = len(line) - len(f" ({health})")
-    separator = line.find(_HEADER_SEPARATOR, len(_HEADER_PREFIX) + 1)
-    slug_start = separator + len(_HEADER_SEPARATOR)
-    if separator == -1 or slug_start >= slug_end:
+    hits = [
+        (position, len(header_separator)) for header_separator in _HEADER_SEPARATORS if (position := line.find(header_separator, len(_HEADER_PREFIX) + 1)) != -1
+    ]
+    if not hits:
+        return None
+    separator, separator_length = min(hits)
+    slug_start = separator + separator_length
+    if slug_start >= slug_end:
         return None
     return line[len(_HEADER_PREFIX) : separator], line[slug_start:slug_end], health
 
@@ -401,8 +408,20 @@ def _parse_header(text: str) -> tuple[str, str, str] | None:
     return None
 
 
+# #5757: blocks written before the ASCII render carry the warning glyph, em dash
+# and arrow. Normalising them keeps an older block provably ours, so it is
+# refreshed to the current render instead of preserved as "edited".
+_LEGACY_GLYPHS = (("⚠", "[!]"), ("—", "-"), ("→", "->"))
+
+
+def _normalize_legacy_glyphs(text: str) -> str:
+    for glyph, ascii_form in _LEGACY_GLYPHS:
+        text = text.replace(glyph, ascii_form)
+    return text
+
+
 def _canonical_for(block: str, content: SessionPresenceContent) -> bool:
-    normalized = block.replace("\r\n", "\n")
+    normalized = _normalize_legacy_glyphs(block.replace("\r\n", "\n"))
     header = _parse_header(normalized)
     if header is None:
         return False
@@ -413,7 +432,7 @@ def _canonical_for(block: str, content: SessionPresenceContent) -> bool:
     elif health == "migration-required":
         old = replace(old, health="migration-required", available_version=None)
     else:
-        warning = re.search(r"^⚠ Upgrade available: ([^\n]+?) — run `spec-kitty upgrade --cli` to update\.$", normalized, re.MULTILINE)
+        warning = re.search(r"^\[!\] Upgrade available: ([^\n]+?) - run `spec-kitty upgrade --cli` to update\.$", normalized, re.MULTILINE)
         if warning is None:
             return False
         old = replace(old, health="upgrade-available", available_version=warning.group(1))

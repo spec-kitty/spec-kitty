@@ -945,6 +945,7 @@ class _AcceptRun:
     actual_mode: str
     commit_required: bool
     provenance_note: str | None
+    lenient: bool
     origin_warnings: tuple[str, ...] = ()
 
 
@@ -1100,6 +1101,7 @@ def _plan_run(
     requested_mode: str,
     no_commit: bool,
     diagnose: bool,
+    lenient: bool = False,
 ) -> _AcceptRun:
     """Announce the mission, pick the acceptance mode and register the remaining steps."""
     # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
@@ -1128,6 +1130,7 @@ def _plan_run(
         actual_mode=actual_mode,
         commit_required=commit_required,
         provenance_note=provenance_note,
+        lenient=lenient,
     )
 
 
@@ -1542,6 +1545,7 @@ def _perform_acceptance_step(
             actor=actor_name,
             tests=acceptance_tests,
             auto_commit=run.commit_required,
+            lenient=run.lenient,
         )
         outcome.result = result
         if run.commit_required and not run.json_output:
@@ -1844,6 +1848,7 @@ def accept(
         requested_mode=mode,
         no_commit=no_commit,
         diagnose=diagnose,
+        lenient=lenient,
     )
     read_only_flag = "--diagnose" if diagnose else ("--no-commit" if no_commit else None)
     attested, reason = _validated_no_implementation_request(json_output, attest_no_implementation, attest_reason, read_only_flag=read_only_flag)

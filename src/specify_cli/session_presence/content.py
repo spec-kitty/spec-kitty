@@ -22,7 +22,10 @@ __all__ = [
 def _default_specify_invocation() -> str:
     from .invocation import orientation_invocation
 
-    return orientation_invocation()
+    # ``orientation_invocation`` comes from a mypy-skipped module (#7334): the
+    # typed local keeps the return honest instead of leaking ``Any``.
+    invocation: str = orientation_invocation()
+    return invocation
 
 
 @dataclass(frozen=True)
@@ -50,20 +53,26 @@ class SessionPresenceContent:
         ``SECTION_CLOSE`` followed by a newline, suitable for injection into
         any text-based agent configuration file.
         """
-        upgrade_line = f"\n⚠ Upgrade available: {self.available_version} — run `spec-kitty upgrade --cli` to update." if self.health == "upgrade-available" else ""
-        migration_line = "\n⚠ Project migration required — run `spec-kitty upgrade` before using missions." if self.health == "migration-required" else ""
+        # #5757: the block is injected into agent instruction files that some
+        # projects require to be ASCII-only, so every glyph here is ASCII:
+        # ``[!]`` for the warning sign, ``-`` for the em dash, ``->`` for the
+        # arrow.
+        upgrade_line = (
+            f"\n[!] Upgrade available: {self.available_version} - run `spec-kitty upgrade --cli` to update." if self.health == "upgrade-available" else ""
+        )
+        migration_line = "\n[!] Project migration required - run `spec-kitty upgrade` before using missions." if self.health == "migration-required" else ""
         return (
             f"{SECTION_OPEN}\n"
-            f"**Spec Kitty v{self.version}** — "
+            f"**Spec Kitty v{self.version}** - "
             f"project: {self.project_slug} ({self.health})"
             f"{upgrade_line}{migration_line}\n\n"
             "Two usage patterns:\n"
-            "- **Full mission** (spec → plan → tasks → implement → review → merge):\n"
+            "- **Full mission** (spec -> plan -> tasks -> implement -> review -> merge):\n"
             '  trigger: "spec out", "create a mission", "write a spec", "plan this"\n'
-            f"  → run {self.specify_invocation}\n"
-            "- **Lightweight dispatch** (ad-hoc fix, question, or advice — no mission created):\n"
+            f"  -> run {self.specify_invocation}\n"
+            "- **Lightweight dispatch** (ad-hoc fix, question, or advice - no mission created):\n"
             '  trigger: "hey spec kitty", "use spec kitty to", "spec kitty <anything>"\n'
-            '  → **ALWAYS run `spec-kitty dispatch "<request verbatim>"` — do NOT answer directly.**\n'
+            '  -> **ALWAYS run `spec-kitty dispatch "<request verbatim>"` - do NOT answer directly.**\n'
             "  If you know the right profile, pass it to skip routing:\n"
             '  `spec-kitty dispatch "<request verbatim>" --profile <profile-id>`\n'
             "  Reason: `spec-kitty dispatch` loads governance context, routes the request,\n"

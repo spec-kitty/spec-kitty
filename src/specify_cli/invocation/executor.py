@@ -33,6 +33,7 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_attribution import InvalidCoAuthor, resolve_co_author_trailer
 from specify_cli.git.commit_helpers import ProtectedBranchRefused, SafeCommitError, preflight_commit
 from specify_cli.git.protection_policy import ProtectionConfigError
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
@@ -797,6 +798,7 @@ class ProfileInvocationExecutor:
         commit_sha: str | None = None,
         *,
         closed_by: Literal["agent", "doctor_sweep"],
+        co_author: str | None = None,
     ) -> OpCompletedEvent:
         """Close an open invocation record and propagate the completed event.
 
@@ -831,7 +833,18 @@ class ProfileInvocationExecutor:
         the per-record file is never touched. The sweep still closes through
         this executor (research R4): the spine append IS the canonical close
         path's write for the sweep caller.
+
+        ``co_author`` (#7013) is the operator attribution trailer for the
+        auto-commit made from this close, overriding the repository's
+        ``commit.co_author``. An explicit value is validated BEFORE any write — a
+        typo must not leave a half-closed Op — while an unusable *configured*
+        value only refuses the commit (see ``_commit_op_record``): the trail is
+        already durable by then, and a configuration defect must not cost it.
         """
+        # #7013: an explicit attribution value is a usage assertion; validate it
+        # before the first write.
+        explicit_trailer = resolve_co_author_trailer(self._repo_root, explicit=co_author) if co_author is not None else None
+
         # Step 1: Read started event for mode enforcement (FR-009).
         started_mode = self._read_started_mode(invocation_id)
 
@@ -917,7 +930,7 @@ class ProfileInvocationExecutor:
         if self._propagator is not None:
             self._propagator.submit(completed)
 
-        self._commit_op_record(invocation_id, closed_by=closed_by)
+        self._commit_op_record(invocation_id, closed_by=closed_by, explicit_trailer=explicit_trailer)
         return completed
 
     def _close_on_spine(self, completed: OpCompletedEvent) -> None:
@@ -1062,7 +1075,13 @@ class ProfileInvocationExecutor:
                 return branch
         return None
 
-    def _commit_op_record(self, invocation_id: str, *, closed_by: Literal["agent", "doctor_sweep"]) -> OpCommitOutcome:
+    def _commit_op_record(
+        self,
+        invocation_id: str,
+        *,
+        closed_by: Literal["agent", "doctor_sweep"],
+        explicit_trailer: str | None = None,
+    ) -> OpCommitOutcome:
         """Best-effort git commit for one completed Op record.
 
         Agent closes commit the per-record file; a doctor-sweep close commits
@@ -1075,6 +1094,12 @@ class ProfileInvocationExecutor:
         disk) but is now visible and actionable through ``self.last_op_commit``
         — the doctor sweep reports it per entry and the CLI complete path
         prints it — rather than dying in a ``logger.warning``.
+
+        ``explicit_trailer`` (#7013) is an already-validated ``Co-Authored-By:``
+        line the caller passed for this close; when absent, the repository's
+        ``commit.co_author`` is resolved here. A configured value that cannot be
+        used refuses the commit (``refusal`` names the key) rather than
+        committing unattributed.
         """
         try:
             started = self._read_started_event(invocation_id)
@@ -1100,6 +1125,17 @@ class ProfileInvocationExecutor:
                 return self._record_op_commit(OpCommitOutcome(committed=False, skipped=skip_reason))
             if current_branch is None:
                 return self._record_op_commit(OpCommitOutcome(committed=False, refusal="detached HEAD"))
+            trailer = explicit_trailer
+            if trailer is None:
+                try:
+                    trailer = resolve_co_author_trailer(self._repo_root)
+                except InvalidCoAuthor as exc:
+                    # A configuration defect refuses the commit, visibly; the
+                    # completed event is already durable and the Op stays closed.
+                    logger.info("Op record auto-commit for %s refused: %s", invocation_id, exc)
+                    return self._record_op_commit(OpCommitOutcome(committed=False, refusal=str(exc)))
+            if trailer is not None:
+                message = f"{message}\n\n{trailer}"
 
             safe_commit(
                 **self._op_commit_kwargs(current_branch, relative_path),

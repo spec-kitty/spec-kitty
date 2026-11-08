@@ -34,7 +34,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from specify_cli.requirement_mapping import grammar, parse_requirement_ids_from_spec_md
+from specify_cli.requirement_mapping import (
+    duplicate_declared_ids,
+    grammar,
+    parse_requirement_ids_from_spec_md,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
@@ -47,6 +51,12 @@ __all__ = ["lint_spec_requirement_ids"]
 #: ``FR-00N``. Hoisted to a module constant (Sonar S1192): used by the rule
 #: selector below, and referenced by name in three-plus tests.
 RULE_LOWERCASE_SUFFIX = "write the letter suffix in lowercase (FR-006a); replace placeholders such as FR-00N with a real ID"
+
+#: Reported when a spec declares the same requirement ID more than once
+#: (#5674): the declared-id collector is a set, so the second row silently
+#: merges into the first and a WP mapping the id reads as covering both
+#: requirements.
+RULE_DUPLICATE_DECLARED = "declare each requirement ID exactly once; a duplicate row silently merges into the first and reads as covered"
 
 #: Wrapper characters a declared lead's capture never actually contains (the
 #: capture charset already excludes them) -- stripped defensively so a lead
@@ -184,7 +194,9 @@ def lint_spec_requirement_ids(spec_text: str, *, mission_type: str = "software-d
     """FR-013/FR-014: the setup-plan requirement-ID lint over one spec.md text.
 
     Errors are malformed kind-prefixed tokens in a declared position
-    (blocking). Warnings are unqualified, well-formed, undeclared tokens in
+    (blocking), plus ids declared more than once (#5674, blocking -- a
+    duplicate declaration silently merges into the first and reads as
+    covered). Warnings are unqualified, well-formed, undeclared tokens in
     prose (non-blocking, C-009). An error line never also warns; a
     declaration line's non-lead cells never warn (first-ID-per-line).
     """
@@ -199,4 +211,9 @@ def lint_spec_requirement_ids(spec_text: str, *, mission_type: str = "software-d
         if _matches_declared_shape(line, mission_type):
             continue
         _lint_prose_line(line, line_no, declared, warned, warnings, mission_type)
+    # #5674: every declaration after the first of a duplicated id is an error
+    # at its own line, so the operator sees which row to renumber.
+    for token, declaration_lines in duplicate_declared_ids(spec_text, mission_type=mission_type).items():
+        errors.extend(InvalidRequirementId(token=token, line=line_no, rule=RULE_DUPLICATE_DECLARED) for line_no in declaration_lines[1:])
+    errors.sort(key=lambda error: error.line)
     return SpecLintResult(errors=tuple(errors), warnings=tuple(warnings))

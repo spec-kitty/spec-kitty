@@ -132,6 +132,18 @@ def test_no_raw_worktree_remove_advice(tmp_path: Path) -> None:
     assert "spec-kitty doctor workspaces --prune" in text
 
 
+@pytest.mark.parametrize("mode", ["local", "checklist"])
+def test_local_mode_no_raw_git_removal_advice(tmp_path: Path, mode: str) -> None:
+    # #7327: local/checklist-mode cleanup advice routes removal through the CLI's
+    # guarded cleanup, never a raw ``git worktree remove`` / ``git branch -d`` recipe.
+    summary = cast(Any, SimpleNamespace(feature=_SLUG, worktree_root=tmp_path / "lane", primary_repo_root=tmp_path))
+    instructions, cleanup = _build_acceptance_instructions(summary, mode, "kitty/mission-demo-01ABCDEF", False)
+    text = " ".join(instructions + cleanup)
+    assert "git worktree remove" not in text
+    assert "git branch -d" not in text
+    assert "spec-kitty doctor workspaces --prune" in text
+
+
 def _write_meta(feature_dir: Path, **fields: object) -> None:
     (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": _SLUG, **fields}), encoding="utf-8")
 

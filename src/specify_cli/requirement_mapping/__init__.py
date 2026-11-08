@@ -122,6 +122,42 @@ _REF_FIND_PATTERN = grammar._LEGACY_REF_FIND_PATTERN
 # silently truncated to a shorter well-formed prefix.
 
 
+def _declared_id_lines(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[int]]:
+    """Declared id -> the 1-based line numbers of its declaration lines.
+
+    The occurrence list (not a set) is what makes a duplicate declaration
+    detectable (#5674): ``len(lines) > 1`` means the spec declares the same
+    id twice, which :func:`duplicate_declared_ids` surfaces to the lint.
+
+    Line numbers are counted over ``grammar.blank_html_comments`` output,
+    which preserves line count, so they address the original spec text.
+    """
+    found: dict[str, list[int]] = {}
+    blanked = grammar.blank_html_comments(spec_content)
+    for line_no, line in enumerate(blanked.splitlines(), start=1):
+        for pattern in grammar.declared_shape_patterns(mission_type):
+            match = pattern.match(line)
+            if match is None:
+                continue
+            if grammar.is_compound_tail(line, match.end(1)):
+                continue
+            canonical_id = grammar.canonical(match.group(1), mission_type=mission_type)
+            if canonical_id is not None:
+                found.setdefault(canonical_id, []).append(line_no)
+            break
+    return found
+
+
+def duplicate_declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[int]]:
+    """Ids this spec declares more than once (#5674): id -> declaration line numbers.
+
+    A duplicate declaration is an authoring slip: the declared-id collector
+    is a set, so the second row silently merges into the first and a WP
+    mapping the id reads as covering both requirements.
+    """
+    return {req_id: lines for req_id, lines in _declared_id_lines(spec_content, mission_type=mission_type).items() if len(lines) > 1}
+
+
 def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> set[str]:
     """Ids written as a table row, an id-naming heading, or a bold-led definition.
 
@@ -143,20 +179,7 @@ def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> s
     -- removing it would let a table row's description-cell citations leak back
     in as declarations, reintroducing #3394.
     """
-    found: set[str] = set()
-    blanked = grammar.blank_html_comments(spec_content)
-    for line in blanked.splitlines():
-        for pattern in grammar.declared_shape_patterns(mission_type):
-            match = pattern.match(line)
-            if match is None:
-                continue
-            if grammar.is_compound_tail(line, match.end(1)):
-                continue
-            canonical_id = grammar.canonical(match.group(1), mission_type=mission_type)
-            if canonical_id is not None:
-                found.add(canonical_id)
-            break
-    return found
+    return set(_declared_id_lines(spec_content, mission_type=mission_type))
 
 
 _BARE_PROSE_KINDS: frozenset[str] = frozenset({"FR", "NFR", "C"})

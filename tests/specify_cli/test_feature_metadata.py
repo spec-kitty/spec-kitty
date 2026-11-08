@@ -367,6 +367,31 @@ class TestRecordAcceptance:
         assert "accepted_from_commit" not in history[0]
         assert "accept_commit" not in history[0]
 
+    def test_lenient_recorded_in_history_entry(self, tmp_path: Path) -> None:
+        """#7356: a lenient acceptance records ``lenient: true`` so the evidence is honest."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        result = record_acceptance(
+            tmp_path,
+            accepted_by="claude",
+            mode="local",
+            lenient=True,
+        )
+
+        assert result["acceptance_history"][-1]["lenient"] is True
+
+    def test_strict_acceptance_omits_lenient_key(self, tmp_path: Path) -> None:
+        """A strict acceptance keeps the existing entry shape (absent key = strict)."""
+        _write_meta_file(tmp_path, _minimal_meta())
+
+        result = record_acceptance(
+            tmp_path,
+            accepted_by="claude",
+            mode="local",
+        )
+
+        assert "lenient" not in result["acceptance_history"][-1]
+
     def test_bounded_history_cap(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
         meta["acceptance_history"] = [

@@ -35,13 +35,13 @@ def test_orientation_invocation_names_every_form() -> None:
 
 
 def test_render_names_every_form() -> None:
-    assert f"  → run {_ALL_FORMS}\n" in _content().render()
+    assert f"  -> run {_ALL_FORMS}\n" in _content().render()
 
 
 @pytest.mark.parametrize("first, second", [("antigravity", "codex"), ("codex", "opencode"), ("pi", "letta")])
 def test_agents_md_writers_render_identical_bytes(tmp_path: Path, first: str, second: str) -> None:
     get_writer(first).write(tmp_path, _content())
-    assert f"  → run {_ALL_FORMS}\n" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert f"  -> run {_ALL_FORMS}\n" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
 
     assert not get_writer(second).prepare(tmp_path, _content()).changed
 
@@ -56,7 +56,26 @@ def test_a_pre_6475_block_is_refreshed(tmp_path: Path, version: str) -> None:
 
     text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert text.startswith("# Notes\n\n")
-    assert f"  → run {_ALL_FORMS}\n" in text
+    assert f"  -> run {_ALL_FORMS}\n" in text
+    assert text.count("<!-- spec-kitty:orientation -->") == 1
+
+
+@pytest.mark.parametrize("version", ["4.0.0", "3.2.0"])
+def test_a_pre_5757_glyph_block_is_refreshed(tmp_path: Path, version: str) -> None:
+    """#5757: a block written before the ASCII render carries the warning glyph, em
+    dash and arrow. It is still provably Spec Kitty's, so it is refreshed to the
+    ASCII render instead of preserved as "edited"."""
+    glyph_block = _content(version).render()
+    for ascii_form, glyph in (("[!] ", "⚠ "), (" - ", " — "), (" -> ", " → ")):
+        glyph_block = glyph_block.replace(ascii_form, glyph)
+    (tmp_path / "AGENTS.md").write_text(f"# Notes\n\n{glyph_block}", encoding="utf-8")
+
+    get_writer("codex").write(tmp_path, _content())
+
+    text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert text.startswith("# Notes\n\n")
+    assert _content().render().rstrip("\n") in text
+    assert "→" not in text and "—" not in text and "⚠" not in text
     assert text.count("<!-- spec-kitty:orientation -->") == 1
 
 

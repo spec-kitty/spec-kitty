@@ -13,6 +13,7 @@ import pytest
 
 from specify_cli.requirement_mapping import find_undeclared_requirement_citations, grammar, parse_requirement_ids_from_spec_md
 from specify_cli.requirement_mapping.lint import (
+    RULE_DUPLICATE_DECLARED,
     RULE_LOWERCASE_SUFFIX,
     InvalidRequirementId,
     RequirementIdWarning,
@@ -71,6 +72,29 @@ def test_requirement_id_warning_as_dict_matches_contract_keys() -> None:
 # Errors: one malformed declared lead per case, paired with a same-fixture
 # positive control on the next line.
 # --------------------------------------------------------------------------- #
+
+
+def test_duplicate_declared_id_refuses_with_same_fixture_positive_control() -> None:
+    """#5674: a spec that declares the same FR id twice (a copy-paste slip in
+    the requirements table) must refuse -- the declared-id collector is a set,
+    so the second row would silently merge into the first and one WP mapping
+    the id would read as covering both requirements."""
+    text = "# Spec\n\n| ID | Title | Story |\n|---|---|---|\n| FR-001 | Login | a |\n| FR-002 | Export CSV | b |\n| FR-002 | Audit log of every export | c |\n"
+    result = lint_spec_requirement_ids(text)
+    duplicate_errors = [error for error in result.errors if error.token == "FR-002"]
+    assert len(duplicate_errors) == 1, result.errors
+    assert duplicate_errors[0].line == 7
+    assert duplicate_errors[0].rule == RULE_DUPLICATE_DECLARED
+    assert result.blocking
+
+
+def test_distinct_declared_ids_do_not_refuse() -> None:
+    """Positive control for #5674: the same fixture with the third row
+    renumbered to its own id lints clean."""
+    text = "# Spec\n\n| ID | Title | Story |\n|---|---|---|\n| FR-001 | Login | a |\n| FR-002 | Export CSV | b |\n| FR-003 | Audit log of every export | c |\n"
+    result = lint_spec_requirement_ids(text)
+    assert result.errors == ()
+    assert not result.blocking
 
 
 @pytest.mark.parametrize(

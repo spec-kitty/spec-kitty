@@ -865,6 +865,57 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
     assert safe_commit_calls == [[".kittify/metadata.yaml"]]
 
 
+def test_upgrade_no_migrations_stamp_refreshes_environment_fields(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """#4160: when the no-migrations stamp bumps ``version``, it must also
+    re-stamp the environment block (python_version / platform /
+    platform_version) so a project upgraded across a platform-affecting
+    release never carries a version from one build and an environment string
+    from an earlier one."""
+    import platform as platform_module
+    import sys
+
+    import yaml
+
+    project_path = _setup_upgrade_project(tmp_path)
+    metadata_path = project_path / ".kittify" / "metadata.yaml"
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+
+    status_calls = {"count": 0}
+
+    def _fake_status(_repo_path: Path) -> set[str]:
+        status_calls["count"] += 1
+        if status_calls["count"] == 1:
+            return set()
+        return {".kittify/metadata.yaml"}
+
+    monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
+    monkeypatch.setattr(autocommit, "safe_commit", lambda **_kw: object())
+
+    _run_upgrade(
+        dry_run=False,
+        force=True,
+        target="9.9.9",  # differs from the recorded '1.0.0a1' -> stamp leg fires
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    json.loads(capsys.readouterr().out.strip())  # run completed and printed JSON
+
+    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["spec_kitty"]["version"] == "9.9.9"
+    environment = metadata["environment"]
+    assert environment["python_version"] == platform_module.python_version()
+    assert environment["platform"] == sys.platform
+    assert environment["platform_version"] == platform_module.platform()
+
+
 def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
     tmp_path: Path,
     monkeypatch,

@@ -207,6 +207,26 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
 
 
 @pytest.mark.regression
+def test_collect_feature_summary_from_linked_worktree_does_not_raise(
+    feature_repo: Path,
+    mission_slug: str,
+) -> None:
+    """#3656: WP paths come from the placement seam, whose PRIMARY-partition
+    reads resolve against the MAIN repo root. Calling collect_feature_summary
+    with a linked-worktree repo_root must anchor the relative WP path on that
+    same root instead of raising ValueError from relative_to."""
+    from tests.utils import run
+
+    worktree = feature_repo.parent / "linked-worktree"
+    run(["git", "worktree", "add", str(worktree), "-b", "wt-branch"], cwd=feature_repo)
+
+    summary = acc.collect_feature_summary(worktree, mission_slug, strict_metadata=True)
+
+    assert [wp.work_package_id for wp in summary.work_packages] == ["WP01"]
+    assert all(wp.path == f"kitty-specs/{mission_slug}/tasks/WP01.md" for wp in summary.work_packages)
+
+
+@pytest.mark.regression
 def test_accept_fails_closed_when_lanes_json_is_absent(feature_repo: Path, mission_slug: str) -> None:
     # regression: #4891 -- `spec-kitty accept` must not silently skip the
     # entire acceptance-matrix gate when lanes.json is absent. Otherwise mode

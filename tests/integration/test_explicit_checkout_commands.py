@@ -784,6 +784,21 @@ def test_accept_no_commit_updates_only_owned_matrix(ready_accept_checkouts):
     assert (snapshot(primary), snapshot(sibling)) == before
 
 
+def test_accept_lenient_records_lenient_in_history(ready_accept_checkouts):
+    """#7356: ``accept --lenient`` records ``lenient: true`` on the history entry.
+
+    A later reader of ``meta.json`` must be able to tell a lenient acceptance
+    from a strict one; the flag may not vanish between the CLI option and the
+    ``record_acceptance`` write.
+    """
+    primary, owned, sibling, slug = ready_accept_checkouts
+    result = run_owned_accept(owned, slug, "--lenient")
+    assert result.exit_code == 0, result.output
+    meta = json.loads(git(owned, "show", f"HEAD:kitty-specs/{slug}/meta.json"))
+    assert meta["acceptance_history"]
+    assert meta["acceptance_history"][-1]["lenient"] is True
+
+
 def test_accept_commits_metadata_matrix_and_cutover_only_in_owned(ready_accept_checkouts, monkeypatch):
     from specify_cli.core.owned_mission import resolve_owned_mission
     from specify_cli.migration import runtime_state_cutover

@@ -368,7 +368,10 @@ def _write_confined_artifact_bytes(
     content: bytes,
 ) -> Path:
     """Write bytes, injecting this module's resolver (oracle-patchable)."""
-    return _aw_write_confined_artifact_bytes(worktree_root, path, content, resolve=_resolve_confined_artifact_path)
+    # ``_aw_write_confined_artifact_bytes`` comes from a mypy-skipped module
+    # (#7334): the typed local keeps the return honest instead of leaking ``Any``.
+    written: Path = _aw_write_confined_artifact_bytes(worktree_root, path, content, resolve=_resolve_confined_artifact_path)
+    return written
 
 
 def _unlink_confined_artifact_path(worktree_root: Path, path: Path) -> None:
@@ -1469,7 +1472,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             )
             return False
         self._rollback_refusal = outcome.message()
-        return outcome.rolled_back
+        # ``outcome`` comes from a mypy-skipped status module (#7334): the typed
+        # local keeps the return honest instead of leaking ``Any``.
+        rolled_back: bool = outcome.rolled_back
+        return rolled_back
 
     def _rollback(self) -> None:
         """Surgical rollback: truncate event log; restore artifacts.

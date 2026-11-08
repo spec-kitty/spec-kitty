@@ -87,7 +87,7 @@ def build_work_package_state(
     wp_id: str,
     wp_snapshot: Mapping[str, Any] | None,
     *,
-    repo_root: Path,
+    wp_path_root: Path,
     strict_metadata: bool,
 ) -> tuple[WorkPackageState, list[str]]:
     """Pure: build one WP's summary state + its metadata-gate issues.
@@ -95,6 +95,12 @@ def build_work_package_state(
     ``wp`` supplies authored presentation fields only; ``wp_snapshot`` supplies
     every runtime field. Both are already-resolved inputs, so this function
     performs no filesystem or event-log I/O of its own.
+
+    ``wp_path_root`` is the root ``wp.path`` was resolved under — for the
+    accept gate the placement seam's checkout root (the MAIN repo root, or the
+    owned checkout root), never the raw caller ``repo_root`` (#3656): a
+    linked-worktree invocation resolves PRIMARY-partition WP reads against the
+    main root, so anchoring ``relative_to`` on the worktree would raise.
     """
     title = (wp.title or "").strip('"')
     snapshot = wp_snapshot or {}
@@ -140,7 +146,7 @@ def build_work_package_state(
         work_package_id=wp_id,
         lane=bucket_lane,
         title=title,
-        path=str(wp.path.relative_to(repo_root)),
+        path=str(wp.path.relative_to(wp_path_root)),
         has_lane_entry=canonical_lane is not None,
         latest_lane=canonical_lane,
         metadata=metadata,

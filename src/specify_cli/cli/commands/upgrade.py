@@ -831,13 +831,23 @@ def _show_migration_plan_and_confirm(
 
 def _stamp_no_migrations_metadata(kittify_dir: Path, *, target_version: str, dry_run: bool) -> None:
     """Bump the version stamp (and repair a missing schema stamp, #1158) when
-    no migrations ran but the target version differs from the recorded one."""
+    no migrations ran but the target version differs from the recorded one.
+
+    The environment block (python_version / platform / platform_version,
+    #4160) is re-stamped in the same write so a project upgraded across a
+    platform-affecting release never carries a version from one build and an
+    environment string from an earlier one."""
+    import platform as platform_module
+
     from specify_cli.upgrade.metadata import ProjectMetadata
 
     metadata = ProjectMetadata.load(kittify_dir)
     if metadata and metadata.version != target_version and not dry_run:
         metadata.version = target_version
         metadata.last_upgraded_at = now_utc()
+        metadata.python_version = platform_module.python_version()
+        metadata.platform = sys.platform
+        metadata.platform_version = platform_module.platform()
         metadata.save(kittify_dir)
 
     if not dry_run:

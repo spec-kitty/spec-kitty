@@ -11,6 +11,7 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -71,6 +72,12 @@ from specify_cli.consolidation.run_state import (
     _is_coord_topology_mission,
     _records_post_mutation_tips,
 )
+
+# ``specify_cli.*`` imports are followed with ``follow_imports = "skip"``, so the imported tip
+# recorder reads as ``Any`` and would leave every phase it decorates untyped. Declaring its
+# signature once keeps the decorated phases typed (same pattern as phase_bookkeeping).
+_PhaseStep = Callable[[_MergeRunState], None]
+_record_post_mutation_tips: Callable[[_PhaseStep], _PhaseStep] = _records_post_mutation_tips
 
 
 # #2804 / FR-009 (write-surface-coherence WP08): the gate-artifact basenames
@@ -185,7 +192,7 @@ def _lane_completed_but_branch_gone(run: _MergeRunState, lane: ExecutionLane, la
     return all(wp in completed for wp in lane.wp_ids)
 
 
-@_records_post_mutation_tips
+@_record_post_mutation_tips
 def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
     from specify_cli.lanes.compute import is_repo_root_lane
@@ -315,7 +322,7 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     run.merge_state_path = get_state_path(run.main_repo, run.state.mission_id)
 
 
-@_records_post_mutation_tips
+@_record_post_mutation_tips
 def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
     """Bake mission_number on the mission branch and pre-target done bookkeeping."""
     lanes_manifest = run.lanes_manifest
@@ -513,7 +520,7 @@ def _handle_mission_merge_result(
             console.print(f"  Commit: {mission_result.commit[:7]}")
 
 
-@_records_post_mutation_tips
+@_record_post_mutation_tips
 def _phase_mission_to_target(run: _MergeRunState) -> None:
     """Merge the mission branch into the target branch (honoring strategy)."""
     lanes_manifest = run.lanes_manifest
