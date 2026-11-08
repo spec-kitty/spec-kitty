@@ -959,8 +959,9 @@ def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
     removal; the snapshot is already gone then, so its re-read fails and it
     writes nothing. Residual: taking that lock goes through
     ``kernel.locks._ensure_dir``, which may recreate an empty run directory
-    holding only ``state.json.lock`` after the removal; it names no Mission, so
-    it is unlinked and a later scan past both limits removes it (#6739).
+    holding only ``state.json.lock`` after the removal; with no ``state.json``
+    to read, a later scan cannot tell whose run it was and keeps it as
+    ``Mission not found`` (fail-safe; it holds no data).
 
     Trade-off: the entries are dropped BEFORE the files go. If an unlink or the
     removal then fails (an open handle, permissions), the run stays on disk
