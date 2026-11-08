@@ -87,11 +87,15 @@ OWNED_CHECKOUT_RATIO_LIMIT = 1.78
 
 #: Ratio limit for ``--help`` start-up over the fixed interpreter workload.
 #: Catches the ~1.8 s import-time tax #4409 removed (``--help`` fell from
-#: ~3.2 s to ~1.0 s) returning, without naming a number of seconds. 60 clean
-#: ratios lay between 2.12 and 2.59 and 20 planted ratios between 3.23 and 3.58
-#: (decision record): 2.90 is 12 percent above the largest clean value and 11
-#: percent below the smallest planted one.
-STARTUP_RATIO_LIMIT = 2.90
+#: ~3.2 s to ~1.0 s) returning, without naming a number of seconds. Calibration
+#: 1 (local): 60 clean ratios lay between 2.12 and 2.59 and 20 planted ratios
+#: between 3.23 and 3.58, which gave 2.90. Calibration 2 (CI, #7454): the nightly
+#: runner put clean ratios above 2.90 on 4 of 41 runs (2.927, 2.942, 2.950, 2.987;
+#: the other 37 passed at or below 2.90), with no product change. 3.35 is 12 percent
+#: above the largest CI clean ratio (2.987). Figures and method: decision record
+#: ``docs/adr/4.x/2026-10-05-2-runner-relative-performance-budgets.md``,
+#: "CI recalibration 2026-11-08 (#7454)".
+STARTUP_RATIO_LIMIT = 3.35
 
 #: Ratio limit for a WARM (second) ``context list --json`` over the fixed
 #: interpreter workload. The regression it exists for is the ~11 s
@@ -131,7 +135,7 @@ CHARTER_WRITE_RATIO_LIMIT = 8.0
 #: detection threshold of each planted-work test: a plant is only detected when
 #: ``clean ratio + cost fraction`` exceeds the limit, so the lower band edge below must
 #: stay above ``limit - lowest clean ratio`` (owned: 0.57; start-up: ``limit / lowest - 1``,
-#: 0.368). Owned: 1.210 (throttled series A, context resolve); CI sample 1 lowest 1.227.
+#: 0.580 at the limit 3.35). Owned: 1.210 (throttled series A, context resolve); CI sample 1 lowest 1.227.
 #: Start-up: 2.120 (throttled calibration); CI sample 1 clean 2.482.
 OWNED_LOWEST_CLEAN_RATIO = 1.21
 STARTUP_LOWEST_CLEAN_RATIO = 2.12
@@ -154,16 +158,16 @@ OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.30
 #: Band, as fractions of the CLEAN ``--help`` median (not the workload), for the cost
 #: of the start-up plant. The ratio under test is ``--help`` over the workload, so a
 #: plant of fraction ``f`` multiplies the clean ratio by ``1 + f``. Detection needs
-#: ``f > 2.90 / clean ratio - 1``, which is 0.368 at the lowest clean ratio 2.12; the
-#: previous lower edge of 0.30 sat below that. At 0.45, 2.12 * 1.45 = 3.07 > 2.90 for
-#: any in-band plant; an in-band plant is still detected at a limit up to
-#: 2.12 * 2.10 = 4.45. Contains CI sample 1 (0.531 at 15M, from 0.354 at 10M), CI sample 2
-#: (0.80 at 15M, from 0.5345 at 10M; a different runner instance) and the local readings
-#: (0.38 to 0.51 at 10M, so 0.57 to 0.77 at 15M; 0.740 measured) with margin. The upper
-#: edge sits 37 percent above the highest scaled runner value because the fraction varies
-#: by 50 percent between runner instances.
-STARTUP_PLANT_MIN_FRACTION_OF_CLEAN = 0.45
-STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.10
+#: ``f > 3.35 / clean ratio - 1``, which is 0.580 at the lowest clean ratio 2.12. At
+#: 0.62, 2.12 * 1.62 = 3.43 > 3.35 for any in-band plant (2.4 percent above the limit).
+#: The upper edge keeps an oversized plant from passing under any limit: an in-band plant
+#: is still detected at a limit up to 2.12 * 2.50 = 5.30, 58 percent above 3.35, inside the
+#: 1.6 * limit (5.36) that ``test_perf_limit_authority.py`` pins. The edges moved from
+#: 0.45 / 1.10 with the limit (#7454); the plant grew from 15M to 25M iterations so the
+#: expected cost fraction (about 0.85 to 0.95 on a CI runner, scaled linearly from 0.531
+#: at 15M in CI sample 1; local readings in the decision record) sits well inside it.
+STARTUP_PLANT_MIN_FRACTION_OF_CLEAN = 0.62
+STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.50
 
 #: Iterations of the planted CPU-bound loop (:func:`write_cpu_plant`) for the
 #: owned-checkout test. About 47 ns per iteration, so about 0.94 s of CPU: 0.82 of
@@ -176,9 +180,10 @@ STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.10
 OWNED_PLANT_ITERATIONS = 20_000_000
 
 #: Iterations of the planted loop for the start-up test: about 43 ns per
-#: iteration on the runner, so about 0.64 s, 0.53 of the clean ``--help`` there
-#: (it was 10,000,000, which cost 0.354, just above the old band floor of 0.30).
-STARTUP_PLANT_ITERATIONS = 15_000_000
+#: iteration on the runner, so about 1.1 s. It was 15,000,000 (0.53 of the clean
+#: ``--help`` in CI sample 1), sized for the old limit 2.90; at 3.35 the band
+#: minimum is 0.62, so the plant is scaled by 5/3 to about 0.88 (#7454).
+STARTUP_PLANT_ITERATIONS = 25_000_000
 
 #: The start-up floor for owned-checkout commands: the cheapest command that
 #: still pays the full CLI import chain.

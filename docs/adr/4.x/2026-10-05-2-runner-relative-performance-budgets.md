@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-05'
-updated: '2026-10-05T00:00:00Z'
+updated: '2026-11-08T00:00:00Z'
 ---
 
 **Status:** Accepted
@@ -124,7 +124,7 @@ The fixed workload imports `argparse asyncio csv dataclasses decimal difflib ema
 | Limit | Value | Largest clean | Smallest planted or regressed | Headroom |
 |---|---|---|---|---|
 | `OWNED_CHECKOUT_RATIO_LIMIT` | 1.78 | 1.650 in 360 calibration ratios; one further evaluation in the robustness campaign exceeded 1.70 (value not captured) | 1.853 planted (30 samples at the committed plant) | 8 percent above the largest calibration value, 4 percent below the smallest planted value; 18 percent above the largest nightly ratio (1.51); 28 percent above the median clean ratio |
-| `STARTUP_RATIO_LIMIT` | 2.90 | 2.594 | 3.233 planted | 12 percent above clean, 11 percent below planted |
+| `STARTUP_RATIO_LIMIT` | 3.35 (was 2.90; see CI recalibration 2026-11-08 (#7454)) | 2.987 on CI (2.594 locally) | 3.233 planted locally; CI planted 3.36 to 3.54 at 10M iterations | 12 percent above the largest CI clean ratio; 2.4 percent below the planted ratio at the lowest clean ratio (2.12 times 1.62 = 3.43) |
 | `WARM_LEAF_RATIO_LIMIT` | 6.0 | 2.964 | 12.6 regressed | twice the largest clean value, under half the smallest regressed one |
 
 Clean and planted ranges separate in every calibration series, but for the owned-checkout measure only narrowly, and the tails touch: the clean tail under contention reaches at least 1.70 while the smallest planted ratio at the committed plant is 1.853. The owned-checkout limit was first set at 1.70 (between the 1.650 clean maximum and the 1.724 planted minimum of the 10,000,000-iteration series) and one evaluation in a robustness campaign went red at that limit with no regression. The limit was then raised to 1.78 and the plant enlarged to 12,000,000 iterations to widen the gap; that change was not re-proved with a full campaign. If a clean ratio at or above 1.78 shows up in a CI run, re-measure and record before touching the limit.
@@ -224,3 +224,34 @@ The plant cost fraction varies a lot between runner instances: owned 0.49 to 0.5
 Decision: raise only the two upper edges, to `OWNED_PLANT_MAX_FRACTION_OF_FLOOR = 1.30` (33 percent above 0.98) and `STARTUP_PLANT_MAX_FRACTION_OF_CLEAN = 1.10` (37 percent above 0.80). Iteration counts, lower edges (0.62 and 0.45) and the three ratio limits are unchanged. An in-band plant is now detected at a limit up to 1.21 plus 1.30 = 2.51 (owned, 41 percent above 1.78) and 2.12 times 2.10 = 4.45 (start-up, 53 percent above 2.90). The width test in `tests/architectural/test_perf_limit_authority.py` therefore pins "at most 1.6 times the limit" instead of 1.4 times. The band still bounds an oversized plant: a plant that costs much more than intended leaves the band and fails loudly.
 
 **What remains.** The new plant sizes themselves are still unproven on the runner: both samples ran the old sizes and the new fractions are scaled, not measured. A third sample from a nightly that runs the new plants is to confirm the realised fractions land inside the bands and the planted ratios above the limits.
+
+## CI recalibration 2026-11-08 (#7454)
+
+**Trigger.** The nightly `--help` start-up ratio test (`test_help_stays_inside_its_startup_budget`) went red against `STARTUP_RATIO_LIMIT = 2.90` with no product change. A local investigation found about 5 ms of import change, and the same commit flipping between 3.08 and a pass. The limit was set from local series (clean 2.12 to 2.59) and two early CI samples (clean 2.482 and 2.288); the runner now spreads wider than that.
+
+**CI data.** Artifact download is blocked from the agent environment (the proxy denies the Azure blob host), so the evidence is the job logs of the performance job in the last 41 `ci-nightly` runs (runs 38342978655 to 42516534769). A log prints a ratio only on failure, so there are 4 CI data points, all clean `--help` ratios that exceeded 2.90; the other 37 runs passed and so lay at or below 2.90, with no value recorded.
+
+| Run | `--help` median | Workload median | Ratio |
+|---|---|---|---|
+| 39717493455 | 2.011 s | 0.687 s | 2.927 |
+| 40058682364 | 2.081 s | 0.707 s | 2.942 |
+| 42333589392 | 1.885 s | 0.639 s | 2.950 |
+| 42516534769 (#7454) | 2.155 s | 0.721 s | 2.987 |
+
+Nightly workload medians are now 0.64 to 0.72 s (0.44 to 0.49 s at calibration time), so the runner is slower and noisier than in the first calibration. The planted test never failed in those 41 runs, but its planted ratio is not recorded either. The CI planted figures remain the ones in samples 1 and 2 (3.329 and 3.542 at 10,000,000 iterations).
+
+**Decision.**
+
+| Setting | Was | Now | Derivation |
+|---|---|---|---|
+| `STARTUP_RATIO_LIMIT` | 2.90 | 3.35 | 12 percent above the largest CI clean ratio, 2.987 (3.345 rounded up) |
+| `STARTUP_PLANT_MIN_FRACTION_OF_CLEAN` | 0.45 | 0.62 | detection needs a fraction above 3.35 / 2.12 - 1 = 0.580 at the lowest clean ratio; 2.12 times 1.62 = 3.43 is 2.4 percent above 3.35 |
+| `STARTUP_PLANT_MAX_FRACTION_OF_CLEAN` | 1.10 | 1.50 | an in-band plant is detected at a limit up to 2.12 times 2.50 = 5.30, below the pinned 1.6 times 3.35 = 5.36 (the gate's factor is unchanged) |
+| `STARTUP_PLANT_ITERATIONS` | 15,000,000 | 25,000,000 | scaled by 5/3 so the expected cost fraction clears the new minimum |
+| `STARTUP_LOWEST_CLEAN_RATIO` | 2.12 | 2.12 | unchanged: no CI run showed a lower clean ratio than the calibration's |
+
+**Plant sizing is scaled, not measured on CI.** CI sample 1 gave a cost fraction of 0.531 at 15,000,000 iterations and sample 2 gave 0.80 (scaled from 0.5345 at 10,000,000). Linear scaling to 25,000,000 gives 0.885 and 1.333, and the local readings (0.57 to 0.77 at 15M) give 0.95 to 1.28. All sit inside 0.62 to 1.50. At the lowest clean ratio the planted ratio is 2.12 times 1.885 = 4.0, 19 percent above 3.35. The nightly floor is slower than in those samples, so the real fraction on today's runner must be confirmed by a nightly run. The measurement method, the sampling and the assertions are unchanged, and no retry was added.
+
+**Local measurement.** On a machine loaded by other agents, the unchanged code at the old limit reproduced the CI flake: clean `--help` ratio 2.946 (command 1.854 s, workload 0.629 s) against 2.90, with no product change. With the new settings, `SPEC_KITTY_RUN_PERFORMANCE=1 pytest tests/performance/test_cli_startup_budget_4409.py` passed 18 of 18, including both wall-clock tests. Three further interleaved measurements of the planted pair (25,000,000 iterations) gave clean ratios 2.590, 2.896 and 2.568, plant cost fractions 0.925, 0.731 and 0.948, and planted ratios 4.984, 5.013 and 5.002, against a limit of 3.35 and a band of 0.62 to 1.50. These are local readings; the CI runner's fraction is scaled, not measured, as stated above.
+
+**Follow-up (not done here).** Passing runs record no ratio: `record_property` values are dropped under `junit_family` xunit2 (pytest warns that it is incompatible), and the `ci-nightly-performance-reports` artifact could not be read. Future calibration needs the ratio printed to the log, or a `junit_family` change. Neither is part of this change.
