@@ -24,7 +24,7 @@ from typing import Any
 
 from specify_cli.mission_metadata import MissionMetaOptional, MissionMetaRequired
 from specify_cli.meta_keys import COORDINATION_KEYS, IDENTITY_KEYS
-from specify_cli.status.models import StatusSnapshot
+from specify_cli.status import StatusSnapshot
 
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
@@ -72,7 +72,7 @@ _META_KNOWN_KEYS: frozenset[str] = (
 # since #4786, so ``doctor mission-state --audit`` reported Spec Kitty's own key
 # as an info-level ``UNKNOWN_SHAPE`` finding across the corpus.
 #
-#   ``StatusSnapshot`` (``specify_cli.status.models``) is the dataclass whose
+#   ``StatusSnapshot`` (``specify_cli.status``, defined in ``status.models``) is the dataclass whose
 #   ``to_dict`` is what ``materialize_to_json`` serializes, so its field names
 #   are exactly the keys the writer can emit.
 #
