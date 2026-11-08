@@ -906,7 +906,11 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # ``create_return_branch``). Commit in that holder -- and ONLY
                 # for such a Mission (:func:`_primary_partition_holder`); every
                 # other mission keeps ``repo_root`` even when some other
-                # checkout happens to hold its target branch.
+                # checkout happens to hold its target branch. (The coordination-less
+                # arm above follows any holder of the write branch so status writes
+                # track the read door; this arm is narrowed to a default Mission's
+                # PRIMARY topic holder so a planning commit never lands in an
+                # unrelated checkout of the target branch.)
                 worktree_root = _primary_partition_holder(repo_root, safe_mission_slug, effective_destination_ref)
             else:
                 # New topology — materialize/seed the coordination write
