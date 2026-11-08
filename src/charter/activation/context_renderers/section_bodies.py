@@ -79,8 +79,10 @@ CRITICAL_SECTION_WHEN_CLAUSES: dict[str, str] = {
 }
 """Per-section when-doing clause used when the verbatim body is missing.
 
-Each clause is the deterministic completion that the prompt-governance
-contract pins (matched against ``_WHEN_DOING_RE`` in the ATDD helper)."""
+Each clause is authored prose, not necessarily one of the closed
+``_WHEN_DOING_RE`` lead-ins: :func:`_render_fetch_stanza` passes it through
+:func:`~charter.activation.context_renderers.fetch_stanza.fetch_stanza_lines`,
+which normalizes it into that set (#3093)."""
 
 
 _DEFAULT_WHEN_CLAUSE: str = "are about to apply a code change"
