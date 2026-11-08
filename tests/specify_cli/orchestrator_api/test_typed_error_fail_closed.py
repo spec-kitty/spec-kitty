@@ -758,3 +758,101 @@ def test_answer_decision_against_nonexistent_mission_emits_mission_not_found(
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# #5156: the typed STATUS_READ_PATH_NOT_FOUND envelope is guaranteed by the
+# group, not by each command body.
+#
+# Every mission-scoped verb resolves its mission directory through
+# ``_common._resolve_mission_dir_or_fail``, which maps the resolver's
+# ``StatusReadPathNotFound`` to the typed envelope. That covers the four
+# decision-write verbs (pinned below), but the guarantee used to stop there: a
+# refusal raised anywhere else in a command body escaped every ``except`` arm as
+# a raw traceback with nothing on stdout. ``_JSONErrorGroup`` is the one place
+# every dispatch path passes through, so the last-resort arm lives there.
+# ---------------------------------------------------------------------------
+
+
+def _status_read_path_refusal() -> Exception:
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    return StatusReadPathNotFound(
+        repo_root=Path("/repo"),
+        mission_slug=_MISSION_SLUG,
+        mid8=_MID8,
+        coord_candidate=Path("/repo/.worktrees") / f"{_MISSION_SLUG}-coord" / "kitty-specs" / _MISSION_SLUG,
+        primary_candidate=Path("/repo") / "kitty-specs" / _MISSION_SLUG,
+    )
+
+
+def test_status_read_path_not_found_escaping_a_command_body_is_enveloped(
+    tmp_path: Path,
+) -> None:
+    """A refusal raised inside ``mission-state`` (not by the resolution seam)
+    still yields one typed JSON envelope, never a traceback (#5156).
+
+    The status read is patched to raise, which is the shape of every path that
+    does not route through ``_resolve_mission_dir_or_fail`` -- including the
+    transactional status write re-resolving its own surface.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with (
+        patch.object(_common, "_get_main_repo_root", return_value=repo_root),
+        patch.object(_common, "_resolve_mission_dir", return_value=repo_root / "kitty-specs" / _MISSION_SLUG),
+        patch("specify_cli.status.read_events", side_effect=_status_read_path_refusal()),
+    ):
+        result = runner.invoke(
+            app,
+            ["mission-state", "--mission", _MISSION_SLUG],
+            catch_exceptions=True,
+        )
+
+    lines = [line for line in result.output.strip().splitlines() if line.strip()]
+    assert lines, f"no stdout envelope (a traceback escaped): {result.exception!r}"
+    envelope = json.loads(lines[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "STATUS_READ_PATH_NOT_FOUND"
+    assert envelope["data"]["mission_slug"] == _MISSION_SLUG
+    assert envelope["data"]["mid8"] == _MID8
+    assert envelope["data"]["primary_candidate"].endswith(f"kitty-specs/{_MISSION_SLUG}")
+    assert envelope["data"]["coord_candidate"].endswith(f"{_MISSION_SLUG}-coord/kitty-specs/{_MISSION_SLUG}")
+    assert result.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    ("command", "extra_args"),
+    [
+        ("open-decision", ["--origin", "charter", "--input-key", "k1", "--question", "q", "--step-id", "s1"]),
+        ("resolve-decision", ["--decision-id", "D1", "--final-answer", "a"]),
+        ("defer-decision", ["--decision-id", "D1", "--rationale", "r"]),
+        ("cancel-decision", ["--decision-id", "D1", "--rationale", "r"]),
+    ],
+)
+def test_decision_write_verbs_map_a_status_read_path_refusal(
+    command: str,
+    extra_args: list[str],
+) -> None:
+    """The four decision-write verbs keep the typed envelope (#5156).
+
+    They route through the shared resolution seam, so this is a regression pin on
+    the behaviour the issue asked for: a missing status path is a typed JSON
+    error, never ``MISSION_NOT_FOUND`` and never a traceback.
+    """
+    with patch.object(_common, "_resolve_mission_dir", side_effect=_status_read_path_refusal()):
+        result = runner.invoke(
+            app,
+            [command, "--mission", _MISSION_SLUG, "--actor", "test-actor", "--policy", _WP05_POLICY, *extra_args],
+            catch_exceptions=True,
+        )
+
+    lines = [line for line in result.output.strip().splitlines() if line.strip()]
+    assert lines, f"no stdout envelope (a traceback escaped): {result.exception!r}"
+    envelope = json.loads(lines[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "STATUS_READ_PATH_NOT_FOUND"
+    assert envelope["data"]["coord_candidate"]
+    assert envelope["data"]["primary_candidate"]
+    assert result.exit_code == 1
