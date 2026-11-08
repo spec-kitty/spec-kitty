@@ -1419,6 +1419,7 @@ pages:
     - {slug: "path-guard-implementation-note", text: "Path Guard Implementation Note", level: 2}
     - {slug: "related-decisions", text: "Related Decisions", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-30-preserved-failed-dirs-are-bounded-to-the-newest-three-6723", text: "Amendment 2026-10-30: preserved `.failed` dirs are bounded to the newest three (#6723)", level: 2}
   - path: "docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md"
     title: "CLI Auth Uses Browser-Mediated OAuth With Encrypted File-Only Session Storage"
     divio_type: "none"
