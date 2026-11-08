@@ -153,8 +153,8 @@ def _ensure_planning_artifacts_committed_git(
     # FR-061 (#7372): a default Mission's PRIMARY directory sits, until the landing, in the
     # checkout holding its topic branch (the coordination worktree), not in the repository
     # root checkout. Every git read and every staged path below is relative to that checkout.
-    checkout_root = coordination_planning_commit.planning_checkout_root(repo_root, artifact_source_dir, mission_slug)
-    current_branch = implement_support.git_stdout(checkout_root, ["rev-parse", "--abbrev-ref", "HEAD"])
+    staging_root = coordination_planning_commit.planning_checkout_root(repo_root, artifact_source_dir, mission_slug)
+    current_branch = implement_support.git_stdout(staging_root, ["rev-parse", "--abbrev-ref", "HEAD"])
 
     # Squad-B1 (#2464): fail closed on structural planning-artifact changes
     # BEFORE resolving the coordination-branch filter below (which can raise on
@@ -162,7 +162,7 @@ def _ensure_planning_artifacts_committed_git(
     # fault never preempts the tailored structural-refusal message under a
     # double fault (structural change present AND topology resolution raising).
     with _refuse_on_unreadable_planning_status(artifact_source_dir):
-        structural = implement_cores.detect_structural_planning_changes(checkout_root, artifact_source_dir)
+        structural = implement_cores.detect_structural_planning_changes(staging_root, artifact_source_dir)
     if structural:
         _print_structural_planning_refusal(structural)
         raise typer.Exit(1)
@@ -179,7 +179,7 @@ def _ensure_planning_artifacts_committed_git(
     # non-empty ``plan.structural`` into the fail-closed print+exit below and
     # an empty ``plan.files_to_commit`` into a silent no-op return, then does
     # the actual BookkeepingTransaction I/O.
-    extra_file_paths = coordination_planning_commit.feature_dir_file_paths(checkout_root, artifact_source_dir) if coord_branch_for_filter else []
+    extra_file_paths = coordination_planning_commit.feature_dir_file_paths(staging_root, artifact_source_dir) if coord_branch_for_filter else []
     # FIX-M2-08: no longer thread ``placement_ref.ref`` in as ``verbatim_ref``.
     # The "PR #2662 squad fix" this parameter implemented compared EVERY
     # candidate (PRIMARY and COORD-residue alike) against the coordination
@@ -207,7 +207,7 @@ def _ensure_planning_artifacts_committed_git(
     # INV-5 / #2533 / BLOCKER-2).
     with _refuse_on_unreadable_planning_status(artifact_source_dir):
         plan = implement_cores.resolve_planning_artifact_staging(
-            checkout_root,
+            staging_root,
             artifact_source_dir,
             coord_branch_for_filter,
             extra_file_paths,
@@ -218,7 +218,7 @@ def _ensure_planning_artifacts_committed_git(
     if not files_to_commit:
         return
 
-    _refuse_if_meta_json_demotion(checkout_root, artifact_source_dir, mission_slug, files_to_commit)
+    _refuse_if_meta_json_demotion(staging_root, artifact_source_dir, mission_slug, files_to_commit)
 
     if plan.status_paths_to_commit:
         _print_uncommitted_planning_artifacts(files_to_commit)
@@ -234,7 +234,7 @@ def _ensure_planning_artifacts_committed_git(
 
     _commit_planning_artifacts_transaction(
         repo_root=repo_root,
-        checkout_root=checkout_root,
+        staging_root=staging_root,
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         planning_branch=planning_branch,
@@ -247,7 +247,7 @@ def _ensure_planning_artifacts_committed_git(
 def _run_planning_artifact_commit(
     *,
     repo_root: Path,
-    checkout_root: Path | None = None,
+    staging_root: Path | None = None,
     mission_id: str,
     mission_slug: str,
     mid8: str,
@@ -281,7 +281,7 @@ def _run_planning_artifact_commit(
     changeset. Recovery is per-partition idempotent re-drive, NOT cross-ref
     atomicity.
 
-    ``checkout_root`` (#7372) is the checkout the staging read *files* from
+    ``staging_root`` (#7372) is the checkout the staging read *files* from
     (:func:`~specify_cli.coordination.planning_commit.planning_checkout_root`):
     the repository root checkout (the default, ``None``), or a default
     Mission's topic holder before its landing. The bytes are read there; the
@@ -303,7 +303,7 @@ def _run_planning_artifact_commit(
     ) as txn:
         for path_str in files:
             repo_path = Path(path_str)
-            source_path = ((checkout_root or repo_root) / repo_path).resolve()
+            source_path = ((staging_root or repo_root) / repo_path).resolve()
             if not source_path.exists():
                 continue
             txn.write_artifact(repo_path, source_path.read_bytes())
@@ -317,7 +317,7 @@ def _run_planning_artifact_commit(
 def _commit_planning_artifacts_transaction(
     *,
     repo_root: Path,
-    checkout_root: Path | None = None,
+    staging_root: Path | None = None,
     feature_dir: Path,
     mission_slug: str,
     planning_branch: str,
@@ -435,7 +435,7 @@ def _commit_planning_artifacts_transaction(
         if primary_files:
             _run_planning_artifact_commit(
                 repo_root=repo_root,
-                checkout_root=checkout_root,
+                staging_root=staging_root,
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
@@ -448,7 +448,7 @@ def _commit_planning_artifacts_transaction(
         if coord_files:
             _run_planning_artifact_commit(
                 repo_root=repo_root,
-                checkout_root=checkout_root,
+                staging_root=staging_root,
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
@@ -465,7 +465,7 @@ def _commit_planning_artifacts_transaction(
         # compare cannot silently diverge (#2650 / WP04).
         _run_planning_artifact_commit(
             repo_root=repo_root,
-            checkout_root=checkout_root,
+            staging_root=staging_root,
             mission_id=effective_mission_id,
             mission_slug=mission_slug,
             mid8=effective_mid8,
@@ -500,7 +500,7 @@ def _commit_planning_artifacts_transaction(
             # instead of redirecting it onto the coordination branch.
             _run_planning_artifact_commit(
                 repo_root=repo_root,
-                checkout_root=checkout_root,
+                staging_root=staging_root,
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
@@ -513,7 +513,7 @@ def _commit_planning_artifacts_transaction(
         if coord_files:
             _run_planning_artifact_commit(
                 repo_root=repo_root,
-                checkout_root=checkout_root,
+                staging_root=staging_root,
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,

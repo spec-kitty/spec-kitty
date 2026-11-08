@@ -16,6 +16,7 @@ checkout's ``src``), with no shim, no ``auto_commit: false``, no hand commit and
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import sys
@@ -75,14 +76,9 @@ def settled(tmp_path_factory: pytest.TempPathFactory) -> Iterator[DefaultMission
     import specify_cli.status.emit as emit_module
 
     tmp_path = tmp_path_factory.mktemp("default-claim")
-    cwd = Path.cwd()
-    os.chdir(Path(__file__).resolve().parents[2])
-    try:
-        with patch.object(emit_module, "_status_fan_out", lambda *a, **k: None):
-            mission = make_default_mission(tmp_path, THREE_LANES, standing_on=_TARGET)
-            code, payload = run_finalize(mission)
-    finally:
-        os.chdir(cwd)
+    with contextlib.chdir(Path(__file__).resolve().parents[2]), patch.object(emit_module, "_status_fan_out", lambda *a, **k: None):
+        mission = make_default_mission(tmp_path, THREE_LANES, standing_on=_TARGET)
+        code, payload = run_finalize(mission)
     assert code == 0, payload
     decision = payload["topology_decision"]
     assert isinstance(decision, dict) and decision["settled_topology"] == "lanes_with_coord"
