@@ -263,6 +263,9 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
         # reader but still makes path-typed reads, so it is not door-only yet.)
         "src/specify_cli/git/origin_freshness.py",
         "src/specify_cli/lanes/claim_base.py",
+        # #7433: the merged_at backfill and its terminal-WP evidence read the door only.
+        "src/specify_cli/migration/backfill_merged_at.py",
+        "src/specify_cli/status/landing_evidence.py",
     }
 )
 

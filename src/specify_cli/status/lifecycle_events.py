@@ -229,12 +229,22 @@ def _read_lifecycle_lines(path: Path) -> list[dict[str, Any]]:
     """
     if not path.exists():
         return []
-    out: list[dict[str, Any]] = []
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
         logger.debug("Could not read lifecycle log %s: %s", path, exc)
         return []
+    return lifecycle_events_from_text(text)
+
+
+def lifecycle_events_from_text(text: str) -> list[dict[str, Any]]:
+    """Lifecycle event dicts from raw ``status.events.jsonl`` text (same rules as the file reader).
+
+    For a reader that already holds the log text from the status read door (ADR
+    ``2026-11-06-2``) and must not re-open a path. Blank and non-JSON lines are skipped;
+    only entries with a top-level string ``event_type`` are returned.
+    """
+    out: list[dict[str, Any]] = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -242,7 +252,7 @@ def _read_lifecycle_lines(path: Path) -> list[dict[str, Any]]:
         try:
             obj = json.loads(line)
         except json.JSONDecodeError:
-            logger.debug("Skipping non-JSON lifecycle line in %s", path)
+            logger.debug("Skipping non-JSON lifecycle line")
             continue
         if isinstance(obj, dict) and isinstance(obj.get("event_type"), str):
             out.append(obj)
@@ -1193,5 +1203,6 @@ __all__ = [
     "emit_mission_reopened",
     "emit_follow_up_recorded",
     "read_lifecycle_events",
+    "lifecycle_events_from_text",
     "has_non_bootstrap_status_history",
 ]
