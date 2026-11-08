@@ -555,8 +555,9 @@ def _unreachable_remedy(verdict: FreshnessVerdict) -> list[str]:
             _RERUN_LINE,
         ]
     askpass_line = (
-        f"  These contacts run without GIT_ASKPASS or SSH_ASKPASS. If your CI authenticates through an askpass helper, "
-        f"set {ORIGIN_CHECK_ENV}=warn (or --origin-check warn)."
+        "  spec-kitty clears GIT_ASKPASS and SSH_ASKPASS for every remote contact. If your CI authenticates "
+        "through an askpass helper, configure a non-interactive credential.helper (or http.extraHeader) instead; "
+        f"{ORIGIN_CHECK_ENV}=warn (or --origin-check warn) is only a fallback, and relaxes just these origin-freshness gates."
     )
     return [f"  Check network access and credentials for remote {verdict.remote}.", askpass_line, off_line, _RERUN_LINE]
 
