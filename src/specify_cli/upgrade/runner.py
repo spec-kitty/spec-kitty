@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import platform
 import sys
@@ -18,25 +17,27 @@ from rich.console import Console
 from kernel.git import GitCommandError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError, resolve_canonical_repo_root
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
-from specify_cli.context.mission_resolver import residue_notice_path
 from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
 from . import autocommit
-from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
 from .ledger import SETTLED_RESULT, SKIPPED_RESULT, MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError, legacy_upgrade_scope
-from .registry import MigrationRegistry, migration_settled, migration_settled_in_view
-from .worktree_selection import (
-    DispositionAction,
-    WorktreeOutcome,
-    WorktreeRunResult,
-    WorktreeSelection,
-    initial_results,
-    worktree_dispositions,
+from .registry import MigrationRegistry
+from .worktree_pass import (
+    WorktreePass,
+    WorktreePassContext,
+    WorktreePassHooks,
+    WorktreePassReport,
+    WorktreeRun,
+    append_warnings,
+    metadata_bytes,
+    plan_worktree_pass,
+    skip_as_applied,
 )
+from .worktree_selection import WorktreeOutcome, WorktreeRunResult, WorktreeSelection
 
 logger = logging.getLogger(__name__)
 
@@ -170,24 +171,6 @@ def validate_upgrade_target(from_version: str, target_version: str) -> str | Non
     return None
 
 
-def _append_warnings(target: list[str], new: list[str], *, notice_root: Path, seen: set[Path]) -> None:
-    """Append *new* to *target*, naming each residue folder at most once per run (#6669, FR-008).
-
-    A residue notice is keyed on the resolved folder it names under
-    *notice_root*, the checkout the notice's path is relative to; the first
-    line seen for a folder is kept and later ones are dropped. Every other
-    warning is appended unchanged, in order.
-    """
-    for line in new:
-        rel_path = residue_notice_path(line)
-        if rel_path is not None:
-            key = (notice_root / rel_path).resolve()
-            if key in seen:
-                continue
-            seen.add(key)
-        target.append(line)
-
-
 #: The no-commit reason for a worktree whose upgrade changes were all already uncommitted
 #: before the run: the commit-set excludes pre-run dirty paths, so nothing is left to commit.
 PRE_DIRTY_NOT_COMMITTED_WARNING = "The upgrade changed only files that were already uncommitted before the run, so nothing was committed — commit them yourself."
@@ -237,11 +220,6 @@ def _commit_worktree_churn(
     return warnings, committed
 
 
-def _metadata_bytes(kittify_dir: Path) -> bytes | None:
-    path = kittify_dir / "metadata.yaml"
-    return path.read_bytes() if path.is_file() else None
-
-
 def _worktree_outcome(*, failed: bool, wrote: bool, committed: bool) -> WorktreeOutcome:
     """What one selected worktree's real (not dry) run amounted to (FR-009)."""
     if failed:
@@ -253,16 +231,22 @@ def _worktree_outcome(*, failed: bool, wrote: bool, committed: bool) -> Worktree
     return WorktreeOutcome.NOTHING_TO_UPGRADE
 
 
-def _skip_as_applied(ledger: MigrationLedger, migration: BaseMigration, project_path: Path) -> bool:
-    """True when the runner may skip *migration* as already applied.
+def _absorb_worktree_pass(result: UpgradeResult, worktrees_result: Mapping[str, Any]) -> None:
+    """Fold the worktree pass's report into the run's result.
 
-    The ledger record settles it, the registry's selection-view predicate agrees
-    (it adds a residue-safe successor's predecessor outcome, #6688, so selection
-    and this apply-time skip cannot disagree), and no structural reselection
-    (#6613) overrides. The cheap record check runs first so the selection view is
-    only built for a recorded migration.
+    The generic ``errors``/``warnings`` channel is observability only and never
+    flips the exit code by itself. The SAME failure lines are also recorded in
+    ``worktree_failures``, and THAT channel is fatal: FR-012 /
+    ``UpgradeOutcome.effective_success`` treats a non-empty ``worktree_failures``
+    as a real failure and exits 1, so a broken worktree is never reported as
+    ``success: true`` (#3392).
     """
-    return migration_settled(ledger, migration) and migration_settled_in_view(project_path, migration) and not migration.reselect_when_recorded(project_path)
+    result.worktree_results = list(worktrees_result.get("worktree_results", []))
+    result.warnings.extend(worktrees_result.get("warnings", []))
+    if worktrees_result.get("errors"):
+        result.errors.extend(worktrees_result["errors"])
+        result.warnings.append("Some worktrees had issues - check errors above")
+    result.worktree_failures.extend(worktrees_result.get("worktree_failures", []))
 
 
 class MigrationRunner:
@@ -364,30 +348,11 @@ class MigrationRunner:
         )
 
         if not migrations:
-            # Still update version stamp even when no migrations needed
-            metadata = ProjectMetadata.load(self.kittify_dir)
-            if metadata and not dry_run and metadata.version != target_version:
-                metadata.version = target_version
-                metadata.last_upgraded_at = now_utc()
-                metadata.save(self.kittify_dir)
-            # Why: even when no schema-changing migrations are needed (e.g. an
-            # idempotent 3.2.0a4 -> 3.2.0a4 re-run on a legacy project), the
-            # schema_version stamp must still land so the gate does not block
-            # the next agent command. Stamp after save(): a legacy in-memory
-            # model has schema_version None, and the stamp also settles the
-            # canonical capability map (#5229).
-            # See FR-002 / #705.
-            if not dry_run and REQUIRED_SCHEMA_VERSION is not None:
-                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
-
+            if not dry_run:
+                self._stamp_no_migrations_metadata(target_version)
             if include_worktrees and from_version == target_version:
                 worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run, auto_commit=auto_commit, worktree_selection=worktree_selection)
-                result.worktree_results = list(worktrees_result.get("worktree_results", []))
-                result.warnings.extend(worktrees_result.get("warnings", []))
-                if worktrees_result.get("errors"):
-                    result.errors.extend(worktrees_result["errors"])
-                    result.warnings.append("Some worktrees had issues - check errors above")
-                result.worktree_failures.extend(worktrees_result.get("worktree_failures", []))
+                _absorb_worktree_pass(result, worktrees_result)
 
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
@@ -418,7 +383,7 @@ class MigrationRunner:
         # Apply each migration to main project
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
-            _append_warnings(result.warnings, migration_result.warnings, notice_root=self.project_path, seen=self._seen_residue)
+            append_warnings(result.warnings, migration_result.warnings, notice_root=self.project_path, seen=self._seen_residue)
             # Preserve each migration's structured payload so the CLI --json
             # layer can surface schema-shaped reports (Finding 2 / review
             # cycle 1). We record applied and skipped results alike so
@@ -448,23 +413,26 @@ class MigrationRunner:
         # Handle worktrees
         if include_worktrees:
             worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run, auto_commit=auto_commit, worktree_selection=worktree_selection)
-            result.worktree_results = list(worktrees_result.get("worktree_results", []))
-            result.warnings.extend(worktrees_result.get("warnings", []))
-            if worktrees_result.get("errors"):
-                result.errors.extend(worktrees_result["errors"])
-                # This generic `errors`/`warnings` channel is observability-only
-                # and never flips the exit code by itself. The SAME failure
-                # messages (populated together at lines ~443-445 above, in
-                # `_upgrade_worktrees`) are also recorded below into
-                # `worktree_failures` — THAT channel is fatal: FR-012 /
-                # `UpgradeOutcome.effective_success` treats a non-empty
-                # `worktree_failures` as a real failure and flips the exit
-                # code to 1, so a broken worktree is never silently reported
-                # as `success: true` (#3392).
-                result.warnings.append("Some worktrees had issues - check errors above")
-            result.worktree_failures.extend(worktrees_result.get("worktree_failures", []))
+            _absorb_worktree_pass(result, worktrees_result)
 
         return result
+
+    def _stamp_no_migrations_metadata(self, target_version: str) -> None:
+        """Advance the version and the schema stamp when no migration is pending (real runs only)."""
+        metadata = ProjectMetadata.load(self.kittify_dir)
+        if metadata and metadata.version != target_version:
+            metadata.version = target_version
+            metadata.last_upgraded_at = now_utc()
+            metadata.save(self.kittify_dir)
+        # Why: even when no schema-changing migrations are needed (e.g. an
+        # idempotent 3.2.0a4 -> 3.2.0a4 re-run on a legacy project), the
+        # schema_version stamp must still land so the gate does not block
+        # the next agent command. Stamp after save(): a legacy in-memory
+        # model has schema_version None, and the stamp also settles the
+        # canonical capability map (#5229).
+        # See FR-002 / #705.
+        if REQUIRED_SCHEMA_VERSION is not None:
+            self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
 
     def upgrade_worktrees_only(
         self,
@@ -538,7 +506,7 @@ class MigrationRunner:
         # authority. A drifted source never changes this: a recorded migration
         # stays recorded whatever its content now hashes to (C-004).
         ledger = MigrationLedger(self.project_path)
-        if _skip_as_applied(ledger, migration, self.project_path):
+        if skip_as_applied(ledger, migration, self.project_path):
             return (
                 MigrationResult(
                     success=True,
@@ -810,245 +778,55 @@ class MigrationRunner:
             what this pass did there (skipped, upgraded and committed, upgraded
             but not committed, nothing to upgrade, failed; FR-009).
         """
-        result: dict[str, Any] = {"warnings": [], "errors": [], "worktree_failures": [], "worktree_results": []}
-        worktree_migrations = [migration for migration in migrations if migration.runs_on_worktrees]
+        plan = plan_worktree_pass(self.project_path / WORKTREES_DIR, migrations, worktree_selection)
+        if not plan.targets:
+            # Computed before any write, so the output names every worktree (FR-009).
+            return WorktreePassReport(worktree_results=list(plan.results.values())).as_dict()
+        context = WorktreePassContext(
+            target_version=target_version,
+            dry_run=dry_run,
+            auto_commit=auto_commit,
+            # Loaded once, up front: the main checkout's already-settled
+            # ``last_upgraded_at`` is the shared stamp a bookkeeping-only worktree
+            # version bump aligns to (#4972). Read fresh here, so it reflects what
+            # this run already saved (``_finalize_main_metadata`` /
+            # ``_stamp_no_migrations_metadata`` run before any caller gets here).
+            main_metadata=ProjectMetadata.load(self.kittify_dir) if not dry_run else None,
+            # Minted ONCE per pass, never per worktree: the shared fallback when main
+            # has no stamp of its own, so sibling worktrees never diverge (#4972).
+            fallback_timestamp=now_utc(),
+        )
+        hooks = WorktreePassHooks(
+            record=self._record_migration_result,
+            synthesize_metadata=self._synthesize_worktree_metadata,
+            settle=self._settle_worktree,
+        )
+        return WorktreePass(context, hooks, seen_residue=self._seen_residue).run(plan).as_dict()
 
-        # Computed before any early return, so the output names every worktree (FR-009).
-        dispositions = worktree_dispositions(self.project_path / WORKTREES_DIR, worktree_selection or WorktreeSelection.none())
-        results = initial_results(dispositions)
-        result["worktree_results"] = list(results.values())
-        selected = [d.path for d in dispositions if d.action is DispositionAction.UPGRADE]
-        if not selected or (migrations and not worktree_migrations):
-            return result
+    def _synthesize_worktree_metadata(self, worktree: Path) -> ProjectMetadata:
+        """Metadata for a worktree that has none, at the version detected there (#1857)."""
+        return self._create_initial_metadata(VersionDetector(worktree).detect_version())
 
-        # Loaded once, up front: the main checkout's already-settled
-        # ``last_upgraded_at`` is the shared stamp a bookkeeping-only
-        # worktree version bump must align to (#4972) -- see
-        # ``_reconcile_worktree_bookkeeping`` below. Reading it fresh here
-        # (rather than threading an already-loaded object through all three
-        # callers) picks up whatever this same command run already wrote to
-        # main's metadata.yaml (``_finalize_main_metadata`` /
-        # ``_stamp_no_migrations_metadata`` both run and save before any
-        # caller reaches ``_upgrade_worktrees``).
-        main_metadata = ProjectMetadata.load(self.kittify_dir) if not dry_run else None
-
-        # Minted ONCE here, before the worktree loop: the shared fallback a
-        # bookkeeping-only worktree bump aligns to when main itself has no
-        # already-stamped value to align to (#4972). ``_aligned_worktree_timestamp``
-        # is called PER-WORKTREE below; a fresh ``now_utc()`` mint at that call
-        # site would give each sibling worktree in this same run a DIFFERENT
-        # fallback value, reproducing the exact main/coord/lane divergence
-        # this reconciliation path exists to prevent.
-        fallback_timestamp = now_utc()
-
-        # Name order; Mission worktrees (#5457) and unselected ones (#7173) are skipped.
-        for worktree in selected:
-            wt_kittify = worktree / KITTIFY_DIR
-            has_upgradeable_state = wt_kittify.exists() or (
-                bool(worktree_migrations) and ((worktree / KITTY_SPECS_DIR).exists() or (worktree / ".specify").exists())
-            )
-            if not has_upgradeable_state:
-                continue
-
-            # Baseline BEFORE any write to this worktree, so the auto-commit
-            # below stages only the churn this upgrade run introduces (#2385).
-            wt_baseline = capture_upgrade_baseline(worktree) if auto_commit and not dry_run else None
-            metadata_before = _metadata_bytes(wt_kittify)
-            # A migration that reported a change here (#7173: the output names what was written).
-            worktree_migrated = False
-
-            # Load or create worktree metadata
-            wt_metadata = ProjectMetadata.load(wt_kittify)
-            wt_metadata_synthesized = wt_metadata is None
-            if wt_metadata is None:
-                wt_detector = VersionDetector(worktree)
-                wt_version = wt_detector.detect_version()
-                wt_metadata = self._create_initial_metadata(wt_version)
-            wt_from_version = wt_metadata.version
-
-            # Freshly synthesized metadata must be persisted even when the
-            # detected version already equals the target — otherwise the
-            # version-bump below never fires, the save is skipped, and the
-            # self-healing path silently regresses (#1873, regression of #1857).
-            worktree_metadata_dirty = wt_metadata_synthesized
-            # Marker-less command files a migration preserved in THIS worktree: named in the
-            # output, never committed (they are not written by the run), and they do not
-            # suppress the commit of everything else (#5443).
-            worktree_held: set[str] = set()
-            # A migration that could not be evaluated or raised in this worktree: nothing is
-            # committed there, but (unlike ``worktree_failed``) the schema-stamp rules are unchanged.
-            worktree_errored = False
-            # FR-009 (#3376): a NEW per-worktree flag distinct from
-            # ``worktree_metadata_dirty``/``worktree_held`` above --
-            # the loop previously tracked no success/failure boolean at all.
-            # Sticky for the remainder of this worktree's migrations: once any
-            # migration fails here, the schema_version stamp below must stay
-            # suppressed even if a later migration in the same worktree
-            # succeeds. This is a guard (leave whatever is present on disk),
-            # not a restore -- no per-worktree pre-run schema is captured.
-            worktree_failed = False
-
-            # Apply migrations to worktree
-            wt_ledger = MigrationLedger(worktree)
-            for migration in worktree_migrations:
-                if _skip_as_applied(wt_ledger, migration, worktree):
-                    continue
-
-                # Same fail-closed handling as the main checkout in
-                # _apply_migration: a symlinked ignore file makes detect()
-                # raise GitignorePathError rather than follow it. Record it
-                # as a failure, not a skip -- a "skip" record would be
-                # indistinguishable from "not applicable" and could read as
-                # settled, when the migration was never actually evaluated.
-                try:
-                    migration_needed = migration.detect(worktree)
-                except (GitCommandError, GitignorePathError, MigrationStateUnreadableError) as exc:
-                    worktree_errored = True
-                    # Fatal like a failed apply(): a migration that was never evaluated is not a success (#5746).
-                    # A git probe failure (e.g. a timeout) is the same retryable failure as on main (#6669).
-                    reason = f"git failed ({exc})" if isinstance(exc, GitCommandError) else str(exc)
-                    error_message = f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {reason}"
-                    result["errors"].append(error_message)
-                    result["worktree_failures"].append(error_message)
-                    if not dry_run and self._record_migration_result(
-                        wt_metadata,
-                        worktree,
-                        migration,
-                        "failed",
-                        f"Cannot safely detect: {reason}",
-                    ):
-                        worktree_metadata_dirty = True
-                    continue
-
-                if not migration_needed:
-                    # Only mark dirty when a NEW record was written; an
-                    # already-recorded "skipped" migration is a no-op and must
-                    # not bump last_upgraded_at on every re-run (issue #1872).
-                    if not dry_run and self._record_migration_result(
-                        wt_metadata,
-                        worktree,
-                        migration,
-                        "skipped",
-                        "Not applicable",
-                    ):
-                        worktree_metadata_dirty = True
-                    continue
-
-                can_apply, reason = migration.can_apply(worktree)
-                if not can_apply:
-                    result["warnings"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {reason}")
-                    continue
-
-                try:
-                    migration_result = migration.apply(worktree, dry_run=dry_run)
-                except GitCommandError as exc:
-                    # As on main (#6669): apply() may already have written, so a recorded failed apply, never a crash.
-                    migration_result = MigrationResult(
-                        success=False,
-                        errors=[f"Cannot apply {migration.migration_id}: git failed ({exc})"],
-                    )
-                except (GitignorePathError, MigrationStateUnreadableError) as exc:
-                    worktree_errored = True
-                    error_message = f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"
-                    result["errors"].append(error_message)
-                    result["worktree_failures"].append(error_message)
-                    continue
-                if migration_result.manual_review_required:
-                    worktree_held.update(migration_result.preserved_paths)
-
-                if migration_result.success:
-                    worktree_migrated = worktree_migrated or bool(migration_result.changes_made)
-                    if not dry_run and self._record_migration_result(
-                        wt_metadata,
-                        worktree,
-                        migration,
-                        "success",
-                        "; ".join(migration_result.changes_made) if migration_result.changes_made else None,
-                    ):
-                        worktree_metadata_dirty = True
-                    _append_warnings(
-                        result["warnings"],
-                        [f"Worktree {worktree.name}: {w}" for w in migration_result.warnings],
-                        notice_root=worktree,
-                        seen=self._seen_residue,
-                    )
-                else:
-                    if not dry_run:
-                        self._record_migration_result(
-                            wt_metadata,
-                            worktree,
-                            migration,
-                            "failed",
-                            "; ".join(migration_result.errors) if migration_result.errors else None,
-                        )
-                        # Intentionally not marking worktree_metadata_dirty: a
-                        # failed migration is not an upgrade, so it must not
-                        # bump last_upgraded_at. The failure record itself is
-                        # already persisted by _record_migration_result.
-                    worktree_failed = True
-                    # A failure that gave no error of its own still needs one line, or no failure is recorded (#5746).
-                    failure_messages = [f"Worktree {worktree.name}: {e}" for e in migration_result.errors] or [
-                        f"Worktree {worktree.name}: Migration {migration.migration_id} failed"
-                    ]
-                    result["errors"].extend(failure_messages)
-                    result["worktree_failures"].extend(failure_messages)
-
-            if dry_run:
-                # A dry run writes nothing, so the selected worktree keeps its initial outcome.
-                continue
-            commit_warnings, outcome = self._settle_worktree(
-                worktree,
-                wt_metadata,
-                target_version=target_version,
-                metadata_dirty=worktree_metadata_dirty,
-                main_metadata=main_metadata,
-                fallback_timestamp=fallback_timestamp,
-                failed=worktree_failed,
-                errored=worktree_errored,
-                auto_commit=auto_commit,
-                baseline=wt_baseline,
-                from_version=wt_from_version,
-                held_paths=sorted(worktree_held),
-                wrote=worktree_migrated or _metadata_bytes(wt_kittify) != metadata_before,
-            )
-            result["warnings"].extend(commit_warnings)
-            results[worktree] = WorktreeRunResult(disposition=results[worktree].disposition, outcome=outcome)
-
-        result["worktree_results"] = list(results.values())
-        return result
-
-    def _settle_worktree(
-        self,
-        worktree: Path,
-        wt_metadata: ProjectMetadata,
-        *,
-        target_version: str,
-        metadata_dirty: bool,
-        main_metadata: ProjectMetadata | None,
-        fallback_timestamp: datetime,
-        failed: bool,
-        errored: bool,
-        auto_commit: bool,
-        baseline: set[str] | None,
-        from_version: str,
-        held_paths: list[str],
-        wrote: bool,
-    ) -> tuple[list[str], WorktreeOutcome]:
+    def _settle_worktree(self, run: WorktreeRun, context: WorktreePassContext) -> tuple[list[str], WorktreeOutcome]:
         """Save, stamp and (when enabled) commit one upgraded worktree; return its
         commit warnings and what the run amounted to there (FR-009).
 
-        ``wrote`` is whether a migration reported a change before this step; a
-        metadata or schema-stamp write made here also counts.
+        What the run wrote before this step (a reported change, or a metadata
+        write) counts as written; a metadata or schema-stamp write made here
+        also counts.
         """
-        wt_kittify = worktree / KITTIFY_DIR
-        before = _metadata_bytes(wt_kittify)
+        wrote = run.wrote()
+        wt_kittify = run.kittify_dir
+        before = metadata_bytes(wt_kittify)
         # Save worktree metadata only when something material changed
         # (a migration record was written, metadata was synthesized fresh,
         # or the version advanced); a no-op upgrade must not rewrite
         # last_upgraded_at (issue #1838).
-        metadata_dirty = self._reconcile_worktree_bookkeeping(wt_metadata, target_version, metadata_dirty, main_metadata, fallback_timestamp)
+        metadata_dirty = self._reconcile_worktree_bookkeeping(
+            run.metadata, context.target_version, run.metadata_dirty, context.main_metadata, context.fallback_timestamp
+        )
         if metadata_dirty:
-            wt_metadata.save(wt_kittify)
+            run.metadata.save(wt_kittify)
         # Stamp after save() just like the main project path: the
         # model's schema_version may be None, and the stamp settles
         # the canonical capability map (#5229).
@@ -1056,26 +834,28 @@ class MigrationRunner:
         # any failed migration must not have schema_version advanced.
         # Leave whatever value is already present (no pre-run capture
         # exists for worktrees, unlike the main path's restore).
-        if REQUIRED_SCHEMA_VERSION is not None and not failed:
+        if REQUIRED_SCHEMA_VERSION is not None and not run.failed:
             self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
-        wrote = wrote or _metadata_bytes(wt_kittify) != before
+        wrote = wrote or metadata_bytes(wt_kittify) != before
 
         # Commit this worktree's upgrade churn on its own branch (#2385) under the
         # same rules as the main checkout: only a successful run commits, held files
         # are named and never block the rest, and one explicit reason per no-commit case.
+        failed = run.failed or run.errored
+        held_paths = sorted(run.held)
         warnings: list[str] = []
         committed = False
-        if auto_commit:
+        if context.auto_commit:
             warnings, committed = _commit_worktree_churn(
-                worktree,
-                baseline=baseline,
-                from_version=from_version,
-                to_version=target_version,
-                failed=failed or errored,
+                run.worktree,
+                baseline=run.baseline,
+                from_version=run.from_version,
+                to_version=context.target_version,
+                failed=failed,
                 held_paths=held_paths,
                 wrote=wrote,
             )
-        return warnings, _worktree_outcome(failed=failed or errored, wrote=wrote or bool(held_paths), committed=committed)
+        return warnings, _worktree_outcome(failed=failed, wrote=wrote or bool(held_paths), committed=committed)
 
     @staticmethod
     def _reconcile_worktree_bookkeeping(
