@@ -111,7 +111,8 @@ def _parse_conclusions(raw: str) -> dict[str, str]:
     """Parse ``name<TAB>conclusion`` rows (the jobs-API output) into a mapping.
 
     The terminal gate's own job is dropped (its conclusion is null while it
-    runs), and so is every :data:`ADVISORY_JOB_NAMES` row (it does not gate yet);
+    runs), and so is every :data:`ADVISORY_JOB_NAMES` row (an advisory job is reported
+    but never gates; the set is currently empty, so no row is skipped this way);
     a row without a conclusion is recorded as incomplete, which blocks.
     """
     conclusions: dict[str, str] = {}
