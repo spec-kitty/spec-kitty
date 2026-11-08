@@ -76,10 +76,6 @@ named.
   it must stay a byte-identical no-op on an already-migrated file, and no core reader uses
   the key for ordering. A future Lamport-primary reader (#6609) has to decide what an
   already-stamped `0` means; #6414 does not.
-- The TeamSpace dry-run envelope keeps a required `int` for `lamport_clock` because it
-  must emit the 5.0.0 replay envelope, and its builder always synthesizes the value. It is
-  a local shadow model by design (it carries `aggregate_type` / `repo_slug`, which the wire
-  `Event` does not), so it is not evidence that core "reads the clock as an int".
 
 ## Keeping this page honest
 

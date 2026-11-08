@@ -91,12 +91,16 @@ Runtime and decision side logs are launch-local evidence. They are not treated a
 
 ## Cross-Repo Rehearsal
 
-The launch rehearsal for historical mission-state import was encoded in
-`tests/migration/test_teamspace_migration_rehearsal.py` (removed with the
-hosted teamspace surface, #7389). It created two
-independent clones of the same historical fixture repository, ran repair on
-both, verified byte-identical local migration diffs, and reran repair to prove
-idempotency.
+The repair rehearsal is encoded in
+`tests/migration/test_mission_state_repair_rehearsal.py` (renamed from
+`test_teamspace_migration_rehearsal.py` when the hosted teamspace dry-run was
+removed, #7389). It creates two independent clones of the same historical
+fixture repository, runs repair on both, verifies byte-identical local
+migration diffs, and reruns repair to prove idempotency:
+
+```bash
+uv run --frozen pytest tests/migration/test_mission_state_repair_rehearsal.py -q
+```
 
 The SaaS import/idempotency side lived in `spec-kitty-saas` and validated
 canonical historical preflight, import deduplication, no persistence for
@@ -116,11 +120,11 @@ Use this rollout order for public TeamSpace launch:
 4. Phase 3: validate the repaired import shape against SaaS dev without
    uploading raw historical rows (the former `--teamspace-dry-run` flag was
    removed with the hosted teamspace surface, #7389).
-5. Phase 4: enable the explicit TeamSpace import/sync path only after audit
-   and dry-run pass. Keep the GitHub readiness gate opt-in for repositories
+5. Phase 4: enable the explicit TeamSpace import/sync path only after the audit
+   and the repair rehearsal pass. Keep the GitHub readiness gate opt-in for repositories
    that want CI enforcement.
 6. Phase 5: publish public launch documentation after the internal repair
-   window and dry-run evidence are complete.
+   window and rehearsal evidence are complete.
 
 No public user should be forced through an untested repo-wide rewrite. Local
 CLI workflows continue to tolerate legacy missions where safe; TeamSpace
