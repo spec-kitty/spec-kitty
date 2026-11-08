@@ -88,9 +88,10 @@ SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 #: FR-013: setup-plan refuses a spec.md that declares a malformed
-#: kind-prefixed requirement ID in a declared position (WP05).
+#: kind-prefixed requirement ID in a declared position (WP05), or declares
+#: the same ID twice (#5674).
 SPEC_REQUIREMENT_IDS_INVALID = "SPEC_REQUIREMENT_IDS_INVALID"
-SPEC_REQUIREMENT_IDS_INVALID_MESSAGE = "spec.md declares requirement IDs that do not match the requirement-ID grammar"
+SPEC_REQUIREMENT_IDS_INVALID_MESSAGE = "spec.md declares requirement IDs that are malformed or declared more than once"
 
 
 # ---------------------------------------------------------------------------
@@ -519,12 +520,13 @@ def _evaluate_spec_gate(
 
 def _requirement_id_gate_remediation() -> list[str]:
     """FR-013's remediation list: the kind vocabulary, the suffix rule, the
-    foreign-citation form, and the resolution step -- never a kind
+    foreign-citation form, the #5674 one-declaration rule, and the resolution step -- never a kind
     alternation literal (C-001)."""
     return [
         "Use one of the recognised requirement-ID kinds: FR, NFR, C or SC.",
         "Write the letter suffix in lowercase (e.g. FR-006a, not FR-006A).",
         "To cite another mission's ID, write <mission-slug>#<ID> instead of declaring it here.",
+        "Declare each requirement ID once; renumber a repeated row.",
         "Commit spec.md and re-run setup-plan.",
     ]
 

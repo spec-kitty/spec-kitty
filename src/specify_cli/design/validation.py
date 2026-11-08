@@ -142,7 +142,7 @@ def _validate_source(repo_root: Path, mission_dir: Path, item: ArtifactInput) ->
     if not substantive:
         raise DesignError("DESIGN_PREREQUISITES_FAILED", "The authored source is still a placeholder scaffold")
     if kind == "spec" and lint_spec_requirement_ids(item.content, mission_type=get_mission_type(mission_dir)).blocking:
-        raise DesignError("DESIGN_PREREQUISITES_FAILED", "The specification declares invalid requirement identifiers")
+        raise DesignError("DESIGN_PREREQUISITES_FAILED", "The specification declares malformed or duplicate requirement identifiers")
 
 
 def _validate_prompt(item: ArtifactInput, manifest: WpsManifest | None) -> None:
