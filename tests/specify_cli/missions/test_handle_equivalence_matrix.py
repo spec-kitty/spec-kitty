@@ -502,6 +502,14 @@ def test_merge_dry_run_mission_slug_identical_across_handle_forms(
         merge_mod, "_resolve_target_branch", lambda *a, **kw: (_TARGET_BRANCH, "flag")
     )
     monkeypatch.setattr(merge_mod, "_validate_target_branch", lambda *a, **kw: None)
+    # The fixture records a Mission branch it never creates. Since #7426 the
+    # dry run refuses a missing Mission branch (MISSION_BRANCH_MISSING); stub
+    # that git read like the sibling dry-run tests, so this test keeps pinning
+    # only the mission_slug the preview composes.
+    monkeypatch.setattr(
+        "specify_cli.consolidation.forecast._check_mission_branch",
+        lambda *_a, **_k: (True, None),
+    )
 
     app = typer.Typer()
     app.command()(merge_mod.consolidate)
