@@ -396,6 +396,10 @@ def _patch_dry_run_git_boundaries(monkeypatch: pytest.MonkeyPatch, mission: Miss
         "specify_cli.cli.commands.consolidate._resolve_target_branch",
         lambda *a, **kw: ("main", "cli"),
     )
+    # The fake repository has no Mission branch; the dry run now refuses that like the
+    # real run (#7267, MISSION_BRANCH_MISSING). These tests are not about that refusal,
+    # so model the branch as present.
+    monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
 
 
 def _write_lanes_json(mission: MissionFixture) -> None:

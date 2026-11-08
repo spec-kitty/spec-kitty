@@ -33,6 +33,10 @@ def test_merge_dry_run_loads_lane_manifest(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("specify_cli.cli.commands.consolidate._enforce_git_preflight", lambda *_a, **_k: None)
     monkeypatch.setattr("specify_cli.consolidation.preflight.run_command", fake_run_command)
     monkeypatch.setattr("specify_cli.consolidation.resolve.run_command", fake_run_command)
+    # The fake repository has no Mission branch; the dry run now refuses that like the
+    # real run (#7267, MISSION_BRANCH_MISSING). This test is not about that refusal,
+    # so model the branch as present.
+    monkeypatch.setattr("specify_cli.consolidation.forecast._check_mission_branch", lambda *_a, **_k: (True, None))
 
     result = runner.invoke(cli_app, ["consolidate", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
 
