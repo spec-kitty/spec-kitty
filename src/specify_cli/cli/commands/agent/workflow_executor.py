@@ -2062,24 +2062,21 @@ def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normal
     if not dependents:
         return dependents_warning
 
-    # Load lanes from event log (lane is event-log-only).
-    # Status reads stay coord-aware (C-001).
+    # Load lanes from event log (lane is event-log-only), through the one status
+    # read door (ADR 2026-11-06-2, #7408).
     #
-    # The STATUS_STATE resolution lives INSIDE the best-effort guard on purpose.
-    # Under the DELETED coord-branch shape the kind-aware seam fails loud with
+    # The status resolution lives INSIDE the best-effort guard on purpose. Under
+    # the DELETED coord-branch shape the door fails loud with
     # ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass, hence
-    # an ``Exception`` subclass that the handler below catches) where the old
-    # kind-blind resolver could never raise. This helper only computes an
+    # an ``Exception`` subclass that the handler below catches), and an unreadable
+    # ref raises ``StatusSurfaceRefUnreadable``. This helper only computes an
     # advisory warning, so an unreadable status surface must degrade to "no
     # dependents' lanes known" — it must never abort ``agent workflow review``.
     try:
-        from specify_cli.status import read_events as rw_read_events
+        from specify_cli.status import read_status_events, resolve_status_read
         from specify_cli.status import reduce as rw_reduce
 
-        review_status_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.STATUS_STATE
-        )
-        rw_events = rw_read_events(review_status_dir)
+        rw_events = read_status_events(resolve_status_read(repo_root, mission_slug))
         rw_snapshot = rw_reduce(rw_events) if rw_events else None
         rw_lanes: dict[str, Lane] = {}
         if rw_snapshot:

@@ -35,13 +35,14 @@ from kernel.git.remote import (
     tracking_ref,
 )
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
-from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized
+from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists, ref_exists
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import LanesManifest
-from specify_cli.missions._read_path_resolver import mission_dir_aliases
-from specify_cli.status import StoreError, read_events, reduce
+from specify_cli.missions._read_path_resolver import StatusReadPathNotFound, mission_dir_aliases
+from specify_cli.status import StoreError, materialize_status, resolve_status_read
 
 __all__ = [
     "ORIGIN_CHECK_CHOICES",
@@ -379,11 +380,16 @@ _CANCELED_LANE = "canceled"
 
 
 def _canceled_wp_ids(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> frozenset[str]:
-    """WP ids whose reduced lane is ``canceled``, read only; unreadable status yields none (over-select, never under)."""
+    """WP ids whose reduced lane is ``canceled``, read only; unreadable status yields none (over-select, never under).
+
+    Reads the one status read door (ADR 2026-11-06-2, #7408): an unmaterialized coordination
+    worktree reads the committed coordination branch instead of refusing. A door refusal
+    (deleted coordination branch, unreadable ref or worktree registry) or a corrupt log
+    selects every code lane.
+    """
     try:
-        status_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
-        snapshot = reduce(read_events(status_dir))
-    except (OSError, StoreError, ValueError, CoordinationBranchDeleted, CoordinationWorktreeUnmaterialized):
+        snapshot = materialize_status(resolve_status_read(repo_root, mission_slug, owned=owned))
+    except (OSError, StoreError, ValueError, StatusReadPathNotFound, StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable):
         return frozenset()
     return frozenset(wp for wp, state in snapshot.work_packages.items() if isinstance(state, dict) and state.get("lane") == _CANCELED_LANE)
 
