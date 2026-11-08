@@ -69,7 +69,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude:claude-opus-5-5:reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -82,6 +82,7 @@
         "Ready for review: refusal precedence matrix pinned (8 tests); no production code changed"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/stijn/Documents/code/kitty/spec-kitty/.worktrees/consolidation-window-provenance-01M6Y84D-coord/kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP03-refusal-precedence-matrix/review-cycle-1.md",
         "reference": "review-cycle://consolidation-window-provenance-01M6Y84D/WP03-refusal-precedence-matrix/review-cycle-1.md",
@@ -89,13 +90,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 1369648,
-      "shell_pid_created_at": "1794176495.79",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T014": "done",
-        "T015": "done",
-        "T016": "done",
-        "T017": "done"
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned"
       }
     },
     "WP04": {

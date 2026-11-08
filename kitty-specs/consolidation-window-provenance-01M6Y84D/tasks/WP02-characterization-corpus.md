@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: feat/consolidation-window-provenance
 merge_target_branch: feat/consolidation-window-provenance
 branch_strategy: Planning artifacts for this mission were generated on feat/consolidation-window-provenance. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/consolidation-window-provenance unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-consolidation-window-provenance-01M6Y84D
+base_commit: 5611077b4e8917b3f40a3f83a1b8b1cc69b88861
+created_at: '2026-11-08T22:04:49.203196+00:00'
 subtasks:
 - T007
 - T008
