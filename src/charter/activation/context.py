@@ -427,6 +427,12 @@ def build_charter_context_include(
     """
     if scope is not None:
         repo_root = scope.root
+    if "," in selector:
+        # #3261: the comma form used to reach ``partition(":")`` with the whole
+        # tail as one id and fail as "No <kind> found for selector '<a>,<b>'",
+        # which never named the real problem. Refuse on the syntax instead; the
+        # CLI's repeatable ``--include`` is the multi-selector door.
+        raise ValueError("Expected a single --include selector; pass one <kind>:<id> per --include (repeat the flag for several).")
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()
     identifier = identifier.strip()
