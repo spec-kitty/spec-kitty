@@ -106,8 +106,10 @@ def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
     def _prefix(pattern: str) -> str:
         for suffix in ("/**", "/*", "**", "*"):
             if pattern.endswith(suffix):
-                return pattern[: -len(suffix)]
-        return pattern
+                return pattern[: -len(suffix)].rstrip("/")
+        # A directory entry written with a trailing slash (``docs/changelog/unreleased/``)
+        # names the same tree as its bare form; normalise it so the boundary check below holds.
+        return pattern.rstrip("/")
 
     prefix_a = _prefix(pattern_a)
     prefix_b = _prefix(pattern_b)

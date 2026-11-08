@@ -15,8 +15,8 @@ standing ``commit.co_author`` in ``.kittify/config.yaml``.
 
 The configured value is read through the same authority as the other
 ``.kittify/config.yaml`` behaviour keys (``review.test_command``,
-``review.test_timeout_seconds``): a safe YAML load of that one file, no new
-configuration surface. A missing file or a missing key means "no trailer", never
+``review.test_timeout_seconds``): a safe YAML load of that one file. It adds
+one optional key, ``commit.co_author``. A missing file or a missing key means "no trailer", never
 an error — the auto-commit in a consumer repository must keep behaving exactly as
 it did before this feature existed. A key that is present but unparseable is a
 defect and refuses the commit (the caller reports it as

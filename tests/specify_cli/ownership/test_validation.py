@@ -80,6 +80,26 @@ class TestValidateNoOverlap:
         errors = validate_no_overlap(manifests)
         assert errors == []
 
+    def test_trailing_slash_directory_entry_overlaps_a_file_inside_it(self) -> None:
+        """#6312 boundary: a directory entry written with a trailing slash
+        (``docs/changelog/unreleased/``, as real WP files use) still overlaps a
+        file inside that directory."""
+        manifests = {
+            "WP01": _manifest(owned=("docs/changelog/unreleased/",), surface="docs/changelog/unreleased/"),
+            "WP02": _manifest(owned=("docs/changelog/unreleased/7428.fixed.md",), surface="docs/changelog/unreleased/"),
+        }
+        errors = validate_no_overlap(manifests)
+        assert len(errors) == 1
+        assert "WP01" in errors[0] and "WP02" in errors[0]
+
+    def test_trailing_slash_does_not_reintroduce_sibling_prefix_overlap(self) -> None:
+        """``src/p1/`` and ``src/p10/`` stay disjoint after the trailing slash is normalised."""
+        manifests = {
+            "WP01": _manifest(owned=("src/p1/",), surface="src/p1/"),
+            "WP02": _manifest(owned=("src/p10/x.py",), surface="src/p10/"),
+        }
+        assert validate_no_overlap(manifests) == []
+
     def test_single_wp_no_overlap(self) -> None:
         manifests = {"WP01": _manifest()}
         errors = validate_no_overlap(manifests)
