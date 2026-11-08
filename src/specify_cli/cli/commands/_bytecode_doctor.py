@@ -53,6 +53,7 @@ _HEAL_HINT = "delete the flagged file(s) (or the whole __pycache__ dir); Python 
 
 _PYC_HEADER_SIZE = 16
 _HASH_BASED_FLAG = 0x1
+_CHECK_SOURCE_FLAG = 0x2
 
 
 @dataclass(frozen=True)
@@ -83,11 +84,15 @@ def _cache_header_is_trusted(source_path: Path, header: bytes) -> bool:
 
     Mirrors ``importlib._bootstrap_external`` cache validation: the magic
     number must match this interpreter, and (for a timestamp-based cache) the
-    recorded mtime/size must match the source file. A hash-based cache
-    (``flags & 1``) is treated as trusted here -- recomputing the source hash
-    duplicates work the import system already does -- and left to the body
-    check below. Anything the header check would already reject (bad magic,
-    stale timestamp/size, unreadable source) is not this check's concern:
+    recorded mtime/size must match the source file. A hash-based cache with
+    the check-source bit set (``py_compile``'s ``CHECKED_HASH``) is trusted
+    only when the recorded source hash still matches the source -- Python
+    revalidates that hash on every import and recompiles on mismatch, so a
+    stale checked-hash cache never bites. A hash-based cache *without* the
+    check-source bit (``UNCHECKED_HASH``) is trusted by Python
+    unconditionally, so it is trusted here too and left to the body check
+    below. Anything the header check would already reject (bad magic, stale
+    timestamp/size, unreadable source) is not this check's concern:
     Python recompiles from source on the next import, so it never bites.
     """
     if len(header) < _PYC_HEADER_SIZE:
@@ -95,6 +100,12 @@ def _cache_header_is_trusted(source_path: Path, header: bytes) -> bool:
     if header[0:4] != importlib.util.MAGIC_NUMBER:
         return False
     flags = struct.unpack("<I", header[4:8])[0]
+    if flags & _CHECK_SOURCE_FLAG:
+        try:
+            source_bytes = source_path.read_bytes()
+        except OSError:
+            return False
+        return header[8:16] == importlib.util.source_hash(source_bytes)
     if flags & _HASH_BASED_FLAG:
         return True
     try:
@@ -170,7 +181,7 @@ def _emit_unresolvable_root_error(*, json_output: bool) -> None:
     """Report the operational error when the installed package root cannot be resolved."""
     message = "could not resolve the installed specify_cli package root"
     if json_output:
-        payload = {
+        payload: dict[str, object] = {
             "error": message,
             "root": None,
             "findings": [],

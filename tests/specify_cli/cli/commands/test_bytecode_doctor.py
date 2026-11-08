@@ -209,6 +209,57 @@ class TestHashBasedCache:
         assert len(result.findings) == 1
         assert result.findings[0].pyc_path.endswith(".pyc")
 
+    def test_stale_checked_hash_with_corrupt_body_is_not_a_finding(self, fake_pkg: Path) -> None:
+        """#4531: a checked-hash cache over a *changed* source never bites.
+
+        ``py_compile.PycInvalidationMode.CHECKED_HASH`` records the source
+        hash and Python revalidates it on every import, recompiling on
+        mismatch -- so even a corrupt body in a stale checked-hash cache is
+        never used. Treating every hash-based header as trusted turned that
+        harmless cache into a false-positive finding.
+        """
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        _write_hash_based_pyc(source, pyc)
+        flags = struct.unpack("<I", pyc.read_bytes()[4:8])[0]
+        assert flags & 0x2  # sanity: CHECKED_HASH sets the check-source bit
+        source.write_text("VALUE = 1\nEXTRA = 2\n")  # source no longer matches the cached hash
+        data = pyc.read_bytes()
+        pyc.write_bytes(data[:16] + b"\x00" * 8)
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert result.findings == []
+
+    def test_checked_hash_with_missing_source_is_not_a_finding(self, fake_pkg: Path) -> None:
+        """A checked-hash cache whose source is gone cannot be validated -- and
+        Python cannot import the module either -- so never a finding (#4531)."""
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        _write_hash_based_pyc(source, pyc)
+        data = pyc.read_bytes()
+        pyc.write_bytes(data[:16] + b"\x00" * 8)
+        source.unlink()
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert result.findings == []
+
+    def test_corrupt_unchecked_hash_body_is_still_a_finding(self, fake_pkg: Path) -> None:
+        """An unchecked-hash cache is trusted by Python *unconditionally* -- it
+        never revalidates the hash -- so its body must still be checked (#4531)."""
+        source = fake_pkg / "__init__.py"
+        pyc = _init_pyc(fake_pkg)
+        _write_hash_based_pyc(source, pyc)
+        data = bytearray(pyc.read_bytes())
+        struct.pack_into("<I", data, 4, 0x1)  # clear the check-source bit -> UNCHECKED_HASH
+        pyc.write_bytes(bytes(data[:16]) + b"\x00" * 8)
+
+        result = _bytecode_doctor._scan_bytecode_cache(fake_pkg)
+
+        assert len(result.findings) == 1
+        assert result.findings[0].pyc_path.endswith(".pyc")
+
 
 # ---------------------------------------------------------------------------
 # Changed-source false-positive guard -- the docstring's core FP promise
