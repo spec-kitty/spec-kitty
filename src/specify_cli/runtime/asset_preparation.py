@@ -176,9 +176,27 @@ class TornReadError(ValueError):
         self.anchor = anchor
 
 
+def _normalized(path: Path) -> Path:
+    """Return *path* absolute and lexically normalized, with no filesystem read.
+
+    ``os.path.abspath`` collapses ``..``/``.`` segments (and anchors a relative
+    path at the cwd) without resolving symlinks, so an anchor keeps naming the
+    directory the caller spelled while satisfying ``OperationRoot``'s guard.
+    """
+    return Path(os.path.abspath(path))
+
+
 def global_asset_root(owner: str, paths: tuple[Path, ...]) -> OperationRoot:
-    """Choose a stable reporting anchor covering resolved global destinations."""
-    anchor = Path(os.path.commonpath((Path.home(), *paths))).parent
+    """Choose a stable reporting anchor covering resolved global destinations.
+
+    Every input is normalized first (#6176): ``os.path.commonpath`` collapses
+    neither a ``..`` segment nor a relative component, and ``OperationRoot``
+    requires an absolute normalized path. A ``$HOME`` spelled
+    ``/work/sub/../home`` (or a relative ``HOME``) is legitimate in CI jobs,
+    test harnesses and sandboxed agent sessions, so it must not turn the whole
+    CLI into a traceback.
+    """
+    anchor = Path(os.path.commonpath((_normalized(Path.home()), *(_normalized(path) for path in paths)))).parent
     return OperationRoot(owner, "global", anchor)
 
 
@@ -776,7 +794,7 @@ class _GlobalAssetPreparation:
             self.writes[effect.destination] = AssetWrite(effect, write.content)
 
     def finish(self, families: tuple[OwnerAssessment, ...]) -> OwnerAssessment:
-        anchor = Path(os.path.commonpath(tuple(self.anchors))) if self.anchors else Path.home().parent
+        anchor = Path(os.path.commonpath(tuple(self.anchors))) if self.anchors else _normalized(Path.home()).parent
         root = OperationRoot("global_assets", "global", anchor)
         diagnostics = tuple(d for family in families for d in family.diagnostics)
         dispositions = tuple(d for family in families for d in family.dispositions)
