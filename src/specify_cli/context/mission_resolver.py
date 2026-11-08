@@ -945,6 +945,58 @@ class FsMissionResolver:
         return _build_index(self._repo_root)
 
 
+class WalkOnceMissionResolver:
+    """Request-scoped :class:`~mission_runtime.MissionResolver` that walks ``kitty-specs/`` at most once.
+
+    Resolves exactly like :class:`FsMissionResolver` -- the exact-directory
+    short-circuit (:func:`_resolve_exact_directory`) first, then the priority
+    ladder (:func:`_resolve_from_index`) -- but memoizes the full walk
+    (:func:`_build_index`) for the lifetime of the instance, which the port
+    permits ("Instance-lifetime memoization is permitted", C-005). There is no
+    module or process-level cache: construct one per read-only request that
+    resolves many handles over a tree it does not change (e.g. the
+    cross-mission retrospective summary, #6788), and drop it with the request.
+    A Mission created after the first walk is not seen by that instance.
+
+    The root is anchored like every status read: a lane worktree root is
+    re-anchored to the main worktree root (``canonical_status_read_root``,
+    #6466), exactly as ``candidate_feature_dir_for_mission`` anchors the fresh
+    resolver it builds when none is passed, so a lane's fork-time copy of
+    ``kitty-specs/`` is never walked. The anchoring runs on first use, not at
+    construction, so an instance that is never asked anything never reads the
+    worktree registry (and never raises ``WorktreeRegistryUnavailable``).
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        self._requested_root = repo_root
+        self._anchored_root: Path | None = None
+        self._index: list[ResolvedMission] | None = None
+
+    def _root(self) -> Path:
+        if self._anchored_root is None:
+            # Late import: ``missions._read_path_resolver`` imports this module.
+            from specify_cli.missions._read_path_resolver import canonical_status_read_root
+
+            self._anchored_root = canonical_status_read_root(self._requested_root)
+        return self._anchored_root
+
+    def _walked(self) -> list[ResolvedMission]:
+        if self._index is None:
+            self._index = _build_index(self._root())
+        return self._index
+
+    def resolve(self, handle: str) -> ResolvedMission:
+        """Resolve ``handle`` as :meth:`FsMissionResolver.resolve` does, walking at most once per instance."""
+        exact = _resolve_exact_directory(self._root(), handle)
+        if exact is not None:
+            return exact
+        return _resolve_from_index(handle, self._walked())
+
+    def all_missions(self) -> list[ResolvedMission]:
+        """Return every identity-bearing mission from this instance's single walk."""
+        return list(self._walked())
+
+
 class FakeMissionResolver:
     """In-memory :class:`~mission_runtime.MissionResolver` stub.
 
@@ -1004,9 +1056,9 @@ def resolve_mission(
     active_resolver: MissionResolver = resolver or FsMissionResolver(repo_root)
     # The Protocol return type is the structural ResolvedMissionLike (D-Q2):
     # mission_runtime cannot reference this module's concrete ResolvedMission.
-    # Every MissionResolver implementation in this codebase (FsMissionResolver,
-    # FakeMissionResolver — the only two that exist) is constructed here and
-    # is known, by this module's own construction, to return ResolvedMission.
+    # Every MissionResolver implementation in this codebase is defined in this
+    # module and is known, by this module's own construction, to return
+    # ResolvedMission.
     return cast(ResolvedMission, active_resolver.resolve(handle))
 
 

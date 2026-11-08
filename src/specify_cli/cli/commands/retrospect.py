@@ -54,6 +54,7 @@ from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,
     MissionNotFoundError,
     ResolvedMission,
+    WalkOnceMissionResolver,
     resolve_mission,
 )
 from specify_cli.core.agent_config import get_auto_commit_default
@@ -1317,11 +1318,15 @@ def summary_cmd(  # noqa: C901
         _err_console.print(f"[red]Error:[/red] Invalid --filter value {filter_state!r}. Must be one of: {', '.join(sorted(valid_states))}")
         raise typer.Exit(1)
 
+    # #6788: one walk of kitty-specs/ for the whole command -- the summary and
+    # the per-mission table below share it; neither writes to the tree.
+    run_resolver = WalkOnceMissionResolver(resolved_project)
     try:
         snapshot = build_summary(
             project_path=resolved_project,
             since=since_date,
             limit_top_n=limit,
+            resolver=run_resolver,
         )
     except OSError as exc:
         _err_console.print(f"[red]Error:[/red] I/O error reading corpus: {exc}")
@@ -1348,7 +1353,7 @@ def summary_cmd(  # noqa: C901
         # topology-aware resolver for slugs whose dir name differs.
         feature_dir_for_classify: Path = mission_dir
         if mission_slug:
-            kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug)
+            kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug, resolver=run_resolver)
             if safe_is_dir(kitty_dir):
                 feature_dir_for_classify = kitty_dir
 
