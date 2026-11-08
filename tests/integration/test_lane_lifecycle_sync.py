@@ -13,7 +13,7 @@ from specify_cli.lanes.lifecycle_sync import (
     LaneAutoRebaseSyncError,
     sync_lane_after_coordination_commit,
 )
-from tests.lane_test_utils import write_single_lane_manifest
+from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -62,6 +62,25 @@ def _init_repo(tmp_path: Path, mission_slug: str) -> tuple[Path, Path, str, str]
 
     feature_dir = repo / "kitty-specs" / mission_slug
     (feature_dir / "tasks").mkdir(parents=True)
+    # A ``lanes``-topology Mission (stored topology): a genuinely legacy Mission (no
+    # coordination_branch, no stored topology) deliberately keeps its lane status files
+    # (lane_checkout._mission_is_genuinely_legacy), so the fixture must not be one for the
+    # status-file exclusion to apply.
+    mission_id = derive_mission_id(mission_slug)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mid8": mission_id[:8],
+                "mission_slug": mission_slug,
+                "mission_type": "software-dev",
+                "topology": "lanes",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     write_single_lane_manifest(
         feature_dir,
         wp_ids=("WP01",),
