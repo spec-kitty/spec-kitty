@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from scripts.docs import check_docs_freshness as orchestrator
+from scripts.docs import docs_index
 from scripts.docs import inventory_lockfile as lockfile
 from scripts.docs._inventory import (
     DivioType,
@@ -37,7 +38,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.architectural
 
 PAGE_WITH_FRONTMATTER = (
-    "---\ntitle: Getting Started\ndescription: A how-to page.\ntype: how-to\nversion_tag: current\nowning_workstream: E\n---\n\n# Getting Started\n"
+    "---\ntitle: Getting Started\ndescription: A how-to page.\nkind: How-To\nversion_tag: current\nowning_workstream: E\n---\n\n# Getting Started\n"
 )
 
 PAGE_PLAIN = "# No frontmatter here\n\nJust prose.\n"
@@ -77,7 +78,7 @@ def test_frontmatter_mutation_changes_generation_and_reds_drift(
     # Mutate exactly one in-rollup frontmatter field on one page.
     page = docs_root / "guides" / "getting-started.md"
     page.write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
 
@@ -105,7 +106,7 @@ def test_report_only_stays_exit_zero_under_drift(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: explanation"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Explanation"),
         encoding="utf-8",
     )
     report = lockfile.run_generate_and_compare(
@@ -127,7 +128,7 @@ def test_strict_flag_flips_drift_to_nonzero_exit(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: explanation"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Explanation"),
         encoding="utf-8",
     )
     report = lockfile.run_generate_and_compare(
@@ -237,7 +238,7 @@ def test_plain_page_defaults_to_current_none(tmp_path: Path) -> None:
 def test_parse_frontmatter_handles_missing_and_unclosed(tmp_path: Path) -> None:
     """Malformed / absent frontmatter yields an empty mapping, never raises."""
     assert lockfile.parse_frontmatter("no fence\n") == {}
-    assert lockfile.parse_frontmatter("---\ntype: how-to\nunclosed") == {}
+    assert lockfile.parse_frontmatter("---\nkind: How-To\nunclosed") == {}
     assert lockfile.parse_frontmatter("---\n: : bad yaml : :\n---\n") == {}
 
 
@@ -250,7 +251,7 @@ def test_cli_report_only_exit_zero_and_writes_report(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
     report_path = repo_root / "drift.json"
@@ -294,7 +295,7 @@ def test_orchestrator_lockfile_subcheck_emits_non_blocking_warnings(tmp_path: Pa
     )
     # Diverge frontmatter so the regeneration drifts from the committed rollup.
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
     findings = orchestrator._check_inventory_lockfile_drift(committed_path, docs_root)
@@ -309,3 +310,19 @@ def test_orchestrator_lockfile_subcheck_skips_missing_docs_root(
     """The sub-check is a no-op when the docs root is absent."""
     findings = orchestrator._check_inventory_lockfile_drift(tmp_path / "inventory.yaml", tmp_path / "does-not-exist")
     assert findings == []
+
+
+@pytest.mark.parametrize(
+    ("frontmatter", "divio"),
+    [
+        ({"kind": "How-To"}, DivioType.HOW_TO),
+        ({"kind": "Tutorial"}, DivioType.TUTORIAL),
+        ({"kind": "Hub"}, DivioType.NONE),
+        ({"kind": "ADR"}, DivioType.NONE),
+        ({"type": "how-to"}, DivioType.NONE),
+    ],
+)
+def test_divio_axis_is_read_from_kind_not_type(frontmatter: dict[str, str], divio: DivioType) -> None:
+    """#6931: the D-7 migration folded the Divio ``type`` into ``kind``; ``type`` names the doc-kitty section."""
+    assert lockfile.entry_for_page("docs/x.md", frontmatter).divio_type.value == divio.value
+    assert docs_index._coerce_divio_type(frontmatter.get("kind")).value == divio.value

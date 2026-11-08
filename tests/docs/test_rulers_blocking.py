@@ -131,8 +131,8 @@ def _stage_lockfile_workspace(root: Path, *, drift: bool) -> Path:
     from scripts.docs import inventory_lockfile as lockfile
 
     docs = root / "docs"
-    _write(docs / "index.md", "---\ntype: how-to\n---\n# Home\n")
-    _write(docs / "guides" / "g.md", "---\ntype: how-to\n---\n# Guide\n")
+    _write(docs / "index.md", "---\nkind: How-To\n---\n# Home\n")
+    _write(docs / "guides" / "g.md", "---\nkind: How-To\n---\n# Guide\n")
     inventory = root / "inventory.yaml"
     inventory.write_text(
         lockfile.render_lockfile(lockfile.generate_inventory(docs, repo_root=root)),
@@ -140,7 +140,7 @@ def _stage_lockfile_workspace(root: Path, *, drift: bool) -> Path:
     )
     if drift:
         # Tamper a page's frontmatter so the regeneration != committed lockfile.
-        (docs / "guides" / "g.md").write_text("---\ntype: reference\n---\n# Guide\n", encoding="utf-8")
+        (docs / "guides" / "g.md").write_text("---\nkind: Reference\n---\n# Guide\n", encoding="utf-8")
     return root
 
 

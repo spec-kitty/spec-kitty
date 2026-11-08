@@ -66,8 +66,10 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 # today on most pages; Mission B backfills it. When absent the generator
 # defaults to ``current`` so the rollup is total over the tree (report-only).
 _FM_VERSION_TAG: Final[str] = "version_tag"
-# The Divio axis lives under the existing ``type:`` frontmatter key.
-_FM_DIVIO_TYPE: Final[str] = "type"
+# The Divio axis is read from doc-kitty's ``kind:`` (#6931): doc-kitty reads ``type:`` as the
+# section, so the D-7 migration folded the Divio values into ``kind`` (``How-To`` -> ``how-to``).
+# A kind with no Divio quadrant (``Hub``, ``ADR``, ``Planning``, ...) reads as ``none``.
+_FM_DIVIO_TYPE: Final[str] = "kind"
 _FM_OWNING_WORKSTREAM: Final[str] = "owning_workstream"
 _FM_NOTES: Final[str] = "notes"
 
@@ -126,10 +128,10 @@ def _coerce_version_tag(raw: object) -> VersionTag:
 
 
 def _coerce_divio_type(raw: object) -> DivioType:
-    """Map a frontmatter ``type`` value to :class:`DivioType`."""
+    """Map a frontmatter ``kind`` value to :class:`DivioType`."""
     if isinstance(raw, str):
         try:
-            return DivioType(raw.strip())
+            return DivioType(raw.strip().lower())
         except ValueError:
             return DivioType.NONE
     return DivioType.NONE
