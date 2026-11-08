@@ -403,3 +403,32 @@ def test_preserved_run_survives_even_outside_the_bound(tmp_path: Path) -> None:
     assert _run_id(0) not in {p.name.removesuffix(".failed") for p in removed}
     # keep=1 keeps the newest, plus the explicitly preserved older run.
     assert len(_failed_dirs(repo)) == 2
+
+
+@pytest.mark.unit
+def test_symlinked_failed_entry_is_neither_counted_nor_removed(tmp_path: Path) -> None:
+    """A symlink named ``*.failed`` is not a preserved failure.
+
+    It must not take a slot of the bound (that would prune a real diagnostic
+    in its place), must not be reported as removed, and its target must stay
+    untouched even though the target sits inside the PathGuard allowlist.
+    """
+    from charter.activation.synthesizer.staging import retain_failed_staging_dirs
+
+    repo = _make_repo_root(tmp_path)
+    staging = repo / STAGING_REL
+    for n in range(DEFAULT_KEEP_FAILED_RUNS):
+        _fail_run(repo, n)
+    target = repo / ".kittify" / "charter" / "not-a-staging-dir"
+    target.mkdir()
+    (target / "keep.txt").write_text("keep\n", encoding="utf-8")
+    link = staging / "zzzz-linked.failed"
+    link.symlink_to(target, target_is_directory=True)
+
+    removed = retain_failed_staging_dirs(PathGuard(repo), staging, keep=DEFAULT_KEEP_FAILED_RUNS)
+
+    real_failed = [p for p in staging.iterdir() if p.name.endswith(".failed") and not p.is_symlink()]
+    assert len(real_failed) == DEFAULT_KEEP_FAILED_RUNS, [p.name for p in real_failed]
+    assert link not in removed
+    assert link.is_symlink(), "a symlinked entry is left alone"
+    assert (target / "keep.txt").read_text(encoding="utf-8") == "keep\n"
