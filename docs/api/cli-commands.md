@@ -2417,8 +2417,12 @@ _Project health diagnostics; a bare invocation runs the default check set_
  log but missing from the index, index entries with no backing event, a
  decision_id whose event group cannot be folded at all (e.g. two openings
  whose payloads differ beyond the moment each was recorded), and an index
- entry whose status disagrees with the folded log (a stale entry). Always
- exits 0 (report only).
+ entry whose status disagrees with the folded log (a stale entry). A log
+ line that cannot be read (invalid JSON, a non-object row or payload, or a
+ missing or non-string decision point id) is never a crash: it is named,
+ with its line number and reason, in the human report and under the
+ ``unreadable_lines`` key of ``--json`` (always present, empty when every
+ line reads). Always exits 0 (report only).
 
  It additionally prints an INFORMATIONAL finding naming each decision whose
  event log holds several ``DecisionPointOpened`` rows that are equal apart
@@ -2433,15 +2437,19 @@ _Project health diagnostics; a bare invocation runs the default check set_
  canonical ``event -> IndexEntry`` fold
  (:mod:`specify_cli.decisions.index_fold`) under the same sidecar lock the
  write path uses — never invents an entry absent from the log, never
- drops a log-backed entry. A no-op (no write) when the log and index
- already agree. The fold is order-independent: a decision's documented
+ drops a log-backed entry. It refuses to rebuild at all while the log has
+ an unreadable line (a rebuild would silently drop every decision whose
+ events sit on that line): it writes nothing, reports the line(s), and
+ exits **1**; fix or remove the line, then re-run. A no-op (no write)
+ when the log and index already agree. The fold is order-independent: a
+ decision's documented
  ``open -> defer -> resolve`` flow emits a ``deferred``-outcome event and
  a later ``resolved``-outcome event, and folds to ``resolved`` regardless
  of which one the (git-merge-driver-resorted) log lists first (#4919).
  When a decision cannot be reconciled, ``--repair`` leaves it unchanged
  (never drops it), names it in the report, and the command then exits
  **1**. It exits 0 only when every decision the repair touched
- folds cleanly.
+ folds cleanly and no log line was unreadable.
 
  Run ``--repair`` as an offline maintenance step, not concurrently with
  live decision traffic: a decision that is mid-open (its index entry
