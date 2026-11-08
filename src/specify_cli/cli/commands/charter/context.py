@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import typer
 
@@ -51,7 +51,7 @@ def _scope_and_mission_arguments(scope: CharterScope | None, feature_dir: Path |
     return scope_arguments, mission_arguments
 
 
-def _context_failure_exit(exc: Exception, *, console, json_output: bool) -> typer.Exit:
+def _context_failure_exit(exc: Exception, *, console: Any, json_output: bool) -> typer.Exit:
     """Report a context failure once, and keep operator-actionable scope refusals out of "Unexpected".
 
     A scope an owned checkout cannot satisfy (a ``charter_scopes:`` list that
@@ -97,10 +97,14 @@ def context(
         "--action",
         help="Workflow action (specify|plan|implement|review)",
     ),
-    include: str | None = typer.Option(
+    include: list[str] | None = typer.Option(
         None,
         "--include",
-        help=("Fetch selector, e.g. agent-profile:<id>, template:<mission>/<name>, directive:<id>, section:<slug>."),
+        help=(
+            "A single fetch selector, e.g. agent-profile:<id>, template:<mission>/<name>, "
+            "directive:<id>, section:<slug>. Repeat --include to fetch several; "
+            "one <kind>:<id> per occurrence (a comma is refused)."
+        ),
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     profile: str | None = typer.Option(
@@ -173,13 +177,17 @@ def context(
         # and never widens, while ``None`` lets the charter-layer
         # self-resolution walk the full chain via ``resolve_existing_org_roots``.
         if include:
-            included_text = build_charter_context_include(
-                repo_root,
-                include,
-                action=action,
-                org_roots=org_roots or None,
-                **scope_arguments,
-            )
+            blocks = [
+                build_charter_context_include(
+                    repo_root,
+                    selector,
+                    action=action,
+                    org_roots=org_roots or None,
+                    **scope_arguments,
+                )
+                for selector in include
+            ]
+            included_text = "\n\n".join(block.rstrip("\n") for block in blocks)
             if json_output:
                 print(
                     json.dumps(
