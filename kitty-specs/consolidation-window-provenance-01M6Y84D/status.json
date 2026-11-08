@@ -53,7 +53,7 @@
     },
     "WP02": {
       "actor": "opencode",
-      "agent": "claude:claude-opus-5-5:reviewer-renata",
+      "agent": "opencode:glm-5.3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -64,7 +64,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-08T23:05:48Z – claude – shell_pid=1203530 – WP02 done (commit 80c323770b). 145 cells (123 generic per P1-P3 + 22 named). Runtime (32-core box, 8 forked workers): corpus test call 43-48s; -n0 wall 2:21; -n auto --dist loadfile wall 2:00 (incl. ~55s session overhead a trivial test also pays); single process (SPEC_KITTY_VERDICT_CORPUS_WORKERS=1) call 268s / wall 6:02. Zero diff across 4 runs. Tests: test_reconciliation_characterization.py 6 passed (x3 runs); tests/consolidation -k 'reconciliation or approved_bound or canceled' 505 passed 9 xfailed 1 skipped; test_single_rollback_authority.py 23 passed; test_single_branch_approval_windows.py 10 passed 1 xfailed before and after the move; make test-fast 2921 passed 6 skipped; ruff check/format + mypy clean on all owned files. changed_cells('HEAD') == []. Findings for orchestrator in tracer: (d) fails today (unattributable_blobs) not pass; WP06 presence-axis target is the fresh 'approved_content_missing_released' cell (resume variant gives UNEXPLAINED_BRANCH_MOVE); (e)/(f) refuse on the dependency lane's own check either way, text pinned; R-09: --dry-run DOES report LANE_MOVED_AFTER_APPROVAL.",
-        "Ready for review: 145-cell verdict corpus, in-process runner, SIGKILL resume driver, window/stamp axes, changed_cells; see history and tracer for findings"
+        "Ready for review: 145-cell verdict corpus, in-process runner, SIGKILL resume driver, window/stamp axes, changed_cells; see history and tracer for findings",
+        "Independent confirm (opencode glm-5.3) of Opus approval: 145 cells (123+22), corpus green and deterministic (3 consecutive green runs; one flake in 4 runs on fresh|mixed_lane_canceled_wp|stamp=present|window=lane_branch_missing — TARGET_BRANCH_CONTENT_CONFLICT once, not reproduced, routed to WP20/WP21 gap report), parent patches reach forked workers, source mutation turned 34 cells red and reverted clean, changed_cells(HEAD)==[] (verified). Non-blocking findings (window=any pinning, changed_cells ref check, crash exception field, (d) patch retarget, (g) reshape) routed to WP05/WP15/WP18."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
