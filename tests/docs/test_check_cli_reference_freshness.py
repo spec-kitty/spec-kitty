@@ -428,6 +428,76 @@ class TestRules:
 
         assert not any(f.rule_id == "HELP-DRIFT" for f in findings)
 
+    def test_help_drift_ignores_a_rich_markup_escape(self) -> None:
+        """#5184: Rich renders ``\\[`` as a literal ``[``; the escape is not text.
+
+        The recorded reference holds the RENDERED body (``[hosted] drain``), the
+        live Typer string the ESCAPED one (``\\[hosted] drain``). Comparing the
+        raw strings reported HELP-DRIFT on every run for any command whose help
+        needs a literal bracket.
+        """
+        entry = CommandPathEntry(
+            path=("moments", "drain"),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Disable it by setting `off` in config.toml (\\[hosted] drain).",
+        )
+        main_ref = (
+            "## spec-kitty moments drain\n\n"
+            "```\n"
+            "Usage: spec-kitty moments drain [OPTIONS]\n\n"
+            "Disable it by setting `off` in config.toml ([hosted] drain).\n\n"
+            "Options:\n"
+            "  --help\n"
+            "```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text=main_ref,
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        assert not [f for f in findings if f.rule_id == "HELP-DRIFT"]
+
+    def test_a_genuine_body_change_beside_an_escape_is_still_drift(self) -> None:
+        """Non-vacuity for the escape normalisation: real drift is not swallowed."""
+        entry = CommandPathEntry(
+            path=("moments", "drain"),
+            kind="command",
+            hidden=False,
+            deprecated=False,
+            help_summary="",
+            source_file=None,
+            source_function=None,
+            requires_saas_sync=False,
+            help_body="Disable it by setting `off` in config.toml (\\[hosted] drain).",
+        )
+        main_ref = (
+            "## spec-kitty moments drain\n\n"
+            "```\n"
+            "Usage: spec-kitty moments drain [OPTIONS]\n\n"
+            "Disable it by setting `on` in config.toml ([hosted] drain).\n\n"
+            "Options:\n"
+            "  --help\n"
+            "```\n"
+        )
+
+        findings = freshness.evaluate_reference(
+            entries=[entry],
+            main_reference_text=main_ref,
+            agent_reference_text="",
+            saas_sync_enabled=True,
+        )
+
+        assert [f.path for f in findings if f.rule_id == "HELP-DRIFT"] == [("moments", "drain")]
+
     def test_agent_subtree_uses_agent_reference(self) -> None:
         entries = [
             CommandPathEntry(

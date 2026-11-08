@@ -134,8 +134,17 @@ def _normalize_path(text: str) -> tuple[str, ...] | None:
 
 
 def _normalize_help_body(text: str) -> str:
-    """Remove Click presentation labels and collapse terminal wrapping."""
-    normalized = " ".join(text.split())
+    """Remove Click presentation labels, Rich markup escapes, and terminal wrapping.
+
+    Rich renders the escape ``\\[`` as a literal ``[`` (#5184): a help body that
+    needs a literal bracket in the terminal (e.g. ``([hosted] drain)``) carries
+    the escape in the raw Typer string, while the generated reference correctly
+    records the rendered text. The escape is presentation, not content, so both
+    sides are unescaped before comparison — otherwise every such command reports
+    HELP-DRIFT forever, and the warning stops meaning anything.
+    """
+    unescaped = text.replace("\\[", "[")
+    normalized = " ".join(unescaped.split())
     return re.sub(r"^\(deprecated\)\s+", "", normalized, flags=re.IGNORECASE)
 
 
