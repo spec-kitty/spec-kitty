@@ -56,14 +56,19 @@ _CENSUS_PATH = Path(__file__).resolve().parent / "p1_census" / "census.json"
 _IMPORT_ROOTS: tuple[str, ...] = ("src", "tests")
 _SRC_ROOT_NAME = "src"
 
-# The always-on enforcement allowlists that *quote* dead surfaces as banned
-# strings. They are out of scope of census exclusion (C-006 boundary) and must
-# never be excluded from CI or the coverage denominator.
+# The always-on enforcement allowlists that quote dead surfaces as banned strings, or
+# pin an exemption set the tree must keep at its invariant. They are out of scope of
+# census exclusion (C-006 boundary) and must never be excluded from CI or the coverage
+# denominator. The C-007 canon in ``tests/architectural/shape_guard_membership.yaml``
+# names the same four gates (#4361).
 _ENFORCEMENT_ALLOWLIST_GATES: frozenset[str] = frozenset(
     {
         "test_no_dead_symbols",
         "test_no_dead_modules",
         "test_no_retired_subsystems",
+        # The C-007 canon (shape_guard_membership.yaml) names four enforcement
+        # allowlists; this set named three and drifted from it (#4361).
+        "test_integration_boundary",
     }
 )
 

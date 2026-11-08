@@ -239,12 +239,13 @@ def test_dead_surface_is_excluded_from_denominator(tmp_path: Path) -> None:
 
 
 def test_enforcement_allowlists_are_out_of_scope_of_exclusion() -> None:
-    """C-006 boundary: the always-on enforcement gates are never excluded."""
+    """C-006 boundary: the always-on enforcement gates are never excluded (all four, #4361)."""
     oracle = _oracle()
     for gate in (
         "test_no_dead_symbols",
         "test_no_dead_modules",
         "test_no_retired_subsystems",
+        "test_integration_boundary",
     ):
         assert oracle.is_enforcement_allowlist_gate(gate) is True
         assert gate not in oracle.denominator_excluded_surfaces()
