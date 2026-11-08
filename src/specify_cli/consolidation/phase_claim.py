@@ -22,6 +22,7 @@ from rich.markup import escape
 
 from specify_cli.cli.console import console
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.vcs.git import capture_branch_tip
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings), imported
@@ -242,17 +243,15 @@ def _resolve_pre_mutation_target_sha(main_repo: Path, target_branch: str, state:
     world axes false-PASS, and the rollback would anchor to the stale advanced tip
     (Debbie [MEDIUM] resume false-PASS). ``None`` when the target ref cannot be
     resolved (nothing is persisted — a subsequent resume re-attempts the read).
+
+    #5058: the read routes through ``capture_branch_tip`` — the canonical
+    ``refs/heads/``-qualified authority — so a tag sharing the target branch's
+    name can never misresolve the transaction-start tip to the tag SHA.
     """
     persisted: str | None = state.pre_mutation_target_sha
     if persisted:
         return persisted
-    ret, target_sha, _err = run_command(
-        ["git", "rev-parse", target_branch],
-        capture=True,
-        check_return=False,
-        cwd=main_repo,
-    )
-    resolved = target_sha.strip() if ret == 0 and target_sha.strip() else None
+    resolved = capture_branch_tip(main_repo, target_branch)
     if resolved is not None:
         state.pre_mutation_target_sha = resolved
         save_state(state, main_repo)

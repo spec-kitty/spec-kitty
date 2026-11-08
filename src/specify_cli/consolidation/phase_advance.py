@@ -26,6 +26,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.vcs.git import capture_branch_tip
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
 # (single canonical home in ``lanes.compute`` — see its docstrings), imported
@@ -284,13 +285,11 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     """Capture target baseline SHA, resolve canonical mission_id + status surface paths."""
     lanes_manifest = run.lanes_manifest
     # -- Capture target baseline SHA for post-merge diff/review checks (T013) --
-    _ret, target_baseline_sha, _err = run_command(
-        ["git", "rev-parse", lanes_manifest.target_branch],
-        capture=True,
-        check_return=False,
-        cwd=run.main_repo,
-    )
-    run.target_baseline_sha = target_baseline_sha.strip() if _ret == 0 else "HEAD~1"
+    # #5058: routed through ``capture_branch_tip`` (the canonical
+    # ``refs/heads/``-qualified authority) so a tag sharing the target branch's
+    # name cannot misresolve the baseline to the tag SHA (#4857 class).
+    target_baseline_sha = capture_branch_tip(run.main_repo, lanes_manifest.target_branch)
+    run.target_baseline_sha = target_baseline_sha if target_baseline_sha else "HEAD~1"
 
     # -- Resolve the canonical mission_id (ULID) to gate modern-mission invariants --
     # FR (#2186): baseline identity is a PRIMARY_METADATA read. Route it onto the
@@ -404,17 +403,15 @@ def _reanchor_baseline_past_primary_tree_bake(run: _MergeRunState) -> None:
     tip so ``_target_branch_still_at_baseline`` keeps measuring the
     mission→target step's OWN progress, not this bookkeeping commit. Undoing
     the bake commit itself on a failure is the driver's rollback door (#5385).
+
+    #5058: the re-read routes through ``capture_branch_tip`` — the canonical
+    ``refs/heads/``-qualified authority — so a tag sharing the target branch's
+    name can never re-anchor the baseline to the tag SHA.
     """
-    ret, current_tip, _err = run_command(
-        ["git", "rev-parse", run.lanes_manifest.target_branch],
-        capture=True,
-        check_return=False,
-        cwd=run.main_repo,
-    )
-    if ret != 0:
+    current_tip = capture_branch_tip(run.main_repo, run.lanes_manifest.target_branch)
+    if not current_tip:
         return
-    current_tip = current_tip.strip()
-    if current_tip and current_tip != run.target_baseline_sha:
+    if current_tip != run.target_baseline_sha:
         run.target_baseline_sha = current_tip
 
 

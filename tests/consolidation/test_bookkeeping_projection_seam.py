@@ -140,10 +140,13 @@ def test_status_surface_file_trust_rejects_bad_filename(tmp_path: Path) -> None:
 def test_target_branch_still_at_baseline(tmp_path: Path) -> None:
     assert bp._target_branch_still_at_baseline(tmp_path, "main", "") is False
     assert bp._target_branch_still_at_baseline(tmp_path, "main", "HEAD~1") is False
-    with patch.object(bp, "run_command", return_value=(0, "abc123", "")):
+    # #5058: the tip read routes through ``capture_branch_tip`` (the
+    # ``refs/heads/``-qualified authority), so the seam patches that, not
+    # ``run_command``.
+    with patch.object(bp, "capture_branch_tip", return_value="abc123"):
         assert bp._target_branch_still_at_baseline(tmp_path, "main", "abc123") is True
         assert bp._target_branch_still_at_baseline(tmp_path, "main", "deadbeef") is False
-    with patch.object(bp, "run_command", return_value=(1, "", "err")):
+    with patch.object(bp, "capture_branch_tip", return_value=None):
         assert bp._target_branch_still_at_baseline(tmp_path, "main", "abc123") is False
 
 
