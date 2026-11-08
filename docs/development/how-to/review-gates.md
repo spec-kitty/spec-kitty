@@ -206,11 +206,13 @@ candidate exited 0 (#6751).
 > tracked in #6851.
 
 > **A planning-lane WP records why the gate did not inspect its commit (#6792).**
-> A `planning_artifact` WP commits its deliverables on the mission's target
-> branch, so the workspace the gate resolves *is* that checkout: the merge-base
-> diff against the target branch is empty by construction, and a committed, clean
-> tree adds no dirty paths. The gate skips cheaply and records
-> `planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)`
+> A `planning_artifact` WP commits its deliverables in the repository root
+> checkout, which is also the workspace the gate resolves for it. The gate diffs
+> that workspace against the branch checked out there (a default Mission's topic
+> branch until it lands, or the target branch of a Mission that commits to it),
+> so the merge-base diff is empty by construction, and a committed, clean tree
+> adds no dirty paths. The gate skips cheaply and records
+> `planning-lane WP — committed diff not inspected (a planning_artifact WP commits in the repository root checkout, on the branch the gate diffs against, so no workspace diff exists)`
 > as its `no_coverage` reason, and the transition is never blocked by it. Every
 > other WP with an empty diff keeps the `no changed files detected for this WP`
 > wording. Classification asks the WP's declared `execution_mode` first and,
