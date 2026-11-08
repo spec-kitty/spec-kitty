@@ -242,7 +242,7 @@ def _primary_partition_holder(repo_root: Path, mission_slug: str, destination_re
     """
     from specify_cli.coordination.planning_commit import primary_partition_checkout
 
-    holder = primary_partition_checkout(repo_root, mission_slug)
+    holder: Path | None = primary_partition_checkout(repo_root, mission_slug)
     if holder is None or holder.resolve() != _write_branch_holder(repo_root, destination_ref).resolve():
         return repo_root
     return holder
