@@ -80,7 +80,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: refusal precedence matrix pinned (8 tests); no production code changed",
-        "Review cycle 1 fixed: exact-SHA normalizer, adjacent-pair witnesses with controls, data_dependency reasons, unresolvable_branches witness on a different lane, counts in docstring."
+        "Review cycle 1 fixed: exact-SHA normalizer, adjacent-pair witnesses with controls, data_dependency reasons, unresolvable_branches witness on a different lane, counts in docstring.",
+        "Review cycle 2 passed (a184198188). All cycle-1 findings resolved: (1) normalize() replaces fixture-returned SHAs exactly in 40/10/7 forms; all-digit SHA test + negative control added. (2) Adjacent chain: 4 witnessed, 3 data_dependency, mixed_lane/bound pinned by its pair; canceled_dependency->mixed_lane data dependency verified (mixed_lane consumes dependency.unapproved_commits, which is empty whenever canceled_dependency refuses, reconciliation.py:2726/2729). Local swaps evidence/presence, bound/evidence, unresolvable/unreadable_canceled each failed exactly their witness; reverted, worktree clean. (3) Every witness has a later-only control; unresolvable_branches witness now deletes a different lane, branch read from manifest. (4) Pair counts pinned by test. Tests: matrix 17 passed; blast radius 320 passed 1 xfailed; make test-fast 2921 passed 6 skipped; ruff/format/mypy clean. Nit (non-blocking): sharpen the canceled_dependency->mixed_lane reason to say unapproved_commits is empty on refusal. Doc note stands for WP21: amend plan IC-03 to point at REFUSALS."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
