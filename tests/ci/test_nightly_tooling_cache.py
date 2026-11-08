@@ -148,6 +148,30 @@ def test_docs_pages_caches_the_checksum_verified_plantuml_jar() -> None:
     assert "urllib.request" not in run, "the duplicate download path was replaced by the checksum-verifying provisioner"
 
 
+def test_router_docs_tests_restore_and_save_the_plantuml_jar_before_running() -> None:
+    """``tests (docs)`` must not depend on the release-asset download each run.
+
+    The PlantUML render tests provision ``plantuml.jar`` at the repository root.
+    A GitHub release-asset 504 redded every docs PR until the job restored the
+    jar from the cache docs-pages.yml fills, provisioned it before the tests and
+    saved it independently of the test outcome.
+    """
+    steps = _steps(_workflow("ci-router.yml"), "tests-docs")
+    restore = _step_index(steps, "Restore the checksum-verified PlantUML jar cache")
+    provision = _step_index(steps, "Provision the checksum-verified PlantUML jar")
+    save = _step_index(steps, "Save the checksum-verified PlantUML jar cache")
+    run_tests = _step_index(steps, "Run tests")
+    assert restore < provision < save < run_tests
+
+    pages_key = _cache_key(_step_named(_steps(_workflow("docs-pages.yml"), "build"), "PlantUML jar cache"))
+    for index in (restore, save):
+        assert _cache_paths(steps[index]) == "plantuml.jar"
+        assert _cache_key(steps[index]) == pages_key, "share the docs-pages cache entry"
+    assert str(steps[restore]["uses"]).startswith("actions/cache/restore@")
+    assert str(steps[save]["uses"]).startswith("actions/cache/save@")
+    assert "plantuml_invoke.ensure_jar" in str(steps[provision]["run"]), "provision through the sha256-verifying helper"
+
+
 def test_docs_pages_push_trigger_is_main_only_where_the_deploy_runs() -> None:
     triggers = _triggers(_workflow("docs-pages.yml"))
     assert triggers["push"]["branches"] == ["main"], "the deploy job only runs on refs/heads/main, so a 2.x push builds an unused site"
