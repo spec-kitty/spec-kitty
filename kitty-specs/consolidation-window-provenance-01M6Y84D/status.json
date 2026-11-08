@@ -1,7 +1,7 @@
 {
-  "event_count": 20,
-  "last_event_id": "01M6YHDDYKV7NSR3P9GWKRWH7Q",
-  "materialized_at": "2026-11-08T21:35:45.107411+00:00",
+  "event_count": 21,
+  "last_event_id": "01M6YHDFGQFGG51TQ3G6TX3RDD",
+  "materialized_at": "2026-11-08T21:35:46.711272+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 20
+    "planned": 21
   },
   "work_packages": {
     "WP01": {
@@ -157,6 +157,13 @@
       "lane": "planned",
       "last_event_id": "01M6YHDDYKV7NSR3P9GWKRWH7Q",
       "last_transition_at": "2026-11-08T21:35:45.107411+00:00"
+    },
+    "WP21": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6YHDFGQFGG51TQ3G6TX3RDD",
+      "last_transition_at": "2026-11-08T21:35:46.711272+00:00"
     }
   }
 }
