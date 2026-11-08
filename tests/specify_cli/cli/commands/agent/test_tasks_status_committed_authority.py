@@ -38,6 +38,9 @@ runner = CliRunner()
 
 _SLUG = "committed-board-01KZCD"
 
+#: How the board renders a WP with no recorded transition (distinct from any real lane).
+DEGRADED_LANE = "genesis"
+
 
 def _write_wp_file(tasks_dir: Path, wp_id: str) -> None:
     (tasks_dir / f"{wp_id}-test.md").write_text(
@@ -135,17 +138,13 @@ def test_status_board_reports_committed_lanes_for_merged_mission(tmp_path: Path,
 
 
 def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
-    """Build a PRIMARY whose committed event log is corrupt + a valid COORD.
+    """Build a PRIMARY whose event log is corrupt, beside a valid stale COORD copy.
 
     The PRIMARY carries a genuinely-present but unparsable
-    ``status.events.jsonl`` (``has_event_log`` is True — the file exists — so
-    the committed-authority read does not take its "genuinely absent" ``None``
-    early exit; it must read through to ``wp_ending`` ->
-    ``read_event_stream``, which raises ``StoreError`` on the malformed
-    line). The COORD checkout
-    carries a normal, valid event log so the board's own fallback lane read
-    (``_st_runtime_row``) has somewhere else to land -- isolating the
-    regression to exactly the committed-authority read this fold guards.
+    ``status.events.jsonl`` and declares no coordination branch, so the read
+    door's one source is the write checkout (PRIMARY). The COORD copy carries a
+    valid log that is NOT a status source for this Mission; the board must not
+    read it (#7335: one door, no second source).
     """
     primary = tmp_path / "kitty-specs" / _SLUG
     tasks_dir = primary / "tasks"
@@ -158,7 +157,6 @@ def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
                 "mission_id": "01KZCD00000000000000000AB",
                 "mission_number": 99,
                 "mission_type": "software-dev",
-                "coordination_branch": f"kitty/mission-{_SLUG}",
             }
         ),
         encoding="utf-8",
@@ -179,19 +177,14 @@ def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
 
 @pytest.mark.regression
 def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """PR-introduced regression: a corrupt PRIMARY ``status.events.jsonl``
-    must not crash the board (``agent tasks status``).
+    """A corrupt ``status.events.jsonl`` on the door's source must not crash the
+    board (``agent tasks status``): it degrades to no recorded progress.
 
-    Before this fold, the committed-authority lane read (the per-WP
-    ``committed_wp_lane`` reader the #3825 board used, since deleted with its
-    last caller) -> ``wp_ending`` -> ``read_event_stream`` raised
-    ``StoreError`` UNWRAPPED inside the board's
-    per-WP row loop for a merged mission (``mission_number`` assigned) whose
-    committed PRIMARY log is corrupt/malformed -- crashing the whole command.
-    Before this PR (i.e. pre-committed-authority-read), the board degraded
-    gracefully because it never read the committed surface at all. This test
-    pins the degrade-not-crash contract: the board must still render, falling
-    back to the row's own (coordination-aware) lane source.
+    The degrade-not-crash contract predates the read door (a malformed
+    committed log once raised ``StoreError`` unwrapped inside the row loop).
+    Since #7335 the board has ONE source, so the degrade no longer falls back
+    to another checkout's lanes: the stale COORD copy's ``planned`` must not
+    appear; the WP renders as having no recorded transition.
     """
     primary, coord = _build_corrupt_primary_fixture(tmp_path)
 
@@ -201,21 +194,16 @@ def test_status_board_degrades_on_corrupt_primary_event_log(tmp_path: Path, monk
     workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
     monkeypatch.chdir(tmp_path)
 
-    with (
-        setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace),
-        patch(
-            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
-            return_value=coord,
-        ),
-    ):
+    with setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace):
         result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     lanes_by_id = {wp["id"]: wp["lane"] for wp in payload["work_packages"]}
 
-    # Degraded: falls back to the coord-read lane instead of crashing.
-    assert lanes_by_id == {"WP01": "planned"}
+    # Degraded to no recorded transition -- never the stale COORD copy's lane.
+    assert read_events(coord)[-1].to_lane == Lane.PLANNED
+    assert lanes_by_id == {"WP01": DEGRADED_LANE}
 
 
 # ---------------------------------------------------------------------------
@@ -290,38 +278,24 @@ def test_status_board_row_companions_come_from_the_committed_surface(tmp_path: P
 
 
 @pytest.mark.regression
-def test_status_board_row_companions_still_follow_coord_surface_when_not_merged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The not-merged arm: with no committed authority (``mission_number``
-    absent), the whole row — lane AND companions — still comes from the
-    coordination read, byte-identical to the pre-#3829 board."""
-    primary, coord = _build_two_surface_fixture(tmp_path)
-    # Un-merge the PRIMARY meta: the coord surface becomes the row's one
-    # authority again.
-    meta = json.loads((primary / "meta.json").read_text(encoding="utf-8"))
-    meta["mission_number"] = None
-    meta.pop("merged_at", None)
-    (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    _seed_companions(primary, "WP01", agent="committed-agent", model="committed-model", profile="committed-profile")
-    _seed_companions(coord, "WP01", agent="stale-agent", model="stale-model", profile="stale-profile")
+@pytest.mark.git_repo
+def test_status_board_row_companions_follow_the_coordination_surface_when_not_landed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The not-landed arm: the read door's source is the coordination worktree, so the
+    whole row -- lane AND companions -- comes from it, never the repository root
+    checkout's stale copy (real git, nothing patched in the resolution path; #7335)."""
+    from tests.status.test_status_read_matrix import LANES_WITH_COORD, MATERIALIZED, SLUG, build_matrix_mission
 
-    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
-    monkeypatch.chdir(tmp_path)
+    mission = build_matrix_mission(tmp_path, LANES_WITH_COORD, MATERIALIZED)
+    _seed_companions(mission.coord_mission_dir, "WP01", agent="coord-agent", model="coord-model", profile="coord-profile")
+    _seed_companions(mission.root_mission_dir, "WP01", agent="stale-agent", model="stale-model", profile="stale-profile")
+    monkeypatch.chdir(mission.repo)
 
-    with (
-        setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace),
-        patch(
-            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
-            return_value=coord,
-        ),
-    ):
-        result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
+    result = runner.invoke(app, ["status", "--mission", SLUG, "--json"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.JSONDecoder().raw_decode(result.output[result.output.index("{") :])[0]
     row = {wp["id"]: wp for wp in payload["work_packages"]}["WP01"]
-
-    # Whole row coordination-sourced: the in-flight mission's real state.
-    assert row["lane"] == "planned"
-    assert row["agent"] == "stale-agent"
-    assert row["resolved_model"] == "stale-model"
-    assert row["resolved_agent_profile"] == "stale-profile"
+    assert row["lane"] == "in_progress"
+    assert row["agent"] == "coord-agent"
+    assert row["resolved_model"] == "coord-model"
+    assert row["resolved_agent_profile"] == "coord-profile"

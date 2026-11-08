@@ -466,17 +466,28 @@ def get_arbiter_overrides_for_wp(
 
     Returns AT MOST one entry: the event-sourced override is a single
     reduced CURRENT state, not the per-cycle accumulation the retired
-    frontmatter/JSON scan used to build up. Kept list-shaped so
-    ``agent tasks status``'s existing
-    ``for override in get_arbiter_overrides_for_wp(...)`` call site
-    (``tasks_status_cmd.py``, outside this WP's ``owned_files``) keeps
-    working unmodified. An incomplete override (missing any of
+    frontmatter/JSON scan used to build up. Kept list-shaped so its
+    ``for override in ...`` callers keep working unmodified (``agent tasks
+    status`` reads :func:`arbiter_overrides_from_state` off its one door
+    reduction, #7335). An incomplete override (missing any of
     ``at``/``actor``/``wp_id``/``reason``) is never surfaced, mirroring
     ``ReviewOverride.complete``'s predicate everywhere else it is honoured.
     """
-    from specify_cli.status import ReviewOverride, wp_snapshot_state
+    from specify_cli.status import wp_snapshot_state
 
-    state = wp_snapshot_state(feature_dir, wp_id)
+    return arbiter_overrides_from_state(wp_snapshot_state(feature_dir, wp_id))
+
+
+def arbiter_overrides_from_state(state: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    """The current durable override from one reduced WP state (``None``: no entry).
+
+    For a reader that already reduced the log through the status read door, so a
+    ref-sourced surface needs no directory (#7335). Same contract as
+    :func:`get_arbiter_overrides_for_wp`: at most one entry, incomplete overrides
+    are never surfaced.
+    """
+    from specify_cli.status import ReviewOverride
+
     review_raw = state.get("review") if state is not None else None
     if not isinstance(review_raw, Mapping):
         return []

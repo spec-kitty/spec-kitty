@@ -179,6 +179,7 @@ from .wp_view import (
     ResolvedGroup,
     WPView,
     reconstruct_wp_view,
+    resolved_group_from_state,
 )
 from .wp_metadata import (
     WPMetadata,
@@ -608,6 +609,7 @@ __all__ = [
     "ResolvedGroup",
     "WPView",
     "reconstruct_wp_view",
+    "resolved_group_from_state",
     "build_status_event_payload",
     "resolve_event_stream_review",
     "read_event_stream",

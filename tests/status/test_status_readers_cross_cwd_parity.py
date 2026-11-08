@@ -19,8 +19,9 @@ pinned cell value there (WP06 decision; the cursor source over a ref is ADR C-3'
 ``agent status materialize`` writes ``status.json`` into a checkout, so on a ref-sourced surface
 it refuses with the same code rather than report a write it did not make (WP06 review cycle 1).
 
-Commands whose readers live outside WP06's files (``agent tasks status``, ``next``, ``accept``,
-``issue-verdict``) are migrated, and joined to this matrix, by WP07 and its follow-ups.
+``agent tasks status`` joined the matrix with #7335 / #7408 (it read the PRIMARY copy when no
+coordination worktree existed). Commands whose readers live outside WP06's files (``next``,
+``accept``, ``issue-verdict``) are migrated, and joined to this matrix, by the follow-ups of #7310.
 """
 
 from __future__ import annotations
@@ -174,6 +175,21 @@ def _events_tail(root: Path) -> str:
     return lanes[-1] if lanes else "<empty history>"
 
 
+def _agent_tasks_status(root: Path) -> str:
+    """The board's WP01 lane (#7335); a non-zero exit is reported as a refusal with its error text."""
+    from specify_cli.cli.commands.agent.tasks import app
+
+    result = _runner.invoke(app, ["status", "--mission", SLUG, "--json"])
+    start = result.output.find("{")
+    if start < 0:
+        return f"refused:exit {result.exit_code}"
+    payload: dict[str, Any] = json.JSONDecoder().raw_decode(result.output[start:])[0]  # the indent=2 envelope
+    if result.exit_code != 0:
+        return f"refused:{payload.get('error_code') or payload.get('error')}"
+    lanes = {wp["id"]: wp["lane"] for wp in payload["work_packages"]}
+    return str(lanes.get("WP01", "<no WP01>"))
+
+
 READERS: dict[str, Callable[..., str]] = {
     "MissionStatus.claim": _mission_status_claim,
     "agent status materialize": _agent_status_materialize,
@@ -182,6 +198,7 @@ READERS: dict[str, Callable[..., str]] = {
     "implement claim_preflight": _implement_claim_preflight,
     "finalize-tasks execution gate": _finalize_execution_has_begun,
     "events tail": _events_tail,
+    "agent tasks status": _agent_tasks_status,
 }
 
 #: Readers that need a file on disk refuse a ref-sourced surface (no checkout holds the log):
@@ -291,3 +308,14 @@ def test_retrospective_gate_reads_retrospective_events_from_the_coordination_ref
     events = _read_status_log_retrospective_events(feature_dir=mission.root_mission_dir, repo_root=mission.repo)
 
     assert [event["event_name"] for event in events] == ["retrospective.completed"]
+
+
+def test_agent_tasks_status_fails_closed_on_an_unreadable_coordination_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7335: the board refuses an unreadable coordination ref; it never renders an empty or PRIMARY board."""
+    mission = build_mission(tmp_path, ABSENT)
+    _break_coordination_ref(mission)
+    monkeypatch.chdir(mission.repo)
+
+    observed = _observe("agent tasks status", mission.repo, monkeypatch)
+
+    assert observed.startswith("refused:"), observed
