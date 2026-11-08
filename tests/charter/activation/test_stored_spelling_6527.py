@@ -211,6 +211,16 @@ WRITERS: dict[str, Callable[[Path], None]] = {
 NON_WRITING_WRITERS = frozenset({"activate-absent-key", "cascade", "interview"})
 
 
+# Interim per-test budget for the cascade case, kept until #6854 lands. #6777 shares one
+# ResolutionPass across the cascade's targets (5028 -> 240 artifact-file parses), but each
+# of the 114 `ActiveCharterManager.activate()` calls still rescans its kind's catalog, and
+# the case still crossed the 240 s pytest.ini backstop on a per-PR CI runner (run
+# 42462186463). 600 s is the value #6776 measured for (~296 s slow-runner estimate, ~2x).
+# Drop this override, and invert `test_the_cascade_case_keeps_its_interim_budget_until_6854`,
+# once #6854 removes the per-target catalog scan.
+_CASCADE_TIMEOUT_S = 600
+
+
 @pytest.mark.parametrize(
     "writer",
     [name for name in WRITERS if name not in NON_WRITING_WRITERS],
@@ -225,27 +235,33 @@ def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     assert _non_stems(root) == {}, stored
 
 
-def _parametrised_marks(func: Callable[..., None]) -> dict[str, set[str]]:
+def _parametrised_case_marks(func: Callable[..., None]) -> dict[str, list[pytest.Mark]]:
     """Each parametrised case of *func*, with the pytest marks it carries."""
-    cases: dict[str, set[str]] = {}
+    cases: dict[str, list[pytest.Mark]] = {}
     for mark in getattr(func, "pytestmark", ()):
         if mark.name != "parametrize":
             continue
         for argvalue in mark.args[1]:
             value = argvalue.values[0] if hasattr(argvalue, "values") else argvalue
-            cases[str(value)] = {inner.name for inner in getattr(argvalue, "marks", ())}
+            cases[str(value)] = [getattr(inner, "mark", inner) for inner in getattr(argvalue, "marks", ())]
     return cases
 
 
-def test_the_cascade_case_runs_under_the_suite_wide_timeout() -> None:
-    """The `[cascade]` case keeps the single 240 s backstop and the documented `slow` tier.
+def _parametrised_marks(func: Callable[..., None]) -> dict[str, set[str]]:
+    """Each parametrised case of *func*, with the names of the pytest marks it carries."""
+    return {case: {mark.name for mark in marks} for case, marks in _parametrised_case_marks(func).items()}
 
-    #6776 added a per-test 600 s marker as an interim crutch while the cascade walk cost
-    ~80 s locally (#6777); #6777 removed the redundant work that needed it. Both halves of
-    that decision are pinned here so neither can return silently:
 
-    * no case of either writer-driven test overrides the one timeout authority in
-      `pytest.ini` (#3143);
+def test_the_cascade_case_keeps_its_interim_budget_until_6854() -> None:
+    """The `[cascade]` case alone carries the interim timeout budget and the `slow` tier.
+
+    #6777 made the cascade resolve its targets' file names in one pass, but the walk still
+    rescans each kind's catalog per target, and the case crossed the 240 s pytest.ini
+    backstop (#3143) on a per-PR CI runner. Its per-test budget therefore stays until #6854
+    removes that scan. This guard pins the budget so removing it is a deliberate act:
+
+    * exactly one case, the cascade, overrides the backstop, with `_CASCADE_TIMEOUT_S`;
+    * the comment above `_CASCADE_TIMEOUT_S` names #6854, the issue whose fix retires it;
     * the cascade walk is the only case on the `slow` tier, which `pytest.ini` defines as
       "test expected to take >30 seconds" and which the module shards keep selecting
       (`module-tests.yml`: `-m "not performance and not stress"`), so marking it slow moves
@@ -255,12 +271,17 @@ def test_the_cascade_case_runs_under_the_suite_wide_timeout() -> None:
     `test_a_writer_that_names_only_in_force_artifacts_stores_nothing` (a cascade into an
     absent key stores nothing), so both parametrised tests are read.
     """
-    writing = _parametrised_marks(test_writer_stores_stems_only)
-    non_writing = _parametrised_marks(test_a_writer_that_names_only_in_force_artifacts_stores_nothing)
+    writing = _parametrised_case_marks(test_writer_stores_stems_only)
+    non_writing = _parametrised_case_marks(test_a_writer_that_names_only_in_force_artifacts_stores_nothing)
     assert set(writing) | set(non_writing) == set(WRITERS), (writing, non_writing)
     cases = {f"{test}[{name}]": marks for test, group in (("writing", writing), ("non-writing", non_writing)) for name, marks in group.items()}
-    assert [name for name, marks in cases.items() if "timeout" in marks] == [], "a case overrides the suite-wide 240 s timeout backstop"
-    assert [name for name, marks in cases.items() if "slow" in marks] == ["non-writing[cascade]"], cases
+    timeouts = {name: [mark.args for mark in marks if mark.name == "timeout"] for name, marks in cases.items()}
+    assert {name: args for name, args in timeouts.items() if args} == {"non-writing[cascade]": [(_CASCADE_TIMEOUT_S,)]}, timeouts
+    assert [name for name, marks in cases.items() if any(mark.name == "slow" for mark in marks)] == ["non-writing[cascade]"], cases
+
+    source = Path(__file__).read_text(encoding="utf-8")
+    comment = source.split("\n_CASCADE_TIMEOUT_S = ", 1)[0].rsplit("\n\n", 1)[-1]
+    assert comment.lstrip().startswith("#") and "#6854" in comment, f"the interim budget's comment must name #6854: {comment!r}"
 
 
 def test_the_mark_probe_sees_a_marker_when_one_is_present() -> None:
@@ -322,13 +343,13 @@ def test_the_in_force_set_is_unchanged_and_nothing_is_stored(tmp_path: Path) -> 
 
 # The cascade writer walks the full built-in cascade the DRG reaches from one directive
 # (114 targets across six kinds), so it is the one case here over the 30 s the `slow`
-# marker documents in pytest.ini; every other writer is a handful of activations. It runs
-# under the single 240 s backstop (#3143) -- #6777 removed both the redundant per-target
-# catalog re-reads that cost ~30 s and the 600 s per-test marker #6776 added as an interim
-# crutch. `test_the_cascade_case_runs_under_the_suite_wide_timeout` pins both decisions.
+# marker documents in pytest.ini; every other writer is a handful of activations. #6777
+# removed its redundant per-target identity re-reads, but it keeps the interim
+# `_CASCADE_TIMEOUT_S` budget until #6854; `test_the_cascade_case_keeps_its_interim_budget_until_6854`
+# pins both marks.
 @pytest.mark.parametrize(
     "writer",
-    [pytest.param(name, marks=pytest.mark.slow) if name == "cascade" else name for name in sorted(NON_WRITING_WRITERS)],
+    [pytest.param(name, marks=[pytest.mark.slow, pytest.mark.timeout(_CASCADE_TIMEOUT_S)]) if name == "cascade" else name for name in sorted(NON_WRITING_WRITERS)],
 )
 def test_a_writer_that_names_only_in_force_artifacts_stores_nothing(tmp_path: Path, writer: str) -> None:
     """#6685: the interview, the first activation and a cascade write no list into an absent key.
