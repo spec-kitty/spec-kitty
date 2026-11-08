@@ -577,7 +577,36 @@ def test_census_checks_reject_planted_mutations() -> None:
         if row.get("on_surface"):
             row["on_surface"] = False
             break
-    assert _classification_problems(vanished_surface), "A PUBLIC reached path hidden off the surface must fail the delta check."
+    assert _classification_problems(vanished_surface), "A surface path whose on_surface flag is cleared must fail the classification check."
+
+    # The two delta mutations below assert on the delta message itself: every other
+    # classification predicate stays satisfied, so only the recomputed-delta branch can
+    # catch them (without them, disabling that comparison left this gate green).
+    declared_ghost = copy.deepcopy(census)
+    declared_ghost["public_contract_delta"] = ["charter.offering.ghost"]
+    assert any("public_contract_delta" in problem for problem in _classification_problems(declared_ghost)), (
+        "A declared delta entry the live tree does not produce must fail the delta check."
+    )
+
+    shadow_path = "charter.offering.artifact_kinds.shadow"
+    live_consumers = _reached_path_consumers()
+    widened_consumers = {**live_consumers, shadow_path: {"src/specify_cli/shadow_consumer.py"}}
+    widened = copy.deepcopy(census)
+    widened["reached_classification"] = [
+        *widened["reached_classification"],
+        {
+            "path": shadow_path,
+            "disposition": _disposition_for_origin(shadow_path),
+            "on_surface": False,
+            "route": "planted: a PUBLIC path reached off the frozen surface",
+            "consumers": ["src/specify_cli/shadow_consumer.py"],
+        },
+    ]
+    with patch.object(sys.modules[__name__], "_reached_path_consumers", return_value=widened_consumers):
+        widened_problems = _classification_problems(widened)
+    assert any("public_contract_delta" in problem for problem in widened_problems), (
+        f"A reached PUBLIC path absent from the frozen surface must surface as a public-contract delta, never a silent widening; got {widened_problems}"
+    )
 
     with patch.object(sys.modules[__name__], "_reached_path_consumers", return_value={}):
         assert _classification_problems(census), "An empty reached-path scan must fail, not pass the classification and delta checks vacuously."
