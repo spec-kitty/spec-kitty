@@ -50,8 +50,7 @@ from specify_cli.git.destructive_guard import (
 from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.lanes.compute import is_repo_root_lane, lane_created_branch
 from specify_cli.lanes.models import LanesManifest
-from specify_cli.status.reducer import SNAPSHOT_FILENAME
-from specify_cli.status.store import EVENTS_FILENAME
+from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 from specify_cli.workspace.process_probe import ProcessProbeResult, processes_with_cwd_under
 
 __all__ = [
