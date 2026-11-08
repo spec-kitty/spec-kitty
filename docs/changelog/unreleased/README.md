@@ -12,10 +12,10 @@ touches no shared file.
 
 `<id>.<section>.md`
 
-- `<id>`: the pull request number. Before the pull request exists, use the issue number
-  followed by your branch slug, such as `6862-keep-lane`, and rename the file to the pull
-  request number once you know it. Lowercase letters, digits and `-` only. Two fragments with
-  the same name are a git conflict: if you hit one, rename yours, never merge the two files.
+- `<id>`: the pull request number, the issue number, or a short lowercase slug, such as
+  `7211-safe-landed-prune`. Lowercase letters, digits and `-` only. No renaming is needed once
+  the pull request exists. Two fragments with the same name are a git conflict: if you hit
+  one, rename yours, never merge the two files.
 - `<section>`: one of `breaking`, `upgrade-notes`, `added`, `changed`, `fixed`, `internal`.
   It picks the `###` heading the entry lands under.
 
