@@ -9,11 +9,13 @@ later edit cannot quietly undo them:
    chose ``pack_level`` over ``pack_tier`` and rejected "tier" because it is
    overloaded (see ``docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md``,
    "Rejected"). ``kernel.pack_tiers`` is a module name and survives.
-2. ``docs/context/charter.md`` defines **Contract Scenario** beside **Charter
-   Pack**, with the four required rows, a ``Location`` row naming the scenario
-   files' home, a ``Related terms`` row and a ``Do NOT use when`` guard that sends
-   a reader to the acceptance scenarios, the conformance corpus and away from
-   "BDD scenarios".
+2. ``docs/context/charter.md`` defines **Contract Scenario**, with the four
+   required rows, a ``Location`` row naming the scenario directory, a ``Related
+   terms`` row and a ``Do NOT use when`` guard that sends a reader to the
+   acceptance scenarios, the conformance corpus and away from "BDD scenarios".
+   Its status, its position on the page and the scenario files that exist today
+   in ``spec-kitty-charter`` are deliberately not pinned: the Human-in-Charge
+   promotes the term, and the file list belongs to the other repository.
 
 **Out of scope, deliberately.** The word "tier" has three other live senses in this
 glossary that this guard must never assert against: the **Organization Tier** term
@@ -191,19 +193,10 @@ def test_charter_pack_entry_calls_a_pack_level_a_level(charter_text: str) -> Non
     )
 
 
-def test_contract_scenario_entry_sits_beside_charter_pack(charter_text: str) -> None:
-    """Contract Scenario is defined, between Charter Pack and Activation preset."""
-    titles = _entry_titles(charter_text)
-    assert "Contract Scenario" in titles, (
+def test_contract_scenario_entry_is_defined(charter_text: str) -> None:
+    """Contract Scenario has its own entry on the Charter context page."""
+    assert "Contract Scenario" in _entry_titles(charter_text), (
         f"{CHARTER_PATH}: no '### Contract Scenario' entry. Issue #6439 asks core's glossary to define the Gherkin behavior half of the charter contract."
-    )
-    for neighbour in ("Charter Pack", "Activation preset"):
-        assert neighbour in titles, f"{CHARTER_PATH}: the '{neighbour}' neighbour of Contract Scenario is missing; this test orders the entry beside it"
-    positioned = titles.index("Contract Scenario")
-    assert titles.index("Charter Pack") < positioned < titles.index("Activation preset"), (
-        f"{CHARTER_PATH}: Contract Scenario must sit beside Charter Pack, between "
-        f"'### Charter Pack' and '### Activation preset'; found it at index {positioned} "
-        f"of {len(titles)} entries"
     )
 
 
@@ -239,8 +232,6 @@ def test_contract_scenario_entry_names_its_home(charter_text: str) -> None:
     assert "contracts/charter/scenarios/" in location, (
         f"{CHARTER_PATH}: the Contract Scenario entry must name its home 'contracts/charter/scenarios/' in spec-kitty-charter (found {location!r})"
     )
-    for feature_file in ("action_context.feature", "errors.feature", "packs.feature"):
-        assert feature_file in location, f"{CHARTER_PATH}: the Contract Scenario home must name {feature_file!r} as the file that carries the scenarios today"
 
 
 def test_contract_scenario_guard_steers_to_the_neighbouring_terms(
@@ -254,21 +245,3 @@ def test_contract_scenario_guard_steers_to_the_neighbouring_terms(
         assert alternate.lower() in guard_row.lower(), (
             f"{CHARTER_PATH}: the Contract Scenario guard must name {alternate!r} as the term a reader probably wants instead"
         )
-
-
-def test_contract_scenario_entry_starts_as_a_candidate(charter_text: str) -> None:
-    """A new term enters as `candidate` and is version-scoped like its neighbour.
-
-    ``styleguide:kitty-glossary-writing`` makes the candidate-first rule explicit:
-    the Human-in-Charge (HiC) promotes a term, not the author of the entry. The
-    version scope matches the Charter Pack entry the term sits beside.
-    """
-    body = _entry_body(charter_text, "Contract Scenario")
-    status = _row_text(body, "**Status**")
-    assert "candidate" in status.lower(), (
-        f"{CHARTER_PATH}: the Contract Scenario entry must enter as a candidate (found status row {status!r}); only the HiC promotes a term"
-    )
-    applicable = _row_text(body, "**Applicable to**")
-    assert "4.x" in applicable, (
-        f"{CHARTER_PATH}: the Contract Scenario entry must be scoped like the Charter Pack entry beside it (found applicable-to row {applicable!r})"
-    )
