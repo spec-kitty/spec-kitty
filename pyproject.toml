@@ -2484,6 +2484,7 @@ module = [
     "specify_cli.cli.commands.charter._app",        # charter_app, whose .command() decorates charter interview
     "specify_cli.upgrade.migrations.base",          # BaseMigration / MigrationResult, subclassed by every migration (#7217)
     "specify_cli.upgrade.migrations._merge_driver_seeding",# MergeDriverSeedingMigration, subclassed by the merge-driver migrations (#7217)
+    "specify_cli.cli.commands._charter_pack_collect",# _sanction_entry_snippet() -> list[str] | None (doctor.py, #7220)
 ]
 follow_imports = "normal"
 
@@ -2573,6 +2574,13 @@ dev = [
     # exact on purpose: dictionary content is behavior, so a new codespell release must not
     # be able to turn CI red. Bump it deliberately, together with the docs it newly flags.
     "codespell==2.4.3",
+    # The test suite, the WP validation gates and the pre-push checks shell out to
+    # `python -m ruff` / `python -m mypy`. Both live in the `lint` extra, which a plain
+    # `uv sync` does not install, so a fresh lane worktree false-reds with
+    # `ModuleNotFoundError` (#5064). Mirrored here (pin-equal, guarded by
+    # tests/architectural/test_pyproject_shape.py) for the same reason as the stubs above.
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
 ]
 
 [tool.codespell]

@@ -722,7 +722,12 @@ def read_events_from_text(feature_dir: Path, content: str) -> list[StatusEvent]:
     Raises :class:`StoreError` on invalid JSON **or** invalid event
     structure, including the 1-based line number in the message.
     """
-    return _partition_event_stream_from_text(feature_dir, content).transitions
+    # ``EventStream`` comes from a ``follow_imports = "skip"`` module, so a narrow
+    # ``mypy --strict`` run reads ``.transitions`` as ``Any`` and returning it
+    # directly trips ``no-any-return`` (#6051). Bind the value to its declared
+    # element type; behavior is unchanged.
+    transitions: list[StatusEvent] = _partition_event_stream_from_text(feature_dir, content).transitions
+    return transitions
 
 
 def read_event_stream_from_text(feature_dir: Path, content: str) -> EventStream:

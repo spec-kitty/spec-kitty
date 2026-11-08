@@ -3,10 +3,12 @@
 Neutral home (issue #3772) for the two seams ``activate.py`` and
 ``deactivate.py`` previously duplicated or cross-imported:
 
-* :data:`KIND_FILTERED_LABEL` + :func:`render_kind_filtered_line` -- the one
-  kind-filtered-node render definition, previously defined in (and imported
-  back out of) ``activate.py`` as the underscore-private
-  ``_render_kind_filtered_line``, a private name consumed by a sibling module.
+* :func:`render_kind_filtered_line` -- the one kind-filtered-node render
+  definition, previously defined in (and imported back out of) ``activate.py``
+  as the underscore-private ``_render_kind_filtered_line``, a private name
+  consumed by a sibling module. The line's wording lives in the module-private
+  ``KIND_FILTERED_LABEL`` template, which the renderer is the only consumer of:
+  the exported seam is the renderer, not its format string (#4599).
 * :func:`drg_urn_to_config_id` -- the one URN-accepting DRG-URN ->
   config-stem-ID resolution with orphan fallback, previously
   ``activate.py``'s ``(kind, id)``-shaped ``_drg_id_to_config_id`` plus two

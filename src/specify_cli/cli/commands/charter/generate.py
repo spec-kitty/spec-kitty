@@ -473,7 +473,7 @@ def _resolve_generate_write_root(owned_checkout: OwnedCheckoutOption, mission_ha
     )
     assert owned is not None  # Explicit claim either validates or exits.
     _validate_owned_charter_destinations(owned.owned_root)
-    return owned.owned_root
+    return cast(Path, owned.owned_root)
 
 
 @_typed_charter_app.command()

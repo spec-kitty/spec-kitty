@@ -353,3 +353,56 @@ def test_dev_group_plugin_guard_rejects_missing_mirror() -> None:
     }
     failures = _dev_group_plugin_violations(planted)
     assert any("pytestarch" in failure and "missing" in failure for failure in failures)
+
+
+# Lint tools the test suite and the WP validation gates shell out to as
+# ``python -m ruff`` / ``python -m mypy``. They are declared in the `lint`
+# OPTIONAL extra, which a plain `uv sync` (the default groups: the dev group)
+# does not install — so a lane worktree false-reds with
+# ``ModuleNotFoundError: No module named 'mypy'`` (#5064). Mirror them here.
+_DEV_GROUP_REQUIRED_LINT_TOOLS: frozenset[str] = frozenset({"ruff", "mypy"})
+
+
+def _dev_group_lint_tool_violations(data: dict[str, Any]) -> list[str]:
+    dev_entries = data.get("dependency-groups", {}).get("dev", [])
+    dev_by_name = {_dep_name(entry): entry for entry in dev_entries}
+    lint_extra = data.get("project", {}).get("optional-dependencies", {}).get("lint", [])
+    lint_by_name = {_dep_name(entry): entry for entry in lint_extra}
+    failures: list[str] = []
+    for tool in sorted(_DEV_GROUP_REQUIRED_LINT_TOOLS):
+        if tool not in dev_by_name:
+            failures.append(
+                f"{tool} is invoked as `python -m {tool}` by the test suite/gates but is missing from [dependency-groups].dev (a plain `uv sync` would false-red)"
+            )
+            continue
+        # Keep the dev-group pin equal to the `lint` extra pin so a plain `uv sync`
+        # and `uv sync --extra lint` resolve the same version (no uv.lock drift).
+        if tool in lint_by_name and dev_by_name[tool] != lint_by_name[tool]:
+            failures.append(f"{tool} pin drifts between dev group ({dev_by_name[tool]}) and lint extra ({lint_by_name[tool]})")
+    return failures
+
+
+def test_dev_group_mirrors_lint_tools_needed_without_extras() -> None:
+    """#5064: ruff and mypy must be installed by a plain `uv sync`, because the
+    test suite and WP gates run them through the same interpreter."""
+    assert _dev_group_lint_tool_violations(_load_pyproject()) == []
+
+
+def test_dev_group_lint_tool_guard_rejects_missing_mirror() -> None:
+    """The guard fails closed when a lint tool is absent from the dev group."""
+    planted = {
+        "project": {"optional-dependencies": {"lint": ["ruff>=0.4.0", "mypy>=1.10.0"]}},
+        "dependency-groups": {"dev": ["ruff>=0.4.0"]},
+    }
+    failures = _dev_group_lint_tool_violations(planted)
+    assert any("mypy" in failure and "missing" in failure for failure in failures)
+
+
+def test_dev_group_lint_tool_guard_rejects_pin_drift() -> None:
+    """The guard fails closed when a mirrored pin drifts from the `lint` extra."""
+    planted = {
+        "project": {"optional-dependencies": {"lint": ["ruff>=0.4.0", "mypy>=1.10.0"]}},
+        "dependency-groups": {"dev": ["ruff>=0.4.0", "mypy>=1.9.0"]},
+    }
+    failures = _dev_group_lint_tool_violations(planted)
+    assert any("mypy" in failure and "drifts" in failure for failure in failures)
