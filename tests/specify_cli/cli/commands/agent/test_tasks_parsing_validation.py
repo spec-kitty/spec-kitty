@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1628,6 +1629,101 @@ def test_resolve_planning_branch_falls_back_to_target_branch(tmp_path: Path) -> 
 def test_resolve_planning_branch_returns_none_without_meta(tmp_path: Path) -> None:
     with patch("specify_cli.mission_metadata.load_meta", return_value=None):
         assert _resolve_planning_branch_for_lane_guard(tmp_path) is None
+
+
+class _FakeSeam:
+    """A ``placement_seam`` stand-in whose PRIMARY write target is *ref*; records the kinds asked."""
+
+    def __init__(self, ref: str) -> None:
+        self.ref = ref
+        self.kinds: list[object] = []
+
+    def write_target(self, kind: object) -> object:
+        self.kinds.append(kind)
+        return type("CommitTarget", (), {"ref": self.ref})()
+
+
+_DEFAULT_META = {"topology_source": "default", "planning_base_branch": "kitty/plan", "target_branch": "work"}
+
+
+def test_resolve_planning_branch_default_mission_asks_the_seam_for_the_topic_branch(tmp_path: Path) -> None:
+    """#7372 / FR-061: before the landing a default Mission's lanes are cut from its topic branch."""
+    from mission_runtime import MissionArtifactKind
+
+    seam = _FakeSeam("kitty/mission-probe-01M6XCQ7")
+    with (
+        patch("specify_cli.mission_metadata.load_meta", return_value=dict(_DEFAULT_META)),
+        patch("mission_runtime.placement_seam", return_value=seam) as factory,
+    ):
+        resolved = _resolve_planning_branch_for_lane_guard(tmp_path, repo_root=tmp_path, mission_slug="probe-01M6XCQ7")
+    assert resolved == "kitty/mission-probe-01M6XCQ7"
+    factory.assert_called_once_with(tmp_path, "probe-01M6XCQ7")
+    assert seam.kinds == [MissionArtifactKind.SPEC]
+
+
+def test_resolve_planning_branch_default_mission_after_landing_takes_the_seam_target(tmp_path: Path) -> None:
+    """After the landing the seam resolves PRIMARY to ``target_branch``; the guard follows it."""
+    with (
+        patch("specify_cli.mission_metadata.load_meta", return_value=dict(_DEFAULT_META)),
+        patch("mission_runtime.placement_seam", return_value=_FakeSeam("work")),
+    ):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path, repo_root=tmp_path, mission_slug="probe") == "work"
+
+
+@pytest.mark.parametrize(
+    ("meta", "kwargs"),
+    [
+        ({"topology_source": "explicit", "planning_base_branch": "kitty/plan"}, {"repo_root": Path("."), "mission_slug": "probe"}),
+        ({"planning_base_branch": "kitty/plan"}, {"repo_root": Path("."), "mission_slug": "probe"}),
+        (dict(_DEFAULT_META), {}),
+        (dict(_DEFAULT_META), {"repo_root": Path("."), "mission_slug": ""}),
+    ],
+    ids=["explicit-topology", "no-topology-source", "no-repo-context", "empty-slug"],
+)
+def test_resolve_planning_branch_keeps_meta_precedence_outside_the_default_arm(tmp_path: Path, meta: dict[str, str], kwargs: dict[str, Any]) -> None:
+    """Every Mission that is not a default Mission (or a caller without repo context) never asks the seam."""
+    with (
+        patch("specify_cli.mission_metadata.load_meta", return_value=meta),
+        patch("mission_runtime.placement_seam", side_effect=AssertionError("the seam must not be asked")),
+    ):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path, **kwargs) == "kitty/plan"
+
+
+def test_resolve_planning_branch_seam_failure_falls_through_to_meta_precedence(tmp_path: Path) -> None:
+    """A seam that cannot resolve falls through to ``planning_base_branch``, never to the lane base (#3271)."""
+    with (
+        patch("specify_cli.mission_metadata.load_meta", return_value=dict(_DEFAULT_META)),
+        patch("mission_runtime.placement_seam", side_effect=RuntimeError("unresolvable")),
+    ):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path, repo_root=tmp_path, mission_slug="probe") == "kitty/plan"
+
+
+def test_check_kitty_specs_contamination_threads_repo_context_to_the_guard_base(tmp_path: Path) -> None:
+    """The contamination check measures the lane against the default Mission's topic branch."""
+    from specify_cli.cli.commands.agent.tasks_parsing_validation import _check_kitty_specs_contamination
+
+    seen: dict[str, object] = {}
+
+    def _list_changes(**kwargs: object) -> list[str]:
+        seen.update(kwargs)
+        return []
+
+    with (
+        patch("specify_cli.mission_metadata.load_meta", return_value=dict(_DEFAULT_META)),
+        patch("mission_runtime.placement_seam", return_value=_FakeSeam("kitty/mission-probe")),
+    ):
+        result = _check_kitty_specs_contamination(
+            worktree_path=tmp_path,
+            check_branch="kitty/mission-probe-lane-a-base",
+            feature_dir=tmp_path,
+            wp_id="WP01",
+            target_lane="for_review",
+            list_wp_branch_specs_changes_for_guard=_list_changes,
+            repo_root=tmp_path,
+            mission_slug="probe",
+        )
+    assert result is None
+    assert seen["base_branch"] == "kitty/mission-probe"
 
 
 # ---------------------------------------------------------------------------
