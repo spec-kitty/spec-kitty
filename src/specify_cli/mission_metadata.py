@@ -670,8 +670,10 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     message. Message text cannot separate those, so a ``.git`` above *feature_dir* that is a
     repository, or that the classifier cannot rule out (*unknown*), raises
     :class:`_GitRefuses`: the caller refuses instead of falling back to fabricating an
-    identity over a copy git does hold (NFR-002). The same holds when git cannot be started at
-    all (operator ruling on #7262): only an absent or residue ``.git`` lets that read as
+    identity over a copy git does hold (NFR-002). Git's own ownership diagnosis refuses even
+    when the walk finds no such ``.git`` (#7061): it is git saying it found a repository it will
+    not trust, so a walk that stopped short of it cannot prove absence. The same holds when git
+    cannot be started at all (operator ruling on #7262): only an absent or residue ``.git`` lets that read as
     "nothing tracked".
     """
     try:
@@ -686,11 +688,12 @@ def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     lines = result.stdout.decode(_UTF8, "replace").split("\n")
     if result.returncode == 0 and len(lines) >= 2 and lines[0].strip() == "true":
         return lines[1].removesuffix("\n")
+    stderr = result.stderr.decode(_UTF8, "replace")
     anchor = find_git_anchor(feature_dir)
-    if anchor is None:
+    if anchor is None and not refuses_ownership(stderr):
         _require_readable_git_config(feature_dir)
         return None
-    raise _GitRefuses(result.stderr.decode(_UTF8, "replace"), anchor)
+    raise _GitRefuses(stderr, anchor)
 
 
 def _require_readable_git_config(feature_dir: Path) -> None:
