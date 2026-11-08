@@ -10,7 +10,7 @@ import pytest
 from specify_cli.mission_brief import (
     BRIEF_SOURCE_FILENAME,
     MISSION_BRIEF_FILENAME,
-    clear_mission_brief,
+    clear_intake_artifacts,
     read_brief_source,
     read_mission_brief,
     write_mission_brief,
@@ -138,7 +138,7 @@ def test_read_source_raises_on_non_mapping_yaml(tmp_path: Path) -> None:
 
 
 def test_clear_removes_both_files(tmp_path: Path) -> None:
-    """clear_mission_brief removes both artefacts."""
+    """clear_intake_artifacts removes both artefacts and reports them."""
     write_mission_brief(tmp_path, RAW_CONTENT, "plan.md")
 
     brief_path = tmp_path / ".kittify" / MISSION_BRIEF_FILENAME
@@ -146,16 +146,16 @@ def test_clear_removes_both_files(tmp_path: Path) -> None:
     assert brief_path.exists()
     assert source_path.exists()
 
-    clear_mission_brief(tmp_path)
+    assert clear_intake_artifacts(tmp_path) == [MISSION_BRIEF_FILENAME, BRIEF_SOURCE_FILENAME]
 
     assert not brief_path.exists()
     assert not source_path.exists()
 
 
 def test_clear_is_idempotent(tmp_path: Path) -> None:
-    """clear_mission_brief does not raise when files are already absent."""
-    clear_mission_brief(tmp_path)
-    clear_mission_brief(tmp_path)
+    """clear_intake_artifacts reports nothing when files are already absent."""
+    assert clear_intake_artifacts(tmp_path) == []
+    assert clear_intake_artifacts(tmp_path) == []
 
 
 def test_write_twice_overwrites(tmp_path: Path) -> None:
