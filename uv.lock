@@ -2320,9 +2320,11 @@ test = [
 [package.dev-dependencies]
 dev = [
     { name = "codespell" },
+    { name = "mypy" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "pytestarch" },
+    { name = "ruff" },
     { name = "types-jsonschema" },
     { name = "types-psutil" },
     { name = "types-pyyaml" },
@@ -2386,9 +2388,11 @@ provides-extras = ["test", "services", "lint"]
 [package.metadata.requires-dev]
 dev = [
     { name = "codespell", specifier = "==2.4.3" },
+    { name = "mypy", specifier = ">=1.10.0" },
     { name = "pytest-timeout", specifier = ">=2.2.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "pytestarch", specifier = ">=4.0.0" },
+    { name = "ruff", specifier = ">=0.4.0" },
     { name = "types-jsonschema", specifier = ">=4.0.0" },
     { name = "types-psutil", specifier = ">=5.9.0" },
     { name = "types-pyyaml", specifier = ">=6.0" },
