@@ -97,14 +97,17 @@ jobs:
   # SPEC_KITTY_RUN_PERFORMANCE=1 (they are cold-start / runner-bound off the
   # per-PR path) -- without this env var the `-m performance` step below
   # selects the suite but conftest skips every test in it, a vacuous lane.
-  # PWHEADLESS keeps any UI-touching test headless. Budget kept at 35 (not
-  # shrunk): a generous timeout costs nothing unless a job hangs, and this
-  # WP's own evidence base is a single dispatch.
+  # PWHEADLESS keeps any UI-touching test headless. The cap was kept at 35
+  # until #6787 measured 32:51 (run 42442477189); it now follows the #5378
+  # headroom record on the job below.
   performance:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Performance suite (nightly-only, #3595)
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    # #6787: the 35-minute cap above left 2 minutes over the 32:51 suite of run 42442477189; the cap
+    # now follows the #5378 record over the last 20 nightlies (17:25..32:51 suite wall-clock).
+    # headroom (#5378): max-suite=32:51 runs=42442477189,42333589392,42156135564,41961190305,41766680757,41614103305,41609080994,41571798610,41382886325,41269035017,41163976364,40997330123,40812120655,40626642957,40444964589,40265057570,40158726274,40058682364,39895676431,39860951979 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 51
     # `issues: write` is for the nightly red -> deduped-P0 escalation step
     # (scripts/ci/nightly_escalation.py, FR-007) below; the workflow-level
     # default is `contents: read`.
@@ -140,6 +143,8 @@ jobs:
 
       - name: Run performance-marked suite (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 46
         shell: bash
         run: |
           set +e
@@ -166,8 +171,10 @@ jobs:
       #
       # FIND-1 (#5034): the `:-1` default (NOT `:-0`) is load-bearing. PERF_EXIT
       # is written by the suite step's OWN `code=$?; echo ... >> $GITHUB_ENV`
-      # line, which only runs if that step gets to finish. If the job is killed
-      # by its `timeout-minutes` cap mid-run (the #4865 truncation scenario),
+      # line, which only runs if that step gets to finish. If the suite step is
+      # killed by its own step-level `timeout-minutes` (#6787: a JOB-level
+      # timeout would skip this step entirely, so every suite step carries a
+      # lower cap of its own, pinned by tests/ci/test_nightly_suite_step_timeout.py),
       # that write never happens and PERF_EXIT is UNSET here -- `:-0` would then
       # read as "exit 0, passed", closing a standing P0 for a suite that never
       # actually finished. `:-1` makes an unset/never-written exit resolve to a
@@ -260,6 +267,8 @@ jobs:
 
       - name: Run heavy/e2e-marked suite (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 35
         shell: bash
         run: |
           set +e
@@ -332,13 +341,16 @@ jobs:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Stress suite (nightly-only, #3595)
     runs-on: ubuntu-24.04
-    # DO NOT set SPEC_KITTY_RUN_PERFORMANCE on this job. This 10-minute
+    # DO NOT set SPEC_KITTY_RUN_PERFORMANCE on this job. This 16-minute
     # budget assumes the ~20 performance-marked tests stay skipped here (they
     # are the single-owner responsibility of the `performance` job above).
     # Re-scoping that env var onto `stress` reintroduces the duplicated
     # performance-marked cases, blows this budget, and reproduces #4865's
     # ~16m18s+ truncation defect -- the exact regression this mission fixes.
-    timeout-minutes: 10
+    # #6787: the stress suite drifted from 4:44 to 5:46-6:48 (run 41961190305); a 10-minute cap no
+    # longer leaves room for a step cap of its own, so the cap follows the #5378 record.
+    # headroom (#5378): max-suite=6:48 runs=42442477189,42333589392,42156135564,41961190305,41766680757,41614103305,41609080994,41571798610,41382886325,41269035017,41163976364,40997330123,40812120655,40626642957,40444964589,40265057570,40158726274,40058682364,39895676431,39860951979 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 16
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -365,6 +377,8 @@ jobs:
 
       - name: Run stress-marked suite (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 11
         shell: bash
         run: |
           set +e
@@ -447,6 +461,8 @@ jobs:
 
       - name: Run open-P0 reproductions (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
@@ -537,6 +553,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 1 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 15
         shell: bash
         run: |
           set +e
@@ -624,6 +642,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 2 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 26
         shell: bash
         run: |
           set +e
@@ -702,6 +722,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 3 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 30
         shell: bash
         run: |
           set +e
@@ -776,6 +798,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 4 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 20
         shell: bash
         run: |
           set +e
@@ -850,6 +874,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 5 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 30
         shell: bash
         run: |
           set +e
@@ -924,6 +950,8 @@ jobs:
 
       - name: Run fast/unit suite, shard 6 (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 20
         shell: bash
         run: |
           set +e
@@ -1067,8 +1095,9 @@ jobs:
   # recorded 69.2m fully-serial; a `-n auto --dist loadfile` run of the same
   # 1582-test corpus measured ~2m wall on a 32-core host (=> ~64m serial,
   # consistent with the tier's figure) and projects to ~15-20m on a 4-core
-  # ubuntu-24.04 runner -- comfortably inside the 45m timeout below, so no
-  # cross-job sharding is needed. `--dist loadfile` keeps each file on one
+  # ubuntu-24.04 runner. That projection held until the #6715 lifecycle files
+  # landed (2026-10-30); the lane now runs 24-40 min and its cap follows the
+  # #5378 headroom record on the job below (#6787). `--dist loadfile` keeps each file on one
   # worker (file-scoped fixtures / collection semantics); per-worker HOME
   # isolation (WP04, conftest) keeps parallel workers off the real
   # ~/.spec-kitty. Same if: always() + set +e + exit-into-$GITHUB_ENV +
@@ -1078,7 +1107,13 @@ jobs:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: Integration + next suite (nightly-only, #4729)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # #6787: the suite grew from 9-17 min (2026-10-20..27) to 24-40 min once the #6715 lifecycle
+    # files landed (test_6715_lane_autowalk_guards.py alone runs ~15-19 min of 150-175 s CLI
+    # lifecycles on one --dist loadfile worker; the lane is CPU-bound at ~2.5 worker-hours on 4
+    # cores). Run 42442477189 was cancelled at the old 45-minute cap after >=44:34 of suite, so the
+    # cap follows the #5378 record. The suite step's own cap below makes a timeout escalate.
+    # headroom (#5378): max-suite>=44:34 runs=42442477189,42333589392,42156135564,41961190305,41766680757,41614103305,41609080994,41571798610,41382886325,41269035017,41163976364,40997330123,40812120655,40626642957,40444964589,40265057570,40158726274,40058682364,39895676431,39860951979 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 68
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -1105,6 +1140,8 @@ jobs:
 
       - name: Run integration + next suites by directory (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 63
         shell: bash
         run: |
           set +e
@@ -1218,6 +1255,8 @@ jobs:
 
       - name: Run out-of-matrix tests/specify_cli trees by directory (full-mode, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 64
         shell: bash
         run: |
           set +e
@@ -1337,6 +1376,8 @@ jobs:
 
       - name: Run the full architectural battery base (no partition, run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 35
         shell: bash
         run: |
           set +e
@@ -1441,6 +1482,8 @@ jobs:
 
       - name: Run integration-marked tests no other nightly lane selects
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 85
         shell: bash
         run: |
           set +e
@@ -1663,6 +1706,8 @@ jobs:
       # NO retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
       - name: Run the gating acceptance scenarios (no retries)
         id: gating
+        # #6787: below the job cap, so a timeout fails this step and the if: always() evidence and upload steps still run.
+        timeout-minutes: 55
         shell: bash
         run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 
@@ -1804,6 +1849,8 @@ jobs:
         uses: ./.github/actions/sync-packs
       - name: Audit every Mission's state
         id: audit
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 5
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/mission-state-audit.json"
@@ -1919,6 +1966,8 @@ jobs:
 
       - name: Run events-consumer tests on the newest allowed spec-kitty-events (run-all-regardless)
         if: always()
+        # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
+        timeout-minutes: 40
         shell: bash
         run: |
           set +e
