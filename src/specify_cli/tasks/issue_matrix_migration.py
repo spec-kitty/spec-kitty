@@ -349,7 +349,10 @@ def migrate_issue_matrix_to_json(
     Raises:
         IssueMatrixMigrationError: the legacy ``.md`` is structurally malformed
             and yields no usable rows -- migrating it would silently drop every
-            existing verdict, so it fails loud instead (#4868).
+            existing verdict, so it fails loud instead (#4868) -- or validation
+            failed while rows were dropped (an unknown verdict outside the
+            allow-list): those verdicts would be silently lost to the migrated
+            JSON, so it fails loud too (#5453).
     """
     source_dir = read_dir or feature_dir
     if (source_dir / ISSUE_MATRIX_JSON_FILENAME).exists():
@@ -358,13 +361,29 @@ def migrate_issue_matrix_to_json(
     if not md_path.exists():
         return None
 
-    from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+    from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+    from specify_cli.cli.commands.review._issue_matrix import IssueMatrixVerdict, validate_issue_matrix
 
     validation = validate_issue_matrix(md_path)
     legacy_rows = validation.rows
+    # #5453: with surviving rows, the only validator outcome that DROPS rows is
+    # an unknown verdict (the row is skipped when its verdict fails the
+    # allow-list); evidence_ref-empty and deferred-without-handle rows are
+    # still emitted, and missing-mandatory/unknown-column cases yield no rows
+    # at all (covered by the ``not legacy_rows`` arm below).
+    unknown_verdict_code = str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN)
+    unknown_verdict_diagnostics = [d for d in validation.diagnostics if d.get("diagnostic_code") == unknown_verdict_code]
     if not validation.passed and not legacy_rows:
         raise IssueMatrixMigrationError(
             f"legacy issue-matrix.md at {md_path} is malformed and yields no rows; refusing to migrate it to an empty (lossy) issue-matrix.json"
+        )
+    if unknown_verdict_diagnostics:
+        dropped_detail = "; ".join(str(d.get("message", "")) for d in unknown_verdict_diagnostics)
+        allowed = ", ".join(v.value for v in IssueMatrixVerdict)
+        raise IssueMatrixMigrationError(
+            f"legacy issue-matrix.md at {md_path} has {len(unknown_verdict_diagnostics)} row(s) with a verdict outside the allowed set; "
+            f"refusing to migrate because those rows would be silently dropped from issue-matrix.json: {dropped_detail}. "
+            f"Fix the verdict(s) first (allowed: {allowed})"
         )
     rows = {
         row.issue: IssueMatrixEntry(
