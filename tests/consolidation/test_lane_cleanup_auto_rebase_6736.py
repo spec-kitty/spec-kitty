@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -30,14 +32,18 @@ from specify_cli.consolidation.lane_cleanup import (
     LaneCleanupItem,
     LaneCleanupOutcome,
     LocalTargetAtPass,
+    _refusal_detail,
     absorbed_but_for_status_log,
     cleanup_expected_tips,
     own_auto_rebase_move,
 )
-from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.consolidation.phase_advance import _record_own_auto_rebase
+from specify_cli.consolidation.rollback import rebaseline_after_full_restore
+from specify_cli.consolidation.state import ConsolidationState, load_state
 from specify_cli.coordination.coherence import NothingIsResidue
-from specify_cli.git.destructive_guard import NOT_LANDED_ON_NAMED_REMOTE, WORKTREE_TIP_MOVED
+from specify_cli.git.destructive_guard import BRANCH_HAS_UNIQUE_COMMITS, NOT_LANDED_ON_NAMED_REMOTE, WORKTREE_TIP_MOVED, DestructiveOpRefused
 from specify_cli.lanes.lane_tip import is_absorbed
+from specify_cli.orchestrator_api.consolidation import _follow_own_auto_rebase
 from specify_cli.workspace.process_probe import ProcessProbeResult
 
 pytestmark = [pytest.mark.git_repo]
@@ -349,3 +355,83 @@ def test_the_remover_without_a_mission_slug_keeps_the_plain_proof(coord_landed: 
     assert result.outcome is LaneCleanupOutcome.KEPT
     assert result.code == NOT_LANDED_ON_NAMED_REMOTE
     assert worktree.exists()
+
+
+# --- the producers: consolidate's phase_advance and orchestrator-api ------------------------
+
+
+def _run(root: Path, pre: dict[str, str]) -> Any:
+    """A minimal stand-in for the executor's run state: the two attributes the recorder reads."""
+    state = ConsolidationState.from_dict(_state(pre_mutation_refs=pre))
+    return SimpleNamespace(main_repo=root, state=state)
+
+
+def test_phase_advance_records_and_saves_the_run_s_own_auto_rebase(stale_lane: tuple[Path, Path, str, str]) -> None:
+    root, worktree, tip, mission_tip = stale_lane
+    merged = _auto_rebase(worktree)
+    run = _run(root, {_LANE: tip})
+    _record_own_auto_rebase(run, _LANE, before=tip, mission_before=mission_tip)
+    assert run.state.lane_rebase_moves == {_LANE: [tip, merged]}
+    saved = load_state(root, run.state.mission_id)
+    assert saved is not None and saved.lane_rebase_moves == {_LANE: [tip, merged]}
+
+
+def test_phase_advance_records_nothing_for_an_unmoved_lane(stale_lane: tuple[Path, Path, str, str]) -> None:
+    root, _worktree, tip, mission_tip = stale_lane
+    run = _run(root, {_LANE: tip})
+    _record_own_auto_rebase(run, _LANE, before=tip, mission_before=mission_tip)
+    assert run.state.lane_rebase_moves == {}
+
+
+@pytest.mark.parametrize("snapshot", ["0" * 40, None])
+def test_phase_advance_records_nothing_unless_the_lane_started_at_its_snapshot_tip(stale_lane: tuple[Path, Path, str, str], snapshot: str | None) -> None:
+    root, worktree, tip, mission_tip = stale_lane
+    _auto_rebase(worktree)
+    run = _run(root, {_LANE: snapshot} if snapshot else {})
+    _record_own_auto_rebase(run, _LANE, before=tip, mission_before=mission_tip)
+    assert run.state.lane_rebase_moves == {}
+
+
+def test_phase_advance_records_nothing_for_an_unread_lane_tip(stale_lane: tuple[Path, Path, str, str]) -> None:
+    root, worktree, tip, mission_tip = stale_lane
+    _auto_rebase(worktree)
+    run = _run(root, {_LANE: tip})
+    _record_own_auto_rebase(run, _LANE, before=None, mission_before=mission_tip)
+    assert run.state.lane_rebase_moves == {}
+
+
+def test_orchestrator_api_follows_only_the_run_s_own_auto_rebase(stale_lane: tuple[Path, Path, str, str]) -> None:
+    root, worktree, tip, mission_tip = stale_lane
+    merged = _auto_rebase(worktree)
+    tips = {_LANE: tip}
+    _follow_own_auto_rebase(root, tips, (_LANE, tip, mission_tip))
+    assert tips == {_LANE: merged}
+
+
+def test_orchestrator_api_keeps_the_validated_tip_for_any_other_move(stale_lane: tuple[Path, Path, str, str]) -> None:
+    root, worktree, tip, mission_tip = stale_lane
+    _commit(worktree, "late.py", "w = 4\n")
+    tips = {_LANE: tip}
+    _follow_own_auto_rebase(root, tips, (_LANE, tip, mission_tip))
+    assert tips == {_LANE: tip}
+    other = {_LANE: "0" * 40}  # the lane was not at its validated tip when it was consolidated
+    _follow_own_auto_rebase(root, other, (_LANE, tip, mission_tip))
+    assert other == {_LANE: "0" * 40}
+    _follow_own_auto_rebase(root, tips, (_LANE, None, mission_tip))
+    assert tips == {_LANE: tip}
+
+
+def test_a_full_restore_rebaseline_drops_recorded_moves() -> None:
+    state = ConsolidationState.from_dict(_state(pre_mutation_refs={_LANE: "a"}, lane_rebase_moves={_LANE: ["a", "b"]}))
+    rebaseline_after_full_restore(state, ())
+    assert state.lane_rebase_moves == {}
+
+
+# --- the kept line's detail -----------------------------------------------------------------
+
+
+def test_other_refusals_name_their_entries_not_uncommitted_changes(tmp_path: Path) -> None:
+    refusal = DestructiveOpRefused(error_code=BRANCH_HAS_UNIQUE_COMMITS, current_branch=_LANE, dirty_entries=["abc123 (only on lane)"], remediation="keep it")
+    assert _refusal_detail(refusal, tmp_path) == f"{tmp_path} was not removed: abc123 (only on lane)."
+    bare = DestructiveOpRefused(error_code=BRANCH_HAS_UNIQUE_COMMITS, current_branch=_LANE, remediation="keep it")
+    assert _refusal_detail(bare, tmp_path) == f"{tmp_path} was not removed."
