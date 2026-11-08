@@ -361,7 +361,8 @@ class TestJsonEntryPoint:
         payload = json.loads(result.output)
         assert payload["success"] is True
         # #3261: the flag is repeatable, so the envelope lists the selectors.
-        assert payload["include"] == ["agent-profile:python-pedro"]
+        assert payload["include"] == "agent-profile:python-pedro"
+        assert payload["includes"] == ["agent-profile:python-pedro"]
         assert "Agent profile python-pedro: Python Pedro" in payload["context"]
 
 

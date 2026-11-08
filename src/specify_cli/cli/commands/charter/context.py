@@ -194,7 +194,10 @@ def context(
                         {
                             "result": "success",
                             "success": True,
-                            "include": include,
+                            # ``include`` keeps its original string shape (the first
+                            # selector) for existing consumers; ``includes`` lists them all.
+                            "include": include[0],
+                            "includes": include,
                             "context": included_text,
                             "text": included_text,
                         },
