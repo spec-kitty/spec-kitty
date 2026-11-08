@@ -49,28 +49,28 @@ next run. #6549 is one such case. This change found another, #7429: on a 2.1.0 p
 
 ## Decision Drivers
 
-* Each branch of the worktree loop should be testable on its own, without driving git.
-* The preview and the run already share one selection rule (`worktree_dispositions`). The split
+- Each branch of the worktree loop should be testable on its own, without driving git.
+- The preview and the run already share one selection rule (`worktree_dispositions`). The split
   must keep that.
-* Behaviour preservation must be provable. Existing patch points (`runner.VersionDetector`,
+- Behaviour preservation must be provable. Existing patch points (`runner.VersionDetector`,
   `MigrationRunner._record_migration_result`) and the dict `_upgrade_worktrees` returns are used
   by callers and tests.
-* A shipped migration's bytes are its `content_hash` (DIRECTIVE_044). A convergence check may pin
+- A shipped migration's bytes are its `content_hash` (DIRECTIVE_044). A convergence check may pin
   a defect but never fixes it by editing the shipped module.
-* An allowlist is priced debt: each entry needs an issue and must fail once its defect is fixed.
+- An allowlist is priced debt: each entry needs an issue and must fail once its defect is fixed.
 
 ## Considered Options
 
-* **A.** Decompose `_upgrade_worktrees` into more private methods on `MigrationRunner`.
-* **B.** Move the pass into its own module as a read-only plan step and an apply step, with the
+- **A.** Decompose `_upgrade_worktrees` into more private methods on `MigrationRunner`.
+- **B.** Move the pass into its own module as a read-only plan step and an apply step, with the
   runner supplying what it owns as hooks.
-* **C.** Move the pass and everything it calls (record, settle, schema stamp, commit) into its own
+- **C.** Move the pass and everything it calls (record, settle, schema stamp, commit) into its own
   module.
 
 For convergence:
 
-* **D.** Rely on per-migration tests that each migration's authors write.
-* **E.** One generated check: every registered migration, run twice on representative fixtures,
+- **D.** Rely on per-migration tests that each migration's authors write.
+- **E.** One generated check: every registered migration, run twice on representative fixtures,
   plus the whole upgrade run twice.
 
 ## Decision Outcome
@@ -108,32 +108,32 @@ For convergence:
 
 #### Positive
 
-* `_upgrade_worktrees` drops from radon F (43) to A. Every function in the new module is at most B
+- `_upgrade_worktrees` drops from radon F (43) to A. Every function in the new module is at most B
   (9). `_upgrade` drops from D (21) to C (15).
-* Each worktree-loop rule has a unit test with fake hooks (`test_worktree_pass_unit.py`), and the
+- Each worktree-loop rule has a unit test with fake hooks (`test_worktree_pass_unit.py`), and the
   end-to-end behaviour is pinned by a characterization net (`test_worktree_pass_characterization.py`)
   that was written before the move and did not change across it.
-* A new migration enters the convergence check the moment it is registered, with no test of its
+- A new migration enters the convergence check the moment it is registered, with no test of its
   own, and it converges where the fixtures reach its `apply()`. A new #6549-class defect on the
   fixtures fails CI instead of reaching a user.
 
 #### Negative
 
-* The convergence check runs 285 cases, about 30 seconds on one worker. It is an integration
+- The convergence check runs 285 cases, about 30 seconds on one worker. It is an integration
   test, not part of the fast tier.
-* The check proves convergence only where the fixtures reach `apply()`. A migration whose old
+- The check proves convergence only where the fixtures reach `apply()`. A migration whose old
   state neither fixture carries runs as "not needed" twice and proves nothing: today that is about
   98 of the 140 registered migrations, including 6 of the 14 clone-local ones. The floor counts
   migrations whose `detect()` returns True on a fixture, not migrations proven convergent, and it
   guards the total, not each migration. Closing that coverage gap stays with #7405's next steps.
-* `_settle_worktree` changed signature (it takes the `WorktreeRun` and the pass context). It is
+- `_settle_worktree` changed signature (it takes the `WorktreeRun` and the pass context). It is
   private and has no other caller.
 
 #### Neutral
 
-* `append_warnings`, `metadata_bytes` and `skip_as_applied` moved to `worktree_pass`, because both
+- `append_warnings`, `metadata_bytes` and `skip_as_applied` moved to `worktree_pass`, because both
   the pass and the main-checkout loop use them.
-* The pass stays not sequenced-view aware (#6552, C-004), as before.
+- The pass stays not sequenced-view aware (#6552, C-004), as before.
 
 ### Confirmation
 
@@ -148,52 +148,52 @@ decision.
 
 **Pros:**
 
-* The smallest diff, and no hook wiring.
+- The smallest diff, and no hook wiring.
 
 **Cons:**
 
-* The loop's state still lives in local variables threaded through methods, or on the runner
+- The loop's state still lives in local variables threaded through methods, or on the runner
   instance, and there is still no unit below the runner to test.
 
 ### B. Plan and apply module, runner hooks
 
 **Pros:**
 
-* The plan is pure apart from reads, and the apply step tests with fakes.
-* The runner keeps its persistence and commit rules in one place.
+- The plan is pure apart from reads, and the apply step tests with fakes.
+- The runner keeps its persistence and commit rules in one place.
 
 **Cons:**
 
-* Three hooks to wire, and one more module.
+- Three hooks to wire, and one more module.
 
 ### C. Move everything
 
 **Pros:**
 
-* The pass is fully self-contained.
+- The pass is fully self-contained.
 
 **Cons:**
 
-* It moves the schema stamp and commit code that the main checkout also uses, and it breaks the
+- It moves the schema stamp and commit code that the main checkout also uses, and it breaks the
   runner's patch points. That doubles the diff for no behavioural gain.
 
 ### D. Per-migration authored tests
 
 **Pros:**
 
-* Each test knows its migration's real legacy state.
+- Each test knows its migration's real legacy state.
 
 **Cons:**
 
-* Coverage depends on each author remembering, and nothing tests the whole-run interaction that
+- Coverage depends on each author remembering, and nothing tests the whole-run interaction that
   #6549 and #7429 come from.
 
 ### E. Generated run-twice check
 
 **Pros:**
 
-* It covers every registered migration and the whole run, with no per-migration work.
+- It covers every registered migration and the whole run, with no per-migration work.
 
 **Cons:**
 
-* Its proof is only as wide as its fixtures.
+- Its proof is only as wide as its fixtures.
