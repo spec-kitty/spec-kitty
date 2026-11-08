@@ -34,6 +34,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.consolidation.config import MergeStrategy
@@ -498,3 +499,193 @@ class TestMergeResumeBounded:
         """NFR-005 (#4015 split): resumed merge stays within the 30s budget."""
         elapsed, _mark_done_calls, _wp_ids = _run_bounded_merge_fixture(tmp_path)
         assert_timing_budget(elapsed, 30.0, name="elapsed")
+
+
+def _sibling_commit(repo: Path, parent: str, path: str) -> str:
+    """A commit on a THIRD line of history: parent = *parent*, tree = parent's
+    tree plus a change to *path* (content deliberately distinct from the lane
+    implementation commits, so the commit object is never coincidentally equal
+    to a lane tip). Used to give a lane branch a position that is neither an
+    ancestor nor a descendant of another commit cut from the same parent."""
+    import os
+    import tempfile
+
+    def git(*args: str, stdin: str | None = None, env: dict[str, str] | None = None) -> str:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True, input=stdin, env=env
+        )
+        return proc.stdout.strip()
+
+    with tempfile.TemporaryDirectory() as scratch:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
+        git("read-tree", parent, env=env)
+        blob = git("hash-object", "-w", "--stdin", stdin=f"# divergent change to {path}\n")
+        git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=env)
+        tree = git("write-tree", env=env)
+    return git("commit-tree", tree, "-p", parent, "-m", f"feat: divergent change to {path}")
+
+
+class TestResumeLaneTipAnchorIntegrity:
+    """#5374: the H3 per-lane pre-interrupt tip CAS check is not vacuous.
+
+    ``_patches`` stamps every persisted pre-interrupt lane tip at the branch's
+    CURRENT position, so the CAS check always sees "equal" and would stay green
+    if the divergence refusal were deleted. These cases make the persisted tip
+    and the live branch genuinely disagree: true divergence REFUSES, the
+    tolerated behind-HEAD window resumes, and a planted break (``lane_tip_cas_ok``
+    stubbed to always pass) proves the refusal comes from that check.
+
+    The fixtures keep every OTHER claim-time guard honest (#6715 evidence
+    windows, #5668 approval stamps), so each verdict is attributable to the
+    CAS check alone: the divergent branch position is seeded as the approval
+    stamp's ``lane_head`` and touches the WP's owned file.
+    """
+
+    SLUG = "test-resume-anchor"
+
+    def _fixture(self, tmp_path: Path, *, lane_count: int = 3) -> tuple[MagicMock, Path, ConsolidationState, dict[str, str]]:
+        """Repo + manifest + unseeded state; returns also each lane's impl tip."""
+        _init_git_repo(tmp_path)
+        feature_dir = tmp_path / "kitty-specs" / self.SLUG
+        feature_dir.mkdir(parents=True)
+        write_mission_meta(feature_dir)
+        manifest = _make_manifest(tmp_path, self.SLUG, lane_count=lane_count)
+        wp_ids = [f"WP{i+1:02d}" for i in range(lane_count)]
+        impl_tips = {
+            lane.lane_id: _run(["git", "-C", str(tmp_path), "rev-parse", lane_created_branch(manifest, lane.lane_id)]).stdout.strip()
+            for lane in manifest.lanes
+        }
+        existing = ConsolidationState(
+            mission_id=self.SLUG,
+            mission_slug=self.SLUG,
+            target_branch="main",
+            wp_order=wp_ids,
+            completed_wps=["WP01"],
+        )
+        return manifest, feature_dir, existing, impl_tips
+
+    def _seed(self, feature_dir: Path, manifest: MagicMock) -> None:
+        # Attempt-1 consolidated WP01 (done); the rest are approved.
+        _write_status_events(
+            feature_dir, manifest, {"WP01": "done", "WP02": "approved", "WP03": "approved"}
+        )
+
+    def _wire_and_run(self, stack: contextlib.ExitStack, mocks: list[MagicMock], tmp_path: Path) -> None:
+        stale_report = MagicMock()
+        stale_report.findings = []
+        mocks[10].return_value = stale_report
+        gate_eval = MagicMock()
+        gate_eval.overall_pass = True
+        gate_eval.gates = []
+        mocks[11].return_value = gate_eval
+        policy = MagicMock()
+        policy.merge_gates = []
+        mocks[12].return_value = policy
+        _run_lane_based_consolidation(
+            repo_root=tmp_path,
+            mission_slug=self.SLUG,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+            strategy=MergeStrategy.SQUASH,
+        )
+
+    def _patches_for(self, tmp_path, manifest, existing, mark_done_calls, lane_merge_calls):
+        return _patches(
+            tmp_path=tmp_path,
+            manifest=manifest,
+            initial_state=existing,
+            mark_done_calls=mark_done_calls,
+            lane_merge_calls=lane_merge_calls,
+            integrated_lane_ids=frozenset({"lane-a"}),
+        )
+
+    def test_resume_refuses_a_diverged_lane_tip(self, tmp_path: Path) -> None:
+        """True divergence (neither ancestor, descendant, nor equal) REFUSEs."""
+        manifest, feature_dir, existing, impl_tips = self._fixture(tmp_path)
+        lane_a = lane_created_branch(manifest, "lane-a")
+        lane_b = lane_created_branch(manifest, "lane-b")
+        base = _run(["git", "-C", str(tmp_path), "merge-base", lane_a, lane_b]).stdout.strip()
+
+        # A commit on a THIRD line of history (parent = the shared planning
+        # base, touching WP01's owned file) — a sibling of lane-a's persisted
+        # implementation tip: neither its ancestor nor its descendant.
+        divergent = _sibling_commit(tmp_path, base, "src/wp01.py")
+        # Seed WP01's approval stamp AT the divergent tip, then park the branch
+        # back at its implementation tip so ``_patches`` persists THAT as the
+        # pre-interrupt anchor.
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, divergent])
+        self._seed(feature_dir, manifest)
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, impl_tips["lane-a"]])
+
+        mark_done_calls: list[str] = []
+        lane_merge_calls: list[str] = []
+        patches = self._patches_for(tmp_path, manifest, existing, mark_done_calls, lane_merge_calls)
+        # Live branch now diverges from the persisted pre-interrupt tip.
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, divergent])
+
+        from specify_cli.cli.console import console
+
+        with contextlib.ExitStack() as stack:
+            mocks = [stack.enter_context(p) for p in patches]
+            with console.capture() as captured, pytest.raises(typer.Exit) as exc_info:
+                self._wire_and_run(stack, mocks, tmp_path)
+
+        assert exc_info.value.exit_code == 1
+        flattened = " ".join(captured.get().split())
+        assert "diverged from its persisted pre-interrupt tip" in flattened
+        # The refusal happens at claim time, before any lane consolidation.
+        assert lane_merge_calls == []
+        assert mark_done_calls == []
+
+    def test_resume_tolerates_the_behind_head_window(self, tmp_path: Path) -> None:
+        """A live tip strictly BEHIND its persisted pre-interrupt tip resumes (#4982 window)."""
+        manifest, feature_dir, existing, impl_tips = self._fixture(tmp_path)
+        lane_a = lane_created_branch(manifest, "lane-a")
+        self._seed(feature_dir, manifest)
+
+        mark_done_calls: list[str] = []
+        lane_merge_calls: list[str] = []
+        # A post-implementation commit on lane-a: ``_patches`` persists THIS as
+        # the pre-interrupt anchor...
+        commit_branch_implementation(tmp_path, manifest, lane_a, path="src/wp01-followup.txt")
+        patches = self._patches_for(tmp_path, manifest, existing, mark_done_calls, lane_merge_calls)
+        # ...then the branch is left BEHIND that anchor, at its implementation
+        # tip (a strict ancestor) — the tolerated behind-HEAD window.
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, impl_tips["lane-a"]])
+
+        with contextlib.ExitStack() as stack:
+            mocks = [stack.enter_context(p) for p in patches]
+            self._wire_and_run(stack, mocks, tmp_path)
+
+        # The resume completed: WP02/WP03 were marked done (WP01 was already done).
+        assert "WP02" in mark_done_calls and "WP03" in mark_done_calls
+
+    def test_divergence_refusal_comes_from_the_cas_check(self, tmp_path: Path) -> None:
+        """Non-vacuity (#5374): stub ``lane_tip_cas_ok`` to always pass and the
+        SAME divergent fixture no longer refuses — proving the refusal above is
+        the H3 CAS check's own verdict, not some other guard's."""
+        manifest, feature_dir, existing, impl_tips = self._fixture(tmp_path)
+        lane_a = lane_created_branch(manifest, "lane-a")
+        lane_b = lane_created_branch(manifest, "lane-b")
+        base = _run(["git", "-C", str(tmp_path), "merge-base", lane_a, lane_b]).stdout.strip()
+        divergent = _sibling_commit(tmp_path, base, "src/wp01.py")
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, divergent])
+        self._seed(feature_dir, manifest)
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, impl_tips["lane-a"]])
+
+        mark_done_calls: list[str] = []
+        lane_merge_calls: list[str] = []
+        patches = self._patches_for(tmp_path, manifest, existing, mark_done_calls, lane_merge_calls)
+        _run(["git", "-C", str(tmp_path), "branch", "-f", lane_a, divergent])
+
+        with contextlib.ExitStack() as stack:
+            mocks = [stack.enter_context(p) for p in patches]
+            stack.enter_context(
+                patch("specify_cli.consolidation.phase_claim.lane_tip_cas_ok", return_value=True)
+            )
+            # No pytest.raises: the run must complete, not refuse.
+            self._wire_and_run(stack, mocks, tmp_path)
+
+        assert lane_merge_calls != [], "with lane_tip_cas_ok stubbed to pass, the run proceeded past the claim"
+        assert "WP02" in mark_done_calls and "WP03" in mark_done_calls
