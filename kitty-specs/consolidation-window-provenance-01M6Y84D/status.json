@@ -1,20 +1,20 @@
 {
-  "event_count": 100,
-  "last_event_id": "01M6ZVQ534CRZXGK32VX3V4Z1H",
-  "materialized_at": "2026-11-09T09:55:03.908375+00:00",
+  "event_count": 101,
+  "last_event_id": "01M6ZX9Z20B9027CJC4ZJEE8EH",
+  "materialized_at": "2026-11-09T10:22:48.896157+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 11,
+    "approved": 12,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 9
   },
   "work_packages": {
@@ -402,9 +402,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "opencode:glm-5.3:python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M6ZVQ534CRZXGK32VX3V4Z1H",
-      "last_transition_at": "2026-11-09T09:55:03.908375+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6ZX9Z20B9027CJC4ZJEE8EH",
+      "last_transition_at": "2026-11-09T10:22:48.896157+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-09T09:12:19Z – opencode:glm-5.3:python-pedro – shell_pid=1094549 – STOP AND ASK (T066 safety net): the family guard names a THIRD patch site the WP prompt did not list. Command: uv run --frozen pytest -q tests/consolidation/test_reconciliation.py tests/consolidation/test_canceled_dependency_attribution.py tests/consolidation/test_reconciliation_family_guard.py -> '1 failed, 240 passed, 1 xfailed'. Failure: test_patched_reconciliation_names_are_looked_up: tests/consolidation/characterization_support.py:1069 patches specify_cli.consolidation.reconciliation.blob_id_at, but blob_id_at is also looked up in specify_cli.consolidation.reconciliation_verifier; patch every binding module with setattr_reconciliation_family. Facts verified: at WP base 4d7815c blob_id_at was looked up ONLY in the facade; after the WP12 move it is looked up in BOTH the facade (unmet_approved_content slice, still there until WP15) and reconciliation_verifier, so the facade-only patch no longer intercepts the verifier lookups (R4). The characterization oracle stays green (8 passed, golden file untouched) because that cell's error path is still reached through the facade's own blob_id_at lookups; only the guard's static coverage rule is red. Proposed remedy (needs orchestrator ruling, file is outside WP12 owned_files and outside the allowed test edits): retarget characterization_support.py:1069 'patch.setattr(reconciliation, \"blob_id_at\", _failing)' to setattr_reconciliation_family(patch, \"blob_id_at\", _failing) plus one import line, mirroring the T066 convention and the 2026-11-08 path_state_at ruling (the WP12 verifier move is what breaks this patch, so by that ruling the retarget would belong to WP12). Awaiting ruling before proceeding; no test edited to make anything pass.",
@@ -413,6 +413,11 @@
         "Ready for review: WP12 moved the verifier (14 symbols, 874 lines, rtool check 14 same) into reconciliation_verifier.py behind the re-exporting facade; oracle counts identical to the clean base baseline; golden corpus byte-identical (changed_cells == []); seeded mutations 3x 23 passed; family guard 9 passed; (d) pin still xfail; tests/consolidation/ full 2946 passed; make test-fast 2941 passed; terminus batch 46 passed. One TEMPORARY FORWARD REFERENCE (unmet_approved_content, WP15 removes it). One sanctioned out-of-map edit per orchestrator ruling: characterization_support.py blob_id_at retarget (recorded in history + tracer). Known pre-existing reds noted, not fixed: 3 architectural dead-symbol tests, 3 facade mypy no-any-return (relocated by the move). Commit c05f746a45."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP12:20261109",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2284375,
       "shell_pid_created_at": "1794218097.72",
