@@ -386,6 +386,44 @@ def test_revert_receives_the_branch_setup_meta_snapshot(harness: Harness) -> Non
 # ---------------------------------------------------------------------------
 
 
+def _validated(h: Harness, decision: object | None) -> seam._FinalizeValidated:
+    req_gates = SimpleNamespace(tasks_dir=h.planning_dir / "tasks", preexisting_primary_files={h.planning_dir / "spec.md"})
+    return seam._FinalizeValidated(
+        req_gates=req_gates,
+        own_gates=SimpleNamespace(lane_wp_manifests={}, lane_wp_dependencies={}, wp_frontmatters={}, lane_wp_bodies={}),
+        meta={"m": 1},
+        topology_decision=decision,
+        frozen=None,
+    )
+
+
+def test_settle_phase_only_previews_under_validate_only(harness: Harness) -> None:
+    ctx = SimpleNamespace(planning_dir=harness.planning_dir)
+    undo = seam._FinalizeUndoState()
+
+    settled = seam._finalize_settle_phase(ctx, _validated(harness, "decision"), undo, "main", validate_only=True, json_output=True)
+
+    assert settled == seam._FinalizeSettled(
+        planning_dir=harness.planning_dir,
+        tasks_dir=harness.planning_dir / "tasks",
+        preexisting_primary_files={harness.planning_dir / "spec.md"},
+        meta={"m": 1},
+    )
+    assert undo.settlement is None
+    assert "_settle_or_refuse" not in harness.calls
+
+
+def test_settle_phase_records_the_settlement_before_rebasing(harness: Harness) -> None:
+    ctx = SimpleNamespace(planning_dir=harness.planning_dir, repo_root=harness.tmp, mission_slug=_SLUG)
+    undo = seam._FinalizeUndoState()
+    harness.raise_in["_read_meta_for_emission"] = RuntimeError("meta unreadable")
+
+    with pytest.raises(RuntimeError):
+        seam._finalize_settle_phase(ctx, _validated(harness, "decision"), undo, "main", validate_only=False, json_output=True)
+
+    assert undo.settlement is not None and undo.settlement.planning_dir == harness.settled_dir
+
+
 def test_undo_without_a_write_scope_only_reverts_meta(harness: Harness) -> None:
     undo = seam._FinalizeUndoState(branch_setup=dataclasses.replace(_branch_setup(harness), mission_write_scope_dir=None))
     ledger, ledger_token, observer_token = seam.begin_write_ledger()

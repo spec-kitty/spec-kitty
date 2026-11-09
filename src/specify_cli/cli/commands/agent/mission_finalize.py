@@ -1350,6 +1350,68 @@ def _finalize_validate_phase(
     return _FinalizeValidated(req_gates=req_gates, own_gates=own_gates, meta=meta, topology_decision=topology_decision, frozen=frozen)
 
 
+@dataclass(frozen=True)
+class _FinalizeSettled:
+    """Settle phase result: where the Write phase reads and writes the Mission directory."""
+
+    planning_dir: Path
+    tasks_dir: Path
+    preexisting_primary_files: set[Path]
+    meta: dict[str, object] | None
+
+
+def _finalize_settle_phase(
+    ctx: _FinalizeContext,
+    validated: _FinalizeValidated,
+    undo: _FinalizeUndoState,
+    target_branch: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> _FinalizeSettled:
+    """Phase Settle: apply the topology settlement through ``lanes/topology_settlement`` (S7, #7282).
+
+    A no-op (the validated locations, unchanged) when there is no decision to
+    settle -- an explicit or already-settled topology, or a refresh-only run --
+    and under ``--validate-only``, which only previews the decision. A
+    refusal (``TOPOLOGY_SETTLEMENT_REFUSED``, ``WRITE_CHECKOUT_OCCUPIED``,
+    ``WRITE_CHECKOUT_DIRTY``) renders and exits 1 with nothing changed. The
+    applied settlement is recorded on *undo* at once, so any later failure
+    undoes it (FR-055).
+    """
+    unchanged = _FinalizeSettled(
+        planning_dir=ctx.planning_dir,
+        tasks_dir=validated.req_gates.tasks_dir,
+        preexisting_primary_files=validated.req_gates.preexisting_primary_files,
+        meta=validated.meta,
+    )
+    decision = validated.topology_decision
+    if decision is None or validate_only:
+        return unchanged
+    meta = validated.meta
+    assert meta is not None
+    own_gates = validated.own_gates
+    undo.settlement = _settle_or_refuse(
+        ctx.repo_root,
+        ctx.planning_dir,
+        ctx.mission_slug,
+        meta,
+        decision,
+        target_branch,
+        lane_wp_manifests=own_gates.lane_wp_manifests,
+        lane_wp_dependencies=own_gates.lane_wp_dependencies,
+        wp_frontmatters=own_gates.wp_frontmatters,
+        lane_wp_bodies=own_gates.lane_wp_bodies,
+        json_output=json_output,
+    )
+    planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
+        unchanged.planning_dir, undo.settlement.planning_dir, unchanged.tasks_dir, unchanged.preexisting_primary_files
+    )
+    settled_meta = _read_meta_for_emission(planning_dir)
+    _bind_topology_decision(settled_meta, decision, settled=True, preview=False)
+    return _FinalizeSettled(planning_dir=planning_dir, tasks_dir=tasks_dir, preexisting_primary_files=preexisting_primary_files, meta=settled_meta)
+
+
 def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1549,39 +1611,21 @@ def finalize_tasks(
             return
         req_gates = validated.req_gates
         own_gates = validated.own_gates
-        tasks_dir = req_gates.tasks_dir
         functional_spec_requirement_ids = req_gates.functional_spec_requirement_ids
-        preexisting_primary_files = req_gates.preexisting_primary_files
         state = own_gates.state
         wp_frontmatters = own_gates.wp_frontmatters
         eligibility = own_gates.eligibility
         lane_wp_manifests = own_gates.lane_wp_manifests
         lane_wp_dependencies = own_gates.lane_wp_dependencies
         lane_wp_bodies = own_gates.lane_wp_bodies
-        meta = validated.meta
-        topology_decision = validated.topology_decision
         frozen = validated.frozen
 
-        if topology_decision is not None and not validate_only:
-            assert meta is not None
-            undo.settlement = _settle_or_refuse(
-                repo_root,
-                planning_dir,
-                mission_slug,
-                meta,
-                topology_decision,
-                target_branch,
-                lane_wp_manifests=lane_wp_manifests,
-                lane_wp_dependencies=lane_wp_dependencies,
-                wp_frontmatters=wp_frontmatters,
-                lane_wp_bodies=lane_wp_bodies,
-                json_output=json_output,
-            )
-            planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
-                planning_dir, undo.settlement.planning_dir, tasks_dir, preexisting_primary_files
-            )
-            meta = _read_meta_for_emission(planning_dir)
-            _bind_topology_decision(meta, topology_decision, settled=True, preview=False)
+        settled = _finalize_settle_phase(ctx, validated, undo, target_branch, validate_only=validate_only, json_output=json_output)
+        planning_dir = settled.planning_dir
+        tasks_dir = settled.tasks_dir
+        preexisting_primary_files = settled.preexisting_primary_files
+        meta = settled.meta
+
         if not refresh_planning_commit:
             _emit_tasks_started(
                 mission_slug,
