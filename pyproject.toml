@@ -86,7 +86,6 @@ dependencies = [
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
     "cryptography>=50.0.0",  # AES-256-GCM + scrypt KDF for encrypted auth session storage (feature 080); CVE-2026-69247 fix
-    "mcp>=1.30.0,<2.0.0",  # Official Model Context Protocol SDK — Z7-C stdio adapter (mcp.server.stdio); pinned below 2.0 to avoid its httpx2 major-dependency swap against our httpx[socks]>=0.28.1 pin
 ]
 
 [project.urls]
