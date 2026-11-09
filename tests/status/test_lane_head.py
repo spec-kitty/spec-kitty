@@ -36,7 +36,8 @@ from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
-from specify_cli.status.lane_head import LANE_HEAD_KEY, WP_WINDOW_KEY, LaneHeadReading, read_lane_head
+from specify_cli.status.lane_head import LANE_HEAD_KEY, LaneHeadReading, read_lane_head
+from specify_cli.status.wp_window import WP_WINDOW_KEY
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import read_events, read_events_from_text
 from tests.integration.coord_topology_fixture import (
