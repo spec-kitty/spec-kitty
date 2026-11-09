@@ -253,7 +253,7 @@ def _record_operator_attestations(
     feature_dir: Path | None = None,
     lanes_manifest: LanesManifest | None = None,
     no_implementation_wp_ids: tuple[str, ...] = (),
-    frozen_dependency_tips: Mapping[str, str] | None = None,
+    frozen_dependency_tips: Mapping[str, str] | None,
 ) -> tuple[str, ...]:
     """Validate and record the operator attestations of the run, before any mutation.
 
@@ -366,7 +366,7 @@ def _plan_approved_attestations(
     reason: str | None,
     excluded_canceled_wp_ids: frozenset[str],
     *,
-    frozen_dependency_tips: Mapping[str, str] | None = None,
+    frozen_dependency_tips: Mapping[str, str] | None,
 ) -> dict[str, str]:
     """Validate ``--attest-approved-reviewed`` against the status log: WP id -> current lane (exit 1, nothing recorded, when refused)."""
     if not wp_ids or feature_dir is None or lanes_manifest is None:

@@ -160,22 +160,22 @@ def test_lane_own_commits_without_anchors_keeps_every_commit(dep: Dep) -> None:
 
 
 def test_fully_canceled_lane_commits_are_the_canceled_lanes_own(dep: Dep) -> None:
-    got = _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, None)
+    got = _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, None, frozen_tips=None)
     assert got == {dep.canceled_sha}
 
 
 def test_no_fully_canceled_lane_means_no_canceled_commits(dep: Dep) -> None:
-    assert _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset(), dep.base, None) == frozenset()
+    assert _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset(), dep.base, None, frozen_tips=None) == frozenset()
 
 
 def test_mixed_lane_is_not_fully_canceled(dep: Dep) -> None:
     mixed = _manifest(_lane("lane-a", "WP01"), ExecutionLane("lane-b", ("WP02", "WP03"), ("src",), ("code",), ("lane-a",), 0))
-    assert _fully_canceled_lane_commits(dep.repo, mixed, frozenset({"WP02"}), dep.base, None) == frozenset()
+    assert _fully_canceled_lane_commits(dep.repo, mixed, frozenset({"WP02"}), dep.base, None, frozen_tips=None) == frozenset()
 
 
 def test_fully_canceled_lane_whose_branch_is_gone_yields_nothing(dep: Dep) -> None:
     gone = _manifest(_lane("lane-a", "WP01"), _lane("lane-gone", "WP09"), _lane("lane-b", "WP02", ("lane-a",)))
-    assert _fully_canceled_lane_commits(dep.repo, gone, frozenset({"WP09"}), dep.base, None) == frozenset()
+    assert _fully_canceled_lane_commits(dep.repo, gone, frozenset({"WP09"}), dep.base, None, frozen_tips=None) == frozenset()
 
 
 def test_canceled_lane_does_not_claim_history_inherited_from_an_approved_dependency(dep: Dep) -> None:
@@ -183,13 +183,13 @@ def test_canceled_lane_does_not_claim_history_inherited_from_an_approved_depende
     manifest = _manifest(*dep.manifest.lanes, _lane("lane-c", "WP03", ("lane-b",)))
     _git(dep.repo, "checkout", "-q", "-b", _branch("lane-c"), _branch("lane-b"))
     own = _commit(dep.repo, "src/gamma/mod.py", "GAMMA = 'canceled'\n")
-    got = _fully_canceled_lane_commits(dep.repo, manifest, frozenset({"WP03"}), dep.base, None)
+    got = _fully_canceled_lane_commits(dep.repo, manifest, frozenset({"WP03"}), dep.base, None, frozen_tips=None)
     # lane-a and lane-b are not canceled, so lane-b is a (live) anchor: only lane-c's own commit remains.
     assert got == {own}
 
 
 def test_target_base_keeps_target_history_out_of_the_canceled_set(dep: Dep) -> None:
-    got = _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, _branch("lane-a"))
+    got = _fully_canceled_lane_commits(dep.repo, dep.manifest, frozenset({"WP01"}), dep.base, _branch("lane-a"), frozen_tips=None)
     assert got == frozenset()  # the target already carries lane-a's commit: nothing new to exclude
 
 
@@ -213,18 +213,18 @@ def test_authored_claim_drops_the_canceled_commit_from_the_dependent_lane(dep: D
 
 
 def test_fully_canceled_dependency_lane_tip_is_not_an_anchor(dep: Dep) -> None:
-    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset({"WP01"}))
+    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset({"WP01"}), frozen_tips=None)
     assert anchors == ["target-tip"]
 
 
 def test_approved_dependency_lane_tip_stays_an_anchor(dep: Dep) -> None:
-    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset())
+    anchors = _closed_world_anchors(dep.manifest, dep.manifest.lanes[1], "target-tip", excluded_canceled_wp_ids=frozenset(), frozen_tips=None)
     assert anchors == [_branch("lane-a"), "target-tip"]
 
 
 def test_only_the_canceled_dependency_is_dropped_from_a_chain(dep: Dep) -> None:
     chain = _manifest(_lane("lane-a", "WP01"), _lane("lane-b", "WP02", ("lane-a",)), _lane("lane-c", "WP03", ("lane-b",)))
-    anchors = _closed_world_anchors(chain, chain.lanes[2], None, excluded_canceled_wp_ids=frozenset({"WP01"}))
+    anchors = _closed_world_anchors(chain, chain.lanes[2], None, excluded_canceled_wp_ids=frozenset({"WP01"}), frozen_tips=None)
     assert anchors == [_branch("lane-b")]
 
 

@@ -74,7 +74,9 @@ def _manifest(mission: CoordMission) -> LanesManifest:
 
 
 def _plan(mission: CoordMission, wp_ids: list[str], reason: str | None = _REASON) -> dict[str, str]:
-    plan: dict[str, str] = aa.plan_approved_attestations(mission.repo, mission.feature_dir, _manifest(mission), wp_ids, reason, excluded_canceled_wp_ids=())
+    plan: dict[str, str] = aa.plan_approved_attestations(
+        mission.repo, mission.feature_dir, _manifest(mission), wp_ids, reason, excluded_canceled_wp_ids=(), frozen_dependency_tips=None
+    )
     return plan
 
 
@@ -206,12 +208,16 @@ def test_the_executor_records_an_approved_attestation_and_the_lane_head_becomes_
         approved_wp_ids=("WP01",),
         feature_dir=mission.feature_dir,
         lanes_manifest=_manifest(mission),
+        frozen_dependency_tips=None,
     )
 
     assert recorded == ("WP01",)
     (attestation,) = _attestation_events(mission)
     assert attestation.force is True and (attestation.policy_metadata or {}).get("lane_head") == lane_tip
-    assert executor._record_operator_attestations(mission.repo, mission.slug, wp_ids=(), reason=None, acceptably_canceled=frozenset()) == ()
+    assert (
+        executor._record_operator_attestations(mission.repo, mission.slug, wp_ids=(), reason=None, acceptably_canceled=frozenset(), frozen_dependency_tips=None)
+        == ()
+    )
 
 
 @pytest.mark.parametrize(
@@ -237,6 +243,7 @@ def test_a_refused_attestation_request_records_nothing_for_either_flag(tmp_path:
             approved_wp_ids=approved,
             feature_dir=mission.feature_dir,
             lanes_manifest=_manifest(mission),
+            frozen_dependency_tips=None,
         )
 
     assert exited.value.exit_code == 1

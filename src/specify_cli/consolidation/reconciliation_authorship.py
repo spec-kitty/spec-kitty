@@ -500,7 +500,8 @@ def _presence_scope(
     except GitProbeError:
         carried = None
     lane_bases = {lane.lane_id: first_governed_open_stamp(events, frozenset(lane.wp_ids)) for lane in lanes_manifest.lanes} if events is not None else {}
-    canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base)
+    # The gate-time presence axis reads the dependency-lane tips live (FR-015 freezes the claim-time readers only).
+    canceled = _fully_canceled_lane_commits(repo_root, lanes_manifest, excluded_ids, base, base, frozen_tips=None)
     stamps = {wp: approval_stamp(events, wp) for lane in lanes_manifest.lanes for wp in lane.wp_ids} if events is not None else {}
     return _PresenceScope(base=base, carried=carried, lane_bases=lane_bases, canceled=canceled, approval_stamps=stamps)
 

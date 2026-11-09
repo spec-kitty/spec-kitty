@@ -152,7 +152,7 @@ def test_commit_superseded_on_one_carrier_but_live_on_another_stays_subtracted(t
     mission = built.mission
     manifest = read_lanes_json(mission.feature_dir)
     assert manifest is not None
-    query = _CanceledLaneQuery(mission.repo, _status_dir(mission), manifest, {}, frozenset({"WP01"}), mission.target_branch, None, None, None)
+    query = _CanceledLaneQuery(mission.repo, _status_dir(mission), manifest, {}, frozenset({"WP01"}), mission.target_branch, None, None, None, None)
     own = frozenset({built.wp01_sha})
     spine_b = first_parent_commits_in_range(mission.repo, mission.target_branch, built.lane_b_branch)
     carriers = {LANE_B: spine_b, "lane-c": [built.wp01_sha]}
@@ -397,7 +397,7 @@ def test_one_unreadable_carrier_among_readable_ones_refuses_naming_only_it(tmp_p
     mission = built.mission
     manifest = read_lanes_json(mission.feature_dir)
     assert manifest is not None
-    query = _CanceledLaneQuery(mission.repo, _status_dir(mission), manifest, {}, frozenset({"WP01"}), mission.target_branch, None, None, None)
+    query = _CanceledLaneQuery(mission.repo, _status_dir(mission), manifest, {}, frozenset({"WP01"}), mission.target_branch, None, None, None, None)
     own = frozenset({built.wp01_sha})
     spine_b = first_parent_commits_in_range(mission.repo, mission.target_branch, built.lane_b_branch)
     unreadable_spine = [built.wp01_sha, "c" * 40]
