@@ -226,11 +226,24 @@ def _predecessor_outcome_settled_in_view(ledger: MigrationLedger, migration: Bas
     return migration_settled(ledger, predecessor) or predecessor_id in adopting
 
 
-#: The ledger-adoption backfill settles only migrations whose ``target_version`` is
-#: strictly below this version (``4.0.0rc8_backfill_migration_ledger``, ADR
-#: ``2026-10-17-1`` amendment 2026-10-20). A ``success`` for an id at or above it was
-#: therefore written by that migration's own run, never stamped by adoption.
-_ADOPTION_CEILING = Version("4.0.0rc8")
+def _adoption_ceiling() -> Version | None:
+    """The lowest ``target_version`` among registered ledger-adoption migrations, or ``None``.
+
+    The ledger-adoption backfill (``4.0.0rc8_backfill_migration_ledger``, ADR ``2026-10-17-1``
+    amendment 2026-10-20) settles only migrations whose ``target_version`` is strictly below
+    its own, so a ``success`` for an id at or above this ceiling was written by that
+    migration's own run, never stamped by adoption. Read from the registry so this rule and
+    the backfill's bound cannot drift apart.
+    """
+    ceilings: list[Version] = []
+    for candidate in MigrationRegistry.get_all():
+        if not candidate.ledger_adoption:
+            continue
+        try:
+            ceilings.append(Version(candidate.target_version))
+        except InvalidVersion:
+            continue
+    return min(ceilings) if ceilings else None
 
 
 def _own_run_settles_superseded_predecessor(ledger: MigrationLedger, migration: BaseMigration) -> bool:
@@ -240,14 +253,17 @@ def _own_run_settles_superseded_predecessor(ledger: MigrationLedger, migration: 
     as a no-op substitute that only ever records ``skipped``, so asking for its ``success``
     re-selects the successor on every upgrade. The #6688 hazard is a successor ``success``
     stamped by adoption rather than by a run; an id the adoption backfill can never stamp
-    (``target_version`` at or above :data:`_ADOPTION_CEILING`) carries no such hazard, so
+    (``target_version`` at or above :func:`_adoption_ceiling`) carries no such hazard, so
     its own ``success`` settles it. A predecessor superseded by a different migration, or an
     adoption-eligible successor (the residue-safe successors of #6669), keeps the #6688 rule.
     """
     if SUPERSEDED_MIGRATIONS.get(migration.predecessor_id) != migration.migration_id:
         return False
+    ceiling = _adoption_ceiling()
+    if ceiling is None:
+        return False
     try:
-        if Version(migration.target_version) < _ADOPTION_CEILING:
+        if Version(migration.target_version) < ceiling:
             return False
     except InvalidVersion:
         return False
