@@ -70,15 +70,7 @@ NOT_CONVERGENT: Mapping[tuple[str, str], str] = {}
 
 #: fixture -> {migration_id: why} for the migrations a second whole ``upgrade`` still
 #: applies. Strict both ways: the second run must apply exactly these.
-KNOWN_EXTRA_PASS: Mapping[str, Mapping[str, str]] = {
-    "legacy_2_1_0": {
-        "4.0.0rc8_stamp_globalize_commands": (
-            "#7429: never settled (its predecessor is superseded and only records skipped, #6688), "
-            "and its verdict reads the version stamp the run moves only after the loop: pass 1 keeps "
-            "the generated .claude/commands files, pass 2 deletes all of them"
-        ),
-    },
-}
+KNOWN_EXTRA_PASS: Mapping[str, Mapping[str, str]] = {}
 
 #: fixture -> the fewest registered migrations whose first run must reach ``apply()``
 #: (13 and 38 when this floor was set), so the per-migration check is never vacuous.
