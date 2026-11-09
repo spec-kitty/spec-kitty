@@ -28,6 +28,7 @@ SPLIT_MODULES: tuple[str, ...] = (
     "reconciliation_bound",
     "reconciliation_verifier",
     "reconciliation_canceled",
+    "reconciliation_claim",
 )
 _BOGUS = "reconciliation_this_module_does_not_exist"
 _DRIVER = """
