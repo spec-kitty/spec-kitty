@@ -106,8 +106,13 @@ def _seed_ledger(root: Path, *, skipped: tuple[str, ...]) -> None:
 
 
 def _default_skipped() -> tuple[str, ...]:
-    """Leave the targets and sibling re-evaluable so the successor's predecessor is unsettled."""
-    return tuple(dict.fromkeys(TARGET_MIGRATIONS + GLOBALIZATION_MIGRATIONS))
+    """Leave the targets, sibling and successor re-evaluable.
+
+    The successor's own ``success`` settles it now that its predecessor is superseded by it
+    (#7429), so it is seeded ``skipped`` to stay selected rather than relying on the
+    predecessor's ``skipped``.
+    """
+    return tuple(dict.fromkeys((*TARGET_MIGRATIONS, *GLOBALIZATION_MIGRATIONS, GLOBALIZATION_SUCCESSOR)))
 
 
 def _write_metadata(root: Path, *, version: str | None) -> None:
