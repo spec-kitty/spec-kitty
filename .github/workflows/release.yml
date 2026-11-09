@@ -128,6 +128,22 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
+      - name: Check the release body fits GitHub's limit (before anything publishes)
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          CURATED=".github/release-notes/${VERSION}.md"
+          if [[ -f "${CURATED}" ]]; then
+            BODY="$(cat "${CURATED}")"
+          else
+            BODY="$(python scripts/release/extract_changelog.py "${VERSION}")"
+          fi
+          CHARS=$(printf '%s' "${BODY}" | python3 -c 'import sys; print(len(sys.stdin.read()))')
+          echo "release body: ${CHARS} characters"
+          if (( CHARS > 125000 )); then
+            echo "::error::release body is ${CHARS} characters (GitHub limit 125000); commit a shorter ${CURATED}"
+            exit 1
+          fi
+
       - name: Restore packs before the editable build hook
         uses: ./.github/actions/restore-open-packs
 
@@ -493,8 +509,23 @@ jobs:
         id: changelog
         run: |
           VERSION="${RELEASE_TAG#v}"
-          python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
+          # A curated, audience-organized body wins when one is committed for this
+          # version; otherwise the CHANGELOG section is the body (as before).
+          CURATED=".github/release-notes/${VERSION}.md"
+          if [[ -f "${CURATED}" ]]; then
+            cp "${CURATED}" release-notes.md
+          else
+            python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
+          fi
           cat release-notes.md
+          # GitHub rejects a release body over 125000 characters. This job publishes
+          # the CLI only after the GitHub release is created, and the companion is
+          # already on PyPI by then, so refuse here rather than half-publish.
+          CHARS=$(python3 -c 'import sys; print(len(open(sys.argv[1], encoding="utf-8").read()))' release-notes.md)
+          if (( CHARS > 125000 )); then
+            echo "::error::release body is ${CHARS} characters (GitHub limit 125000); commit a shorter ${CURATED}"
+            exit 1
+          fi
 
       - name: Classify release channel
         id: release_channel
