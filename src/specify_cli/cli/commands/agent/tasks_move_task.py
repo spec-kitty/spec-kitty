@@ -633,6 +633,22 @@ def _mt_require_post30_layout(st: _MoveTaskState, feature_dir: Path) -> None:
         raise typer.Exit(1) from None
 
 
+def _mt_require_owned_source_lane(st: _MoveTaskState) -> None:
+    """Validate: an owned checkout moves a WP only out of the local review lifecycle, up to approval."""
+    if st.owned is not None and st.old_lane not in (
+        Lane.PLANNED,
+        Lane.CLAIMED,
+        Lane.IN_PROGRESS,
+        Lane.FOR_REVIEW,
+        Lane.IN_REVIEW,
+        Lane.APPROVED,
+    ):
+        raise ActionContextError(
+            "OWNED_TRANSITION_UNSUPPORTED",
+            "Owned checkout does not support transitions from this lane.",
+        )
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -687,18 +703,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         repo_root=st.main_repo_root,
         owned=st.owned,
     )
-    if st.owned is not None and st.old_lane not in (
-        Lane.PLANNED,
-        Lane.CLAIMED,
-        Lane.IN_PROGRESS,
-        Lane.FOR_REVIEW,
-        Lane.IN_REVIEW,
-        Lane.APPROVED,
-    ):
-        raise ActionContextError(
-            "OWNED_TRANSITION_UNSUPPORTED",
-            "Owned checkout does not support transitions from this lane.",
-        )
+    _mt_require_owned_source_lane(st)
     # #4758 FR-002: refuse leaving ``planned`` with no ``lanes.json`` to rebuild
     # from, before any mission write below.
     _mt_guard_planned_boundary_lanes(st)
