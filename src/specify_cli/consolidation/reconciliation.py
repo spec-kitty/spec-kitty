@@ -49,15 +49,17 @@ wall-clock ordering bug (#4941; #4990 closed the rejection-after-approval
 case) is out of scope for this mission and stays named-open in the docs.
 
 Layout (WP15): this module holds no logic, only the module docstring, the re-exports and ``__all__``.
-The code lives in flat sibling modules, one per unit of the gate:
+The code lives in flat sibling modules, one per unit of the gate, listed here in import (dependency)
+order: each module imports only modules listed above it (``test_reconciliation_split_shape`` pins the
+ranks):
 
 * ``reconciliation_kernel``: lane branch, spine and dependency helpers, bookkeeping classifier, lane walk.
 * ``reconciliation_claim_types``: the claim record, lane content and presence-gap types.
 * ``reconciliation_rendering``: refusal wording and the refusal-text joiners.
-* ``reconciliation_closed_world``: the closed-world collectors and declared dependency refs.
-* ``reconciliation_bound``: the approval-stamp bound and the write-branch verdict.
 * ``reconciliation_canceled``: mixed-lane and fully-canceled dependency lane resolution.
 * ``reconciliation_authorship``: the authored-content walk and the approved-content presence check.
+* ``reconciliation_bound``: the approval-stamp bound and the write-branch verdict.
+* ``reconciliation_closed_world``: the closed-world collectors and declared dependency refs.
 * ``reconciliation_verifier``: ``MergeOutcomeVerifier`` and the claim-integrity refusal.
 * ``reconciliation_claim``: ``build_approved_wp_set`` and the terminus vocabulary.
 """
