@@ -537,6 +537,24 @@ def _mt_apply_owned_targets(st: _MoveTaskState, owned: OwnedCheckout) -> None:
     st.main_repo_root, st.target_branch = owned.repository_root, owned.write_branch
 
 
+def _mt_locate_checkout(st: _MoveTaskState) -> Path:
+    """Resolve the checkout this move runs in: the validated owned checkout, or the located project root.
+
+    An owned request is preflighted first (``_mt_preflight_owned_request``);
+    a missing project root renders ``Could not locate project root`` and exits 1.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if st.owned is not None:
+        _mt_preflight_owned_request(st)
+        return st.owned.owned_root
+    located_root: Path | None = _tasks.locate_project_root()
+    if located_root is None:
+        _tasks._output_error(st.json_output, "Could not locate project root")
+        raise typer.Exit(1)
+    return located_root
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -544,15 +562,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     _tasks._refuse_unparseable_agent(st.json_output, st.agent)
     st.target_lane = Lane(ensure_lane(st.to))
     owned = st.owned
-    if owned is not None:
-        _mt_preflight_owned_request(st)
-        repo_root = owned.owned_root
-    else:
-        located_root = _tasks.locate_project_root()
-        if located_root is None:
-            _tasks._output_error(st.json_output, "Could not locate project root")
-            raise typer.Exit(1)
-        repo_root = located_root
+    repo_root = _mt_locate_checkout(st)
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
