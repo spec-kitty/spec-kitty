@@ -379,3 +379,76 @@ def test_owned_checkout_refuses_an_unsupported_source_lane(harness: Harness) -> 
     assert error.value.code == "OWNED_TRANSITION_UNSUPPORTED"
     assert str(error.value) == "Owned checkout does not support transitions from this lane."
     assert harness.calls[-1] == "_read_transactional_wp_lane"
+
+
+# ---------------------------------------------------------------------------
+# Extracted helpers, directly (#7410)
+# ---------------------------------------------------------------------------
+
+
+def test_locate_checkout_returns_the_project_root(harness: Harness) -> None:
+    assert tasks_move_task._mt_locate_checkout(_state()) == harness.tmp / "checkout"
+    assert harness.calls == ["locate_project_root"]
+
+
+def test_locate_checkout_returns_the_owned_root_after_its_preflight(harness: Harness) -> None:
+    st = _state(owned=_owned(harness))
+
+    assert tasks_move_task._mt_locate_checkout(st) == harness.tmp / "owned"
+    assert harness.calls == ["_mt_preflight_owned_request"]
+
+
+@pytest.mark.parametrize(("to", "action"), [("planned", "implement"), ("for_review", "implement"), ("in_review", "review"), ("done", "review")])
+def test_resolve_binding_picks_the_role_by_target(harness: Harness, to: str, action: str) -> None:
+    st = _state(to=to)
+    st.target_lane = Lane(to)
+    st.main_repo_root = harness.main_root
+
+    assert tasks_move_task._mt_resolve_binding(st) == "binding"
+    assert harness.kwargs["_resolve_dispatch_binding"]["action"] == action
+    assert "placement_seam" not in harness.calls
+
+
+@pytest.mark.parametrize(("auto_commit", "skip"), [(False, False), (True, True)])
+def test_protected_refusal_is_not_consulted_without_a_target_branch_commit(harness: Harness, auto_commit: bool, skip: bool) -> None:
+    harness.protected_error = _PROTECTED
+    st = _state()
+    st.resolved_auto_commit = auto_commit
+    st.skip_target_branch_commit = skip
+
+    tasks_move_task._mt_refuse_protected_status_commit(st)
+
+    assert harness.calls == []
+
+
+def test_protected_refusal_passes_an_unprotected_branch(harness: Harness) -> None:
+    st = _state()
+    st.resolved_auto_commit = True
+
+    tasks_move_task._mt_refuse_protected_status_commit(st)
+
+    assert harness.calls == ["_protected_branch_status_commit_error"]
+    assert harness.errors == []
+
+
+def test_post30_layout_passes_a_current_layout(harness: Harness) -> None:
+    tasks_move_task._mt_require_post30_layout(_state(), harness.coord_dir)
+
+    assert harness.kwargs["check_pre30_layout"]["args"] == (harness.coord_dir,)
+    assert harness.errors == []
+
+
+@pytest.mark.parametrize("lane", [Lane.DONE, Lane.CANCELED, Lane.BLOCKED])
+def test_owned_source_lane_is_only_checked_for_an_owned_checkout(lane: Lane) -> None:
+    st = _state()
+    st.old_lane = lane
+
+    tasks_move_task._mt_require_owned_source_lane(st)
+
+
+@pytest.mark.parametrize("lane", sorted(tasks_move_task._OWNED_LIFECYCLE_LANES))
+def test_owned_source_lane_accepts_the_review_lifecycle(harness: Harness, lane: Lane) -> None:
+    st = _state(owned=_owned(harness))
+    st.old_lane = lane
+
+    tasks_move_task._mt_require_owned_source_lane(st)
