@@ -20,6 +20,7 @@ from kernel.clock import now_utc_iso
 from specify_cli.consolidation import reconciliation as rec
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = pytest.mark.git_repo
 
@@ -158,7 +159,7 @@ def test_lane_content_reuses_the_authorship_walk_when_the_spines_agree(repo: dic
     def _no_second_walk(*_args: object) -> object:
         raise AssertionError("the authorship walk must be reused")
 
-    monkeypatch.setattr(rec, "_final_authored_walk", _no_second_walk)
+    setattr_reconciliation_family(monkeypatch, "_final_authored_walk", _no_second_walk)
     content = rec._presence_lane_content(root, _MANIFEST, _LANE, _APPROVED, walk, scope, frozenset())
     assert dict(content.final_state) == {"src/added.py": "f" * 40}
 
@@ -166,3 +167,35 @@ def test_lane_content_reuses_the_authorship_walk_when_the_spines_agree(repo: dic
 def test_lane_content_without_a_presence_scope_is_the_authorship_walk(repo: dict[str, str | Path]) -> None:
     content = rec._presence_lane_content(Path(repo["root"]), _MANIFEST, _LANE, _APPROVED, _empty_walk(repo), None, frozenset())
     assert dict(content.final_state) == {}
+
+
+def _count_authored_walks(repo: dict[str, str | Path], monkeypatch: pytest.MonkeyPatch, *, canceled: frozenset[str]) -> list[list[str]]:
+    """Run ``_collect_authored`` over the fixture with every ``_final_authored_walk`` call recorded."""
+    real = rec._final_authored_walk
+    calls: list[list[str]] = []
+
+    def _counting_walk(repo_root: Path, first_parent_shas: list[str]) -> object:
+        calls.append(list(first_parent_shas))
+        return real(repo_root, first_parent_shas)
+
+    setattr_reconciliation_family(monkeypatch, "_final_authored_walk", _counting_walk)
+    presence = rec._PresenceScope(base=str(repo["m1"]), carried=frozenset(), lane_bases={}, canceled=canceled)
+    rec._collect_authored(
+        Path(repo["root"]),
+        _MANIFEST,
+        _APPROVED,
+        str(repo["m1"]),
+        canceled_lane_commits=frozenset(),
+        presence=presence,
+    )
+    return calls
+
+
+def test_collect_authored_walks_each_approved_lane_spine_once(repo: dict[str, str | Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """One approved lane, one spine walk: the presence content reuses the authorship walk (L2)."""
+    assert len(_count_authored_walks(repo, monkeypatch, canceled=frozenset())) == 1
+
+
+def test_second_walk_only_when_the_presence_spine_differs(repo: dict[str, str | Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Control: the counter counts. A canceled commit shrinks the presence spine, so a second walk is legitimate."""
+    assert len(_count_authored_walks(repo, monkeypatch, canceled=frozenset({str(repo["a1"])}))) == 2

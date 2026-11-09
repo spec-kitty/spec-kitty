@@ -122,6 +122,7 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
         "lanes",
         "would_assign_mission_number",
         "retention",  # added for the #3131 merge-retention forecast (2026-09-02)
+        "window_gaps",  # added for the window gap report (#7403, 2026-11)
     }
 )
 
@@ -475,6 +476,7 @@ def test_clean_dry_run_json_payload_key_set_is_frozen(tmp_path: Path, monkeypatc
     assert payload["spec_kitty_version"] == SPEC_KITTY_VERSION
     assert payload["mission_slug"] == mission.mission_slug
     assert payload["target_branch"] == "main"
+    assert payload["window_gaps"] == []
     # Default strategy is SQUASH; default delete/remove are True; push False.
     assert payload["strategy"] == "squash"
     assert payload["delete_branch"] is True

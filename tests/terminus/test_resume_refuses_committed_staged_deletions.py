@@ -195,8 +195,8 @@ def test_5571_released_deletion_commit_over_an_unreadable_mission_branch_range_i
     and lets the mission ship without WP01's code. The claim REFUSEs naming the range,
     and the door leaves the target at its pre-run tip.
     """
-    from specify_cli.consolidation import reconciliation as rec
     from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range
+    from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
     run, _ = _released_then_fresh(tmp_path, "01M55717", drop_wp01=True)
     mission = run.mission
@@ -206,7 +206,7 @@ def test_5571_released_deletion_commit_over_an_unreadable_mission_branch_range_i
             raise GitProbeError(f"cannot read {base}..{head}")
         return list(commits_in_range(repo_root, base, head))
 
-    monkeypatch.setattr(rec, "commits_in_range", _unreadable_mission_range)
+    setattr_reconciliation_family(monkeypatch, "commits_in_range", _unreadable_mission_range)
 
     with pytest.raises(typer.Exit) as excinfo:
         _consolidate_fresh(mission, monkeypatch)

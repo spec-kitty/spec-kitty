@@ -1,0 +1,1 @@
+- **Status events record the work-package window-open SHA** (#7403). Every move of a lane work package into `claimed` or `in_progress` now records `policy_metadata.wp_window`: the lane head, or a typed gap (`lane_branch_missing`, `capture_failed`). The move is never refused, and the value comes from the same lane-head reading as `lane_head`, so no extra git read is taken.

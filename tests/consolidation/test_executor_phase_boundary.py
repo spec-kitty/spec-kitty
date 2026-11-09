@@ -28,6 +28,7 @@ from specify_cli.consolidation import executor as ex
 from specify_cli.consolidation.baseline import BaselineMergeCommitError
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.consolidation import (
+    claim_inputs,
     coord_strand,
     phase_bookkeeping,
     phase_claim,
@@ -44,9 +45,10 @@ def _make_run(tmp_path: Path, *, done_marked_before_target: bool = False) -> ex.
     from types import SimpleNamespace
 
     lanes_manifest = SimpleNamespace(
+        mission_slug="m",
         target_branch="main",
         mission_branch="kitty/mission-m",
-        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"], depends_on_lanes=())],
     )
     state = ConsolidationState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
     run = ex._MergeRunState(
@@ -301,7 +303,7 @@ def test_capture_reconciliation_claim_aborts_clean_on_git_probe_error(tmp_path: 
         patch.object(phase_claim, "write_post_fix_marker", lambda *_a, **_k: None),
         patch_executor_family("_capture_coord_checkpoint", lambda *_a, **_k: None),
         patch.object(phase_claim, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
-        patch_executor_family("build_approved_wp_set", side_effect=boom),
+        patch.object(claim_inputs, "build_approved_wp_set", side_effect=boom),
         pytest.raises(typer.Exit) as exc,
     ):
         ex._capture_reconciliation_claim(run)
@@ -320,7 +322,7 @@ def _capture_claim_with(run: ex._MergeRunState, claim: object) -> None:
         patch.object(phase_claim, "_enforce_resume_anchor_integrity", lambda *_a, **_k: None),
         patch.object(phase_claim, "_resolve_pre_mutation_coord_sha", lambda *_a, **_k: None),
         patch.object(phase_claim, "_resolve_pre_mutation_target_sha", lambda *_a, **_k: "abc123"),
-        patch_executor_family("build_approved_wp_set", return_value=claim),
+        patch.object(claim_inputs, "build_approved_wp_set", return_value=claim),
         # The pre-mutation snapshot/attempt (WP03, #5318) is covered by test_executor_rollback_wiring.
         patch.object(phase_claim, "_capture_snapshot_and_begin_attempt", lambda *_a, **_k: None),
     ):

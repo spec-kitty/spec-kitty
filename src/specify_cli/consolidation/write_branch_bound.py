@@ -19,6 +19,12 @@ the other. Its approvals bound it in two tiers:
 
 Reachability is batched: one ``git rev-list`` per window edge, then set membership (NFR-007).
 Pure over a status event list and git probes; the claim builder calls it before any branch moves.
+
+Lane missions use the same two tiers (Mission consolidation-window-provenance-01M6Y84D, WP19,
+FR-007): :func:`check_lane_windows` judges one code lane whose windows open at the SHA the
+status pipeline recorded (:func:`~specify_cli.consolidation.wp_attribution.window_open_of`,
+bound to the one lane tip by :func:`bind_lane_predicates`); a work package with a window gap
+opens at the claim base, exactly like a degraded ``single_branch`` window.
 """
 
 from __future__ import annotations
@@ -38,9 +44,10 @@ from .approved_bound import (
     content_commits,
     move_back_command,
     render_refusals,
+    resolves_commit,
 )
-from .git_probes import commits_in_range
-from .wp_attribution import approval_window_open_stamp, lane_exempt_commits
+from .git_probes import commits_in_range, sha_reachable_from
+from .wp_attribution import GapEntry, WindowGap, WindowOpen, approval_window_open_stamp, lane_exempt_commits, window_open_of
 
 logger = logging.getLogger(__name__)
 
@@ -74,14 +81,25 @@ class _WindowReach:
     covered: frozenset[str]
 
 
-def approval_windows(events: Sequence[StatusEvent], stamps: Mapping[str, str]) -> tuple[ApprovalWindow, ...]:
+def approval_windows(
+    events: Sequence[StatusEvent],
+    stamps: Mapping[str, str],
+    *,
+    classes: Mapping[str, WindowOpen | WindowGap] | None = None,
+) -> tuple[ApprovalWindow, ...]:
     """One :class:`ApprovalWindow` per work package of *stamps* (``{wp_id: approval stamp}``), in that order.
 
-    A work package whose claim carries no stamp yields a degraded window, which is logged.
+    A work package whose *classes* entry is a :class:`WindowOpen` opens at that recorded SHA
+    (FR-011, the FR-021 cycle opener); every other one keeps today's derivation, the stamp on its
+    first claim (:func:`~specify_cli.consolidation.wp_attribution.approval_window_open_stamp`).
+    ``classes=None`` is exactly today's derivation. A work package whose claim carries no stamp
+    yields a degraded window, which is logged.
     """
     windows: list[ApprovalWindow] = []
     for wp_id, stamp in stamps.items():
-        window = ApprovalWindow(wp_id, approval_window_open_stamp(events, wp_id), stamp)
+        recorded = (classes or {}).get(wp_id)
+        open_stamp = recorded.sha if isinstance(recorded, WindowOpen) else approval_window_open_stamp(events, wp_id)
+        window = ApprovalWindow(wp_id, open_stamp, stamp)
         if window.degraded:
             logger.info("%s has no stamped claim: its approval window opens at the claim base (A-8)", wp_id)
         windows.append(window)
@@ -99,6 +117,12 @@ def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[
 
     When *sha* reaches no approval stamp (it predates every approval), the work package whose
     approval stamp reaches *sha* with the fewest commits is named instead: the first approval after it.
+
+    Invariant: some approval stamp reaches *sha*, so that fallback is never empty. Tier 2 asks only
+    after tier 1 passed, and a passing tier 1 means every content commit outside its exempt set is
+    reachable from an approval stamp; tier 2's exempt set contains tier 1's (it only adds the
+    canceled work packages' commits), so every commit it refuses is one of those. A change that
+    lets tier 2 judge a commit tier 1 did not must keep this invariant or name the commit otherwise.
     """
     ancestors = frozenset(commits_in_range(repo_root, claim_base, sha))
     before = [entry for entry in reaches if entry.window.approval_stamp in ancestors]
@@ -150,6 +174,7 @@ def check_write_branch(
     anchors: Iterable[str],
     is_bookkeeping: Callable[[str], bool],
     tip: str | None = None,
+    classes: Mapping[str, WindowOpen | WindowGap] | None = None,
 ) -> tuple[BoundRefusal, ...]:
     """Refuse the Mission branch when it holds content no approval window covers, else ``()``.
 
@@ -158,10 +183,15 @@ def check_write_branch(
     ``LANE_MOVED_AFTER_APPROVAL`` refusal per content commit outside every approval window,
     each naming the work package approved before it. A probe error raises
     :class:`~specify_cli.consolidation.git_probes.GitProbeError` (every caller refuses on it).
+
+    The windows open at *classes* (:func:`classify_windows`; classified here, bound to *tip* or
+    *branch*, when ``None``): a recorded window-open SHA, else today's derivation (FR-011).
+    :func:`check_write_branch_windows` also returns the window gaps.
     """
     branch_tip = tip or branch
     approved = tuple(sorted(approved_wp_ids))
     anchor_list = list(anchors)
+    opened = classes if classes is not None else _write_branch_classes(repo_root, events, approved, branch_tip)
     tier_one = check_lane(
         repo_root,
         events=events,
@@ -184,10 +214,160 @@ def check_write_branch(
         branch=branch,
         tip=branch_tip,
         claim_base=claim_base,
-        windows=approval_windows(events, stamps),
+        windows=approval_windows(events, stamps, classes=opened),
         exempt=lane_exempt_commits(repo_root, claim_base, anchor_list),
         is_bookkeeping=is_bookkeeping,
     )
+
+
+def check_write_branch_windows(
+    repo_root: Path,
+    *,
+    events: Sequence[StatusEvent],
+    lane_id: str,
+    branch: str,
+    approved_wp_ids: Iterable[str],
+    claim_base: str,
+    anchors: Iterable[str],
+    is_bookkeeping: Callable[[str], bool],
+    tip: str,
+) -> tuple[tuple[BoundRefusal, ...], tuple[GapEntry, ...]]:
+    """``(refusals, window gaps)`` of the Mission branch read at *tip* (S8, #7283; FR-011).
+
+    The refusals are :func:`check_write_branch`'s, its windows classified once here, bound to *tip*
+    (:func:`classify_windows`). A work package with a window gap keeps today's derived window and
+    is reported in the gaps, sorted by work package, whatever the verdict.
+    """
+    approved = tuple(sorted(approved_wp_ids))
+    classes = _write_branch_classes(repo_root, events, approved, tip)
+    gaps = tuple(GapEntry.from_gap(wp_id, lane_id, opened) for wp_id, opened in classes.items() if isinstance(opened, WindowGap))
+    refusals = check_write_branch(
+        repo_root,
+        events=events,
+        lane_id=lane_id,
+        branch=branch,
+        approved_wp_ids=approved,
+        claim_base=claim_base,
+        anchors=anchors,
+        is_bookkeeping=is_bookkeeping,
+        tip=tip,
+        classes=classes,
+    )
+    return refusals, gaps
+
+
+def _write_branch_classes(repo_root: Path, events: Sequence[StatusEvent], approved: Sequence[str], tip: str) -> dict[str, WindowOpen | WindowGap]:
+    on_lane, is_ancestor = bind_lane_predicates(repo_root, tip)
+    return classify_windows(events, approved, on_lane=on_lane, is_ancestor=is_ancestor)
+
+
+_LanePredicates = tuple[Callable[[str], bool], Callable[[str, str], bool]]
+
+
+def bind_lane_predicates(repo_root: Path, tip: str) -> _LanePredicates:
+    """``(on_lane, is_ancestor)`` bound to the one lane *tip* the approved bound resolved (FR-022).
+
+    ``on_lane(sha)`` is true iff *sha* resolves in this clone and *tip* reaches it;
+    ``is_ancestor(a, b)`` is true iff *a* is an ancestor of or equal to *b*. Neither raises: a
+    git error reads as False, so an unresolvable recorded SHA is ``not_on_lane``, never a probe error.
+    """
+
+    def on_lane(sha: str) -> bool:
+        # Local annotation re-narrows to ``bool`` (the narrow-file mypy override erases the callee's return type).
+        if not resolves_commit(repo_root, sha):
+            return False
+        reachable: bool = sha_reachable_from(repo_root, sha, tip)
+        return reachable
+
+    def is_ancestor(ancestor: str, descendant: str) -> bool:
+        reachable: bool = sha_reachable_from(repo_root, ancestor, descendant)
+        return reachable
+
+    return on_lane, is_ancestor
+
+
+def classify_windows(
+    events: Sequence[StatusEvent],
+    wp_ids: Iterable[str],
+    *,
+    on_lane: Callable[[str], bool],
+    is_ancestor: Callable[[str, str], bool],
+) -> dict[str, WindowOpen | WindowGap]:
+    """``{wp_id: window open SHA or typed gap}`` for *wp_ids*, in that order (pure over the two predicates)."""
+    return {wp_id: window_open_of(events, wp_id, on_lane=on_lane, is_ancestor=is_ancestor) for wp_id in wp_ids}
+
+
+def lane_windows(classes: Mapping[str, WindowOpen | WindowGap], stamps: Mapping[str, str | None]) -> tuple[ApprovalWindow, ...]:
+    """One :class:`ApprovalWindow` per stamped work package of *classes*: a gap opens at the claim base (``open_stamp=None``)."""
+    windows: list[ApprovalWindow] = []
+    for wp_id, opened in classes.items():
+        stamp = stamps.get(wp_id)
+        if stamp is not None:
+            windows.append(ApprovalWindow(wp_id, opened.sha if isinstance(opened, WindowOpen) else None, stamp))
+    return tuple(windows)
+
+
+def check_lane_windows(
+    repo_root: Path,
+    *,
+    events: Sequence[StatusEvent],
+    lane_id: str,
+    branch: str,
+    approved_wp_ids: Iterable[str],
+    claim_base: str,
+    exemption_anchors: Iterable[str],
+    windows: Sequence[ApprovalWindow],
+    is_bookkeeping: Callable[[str], bool],
+    tip: str,
+    canceled_exempt: frozenset[str] = frozenset(),
+) -> tuple[tuple[BoundRefusal, ...], tuple[BoundRefusal, ...]]:
+    """``(tier_one, tier_two)`` refusals of one code lane judged by its work-package windows (FR-007, WW-1, WW-2).
+
+    The exempt set is computed ONCE from *exemption_anchors* (the closed-world anchors plus the
+    approval stamps of OTHER bounded lanes, never this lane's own, WW-2a) and shared by both
+    tiers (NFR-007). Tier 1 is :func:`~specify_cli.consolidation.approved_bound.check_lane`
+    unchanged: dropping the own stamps from its exempt set changes none of its verdicts, because
+    it already excludes everything its own stamps reach (``commits_beyond(tip, [claim_base,
+    *own stamps])``). A tier-1 refusal is returned alone. Tier 2 then refuses, one refusal per
+    commit, every content commit in ``claim_base..tip`` that no window covers and no exemption
+    anchor reaches, naming the work package approved before it.
+
+    *canceled_exempt* is the lane's canceled work packages' own attributed commits (the mixed-lane
+    resolution's, never a second spine walk). Operator ruling 2026-11-09: they are exempt from tier 2
+    only, so the mixed-lane and canceled-content rules stay their sole judge; tier 1 is not given
+    them, so a canceled work package's commit after an approval stamp still refuses there (#5720).
+    Adding to tier 2's exempt set keeps :func:`_preceding_wp`'s invariant (tier 2 judges only
+    commits tier 1 did).
+    """
+    anchors = list(exemption_anchors)
+    exempt = lane_exempt_commits(repo_root, claim_base, anchors)
+    tier_one = check_lane(
+        repo_root,
+        events=events,
+        lane_id=lane_id,
+        branch=branch,
+        approved_wp_ids=approved_wp_ids,
+        claim_base=claim_base,
+        anchors=anchors,
+        is_bookkeeping=is_bookkeeping,
+        tip=tip,
+        exempt=exempt,
+    )
+    if tier_one is not None:
+        return (tier_one,), ()
+    if not windows:
+        return (), ()
+    tier_two = _window_refusals(
+        repo_root,
+        lane_id=lane_id,
+        branch=branch,
+        tip=tip,
+        claim_base=claim_base,
+        windows=windows,
+        exempt=exempt | canceled_exempt,
+        is_bookkeeping=is_bookkeeping,
+    )
+    return (), tier_two
 
 
 def _window_finding(refusal: BoundRefusal) -> str:
@@ -214,22 +394,38 @@ def render_write_branch_refusals(refusals: Sequence[BoundRefusal], mission_slug:
         # Local annotation re-narrows to ``str`` (the narrow-file mypy override erases the callee's return type).
         lane_text: str = render_refusals(refusals, mission_slug)
         return lane_text
+    return "\n".join([*_window_block(windows, mission_slug), _TOOL_COMMIT_HINT])
+
+
+def _window_block(windows: Sequence[BoundRefusal], mission_slug: str) -> list[str]:
+    """The window refusal lines: one finding per commit, then the move-back recovery (no tool-commit hint)."""
     findings = [_window_finding(refusal) for refusal in windows]
     wp_ids = list(dict.fromkeys(refusal.wp_ids[0] for refusal in windows))
     named = ", ".join(wp_ids)
-    return "\n".join(
-        [
-            f"{BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL.value}: {findings[0]}",
-            *findings[1:],
-            f"Recovery: Send {named} back for review and approve it again, or revert the commit:",
-            *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission_slug)}" for wp_id in wp_ids),
-            "Then re-run spec-kitty consolidate.",
-            _TOOL_COMMIT_HINT,
-        ]
-    )
+    return [
+        f"{BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL.value}: {findings[0]}",
+        *findings[1:],
+        f"Recovery: Send {named} back for review and approve it again, or revert the commit:",
+        *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission_slug)}" for wp_id in wp_ids),
+        "Then re-run spec-kitty consolidate.",
+    ]
+
+
+def render_lane_window_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:
+    """The operator text for :func:`check_lane_windows`' tier-2 refusals; it starts with ``LANE_MOVED_AFTER_APPROVAL: ``.
+
+    One line per commit naming the commit, its lane and the work package approved before it,
+    then the recovery. The ``single_branch`` tool-commit hint is not part of the lane text.
+    """
+    return "\n".join(_window_block(refusals, mission_slug))
 
 
 __all__ = [
-    "check_write_branch",
+    "bind_lane_predicates",
+    "check_lane_windows",
+    "check_write_branch_windows",
+    "classify_windows",
+    "lane_windows",
+    "render_lane_window_refusals",
     "render_write_branch_refusals",
 ]

@@ -56,6 +56,7 @@ from specify_cli.consolidation.wp_attribution import (
     UnattributableReason,
 )
 from tests.terminus.conftest import record_evidence_prerequisites
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -2088,7 +2089,7 @@ def test_squash_fails_closed_when_merge_tree_write_tree_unavailable(tmp_path: Pa
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert "src/shared.py" in claim.multi_lane_paths
-    monkeypatch.setattr("specify_cli.consolidation.reconciliation.merge_tree_write_tree_available", lambda _repo_root: False)
+    setattr_reconciliation_family(monkeypatch, "merge_tree_write_tree_available", lambda _repo_root: False)
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
     assert result.status is VerifyStatus.FAIL
@@ -2683,7 +2684,7 @@ def test_mixed_lane_wiring_unattributable_precedes_missing_approved_fail(tmp_pat
     def _fake_resolve(*_args: object, **kwargs: object) -> Unattributable:
         return Unattributable(UnattributableReason.CONTESTED_COMMIT, f"{kwargs['canceled_wp_id']} in {kwargs['lane_id']}: contested (test double)")
 
-    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation_canceled.resolve_canceled_wp", _fake_resolve)
     claim = build_approved_wp_set(
         repo,
         feature_dir,
@@ -2716,7 +2717,7 @@ def test_mixed_lane_wiring_refusal_names_lane_wp_and_recovery_for_every_reason(
     def _fake_resolve(*_args: object, **kwargs: object) -> Unattributable:
         return Unattributable(reason, f"detail for {reason.value}")
 
-    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation_canceled.resolve_canceled_wp", _fake_resolve)
     claim = build_approved_wp_set(
         repo,
         feature_dir,
@@ -2746,7 +2747,7 @@ def test_mixed_lane_wiring_passes_shared_bookkeeping_predicate(tmp_path: Path, m
         captured["is_bookkeeping"] = kwargs["is_bookkeeping"]
         return Attributed(commits=frozenset(), canceled_content=frozenset())
 
-    monkeypatch.setattr("specify_cli.consolidation.reconciliation.resolve_canceled_wp", _fake_resolve)
+    monkeypatch.setattr("specify_cli.consolidation.reconciliation_canceled.resolve_canceled_wp", _fake_resolve)
     build_approved_wp_set(
         repo,
         feature_dir,
@@ -2998,7 +2999,7 @@ def test_closed_world_reason_is_lifted_by_the_attestation_anchor_not_by_reason()
 def test_overridable_reason_refusal_names_the_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reason: UnattributableReason) -> None:
     repo, feature_dir, manifest, coord_base, lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
     monkeypatch.setattr(
-        "specify_cli.consolidation.reconciliation.resolve_canceled_wp",
+        "specify_cli.consolidation.reconciliation_canceled.resolve_canceled_wp",
         lambda *_a, **_k: Unattributable(reason, f"detail for {reason.value}"),
     )
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))
@@ -3025,7 +3026,7 @@ def test_infrastructure_refusal_is_not_overridable(tmp_path: Path, monkeypatch: 
     repo, feature_dir, manifest, coord_base, _lane = _build_mixed_lane_entered_mission(tmp_path, stamp_attribution=True)
     _append_attestation(repo, feature_dir)
     monkeypatch.setattr(
-        "specify_cli.consolidation.reconciliation.resolve_canceled_wp",
+        "specify_cli.consolidation.reconciliation_canceled.resolve_canceled_wp",
         lambda *_a, **_k: Unattributable(reason, f"detail for {reason.value}"),
     )
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_canceled_wp_ids=frozenset({"WP02"}))

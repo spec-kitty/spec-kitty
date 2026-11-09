@@ -1,0 +1,1045 @@
+{
+  "forecast|dependency_chain|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|dependency_chain|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|dependency_chain|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|dependency_chain|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|dependency_chain|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|dependency_chain|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|dependency_chain|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|fully_canceled_dependency|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|fully_canceled_dependency|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|fully_canceled_dependency|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|fully_canceled_dependency|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|fully_canceled_dependency|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|fully_canceled_dependency|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|fully_canceled_dependency|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=present|window=recorded|excluded_canceled": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|mixed_lane_canceled_wp|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|planning_lane|stamp=missing|window=any": {
+    "not_applicable": "planning lanes are never stamped (status/lane_head.py: no lane branch), so no approval stamp can be missing or rewritten"
+  },
+  "forecast|planning_lane|stamp=present|window=any": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|planning_lane|stamp=rewritten|window=any": {
+    "not_applicable": "planning lanes are never stamped (status/lane_head.py: no lane branch), so no approval stamp can be missing or rewritten"
+  },
+  "forecast|single_branch|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|single_branch|stamp=present|window=any": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_branch|stamp=present|window=recorded|rewound": {
+    "codes": [
+      "CLAIM_REFUSED_FORECAST",
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|single_branch|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|single_lane|post_approval_commit": {
+    "codes": [
+      "CLAIM_REFUSED_FORECAST",
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse",
+    "text": "Reconciliation would REFUSE (fail-closed): LANE_MOVED_AFTER_APPROVAL: branch 'kitty/mission-terminus-01M6Y2S1-lane-a' (lane-a carries WP01) holds content committed after its approval stamp (the lane commit recorded when review approved it): <sha:1> (e.g. 'src/alpha/late.py'); see one with git show <sha:1>. Recovery: send WP01 back for review so the new content is reviewed: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2S1 Then approve it again and re-run spec-kitty consolidate. The real run refuses this Mission at claim time; this dry run moved nothing."
+  },
+  "forecast|single_lane|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|single_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|single_lane|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|two_wp_lane|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "forecast|two_wp_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|two_wp_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|two_wp_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|two_wp_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|two_wp_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "forecast|two_wp_lane|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE",
+      "CLAIM_REFUSED_FORECAST"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|dependency_chain|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|dependency_chain|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=present|window=recorded|fr007_exception": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|dependency_chain|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|fully_canceled_dependency|canceled_content_reachable": {
+    "codes": [
+      "CANCELED_REACHABLE_VIA_DEPENDENCY"
+    ],
+    "divergence_fields": [
+      "canceled_reachable_via_dependency",
+      "unattributable_blobs"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|fully_canceled_dependency|canceled_content_reachable|strategy=merge": {
+    "codes": [
+      "CANCELED_REACHABLE_VIA_DEPENDENCY"
+    ],
+    "divergence_fields": [
+      "canceled_reachable_via_dependency",
+      "reachable_excluded",
+      "unattributable_content"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|fully_canceled_dependency|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|fully_canceled_dependency|stamp=present|window=capture_failed": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|fully_canceled_dependency|stamp=present|window=lane_branch_missing": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|fully_canceled_dependency|stamp=present|window=not_on_lane": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|fully_canceled_dependency|stamp=present|window=not_recorded": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|fully_canceled_dependency|stamp=present|window=recorded": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|fully_canceled_dependency|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|mixed_lane_canceled_wp|canceled_content_leaks": {
+    "codes": [],
+    "divergence_fields": [
+      "canceled_content"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=recorded|canceled_commit_before_window": {
+    "codes": [],
+    "divergence_fields": [
+      "canceled_content"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=present|window=recorded|canceled_commit_before_window_superseded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|mixed_lane_canceled_wp|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|planning_lane|stamp=missing|window=any": {
+    "not_applicable": "planning lanes are never stamped (status/lane_head.py: no lane branch), so no approval stamp can be missing or rewritten"
+  },
+  "fresh|planning_lane|stamp=present|window=any": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|planning_lane|stamp=rewritten|window=any": {
+    "not_applicable": "planning lanes are never stamped (status/lane_head.py: no lane branch), so no approval stamp can be missing or rewritten"
+  },
+  "fresh|single_branch|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_branch|stamp=present|window=any": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_branch|stamp=present|window=recorded|rewound": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_branch|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|approved_content_missing_released": {
+    "codes": [
+      "APPROVED_CONTENT_MISSING"
+    ],
+    "divergence_fields": [
+      "approved_content_missing"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|single_lane|dependency_ref": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|dependency_ref_names_mission_work": {
+    "codes": [
+      "DEPENDENCY_REF_COVERS_MISSION_WORK"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|lane_commit_during_run": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=capture_failed|all_gap_post_approval_commit": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse",
+    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: branch 'kitty/mission-terminus-01M6Y2S1-lane-a' (lane-a carries WP01) holds content committed after its approval stamp (the lane commit recorded when review approved it): <sha:1> (e.g. 'src/alpha/late.py'); see one with git show <sha:1>. Recovery: send WP01 back for review so the new content is reviewed: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2S1 Then approve it again and re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
+  },
+  "fresh|single_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=lane_branch_missing_then_recorded|leading_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=present|window=recorded|history_read_error": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|stamp=present|window=recorded|skewed_clock_rework": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|single_lane|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|single_lane|unattributable_squash_path": {
+    "codes": [],
+    "divergence_fields": [
+      "unattributable_blobs"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|two_wp_lane|stamp=missing|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_MISSING"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|two_wp_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=gap_then_recorded|commit_between_approvals": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|two_wp_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=recorded_then_gap|commit_between_approvals": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "fresh|two_wp_lane|stamp=present|window=recorded|commit_between_approvals": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|two_wp_lane|stamp=present|window=recorded|commit_between_approvals_text": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse",
+    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: commit <sha:1> ('src/pkg/stray.py') on branch 'kitty/mission-terminus-01M6Y2W1-lane-a' (lane-a) was committed after WP01's approval and is in no later work package's review window; see it with git show <sha:1>. Recovery: Send WP01 back for review and approve it again, or revert the commit: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2W1 Then re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
+  },
+  "fresh|two_wp_lane|stamp=present|window=recorded|rewound": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "fresh|two_wp_lane|stamp=rewritten|window=any": {
+    "codes": [
+      "APPROVAL_STAMP_NOT_ON_LANE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "resume|dependency_chain|stamp=missing|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_MISSING"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|dependency_chain|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|dependency_chain|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|dependency_chain|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|dependency_chain|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|dependency_chain|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|dependency_chain|stamp=present|window=recorded|dependency_lane_advanced_and_merged": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse",
+    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: branch 'kitty/mission-terminus-01M6Y2D1-lane-a' (lane-a carries WP01) holds content committed after its approval stamp (the lane commit recorded when review approved it): <sha:1> (e.g. 'src/advanced/after_interrupt.py'); see one with git show <sha:1>. branch 'kitty/mission-terminus-01M6Y2D1-lane-b' (lane-b carries WP02) holds content committed after its approval stamp: <sha:1> (e.g. 'src/advanced/after_interrupt.py'); see one with git show <sha:1>. Recovery: send WP01, WP02 back for review so the new content is reviewed: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2D1 spec-kitty agent tasks move-task WP02 --to in_progress --mission terminus-01M6Y2D1 Then approve them again and re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
+  },
+  "resume|dependency_chain|stamp=rewritten|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_NOT_ON_LANE"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|fully_canceled_dependency|stamp=missing|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_MISSING"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=capture_failed": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=lane_branch_missing": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=not_on_lane": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=not_recorded": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=recorded": {
+    "codes": [
+      "NOT_LANDED_ON_NAMED_REMOTE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|fully_canceled_dependency|stamp=present|window=recorded|canceled_lane_advanced": {
+    "codes": [
+      "WORKTREE_TIP_MOVED"
+    ],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass",
+    "text": "\u2713 Reconciliation verified: approved-WP claim integrity and squash content attribution verified (no un-attributable content on the target); per-SHA approved-reachability deferred under squash strategy."
+  },
+  "resume|fully_canceled_dependency|stamp=rewritten|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_NOT_ON_LANE"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=missing|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_MISSING"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|mixed_lane_canceled_wp|stamp=present|window=recorded|dependency_lane_advanced": {
+    "codes": [
+      "LANE_MOVED_AFTER_APPROVAL"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse",
+    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: branch 'kitty/mission-terminus-01M6Y2E1-lane-a' (lane-a carries WP03) holds content committed after its approval stamp (the lane commit recorded when review approved it): <sha:1> (e.g. 'src/advanced/after_interrupt.py'); see one with git show <sha:1>. branch 'kitty/mission-terminus-01M6Y2E1-lane-b' (lane-b carries WP01) holds content committed after its approval stamp: <sha:1> (e.g. 'src/advanced/after_interrupt.py'); see one with git show <sha:1>. Recovery: send WP03, WP01 back for review so the new content is reviewed: spec-kitty agent tasks move-task WP03 --to in_progress --mission terminus-01M6Y2E1 spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2E1 Then approve them again and re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
+  },
+  "resume|mixed_lane_canceled_wp|stamp=rewritten|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_NOT_ON_LANE"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|planning_lane|stamp=missing|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|planning_lane|stamp=present|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|planning_lane|stamp=rewritten|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|single_branch|stamp=missing|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|single_branch|stamp=present|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|single_branch|stamp=rewritten|window=any": {
+    "mode_not_applicable": "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
+  },
+  "resume|single_lane|approved_content_missing": {
+    "codes": [
+      "UNEXPLAINED_BRANCH_MOVE"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
+  },
+  "resume|single_lane|stamp=missing|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_MISSING"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|single_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|single_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|single_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|single_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|single_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|single_lane|stamp=rewritten|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_NOT_ON_LANE"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|two_wp_lane|stamp=missing|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_MISSING"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  },
+  "resume|two_wp_lane|stamp=present|window=capture_failed": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|two_wp_lane|stamp=present|window=lane_branch_missing": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|two_wp_lane|stamp=present|window=not_on_lane": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|two_wp_lane|stamp=present|window=not_recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|two_wp_lane|stamp=present|window=recorded": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass"
+  },
+  "resume|two_wp_lane|stamp=rewritten|window=any": {
+    "interrupted_run": {
+      "codes": [
+        "APPROVAL_STAMP_NOT_ON_LANE"
+      ],
+      "exit_code": 1
+    },
+    "mode_not_applicable": "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
+  }
+}

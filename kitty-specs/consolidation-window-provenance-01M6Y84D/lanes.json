@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "mission_slug": "consolidation-window-provenance-01M6Y84D",
+  "mission_id": "01M6Y84DMCSNYCP6XTD4C4Q8M6",
+  "mission_branch": "kitty/mission-consolidation-window-provenance-01M6Y84D",
+  "target_branch": "feat/consolidation-window-provenance",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/consolidation/test_refusal_precedence_matrix.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-29-1-closed-world-refuse-on-mixed-lanes.md",
+        "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md",
+        "docs/context/orchestration.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11",
+        "WP12",
+        "WP13",
+        "WP14",
+        "WP15",
+        "WP16",
+        "WP17",
+        "WP18",
+        "WP19",
+        "WP20"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7403-forecast-claim-inputs.fixed.md",
+        "docs/changelog/unreleased/7403-lane-approval-window-refusal.changed.md",
+        "docs/changelog/unreleased/7403-lane-approval-windows.changed.md",
+        "docs/changelog/unreleased/7403-wp-window-capture.internal.md",
+        "src/specify_cli/consolidation/approved_attestation.py",
+        "src/specify_cli/consolidation/approved_bound.py",
+        "src/specify_cli/consolidation/claim_inputs.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/forecast.py",
+        "src/specify_cli/consolidation/phase_claim.py",
+        "src/specify_cli/consolidation/phase_gate.py",
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/reconciliation_authorship.py",
+        "src/specify_cli/consolidation/reconciliation_bound.py",
+        "src/specify_cli/consolidation/reconciliation_canceled.py",
+        "src/specify_cli/consolidation/reconciliation_claim.py",
+        "src/specify_cli/consolidation/reconciliation_claim_types.py",
+        "src/specify_cli/consolidation/reconciliation_closed_world.py",
+        "src/specify_cli/consolidation/reconciliation_kernel.py",
+        "src/specify_cli/consolidation/reconciliation_rendering.py",
+        "src/specify_cli/consolidation/reconciliation_verifier.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "src/specify_cli/consolidation/window_gap_report.py",
+        "src/specify_cli/consolidation/wp_attribution.py",
+        "src/specify_cli/consolidation/write_branch_bound.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/lane_head.py",
+        "src/specify_cli/status/transition_pipeline.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/dead_symbol_allowlist.yaml",
+        "tests/architectural/test_dossier_sha_provenance.py",
+        "tests/ci/test_reducer_lock_census.py",
+        "tests/consolidation/characterization/verdict_corpus.json",
+        "tests/consolidation/characterization_support.py",
+        "tests/consolidation/reconciliation_family.py",
+        "tests/consolidation/reconciliation_surface.json",
+        "tests/consolidation/resume_frozen_anchors_support.py",
+        "tests/consolidation/test_authored_walk_read_error.py",
+        "tests/consolidation/test_canceled_dependency_attribution.py",
+        "tests/consolidation/test_claim_inputs_parity.py",
+        "tests/consolidation/test_forecast_fresh_run_parity.py",
+        "tests/consolidation/test_forecast_seam.py",
+        "tests/consolidation/test_lane_approval_windows.py",
+        "tests/consolidation/test_lane_window_query_count.py",
+        "tests/consolidation/test_presence_lane_base.py",
+        "tests/consolidation/test_reconciliation.py",
+        "tests/consolidation/test_reconciliation_characterization.py",
+        "tests/consolidation/test_reconciliation_family_guard.py",
+        "tests/consolidation/test_reconciliation_intended_verdicts.py",
+        "tests/consolidation/test_reconciliation_module_imports.py",
+        "tests/consolidation/test_reconciliation_seeded_mutations.py",
+        "tests/consolidation/test_reconciliation_split_shape.py",
+        "tests/consolidation/test_reconciliation_surface_pin.py",
+        "tests/consolidation/test_refusal_precedence_matrix_windows.py",
+        "tests/consolidation/test_resume_frozen_anchors.py",
+        "tests/consolidation/test_window_gap_report.py",
+        "tests/consolidation/test_window_gap_report_entry_points.py",
+        "tests/consolidation/test_window_opener.py",
+        "tests/consolidation/test_write_branch_bound.py",
+        "tests/integration/single_branch_window_support.py",
+        "tests/integration/test_single_branch_approval_windows.py",
+        "tests/specify_cli/cli/commands/test_merge_cli_golden.py",
+        "tests/status/test_lane_head.py",
+        "tests/status/test_transition_pipeline.py",
+        "tests/status/test_wp_window_capture.py",
+        "tests/terminus/test_resume_refuses_committed_staged_deletions.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-planning"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP21"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
+        "docs/changelog/unreleased/7403-history-read-error-refuses.fixed.md",
+        "docs/changelog/unreleased/7403-resume-frozen-anchors.fixed.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-08T21:59:18.839802+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01"
+  ],
+  "planning_commit_sha": "414841cc45d069214fe943f717714298449fbc80",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization_support.py' vs 'tests/consolidation/characterization_support.py'; WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP16",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP17",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP18",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization_support.py' vs 'tests/consolidation/characterization_support.py', 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP19",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP20",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/characterization/verdict_corpus.json' vs 'tests/consolidation/characterization/verdict_corpus.json'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'; WP09 depends on WP04"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP11",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP12",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP13",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP14",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP15",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/reconciliation_family.py' vs 'tests/consolidation/reconciliation_family.py'"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP16",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/test_reconciliation_intended_verdicts.py' vs 'tests/consolidation/test_reconciliation_intended_verdicts.py'"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP15",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/test_reconciliation_seeded_mutations.py' vs 'tests/consolidation/test_reconciliation_seeded_mutations.py'"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP19",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/consolidation/test_reconciliation_seeded_mutations.py' vs 'tests/consolidation/test_reconciliation_seeded_mutations.py'"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP19",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/consolidation/wp_attribution.py' vs 'src/specify_cli/consolidation/wp_attribution.py'"
+      }
+    ],
+    "total_merges": 17,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 17
+    }
+  }
+}

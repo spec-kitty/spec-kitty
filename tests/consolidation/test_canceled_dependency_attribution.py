@@ -36,6 +36,7 @@ from specify_cli.consolidation.reconciliation import (
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status import read_events
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 from tests.terminus.canceled_dependency_support import (
     LANE_A,
     LANE_B,
@@ -51,6 +52,7 @@ from tests.terminus.conftest import _git as git
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _RECONCILIATION = "specify_cli.consolidation.reconciliation"
+_CANCELED = "specify_cli.consolidation.reconciliation_canceled"
 
 
 def _status_dir(mission: CoordMission) -> Path:
@@ -195,8 +197,8 @@ def test_attestation_lifts_the_unstamped_refusal_only_while_no_stamp_is_overrida
     """The lift follows the one authority (``canceled_attestation.OVERRIDABLE_REASONS``), never a second hard-wired rule."""
     built = build_canceled_dependency_mission(tmp_path, mid8="01M5569N")
     strip_lane_head_stamps(built.mission, "WP01")
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
-    monkeypatch.setattr(f"{_RECONCILIATION}.OVERRIDABLE_REASONS", frozenset())
+    monkeypatch.setattr(f"{_CANCELED}.attestation_stamps", lambda _events: {"WP01": None})
+    monkeypatch.setattr(f"{_CANCELED}.OVERRIDABLE_REASONS", frozenset())
 
     refused = _claim(built)
 
@@ -228,7 +230,7 @@ def test_attesting_an_unstamped_wp_never_lifts_a_stamped_sibling_of_the_same_can
     two_wp_lane = replace(manifest, lanes=[replace(lane, wp_ids=("WP01", "WP03")) if lane.lane_id == LANE_A else lane for lane in manifest.lanes])
     events = read_events(_status_dir(mission))
     assert wpa.lacks_lane_head_stamps(events, "WP03") and not wpa.lacks_lane_head_stamps(events, "WP01"), "fixture precondition: one stamped, one unstamped"
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP03": None})
+    monkeypatch.setattr(f"{_CANCELED}.attestation_stamps", lambda _events: {"WP03": None})
 
     claim = build_approved_wp_set(
         mission.repo,
@@ -374,8 +376,8 @@ def test_unreadable_carrier_spine_refuses_and_cannot_be_overridden(tmp_path: Pat
     def boom(*_args: object, **_kwargs: object) -> object:
         raise GitProbeError("spine unreadable")
 
-    monkeypatch.setattr(f"{_RECONCILIATION}.canceled_spine_content", boom)
-    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
+    monkeypatch.setattr(f"{_CANCELED}.canceled_spine_content", boom)
+    monkeypatch.setattr(f"{_CANCELED}.attestation_stamps", lambda _events: {"WP01": None})
     claim = _claim(built)
 
     assert claim.refusal is not None
@@ -406,7 +408,7 @@ def test_one_unreadable_carrier_among_readable_ones_refuses_naming_only_it(tmp_p
             raise GitProbeError("object store damaged")
         return real(repo_root, spine, *args)
 
-    monkeypatch.setattr(f"{_RECONCILIATION}.canceled_spine_content", flaky)
+    monkeypatch.setattr(f"{_CANCELED}.canceled_spine_content", flaky)
 
     _, _, refusal = _carried_dependency_content(query, {LANE_A: own}, {LANE_B: spine_b, "lane-c": unreadable_spine}, own)
 
@@ -430,7 +432,7 @@ def test_verifier_step_noop_without_entries_refuses_without_window_base_and_on_p
     def boom(*_args: object, **_kwargs: object) -> str | None:
         raise GitProbeError("probe failed")
 
-    monkeypatch.setattr(f"{_RECONCILIATION}.path_state_at", boom)
+    setattr_reconciliation_family(monkeypatch, "path_state_at", boom)
     _, probe = verifier._canceled_dependency_divergence(target, claim)
     assert probe is not None and "probe failed" in probe
 

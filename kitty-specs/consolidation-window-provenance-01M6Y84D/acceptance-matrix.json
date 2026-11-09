@@ -1,0 +1,239 @@
+{
+  "mission_slug": "consolidation-window-provenance-01M6Y84D",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "ADR 2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition records where the window-open SHA lives, the typed gap, the claim inputs and their sources, the durability horizon, the fallback, the nine notions and the named residuals, amending 2026-10-04-5 and 2026-09-29-1.",
+      "proof_type": "code_review",
+      "evidence": "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md (synced by WP21); tests/docs/test_adr_content_invariance.py @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:15.159137+00:00",
+      "notes": "Status Proposed; the operator accepts it on the PR. Amendment pointers in both amended ADRs."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Every non-migration move of a lane-mapped work package into claimed or in_progress records policy_metadata.wp_window.open_sha equal to lane_head, from the one lane-head reading.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_wp_window_capture.py::test_claim_with_lane_branch_records_open_sha_equal_to_lane_head, ::test_in_progress_with_lane_branch_records_open_sha @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:19.333321+00:00",
+      "notes": "WP07 88e2f4fafe. Planning lane, migration actor and blocked write nothing (same file)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A capture that cannot read the lane head records gap lane_branch_missing (no cause) or capture_failed with cause git_error/probe_error, and the move still succeeds.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_wp_window_capture.py::test_missing_lane_branch_records_lane_branch_missing_gap_and_move_succeeds, ::test_git_error_records_capture_failed_with_git_error_cause, ::test_probe_exception_records_capture_failed_with_probe_error_cause @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:23.468551+00:00",
+      "notes": "WP07."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A window opener without the key reads as gap not_recorded, per event, so a log straddling the upgrade still consolidates.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_opener.py::test_no_wp_window_key_is_not_recorded_gap, ::test_mixed_log_straddling_upgrade_reads_per_event @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:27.455007+00:00",
+      "notes": "WP08."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "policy_metadata.wp_window.open_sha is classified BRANCH_RELATIVE in DOSSIER_SHA_FIELDS and the SHA-provenance gate passes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_dossier_sha_provenance.py::test_wp_window_open_sha_is_classified_branch_relative @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:31.525875+00:00",
+      "notes": "WP07."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "A spec-kitty-events issue asks the Java write service to write, preserve and type the key, and the ADR links it.",
+      "proof_type": "code_review",
+      "evidence": "spec-kitty/spec-kitty-events#229 (filed 2026-11-08, follow-up comment 1 posted); draft follow-up kitty-specs/consolidation-window-provenance-01M6Y84D/research/events-229-follow-up.md (not posted) @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:35.612112+00:00",
+      "notes": "The draft clarifies written vs reader-only gap reasons; posting needs operator authorization."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "On a code lane with a recorded window, a commit outside every approved window and every exemption anchor refuses LANE_MOVED_AFTER_APPROVAL naming the commit and the work package approved before it; own-lane stamps do not exempt, other lanes' stamps do (dependency chain).",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_stray_commit_between_two_approvals_refuses, ::test_own_lane_approval_stamp_does_not_exempt, ::test_gap_then_recorded_stray_commit_refuses, ::test_dependency_chain_stray_is_exempt @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:39.772430+00:00",
+      "notes": "NFR-002 (a), (a mixed), (b); SC-001. WP19 red eca56240cd / fix c292b5c85d; canceled exemption 6ddddfcab4 / 8e00363221."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "A lane whose commits all lie inside approved windows (reviewer fix during review, rework before re-approval) raises no window refusal on the FR-007 fixture minus the stray commit.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_same_fixture_without_stray_passes, ::test_reviewer_fix_during_review_passes, ::test_rejected_and_reapproved_wp_passes @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:43.840244+00:00",
+      "notes": "WP19."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "A work package with a window gap is judged by the approval-stamp bound from the claim base and never refused for the gap alone.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_all_gap_lane_passes, ::test_gap_wp_covers_stray_before_recorded_wp, ::test_not_on_lane_open_sha_is_a_gap_not_a_probe_error @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:47.905713+00:00",
+      "notes": "WP19; C-010 no new code."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Fresh run, resume and forecast (human and --json window_gaps) list every work package judged by the fallback with its gap reason, also before a refusal.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_gap_report_entry_points.py (fresh, resume, dry-run human/JSON, refusal-first, capture_failed cause, single_branch) @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:51.962173+00:00",
+      "notes": "WP20 red 799b52017c / fix 77035f3f53; orchestrator-api envelope unchanged (named residual)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "A single_branch Mission uses the recorded window-open SHA when present and keeps today's derivation, reported as a gap, when absent.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_gap_report_entry_points.py::test_single_branch_unrecorded_window_is_reported; tests/integration/test_single_branch_approval_windows.py; corpus cells fresh|forecast|single_branch|stamp=present|window=recorded|rewound @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:45:56.001271+00:00",
+      "notes": "NFR-002 (c) single_branch, WP20."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Forecast, fresh run and resume obtain claim inputs from one constructor (claim_inputs.build_claim) with sources LIVE, LIVE_THEN_SAVED and SAVED.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_claim_inputs_parity.py::test_build_claim_passes_todays_kwargs, ::test_saved_reads_the_persisted_record @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:00.043275+00:00",
+      "notes": "WP09 fc554913c8."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "On an unmutated state the forecast and the fresh run have equal claim inputs (excluded set, coordination base SHA, status dir) and the same claim-time verdict.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_claim_inputs_parity.py::test_forecast_excluded_canceled_set_equals_fresh_run, ::test_forecast_coord_base_resolves_to_fresh_run_sha, ::test_forecast_status_dir_equals_fresh_run; tests/consolidation/test_forecast_fresh_run_parity.py::test_forecast_reports_the_fresh_runs_claim_verdict_with_an_excluded_canceled_wp @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:04.118077+00:00",
+      "notes": "NFR-002 (h), WP17 red a182b53e3e / fixes 0537aab8cf, cd58516209. Residual: pre-seed status dir (strict xfail test_pre_seed_forecast_status_dir_and_coord_base_equal_fresh_run)."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "A history-read error in the authored-content walk refuses the claim naming the path and error before any branch moves, while a genuine deletion is still recorded.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_authored_walk_read_error.py::test_history_read_error_refuses_the_claim_and_moves_nothing @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:08.117870+00:00",
+      "notes": "NFR-002 (d); #5048(b); WP16 red 09c8f576d8 / fix f641f5599f."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "On --resume the closed world, the approved bound, the fully-canceled-lane check and the approved-reviewed attestation read one frozen claim-time anchor set.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_resume_frozen_anchors.py::test_resume_closed_world_does_not_exempt_a_post_interrupt_dependency_commit, ::test_resume_approved_bound_refuses_a_post_interrupt_dependency_commit, ::test_resume_attestation_check_reads_the_frozen_dependency_tip, ::test_resume_fully_canceled_lane_flip_is_unreachable @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:12.170576+00:00",
+      "notes": "NFR-002 (e), (f); (g) recorded unreachable; WP18 reds 0f708b288c, dd46d3e627, 6704f4158b / fix 002391a4cd."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "A characterization corpus over mode x lane shape x stamp state x window state records today's verdicts and lands before any code moves; every later change is a named cell.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py::test_verdict_corpus_matches_the_golden_file; golden diff vs Phase 3 tip 0485b8b4ab maps fully to NFR-002 (a)-(f) plus WP19's two added ruling cells @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:16.227649+00:00",
+      "notes": "WP02 80c323770b."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "A table-driven pin of the claim-time refusal text and order for every co-occurring refusal pair, with witnesses and a swapped-order control, lands before any code moves.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_refusal_precedence_matrix.py (REFUSALS), tests/consolidation/test_refusal_precedence_matrix_windows.py @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:20.257206+00:00",
+      "notes": "WP03; WP19 added 6 window rows (9 -> 15)."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Every name importable from the reconciliation module, and each name's object identity, is pinned before any code moves; a removed name fails.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_surface_pin.py::test_every_pinned_name_is_importable, ::test_pinned_names_keep_object_identity, ::test_removed_name_fails_the_pin @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:24.353404+00:00",
+      "notes": "WP04; __all__ identity exception ruling (WP10)."
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "reconciliation.py is a re-exporting facade (no def/class) over one module per check, a kernel, the verifier and claim orchestration; each module <= 1,200 lines and imports alone.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_split_shape.py, tests/consolidation/test_reconciliation_module_imports.py @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:28.413421+00:00",
+      "notes": "NFR-003: largest module 961 lines; facade 253 lines, 0 def/class. WP10-WP15."
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Every test that replaces a reconciliation-family name replaces it where it is looked up, guarded by a check that fails on a stale or narrowed patch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_family_guard.py::test_patched_reconciliation_names_are_looked_up, ::test_stale_patch_fails_the_guard, ::test_narrowed_patch_fails_the_guard @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:32.442903+00:00",
+      "notes": "WP04, retargets WP10-WP15."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "A window opens at the first non-migration claimed/in_progress move after the last non-review return to planned, skipping leading lane_branch_missing openers, topology order with log-order fallback.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_opener.py::test_rewind_to_planned_starts_new_cycle, ::test_leading_lane_branch_missing_is_skipped_then_in_progress_sha_opens, ::test_unrecorded_first_opener_is_not_replaced_by_later_recorded_one; tests/consolidation/test_lane_approval_windows.py::test_rewound_wp_commit_from_abandoned_cycle_refuses @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:36.557568+00:00",
+      "notes": "NFR-002 (c) lanes. Review-rejection keeps the window: an interpretation the operator may overturn."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "A recorded SHA that does not resolve or is not on the lane is gap not_on_lane, never a probe error, judged against the one lane tip the bound resolves on every path.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_opener.py::test_unresolvable_sha_is_not_on_lane_gap, ::test_sha_not_on_lane_is_not_on_lane_gap; tests/consolidation/test_lane_approval_windows.py::test_not_on_lane_open_sha_is_a_gap_not_a_probe_error @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:40.623395+00:00",
+      "notes": "WP08, WP19."
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "A lane on which every approved work package has a window gap is judged by today's approval-stamp check unchanged, verdict and text byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_all_gap_lane_passes; corpus cell fresh|single_lane|stamp=present|window=capture_failed|all_gap_post_approval_commit (unchanged since Phase 3) @ 8c9c7f46db",
+      "pass_fail": "pass",
+      "verified_by": "closeout WP21",
+      "verified_at": "2026-11-09T20:46:44.741202+00:00",
+      "notes": "WP19, by construction (check_lane with today's anchors)."
+    }
+  ],
+  "negative_invariants": []
+}

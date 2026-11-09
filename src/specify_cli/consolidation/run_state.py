@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Concatenate, ParamSpec, cast
 
 
 if TYPE_CHECKING:
+    from specify_cli.consolidation.claim_inputs import ClaimInputs
     from specify_cli.consolidation.lane_cleanup import LaneCleanupReport
     from specify_cli.lanes.models import LanesManifest
 
@@ -299,6 +300,10 @@ class _MergeRunState:
     # captured ONCE at transaction start (before any mutation) so the teardown
     # gate compares the post-merge target against PRE-mutation lane tips.
     approved_wp_set: ApprovedWpCommitSet | None = None
+    # ``claim_inputs`` (FR-012/FR-015, WP18) — the ONE :class:`ClaimInputs` value the claim phase
+    # built ``approved_wp_set`` from (``SAVED`` on a resume, so it carries the frozen dependency
+    # anchors). The gate's defensive rebuild reuses it instead of resolving its inputs again.
+    claim_inputs: ClaimInputs | None = None
     # ``coord_checkpoint`` — the coordination tip captured at transaction start;
     # the base the approved lane-tip SHAs are read relative to (S-B/WP08 also
     # projects post-checkpoint coord commits from here).

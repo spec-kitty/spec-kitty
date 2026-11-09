@@ -443,7 +443,6 @@ whose parents both touched one region.
 - **Unchanged.** The approved bound (#5668) already drops merge commits; the mixed-lane work
   windows already skip merges; the canceled-content axes are not touched.
 
-
 ## Amendment 2026-11-08: work-package windows are recorded at the opening transition (#7403)
 
 Work-package windows are recorded at the opening transition, and on `--resume` one frozen

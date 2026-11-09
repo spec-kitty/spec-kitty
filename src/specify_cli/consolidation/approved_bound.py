@@ -520,6 +520,7 @@ def check_lane(
     anchors: Iterable[str],
     is_bookkeeping: Callable[[str], bool],
     tip: str | None = None,
+    exempt: frozenset[str] | None = None,
 ) -> BoundRefusal | None:
     """Refuse *lane_id* when it is not within what review approved, else ``None`` (plan D-2).
 
@@ -533,6 +534,9 @@ def check_lane(
     beyond *claim_base* has nothing to bound and is not refused. A *claim_base* or lane tip that
     does not resolve raises :class:`~specify_cli.consolidation.git_probes.GitProbeError`: the
     check never passes for want of an answer, and every caller turns the error into a refusal.
+    *exempt* is the lane's exempt set when the caller already computed it from *anchors*
+    (:func:`~specify_cli.consolidation.wp_attribution.lane_exempt_commits`, once per lane,
+    NFR-007); ``None`` computes it here, as every caller before the window model did.
     """
     lane_tip = tip or branch
     if not commits_in_range(repo_root, claim_base, lane_tip):
@@ -543,8 +547,8 @@ def check_lane(
     if refusal is not None:
         return refusal
     covered = [stamp for stamp in stamps.values() if stamp is not None]
-    exempt = lane_exempt_commits(repo_root, claim_base, anchors)
-    beyond = [sha for sha in commits_beyond(repo_root, lane_tip, [claim_base, *covered]) if sha not in exempt]
+    exempt_set = lane_exempt_commits(repo_root, claim_base, anchors) if exempt is None else exempt
+    beyond = [sha for sha in commits_beyond(repo_root, lane_tip, [claim_base, *covered]) if sha not in exempt_set]
     content = content_commits(repo_root, beyond, is_bookkeeping)
     if not content:
         return None

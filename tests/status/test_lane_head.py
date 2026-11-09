@@ -2,11 +2,11 @@
 
 Three groups:
 
-1. :func:`probe_lane_head` unit behaviour, git-backed, against a real
+1. :func:`read_lane_head` unit behaviour, git-backed, against a real
    ``lanes.json`` written through the canonical lanes persistence API
    (T015).
 2. An AST pin (T013) proving every ``prepare_transition(...)`` call site in
-   ``src/specify_cli/`` passes ``lane_head_probe=probe_lane_head`` -- the bare
+   ``src/specify_cli/`` passes ``lane_head_reader=read_lane_head`` -- the bare
    name, never ``None`` and never a lambda -- with a numeric floor and a
    self-mutation (non-vacuity) check.
 3. End-to-end proof through both composition shells (the flat/primary door
@@ -36,7 +36,7 @@ from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
-from specify_cli.status.lane_head import LANE_HEAD_KEY, probe_lane_head
+from specify_cli.status.lane_head import LANE_HEAD_KEY, WP_WINDOW_KEY, LaneHeadReading, read_lane_head
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import read_events, read_events_from_text
 from tests.integration.coord_topology_fixture import (
@@ -53,7 +53,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
-# Group 1: probe_lane_head unit behaviour
+# Group 1: read_lane_head unit behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -86,13 +86,13 @@ def _create_lane_branch(repo: Path, slug: str, *, lane_id: str = "lane-a") -> st
     return sha
 
 
-def test_probe_lane_head_returns_lane_branch_sha(flat_mission: FlatTopologyContext) -> None:
+def test_read_lane_head_returns_lane_branch_sha(flat_mission: FlatTopologyContext) -> None:
     sha = _create_lane_branch(flat_mission.repo, flat_mission.slug)
-    result = probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01")
+    result = read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha
     assert result == sha
 
 
-def test_probe_lane_head_none_when_lanes_json_absent(tmp_path: Path) -> None:
+def test_read_lane_head_none_when_lanes_json_absent(tmp_path: Path) -> None:
     slug = "no-lanes-fixture"
     repo = _make_git_repo(tmp_path / "flat")
     feature_dir = repo / "kitty-specs" / slug
@@ -101,20 +101,20 @@ def test_probe_lane_head_none_when_lanes_json_absent(tmp_path: Path) -> None:
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "feat: no lanes.json")
 
-    assert probe_lane_head(repo_root=repo, mission_slug=slug, wp_id="WP01") is None
+    assert read_lane_head(repo_root=repo, mission_slug=slug, wp_id="WP01").sha is None
 
 
-def test_probe_lane_head_none_when_lanes_json_corrupt(flat_mission: FlatTopologyContext) -> None:
+def test_read_lane_head_none_when_lanes_json_corrupt(flat_mission: FlatTopologyContext) -> None:
     (flat_mission.primary_feature_dir / "lanes.json").write_text("{ not json", encoding="utf-8")
 
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
 
 
-def test_probe_lane_head_none_when_wp_not_in_manifest(flat_mission: FlatTopologyContext) -> None:
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP99") is None
+def test_read_lane_head_none_when_wp_not_in_manifest(flat_mission: FlatTopologyContext) -> None:
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP99").sha is None
 
 
-def test_probe_lane_head_none_for_planning_lane(flat_mission: FlatTopologyContext) -> None:
+def test_read_lane_head_none_for_planning_lane(flat_mission: FlatTopologyContext) -> None:
     manifest = LanesManifest(
         version=1,
         mission_slug=flat_mission.slug,
@@ -136,13 +136,13 @@ def test_probe_lane_head_none_for_planning_lane(flat_mission: FlatTopologyContex
     )
     write_lanes_json(flat_mission.primary_feature_dir, manifest)
 
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
 
 
-def test_probe_lane_head_none_when_branch_missing(flat_mission: FlatTopologyContext) -> None:
+def test_read_lane_head_none_when_branch_missing(flat_mission: FlatTopologyContext) -> None:
     # lanes.json already assigns WP01 to lane-a (the fixture default); the
     # branch itself was never created.
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
 
 
 def _two_lane_manifest(ctx: FlatTopologyContext) -> None:
@@ -173,7 +173,7 @@ def test_missing_branch_after_implementation_started_warns_with_wp_and_lane(flat
     _two_lane_manifest(flat_mission)
     _create_lane_branch(flat_mission.repo, flat_mission.slug, lane_id="lane-b")
     with caplog.at_level(logging.DEBUG, logger="specify_cli.status.lane_head"):
-        assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+        assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
     (message,) = _no_stamp_warnings(caplog)
     assert "WP01" in message and "lane-a" in message and "does not exist" in message
 
@@ -182,7 +182,7 @@ def test_missing_branch_before_any_lane_branch_exists_stays_silent(flat_mission:
     """Pre-implementation (finalize-tasks seeding every WP) is the normal state, not a lost stamp."""
     _two_lane_manifest(flat_mission)
     with caplog.at_level(logging.DEBUG, logger="specify_cli.status.lane_head"):
-        assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+        assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
     assert _no_stamp_warnings(caplog) == []
 
 
@@ -194,20 +194,20 @@ def test_git_error_on_mapped_lane_warns(flat_mission: FlatTopologyContext, caplo
 
     monkeypatch.setattr(lane_head_module, "_branch_head", _boom)
     with caplog.at_level(logging.DEBUG, logger="specify_cli.status.lane_head"):
-        assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
+        assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
     (message,) = _no_stamp_warnings(caplog)
     assert "WP01" in message and "lane-a" in message and "git exploded" in message
 
 
 def test_no_lanes_json_and_planning_lane_stay_silent(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.DEBUG, logger="specify_cli.status.lane_head"):
-        assert probe_lane_head(repo_root=tmp_path / "does-not-exist", mission_slug="whatever", wp_id="WP01") is None
+        assert read_lane_head(repo_root=tmp_path / "does-not-exist", mission_slug="whatever", wp_id="WP01").sha is None
     assert _no_stamp_warnings(caplog) == []
 
 
-def test_probe_lane_head_never_raises_on_unusable_repo_root(tmp_path: Path) -> None:
+def test_read_lane_head_never_raises_on_unusable_repo_root(tmp_path: Path) -> None:
     """Best-effort (C-1): an unresolvable repo root degrades to None, never a raise."""
-    assert probe_lane_head(repo_root=tmp_path / "does-not-exist", mission_slug="whatever", wp_id="WP01") is None
+    assert read_lane_head(repo_root=tmp_path / "does-not-exist", mission_slug="whatever", wp_id="WP01").sha is None
 
 
 # ---------------------------------------------------------------------------
@@ -236,14 +236,18 @@ def _prepare_transition_call_nodes(source: str) -> list[ast.Call]:
 
 
 def _lane_head_probe_violations(source: str) -> list[str]:
-    """One message per call that does not pass ``lane_head_probe=probe_lane_head`` (bare name)."""
+    """One message per call that does not pass ``lane_head_reader=read_lane_head`` (bare name).
+
+    WP07 (consolidation-window-provenance-01M6Y84D) renamed the injected probe to the
+    reading-returning reader; the pin follows the rename, its rule is unchanged.
+    """
     violations: list[str] = []
     for call in _prepare_transition_call_nodes(source):
-        kwarg = next((kw.value for kw in call.keywords if kw.arg == "lane_head_probe"), None)
+        kwarg = next((kw.value for kw in call.keywords if kw.arg == "lane_head_reader"), None)
         if kwarg is None:
-            violations.append(f"line {call.lineno}: missing lane_head_probe=")
-        elif not (isinstance(kwarg, ast.Name) and kwarg.id == "probe_lane_head"):
-            violations.append(f"line {call.lineno}: lane_head_probe is not the bare name probe_lane_head ({ast.dump(kwarg)})")
+            violations.append(f"line {call.lineno}: missing lane_head_reader=")
+        elif not (isinstance(kwarg, ast.Name) and kwarg.id == "read_lane_head"):
+            violations.append(f"line {call.lineno}: lane_head_reader is not the bare name read_lane_head ({ast.dump(kwarg)})")
     return violations
 
 
@@ -257,7 +261,7 @@ def _iter_specify_cli_source_files() -> list[Path]:
     return sorted(p for p in _SPECIFY_CLI_SRC_ROOT.rglob("*.py") if p.resolve() != _TRANSITION_PIPELINE_PATH)
 
 
-def test_every_prepare_transition_call_site_passes_probe_lane_head() -> None:
+def test_every_prepare_transition_call_site_passes_read_lane_head() -> None:
     all_calls: list[tuple[Path, ast.Call]] = []
     all_violations: list[str] = []
     for path in _iter_specify_cli_source_files():
@@ -286,7 +290,7 @@ def test_pin_checker_flags_a_call_missing_the_kwarg() -> None:
 
 def test_pin_checker_flags_lane_head_probe_none() -> None:
     """Self-mutation: a call that explicitly nulls the probe must also be flagged."""
-    assert _lane_head_probe_violations("prepare_transition(request=r, lane_head_probe=None)\n") != []
+    assert _lane_head_probe_violations("prepare_transition(request=r, lane_head_reader=None)\n") != []
 
 
 def test_pin_checker_flags_attribute_call_form_missing_the_kwarg() -> None:
@@ -301,12 +305,12 @@ def test_pin_checker_flags_attribute_call_form_missing_the_kwarg() -> None:
 
 def test_pin_checker_flags_attribute_call_form_with_lane_head_probe_none() -> None:
     """Self-mutation: the attribute-call shape with an explicit ``None`` probe must also be caught."""
-    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_probe=None)\n") != []
+    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_reader=None)\n") != []
 
 
 def test_pin_checker_accepts_the_attribute_call_form_when_correct() -> None:
     """Non-vacuity in the other direction: a correct attribute-call site is NOT flagged."""
-    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_probe=probe_lane_head)\n") == []
+    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_reader=read_lane_head)\n") == []
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +507,7 @@ def _mint_owned_fact(repo: Path, owned_mission_dir: Path, slug: str) -> OwnedChe
     )
 
 
-def test_probe_lane_head_owned_reads_the_facts_lanes_json_not_the_repository_roots(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
+def test_read_lane_head_owned_reads_the_facts_lanes_json_not_the_repository_roots(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
     """An owned transition stamps from P's lane map, never a stale R copy (merge of origin/main into the owned mission).
 
     R's copy has NO ``lanes.json``; the owned checkout's mission dir maps WP01
@@ -517,18 +521,18 @@ def test_probe_lane_head_owned_reads_the_facts_lanes_json_not_the_repository_roo
     _write_lanes_json(owned_mission_dir, slug=flat_mission.slug, mission_id=flat_mission.mission_id)
     fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
 
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01") is None
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact) == sha
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01").sha is None
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact).sha == sha
 
 
-def test_probe_lane_head_owned_ignores_a_stale_repository_root_lane_map(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
+def test_read_lane_head_owned_ignores_a_stale_repository_root_lane_map(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
     """R's stale copy maps WP01 to a code lane; P's own map has no lanes.json -> no stamp on the owned arm."""
     _create_lane_branch(flat_mission.repo, flat_mission.slug)
     owned_mission_dir = tmp_path / "owned" / "kitty-specs" / flat_mission.slug
     owned_mission_dir.mkdir(parents=True)
     fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
 
-    assert probe_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact) is None
+    assert read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01", owned=fact).sha is None
 
 
 def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: FlatTopologyContext, tmp_path: Path) -> None:
@@ -538,9 +542,9 @@ def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: 
     fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
     seen: list[object] = []
 
-    def _probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
+    def _probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
         seen.append(owned)
-        return "abc123"
+        return LaneHeadReading.of_sha("abc123")
 
     request = TransitionRequest(
         feature_dir=flat_mission.primary_feature_dir,
@@ -551,8 +555,9 @@ def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: 
         owned=fact,
     )
     stamped = transition_pipeline_module._stamped_policy_metadata(
-        request=request, mission_slug=flat_mission.slug, lane_head_probe=_probe, repo_root=flat_mission.repo
+        request=request, mission_slug=flat_mission.slug, lane_head_reader=_probe, repo_root=flat_mission.repo, resolved_lane=Lane.CLAIMED
     )
 
     assert seen == [fact]
-    assert stamped == {LANE_HEAD_KEY: "abc123"}
+    # The claim opens the window (WP07): the same one reading also feeds ``wp_window``.
+    assert stamped == {LANE_HEAD_KEY: "abc123", WP_WINDOW_KEY: {"schema_version": 1, "open_sha": "abc123"}}

@@ -1,0 +1,490 @@
+"""Parity of the three claim-input sources (FR-012, FR-013, CI-1..CI-3; WP09).
+
+The forecast (``LIVE``), the fresh run (``LIVE_THEN_SAVED``) and the resume (``SAVED``) obtain their
+claim inputs from ONE constructor, :func:`specify_cli.consolidation.claim_inputs.claim_inputs`, and
+build the claim through ONE adapter, :func:`~specify_cli.consolidation.claim_inputs.build_claim`.
+
+The integration tests observe the :class:`ClaimInputs` each real ``consolidate`` run hands to
+``build_claim`` (the call site's binding is replaced by a spy that records the value and stops the
+run before anything moves). Equality follows FR-013: refs compare by resolved SHA, ``status_dir`` by
+resolved path and event-log digest. WP17 aligned the forecast's excluded canceled set and coordination
+base with the fresh run's (FR-013); each was a strict ``xfail`` here until its fix commit.
+
+A fixture that cannot reach the claim raises :class:`FixtureNotReached` (a ``RuntimeError``), so a
+broken fixture ERRORS a strict ``xfail(raises=AssertionError)`` test instead of hiding behind it.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+from dataclasses import replace
+from collections.abc import Iterator, Mapping
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from typing import Any, cast
+
+import pytest
+
+from charter.hasher import hash_content
+from specify_cli.consolidation import claim_inputs as ci
+from specify_cli.consolidation import forecast, phase_claim, phase_gate, run_state
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, build_claim, claim_inputs
+from specify_cli.consolidation.config import MergeStrategy
+from specify_cli.consolidation.state import ConsolidationState
+from specify_cli.lanes.compute import lane_created_branch
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from tests.consolidation import characterization_support as cs
+from tests.consolidation.characterization_support import DEP_BRANCH, ShapeMission, lane_checkout
+from tests.terminus.canceled_dependency_support import _commit_in
+
+_FULL_SHA = re.compile(r"[0-9a-f]{40}")
+_STATUS_EVENTS = "status.events.jsonl"
+
+
+class FixtureNotReached(RuntimeError):
+    """The run never reached ``build_claim``: a fixture problem, never the asserted divergence."""
+
+
+class _ClaimInputsSeen(Exception):
+    """Raised by the spy right after it recorded the inputs, so the run stops before any branch moves."""
+
+
+# --------------------------------------------------------------------------- helpers
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _ref_sha(repo: Path, ref: str) -> str:
+    """A ref name or SHA resolved to its commit SHA (FR-013 compares refs by resolved SHA)."""
+    return _git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}")
+
+
+def _status_dir_identity(path: Path) -> tuple[Path, str]:
+    """``(resolved path, sha256 of the event log)``: the FR-013 identity of a status directory."""
+    return path.resolve(), hash_content((path / _STATUS_EVENTS).read_text(encoding="utf-8"))
+
+
+def _captured_inputs(mission: ShapeMission, mode: str, consumer: ModuleType, *extra: str) -> ClaimInputs:
+    """The :class:`ClaimInputs` a real ``consolidate`` of *mode* hands to *consumer*'s ``build_claim``."""
+    seen: list[ClaimInputs] = []
+
+    def _spy(_repo_root: Path, _manifest: LanesManifest, inputs: ClaimInputs) -> Any:
+        seen.append(inputs)
+        raise _ClaimInputsSeen
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(consumer, "build_claim", _spy)
+        result = cs.run_in_process(mission, cs.consolidate_args(mission, mode, *extra))
+    if not seen:
+        raise FixtureNotReached(f"the {mode} run never built its claim inputs:\n{result.output}")
+    return seen[0]
+
+
+def _forecast_and_fresh(mission: ShapeMission, *extra: str) -> tuple[ClaimInputs, ClaimInputs]:
+    """Both captures on one unmutated Mission: the forecast first (it moves nothing), then the fresh run."""
+    live = _captured_inputs(mission, "forecast", forecast, *extra)
+    fresh = _captured_inputs(mission, "fresh", phase_claim, *extra)
+    if live.source is not ClaimInputSource.LIVE or fresh.source is not ClaimInputSource.LIVE_THEN_SAVED:
+        raise FixtureNotReached(f"unexpected sources: forecast {live.source}, fresh run {fresh.source}")
+    return live, fresh
+
+
+def _approved(tmp: Path, shape: str) -> ShapeMission:
+    mission = cs.build_shape(tmp, shape)
+    cs.apply_stamp(mission, "present")
+    cs.set_window_states(mission, "recorded")
+    return mission
+
+
+@pytest.fixture(scope="module")
+def templates(tmp_path_factory: pytest.TempPathFactory) -> dict[str, ShapeMission]:
+    return {shape: _approved(tmp_path_factory.mktemp(shape), shape) for shape in ("dependency_chain", "single_lane", "mixed_lane_canceled_wp")}
+
+
+@pytest.fixture
+def chain(templates: dict[str, ShapeMission], tmp_path: Path) -> ShapeMission:
+    return cs.copy_mission(templates["dependency_chain"], tmp_path / "chain")
+
+
+def _with_dependency_ref(mission: ShapeMission, scratch: Path) -> ShapeMission:
+    """An external branch merged into the lane and the lane re-approved (the #6771 model, as the corpus builds it)."""
+    from tests.terminus.conftest import restamp_approvals_at_lane_tips
+
+    repo = mission.repo
+    root_commit = _git(repo, "rev-list", "--max-parents=0", mission.target_branch)
+    _git(repo, "branch", DEP_BRANCH, root_commit)
+    dep_wt = scratch / "dep-wt"
+    _git(repo, "worktree", "add", "-q", str(dep_wt), DEP_BRANCH)
+    _commit_in(dep_wt, "src/dep/mod0.py", "DEP = 0\n", "feat(dep): mod0")
+    _git(repo, "worktree", "remove", str(dep_wt))
+    with lane_checkout(mission, mission.lane_branches["WP01"]) as lane:
+        _git(lane, "merge", "-q", "--no-ff", "--no-edit", DEP_BRANCH)
+    restamp_approvals_at_lane_tips(mission.coord_mission())
+    return mission
+
+
+# --------------------------------------------------------------------------- LIVE and LIVE_THEN_SAVED agree
+
+
+def test_live_and_live_then_saved_agree_on_target_base(chain: ShapeMission) -> None:
+    live, fresh = _forecast_and_fresh(chain)
+
+    assert live.target_base is not None and fresh.target_base is not None
+    assert _ref_sha(chain.repo, live.target_base) == _ref_sha(chain.repo, fresh.target_base)
+
+
+def test_live_and_live_then_saved_agree_on_lane_tips(chain: ShapeMission) -> None:
+    live, fresh = _forecast_and_fresh(chain)
+
+    assert live.lane_tips, "the dependency chain has two code lanes; an empty tip map would make this vacuous"
+    assert {b: _ref_sha(chain.repo, s) for b, s in live.lane_tips.items()} == {b: _ref_sha(chain.repo, s) for b, s in fresh.lane_tips.items()}
+    assert live.dependency_anchors, "the chain's dependency lane must be an anchor"
+    assert dict(live.dependency_anchors) == dict(fresh.dependency_anchors)
+
+
+def test_live_and_live_then_saved_agree_on_dependency_refs_and_pins(templates: dict[str, ShapeMission], tmp_path: Path) -> None:
+    mission = _with_dependency_ref(cs.copy_mission(templates["single_lane"], tmp_path / "m"), tmp_path)
+    live, fresh = _forecast_and_fresh(mission, "--dependency-ref", DEP_BRANCH)
+
+    assert live.dependency_refs == fresh.dependency_refs == (DEP_BRANCH,)
+    assert {r: _ref_sha(mission.repo, s) for r, s in live.dependency_pins.items()} == {r: _ref_sha(mission.repo, s) for r, s in fresh.dependency_pins.items()}
+
+
+def test_live_and_live_then_saved_agree_on_strategy(chain: ShapeMission) -> None:
+    live, fresh = _forecast_and_fresh(chain)
+
+    assert live.strategy == fresh.strategy == MergeStrategy.SQUASH.value
+
+
+def test_saved_reads_the_persisted_record(chain: ShapeMission) -> None:
+    """A resume after a SIGKILL right after the claim anchors were saved reads every value from ``state.json``."""
+    record = cs.interrupt_after_claim(chain)
+    frozen = record.get("pre_interrupt_lane_tips")
+    if not frozen or not record.get("pre_mutation_coord_sha"):
+        raise FixtureNotReached(f"the interrupted record must hold frozen anchors: {sorted(record)}")
+
+    saved = _captured_inputs(chain, "resume", phase_claim)
+
+    assert saved.source is ClaimInputSource.SAVED
+    assert saved.target_base == record["pre_mutation_target_sha"]
+    assert saved.coord_base == record["pre_mutation_coord_sha"]
+    assert dict(saved.lane_tips) == frozen
+    assert saved.dependency_anchors, "the chain's dependency lane must be frozen as an anchor"
+    assert set(saved.dependency_anchors) <= set(frozen), "dependency_anchors share the key space of pre_interrupt_lane_tips"
+    assert saved.strategy == record["strategy"]
+    assert saved.dependency_refs == tuple(record.get("dependency_refs", ()))
+    assert dict(saved.dependency_pins) == record.get("dependency_ref_pins", {})
+
+
+# --------------------------------------------------------------------------- the divergences WP17 aligned
+
+
+def test_forecast_excluded_canceled_set_equals_fresh_run(templates: dict[str, ShapeMission], tmp_path: Path) -> None:
+    mission = cs.copy_mission(templates["mixed_lane_canceled_wp"], tmp_path / "m")
+    live, fresh = _forecast_and_fresh(mission)
+    if not fresh.excluded_canceled_wp_ids:
+        raise FixtureNotReached("the mixed lane's canceled work package must be excluded by the fresh run")
+
+    assert live.excluded_canceled_wp_ids == fresh.excluded_canceled_wp_ids
+
+
+def test_forecast_coord_base_resolves_to_fresh_run_sha(chain: ShapeMission) -> None:
+    live, fresh = _forecast_and_fresh(chain)
+    if not _FULL_SHA.fullmatch(fresh.coord_base):
+        raise FixtureNotReached(f"the fresh run must build from a coordination SHA, it used {fresh.coord_base!r}")
+
+    assert _FULL_SHA.fullmatch(live.coord_base), f"the forecast must pass a resolved SHA, it passed {live.coord_base!r}"
+    assert live.coord_base == fresh.coord_base
+
+
+def test_forecast_status_dir_equals_fresh_run(chain: ShapeMission) -> None:
+    """Not a divergence on a Mission whose coordination worktree holds its log (WP09 finding; planned as a strict ``xfail``, it passed).
+
+    The forecast reads through the status read door (``_forecast_claim_status_dir``), the fresh run
+    through the write accessor (``entry_preflight._resolve_run_status_dir``). They can resolve different
+    directories only when the coordination worktree is empty or unmaterialized:
+
+    * the coordination branch already carries the log (post-fix): the door is ref-sourced, so the
+      forecast refuses with ``CLAIM_REFUSED_FORECAST`` before it builds any claim;
+    * the branch holds no log yet (pre-fix): the door takes its declared pre-seed fallback, so the
+      forecast builds its claim from the write checkout while the fresh run seeds and reads the
+      coordination worktree. Same log bytes, another directory: a named legacy residual pinned in
+      ``test_forecast_fresh_run_parity.py``.
+    """
+    live, fresh = _forecast_and_fresh(chain)
+
+    assert _status_dir_identity(live.status_dir) == _status_dir_identity(fresh.status_dir)
+
+
+# --------------------------------------------------------------------------- unit: the adapter passes today's keyword arguments
+
+_REPO = Path("/repo")
+_STATUS = Path("/repo/kitty-specs/m")
+_MISSION_BRANCH = "kitty/mission-m-01ABCDEF"
+_TARGET = "a" * 40
+_COORD = "c" * 40
+_CHECKPOINT = "d" * 40
+_REFS = ("dep-branch",)
+_PINS = {"dep-branch": "e" * 40}
+_EXCLUDED = frozenset({"WP09"})
+_COORD_REF = "kitty/mission-m-01ABCDEF-coord"
+
+
+def _manifest() -> LanesManifest:
+    lane = ExecutionLane(lane_id="lane-a", wp_ids=("WP01",), write_scope=("src/**",), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)
+    lane_b = ExecutionLane(lane_id="lane-b", wp_ids=("WP02",), write_scope=("lib/**",), predicted_surfaces=(), depends_on_lanes=("lane-a",), parallel_group=1)
+    return LanesManifest(
+        version=1,
+        mission_slug="m-01ABCDEF",
+        mission_id="01ABCDEF" + "0" * 18,
+        mission_branch=_MISSION_BRANCH,
+        target_branch="main",
+        lanes=[lane, lane_b],
+        computed_at="2026-11-09T00:00:00+00:00",
+        computed_from="test",
+    )
+
+
+_LANE_A = lane_created_branch(_manifest(), "lane-a")
+_LANE_B = lane_created_branch(_manifest(), "lane-b")
+
+
+def _state() -> ConsolidationState:
+    state = ConsolidationState(mission_id="m", mission_slug="m", target_branch="main", wp_order=[])
+    state.pre_mutation_target_sha = _TARGET
+    state.pre_mutation_coord_sha = _COORD
+    state.pre_interrupt_lane_tips = {_LANE_A: "1" * 40, _LANE_B: "2" * 40}
+    state.strategy = "merge"
+    state.dependency_refs = list(_REFS)
+    state.dependency_ref_pins = dict(_PINS)
+    return state
+
+
+def _context(**overrides: Any) -> ClaimInputContext:
+    values: dict[str, Any] = {
+        "repo_root": _REPO,
+        "manifest": _manifest(),
+        "status_dir": _STATUS,
+        "strategy": "squash",
+        "resolved_target_base": _TARGET,
+        "resolved_coord_sha": _COORD,
+        "checkpoint_sha": _CHECKPOINT,
+        "state": _state(),
+        "dependency_refs": _REFS,
+        "dependency_pins": _PINS,
+        "excluded_canceled_wp_ids": _EXCLUDED,
+    }
+    values.update(overrides)
+    return ClaimInputContext(**values)
+
+
+@pytest.fixture
+def recorded(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[tuple[Any, ...], dict[str, Any]]]]:
+    """Record every call ``claim_inputs`` makes to the builder; no git is read (tips resolve to nothing)."""
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+    monkeypatch.setattr(ci, "build_approved_wp_set", lambda *a, **k: calls.append((a, k)) or "claim")
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda _repo, branch: f"tip-of-{branch}")
+    monkeypatch.setattr(ci, "acceptably_canceled_wp_ids", lambda _repo, _slug: set(_EXCLUDED))
+    monkeypatch.setattr(run_state, "_status_surface_ref", lambda _repo, _slug: _COORD_REF)
+    monkeypatch.setattr(ci, "run_command", lambda cmd, **_k: (0, f"{_COORD}\n", "") if cmd == ["git", "rev-parse", _COORD_REF] else (1, "", "unknown"))
+    yield calls
+
+
+def _normalized(kwargs: Mapping[str, Any]) -> dict[str, Any]:
+    """Keyword arguments with the builder's defaults filled in (an omitted excluded set is the default ``()``)."""
+    out = dict(kwargs)
+    out["excluded_canceled_wp_ids"] = frozenset(out.get("excluded_canceled_wp_ids", ()))
+    out["external_dependency_pins"] = dict(out.get("external_dependency_pins") or {})
+    out["external_dependency_refs"] = tuple(out.get("external_dependency_refs", ()))
+    frozen = out.get("frozen_dependency_tips")
+    out["frozen_dependency_tips"] = dict(frozen) if frozen is not None else None
+    return out
+
+
+def test_build_claim_passes_todays_kwargs(recorded: list[tuple[tuple[Any, ...], dict[str, Any]]]) -> None:
+    manifest = _manifest()
+    # forecast.py before WP09: coord_base_ref=lanes_manifest.mission_branch, excluded_window_base=window_base,
+    # external_dependency_refs=dependency_refs, external_dependency_pins=dependency_pins; since WP17 (FR-013) it
+    # passes the excluded set the fresh run resolves (acceptably_canceled_wp_ids, faked here as _EXCLUDED) and the
+    # coordination SHA the fresh run captures (the status surface ref, rev-parsed; faked here as _COORD).
+    forecast_kwargs = {
+        "coord_base_ref": _COORD,
+        "excluded_canceled_wp_ids": _EXCLUDED,
+        "excluded_window_base": _TARGET,
+        "external_dependency_refs": _REFS,
+        "external_dependency_pins": _PINS,
+    }
+    # phase_claim.py before WP09: coord_base_ref=coord_base, excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+    # excluded_window_base=run.target_expected_old_sha, external_dependency_refs/pins=run.dependency_refs/ref_pins.
+    run_kwargs = {
+        "coord_base_ref": _COORD,
+        "excluded_canceled_wp_ids": _EXCLUDED,
+        "excluded_window_base": _TARGET,
+        "external_dependency_refs": _REFS,
+        "external_dependency_pins": _PINS,
+    }
+    # phase_gate.py before WP09: the same, but coord_base_ref=run.lanes_manifest.mission_branch.
+    gate_kwargs = {**run_kwargs, "coord_base_ref": _MISSION_BRANCH}
+    # WP18 (FR-015): a resume (SAVED) also hands the builder its one frozen anchor set, the record's
+    # dependency-lane tips; the forecast and the fresh run pass none (the live read).
+    frozen = {"frozen_dependency_tips": {_LANE_A: "1" * 40}}
+
+    cases = [
+        (
+            claim_inputs(ClaimInputSource.LIVE, _context(resolved_coord_sha=None, checkpoint_sha=None, state=None, excluded_canceled_wp_ids=frozenset())),
+            forecast_kwargs,
+        ),
+        (claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context()), run_kwargs),
+        (claim_inputs(ClaimInputSource.SAVED, _context()), {**run_kwargs, **frozen}),
+        (claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(coord_base_override=_MISSION_BRANCH)), gate_kwargs),
+        (claim_inputs(ClaimInputSource.SAVED, _context(coord_base_override=_MISSION_BRANCH)), {**gate_kwargs, **frozen}),
+    ]
+    for inputs, expected in cases:
+        assert build_claim(_REPO, manifest, inputs) == "claim"
+        args, kwargs = recorded.pop()
+        assert args == (_REPO, _STATUS, manifest), inputs.source
+        assert _normalized(kwargs) == _normalized(expected), inputs.source
+
+
+def test_fresh_run_coord_base_falls_back_to_checkpoint_then_mission_branch(recorded: list[Any]) -> None:
+    """``coord_base_sha or checkpoint.sha or mission_branch``, exactly as ``_capture_reconciliation_claim`` resolved it."""
+    assert claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(resolved_coord_sha=None)).coord_base == _CHECKPOINT
+    assert claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(resolved_coord_sha=None, checkpoint_sha=None)).coord_base == _MISSION_BRANCH
+
+
+def test_live_reads_lane_tips_live_and_derives_dependency_anchors(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ci, "acceptably_canceled_wp_ids", lambda _repo, _slug: set())
+    inputs = claim_inputs(ClaimInputSource.LIVE, _context(state=None))
+
+    assert dict(inputs.lane_tips) == {_LANE_A: f"tip-of-{_LANE_A}", _LANE_B: f"tip-of-{_LANE_B}"}
+    assert dict(inputs.dependency_anchors) == {_LANE_A: f"tip-of-{_LANE_A}"}, "lane-b depends on lane-a, nothing depends on lane-b"
+
+
+@pytest.mark.parametrize(("slug", "expected_slug"), [("resolved-slug", "resolved-slug"), (None, "m-01ABCDEF")])
+def test_live_derives_the_fresh_runs_excluded_set(recorded: list[Any], monkeypatch: pytest.MonkeyPatch, slug: str | None, expected_slug: str) -> None:
+    """FR-013: ``LIVE`` asks ``acceptably_canceled_wp_ids`` (the fresh run's call) by the resolved slug, else the manifest's."""
+    asked: list[tuple[Path, str]] = []
+
+    def _canceled(repo: Path, mission_slug: str) -> set[str]:
+        asked.append((repo, mission_slug))
+        return {"WP02"}
+
+    monkeypatch.setattr(ci, "acceptably_canceled_wp_ids", _canceled)
+
+    inputs = claim_inputs(ClaimInputSource.LIVE, _context(state=None, excluded_canceled_wp_ids=frozenset(), mission_slug=slug))
+
+    assert asked == [(_REPO, expected_slug)]
+    assert inputs.excluded_canceled_wp_ids == frozenset({"WP02"}), "the context's own excluded set is not LIVE's source"
+
+
+@pytest.mark.parametrize(
+    ("surface_ref", "rev_parse", "expected"),
+    [
+        (_COORD_REF, (0, f"{_COORD}\n", ""), _COORD),
+        (None, (0, f"{_COORD}\n", ""), _MISSION_BRANCH),
+        (_COORD_REF, (128, "", "fatal: bad revision"), _MISSION_BRANCH),
+        (_COORD_REF, (0, "  \n", ""), _MISSION_BRANCH),
+    ],
+    ids=["surface-ref-resolves", "no-surface-ref", "rev-parse-fails", "rev-parse-empty"],
+)
+def test_live_coord_base_resolves_like_the_fresh_run(
+    recorded: list[Any], monkeypatch: pytest.MonkeyPatch, surface_ref: str | None, rev_parse: tuple[int, str, str], expected: str
+) -> None:
+    """FR-013: the status surface ref rev-parsed to a SHA, else the ``mission_branch`` name (``checkpoint.sha or mission_branch``)."""
+    asked: list[str] = []
+
+    def _surface_ref(_repo: Path, slug: str) -> str | None:
+        asked.append(slug)
+        return surface_ref
+
+    monkeypatch.setattr(run_state, "_status_surface_ref", _surface_ref)
+    monkeypatch.setattr(ci, "run_command", lambda *_a, **_k: rev_parse)
+
+    inputs = claim_inputs(ClaimInputSource.LIVE, _context(state=None, mission_slug="resolved-slug"))
+
+    assert inputs.coord_base == expected
+    assert asked == ["resolved-slug"], "the surface ref is resolved by the run's slug"
+
+
+def test_live_lane_tips_skip_planning_canceled_and_unresolved_lanes(monkeypatch: pytest.MonkeyPatch) -> None:
+    manifest = _manifest()
+    planning = ExecutionLane(lane_id="lane-planning", wp_ids=("WP03",), write_scope=(), predicted_surfaces=(), depends_on_lanes=(), parallel_group=0)
+    manifest = replace(manifest, lanes=[*manifest.lanes, planning])
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda _repo, branch: None if branch.endswith("lane-b") else "sha")
+
+    tips = ci.live_lane_tips(_REPO, manifest, frozenset({"WP01"}))
+
+    assert tips == {}, "lane-a is fully canceled, lane-b does not resolve, the planning lane is never a tip"
+
+
+def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("SAVED must not read a lane tip live (CI-3)"))
+    state = _state()
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, resolved_target_base="f" * 40, resolved_coord_sha="f" * 40))
+
+    assert inputs.target_base == _TARGET and inputs.coord_base == _COORD
+    assert dict(inputs.lane_tips) == state.pre_interrupt_lane_tips
+    assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
+    assert inputs.strategy == "merge"
+    assert inputs.dependency_refs == _REFS and dict(inputs.dependency_pins) == _PINS
+
+
+def test_saved_without_a_saved_base_keeps_todays_resolution(recorded: list[Any]) -> None:
+    """A record that holds no base keeps the value the call site resolved (today's behaviour, CI-3)."""
+    state = _state()
+    state.pre_mutation_target_sha = None
+    state.pre_mutation_coord_sha = None
+
+    inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, resolved_coord_sha=None))
+
+    assert inputs.target_base == _TARGET
+    assert inputs.coord_base == _CHECKPOINT
+
+
+def test_saved_requires_a_record() -> None:
+    with pytest.raises(ValueError, match="SAVED"):
+        claim_inputs(ClaimInputSource.SAVED, _context(state=None))
+
+
+def test_claim_inputs_is_immutable(recorded: list[Any]) -> None:
+    pins = dict(_PINS)
+    inputs = claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(dependency_pins=pins))
+    pins["other"] = "x"
+
+    assert "other" not in inputs.dependency_pins, "the value holds its own copy"
+    with pytest.raises(TypeError):
+        cast(dict[str, str], inputs.lane_tips)["x"] = "y"
+
+
+@pytest.mark.parametrize(("is_resume", "source"), [(False, ClaimInputSource.LIVE_THEN_SAVED), (True, ClaimInputSource.SAVED)])
+def test_gate_rebuild_keeps_the_live_mission_branch_name(monkeypatch: pytest.MonkeyPatch, is_resume: bool, source: ClaimInputSource) -> None:
+    """The gate's defensive rebuild uses the run's source with the documented ``mission_branch`` override (T052)."""
+    seen: list[ClaimInputs] = []
+    monkeypatch.setattr(phase_gate, "build_claim", lambda _r, _m, inputs: seen.append(inputs) or "rebuilt")
+    run = SimpleNamespace(
+        main_repo=_REPO,
+        feature_dir=_STATUS,
+        lanes_manifest=_manifest(),
+        approved_wp_set=None,
+        claim_inputs=None,  # no claim phase ran: the rebuild resolves its own inputs (WP18 reuses the claim's when it did)
+        is_resume=is_resume,
+        state=_state(),
+        strategy=MergeStrategy.MERGE,
+        target_expected_old_sha=_TARGET,
+        excluded_canceled_wp_ids=_EXCLUDED,
+        dependency_refs=_REFS,
+        dependency_ref_pins={},
+        coord_checkpoint=None,
+    )
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: None)
+
+    assert phase_gate._reconciliation_claim_for_gate(cast(Any, run)) == "rebuilt"
+
+    assert seen[0].source is source
+    assert seen[0].coord_base == _MISSION_BRANCH
+    assert seen[0].target_base == _TARGET
+    assert seen[0].excluded_canceled_wp_ids == _EXCLUDED

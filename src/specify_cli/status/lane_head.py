@@ -17,7 +17,7 @@ of ``lane-planning`` (which resolves to the target). The planning lane of a ``la
 stays unstamped; a commit-to-target ``single_branch`` Mission keeps the lane-map behaviour
 (unbounded residual, FR-078).
 
-**Best-effort, never blocking (C-1):** :func:`probe_lane_head` never raises.
+**Best-effort, never blocking (C-1):** :func:`read_lane_head` never raises.
 Any absence (no ``lanes.json``, unknown WP, planning lane, missing branch) or
 git/read error resolves to ``None`` -- "no stamp" -- so a status transition is
 never refused or delayed by this probe. "No ``lanes.json``", an unassigned WP
@@ -30,17 +30,24 @@ pre-implementation state, not a lost stamp.
 
 **Cold-import boundary:** this module's own top level imports nothing from
 ``mission_runtime``, ``specify_cli.lanes`` or ``specify_cli.core.git_ops`` --
-those are imported function-locally inside :func:`_resolve_lane_head`, mirroring
+those are imported function-locally inside :func:`_read_lane_head`, mirroring
 ``lanes/for_review_gate.py::_resolve_lane`` and the cold-import discipline
 ``tests/architectural/test_cold_import_status_boundary.py`` enforces on the
-``status`` package. ``LANE_HEAD_KEY`` and :class:`LaneHeadProbe` are the only
-symbols a pure caller (``status/transition_pipeline.py``) needs, and neither
-requires those imports.
+``status`` package. ``LANE_HEAD_KEY``, ``WP_WINDOW_KEY``, :class:`LaneHeadReading`
+and :class:`LaneHeadReader` are the only symbols a pure caller
+(``status/transition_pipeline.py``) needs, and none requires those imports.
+
+**Window-open record (WP07, FR-002/FR-003):** :func:`read_lane_head` returns a
+:class:`LaneHeadReading` -- the sha, "not applicable", or a typed failure
+(:class:`CaptureCause`) -- so the pipeline can write ``policy_metadata["wp_window"]``
+from the same single reading as ``lane_head`` (W-2, NFR-006).
 """
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
 
@@ -55,28 +62,80 @@ logger = logging.getLogger(__name__)
 #: ``status`` package (SR-2, ``tests/architectural/test_status_module_boundary.py``).
 LANE_HEAD_KEY: Final = "lane_head"
 
+#: The ``policy_metadata`` key the window-open record is written under (WP07, FR-002/FR-003):
+#: ``{"schema_version": 1, "open_sha": <sha>}`` or a typed gap. Re-exported from the facade
+#: like :data:`LANE_HEAD_KEY` (SR-2). Contract: the Mission's ``contracts/status-event-wp-window.md``.
+WP_WINDOW_KEY: Final = "wp_window"
 
-class LaneHeadProbe(Protocol):
-    """Callable shape ``prepare_transition`` accepts to stamp a lane head.
+#: Contract ``maxLength`` of ``gap.detail``.
+_DETAIL_MAX_LENGTH: Final = 500
 
-    Injected by the two composition shells (``status/emit.py``,
-    ``coordination/status_transition.py``); the pure pipeline never
-    constructs one itself.
+
+class CaptureCause(StrEnum):
+    """Why a lane-head reading of an applicable work package has no sha (closed set)."""
+
+    LANE_BRANCH_MISSING = "lane_branch_missing"
+    GIT_ERROR = "git_error"
+    PROBE_ERROR = "probe_error"
+
+
+@dataclass(frozen=True)
+class LaneHeadReading:
+    """What the injected reader observed for one work package at one transition.
+
+    Exactly one holds: ``sha`` is set; ``applicable`` is ``False`` (planning lane, work
+    package not in ``lanes.json``, no ``lanes.json``); ``cause`` is set (an applicable
+    reading that failed). A violation is a programming error (``ValueError``), never a
+    capture failure.
     """
 
-    def __call__(self, *, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None: ...
+    sha: str | None
+    applicable: bool
+    cause: CaptureCause | None
+    detail: str = ""
+
+    def __post_init__(self) -> None:
+        states = (self.sha is not None, not self.applicable, self.cause is not None)
+        if sum(states) != 1:
+            raise ValueError(f"LaneHeadReading needs exactly one of sha / not applicable / cause, got {self!r}")
+        if len(self.detail) > _DETAIL_MAX_LENGTH:
+            object.__setattr__(self, "detail", self.detail[:_DETAIL_MAX_LENGTH])
+
+    @classmethod
+    def of_sha(cls, sha: str) -> LaneHeadReading:
+        return cls(sha=sha, applicable=True, cause=None)
+
+    @classmethod
+    def not_applicable(cls) -> LaneHeadReading:
+        return cls(sha=None, applicable=False, cause=None)
+
+    @classmethod
+    def failed(cls, cause: CaptureCause, detail: str) -> LaneHeadReading:
+        return cls(sha=None, applicable=True, cause=cause, detail=detail)
 
 
-def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
-    """Return *wp_id*'s lane branch HEAD sha, or ``None`` when unavailable.
+class LaneHeadReader(Protocol):
+    """Callable shape ``prepare_transition`` accepts to take the one lane-head reading.
+
+    Injected by the two composition shells (``status/emit.py``,
+    ``coordination/status_transition.py``) as :func:`read_lane_head`; the pure
+    pipeline never constructs one itself (C-002). The same reading feeds both
+    ``lane_head`` and ``wp_window`` (W-2).
+    """
+
+    def __call__(self, *, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading: ...
+
+
+def read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
+    """Return the lane-head reading of *wp_id*; never raises (C-1).
 
     For a ``single_branch`` Mission with a minted write branch the sha is that branch's
     head instead (S8, FR-070), for every work package.
 
-    ``None`` covers every non-exceptional "no stamp" case (no ``lanes.json``,
-    corrupt ``lanes.json``, *wp_id* unassigned, the planning lane, or the
-    lane branch not existing in *repo_root*) as well as any unexpected error
-    -- this probe is best-effort and must never raise (C-1).
+    ``sha`` is ``None`` for every non-exceptional "no stamp" case (no ``lanes.json``,
+    corrupt ``lanes.json``, *wp_id* unassigned, the planning lane, or the lane branch not
+    existing in *repo_root*); an unexpected error becomes
+    ``failed(PROBE_ERROR, "<exception class>: <message>")``.
 
     Args:
         repo_root: The canonical repository root (never ``feature_dir`` --
@@ -91,23 +150,23 @@ def probe_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Ow
             (owned-checkout-lifecycle-authority single authority).
     """
     try:
-        # Broad catch is intentional (C-1): this probe is best-effort and
+        # Broad catch is intentional (C-1): this reader is best-effort and
         # must never raise into a status transition -- any lanes.json,
-        # placement-seam, or git-invocation failure degrades to "no stamp".
-        return _resolve_lane_head(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned=owned)
-    except Exception:
+        # placement-seam, or git-invocation failure degrades to a failed reading.
+        return _read_lane_head(repo_root=repo_root, mission_slug=mission_slug, wp_id=wp_id, owned=owned)
+    except Exception as exc:
         logger.debug(
-            "probe_lane_head: could not resolve lane head for %s/%s under %s",
+            "read_lane_head: could not resolve lane head for %s/%s under %s",
             mission_slug,
             wp_id,
             repo_root,
             exc_info=True,
         )
-        return None
+        return LaneHeadReading.failed(CaptureCause.PROBE_ERROR, f"{type(exc).__name__}: {exc}")
 
 
 _NO_STAMP_WARNING = (
-    "probe_lane_head: %s/%s is in execution lane %s but no lane-head stamp could be taken (%s); "
+    "read_lane_head: %s/%s is in execution lane %s but no lane-head stamp could be taken (%s); "
     "this transition carries no commit attribution, so a later mixed-lane consolidation may refuse"
 )
 
@@ -136,25 +195,30 @@ def _warn_no_stamp(mission_slug: str, wp_id: str, lane_id: str, why: str) -> Non
     logger.warning(_NO_STAMP_WARNING, mission_slug, wp_id, lane_id, why)
 
 
-def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_branch: str) -> str | None:
-    """S8 (#7283, FR-070): the head of a ``single_branch`` Mission's minted write branch, or ``None``.
+def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_branch: str) -> LaneHeadReading:
+    """S8 (#7283, FR-070): the reading of a ``single_branch`` Mission's minted write branch.
 
     Every work package of such a Mission is stamped with this one branch's head, whatever
-    lane ``lanes.json`` puts it in. A missing branch is logged at WARNING and yields no stamp;
-    a git error propagates to :func:`probe_lane_head`, which swallows it (C-1). Either way
-    ``consolidate`` then treats the approval as unstamped (FR-074).
+    lane ``lanes.json`` puts it in. A missing branch is logged at WARNING and reads as
+    ``lane_branch_missing``; a git error propagates to :func:`read_lane_head`, which turns it
+    into ``probe_error`` (C-1). Either way ``consolidate`` then treats the approval as
+    unstamped (FR-074).
     """
     sha = _branch_head(repo_root, write_branch)
     if sha is None:
-        _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, f"Mission branch {write_branch} does not exist")
-    return sha
+        why = f"Mission branch {write_branch} does not exist"
+        _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, why)
+        return LaneHeadReading.failed(CaptureCause.LANE_BRANCH_MISSING, why)
+    return LaneHeadReading.of_sha(sha)
 
 
-def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
-    """Unguarded lanes.json resolution; exceptions are the caller's (:func:`probe_lane_head`) to catch.
+def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
+    """Unguarded lanes.json resolution; exceptions are the caller's (:func:`read_lane_head`) to catch.
 
     Once the WP's execution lane is known, a git error or a missing branch is
     handled here (never raised) so it can be logged with the WP and the lane.
+    A corrupt ``lanes.json`` is a failed reading (``probe_error``): the work
+    package may well be lane-mapped, so it is not "not applicable" (W-3).
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
@@ -169,23 +233,23 @@ def _resolve_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned:
     try:
         manifest = read_lanes_json(planning_dir)
     except CorruptLanesError:
-        return None
+        return LaneHeadReading.failed(CaptureCause.PROBE_ERROR, "corrupt lanes.json")
     if manifest is None:
-        return None
+        return LaneHeadReading.not_applicable()
     lane = manifest.lane_for_wp(wp_id)
     if lane is None or is_planning_lane(lane):
-        return None
+        return LaneHeadReading.not_applicable()
     branch = lane_created_branch(manifest, lane.lane_id)
     try:
         sha = _branch_head(repo_root, branch)
     except Exception as exc:  # noqa: BLE001 — best-effort (C-1): a git error is logged, never raised
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"git error: {exc}")
-        return None
+        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, str(exc))
     if sha is not None:
-        return sha
+        return LaneHeadReading.of_sha(sha)
     other_branches = (lane_created_branch(manifest, other.lane_id) for other in manifest.lanes if other.lane_id != lane.lane_id and not is_planning_lane(other))
     if any(_branch_head(repo_root, other) is not None for other in other_branches):
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"lane branch {branch} does not exist")
     else:
-        logger.debug("probe_lane_head: %s/%s lane %s has no branch yet (pre-implementation)", mission_slug, wp_id, lane.lane_id)
-    return None
+        logger.debug("read_lane_head: %s/%s lane %s has no branch yet (pre-implementation)", mission_slug, wp_id, lane.lane_id)
+    return LaneHeadReading.failed(CaptureCause.LANE_BRANCH_MISSING, f"refs/heads/{branch} not found")
