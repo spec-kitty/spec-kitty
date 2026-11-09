@@ -424,6 +424,22 @@ def test_settle_phase_records_the_settlement_before_rebasing(harness: Harness) -
     assert undo.settlement is not None and undo.settlement.planning_dir == harness.settled_dir
 
 
+def test_refresh_findings_read_the_owned_roots(harness: Harness) -> None:
+    owned = SimpleNamespace(repository_root=Path("/repo"), owned_root=Path("/owned"))
+    ctx = SimpleNamespace(owned=owned, repo_root=Path("/ignored"), mission_slug=_SLUG)
+
+    assert seam._refresh_status_findings_for(ctx) == ["finding"]
+    assert harness.kwargs["_refresh_worktree_status_findings"]["args"] == (Path("/repo"), Path("/owned"), _SLUG)
+
+
+def test_meta_for_commit_rereads_only_a_persisted_override(harness: Harness) -> None:
+    settled = seam._FinalizeSettled(planning_dir=harness.planning_dir, tasks_dir=harness.planning_dir, preexisting_primary_files=set(), meta={"m": 1})
+
+    assert seam._meta_for_commit(settled, _branch_setup(harness)) == {"m": 1}
+    harness.meta_persisted = True
+    assert seam._meta_for_commit(settled, _branch_setup(harness)) == {"read": 1, "dir": str(harness.planning_dir)}
+
+
 def test_undo_without_a_write_scope_only_reverts_meta(harness: Harness) -> None:
     undo = seam._FinalizeUndoState(branch_setup=dataclasses.replace(_branch_setup(harness), mission_write_scope_dir=None))
     ledger, ledger_token, observer_token = seam.begin_write_ledger()

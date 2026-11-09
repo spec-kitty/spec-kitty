@@ -1412,6 +1412,56 @@ def _finalize_settle_phase(
     return _FinalizeSettled(planning_dir=planning_dir, tasks_dir=tasks_dir, preexisting_primary_files=preexisting_primary_files, meta=settled_meta)
 
 
+def _refresh_status_findings_for(ctx: _FinalizeContext) -> list[str]:
+    """Validate-only refresh: the worktree status findings, read on the owned or the repository root checkout."""
+    owned = ctx.owned
+    findings: list[str] = _refresh_worktree_status_findings(
+        owned.repository_root if owned else ctx.repo_root,
+        owned.owned_root if owned else ctx.repo_root,
+        ctx.mission_slug,
+    )
+    return findings
+
+
+def _meta_for_commit(settled: _FinalizeSettled, branch_setup: _FinalizeBranchSetup) -> dict[str, object] | None:
+    """The meta.json the commit pipeline emits from: re-read when this run persisted a ``--target-branch`` override."""
+    if not branch_setup.meta_json_persisted:
+        return settled.meta
+    reread: dict[str, object] | None = _read_meta_for_emission(settled.planning_dir)
+    return reread
+
+
+def _finalize_commit_pin_refresh(
+    ctx: _FinalizeContext,
+    validated: _FinalizeValidated,
+    target_branch: str,
+    planning_sha: PlanningCommitResolution | None,
+    refresh_bootstrap_result: BootstrapResult | None,
+    *,
+    json_output: bool,
+) -> None:
+    """Phase Write, refresh-only arm: commit just the re-pointed planning pin (#4141)."""
+    _require_refresh_pin_decision(planning_sha, refresh_bootstrap_result, json_output=json_output)
+    # _require_refresh_pin_decision raises (NoReturn) on either None --
+    # mypy cannot see that across the function boundary, so narrow
+    # explicitly for the call below (behavior unchanged).
+    assert planning_sha is not None
+    assert refresh_bootstrap_result is not None
+    _commit_planning_pin_refresh(
+        ctx.planning_dir,
+        ctx.repo_root,
+        ctx.mission_slug,
+        target_branch,
+        planning_sha,
+        validated.own_gates.state,
+        validated.req_gates.dep_resolution,
+        refresh_bootstrap_result,
+        tasks_md_stale=validated.own_gates.tasks_md_stale,
+        json_output=json_output,
+        owned=ctx.owned,
+    )
+
+
 def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1509,6 +1559,11 @@ def finalize_tasks(
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit --allow-orphaned
     """
+    # Phase diagram (#7410), one try so every refusal reaches the undo below:
+    #   context -> branch setup (pre-write snapshot) -> planning pin
+    #   -> Validate (gates, topology decision, frozen membership)
+    #   -> Settle (topology settlement, undoable)
+    #   -> Write (first status write, then: validate-only report | pin-only refresh | commit pipeline)
     undo = _FinalizeUndoState()
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
     # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
@@ -1526,9 +1581,6 @@ def finalize_tasks(
         if owned is not None:
             # FR-007 (WP13 T074): the refusal envelope's ``stale_repository_root_copy``.
             _OWNED_ENVELOPE_EXTRAS.set(stale_copy_payload(owned))
-        repo_root = ctx.repo_root
-        mission_slug = ctx.mission_slug
-        planning_dir = ctx.planning_dir
 
         # #5879: an API-authored Mission must not be finalized natively with stale
         # or unfinished planning content, and native finalize re-stamps the
@@ -1537,8 +1589,8 @@ def finalize_tasks(
         # which the ``except typer.Exit`` arm below re-raises as a no-op.
         finalize_scope = _enter_api_authored_finalize_scope(
             scope_stack,
-            repo_root,
-            mission_slug,
+            ctx.repo_root,
+            ctx.mission_slug,
             validate_only=validate_only,
             refresh_planning_commit=refresh_planning_commit,
             json_output=json_output,
@@ -1553,8 +1605,6 @@ def finalize_tasks(
         )
         undo.branch_setup = branch_setup
         target_branch = branch_setup.target_branch
-        target_branch_persist = branch_setup.target_branch_persist
-        meta_json_persisted = branch_setup.meta_json_persisted
 
         # #5445 landing fix: the single canonical planning-pin authority
         # (``_preserve_or_capture_planning_commit_sha``) and its read-only
@@ -1568,9 +1618,9 @@ def finalize_tasks(
         refresh_status_findings: list[str] = []
         if refresh_planning_commit:
             planning_sha = _preserve_or_capture_planning_commit_sha(
-                planning_dir,
-                repo_root,
-                mission_slug,
+                ctx.planning_dir,
+                ctx.repo_root,
+                ctx.mission_slug,
                 target_branch,
                 json_output=json_output,
                 owned=owned,
@@ -1579,26 +1629,22 @@ def finalize_tasks(
             )
             if not validate_only:
                 _preflight_refresh_planning_commit(
-                    repo_root,
-                    planning_dir,
-                    mission_slug,
+                    ctx.repo_root,
+                    ctx.planning_dir,
+                    ctx.mission_slug,
                     target_branch,
                     target_branch_override=target_branch_override,
                     owned=owned,
                     json_output=json_output,
                 )
                 refresh_bootstrap_result = _refresh_bootstrap_dry_run_or_refuse(
-                    planning_dir,
-                    mission_slug,
+                    ctx.planning_dir,
+                    ctx.mission_slug,
                     owned=owned,
                     json_output=json_output,
                 )
             else:
-                refresh_status_findings = _refresh_worktree_status_findings(
-                    owned.repository_root if owned else repo_root,
-                    owned.owned_root if owned else repo_root,
-                    mission_slug,
-                )
+                refresh_status_findings = _refresh_status_findings_for(ctx)
 
         validated = _finalize_validate_phase(
             ctx,
@@ -1609,106 +1655,72 @@ def finalize_tasks(
         )
         if validated is None:
             return
-        req_gates = validated.req_gates
-        own_gates = validated.own_gates
-        functional_spec_requirement_ids = req_gates.functional_spec_requirement_ids
-        state = own_gates.state
-        wp_frontmatters = own_gates.wp_frontmatters
-        eligibility = own_gates.eligibility
-        lane_wp_manifests = own_gates.lane_wp_manifests
-        lane_wp_dependencies = own_gates.lane_wp_dependencies
-        lane_wp_bodies = own_gates.lane_wp_bodies
-        frozen = validated.frozen
-
         settled = _finalize_settle_phase(ctx, validated, undo, target_branch, validate_only=validate_only, json_output=json_output)
-        planning_dir = settled.planning_dir
-        tasks_dir = settled.tasks_dir
-        preexisting_primary_files = settled.preexisting_primary_files
-        meta = settled.meta
 
+        # Phase Write. The first status write; a refresh-only run makes none.
         if not refresh_planning_commit:
             _emit_tasks_started(
-                mission_slug,
-                state,
+                ctx.mission_slug,
+                validated.own_gates.state,
                 validate_only=validate_only,
-                repo_root=repo_root,
+                repo_root=ctx.repo_root,
                 owned=owned,
                 status_surface=undo.status_surface,
-                planning_dir=planning_dir,
+                planning_dir=settled.planning_dir,
             )
 
+        own_gates = validated.own_gates
         if validate_only:
             _emit_validate_only_report(
-                planning_dir,
-                mission_slug,
-                meta,
-                state,
-                lane_wp_manifests,
-                lane_wp_dependencies,
-                lane_wp_bodies,
+                settled.planning_dir,
+                ctx.mission_slug,
+                settled.meta,
+                own_gates.state,
+                own_gates.lane_wp_manifests,
+                own_gates.lane_wp_dependencies,
+                own_gates.lane_wp_bodies,
                 target_branch,
-                all_canceled=eligibility.all_canceled,
+                all_canceled=own_gates.eligibility.all_canceled,
                 tasks_md_stale=own_gates.tasks_md_stale,
                 json_output=json_output,
                 **({"owned": owned} if owned else {}),
                 planning_sha=planning_sha,
                 refresh_status_findings=refresh_status_findings,
-                frozen=frozen,
+                frozen=validated.frozen,
             )
             return
 
         if refresh_planning_commit:
-            _require_refresh_pin_decision(planning_sha, refresh_bootstrap_result, json_output=json_output)
-            # _require_refresh_pin_decision raises (NoReturn) on either None --
-            # mypy cannot see that across the function boundary, so narrow
-            # explicitly for the calls below (behavior unchanged).
-            assert planning_sha is not None
-            assert refresh_bootstrap_result is not None
-            _commit_planning_pin_refresh(
-                planning_dir,
-                repo_root,
-                mission_slug,
-                target_branch,
-                planning_sha,
-                state,
-                req_gates.dep_resolution,
-                refresh_bootstrap_result,
-                tasks_md_stale=own_gates.tasks_md_stale,
-                json_output=json_output,
-                owned=owned,
-            )
+            _finalize_commit_pin_refresh(ctx, validated, target_branch, planning_sha, refresh_bootstrap_result, json_output=json_output)
             return
 
-        if meta_json_persisted:
-            meta = _read_meta_for_emission(planning_dir)
-
         _run_commit_pipeline(
-            planning_dir,
-            tasks_dir,
-            repo_root,
-            mission_slug,
+            settled.planning_dir,
+            settled.tasks_dir,
+            ctx.repo_root,
+            ctx.mission_slug,
             target_branch,
-            state,
-            req_gates.dep_resolution,
-            lane_wp_manifests,
-            wp_frontmatters,
-            lane_wp_bodies,
-            meta,
-            functional_spec_requirement_ids,
-            preexisting_primary_files,
-            lane_wp_dependencies=lane_wp_dependencies,
-            all_canceled=eligibility.all_canceled,
+            own_gates.state,
+            validated.req_gates.dep_resolution,
+            own_gates.lane_wp_manifests,
+            own_gates.wp_frontmatters,
+            own_gates.lane_wp_bodies,
+            _meta_for_commit(settled, branch_setup),
+            validated.req_gates.functional_spec_requirement_ids,
+            settled.preexisting_primary_files,
+            lane_wp_dependencies=own_gates.lane_wp_dependencies,
+            all_canceled=own_gates.eligibility.all_canceled,
             validate_only=validate_only,
             json_output=json_output,
             target_branch_override=target_branch_override,
-            target_branch_persist=target_branch_persist,
+            target_branch_persist=branch_setup.target_branch_persist,
             meta_commit_progress=undo.meta_commit_progress,
             commit_landed=undo.commit_landed,
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
             status_surface=undo.status_surface,
-            frozen=frozen,
+            frozen=validated.frozen,
             **({"owned": owned} if owned else {}),
         )
         if finalize_scope is not None:
