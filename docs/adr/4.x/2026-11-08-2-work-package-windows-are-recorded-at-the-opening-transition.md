@@ -1,6 +1,6 @@
 ---
 title: 'ADR: work-package windows are recorded at the opening transition'
-description: 'The window-open SHA is recorded on the status event that opens a work package, the consolidation gate judges each approved work package against its recorded window, and forecast, fresh run and resume build the gate claim from one set of claim inputs.'
+description: 'The consolidation gate judges each approved work package against the window recorded on the status event that opened it, built from one set of claim inputs.'
 status: Proposed
 doc_status: active
 kind: ADR
