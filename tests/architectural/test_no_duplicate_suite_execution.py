@@ -191,6 +191,11 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
         "workflow_call only: a reusable workflow with no triggers of its own, spliced "
         "into ci-modules.yml's caller job. Counting it standalone would double-count THE matrix."
     ),
+    "docs-site-build.yml": (
+        "workflow_call only: the shared doc-kitty docsite build (#6937, ADR 2026-10-31-1 D-11), "
+        "called by ci-router.yml's docs-site job and, at cutover, the Pages deploy. It runs no "
+        "test suite; counting it standalone would double-count the caller's job."
+    ),
     "release.yml": "tags-only push + workflow_dispatch: a publication event, not a change.",
     "sonar.yml": "schedule + workflow_dispatch: the nightly informational SonarCloud scan.",
 }
