@@ -2132,6 +2132,54 @@ jobs:
           python3 scripts/ci/nightly_escalation.py --suite-key mission-state-audit --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   # ---------------------------------------------------------------------------
+  # security-scans (#7390, #5083): bandit over src/ and pip-audit over the locked
+  # dependency set. Not on the per-PR path; this nightly lane is the only place
+  # either tool runs. Each fails only on a NEW finding: bandit (MEDIUM severity and
+  # above, `-ll`) against the committed baseline scripts/ci/bandit-baseline.json,
+  # pip-audit against the commented ignore list scripts/ci/pip-audit-ignore.txt.
+  # Both scans run regardless of the other (`if: always()`); a red run opens or
+  # refreshes a deduped issue through nightly_escalation.py on main.
+  # ---------------------------------------------------------------------------
+  security-scans:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: security scans (bandit + pip-audit, nightly)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # `issues: write` for the nightly red -> deduped-P0 escalation step below.
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked lint tools
+        run: uv sync --frozen --extra lint
+      - name: bandit (new MEDIUM+ findings against the baseline)
+        id: bandit
+        timeout-minutes: 5
+        run: uv run --frozen --no-sync bandit -q -r src -ll -b scripts/ci/bandit-baseline.json
+      - name: pip-audit (new advisories in the locked dependency set)
+        id: pip_audit
+        if: always()
+        timeout-minutes: 5
+        run: bash scripts/ci/pip_audit_gate.sh
+      # Mainline-only, fail-closed: only an explicit `success` of BOTH scans closes the issue.
+      - name: Escalate security-scan red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BANDIT_OUTCOME: ${{ steps.bandit.outcome }}
+          PIP_AUDIT_OUTCOME: ${{ steps.pip_audit.outcome }}
+        run: |
+          if [ "${BANDIT_OUTCOME:-failure}" = "success" ] && [ "${PIP_AUDIT_OUTCOME:-failure}" = "success" ]; then conclusion=success; else conclusion=failure; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key security-scans --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  # ---------------------------------------------------------------------------
   # events-latest (#6605, operator ruling 2026-10-22): spec-kitty-events ships reducer
   # changes in patch releases, and pyproject.toml keeps the bounded range (>=11.3.0,<12).
   # This lane resolves the NEWEST spec-kitty-events that range allows into the runner's
@@ -2336,7 +2384,7 @@ jobs:
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next-shard-1, integration-next-shard-2, integration-next-shard-3, integration-next-shard-4, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next-shard-1, integration-next-shard-2, integration-next-shard-3, integration-next-shard-4, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, security-scans, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -2362,6 +2410,7 @@ jobs:
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
           echo "universe-equivalence: ${{ needs.universe-equivalence.result }}"
           echo "mission-state-audit: ${{ needs.mission-state-audit.result }}"
+          echo "security-scans: ${{ needs.security-scans.result }}"
           echo "events-latest: ${{ needs.events-latest.result }}"
           echo "acceptance-bdd: ${{ needs.acceptance-bdd.result }}"
           echo "acceptance-bdd-escalation: ${{ needs.acceptance-bdd-escalation.result }}"

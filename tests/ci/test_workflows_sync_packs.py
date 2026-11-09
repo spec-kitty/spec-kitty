@@ -43,8 +43,9 @@ _READS_PACKS = re.compile(
 )
 _NON_COMMAND = re.compile(r"^\s*(?:echo\b|printf\b|#|(?:python3?\s+-m\s+)?pip3?\s+install\b|uv\s+pip\s+install\b|pipx\s+(?:install|inject)\b)")
 
-# Lint/format/type tools run through ``uv run`` that never import project code.
-_PURE_TOOLS = frozenset({"ruff", "mypy", "actionlint", "codespell", "yamllint", "shellcheck", "black", "isort", "twine"})
+# Lint/format/type/security tools run through ``uv run`` that never import project code
+# (bandit parses source as AST; pip-audit reads an exported requirements file).
+_PURE_TOOLS = frozenset({"ruff", "mypy", "actionlint", "codespell", "yamllint", "shellcheck", "black", "isort", "twine", "bandit", "pip-audit"})
 # Top-level packages whose import pulls in charter and so reads packs/built-in.
 # ``kernel`` is the stdlib-only root layer (imports nothing upward), so it is not here.
 _PROJECT_PACKAGES = frozenset({"specify_cli", "charter", "runtime", "mission_runtime", "glossary", "doctrine"})

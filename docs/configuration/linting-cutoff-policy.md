@@ -49,11 +49,16 @@ The following checks remain **blocking** (will fail the workflow):
 - Integration tests
 - Python linting (ruff)
 - Type checking (mypy)
-- Security scans (bandit, pip-audit)
 
 The following checks are **informational** (will not fail the workflow):
 - Commit message linting (commitlint)
 - Markdown style linting (markdownlint)
+
+Security scans (bandit, pip-audit) do not run on pull requests. They run in the
+`security-scans` job of the nightly workflow (`ci-nightly.yml`), which fails the
+nightly and opens a deduped issue on a new finding: bandit at MEDIUM severity
+and above against `scripts/ci/bandit-baseline.json`, pip-audit against the
+commented ignore list `scripts/ci/pip-audit-ignore.txt`.
 
 ## Updating the Cutoff Date
 

@@ -1,0 +1,173 @@
+{
+  "errors": [],
+  "generated_at": "2026-11-09T00:00:00Z",
+  "results": [
+    {
+      "code": "121 _TEMPLATE_SET_REMEDIATION = (\n122     \"Update charter template_set to one of the available template sets, or provide it through a project override\"\n123     + \" (see 'spec-kitty charter list --show-available').\"\n124 )\n",
+      "col_offset": 4,
+      "end_col_offset": 113,
+      "filename": "src/charter/activation/resolver.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 122,
+      "line_range": [
+        122,
+        123
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "193             return _error_result(\n194                 f\"Refusing to update pack at {target_dir}: {refusal}. The local content \"\n195                 f\"is preserved in place (no reset performed) \u2014 resolve or relocate it, then re-fetch.\"\n196             )\n",
+      "col_offset": 16,
+      "end_col_offset": 104,
+      "filename": "src/specify_cli/charter_packs/sources/git_source.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 89,
+        "link": "https://cwe.mitre.org/data/definitions/89.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible SQL injection vector through string-based query construction.",
+      "line_number": 194,
+      "line_range": [
+        194,
+        195
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+      "test_id": "B608",
+      "test_name": "hardcoded_sql_expressions"
+    },
+    {
+      "code": "335         }\n336         response = requests.post(  # noqa: S113 - timeout supplied below\n337             item.aql_url, **kwargs\n338         )\n339         if response.status_code == 429 or 500 <= response.status_code < 600:\n",
+      "col_offset": 19,
+      "end_col_offset": 9,
+      "filename": "src/specify_cli/charter_packs/sources/https_source.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 336,
+      "line_range": [
+        336,
+        337,
+        338
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "342             time.sleep(delay)\n343             response = requests.post(  # noqa: S113 - timeout supplied in kwargs\n344                 item.aql_url,\n345                 **kwargs,\n346             )\n347         return response\n",
+      "col_offset": 23,
+      "end_col_offset": 13,
+      "filename": "src/specify_cli/charter_packs/sources/https_source.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 343,
+      "line_range": [
+        343,
+        344,
+        345,
+        346
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "136         # machinery performs on this exact file on the next ordinary import.\n137         payload = marshal.loads(body)  # noqa: S302\n138     except Exception as exc:  # noqa: BLE001 - marshal raises whatever the garbage bytes provoke\n",
+      "col_offset": 18,
+      "end_col_offset": 37,
+      "filename": "src/specify_cli/cli/commands/_bytecode_doctor.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Deserialization with the marshal module is possibly dangerous.",
+      "line_number": 137,
+      "line_range": [
+        137
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b302-marshal",
+      "test_id": "B302",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "268                 system_alias = (\n269                     sys.platform == \"darwin\" and parent in {Path(\"/var\"), Path(\"/tmp\")} and state.kind == \"symlink\" and state.target == f\"private/{parent.name}\"  # noqa: S108 -- validate macOS system aliases, not a temporary file\n270                 )\n",
+      "col_offset": 79,
+      "end_col_offset": 85,
+      "filename": "src/specify_cli/runtime/asset_preparation.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 377,
+        "link": "https://cwe.mitre.org/data/definitions/377.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Probable insecure usage of temp file/directory.",
+      "line_number": 269,
+      "line_range": [
+        269
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b108_hardcoded_tmp_directory.html",
+      "test_id": "B108",
+      "test_name": "hardcoded_tmp_directory"
+    },
+    {
+      "code": "274                 try:\n275                     os.fchmod(child, 0o755)\n276                 except OSError:\n",
+      "col_offset": 20,
+      "end_col_offset": 43,
+      "filename": "src/specify_cli/session_presence/writers/markdown_rules.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 732,
+        "link": "https://cwe.mitre.org/data/definitions/732.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Chmod setting a permissive mask 0o755 on file (child).",
+      "line_number": 275,
+      "line_range": [
+        275
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b103_set_bad_file_permissions.html",
+      "test_id": "B103",
+      "test_name": "set_bad_file_permissions"
+    },
+    {
+      "code": "313                         with _presence_parent(root, relative, create=False) as fd:\n314                             os.fchmod(fd, 0o755)\n315                     else:\n",
+      "col_offset": 28,
+      "end_col_offset": 48,
+      "filename": "src/specify_cli/tool_surface/providers/session_presence.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 732,
+        "link": "https://cwe.mitre.org/data/definitions/732.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Chmod setting a permissive mask 0o755 on file (fd).",
+      "line_number": 314,
+      "line_range": [
+        314
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b103_set_bad_file_permissions.html",
+      "test_id": "B103",
+      "test_name": "set_bad_file_permissions"
+    }
+  ]
+}

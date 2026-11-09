@@ -190,7 +190,8 @@ Two things make this decisive rather than merely suggestive:
 
 **Decompose composite jobs.** `lint` is not one check — it runs schema
 generation, `ruff`, `mypy`, `commitlint`, `markdownlint`, `pip-audit` and
-`bandit` as separate steps. Never classify `lint` as a unit: extract the
+`bandit` as separate steps (the security scans have since moved to the
+nightly `security-scans` job and no longer run per PR). Never classify `lint` as a unit: extract the
 failing **steps** on both sides and compare those. On the 2026-08-04 pass,
 `pip-audit` and `bandit` were red on main (pre-existing) while `commitlint`
 and `markdownlint` were introduced by the folds — a distinction invisible at
