@@ -370,6 +370,7 @@ _MALFORMED: dict[str, Any] = {
     "neither_branch": {"schema_version": 1},
     "bad_hex_upper": {"schema_version": 1, "open_sha": "A" * 40},
     "bad_hex_short": {"schema_version": 1, "open_sha": "a" * 39},
+    "bad_hex_between_widths": {"schema_version": 1, "open_sha": "a" * 41},
     "sha_not_str": {"schema_version": 1, "open_sha": 7},
     "extra_key": {"schema_version": 1, "open_sha": SHA_A, "note": "x"},
     "not_an_object": "a" * 40,
@@ -399,6 +400,13 @@ def test_malformed_lane_branch_missing_is_not_skipped(ids: _Counter) -> None:
     events = [_event(ids, "WP01", Lane.PLANNED, Lane.CLAIMED, window=_MALFORMED["lane_branch_missing_with_cause"])]
     assert window_opener_events(events, "WP01", cycle=True).skipped_branch_missing == 0
     assert _open(events) == WindowGap(WindowGapReason.NOT_RECORDED, malformed=True)
+
+
+def test_sha256_open_sha_is_read(ids: _Counter) -> None:
+    """A SHA-256 repository records 64-hex object names; the reader accepts both widths (contract R-5)."""
+    sha256 = "a" * 64
+    events = [_event(ids, "WP01", Lane.PLANNED, Lane.CLAIMED, window=opened(sha256))]
+    assert window_open_of(events, "WP01", on_lane=lambda sha: sha == sha256, is_ancestor=lambda a, b: a == b) == WindowOpen(sha256)
 
 
 def test_detail_at_the_length_limit_is_accepted(ids: _Counter) -> None:
