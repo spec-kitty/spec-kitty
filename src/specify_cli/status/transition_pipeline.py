@@ -188,10 +188,14 @@ def _wp_window_value(request: TransitionRequest, reading: LaneHeadReading, resol
     """
     if resolved_lane not in WINDOW_OPENING_LANES or is_migration_actor(request.actor) or not reading.applicable:
         return None
+    # Annotated locals re-narrow the codec's return type (the narrow-file mypy override skips following it).
+    value: dict[str, Any]
     if reading.sha is not None:
-        return encode_open(reading.sha)
+        value = encode_open(reading.sha)
+        return value
     assert reading.cause is not None  # LaneHeadReading's invariant: applicable and no sha means a cause
-    return encode_gap(reading.cause, reading.detail)
+    value = encode_gap(reading.cause, reading.detail)
+    return value
 
 
 def _stamped_policy_metadata(
