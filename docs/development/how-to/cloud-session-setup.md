@@ -3,7 +3,7 @@ title: Set Up a Claude Code Cloud Session
 description: Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op.
 doc_status: active
 kind: How-To
-updated: '2026-10-09T00:00:00Z'
+updated: '2026-11-09T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -13,7 +13,7 @@ audience:
 This page is for maintainers and contributors who run Spec Kitty Missions or
 Ops in a Claude Code cloud session. When you finish, the session has the
 `spec-kitty` CLI installed from your checkout, the test dependencies synced, and
-a CodeGraph index ready to query.
+the pinned packs in place, and a CodeGraph index ready to query.
 
 Setup has two layers:
 
@@ -105,6 +105,15 @@ on a local machine. In a cloud session it:
 
 - runs `uv sync --frozen --all-extras`, which installs the test extras and
   `pytest-xdist`;
+- syncs the pinned packs, as `make sync-packs` does, so `packs/built-in` and
+  `packs/internal` are in place before any `spec-kitty` command runs. Without
+  them a command fails with `BuiltInPackMissing` or reports a charter context
+  error. It first checks the placed trees offline and fetches only when one is
+  missing or stale. A failed fetch stops the script;
+- fetches the pinned service extras, as `make sync-services ARGS=--extras-only`
+  (part of `make dev-setup`) does. The contract and conformance tests read them
+  and fail without them. The CLI does not need them, so a failure here prints a
+  note and the script goes on;
 - installs `build`;
 - runs `uv pip install -e .`, so the `spec-kitty` CLI comes from your checkout.
   Tests that start `spec-kitty` as a subprocess need this;
@@ -118,7 +127,8 @@ on a local machine. In a cloud session it:
   `/tmp/codegraph-init.log`. The CodeGraph MCP server picks up the index as soon
   as it is written; you do not need to restart.
 
-When everything is already in place, the script finishes in about 7 seconds.
+When everything is already in place, the script finishes in a few seconds
+(about 3 seconds measured, with the pack check and the cached service extras).
 
 ### Optional: run the repository script from the environment setup script
 
@@ -152,6 +162,7 @@ script by hand (or wiring it in as above) keeps the tree clean.
 
 ```bash
 .venv/bin/spec-kitty --version   # CLI installed from the checkout
+uv run --frozen python scripts/sync_packs.py --check   # packs in place: "built-in: ok", "internal: ok"
 make test-fast                   # test package and pytest-xdist work
 codegraph status                 # index state
 tail /tmp/codegraph-init.log     # progress of a background index build
