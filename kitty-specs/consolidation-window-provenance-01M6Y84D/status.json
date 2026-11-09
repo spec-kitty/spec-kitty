@@ -121,7 +121,7 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -135,6 +135,7 @@
         "Ready for review: WP04 complete. Four test-side files committed (824d3682bf): reconciliation_surface.json (66 pinned names, generated via SPEC_KITTY_REGEN_RECONCILIATION_SURFACE=1), test_reconciliation_surface_pin.py (4 pin tests), reconciliation_family.py (family + consumer tuples with helpers), test_reconciliation_family_guard.py (stale/narrowed-patch guard + 8 tests). DoD green: 12 passed on the new files; 241 passed, 1 xfailed reconciliation corpus; 23 passed rollback-authority pin; ruff check/format and mypy clean on all three .py files; make test-fast 2921 passed, 6 skipped. All twelve reviewer-checked test names present and passing; real-corpus guard green (no stop-and-ask condition). Consumer tuple is the prompt's explicit list (phase_claim, phase_gate, forecast) — grep facts in the WP history note."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/stijn/Documents/code/kitty/spec-kitty/.worktrees/consolidation-window-provenance-01M6Y84D-coord/kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP04-surface-pin-and-family-guard/review-cycle-1.md",
         "reference": "review-cycle://consolidation-window-provenance-01M6Y84D/WP04-surface-pin-and-family-guard/review-cycle-1.md",
@@ -142,15 +143,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 4108321,
-      "shell_pid_created_at": "1794186013.14",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done",
-        "T022": "done",
-        "T023": "done"
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
       }
     },
     "WP05": {
