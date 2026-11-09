@@ -1519,11 +1519,22 @@ def compute_cells(names: Sequence[str], workdir: Path, *, workers: int = 1) -> d
 WORKERS_ENV = "SPEC_KITTY_VERDICT_CORPUS_WORKERS"
 
 
+#: Set by ``pytest-xdist`` in each of its worker processes.
+_XDIST_WORKER_ENV = "PYTEST_XDIST_WORKER"
+
+
 def corpus_workers() -> int:
-    """Forked workers for the full corpus: ``$SPEC_KITTY_VERDICT_CORPUS_WORKERS`` when set (``1`` = all in this process), else up to 8."""
+    """Forked workers for the full corpus.
+
+    ``$SPEC_KITTY_VERDICT_CORPUS_WORKERS`` when set (``1`` = all in this process); else ``1`` inside a
+    ``pytest-xdist`` worker (``-n auto`` already runs one worker per core, so forking up to 8 more per
+    worker would oversubscribe the machine); else up to 8.
+    """
     configured = os.environ.get(WORKERS_ENV, "").strip()
     if configured:
         return max(1, int(configured))
+    if os.environ.get(_XDIST_WORKER_ENV):
+        return 1
     return max(1, min(8, (os.cpu_count() or 1)))
 
 
