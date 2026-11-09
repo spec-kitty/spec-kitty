@@ -16,5 +16,7 @@
   "target_branch": "issue-6932-docsite-publication-llms-parity",
   "topology": "single_branch",
   "topology_settled": false,
-  "topology_source": "default"
+  "topology_source": "default",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the interfaces are the doc-kitty config, the contract JSON projection and the built-site check, specified in data-model.md and pinned by tests."
 }
