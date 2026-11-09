@@ -53,17 +53,15 @@ from __future__ import annotations
 
 import functools
 import logging
-import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Literal, NamedTuple
+from typing import Any, NamedTuple
 
-from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_tip_branches
-from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
+from specify_cli.lanes.compute import is_planning_lane, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.consolidation._constants import (
     DEPENDENCY_REF_COVERS_MISSION_WORK,
@@ -124,13 +122,35 @@ from specify_cli.consolidation.wp_attribution import (
     stamp_of,
 )
 
+# Re-exports (C-005): every name moved out of this module stays importable from it.
+from specify_cli.consolidation.reconciliation_claim_types import (
+    ApprovedLaneContent as ApprovedLaneContent,
+    ApprovedWpCommitSet as ApprovedWpCommitSet,
+    CanceledDependencyContent as CanceledDependencyContent,
+    LaneContribution as LaneContribution,
+    MissingApprovedContent as MissingApprovedContent,
+    PresenceGap as PresenceGap,
+    _GAP_ABSENT as _GAP_ABSENT,
+    _GAP_UNCHANGED as _GAP_UNCHANGED,
+)
+from specify_cli.consolidation.reconciliation_kernel import (
+    _APPROVED_MEMBERSHIP_LANES as _APPROVED_MEMBERSHIP_LANES,
+    _ClaimEventLog as _ClaimEventLog,
+    _KITTY_OPS_ROOT_RECORD as _KITTY_OPS_ROOT_RECORD,
+    _LaneWalk as _LaneWalk,
+    _closed_world_anchors as _closed_world_anchors,
+    _dependency_lane_ids as _dependency_lane_ids,
+    _is_bookkeeping as _is_bookkeeping,
+    _is_nested_alias_coordination_file as _is_nested_alias_coordination_file,
+    _lane_branch_for as _lane_branch_for,
+    _lane_first_parent_spine as _lane_first_parent_spine,
+    _lane_is_approved as _lane_is_approved,
+    _lane_tip_commits as _lane_tip_commits,
+    _planning_prefix as _planning_prefix,
+)
+
 logger = logging.getLogger(__name__)
 
-# Lanes that count as "approved" (an acceptable, merge-ready ending) for claim
-# membership. ``done`` is included so a resume that already baked ``done`` for a
-# WP still recognizes it as claimed (never re-derived here — the strings mirror
-# ``status.models.Lane`` values, the single lane vocabulary).
-_APPROVED_MEMBERSHIP_LANES: frozenset[str] = frozenset({"approved", "done"})
 
 # NFR-005 concrete floor: the six terminus entry points that MUST route through
 # the reconciliation gate. Shrink-only — adding a terminus path that mutates
@@ -162,11 +182,6 @@ _BOTH_NEEDED = (
     "Both parts need their own fix, in either order: the recovery in the first part does not approve the new content, "
     "and approving the work package again does not clear the first part. Re-run spec-kitty consolidate after both."
 )
-#: How the target fails to hold an approved lane's content (:class:`MissingApprovedContent`):
-#: the path is not there at all, or it still holds the pre-consolidation state.
-PresenceGap = Literal["absent", "unchanged"]
-_GAP_ABSENT: PresenceGap = "absent"
-_GAP_UNCHANGED: PresenceGap = "unchanged"
 # Declared external dependency refs (#6771). A lane that merges a dependency branch's
 # newer head in (a two-parent merge, so the lane is still reviewed on one tree) brings
 # that branch's commits into the closed-world window. The window's authorship authority is
@@ -238,14 +253,6 @@ _REFUSE_NO_AUTHORSHIP_AUTHORITY = (
     "authorship authority to attribute it against (fail-closed)"
 )
 
-# A repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan (#2251) — anchored to the
-# repo root (``^``), never anywhere-in-tree, so a product-source path that merely
-# CONTAINS a ``kitty-ops/`` segment deeper in the tree is not mistaken for the
-# toolchain's own Op-record ledger. Mirrors the ULID shape
-# ``coordination/coherence.py`` uses for its (deliberately broader, whole-tree)
-# dirty-state-gate classifier.
-_KITTY_OPS_ROOT_RECORD = re.compile(r"^kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
-
 
 class VerifyStatus(Enum):
     """Outcome of :meth:`MergeOutcomeVerifier.verify`.
@@ -266,79 +273,6 @@ class VerifyStatus(Enum):
 
 class UnroutedTerminusPathError(RuntimeError):
     """Raised when a terminus path not on the NFR-005 allowlist tries to route."""
-
-
-@dataclass(frozen=True)
-class MissingApprovedContent:
-    """One path whose approved final content is not on the target (#5571, ``APPROVED_CONTENT_MISSING``).
-
-    ``wp_ids`` / ``lane_ids`` name every approved WP (and its lane) whose final
-    authored state for ``path`` equals the unmet ``expected`` state, so a
-    dependency chain names the WP that authored the content as well as the lane
-    that carried it. ``expected`` is the blob the lane ended on, or ``None`` for a
-    deletion that did not land. ``found`` is the :data:`PresenceGap`: ``"absent"``
-    (the path is not on the target) or ``"unchanged"`` (the target still holds the
-    pre-consolidation state).
-    """
-
-    wp_ids: tuple[str, ...]
-    lane_ids: tuple[str, ...]
-    path: str
-    expected: str | None
-    found: PresenceGap
-
-
-@dataclass(frozen=True)
-class CanceledDependencyContent:
-    """One path a fully-canceled dependency lane left on an approved lane (``CANCELED_REACHABLE_VIA_DEPENDENCY``).
-
-    ``wp_ids`` are the canceled lane's WPs (the lane is the unit the allocator
-    merges, so the content is named by all of them), ``canceled_lane_id`` is that
-    lane and ``carrier_lane_id`` the approved lane whose first-parent spine carries
-    its commit. ``state`` is the carrier lane's FINAL blob at ``path`` — the content
-    the integrated target carries, which embeds the surviving canceled content even
-    when an approved commit later appended to the same file (#5932) — or ``None`` when
-    the path is absent in that final state.
-    """
-
-    wp_ids: tuple[str, ...]
-    canceled_lane_id: str
-    carrier_lane_id: str
-    path: str
-    state: str | None
-    #: #6309: the canceled path when a carrier commit renamed it; ``path`` is then
-    #: the new path, where the carried content lives and the target is compared.
-    renamed_from: str | None = None
-
-
-@dataclass(frozen=True)
-class ApprovedLaneContent:
-    """An approved code lane's FINAL authored state, per path (#5571 presence axis).
-
-    The lane is the unit git integrates, so the final state is per lane and named
-    by the lane's approved WPs. ``final_state`` maps a repo-relative path to the
-    blob the lane's own first-parent spine ends on, or ``None`` when its final
-    state for the path is a deletion (a rename contributes its source as ``None``).
-    ``ancestors`` are the lane ids this lane transitively depends on: such a lane
-    was built atop them, so its final state supersedes theirs for any path both
-    hold. Built from the SAME spine walk as ``authored_blobs`` -- never a second one.
-
-    The last three fields let the presence axis judge only the lane's OWN NET
-    change (:func:`unmet_approved_content`); no path is read for them at claim
-    build. ``tip`` is the lane tip. ``fork_point`` is the commit the lane was cut
-    from (the first parent of its oldest own first-parent commit), the lane's own
-    base. ``dependency_forks`` maps a dependency lane id to the commit of that
-    lane this lane was built on. A hand-built content leaves them unset, which
-    reads as "cut from the pre-consolidation target, and every held path is its own".
-    """
-
-    lane_id: str
-    wp_ids: tuple[str, ...]
-    ancestors: frozenset[str]
-    final_state: Mapping[str, str | None]
-    tip: str | None = None
-    fork_point: str | None = None
-    dependency_forks: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -583,230 +517,6 @@ class VerifyResult:
     @classmethod
     def refused(cls, reason: str) -> VerifyResult:
         return cls(status=VerifyStatus.REFUSE, refusal_reason=reason)
-
-
-@dataclass(frozen=True)
-class LaneContribution:
-    """One approved lane's contribution to a multi-lane-authored content path,
-    PER (lane, path) — never lane-only.
-
-    ``terminus-merge-resolution-attribution`` / FR-009 (widened by the #5124
-    landing fold's smuggled-tip guard). ``lane_commit`` is a raw SHA — the
-    newest commit on the lane's own first-parent spine — never a branch name,
-    so it stays resolvable via git's object store for the lifetime of the
-    merge transaction even after a lane branch ref is deleted at teardown.
-    ``lane_commit`` CAN be a merge commit (a lane's tip is whatever its own
-    first-parent spine's newest commit is, merge or not); its FULL tree can
-    therefore carry content beyond the lane's own first-parent authorship — a
-    disjoint second-parent hunk merged in from an unrelated (e.g. removed)
-    lane, the #4977 carrier mechanism. ``authored_blob`` is the fail-closed
-    guard input that catches that: the lane's FINAL first-parent-AUTHORED blob
-    for THIS path (the same value :attr:`ApprovedWpCommitSet.authored_blobs`
-    would record for this (lane, path)), read straight from
-    :func:`_final_authored_walk` at contribution-build time — never
-    recomputed. :func:`is_legitimate_three_way_resolution` refuses to simulate
-    unless each contributing lane's tip-tree blob at *path* equals this value,
-    so a merge-commit tip that smuggled extra content can never feed the
-    simulation. Used to supply
-    :func:`~specify_cli.consolidation.git_probes.three_way_merge_blob`'s two merge
-    inputs (via ``lane_commit``) plus the guard check (via ``authored_blob``);
-    blob-identity attribution ITSELF (the actual accepted content) continues
-    to come from :attr:`ApprovedWpCommitSet.authored_blobs`, never from here.
-    """
-
-    lane_id: str
-    lane_commit: str
-    authored_blob: str
-
-
-@dataclass(frozen=True)
-class ApprovedWpCommitSet:
-    """The claim the verifier trusts — derived once per terminus transaction.
-
-    ``approved`` maps each claimed WP id to its approved commit SHAs, read from
-    **lane-branch git tips** (never status rows) after the approved-bound check
-    (#5668) found each lane within what its approval stamps name. ``excluded_shas`` /
-    ``excluded_patch_ids`` are the canceled/removed commits that must NOT be
-    reachable from the target. ``manifest_wp_ids`` is the full set the manifest
-    lists (the empty-vs-manifest fail-closed cross-check). ``excluded_window_base``
-    bounds the patch-id scan to ``base..target`` (NFR-003). ``surface_resolved``
-    is ``False`` and/or ``refusal`` is set when the claim could not be built
-    fail-closed — the verifier then REFUSES instead of evaluating.
-    """
-
-    approved: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
-    excluded_shas: frozenset[str] = frozenset()
-    excluded_patch_ids: frozenset[str] = frozenset()
-    manifest_wp_ids: frozenset[str] = frozenset()
-    excluded_window_base: str | None = None
-    surface_resolved: bool = True
-    refusal: str | None = None
-    # Closed-world excluded check (S-D widening; #4945/#4977/#4981). The
-    # TRACKED-excluded axis (``excluded_shas``/``excluded_patch_ids``, derived
-    # from ``acceptably_canceled_wp_ids``) only names commits whose WP the status
-    # surface still lists as canceled. A REMOVED WP's commit merged INTO an
-    # approved carrier lane is in no lane / no status row, so the tracked axis
-    # never names it and the lane-range approved set counts it as approved — it
-    # ships. The closed-world axis closes that: every CONTENT commit in the merge
-    # window (``excluded_window_base..target``) must be attributable to an approved
-    # WP's OWN authorship (by SHA or patch-id); one that is not is a FAIL. The
-    # authorship is the first-parent spine of every approved lane (``authored_*``),
-    # so a commit smuggled in via a merge's second parent is never mistaken for
-    # approved work. ``enforce_closed_world`` gates the whole check: only the
-    # production claim builder (:func:`build_approved_wp_set`) turns it on, so a
-    # hand-built claim (unit tests that populate only ``approved``) keeps the
-    # pre-widening behavior byte-for-byte.
-    enforce_closed_world: bool = False
-    authored_shas: frozenset[str] = frozenset()
-    authored_patch_ids: frozenset[str] = frozenset()
-    # Squash-sound closed-world authorship (#5013 / WS1). The **FINAL**
-    # first-parent-authored blob **per (lane, path)** across approved lanes, as
-    # ``(repo_rel_path, blob_sha)`` tuples. Content identity (blob), never lane-tip
-    # SHAs or per-commit patch-ids (both destroyed by squash), so it survives the
-    # DEFAULT squash strategy. Taking the FINAL blob per (lane, path) — not the
-    # union of every first-parent commit's blob — is the F5 crux: the union would
-    # admit a superseded intermediate ``v1`` and false-PASS a canceled blob matching
-    # it. Always the ``(path, blob)`` tuple, never blob-only (F10 — catches
-    # identical-content-different-path). Populated by ``_collect_authored`` only in
-    # the production claim builder; a hand-built claim leaves it empty and the squash
-    # axis stays off (``enforce_closed_world`` unset), preserving pre-widening
-    # behavior byte-for-byte.
-    authored_blobs: frozenset[tuple[str, str]] = frozenset()
-    # Squash-sound closed-world DELETION authority (#5022 / WP1). A path P is a
-    # member iff, walking an approved lane's first-parent spine newest→oldest,
-    # the FIRST (newest) commit that touches P DELETES it — i.e. the lane's own
-    # final state for P is "deleted" (mirrors ``authored_blobs``'s "final blob
-    # per path", the deletion analogue). A path added-then-deleted within a lane
-    # is a member (final state deleted); a path deleted-then-re-added is NOT (its
-    # final state is present, and it is in ``authored_blobs`` instead). Populated
-    # by ``_collect_authored`` only in the production claim builder, in the SAME
-    # spine walk that produces ``authored_blobs`` (:func:`_final_authored_walk`) —
-    # a hand-built claim leaves it empty and the squash deletion axis then treats
-    # every ``D`` path as unattributable unless it is bookkeeping, preserving
-    # pre-#5022 behavior for any claim that never populates it.
-    authored_deletions: frozenset[str] = frozenset()
-    # Merge-resolution-aware Seam A attribution (terminus-merge-resolution-
-    # attribution / #5051-adjacent, FR-009; smuggled-tip guard added by the
-    # #5124 landing fold). For each content path authored by EXACTLY TWO
-    # approved lanes (a path outside the disjoint-write-scope invariant
-    # `_final_authored_walk` documents), the two contributing lanes' PER-PATH
-    # :class:`LaneContribution`s — their still-resolvable pre-squash lane
-    # commit SHAs (which CAN be a merge commit) plus, per (lane, path), the
-    # lane's own first-parent-AUTHORED blob for that path (the guard input
-    # that catches a merge-commit tip smuggling extra content — see
-    # :class:`LaneContribution`). One ``LaneContribution`` is now recorded PER
-    # (lane, path) — never one shared object reused across every path a lane
-    # touches — because the authored blob differs per path.
-    # Populated in the SAME first-parent spine walk that builds
-    # ``authored_blobs`` (:func:`_collect_authored` / :func:`_final_authored_walk`)
-    # — never a second walk. Absent (no key) for a single-lane path (the
-    # existing ``authored_blobs`` fast path already attributes those) and for a
-    # path touched by three-or-more approved lanes (2-way `merge-tree` folding
-    # is order-dependent/nondeterministic for N>2 — Decision 2, ``research.md``
-    # — so those stay fail-closed, never simulated). The "exactly two lanes"
-    # count is still one contribution per (lane, path) — i.e. per lane per
-    # path — so a path is a member iff exactly two DISTINCT lanes recorded a
-    # contribution for it, unchanged by the per-path widening. Supplies
-    # ``is_legitimate_three_way_resolution``'s two merge inputs AND its
-    # fail-closed guard; it never itself supplies the FINAL blob identity that
-    # is attributed — that authority stays with ``authored_blobs``.
-    # Populated by ``_collect_authored`` only in the production claim builder; a
-    # hand-built claim leaves it empty and the merge-resolution recognizer never
-    # fires, preserving pre-widening behavior byte-for-byte.
-    multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]] = field(default_factory=dict)
-    mission_slug: str | None = None
-    # Repo-relative posix path of the mission's planning/status directory
-    # (``kitty-specs/<slug>``). A window commit that touches ONLY paths under this
-    # prefix (plus toolchain churn) is spec-kitty housekeeping, never content.
-    planning_prefix: str | None = None
-    # Content reachability (approved-SHA ancestry + excluded SHA/patch-id) is only
-    # SOUND for ancestry-preserving strategies (merge/rebase): a squash merge
-    # preserves neither lane-tip SHAs, per-lane tree equality, nor per-lane
-    # patch-ids (verified empirically), AND the post-merge target carries
-    # legitimate bookkeeping commits (mission_number bake, done-transition record)
-    # that make even an aggregate mission→target tree comparison diverge. Proving
-    # approved content landed under squash therefore requires the projection seam
-    # WP07/WP08 own. When ``verify_reachability`` is ``False`` (squash), the
-    # verifier still runs the squash-sound blob-attribution content axis (#5013,
-    # :meth:`MergeOutcomeVerifier._unattributable_content_squash`) plus fail-closed
-    # claim integrity (surface + refusal); only the per-SHA approved-reachability
-    # check (structurally unsatisfiable once squash mints new SHAs) is deferred —
-    # never false-failing a legitimate squash merge (NFR-004). Fail-closed
-    # integrity applies to both strategies. ``True`` (merge/rebase — the Tier-0
-    # clean-merge strategy) runs the full per-SHA reachability + excluded checks.
-    verify_reachability: bool = True
-    # Declared external dependency refs (#6771) and the sets they contribute, computed ONCE
-    # by :func:`resolve_external_dependency_refs` in the production claim builder. The
-    # verifier treats these exactly like content that predates the window: ``shas`` are
-    # skipped by the closed-world commit axis (merge/rebase), ``blobs``/``deletions`` by the
-    # squash blob/deletion axis. All four are empty for a hand-built claim and for a run with
-    # no declaration, so the pre-#6771 behavior holds byte-for-byte (NFR-003). A declaration
-    # never widens what is attributed to a WORK PACKAGE; it narrows what is flagged.
-    external_dependency_refs: tuple[str, ...] = ()
-    #: ``ref -> SHA`` each declared ref was verified against (:attr:`ExternalDependencyAttribution.pins`);
-    #: the gate re-checks them so a ref moved after the claim refuses (``DEPENDENCY_REF_MOVED``).
-    external_dependency_pins: Mapping[str, str] = field(default_factory=dict)
-    external_dependency_shas: frozenset[str] = frozenset()
-    external_dependency_blobs: frozenset[tuple[str, str]] = frozenset()
-    external_dependency_deletions: frozenset[str] = frozenset()
-    # Mixed-lane canceled-content axis (mixed-lane-authorship-soundness / #5046,
-    # WP05). Every :class:`~specify_cli.consolidation.wp_attribution.CanceledPathState`
-    # resolved for a canceled-with-provenance WP sharing an approved lane with a
-    # surviving WP (contract C2 "mixed lane") that entered implementation. NOT
-    # reused from ``excluded_shas``/``excluded_patch_ids``: those are SHA/patch-id
-    # reachability, which (a) a squash destroys entirely, and (b) even under
-    # merge/rebase only proves the canceled WP's OWN commit objects are
-    # unreachable — never that a LATER survivor commit didn't carry the exact
-    # same bytes forward unchanged (see the corrected ``_collect_excluded``
-    # docstring). This axis compares per-path CONTENT instead (blob identity),
-    # which both strategies preserve. Populated by ``build_approved_wp_set`` only
-    # (via ``wp_attribution.resolve_canceled_wp``); a hand-built claim leaves it
-    # empty, so :meth:`MergeOutcomeVerifier._canceled_content_divergence` is a
-    # no-op and every existing claim keeps pre-#5046 behaviour byte-for-byte.
-    canceled_content: frozenset[CanceledPathState] = frozenset()
-    # Operator-attested canceled WPs (FR-012, ``canceled_attestation``): read
-    # from the same event log the mixed-lane resolution reads. For these WPs the
-    # verifier lifts the "merged with an independent change" REFUSE; a FAIL on
-    # their visible canceled content still stands. Empty on a hand-built claim.
-    attested_canceled_wp_ids: frozenset[str] = frozenset()
-
-    # #5571: each approved CODE lane's FINAL authored state per path, in dependency
-    # order (a lane after every lane it depends on; ties by lane id). The approved-
-    # content presence axis (:meth:`MergeOutcomeVerifier._approved_content_divergence`)
-    # requires the target to hold it unless a later approved lane built atop this
-    # one superseded the path. A NEW field: the ``authored_*`` claim fields are
-    # untouched. Populated by ``_collect_authored`` in the same spine walk as
-    # ``authored_blobs``; a hand-built claim leaves it empty, which turns the axis off.
-    approved_lane_content: tuple[ApprovedLaneContent, ...] = ()
-
-    # #5569/#5613: per-path content a fully-canceled dependency lane left on an
-    # approved ("carrier") lane's first-parent spine. The commits behind it are
-    # already out of ``authored_*``, so the strategy axes fail on their own; this
-    # field lets the verifier name the canceled WP, both lanes and the stable code.
-    # Empty on a hand-built claim and on every mission without such a lane.
-    canceled_dependency_content: frozenset[CanceledDependencyContent] = frozenset()
-
-    # #5668: the lane tip (branch name, SHA) the approved-bound check validated for every
-    # code lane it covered, each resolved once when the lane was checked. The reconciliation
-    # gate asks whether content arrived on a lane after exactly these tips. Empty on a
-    # hand-built claim and on a mission with no checked lane.
-    bound_lane_tips: tuple[tuple[str, str], ...] = ()
-
-    # S8 (#7283): ``(lane id, branch)`` for every lane the approved-bound check read through a
-    # branch other than its created lane branch: a ``single_branch`` Mission's ``lane-planning``
-    # is read through its Mission branch (its created-branch alias resolves to the target). The
-    # gate re-check reads each lane through this map. Empty on every other claim.
-    bound_lane_branches: tuple[tuple[str, str], ...] = ()
-
-    # #6715: approved WPs whose IMPLEMENTATION_MISSING refusal a no-implementation attestation
-    # (``policy_metadata.attestation == "no_implementation"``) lifted, so ``consolidate`` can
-    # name them in its output. Never an approval, a stamp or a review. Empty on a hand-built claim.
-    no_implementation_attested_wp_ids: frozenset[str] = frozenset()
-
-    @property
-    def is_vacuous_against_manifest(self) -> bool:
-        """True when the derived claim is empty while the manifest lists WPs."""
-        return not self.approved and bool(self.manifest_wp_ids)
 
 
 def _refuse_merged_independent_change(entry: CanceledPathState) -> str:
@@ -1406,126 +1116,6 @@ class MergeOutcomeVerifier:
         return _is_bookkeeping(path, claim.mission_slug, claim.planning_prefix)
 
 
-def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
-    """True when *path* is the MISSION's OWN planning/toolchain surface.
-
-    Anchored to three mission/toolchain-owned roots — never a global
-    basename match — closing a silent-data-loss defect (Epic #5001 landing
-    remediation): this used to delegate to
-    :func:`~specify_cli.coordination.coherence.is_toolchain_generated_churn`,
-    a DIRTY-STATE-gate classifier that, at the time, matched by bare
-    basename anywhere in the repository (``PurePosixPath(path).name ==
-    "meta.json"`` matched ``src/config/meta.json`` just as readily as the
-    mission's own ``kitty-specs/<slug>/meta.json``). In the squash content
-    axis a path that classifier called bookkeeping was skipped BEFORE
-    authored-blob attribution, so a removed/canceled WP's commit touching an
-    ordinary product-source file merely NAMED like a toolchain artifact rode
-    a carrier lane onto the target and shipped at exit 0. #4933 has
-    since made ``coherence.py``'s ``meta.json`` leg depth-exact
-    (``kitty-specs/<mission>/meta.json`` at any monorepo prefix, plus the
-    legacy ``.kittify/meta.json``), but it is still not anchored to THIS
-    claim's slug — it exempts ANY mission's ``meta.json`` — and it remains a
-    dirty-state-gate predicate with its own consumers. This axis therefore
-    keeps its own, narrower classification rather than delegating to it.
-
-    A path counts as bookkeeping only when it is anchored to:
-
-    * a ``kitty-specs/<slug>/`` segment sequence where ``<slug>`` is THIS
-      claim's own *mission_slug* — covers the mission's own ``meta.json``,
-      ``status.events.jsonl``, issue-matrix, ``traces/``, ``decisions/``,
-      retrospective, tasks, and plan artifacts, wherever that segment
-      sequence occurs in the path (the repo-root ``kitty-specs/<slug>/…`` a
-      merge commit lands directly, AND a coordination-topology worktree's
-      nested copy alike);
-    * *planning_prefix* as an exact prefix (belt-and-suspenders for a
-      hand-built claim that sets the prefix without a ``mission_slug``);
-    * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
-      mission-state-audit, and other toolchain-owned state;
-    * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
-      (:data:`_KITTY_OPS_ROOT_RECORD`);
-    * for a bare-slug coordination claim only (a NESTED *planning_prefix*), the
-      coordination-kind files (status pair, traces, matrices, decision log, review
-      cycles) anywhere under the composed directory ``kitty-specs/<alias>/``
-      *planning_prefix* ends in
-      (:func:`_is_nested_alias_coordination_file`, #5651).
-
-    Any other path — including one that merely shares a bookkeeping
-    basename — is real content, subject to the closed-world attribution
-    check.
-
-    Extracted to module level (mixed-lane-authorship-soundness / #5046 WP05)
-    so :func:`build_approved_wp_set` can bind it via ``functools.partial`` and
-    hand it to ``wp_attribution.resolve_canceled_wp`` as the SAME denylist the
-    verifier itself uses — the claim (:class:`ApprovedWpCommitSet`) does not
-    exist yet at that call site, so the *claim*-taking overload
-    (:meth:`MergeOutcomeVerifier._is_bookkeeping_path`) cannot be called there.
-    """
-    normalized = path.rstrip("/")
-    if mission_slug:
-        parts = normalized.split("/")
-        try:
-            specs_index = parts.index(KITTY_SPECS_DIR)
-        except ValueError:
-            specs_index = -1
-        # ``kitty-specs`` segment immediately followed by THIS mission's own
-        # slug, wherever it occurs in the path (not just at a literal prefix
-        # match). Mission-scoped, never a bare basename: a product path can
-        # never satisfy this unless it is literally nested under the
-        # mission's own planning directory. Anchoring on the SEGMENT SEQUENCE
-        # (not *planning_prefix* alone) closes a real mismatch: under
-        # coordination topology *planning_prefix* is derived from the
-        # STATUS_STATE placement's ``feature_dir`` (the coord WORKTREE's
-        # nested copy, e.g. ``.worktrees/<slug>-<mid8>-coord/kitty-specs/
-        # <slug>``), while the commits this axis scans land the mission's
-        # bookkeeping directly at the repo-root ``kitty-specs/<slug>/`` — the
-        # two paths never share a common prefix, so relying on
-        # *planning_prefix* alone silently stopped recognizing the
-        # mission's own ``status.json`` / ``status.events.jsonl`` / etc. as
-        # bookkeeping once the whole-tree churn classifier was dropped.
-        if specs_index != -1 and specs_index + 1 < len(parts) and parts[specs_index + 1] == mission_slug:
-            return True
-    if planning_prefix and (normalized == planning_prefix or normalized.startswith(planning_prefix + "/")):
-        return True
-    if normalized == KITTIFY_DIR or normalized.startswith(KITTIFY_DIR + "/"):
-        return True
-    if _is_nested_alias_coordination_file(normalized, mission_slug, planning_prefix):
-        return True
-    return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
-
-
-def _is_nested_alias_coordination_file(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
-    """True when *path* is a coordination-kind file of the composed directory a bare-slug coordination claim names.
-
-    A bare-slug coordination Mission keeps its primary directory at
-    ``kitty-specs/<slug>`` while the coordination seed writes its coordination
-    records (the status pair, traces, matrices, the decision log, review cycles)
-    under the composed ``kitty-specs/<slug>-<mid8>`` directory (#5651). The claim's
-    *planning_prefix* is then the NESTED coordination-worktree path whose last
-    segment is that composed name, and the name is read from it, never rebuilt from
-    the slug. Only a root-anchored path ``kitty-specs/<alias>/<file>``, at any depth
-    below the directory, whose file is a coordination kind
-    (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`, the predicate
-    the seed itself uses to decide what to carry) qualifies; a planning file, source, an
-    unclassified file and any other directory stay content. A root-form or absent prefix,
-    or one that already names the primary directory, never applies this rule.
-    """
-    if not planning_prefix:
-        return False
-    prefix_parts = planning_prefix.rstrip("/").split("/")
-    # <something>/kitty-specs/<alias>: nested, so the older exact-prefix rule cannot see it.
-    if len(prefix_parts) < 3 or prefix_parts[-2] != KITTY_SPECS_DIR or not all(prefix_parts[:-2]):
-        return False
-    alias = prefix_parts[-1]
-    parts = path.split("/")
-    if alias == mission_slug or len(parts) < 3 or parts[0] != KITTY_SPECS_DIR or parts[1] != alias:
-        return False
-    # Function-local: this module imports nothing from the coordination package at its top.
-    from specify_cli.coordination.coherence import is_coordination_kind_file
-
-    is_coordination_kind: bool = is_coordination_kind_file("/".join(parts[2:]))
-    return is_coordination_kind
-
-
 def is_legitimate_three_way_resolution(
     repo_root: Path,
     claim: ApprovedWpCommitSet,
@@ -1901,39 +1491,6 @@ def _compound_refusal(first: str, bound_verdict: Callable[[], _BoundVerdict], ev
     if verdict.refusal is None:
         return first
     return f"{first}\n\n{_ALSO_HAS}\n{verdict.refusal}\n\n{_BOTH_NEEDED}"
-
-
-class _ClaimEventLog:
-    """The mission's status events for ONE claim build: read lazily, and at most once.
-
-    The canceled-dependency resolution and the mixed-lane resolution both need
-    the log, each only for some missions; whichever asks first pays the read and
-    the other reuses it. A ``StoreError`` is remembered the same way, so both
-    report the same unreadable log (NFR-002; never overridable — the attestation
-    lives in that same log).
-    """
-
-    def __init__(self, feature_dir: Path) -> None:
-        self._feature_dir = feature_dir
-        self._events: Sequence[Any] | None = None
-        self._error: Exception | None = None
-
-    def read(self) -> Sequence[Any] | None:
-        """The events in append order, or ``None`` when the log cannot be read (then use :meth:`unreadable`)."""
-        if self._events is None and self._error is None:
-            # Lazy import: keeps this module import-light, as in ``build_approved_wp_set``.
-            from specify_cli.status import StoreError, read_events
-
-            try:
-                self._events = read_events(self._feature_dir)
-            except StoreError as exc:
-                self._error = exc
-        return self._events
-
-    def unreadable(self, lane_id: str, wp_id: str) -> Unattributable:
-        """The ``events_unreadable`` outcome naming *lane_id* / *wp_id* and the store error."""
-        outcome = Unattributable.for_reason(UnattributableReason.EVENTS_UNREADABLE, lane_id, wp_id)
-        return Unattributable(outcome.reason, f"{outcome.detail} ({self._error})")
 
 
 def _mixed_lanes(
@@ -2438,52 +1995,6 @@ def lane_tips_moved_refusal(
     return render_refusals(refusals, lanes_manifest.mission_slug) if refusals else None
 
 
-def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> list[str]:
-    """Every lane *lane* depends on, transitively (``lanes.json`` ``depends_on_lanes``)."""
-    by_id = {candidate.lane_id: candidate for candidate in lanes_manifest.lanes}
-    seen: list[str] = []
-    pending = list(lane.depends_on_lanes)
-    while pending:
-        lane_id = pending.pop()
-        if lane_id in seen or lane_id not in by_id:
-            continue
-        seen.append(lane_id)
-        pending.extend(by_id[lane_id].depends_on_lanes)
-    return sorted(seen)
-
-
-def _closed_world_anchors(
-    lanes_manifest: LanesManifest,
-    lane: ExecutionLane,
-    target_base: str | None,
-    *,
-    excluded_canceled_wp_ids: frozenset[str],
-) -> list[str]:
-    """FR-013 anchors for *lane*: dependency-lane tips (the allocator merges them in
-    without ``--no-ff``, also on its reuse path after work began) and the target's
-    pre-consolidation tip (commits already on the target ship nothing new).
-
-    A FULLY-canceled dependency lane is not an anchor (#5569): its tip carries
-    canceled content, which must never be exempt as history that predates *lane*.
-    Its commits before its own base are still covered by the anchors that reach
-    them (the approved dependencies it was cut from, the target tip).
-
-    A PLANNING dependency lane is not an anchor either: its branch name is the LIVE
-    target branch, which on a ``--resume`` after the interrupted run advanced the target
-    already reaches every merged lane commit and would exempt a late one. What a planning
-    lane legitimately contributes is on the target's pre-consolidation tip, *target_base*.
-    """
-    by_id = {candidate.lane_id: candidate for candidate in lanes_manifest.lanes}
-    anchors = [
-        _lane_branch_for(lanes_manifest, dep)
-        for dep in _dependency_lane_ids(lanes_manifest, lane)
-        if not is_planning_lane(by_id[dep]) and not lane_fully_canceled(by_id[dep], excluded_canceled_wp_ids)
-    ]
-    if target_base:
-        anchors.append(target_base)
-    return anchors
-
-
 def _fully_canceled_lane_commits(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -2938,54 +2449,6 @@ def _unresolvable_approved_lane_branches(
     return unresolvable
 
 
-def _planning_prefix(repo_root: Path, feature_dir: Path) -> str | None:
-    """Repo-relative posix path of the mission planning dir (``kitty-specs/<slug>``).
-
-    Returns ``None`` when *feature_dir* is not under *repo_root* — the closed-world
-    content check then falls back to the toolchain-churn denylist alone.
-    """
-    try:
-        relative = feature_dir.resolve().relative_to(repo_root.resolve())
-    except ValueError:
-        return None
-    return relative.as_posix()
-
-
-def _lane_branch_for(lanes_manifest: LanesManifest, lane_id: str) -> str:
-    """Resolve a lane's **created** branch name from the creation input (slug + lane id).
-
-    Thin alias over the shared :func:`~specify_cli.lanes.compute.lane_created_branch`
-    (single canonical home — see its docstring for the I-1/I-3 rationale this
-    module and ``merge.executor`` previously duplicated under different names).
-    """
-    # Local annotation re-narrows to ``str``: the narrow-file mypy override
-    # (``specify_cli.*`` follow_imports = "skip") erases the callee's own
-    # ``-> str`` to ``Any`` here (same pattern as executor.py's
-    # ``_created_lane_branch`` re-wrap it replaces).
-    branch: str = lane_created_branch(lanes_manifest, lane_id)
-    return branch
-
-
-def _lane_tip_commits(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
-    """Commits on a lane tip, TOLERATING an unresolvable range at claim-build time.
-
-    Claim building has always tolerated a lane branch (or coord base) that does not
-    resolve — a fully-canceled lane has no branch, and some topologies cut the
-    branch after this read — yielding no commits for that lane rather than aborting
-    the whole merge. The #5001 FOLD-3 fail-closed window-error signal
-    (:class:`GitProbeError`) is scoped to the VERIFIER's window scan
-    (:meth:`MergeOutcomeVerifier._reachable_excluded` /
-    ``_unattributable_content``), where an unevaluable window must refuse; the claim
-    BUILDER keeps its pre-existing tolerant behavior here so a legitimate merge
-    (e.g. a canceled-lane survivor merge) is never turned into a spurious refusal.
-    """
-    try:
-        commits: list[str] = commits_in_range(repo_root, coord_base_ref, branch)
-    except GitProbeError:
-        return []
-    return commits
-
-
 def _collect_approved_shas(
     repo_root: Path,
     lanes_manifest: LanesManifest,
@@ -3297,12 +2760,6 @@ def _lane_content(
     )
 
 
-def _lane_is_approved(lane: object, work_packages: Mapping[str, Mapping[str, object]]) -> bool:
-    """True when at least one of *lane*'s WPs is in an approved membership lane."""
-    wp_ids = getattr(lane, "wp_ids", ())
-    return any(str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES for wp in wp_ids)
-
-
 def _approved_stamps(lane: object, work_packages: Mapping[str, Mapping[str, object]], presence: _PresenceScope | None) -> tuple[str, ...]:
     """The approval stamps of *lane*'s WPs that are in an approved membership lane (#7307); canceled WPs never count."""
     if presence is None:
@@ -3353,22 +2810,6 @@ def _own_dependency_merges(
     # typed local keeps the return honest instead of leaking ``Any``.
     merges: frozenset[str] = lane_dependency_merges(repo_root, spine, tips)
     return merges
-
-
-def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) -> list[str]:
-    """First-parent SHAs (newest-first) for a lane, TOLERATING an unresolvable range.
-
-    Mirrors :func:`_lane_tip_commits`' claim-build tolerance: an unresolvable lane
-    branch / coord base (a fully-canceled lane has no branch; some topologies cut it
-    after this read) yields no authorship rather than turning a legitimate merge into
-    a spurious refusal. The #5013 F7 fail-closed ``GitProbeError`` signal is scoped to
-    the VERIFIER's window scan, not the claim BUILDER.
-    """
-    try:
-        spine: list[str] = first_parent_commits_in_range(repo_root, coord_base_ref, branch)
-        return spine
-    except GitProbeError:
-        return []
 
 
 @dataclass(frozen=True)
@@ -3796,17 +3237,6 @@ class _AuthoredClaim(NamedTuple):
     deletions: frozenset[str]
     multi_lane_paths: Mapping[str, tuple[LaneContribution, LaneContribution]]
     lane_content: tuple[ApprovedLaneContent, ...]
-
-
-@dataclass(frozen=True)
-class _LaneWalk:
-    """One lane's authorship walk: its range base and branch, first-parent spine and FINAL blobs / deletions."""
-
-    base: str
-    branch: str
-    spine: list[str]
-    blobs: set[tuple[str, str]]
-    deletions: set[str]
 
 
 @dataclass(frozen=True)

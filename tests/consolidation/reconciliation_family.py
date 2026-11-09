@@ -45,11 +45,13 @@ from specify_cli.consolidation import (
     phase_claim,
     phase_gate,
     reconciliation,
+    reconciliation_claim_types,
+    reconciliation_kernel,
 )
 
 # Today only the facade exists; later work packages of the mission append
 # reconciliation_kernel, reconciliation_bound, ... here as they create them.
-RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (reconciliation,)
+RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (reconciliation, reconciliation_kernel, reconciliation_claim_types)
 
 # The ONE explicit list of modules outside the family that bind reconciliation
 # names by name at import time (verified: phase_claim.py, phase_gate.py and

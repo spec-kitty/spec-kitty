@@ -271,13 +271,19 @@ def _assert_pinned_names_keep_identity(module: ModuleType, names: list[str], fam
 
     Split out of the test so the drift control can run the exact assertion
     against a synthetic family (a control that cannot fail proves nothing).
+    ``__all__`` alone is exempt from the family-wide branch (orchestrator
+    ruling 2026-11-09, WP10): it is pinned only because the scanner reads the
+    facade's ``__all__`` in this file's regen branch, and every split module's
+    own ``__all__`` is a per-module dunder, not a drift of the facade's export
+    surface. It stays pinned and importable; every other rebound binding still
+    fails.
     """
     for name in names:
         obj = getattr(module, name)
         if inspect.isfunction(obj) or inspect.isclass(obj):
             home = sys.modules[obj.__module__]
             assert getattr(home, obj.__name__) is obj, f"{name} is not the object its home binds"
-        else:
+        elif name != "__all__":
             for member in family:
                 if name in vars(member):
                     assert vars(member)[name] is obj, f"{name} drifted across the reconciliation family"
@@ -295,6 +301,28 @@ def test_identity_check_catches_family_drift() -> None:
     setattr(fake_member, drifted, object())  # a different object than the facade binds
     with pytest.raises(AssertionError, match=f"{drifted} drifted"):
         _assert_pinned_names_keep_identity(reconciliation, names, (fake_member,))
+
+
+def test_identity_check_skips_only_dunder_all() -> None:
+    """Control (orchestrator ruling 2026-11-09, WP10): the family identity check skips ``__all__`` alone.
+
+    Each split module declares its own ``__all__`` (WP10 R6 / C-007), which is a
+    per-module dunder, not a drift of the facade's export surface. A rebound
+    binding of any other pinned name must still fail, and a family member whose
+    only rebinding is ``__all__`` must not.
+    """
+    names = _load_pinned_names()
+    non_dunder = next(
+        name for name in names if name != "__all__" and not (inspect.isfunction(getattr(reconciliation, name)) or inspect.isclass(getattr(reconciliation, name)))
+    )
+    fake_drifted = ModuleType("reconciliation_fake_non_all_drift")
+    setattr(fake_drifted, non_dunder, object())  # a different object than the facade binds
+    with pytest.raises(AssertionError, match=f"{non_dunder} drifted"):
+        _assert_pinned_names_keep_identity(reconciliation, names, (fake_drifted,))
+
+    fake_all_only = ModuleType("reconciliation_fake_all_only")
+    vars(fake_all_only)["__all__"] = ["a", "different", "list"]
+    _assert_pinned_names_keep_identity(reconciliation, names, (fake_all_only,))
 
 
 @pytest.mark.non_sandbox
