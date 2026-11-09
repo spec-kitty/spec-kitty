@@ -204,6 +204,8 @@ def _dependency_lane_ids(lanes_manifest: LanesManifest, lane: ExecutionLane) -> 
     return sorted(seen)
 
 
+# Lives in the kernel (rank 0) because the closed world, the canceled-lane readers, the approved bound and the
+# approved-reviewed attestation all read the same anchor set; any higher home would make them import upwards.
 def _closed_world_anchors(
     lanes_manifest: LanesManifest,
     lane: ExecutionLane,
