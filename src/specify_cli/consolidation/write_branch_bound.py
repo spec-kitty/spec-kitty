@@ -44,9 +44,8 @@ from .approved_bound import (
     content_commits,
     move_back_command,
     render_refusals,
-    resolves_commit,
 )
-from .git_probes import commits_in_range, sha_reachable_from
+from .git_probes import commit_in_clone, commits_in_range, is_ancestor_strict
 from .wp_attribution import GapEntry, WindowGap, WindowOpen, approval_window_open_stamp, lane_exempt_commits, window_open_of
 
 logger = logging.getLogger(__name__)
@@ -267,21 +266,25 @@ _LanePredicates = tuple[Callable[[str], bool], Callable[[str, str], bool]]
 def bind_lane_predicates(repo_root: Path, tip: str) -> _LanePredicates:
     """``(on_lane, is_ancestor)`` bound to the one lane *tip* the approved bound resolved (FR-022).
 
-    ``on_lane(sha)`` is true iff *sha* resolves in this clone and *tip* reaches it;
-    ``is_ancestor(a, b)`` is true iff *a* is an ancestor of or equal to *b*. Neither raises: a
-    git error reads as False, so an unresolvable recorded SHA is ``not_on_lane``, never a probe error.
+    ``on_lane(sha)`` is true iff *sha* is a commit in this clone and *tip* reaches it;
+    ``is_ancestor(a, b)`` is true iff both are commits in this clone and *a* is an ancestor of or
+    equal to *b*. A SHA that is not in this clone reads as False, so a recorded SHA from another
+    clone is ``not_on_lane`` (R-4). A git failure raises
+    :class:`~specify_cli.consolidation.git_probes.GitProbeError`, which the approved bound refuses
+    on: a broken probe never degrades a work package to its weaker window in silence.
     """
+    present: dict[str, bool] = {}
+
+    def in_clone(sha: str) -> bool:
+        if sha not in present:
+            present[sha] = commit_in_clone(repo_root, sha)
+        return present[sha]
 
     def on_lane(sha: str) -> bool:
-        # Local annotation re-narrows to ``bool`` (the narrow-file mypy override erases the callee's return type).
-        if not resolves_commit(repo_root, sha):
-            return False
-        reachable: bool = sha_reachable_from(repo_root, sha, tip)
-        return reachable
+        return in_clone(sha) and is_ancestor_strict(repo_root, sha, tip)
 
     def is_ancestor(ancestor: str, descendant: str) -> bool:
-        reachable: bool = sha_reachable_from(repo_root, ancestor, descendant)
-        return reachable
+        return in_clone(ancestor) and in_clone(descendant) and is_ancestor_strict(repo_root, ancestor, descendant)
 
     return on_lane, is_ancestor
 
