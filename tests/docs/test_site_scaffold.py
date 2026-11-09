@@ -46,6 +46,7 @@ def test_contract_json_equals_the_python_authority() -> None:
 
     assert data["exclude"] == list(contract.EXCLUDED_FOLDERS)
     assert data["indexBasename"] == list(contract.INDEX_BASENAMES)
+    assert data["llmsStance"] == contract.LLMS_STANCE
     assert site_contract.check(CONTRACT_JSON) == []
 
 
