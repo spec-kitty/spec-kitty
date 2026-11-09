@@ -504,6 +504,9 @@
       "last_event_id": "01M70723NVPB2EHQ78053S40X3",
       "last_transition_at": "2026-11-09T13:13:17.243378+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: authorship+presence moved as one slice (AST-identical), facade is docstring+re-exports+__all__, 3 forward refs removed, split-shape gates added, check_patch_targets exits 0, corpus untouched. Phase 3 tip 0485b8b4ab8addd2b8a6b5a62a7f55f85418169b"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 837985,
