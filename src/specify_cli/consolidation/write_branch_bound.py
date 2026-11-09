@@ -190,13 +190,16 @@ def check_write_branch(
     :class:`~specify_cli.consolidation.git_probes.GitProbeError` (every caller refuses on it).
 
     The windows open at *classes* (:func:`classify_windows`; classified here, bound to *tip* or
-    *branch*, when ``None``): a recorded window-open SHA, else today's derivation (FR-011).
-    :func:`check_write_branch_windows` also returns the window gaps.
+    *branch*, only once tier 1 passed, when ``None``): a recorded window-open SHA, else today's
+    derivation (FR-011). :func:`check_write_branch_windows` also returns the window gaps.
+
+    Internal to the consolidation package: the claim reaches it through
+    :func:`check_write_branch_windows`, so it is deliberately left out of ``__all__``; tests call it
+    directly to judge one Mission branch without the gap report.
     """
     branch_tip = tip or branch
     approved = tuple(sorted(approved_wp_ids))
     anchor_list = list(anchors)
-    opened = classes if classes is not None else _write_branch_classes(repo_root, events, approved, branch_tip)
     tier_one = check_lane(
         repo_root,
         events=events,
@@ -213,6 +216,7 @@ def check_write_branch(
     stamps = {wp_id: stamp for wp_id, stamp in approval_stamps(events, approved).items() if stamp is not None}
     if not stamps:
         return ()
+    opened = classes if classes is not None else _write_branch_classes(repo_root, events, approved, branch_tip)
     return _window_refusals(
         repo_root,
         lane_id=lane_id,
