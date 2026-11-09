@@ -83,7 +83,7 @@ class CaptureCause(StrEnum):
 class LaneHeadReading:
     """What the injected reader observed for one work package at one transition.
 
-    Exactly one holds: ``sha`` is set; ``applicable`` is ``False`` (planning lane, work
+    Exactly one holds: ``sha`` is set (never empty); ``applicable`` is ``False`` (planning lane, work
     package not in ``lanes.json``, no ``lanes.json``); ``cause`` is set (an applicable
     reading that failed). A violation is a programming error (``ValueError``), never a
     capture failure.
@@ -96,7 +96,7 @@ class LaneHeadReading:
 
     def __post_init__(self) -> None:
         states = (self.sha is not None, not self.applicable, self.cause is not None)
-        if sum(states) != 1:
+        if sum(states) != 1 or self.sha == "":
             raise ValueError(f"LaneHeadReading needs exactly one of sha / not applicable / cause, got {self!r}")
         if len(self.detail) > _DETAIL_MAX_LENGTH:
             object.__setattr__(self, "detail", self.detail[:_DETAIL_MAX_LENGTH])
