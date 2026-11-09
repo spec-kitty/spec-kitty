@@ -86,6 +86,8 @@ class _LaneScope:
     is_bookkeeping: Callable[[str], bool]
     #: ``{lane_id: the canceled work packages' attributed commits}`` (the mixed-lane resolution's), tier-2 exempt.
     canceled_commits: Mapping[str, frozenset[str]]
+    #: The declared, pinned external dependency refs' commits (#6771, the closed world's own set), tier-2 exempt.
+    dependency_commits: frozenset[str] = frozenset()
 
 
 def _bound_events_unreadable_text(lane_id: str) -> str:
@@ -156,6 +158,7 @@ def _approved_bound_verdict(
     event_log: _ClaimEventLog,
     frozen_tips: Mapping[str, str] | None = None,
     canceled_commits: Mapping[str, frozenset[str]] | None = None,
+    dependency_commits: frozenset[str] = frozenset(),
 ) -> _BoundVerdict:
     """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
 
@@ -183,6 +186,13 @@ def _approved_bound_verdict(
     the mixed-lane and canceled-content rules stay their sole judge (operator ruling 2026-11-09). Tier 1
     does not: a canceled work package's commit after an approval stamp still refuses (#5720). ``None``
     exempts nothing.
+
+    *dependency_commits* are the commits of the operator's declared, pinned external dependency refs
+    (``--dependency-ref``, #6771; the verified ``ExternalDependencyAttribution.shas`` the closed world
+    exempts). The window check (tier 2) exempts them too, so content a lane inherited from a declared
+    ref before its first window keeps the verdict it had before windows were recorded (the lane's own
+    stamp exempted it). Tier 1 does not read them, as before; a ``single_branch`` Mission branch keeps
+    its S8 check unchanged.
     """
     write_branch = _bound_write_branch(repo_root, lanes_manifest, work_packages, excluded_canceled_wp_ids)
     if write_branch is not None:
@@ -216,6 +226,7 @@ def _approved_bound_verdict(
         stamps_by_lane=_stamps_by_lane(events, lanes, work_packages, excluded_canceled_wp_ids),
         is_bookkeeping=functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix),
         canceled_commits=canceled_commits or {},
+        dependency_commits=dependency_commits,
     )
     verdicts: list[_LaneVerdict] = []
     tips: list[tuple[str, str]] = []
@@ -261,6 +272,7 @@ def _lane_verdict(scope: _LaneScope, lane: ExecutionLane, *, branch: str, tip: s
     selected by lane id, never by SHA, so a dependent lane's stamp equal to this lane's tip stays one.
     The lane's canceled work packages' attributed commits (:func:`_canceled_window_exempt`) are exempt
     from tier 2 only: tier 1 keeps refusing a canceled work package's commit after an approval stamp (#5720).
+    The declared dependency refs' commits (``scope.dependency_commits``) are exempt from tier 2 only too.
     """
     approved = _bound_approved_wp_ids(lane, scope.work_packages, scope.excluded)
     closed_world = _closed_world_anchors(scope.lanes_manifest, lane, scope.window_base, excluded_canceled_wp_ids=scope.excluded, frozen_tips=scope.frozen_tips)
@@ -294,6 +306,7 @@ def _lane_verdict(scope: _LaneScope, lane: ExecutionLane, *, branch: str, tip: s
         is_bookkeeping=scope.is_bookkeeping,
         tip=tip,
         canceled_exempt=_canceled_window_exempt(scope, lane),
+        dependency_exempt=scope.dependency_commits,
     )
     return _LaneVerdict(tier_one=tier_one, tier_two=tier_two, gaps=gaps)
 

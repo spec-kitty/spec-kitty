@@ -272,6 +272,7 @@ def build_approved_wp_set(
         planning_prefix=planning_prefix,
         event_log=event_log,
         frozen_tips=frozen_dependency_tips,
+        dependency_commits=external_dependency.shas,
     )
     if dependency.refusal is not None:
         compound = _compound_refusal(dependency.refusal, bound_verdict, event_log)
