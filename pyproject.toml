@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "4.0.0rc8"
+version = "4.0.0rc9"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -117,7 +117,7 @@ test = [
 # the same version (guarded by tests/cross_cutting/packaging/test_companion_version_lock.py and
 # scripts/release/validate_release.py). Every host can install it: hosts without a platform wheel
 # get the binary-free fallback wheel and keep the first-run fetch.
-services = ["spec-kitty-services==4.0.0rc8"]
+services = ["spec-kitty-services==4.0.0rc9"]
 lint = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
