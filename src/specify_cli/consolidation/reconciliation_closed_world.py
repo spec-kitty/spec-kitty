@@ -27,6 +27,7 @@ from specify_cli.consolidation.git_probes import (
     resolve_commit,
     sha_reachable_from,
 )
+from specify_cli.consolidation.reconciliation_authorship import _final_authored_walk
 from specify_cli.consolidation.reconciliation_kernel import _lane_branch_for, _lane_tip_commits
 from specify_cli.consolidation.wp_attribution import stamp_of
 from specify_cli.lanes._git import branch_exists
@@ -410,11 +411,6 @@ def _verify_declared_ref(
     guards: tuple[frozenset[str], Mapping[str, str]],
 ) -> str | tuple[str, list[str], set[tuple[str, str]], set[str]]:
     """Verify ONE declared ref: the refusal text, or ``(tip, window, blobs, deletions)``."""
-    # TEMPORARY FORWARD REFERENCE (moves in WP15): `_final_authored_walk` stays in reconciliation.py until the
-    # authorship slice moves, and a module-level import here would be circular. WP15 replaces this line with a
-    # top-level import from reconciliation_authorship.
-    from specify_cli.consolidation.reconciliation import _final_authored_walk
-
     lane_heads, tip_shas = guards
     namespace = _namespace_hit(ref, namespaces)
     if namespace is not None:

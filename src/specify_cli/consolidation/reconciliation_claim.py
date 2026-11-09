@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.consolidation.git_probes import GitProbeError
+from specify_cli.consolidation.reconciliation_authorship import (
+    _collect_authored,
+    _presence_range_unreadable_refusal,
+    _presence_scope,
+)
 from specify_cli.consolidation.reconciliation_bound import (
     _approved_bound_verdict,
     _BoundVerdict,
@@ -166,13 +171,6 @@ def build_approved_wp_set(
       declaration that cannot be honoured yields a REFUSE-shaped claim, so it refuses at
       claim time (before the first mutating phase) instead of at the gate.
     """
-    # TEMPORARY FORWARD REFERENCE (moves in WP15): the authorship + presence names stay in reconciliation.py until WP15.
-    from specify_cli.consolidation.reconciliation import (
-        _collect_authored,
-        _presence_range_unreadable_refusal,
-        _presence_scope,
-    )
-
     # Imported lazily so this module stays import-light and the status facade is
     # resolved through ``specify_cli.status`` (C-002: the status facade, not a
     # direct ``spec_kitty_events`` import).

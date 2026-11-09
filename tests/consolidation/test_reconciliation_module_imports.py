@@ -1,6 +1,6 @@
 """Every module split out of ``consolidation/reconciliation.py`` imports cleanly when it is the FIRST of the family to load.
 
-The split modules look names up in each other (and, for the temporary forward references, in the facade). A
+The split modules look names up in each other, never in the facade. A
 module-level import cycle only shows when the cycle is entered from the right module, so a fresh interpreter
 loads the package once, then for each module in turn drops every ``reconciliation*`` module from ``sys.modules``,
 imports that module first and the facade second. A bogus module name is the control: the harness must report it.
@@ -29,6 +29,7 @@ SPLIT_MODULES: tuple[str, ...] = (
     "reconciliation_verifier",
     "reconciliation_canceled",
     "reconciliation_claim",
+    "reconciliation_authorship",
 )
 _BOGUS = "reconciliation_this_module_does_not_exist"
 _DRIVER = """

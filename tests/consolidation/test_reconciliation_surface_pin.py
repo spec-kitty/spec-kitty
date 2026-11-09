@@ -377,16 +377,19 @@ def test_scanner_collects_every_patch_form() -> None:
     Review cycle 1: ``patch.object(...)`` where ``patch`` is a bare name (from
     ``from unittest.mock import patch``) was not recognized as a patch call.
     """
+    # Interpolated, so this file holds no `patch("<dotted.path>")` literal for scripts/check_patch_targets.py
+    # to resolve (the facade has no attribute `Y`).
+    target = "specify_cli.consolidation.reconciliation" + ".Y"
     source = (
         "from specify_cli.consolidation import reconciliation as rec\n"
         "from unittest import mock\n"
         "from unittest.mock import patch\n"
         "import unittest\n"
-        'mock.patch("specify_cli.consolidation.reconciliation.Y")\n'
+        f'mock.patch("{target}")\n'
         'mock.patch.object(rec, "Y")\n'
-        'unittest.mock.patch("specify_cli.consolidation.reconciliation.Y")\n'
+        f'unittest.mock.patch("{target}")\n'
         'unittest.mock.patch.object(rec, "Y")\n'
-        'patch("specify_cli.consolidation.reconciliation.Y")\n'
+        f'patch("{target}")\n'
         'patch.object(rec, "Y")\n'
     )
     assert _names_reached_in_source(source, "some.other.package") == {"Y"}

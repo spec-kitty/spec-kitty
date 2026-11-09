@@ -45,6 +45,7 @@ from specify_cli.consolidation import (
     phase_claim,
     phase_gate,
     reconciliation,
+    reconciliation_authorship,
     reconciliation_bound,
     reconciliation_canceled,
     reconciliation_claim,
@@ -55,9 +56,9 @@ from specify_cli.consolidation import (
     reconciliation_verifier,
 )
 
-# The facade first, then the split modules in the order the work packages created them
-# (kernel, claim types, rendering, closed world, bound, verifier, canceled, claim); each later
-# work package appends its module here.
+# The facade first, then the nine split modules in the order the work packages created them
+# (kernel, claim types, rendering, closed world, bound, verifier, canceled, claim, authorship);
+# the split is complete, so a module added later is appended here.
 RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (
     reconciliation,
     reconciliation_kernel,
@@ -68,6 +69,7 @@ RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (
     reconciliation_verifier,
     reconciliation_canceled,
     reconciliation_claim,
+    reconciliation_authorship,
 )
 
 # The ONE explicit list of modules outside the family that bind reconciliation

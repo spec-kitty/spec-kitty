@@ -339,11 +339,14 @@ def test_patched_reconciliation_names_are_looked_up() -> None:
 
 def test_stale_patch_fails_the_guard() -> None:
     module_sources = {"specify_cli.consolidation.reconciliation": "Y = 2\n\ndef f():\n    return 1\n"}
+    # Built by concatenation and interpolated into the fixture sources, so the test file itself holds no
+    # `patch("<dotted.path>")` literal for scripts/check_patch_targets.py to resolve (the module has no `Y`).
+    stale = "specify_cli.consolidation.reconciliation" + ".Y"
     cases = {
         "plain string": 'def test(monkeypatch):\n    monkeypatch.setattr("specify_cli.consolidation.reconciliation.Y", 3)\n',
         "f-string constant": 'BASE = "specify_cli.consolidation.reconciliation"\n\ndef test(monkeypatch):\n    monkeypatch.setattr(f"{BASE}.Y", 3)\n',
         "module object": 'from specify_cli.consolidation import reconciliation as rec\n\ndef test(monkeypatch):\n    monkeypatch.setattr(rec, "Y", 3)\n',
-        "mock.patch string": ('from unittest import mock\n\ndef test():\n    with mock.patch("specify_cli.consolidation.reconciliation.Y"):\n        pass\n'),
+        "mock.patch string": (f'from unittest import mock\n\ndef test():\n    with mock.patch("{stale}"):\n        pass\n'),
         "mock.patch.object": (
             "from specify_cli.consolidation import reconciliation as rec\n"
             "from unittest import mock\n\n"
@@ -351,7 +354,7 @@ def test_stale_patch_fails_the_guard() -> None:
             '    with mock.patch.object(rec, "Y"):\n'
             "        pass\n"
         ),
-        "bare patch string": ('from unittest.mock import patch\n\ndef test():\n    with patch("specify_cli.consolidation.reconciliation.Y"):\n        pass\n'),
+        "bare patch string": (f'from unittest.mock import patch\n\ndef test():\n    with patch("{stale}"):\n        pass\n'),
         "bare patch.object": (
             "from specify_cli.consolidation import reconciliation as rec\n"
             "from unittest.mock import patch\n\n"

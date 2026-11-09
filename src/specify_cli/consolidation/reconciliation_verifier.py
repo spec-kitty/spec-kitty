@@ -28,6 +28,7 @@ from specify_cli.consolidation.git_probes import (
     sha_reachable_from,
     three_way_merge_blob,
 )
+from specify_cli.consolidation.reconciliation_authorship import unmet_approved_content
 from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet, CanceledDependencyContent, MissingApprovedContent
 from specify_cli.consolidation.reconciliation_kernel import _is_bookkeeping
 from specify_cli.consolidation.reconciliation_rendering import (
@@ -480,10 +481,6 @@ class MergeOutcomeVerifier:
         a failing FAIL rolls back through the single rollback authority in the
         executor, exactly like every other divergence.
         """
-        # TEMPORARY FORWARD REFERENCE (moves in WP15): `unmet_approved_content` stays in reconciliation.py until the
-        # authorship + presence slice moves. WP15 replaces this line with a top-level import from reconciliation_authorship.
-        from specify_cli.consolidation.reconciliation import unmet_approved_content
-
         if not claim.enforce_closed_world or not claim.approved_lane_content:
             return [], None
         window_base = claim.excluded_window_base
