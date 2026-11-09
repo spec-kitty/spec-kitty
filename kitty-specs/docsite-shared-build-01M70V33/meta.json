@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "The only interface is a GitHub Actions workflow_call contract, specified in data-model.md and pinned by tests/ci/test_docs_site_job.py; there is no API or schema to publish.",
   "create_return_branch": "issue-6937-docs-site-shared-build",
   "created_at": "2026-11-09T19:03:22.806471+00:00",
   "flattened": false,
@@ -15,8 +17,14 @@
   "slug": "docsite-shared-build-01M70V33",
   "target_branch": "issue-6937-docs-site-shared-build",
   "topology": "single_branch",
-  "topology_settled": false,
-  "topology_source": "default",
-  "contracts": "none",
-  "contracts_rationale": "The only interface is a GitHub Actions workflow_call contract, specified in data-model.md and pinned by tests/ci/test_docs_site_job.py; there is no API or schema to publish."
+  "topology_decision": {
+    "code_lane_count": 1,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 1
+  },
+  "topology_settled": true,
+  "topology_source": "default"
 }
