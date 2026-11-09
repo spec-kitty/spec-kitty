@@ -717,6 +717,31 @@ def build_two_wp_lane(tmp_path: Path, *, mid8: str = "01M6Y2W0", stray_between: 
     return _from_coord(mission, "coord", subject_wp="WP02", window_wps=("WP01", "WP02"))
 
 
+def build_dependency_ref_before_window(tmp_path: Path, *, mid8: str = "01M6Y2R1") -> ShapeMission:
+    """M9: an external branch merged into ``lane-a`` BEFORE WP01's window opens, then WP01 claimed, worked and approved.
+
+    The lane is allocated, :data:`DEP_BRANCH` (one commit off the root, never Mission work) is merged
+    into it, and only then does WP01 move to ``claimed`` / ``in_progress``, so the status shell records
+    an ``open_sha`` that already reaches the dependency's commit: that commit lies before WP01's window.
+    """
+    mission, manifest = _bootstrap_one_lane_coord(tmp_path, mid8=mid8, wps=("WP01",))
+    slug = mission.slug
+    tree, branch = allocate_lane_worktree(mission.repo, slug, "WP01", manifest)
+    root_commit = _git(mission.repo, "rev-list", "--max-parents=0", mission.target_branch)
+    _git(mission.repo, "branch", DEP_BRANCH, root_commit)
+    dep_wt = tmp_path / "dep-wt"
+    _git(mission.repo, "worktree", "add", "-q", str(dep_wt), DEP_BRANCH)
+    _commit_in(dep_wt, "src/dep/mod0.py", "DEP = 0\n", "feat(dep): mod0")
+    _git(mission.repo, "worktree", "remove", str(dep_wt))
+    _git(tree, "merge", "-q", "--no-ff", "--no-edit", DEP_BRANCH)
+    for lane in ("planned", "claimed", "in_progress"):
+        transition(mission, "WP01", lane, actor=ACTOR)
+    _commit_in(tree, WP01_PATH, "def wp01() -> int:\n    return 1\n", f"feat({slug}): WP01 work")
+    _approve(mission, "WP01", reference="review-WP01")
+    mission.lane_branches.update({"WP01": branch})
+    return _from_coord(mission, "coord", subject_wp="WP01", window_wps=("WP01",))
+
+
 def build_dependency_chain_with_stray(tmp_path: Path, *, mid8: str = "01M6Y2D5") -> ShapeMission:
     """The FR-007 exception: a stray commit on lane A after WP01's approval, merged into lane B, then WP02 approved."""
     from tests.terminus.canceled_dependency_support import _bootstrap_coord_mission
@@ -926,6 +951,7 @@ TEMPLATES: dict[str, tuple[str | None, TemplateBuilder]] = {
     "fully_canceled_dependency_reachable": (None, lambda d, _b: _build_fully_canceled_dependency_reachable(d)),
     "mixed_lane_shell": (None, lambda d, _b: build_mixed_lane_shell_shape(d, mid8="01M6Y2C1")),
     "mixed_lane_shell_superseded": (None, lambda d, _b: build_mixed_lane_shell_shape(d, mid8="01M6Y2C2", supersede=True)),
+    "dependency_ref_before_window": (None, lambda d, _b: build_dependency_ref_before_window(d)),
 }
 
 
@@ -1357,6 +1383,8 @@ NAMED_KEYS = {
     "r09_post_approval_forecast": "forecast|single_lane|post_approval_commit",
     "x_canceled_commit_before_window": cell_key("fresh", "mixed_lane_canceled_wp", "present", "recorded", "canceled_commit_before_window"),
     "x_canceled_commit_before_window_superseded": cell_key("fresh", "mixed_lane_canceled_wp", "present", "recorded", "canceled_commit_before_window_superseded"),
+    # Pre-PR fold M9: a declared, pinned external ref merged into the lane before its first window (#6771 x FR-007).
+    "x_dependency_ref_before_window": cell_key("fresh", "single_lane", "present", "recorded", "dependency_ref_merged_before_window"),
 }
 
 
@@ -1402,6 +1430,11 @@ def named_cells() -> list[Cell]:
             k["x_canceled_commit_before_window_superseded"],
             ("mixed_lane_shell_superseded",),
             _windowed("mixed_lane_shell_superseded", "fresh", _recorded_by_the_shell),
+        ),
+        Cell(
+            k["x_dependency_ref_before_window"],
+            ("dependency_ref_before_window",),
+            _windowed("dependency_ref_before_window", "fresh", _recorded_by_the_shell, extra=("--dependency-ref", DEP_BRANCH), pin_text=True),
         ),
     ]
 
