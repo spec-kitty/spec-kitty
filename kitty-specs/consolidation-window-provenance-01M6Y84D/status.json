@@ -1,7 +1,7 @@
 {
-  "event_count": 96,
-  "last_event_id": "01M6ZRFKXZJYXSPBNCVD4VBCKX",
-  "materialized_at": "2026-11-09T08:58:31.231995+00:00",
+  "event_count": 98,
+  "last_event_id": "01M6ZRKR8NSWGBT829ZTY26Z3B",
+  "materialized_at": "2026-11-09T09:00:46.283440+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 10
+    "planned": 9
   },
   "work_packages": {
     "WP01": {
@@ -396,11 +396,20 @@
       }
     },
     "WP12": {
-      "actor": "finalize-tasks",
+      "actor": "opencode",
+      "agent": "opencode:glm-5.3:python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6YHD1FVZYVNXFAXAH1S5KYW",
-      "last_transition_at": "2026-11-08T21:35:32.347956+00:00"
+      "implementer_of_record": "opencode:glm-5.3:python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M6ZRKR8NSWGBT829ZTY26Z3B",
+      "last_transition_at": "2026-11-09T09:00:46.283440+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1094549,
+      "shell_pid_created_at": "1794214827.94"
     },
     "WP13": {
       "actor": "finalize-tasks",
