@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
 
@@ -30,10 +29,10 @@ from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
 from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
 from specify_cli.consolidation.reconciliation import (
+    ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     VerifyResult,
     VerifyStatus,
-    _lane_branch_for,
     claim_integrity_refusal,
 )
 from specify_cli.lanes.persistence import (
@@ -42,6 +41,7 @@ from specify_cli.lanes.persistence import (
     require_lanes_json,
 )
 from specify_cli.lanes.consolidation import preview_mission_target_integration
+from specify_cli.lanes.compute import lane_created_branch
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.consolidation._constants import (
     DEPENDENCY_REF_SET_CHANGED,
@@ -69,9 +69,6 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
     run_review_artifact_consistency_preflight,
 )
-
-if TYPE_CHECKING:
-    from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
 
 
 def _effective_delete_branch(delete_branch: bool, lanes_manifest: LanesManifest) -> bool:
@@ -470,7 +467,7 @@ def _refuse_unattributable_in_forecast(
         # landing folds into it, and the target (whose own window commits are already there).
         landing_refs = (
             lanes_manifest.mission_branch,
-            *(_lane_branch_for(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes),
+            *(lane_created_branch(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes),
             resolved_target_branch,
         )
         result = MergeOutcomeVerifier(main_repo).forecast_content_verdict(landing_refs, claim, squashed_tree=squashed_tree)
