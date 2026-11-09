@@ -205,7 +205,7 @@ def is_immutable(rel_under_docs: str) -> bool:
 # ---------------------------------------------------------------------------
 
 #: The doc-kitty commit the rules below are copied from; ``site/package.json`` pins the same one.
-DOCKITTY_PIN: Final[str] = "45e455b154b3ea97e9e1914a9962bf0aea55d043"
+DOCKITTY_PIN: Final[str] = "5acb83c099cde169e5e24d2f42d4012cb356a3ab"
 
 #: ``CANONICAL_REQUIRED``: an absent (or empty) member is an error.
 REQUIRED_FIELDS: Final[tuple[str, ...]] = ("title", "description", "doc_status", "updated", "kind")
