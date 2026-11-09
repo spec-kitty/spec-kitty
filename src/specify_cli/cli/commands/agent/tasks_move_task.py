@@ -622,6 +622,17 @@ def _mt_refuse_protected_status_commit(st: _MoveTaskState) -> None:
     raise typer.Exit(1)
 
 
+def _mt_require_post30_layout(st: _MoveTaskState, feature_dir: Path) -> None:
+    """Validate: hard-reject a pre-3.0 lane-directory layout before any WP mutation (renders the error, exits 1)."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        check_pre30_layout(feature_dir)
+    except Pre30LayoutError as e:
+        _tasks._output_error(st.json_output, str(e))
+        raise typer.Exit(1) from None
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -661,11 +672,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # FR-010 closes.
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=st.owned)
     st.mt_feature_dir = ports.coord.feature_write_dir(handle)
-    try:
-        check_pre30_layout(st.mt_feature_dir)
-    except Pre30LayoutError as e:
-        _tasks._output_error(st.json_output, str(e))
-        raise typer.Exit(1) from None
+    _mt_require_post30_layout(st, st.mt_feature_dir)
     st.wp = _tasks.locate_work_package(
         repo_root,
         st.mission_slug,
