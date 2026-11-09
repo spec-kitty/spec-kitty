@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6932": {
+      "evidence_ref": "Context only: later slice adds its gates to the shared workflow; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Publication rules",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6936": {
+      "evidence_ref": "Context only: motivates the reusable-workflow shape (job-level services:); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Diagrams",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6937": {
+      "evidence_ref": "Shared build definition delivered (.github/workflows/docs-site-build.yml, commit 9eb30bbdc); the required-gate half landed in #7417. The deploy calling it, which completes D-11, is Follow-up: #6938. The PR says Refs #6937, not Closes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Make the docs-site gate required",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#6938": {
+      "evidence_ref": "Context only: the cutover will call the shared workflow with pages-artifact: true; out of scope here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Docsite cutover",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
