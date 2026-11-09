@@ -19,11 +19,11 @@ related:
 
 # Contributing to Spec Kitty
 
-Hi there! We're thrilled that you'd like to contribute to Spec Kitty. Contributions to this project are [released](https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license) to the public under the [project's open source license](../../LICENSE).
+Hi there! We're thrilled that you'd like to contribute to Spec Kitty. Contributions to this project are [released](https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license) to the public under the [project's open source license](https://github.com/spec-kitty/spec-kitty/blob/main/LICENSE).
 
 Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). Please preserve upstream attribution when referencing historical work or documentation.
 
-Please note that this project is released with a [Contributor Code of Conduct](../../CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+Please note that this project is released with a [Contributor Code of Conduct](https://github.com/spec-kitty/spec-kitty/blob/main/CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
 ## Ways to contribute (no code required)
 
@@ -91,7 +91,7 @@ change affects slash commands, migrations, or templates, make sure it applies to
 every configured agent.
 
 The directory table lives in the "Supported AI Agents" section of
-[`AGENTS.md`](../../AGENTS.md); the code source of truth is `AGENT_DIRS` /
+[`AGENTS.md`](https://github.com/spec-kitty/spec-kitty/blob/main/AGENTS.md); the code source of truth is `AGENT_DIRS` /
 `AGENT_DIR_TO_KEY` in `src/specify_cli/agent_utils/directories.py`. Migrations
 should call `get_agent_dirs_for_project()` so they only touch agents configured
 in `.kittify/config.yaml`.
@@ -103,7 +103,7 @@ These are one time installations required to be able to test your changes locall
 1. Install [Python 3.11+](https://www.python.org/downloads/)
 1. Install [uv](https://docs.astral.sh/uv/) for package management
 1. Install [Git](https://git-scm.com/downloads)
-1. Have an [AI coding agent available](../../README.md#which-ai-coding-agents-does-spec-kitty-support)
+1. Have an [AI coding agent available](https://github.com/spec-kitty/spec-kitty/blob/main/README.md#which-ai-coding-agents-does-spec-kitty-support)
 
 ### Global CLI Install on macOS
 
@@ -201,7 +201,7 @@ Do not run the whole suite (`pytest` with no path, `pytest tests/`, or
 `make test-full`) for an ordinary change — CI owns the full run. Run
 `make test-fast`, the tests of every module your diff touches, and the specific
 architectural gate files your change implicates. The blast-radius rule is spelled
-out under "Test policy" in [`AGENTS.md`](../../AGENTS.md); how the parallel run
+out under "Test policy" in [`AGENTS.md`](https://github.com/spec-kitty/spec-kitty/blob/main/AGENTS.md); how the parallel run
 works is in [Running the test suite in parallel](testing/testing-parallel.md).
 
 ### Testing Unreleased Main or a Pull Request
@@ -419,7 +419,7 @@ When working on spec-kitty:
 
 ## Release Process
 
-The repository-root [Release Checklist](../../RELEASE_CHECKLIST.md) is the canonical release runbook. The summary below is intentionally subordinate to that checklist and must remain consistent with branch protection.
+The repository-root [Release Checklist](https://github.com/spec-kitty/spec-kitty/blob/main/RELEASE_CHECKLIST.md) is the canonical release runbook. The summary below is intentionally subordinate to that checklist and must remain consistent with branch protection.
 
 ### Branch Strategy
 
@@ -437,7 +437,7 @@ its last release was 3.2.7.
 ### Release candidates (X.Y.ZrcN)
 
 A release candidate follows the same steps as a patch release, with three
-differences. The [Release Checklist](../../RELEASE_CHECKLIST.md) has the full
+differences. The [Release Checklist](https://github.com/spec-kitty/spec-kitty/blob/main/RELEASE_CHECKLIST.md) has the full
 detail, including the release-candidate hygiene runs that must be recorded
 before the tag.
 
@@ -558,7 +558,7 @@ For larger releases with multiple changes:
 
 9. **Open the next development cycle**
    - Right after the tag, open a pull request that moves `main` to the next development or candidate version: `pyproject.toml`, the project entry in `uv.lock`, `.kittify/metadata.yaml`, and a new `## [Unreleased] - <next version>` heading in `CHANGELOG.md`.
-   - Until it merges, branch-mode release validation on `main` fails with "Version does not advance beyond latest tag". The canonical step is step 8 of the [Release Checklist](../../RELEASE_CHECKLIST.md).
+   - Until it merges, branch-mode release validation on `main` fails with "Version does not advance beyond latest tag". The canonical step is step 8 of the [Release Checklist](https://github.com/spec-kitty/spec-kitty/blob/main/RELEASE_CHECKLIST.md).
 
 10. **Clean up**
     ```bash
@@ -588,7 +588,7 @@ Before tagging a release, ensure:
 - [ ] You are on the `main` branch
 - [ ] Version number follows semantic versioning
 - [ ] Every `docs/changelog/unreleased/` fragment is assembled into CHANGELOG.md under the enforced category headings (see [Changelog update and style](how-to/review-gates.md#changelog-update-and-style))
-- [ ] The release-candidate hygiene runs in the [Release Checklist](../../RELEASE_CHECKLIST.md) are recorded
+- [ ] The release-candidate hygiene runs in the [Release Checklist](https://github.com/spec-kitty/spec-kitty/blob/main/RELEASE_CHECKLIST.md) are recorded
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
 
 After tagging, open the next development cycle on `main` (Full Release step 9).

@@ -23,8 +23,8 @@ mutation. It is the charter-completion of #2093 / #2400 and the prerequisite for
 the YAML-authoritative WP-prompt schema (proposal Part 4 **B3**).
 
 The authoritative scope, corrected writer/reader inventory, and the five pinned
-decisions live in the ADR and in
-[`docs/plans/investigations/wp-runtime-state-eviction-scope.md`](../plans/investigations/wp-runtime-state-eviction-scope.md)
+decisions live in the ADR and in the working note
+`docs/plans/investigations/wp-runtime-state-eviction-scope.md` (unpublished)
 §"Squad review corrections (2026-07-16)". This document is the buildable design
 against those decisions.
 

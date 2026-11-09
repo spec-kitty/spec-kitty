@@ -15,4 +15,4 @@ related:
 
 The hosted-sync flow this page described (consent, store migration, admission, auth, history disclosure and the 3-gate drain) was removed from the open-core CLI in [#6164](https://github.com/spec-kitty/spec-kitty/issues/6164). The code is preserved in the `spec-kitty/event-router` repository.
 
-See [Team Kitty](../context/team-kitty.md) for what was removed and what stays.
+See [Team Kitty](../../context/team-kitty.md) for what was removed and what stays.

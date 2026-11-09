@@ -16,7 +16,7 @@ related:
 # Quality & Tech-Debt Standing Orders
 
 > The binding text is the charter's
-> [Quality & Tech-Debt Standing Orders](../../../.kittify/charter/charter.md)
+> [Quality & Tech-Debt Standing Orders](https://github.com/spec-kitty/spec-kitty/blob/main/.kittify/charter/charter.md)
 > section. This page is the explained companion; if the two disagree, the
 > charter wins.
 
@@ -152,7 +152,7 @@ and make recurring tool/process gaps visible instead of re-discovered.
   mission-diff-scoped assertion to the main branch.
 - **Post-consolidation arch-gate adjudication.** On the consolidated branch,
   before opening the PR, run the specific `tests/architectural/` gate files the
-  change implicates — not the whole directory ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml); CI's cross-cutting lane
+  change implicates — not the whole directory ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml); CI's cross-cutting lane
   runs the full sweep). Verify any "pre-existing" failure via a **cross-base
   diff** (the lane base is not the mission base).
 - **Keep the new code clean.** Lint/type checks pass on new and boy-scout-touched

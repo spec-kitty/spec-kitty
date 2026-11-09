@@ -148,7 +148,7 @@ git rebase upstream/main
 ```
 
 A PR adds its changelog entry as a fragment in `docs/changelog/unreleased/`
-(`<id>.<section>.md`, see [`docs/changelog/unreleased/README.md`](../../changelog/unreleased/README.md)),
+(`<id>.<section>.md`, see [`docs/changelog/unreleased/README.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/changelog/unreleased/README.md)),
 so the changelog no longer conflicts on rebase. If an older PR still edits
 `docs/changelog/CHANGELOG.md` and conflicts there, move its entry into a fragment
 instead of resolving the conflict by keeping both sides; keeping both sides is how
@@ -1026,7 +1026,7 @@ been fixed, the end-state is stated instead of the trap.
 
 Spec Kitty PRs use a fixed body shape; an ad-hoc body (Summary/Changes/Why/…) draws a
 squad **MAJOR** and blocks merge even when the diff is perfect. The shape is the one in
-[`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md); start from
+[`.github/PULL_REQUEST_TEMPLATE.md`](https://github.com/spec-kitty/spec-kitty/blob/main/.github/PULL_REQUEST_TEMPLATE.md); start from
 that template. Exactly five sections, in order:
 
 - `## Issue` — must carry a `closes #<n>` link. If no tracking issue exists, **file/claim

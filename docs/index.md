@@ -17,9 +17,9 @@ related:
   <h1 id="sk-docs-title">Spec Kitty documentation</h1>
   <p class="sk-docs-lead">Spec Kitty is for developers and teams who use AI coding agents (Claude Code, Cursor, Gemini CLI, and others) and want those agents to build the right thing, in the right order, without losing the plot halfway through. It gives your agent a clear spec, a plan, and a checklist to work from — instead of a loose prompt and a hope.</p>
   <nav class="sk-docs-actions" aria-label="Primary documentation paths">
-    <a class="sk-btn sk-btn-primary" href="guides/tutorials/getting-started.md">Get started</a>
-    <a class="sk-btn" href="migrations/index.md">Upgrade a project</a>
-    <a class="sk-btn" href="api/index.md">Open the API reference</a>
+    <a class="sk-btn sk-btn-primary" href="guides/tutorials/getting-started">Get started</a>
+    <a class="sk-btn" href="migrations">Upgrade a project</a>
+    <a class="sk-btn" href="api">Open the API reference</a>
   </nav>
 </section>
 
@@ -39,87 +39,87 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 ## Browse by topic
 
 <div class="sk-card-grid">
-  <a class="sk-doc-card" href="context/index.md">
+  <a class="sk-doc-card" href="context">
     <span class="sk-card-kicker">Context</span>
     <strong>Context</strong>
     <span>Glossary narrative, audiences, and the Charter-era governance model.</span>
   </a>
-  <a class="sk-doc-card" href="context/index.md">
+  <a class="sk-doc-card" href="context">
     <span class="sk-card-kicker">Core Concepts</span>
     <strong>Core Concepts</strong>
     <span>Context, terminology, and the charter that governs your agent.</span>
   </a>
-  <a class="sk-doc-card" href="architecture/doctrine-kinds.md">
+  <a class="sk-doc-card" href="architecture/doctrine-kinds">
     <span class="sk-card-kicker">Doctrine</span>
     <strong>Doctrine</strong>
     <span>The layered artifacts — directives, tactics, profiles — that shape agent behavior.</span>
   </a>
-  <a class="sk-doc-card" href="architecture/index.md">
+  <a class="sk-doc-card" href="architecture">
     <span class="sk-card-kicker">Architecture</span>
     <strong>Architecture</strong>
     <span>Unified, unversioned living design for the system.</span>
   </a>
-  <a class="sk-doc-card" href="adr/index.md">
+  <a class="sk-doc-card" href="adr">
     <span class="sk-card-kicker">ADRs</span>
     <strong>Decision records</strong>
     <span>Architecture decision records by era (1.x, 2.x, 3.x).</span>
   </a>
-  <a class="sk-doc-card" href="plans/index.md">
+  <a class="sk-doc-card" href="plans">
     <span class="sk-card-kicker">Plans</span>
     <strong>Plans</strong>
     <span>User journeys, investigations, and traces (distil-then-retire).</span>
   </a>
-  <a class="sk-doc-card" href="api/index.md">
+  <a class="sk-doc-card" href="api">
     <span class="sk-card-kicker">API</span>
     <strong>API and CLI reference</strong>
     <span>Exact CLI, file, schema, and environment behavior.</span>
   </a>
-  <a class="sk-doc-card" href="api/index.md">
+  <a class="sk-doc-card" href="api">
     <span class="sk-card-kicker">Reference</span>
     <strong>Reference</strong>
     <span>API, configuration, integrations, and security — exact behavior, no narrative.</span>
   </a>
-  <a class="sk-doc-card" href="configuration/index.md">
+  <a class="sk-doc-card" href="configuration">
     <span class="sk-card-kicker">Configuration</span>
     <strong>Configuration</strong>
     <span>Configuration files, flags, and environment variables.</span>
   </a>
-  <a class="sk-doc-card" href="integrations/index.md">
+  <a class="sk-doc-card" href="integrations">
     <span class="sk-card-kicker">Integrations</span>
     <strong>Integrations</strong>
     <span>AI harness and external-system integration.</span>
   </a>
-  <a class="sk-doc-card" href="security/index.md">
+  <a class="sk-doc-card" href="security">
     <span class="sk-card-kicker">Security</span>
     <strong>Security</strong>
     <span>Security posture, credentials, and secrets handling.</span>
   </a>
-  <a class="sk-doc-card" href="guides/index.md">
+  <a class="sk-doc-card" href="guides">
     <span class="sk-card-kicker">Guides</span>
     <strong>Guides</strong>
     <span>Task-oriented guides and guided learning workflows.</span>
   </a>
-  <a class="sk-doc-card" href="operations/index.md">
+  <a class="sk-doc-card" href="operations">
     <span class="sk-card-kicker">Operations</span>
     <strong>Operations</strong>
     <span>Operational and developer-workflow guides, including recovery.</span>
   </a>
-  <a class="sk-doc-card" href="migrations/index.md">
+  <a class="sk-doc-card" href="migrations">
     <span class="sk-card-kicker">Migrations</span>
     <strong>Migrations</strong>
     <span>Version migrations, upgrade paths, and shim rules.</span>
   </a>
-  <a class="sk-doc-card" href="changelog/index.md">
+  <a class="sk-doc-card" href="changelog">
     <span class="sk-card-kicker">Changelog</span>
     <strong>Changelog</strong>
     <span>Release history.</span>
   </a>
-  <a class="sk-doc-card" href="changelog/release-goals.md">
+  <a class="sk-doc-card" href="changelog/release-goals">
     <span class="sk-card-kicker">Release Goals</span>
     <strong>Release goals</strong>
     <span>Declared intent of each release line.</span>
   </a>
-  <a class="sk-doc-card" href="changelog/index.md">
+  <a class="sk-doc-card" href="changelog">
     <span class="sk-card-kicker">Project Updates</span>
     <strong>Project Updates</strong>
     <span>Changelog, release goals, and mission run history.</span>

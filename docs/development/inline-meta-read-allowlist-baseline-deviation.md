@@ -24,7 +24,7 @@ related:
 ## Summary
 
 `#3240` asks whether the inline-meta-read allow-list should be registered in
-[`tests/architectural/_baselines.yaml`](../../tests/architectural/_baselines.yaml)
+[`tests/architectural/_baselines.yaml`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/architectural/_baselines.yaml)
 under its §(a) count-baseline schema, the way other `tests/architectural/*`
 gated allow-lists are.
 

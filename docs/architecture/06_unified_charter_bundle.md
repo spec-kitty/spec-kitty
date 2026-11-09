@@ -13,9 +13,9 @@ audience:
 **Status**: v2.0.0 (introduced by mission `unified-charter-bundle-chokepoint-01KP5Q2G`, WP01,
 as v1.0.0; inverted to the single-file model by mission
 `consolidate-charter-bundle-01KXSYB9`, IC-02).
-**Canonical manifest module**: [`src/charter/bundle.py`](../../src/charter/bundle.py)
-**v2.0.0 contracts**: [`charter-yaml-schema.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md), [`manifest-v2.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md)
-**v1.0.0 JSON Schema (archived, superseded)**: [`kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml)
+**Canonical manifest module**: [`src/charter/bundle.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/bundle.py)
+**v2.0.0 contracts**: [`charter-yaml-schema.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md), [`manifest-v2.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md)
+**v1.0.0 JSON Schema (archived, superseded)**: [`kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml)
 
 ## Purpose
 
@@ -69,9 +69,9 @@ made that distinction explicit) and holds exactly `[charter.yaml]`.
 bundle requires a project's `.gitignore` to exclude.
 
 Full field-level guarantees live in the contracts:
-[`charter-yaml-schema.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md)
+[`charter-yaml-schema.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md)
 (the `charter.yaml` shape) and
-[`manifest-v2.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md)
+[`manifest-v2.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md)
 (the manifest diff from v1.0.0).
 
 ### Out of manifest scope
@@ -81,7 +81,7 @@ by the manifest. They are produced by separate pipelines with their own
 lifecycle and ownership:
 
 - **`.kittify/charter/context-state.json`** — runtime state written by
-  [`src/charter/activation/context.py`](../../src/charter/activation/context.py) inside
+  [`src/charter/activation/context.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/activation/context.py) inside
   `build_charter_context()`. This is lazy, per-invocation runtime
   state; it is not part of any reproducibility contract and is
   intentionally absent from the manifest.
@@ -117,7 +117,7 @@ invariant is unchanged from v1.0.0 and MUST NOT be relaxed; keeping
 All readers resolve the canonical project root through a single helper —
 `charter.resolution.resolve_canonical_repo_root()` — which correctly maps a
 worktree path back to its main-checkout location. See
-[`contracts/canonical-root-resolver.contract.md`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/canonical-root-resolver.contract.md)
+[`contracts/canonical-root-resolver.contract.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/canonical-root-resolver.contract.md)
 for the full contract (unchanged by the v2.0.0 inversion).
 
 ## Config pointer resolution
@@ -236,10 +236,10 @@ runs only in the full architectural battery, so a per-WP subset run will not sur
 
 ## Related contracts
 
-- [`charter-yaml-schema.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md) — the `charter.yaml` structured shape (v2.0.0).
-- [`manifest-v2.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md) — the `CharterBundleManifest` v1.0.0 → v2.0.0 diff.
-- [`migration-contract.md`](../../kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/migration-contract.md) — the fold migration that retires the legacy quartet.
-- [`bundle-manifest.schema.yaml`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml) — archived v1.0.0 JSON Schema, superseded by the contracts above.
-- [`bundle-validate-cli.contract.md`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-validate-cli.contract.md) — CLI contract for `spec-kitty charter bundle validate`.
-- [`canonical-root-resolver.contract.md`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/canonical-root-resolver.contract.md) — canonical-root resolution (unchanged by the inversion).
-- [`chokepoint.contract.md`](../../kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/chokepoint.contract.md) — reader chokepoint contract.
+- [`charter-yaml-schema.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/charter-yaml-schema.md) — the `charter.yaml` structured shape (v2.0.0).
+- [`manifest-v2.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/manifest-v2.md) — the `CharterBundleManifest` v1.0.0 → v2.0.0 diff.
+- [`migration-contract.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/migration-contract.md) — the fold migration that retires the legacy quartet.
+- [`bundle-manifest.schema.yaml`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml) — archived v1.0.0 JSON Schema, superseded by the contracts above.
+- [`bundle-validate-cli.contract.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-validate-cli.contract.md) — CLI contract for `spec-kitty charter bundle validate`.
+- [`canonical-root-resolver.contract.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/canonical-root-resolver.contract.md) — canonical-root resolution (unchanged by the inversion).
+- [`chokepoint.contract.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/chokepoint.contract.md) — reader chokepoint contract.

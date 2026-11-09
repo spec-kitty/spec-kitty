@@ -1,0 +1,1097 @@
+{
+  "$comment": "Priced debt (Standing Order #5): broken links inside immutable history bodies; burn-down tracked in #7489. Read by scripts/docs/site_link_gates.py (gates check-links, built-links) and tests/docs/test_relative_link_fixer.py (gate relative-links). Every source must be immutable (_dockitty_contract.is_immutable); fix links in editable pages instead of listing them. Not a ratchet.",
+  "entries": [
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/architectural/test_events_tracker_public_imports.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/architectural/test_pyproject_shape.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/architectural/test_shared_package_boundary.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/contract/spec_kitty_events_consumer/",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/contract/spec_kitty_tracker_consumer/",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/contract/test_packaging_no_vendored_events.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-04-25-1-shared-package-boundary.md",
+      "target": "../../../tests/integration/test_clean_install_next.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md",
+      "target": "../../../src/specify_cli/consolidation/preflight.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md",
+      "target": "../../../src/specify_cli/consolidation/push_preflight.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md",
+      "target": "../../../tests/consolidation/test_push_preflight.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-06-1-plan-concerns-to-work-package-traceability.md",
+      "target": "../../../src/specify_cli/core/wps_manifest.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-07-1-execution-state-canonical-surface.md",
+      "target": "../../../docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-22-1-mission-topology-ssot.md",
+      "target": "../../../src/mission_runtime/context.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-22-1-mission-topology-ssot.md",
+      "target": "../../../src/mission_runtime/resolution.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-22-1-mission-topology-ssot.md",
+      "target": "../../../src/runtime/next/runtime_bridge.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "target": "../../../src/mission_runtime/artifacts.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "target": "../../../src/mission_runtime/resolution.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "target": "../../../src/specify_cli/cli/commands/agent/mission.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md",
+      "target": "../../../src/specify_cli/coordination/commit_router.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "target": "../../../src/specify_cli/core/git_ops.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "target": "../../../src/specify_cli/core/paths.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "target": "../../../src/specify_cli/missions/_read_path_resolver.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md",
+      "target": "../../../tests/architectural/_gate_read_callshape.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+      "target": "../../../docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+      "target": "../../../kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/coord-authority-gate.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+      "target": "../../../tests/architectural/test_protection_resolver_call_sites.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../pyproject.toml",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../tests/architectural/conftest.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../tests/architectural/test_layer_rules.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../tests/architectural/test_pyproject_shape.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/03-target-structure-mapping.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/index.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36NQBY670Q52B7C4SX2KH.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36QG4ZH8J79J9G1Y06FCD.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36SFC7XVDVA9QQTN1NAK8.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../operations/sync-daemon-orphan-cleanup.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+      "target": "../../../src/specify_cli/upgrade/migrations/m_3_2_3_encoding_provenance_gitignore_backfill.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+      "target": "../../../src/specify_cli/upgrade/migrations/m_3_2_4_runtime_dirs_gitignore_backfill.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+      "target": "../../../src/specify_cli/upgrade/migrations/m_3_2_5_agents_skills_gitignore_backfill.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+      "target": "../../../tests/specify_cli/test_gitignore_contract.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md",
+      "target": "../../../tests/specify_cli/upgrade/migrations/test_m_3_2_5_agents_skills_gitignore.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-08-1-mission-resolver-port.md",
+      "target": "../../../kitty-specs/mission-resolver-port-01KX1C05/contracts/mission-resolver.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-08-1-mission-resolver-port.md",
+      "target": "../../../tests/architectural/test_mission_resolver_walker_gate.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-08-1-mission-resolver-port.md",
+      "target": "../../../tests/architectural/test_protection_resolver_call_sites.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../architecture/wp-runtime-state-eviction.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-op-schema-proposal.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-op-schema-related-tickets.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-runtime-state-eviction-scope.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-21-2-glossary-first-order-doctrine-artefact.md",
+      "target": "../../plans/glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md",
+      "target": "../../plans/doctrine/foundational-values-and-creed.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md",
+      "target": "../../plans/doctrine/manifesto-program-delivery-sequence.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md",
+      "target": "../../../kitty-specs/doctrine-delivery-reachability-01KYMXD6/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md",
+      "target": "../../../kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md",
+      "target": "../../../src/specify_cli/cli/commands/agent/mission_finalize.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md",
+      "target": "../../../src/specify_cli/lanes/auto_rebase.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md",
+      "target": "../../../src/specify_cli/lanes/models.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md",
+      "target": "../../../src/specify_cli/lanes/worktree_allocator.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md",
+      "target": "../../../src/mission_runtime/artifacts.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md",
+      "target": "../../../src/mission_runtime/resolution.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md",
+      "target": "../../../src/specify_cli/coordination/write_seam.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md",
+      "target": "../../../src/specify_cli/core/git_ops.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../pyproject.toml",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../src/kernel/pyproject.toml",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../tests/architectural/test_charter_no_specify_cli_import.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../tests/architectural/test_layer_rules.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../tests/architectural/test_pyproject_shape.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../tests/architectural/test_shared_package_boundary.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-02-1-charter-wheel-assessment.md",
+      "target": "../../../tests/integration/test_clean_install_next.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/worktree-owned-root-3328-01KZRG01/contracts/checkout-ownership-cli-contract.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/worktree-owned-root-3328-01KZRG01/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md",
+      "target": "../../../src/charter/activation/manifest_loader.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md",
+      "target": "../../../src/charter/offering/missions/repository.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md",
+      "target": "../../../src/specify_cli/dossier/manifest.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md",
+      "target": "../../../tests/architectural/test_charter_no_specify_cli_import.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md",
+      "target": "../../../tests/architectural/test_expected_artifacts_loader_gate.py",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/green-match.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-26-1-ci-coverage-honesty.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/battery-partition.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/3.x/2026-09-26-1-ci-coverage-honesty.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md",
+      "target": "../../architecture/charter-backend-service-future.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/research.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../tests/charter/conformance/activation_ledger_cases.yaml",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../architecture/activation-ledger-and-charter-contract.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../architecture/activation-ledger-and-charter-contract.md#divergence-register",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../architecture/team-kitty-saas.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../guides/project-sync-consent.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/3-2-x-milestone-roadmap.md",
+      "target": "doctrine/manifesto-program-delivery-sequence.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/3-2-x-milestone-roadmap.md",
+      "target": "glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/4-0-0-milestone-roadmap.md",
+      "target": "../../CHANGELOG.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/doctrine/charter-sole-door-deferred-issues.md",
+      "target": "../../../kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/doctrine/org-doctrine-layer-architecture-review.md",
+      "target": "../../../kitty-specs/layered-doctrine-org-layer-01KRNPEE/mission-review-report.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/doctrine/squad-reports/review-round-2026-07-26.md",
+      "target": "../foundational-values-and-creed.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/domains/doctrine-charter-domain-plan.md",
+      "target": "../doctrine/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/domains/doctrine-charter-domain-plan.md",
+      "target": "../glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "doctrine/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "engineering-notes/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "investigations/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "research/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "testing/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "user_journey/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "built-links",
+      "source": "plans/index.md",
+      "target": "zeitgeist-client-wp01-remaining.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-07-1-execution-state-canonical-surface.md",
+      "target": "../../../docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+      "target": "../../../docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+      "target": "../../../kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/coord-authority-gate.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-26-2-core-integration-boundary.md",
+      "target": "../../../kitty-specs/integration-boundary-01KW0PBE/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/03-target-structure-mapping.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-27-1-common-docs-reconciliation.md",
+      "target": "../../../docs/plans/engineering-notes/651-docs-consolidation/index.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36NQBY670Q52B7C4SX2KH.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36QG4ZH8J79J9G1Y06FCD.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../../kitty-specs/sync-daemon-orphan-cleanup-01KWC2A3/decisions/DM-01KWC36SFC7XVDVA9QQTN1NAK8.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../operations/sync-daemon-orphan-cleanup.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-08-1-mission-resolver-port.md",
+      "target": "../../../kitty-specs/mission-resolver-port-01KX1C05/contracts/mission-resolver.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../architecture/wp-runtime-state-eviction.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-op-schema-proposal.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-op-schema-related-tickets.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
+      "target": "../../plans/investigations/wp-runtime-state-eviction-scope.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-21-2-glossary-first-order-doctrine-artefact.md",
+      "target": "../../plans/glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md",
+      "target": "../../plans/doctrine/foundational-values-and-creed.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md",
+      "target": "../../plans/doctrine/manifesto-program-delivery-sequence.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md",
+      "target": "../../../kitty-specs/doctrine-delivery-reachability-01KYMXD6/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md",
+      "target": "../../../kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/worktree-owned-root-3328-01KZRG01/contracts/checkout-ownership-cli-contract.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-08-12-1-checkout-ownership-for-mission-create-and-next.md",
+      "target": "../../../kitty-specs/worktree-owned-root-3328-01KZRG01/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-03-1-explicit-owned-checkout-single-branch-lifecycle.md",
+      "target": "../../../kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/green-match.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-26-1-ci-coverage-honesty.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/battery-partition.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/3.x/2026-09-26-1-ci-coverage-honesty.md",
+      "target": "../../../kitty-specs/ci-runtime-stabilisation-01M3TZH6/contracts/router-two-authority-amendment.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md",
+      "target": "../../architecture/charter-backend-service-future.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/data-model.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/research.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../architecture/activation-ledger-and-charter-contract.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+      "target": "../../architecture/activation-ledger-and-charter-contract.md#divergence-register",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../architecture/team-kitty-saas.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../guides/project-sync-consent.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/3-2-x-milestone-roadmap.md",
+      "target": "doctrine/manifesto-program-delivery-sequence.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/3-2-x-milestone-roadmap.md",
+      "target": "glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/4-0-0-milestone-roadmap.md",
+      "target": "../../CHANGELOG.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/doctrine/charter-sole-door-deferred-issues.md",
+      "target": "../../../kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/spec.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/doctrine/org-doctrine-layer-architecture-review.md",
+      "target": "../../../kitty-specs/layered-doctrine-org-layer-01KRNPEE/mission-review-report.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/doctrine/squad-reports/review-round-2026-07-26.md",
+      "target": "../foundational-values-and-creed.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/domains/doctrine-charter-domain-plan.md",
+      "target": "../doctrine/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/domains/doctrine-charter-domain-plan.md",
+      "target": "../glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/engineering-notes/2026-10-31-approved-reopen-feedback.md",
+      "target": "../../../RELEASE_CHECKLIST.md#8-open-the-next-development-cycle",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md",
+      "target": "../../../../.kittify/charter/charter.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md",
+      "target": "../../../../CLAUDE.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md",
+      "target": "../../../architecture/team-kitty-saas.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "doctrine/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "engineering-notes/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "glossary-doctrine-overhaul-program.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "investigations/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "research/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "testing/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "user_journey/index.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/index.md",
+      "target": "zeitgeist-client-wp01-remaining.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "check-links",
+      "source": "plans/user_journey/index.md",
+      "target": "../../../src/charter/offering/templates/architecture/user-journey-template.md",
+      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
+    },
+    {
+      "gate": "relative-links",
+      "source": "adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+      "target": "../../operations/sync-daemon-orphan-cleanup.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "relative-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../architecture/team-kitty-saas.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "relative-links",
+      "source": "changelog/CHANGELOG.md",
+      "target": "../guides/project-sync-consent.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "relative-links",
+      "source": "plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md",
+      "target": "../../../architecture/team-kitty-saas.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    },
+    {
+      "gate": "relative-links",
+      "source": "plans/index.md",
+      "target": "zeitgeist-client-wp01-remaining.md",
+      "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"
+    }
+  ]
+}

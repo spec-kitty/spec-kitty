@@ -351,3 +351,9 @@ moves:
   - {from: /migrations/teamspace-mission-state-920-closeout.html, to: /migrations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
   - {from: /operations/internal-hosted-readiness.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
   - {from: /operations/logged-out-teamspace.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  # --- 2026-11-09 #6932 (operator ruling): pinned retired pages archived as well ---
+  - {from: /architecture/team-kitty-saas.html, to: /architecture/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /guides/project-sync-consent.html, to: /guides/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /migrations/teamspace-mission-state-repair.html, to: /migrations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /operations/sync-daemon-orphan-cleanup.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /plans/zeitgeist-client-wp01-remaining.html, to: /plans/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}

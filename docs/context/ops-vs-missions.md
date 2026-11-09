@@ -62,11 +62,11 @@ designed to be opened and closed inside a single turn of work.
 ## Decision rule
 
 The binding rule is shipped doctrine, not this page:
-[DIRECTIVE_053 — Choose Op or Mission Before Starting](../../packs/built-in/directives/053-choose-op-or-mission-before-starting.directive.yaml)
+[DIRECTIVE_053 — Choose Op or Mission Before Starting](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/built-in/directives/053-choose-op-or-mission-before-starting.directive.yaml)
 requires the choice to be made before work starts and re-checked while it runs.
 It also requires every Op to be closed. The step-by-step heuristic that applies
 the rule is the
-[`op-or-mission-selection` tactic](../../packs/built-in/tactics/op-or-mission-selection.tactic.yaml).
+[`op-or-mission-selection` tactic](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/built-in/tactics/op-or-mission-selection.tactic.yaml).
 Activate both in a project with:
 
 ```bash

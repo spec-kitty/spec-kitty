@@ -58,14 +58,13 @@ Task finalization folds multi-dependency work into a lane plan before implementa
 
 ## Keeping Dependencies Updated
 
-When a dependency changes after you've started work, use `spec-kitty sync workspace` to update your workspace:
+When a dependency changes after you've started work, re-run the implement command for your work package. It is the lane's sync point: it brings your workspace up to date with the work it depends on.
 
 ```bash
-cd <workspace path printed by spec-kitty implement>
-spec-kitty sync workspace
+spec-kitty agent action implement <WP> --mission <mission>
 ```
 
-You may need to resolve conflicts during sync.
+You may need to resolve conflicts while it updates. `spec-kitty consolidate` also rebases a stale lane before it lands the Mission.
 
 ## What Dependencies Do
 

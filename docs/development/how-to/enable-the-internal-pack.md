@@ -84,6 +84,6 @@ rebuilds the ledger, and `upgrade` projects the `kitty-*` skills.
 
 ## See also
 
-- [Internal pack README](../../../packs/internal/README.md): what the pack contains.
+- [Internal pack README](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/README.md): what the pack contains.
 - [Create and activate a pack skill](create-a-pack-skill.md): author your own skill.
 - [Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md): how a project registers a pack.

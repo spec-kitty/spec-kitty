@@ -13,7 +13,7 @@ audience:
 > **Status**: stable
 >
 > **Authority**:
-> - [`kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md`](../../../kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md)
+> - [`kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/runtime-state-birth-cutover-all-paths-01KYH654/contracts/pre-merge-guard.md)
 >   (IC-03 / IC-04; FR-002, FR-003, FR-008, FR-009, NFR-002, NFR-003)
 > - Mission `runtime-state-birth-cutover-all-paths-01KYH654`, WP03 (guard CLI)
 >   and WP04 (CI wiring, this document)

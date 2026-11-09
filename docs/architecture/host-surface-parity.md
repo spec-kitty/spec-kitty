@@ -14,11 +14,11 @@ This is Spec Kitty's authoritative record of how each supported host surface tea
 
 **Keeping this matrix fresh**: any new host integration MUST add a row here; any change to how a host surface teaches the dispatch loop MUST update the corresponding row. The coverage test at `tests/specify_cli/docs/test_host_surface_inventory.py` enforces that every surface from `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py::AGENT_DIRS` has exactly one row.
 
-**Schema and parity rubric**: see [kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md](../../kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md).
+**Schema and parity rubric**: see [kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/phase-4-closeout-host-surfaces-and-trail-01KPWA5X/contracts/host-surface-inventory.md).
 
 **Canonical skill packs referenced by `guidance_style=pointer` rows**:
-- [`src/charter/offering/skills/spec-kitty/SKILL.md`](../../src/charter/offering/skills/spec-kitty/SKILL.md) — Codex CLI, Vibe, Pi, Letta Code source skill; installed as `.agents/skills/spec-kitty/SKILL.md` where the host consumes agent skills. <!-- tool-surface: ignore -->
-- [`src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md`](../../src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md) — Claude Code.
+- [`src/charter/offering/skills/spec-kitty/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/skills/spec-kitty/SKILL.md) — Codex CLI, Vibe, Pi, Letta Code source skill; installed as `.agents/skills/spec-kitty/SKILL.md` where the host consumes agent skills. <!-- tool-surface: ignore -->
+- [`src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/skills/spec-kitty-runtime-next/SKILL.md) — Claude Code.
 
 ---
 

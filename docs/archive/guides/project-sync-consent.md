@@ -118,8 +118,8 @@ The pre-import loader seeds this before any `spec-kitty` module is imported,
 so behavior is identical to exporting it — just resolved from a file whose
 scope you control per repo, instead of a shell session whose scope you don't.
 See [Environment Variables Reference § The `.kitty.env`
-file](../api/environment-variables.md#the-kittyenv-file) and [ADR: operator
-config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md).
+file](../../api/environment-variables.md#the-kittyenv-file) and [ADR: operator
+config env-expansion seam](../../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md).
 Even scoped this way, the switch remains deny-only and grants nothing by
 itself — per-project consent (`sync opt-in`) is still required.
 
@@ -212,8 +212,8 @@ this program's scope.
 
 ## Related reading
 
-- [ADR: One Project UUID Owns One Sync Store and One Consent Decision](../adr/3.x/2026-08-09-1-project-sync-store-boundary.md)
-- [ADR: Egress Consent Boundary](../adr/3.x/2026-08-04-1-egress-consent-boundary.md)
-- [ADR: Operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
-- [Team Kitty](../context/team-kitty.md) — the hosted surfaces removed in #6164 and what stays
-- [Environment variables reference](../api/environment-variables.md)
+- [ADR: One Project UUID Owns One Sync Store and One Consent Decision](../../adr/3.x/2026-08-09-1-project-sync-store-boundary.md)
+- [ADR: Egress Consent Boundary](../../adr/3.x/2026-08-04-1-egress-consent-boundary.md)
+- [ADR: Operator config env-expansion seam](../../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
+- [Team Kitty](../../context/team-kitty.md) — the hosted surfaces removed in #6164 and what stays
+- [Environment variables reference](../../api/environment-variables.md)

@@ -19,6 +19,10 @@ names one of those routes:
 Each surface is one entry of :data:`SURFACES`, so a later slice adds a surface
 with one function and one line. Standard library only, like ``site_contract.py``.
 
+doc-kitty exports no built-artifact check for unpublished routes (its own
+``assert-build-artifacts`` is not a bin), so core carries this one until
+``spec-kitty/doc-kitty#312`` lands.
+
 Usage (from the repository root, after ``pnpm run build`` in ``site/``)::
 
     PYTHONPATH=.:src python3 -m scripts.docs.site_built_check site/dist [--docs docs]

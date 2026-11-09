@@ -28,7 +28,7 @@ audience:
 > modules and commands not listed below (for example `agent_delivery.py`, `moments.py`,
 > `own_filter.py`, `receipts.py`, `history.py`, `session_identity.py`, and the `activity`,
 > `send`, `reply`, `read` and `inbox` commands); see
-> [Agent moment delivery policy](agent-moment-delivery-4216.md). Item 6 was not re-checked.
+> [Agent moment delivery policy](../../plans/agent-moment-delivery-4216.md). Item 6 was not re-checked.
 > The body below is the 2026-08-22 text.
 
 Status note for `src/specify_cli/zeitgeist_client/` (Bead `Z1-T1`). This is the

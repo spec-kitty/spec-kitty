@@ -59,7 +59,7 @@ The status model uses a single canonical append-only event log per mission as th
 > 9-lane FSM stays unchanged. After it lands, `WP##.md` holds only static intent
 > and hashes stably across every runtime mutation. See
 > [ADR 2026-07-16-1](../adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md)
-> and the [eviction design](wp-runtime-state-eviction.md).
+> and the eviction design (an unpublished draft, `docs/architecture/wp-runtime-state-eviction.md`).
 
 ## Known limitations
 

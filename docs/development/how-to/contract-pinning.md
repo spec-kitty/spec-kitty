@@ -18,7 +18,7 @@ audience:
 > - Mission `stability-and-hygiene-hardening-2026-04-01KQ4ARB`,
 >   FR-022 / FR-023.
 > - Contract surface:
->   [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md`](../../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md)
+>   [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md)
 
 ## Why this exists
 
@@ -138,7 +138,7 @@ snapshots when bumping; just add the new one.
 
 ## Related
 
-- Mission spec: [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](../../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
+- Mission spec: [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
 - Mission review gate (FR-023): `tests/integration/test_mission_review_contract_gate.py`
 - Public-import freeze (FR-024): `tests/architectural/test_events_tracker_public_imports.py`
 - Companion ADR (boundary cutover): [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](../../adr/3.x/2026-04-25-1-shared-package-boundary.md)

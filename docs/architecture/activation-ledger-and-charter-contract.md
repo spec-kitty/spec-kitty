@@ -383,8 +383,8 @@ off GA.
 - Core ADR [`2026-10-19-1`: one activation ledger persists deactivation](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)
 - Core ADR [`2026-10-16-1`: extract the charter offering first; activation rework post-GA](../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md)
 - Core ADR [`2026-10-12-2`: charter extraction to its own repository](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)
-- Mission [specification](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md),
-  [plan](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md) and
+- Mission [specification](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md),
+  [plan](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md) and
   [decisions](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/decisions/) (rulings
   `contract_document_scope` and `required_always_active_divergence`, 2026-10-20)
 - spec-kitty-charter PR [#123](https://github.com/spec-kitty/spec-kitty-charter/pull/123):

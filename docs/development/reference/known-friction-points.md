@@ -23,7 +23,7 @@ related:
 > **not** durable doctrine: specific issue numbers, version gates, and toggles
 > change as the codebase moves. Always re-verify against the authoritative
 > sources before trusting a specific number:
-> [`CLAUDE.md`](../../../AGENTS.md) (its "Test-run baseline-red gotcha" note),
+> [`CLAUDE.md`](https://github.com/spec-kitty/spec-kitty/blob/main/AGENTS.md) (its "Test-run baseline-red gotcha" note),
 > [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
 > and the issue tracker.
 
@@ -83,7 +83,7 @@ closed — so the "known reds" below are already a different set than a month ag
   and the docs tests (`tests-docs` job). On the **rebased** tip, run the
   terminology guard, the specific `tests/architectural/` gate files your diff
   implicates (not the whole directory — see
-  [`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml);
+  [`NO_FULL_HEAVY_SUITES_IN_MISSION`](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml);
   CI owns the full sweep), and
   `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci` for docs
   changes before declaring a branch green (`errors=0`; its inventory and

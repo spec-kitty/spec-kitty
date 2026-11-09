@@ -38,6 +38,7 @@ architecture/README-1.x.html: adr/1.x/index.html
 architecture/README-2.x.html: adr/2.x/index.html
 architecture/README-3.x.html: adr/3.x/index.html
 architecture/README.html: architecture/index.html
+architecture/team-kitty-saas.html: architecture/index.html
 architecture/zeitgeist-session-identity.html: architecture/index.html
 archive/1x/artifacts-and-commands.html: changelog/1x/artifacts-and-commands.html
 archive/1x/branches-and-workspaces.html: changelog/1x/branches-and-workspaces.html
@@ -158,6 +159,7 @@ guides/non-interactive-init.html: guides/how-to/installation/non-interactive-ini
 guides/orchestrator-quickstart.html: guides/tutorials/orchestrator-quickstart.html
 guides/parallel-development.html: guides/how-to/collaboration/parallel-development.html
 guides/pr-landing.html: development/how-to/pr-landing.html
+guides/project-sync-consent.html: guides/index.html
 guides/recover-from-implementation-crash.html: guides/how-to/recovery/recover-from-implementation-crash.html
 guides/recover-from-interrupted-merge.html: guides/how-to/recovery/recover-from-interrupted-merge.html
 guides/red-main-and-release-readiness.html: development/reference/red-main-and-release-readiness.html
@@ -258,8 +260,10 @@ how-to/worktrees-with-mcp-agents.html: guides/how-to/collaboration/worktrees-wit
 how-to/write-time-dependent-tests.html: development/testing/write-time-dependent-tests.html
 migrations/06_migration_and_shim_rules.html: migrations/migration-and-shim-rules.html
 migrations/teamspace-mission-state-920-closeout.html: migrations/index.html
+migrations/teamspace-mission-state-repair.html: migrations/index.html
 operations/internal-hosted-readiness.html: operations/index.html
 operations/logged-out-teamspace.html: operations/index.html
+operations/sync-daemon-orphan-cleanup.html: operations/index.html
 p0-baseline-refresh.html: operations/p0-baseline-refresh.html
 plans/2497-external-observability-endpoints-assessment.html: plans/investigations/index.html
 plans/charter-sole-door-deferred-issues.html: plans/doctrine/charter-sole-door-deferred-issues.html
@@ -276,6 +280,7 @@ plans/saas-hosted-sync-domain-plan.html: plans/index.html
 plans/test-change-coupling-caacs.html: plans/testing/index.html
 plans/testing/test-change-coupling-caacs.html: plans/testing/index.html
 plans/user_journey/README.html: plans/user_journey/index.html
+plans/zeitgeist-client-wp01-remaining.html: plans/index.html
 recovery/index.html: operations/index.html
 recovery/logged-out-teamspace.html: operations/index.html
 reference/README.html: api/index.html
