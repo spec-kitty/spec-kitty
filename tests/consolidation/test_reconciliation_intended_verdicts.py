@@ -218,12 +218,22 @@ def test_commit_between_two_approvals_is_refused(stray_mission: tuple[cs.ShapeMi
 
 @intended("b", "FR-007", "WP19")
 def test_window_refusal_names_commit_and_preceding_wp(stray_mission: tuple[cs.ShapeMission, str]) -> None:
-    """FR-007: the refusal names the stray commit (short SHA as rendered) and WP01, the work package approved before it."""
+    """FR-007: the refusal attributes the stray commit to WP01, the work package approved before it, and not to WP02.
+
+    The lanes renderer lists every work package of a lane (``lane-a carries WP01, WP02``), so a refusal that reuses the whole-lane
+    list would still contain ``WP01`` somewhere. The discriminating claim is made on the line that names the commit: it carries
+    ``WP01`` (the preceding work package) and does not carry ``WP02`` (the one approved after it).
+    """
     mission, stray = stray_mission
 
     result = _run(mission, "fresh")
 
-    _assert_refused_naming(result, stray[:7], "WP01")
+    _assert_refused_naming(result, stray[:7])
+    naming_lines = [line for line in result.output.splitlines() if stray[:7] in line]
+    assert naming_lines, f"no output line names the stray commit {stray[:7]!r}:\n{result.output}"
+    for line in naming_lines:
+        assert "WP01" in line, f"the line naming the commit must attribute it to WP01, the work package approved before it:\n{line}"
+        assert "WP02" not in line, f"the line naming the commit must not attribute it to WP02 (whole-lane listing):\n{line}"
 
 
 @intended("a mixed", "FR-007", "WP19")
@@ -455,6 +465,24 @@ def test_resume_fully_canceled_lane_reads_frozen_anchors(tmp_path: Path) -> None
     refuses D on the carrier with or without frozen anchors, before the canceled-lane check could differ. The one remaining
     route, re-approving the carrier after D, would make the frozen set LESS strict (D counted as the carrier's own authorship)
     and is not an intended behaviour: it needs an operator ruling, not a pin.
+
+    Second route: the canceled lane C's OWN approved dependency lane A advances after the kill and A merges C's tip. This is
+    the only place a frozen anchor touches C at all: ``_fully_canceled_lane_own_commits`` computes C's own commits through
+    ``lane_own_commits(..., _closed_world_anchors(C))``, whose anchors are A's live branch name plus the target base. It is
+    unreachable at verdict level too. C's commits and the advancing commit D reach A after A's approval stamp, and a
+    fully-canceled lane contributes neither an approval-stamp anchor nor a closed-world anchor, so ``check_lane`` on A refuses
+    them (``LANE_MOVED_AFTER_APPROVAL``, at claim time) with live and frozen anchors alike: A's own anchors (its dependencies,
+    the target base, its stamps) did not move. That refusal stops the claim before the gate-time
+    ``CANCELED_REACHABLE_VIA_DEPENDENCY`` content check, the only consumer of C's own-commit set a frozen anchor would change.
+    (With a merge commit, C's commits are not on A's first-parent spine, so A is not even a carrier; with a fast-forward
+    variant A is a carrier, but the claim-time canceled-dependency refusals do not fire on a stamped modern Mission.) The
+    verdict, exit 1 with ``LANE_MOVED_AFTER_APPROVAL`` on A naming C's commits and D, is identical before and after FR-015.
+    The only true flip needs A re-approved over C's merged commits after the kill: the live read then empties C's own commits,
+    but a fresh run on the same final state lets C's content through just the same, so pinning the frozen resume as stricter
+    than a fresh run would encode no intended verdict. That is a pre-existing fresh-run gap outside FR-015 (a fully-canceled
+    lane merged into its approved dependency lane, then re-approved, hides its commits from ``lane_own_commits``) and is
+    deliberately not pinned in this Mission. WP18 (T094/T096) takes the documented unreachable branch: ruling (g) is
+    unreachable, recorded in the design-decisions tracer.
 
     There is also no frozen tip to read for the canceled lane itself: ``_capture_pre_interrupt_lane_tips`` skips a fully-canceled
     lane, so ``pre_interrupt_lane_tips`` holds only the dependent lane (lane-b); the canceled lane keeps the live read FR-015
