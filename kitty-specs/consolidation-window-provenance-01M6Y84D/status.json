@@ -472,6 +472,9 @@
       "last_event_id": "01M703XR4D1Q8ENA11X5TB0J0J",
       "last_transition_at": "2026-11-09T12:18:28.621790+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: WP base bf83a73c, commit a19d23c0. Pure move of build_approved_wp_set + 10 symbols to reconciliation_claim.py (473 lines, AST identical, moved 10 changed []). Corpus diff exit 0, changed_cells []. tests/consolidation + specify_cli/consolidation + merge_resume 3031 passed; make test-fast 2941 passed; dead-symbol allowlist 227->225."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 4157733,
