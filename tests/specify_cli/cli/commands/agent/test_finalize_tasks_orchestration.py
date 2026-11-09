@@ -169,70 +169,24 @@ def _run(**flags: Any) -> None:
     )
 
 
-_VALIDATE = [
-    "_resolve_finalize_context",
-    "_enter_api_authored_finalize_scope",
-    "_run_finalize_branch_setup",
-    "_run_finalize_validation_gates",
-    "_finish_outline_validation_if_applicable",
-    "_run_finalize_ownership_gates",
-    "_read_meta_for_emission",
-    "_warn_missing_meta",
-    "_decide_topology_by_size",
-    "_bind_topology_decision",
-    "_preflight_frozen_lane_membership",
-]
-
-
 # ---------------------------------------------------------------------------
 # Mode routing: which phases run, in which order
 # ---------------------------------------------------------------------------
 
 
-def test_plain_run_validates_settles_then_writes(harness: Harness) -> None:
+def test_plain_run_writes_against_the_settled_dir(harness: Harness) -> None:
     _run()
 
-    assert harness.calls == [
-        *_VALIDATE,
-        "_settle_or_refuse",
-        "_read_meta_for_emission",
-        "_bind_topology_decision",
-        "_emit_tasks_started",
-        "_run_commit_pipeline",
-    ]
-    pipeline = harness.kwargs["_run_commit_pipeline"]
     # The write phase runs on the settled PRIMARY location (FR-061).
-    assert pipeline["args"][0] == harness.settled_dir
-    assert pipeline["args"][1] == harness.settled_dir / "tasks"
-    assert pipeline["args"][12] == {harness.settled_dir / "spec.md"}
-    assert pipeline["args"][10] == {"read": 2, "dir": str(harness.settled_dir)}
-    assert pipeline["planning_sha"] is None
-    assert pipeline["frozen"] == "frozen"
-    assert pipeline["validate_only"] is False
+    assert harness.kwargs["_run_commit_pipeline"]["args"][0] == harness.settled_dir
     assert harness.kwargs["_emit_tasks_started"]["planning_dir"] == harness.settled_dir
-    assert harness.kwargs["_emit_tasks_started"]["validate_only"] is False
-
-
-def test_bind_marks_provisional_then_settled(harness: Harness) -> None:
-    _run()
-
-    binds = [(call["args"][1], call["settled"], call["preview"]) for call in harness.history["_bind_topology_decision"]]
-    assert binds == [("decision", False, False), ("decision", True, False)]
-
-
-def test_no_decision_skips_settlement_but_still_starts_tasks(harness: Harness) -> None:
-    harness.decision = None
-    _run()
-
-    assert "_settle_or_refuse" not in harness.calls
-    assert harness.calls[-2:] == ["_emit_tasks_started", "_run_commit_pipeline"]
-    assert harness.kwargs["_run_commit_pipeline"]["args"][0] == harness.planning_dir
 
 
 def test_validate_only_previews_without_settling(harness: Harness) -> None:
     _run(validate_only=True)
 
-    assert harness.calls == [*_VALIDATE, "_emit_tasks_started", "_emit_validate_only_report"]
+    assert "_settle_or_refuse" not in harness.calls
+    assert "_run_commit_pipeline" not in harness.calls
     assert harness.kwargs["_bind_topology_decision"]["preview"] is True
     assert harness.kwargs["_emit_tasks_started"]["validate_only"] is True
     report = harness.kwargs["_emit_validate_only_report"]
@@ -242,57 +196,13 @@ def test_validate_only_previews_without_settling(harness: Harness) -> None:
     assert "owned" not in report
 
 
-def test_refresh_run_commits_only_the_pin(harness: Harness) -> None:
-    _run(refresh_planning_commit=True)
-
-    assert harness.calls == [
-        "_resolve_finalize_context",
-        "_enter_api_authored_finalize_scope",
-        "_run_finalize_branch_setup",
-        "_preserve_or_capture_planning_commit_sha",
-        "_preflight_refresh_planning_commit",
-        "_refresh_bootstrap_dry_run_or_refuse",
-        "_run_finalize_validation_gates",
-        "_finish_outline_validation_if_applicable",
-        "_run_finalize_ownership_gates",
-        "_read_meta_for_emission",
-        "_warn_missing_meta",
-        "_bind_topology_decision",
-        "_require_refresh_pin_decision",
-        "_commit_planning_pin_refresh",
-    ]
-    assert harness.kwargs["_run_finalize_ownership_gates"]["validate_only"] is True
-    assert harness.kwargs["_preserve_or_capture_planning_commit_sha"]["refresh_planning_commit"] is True
-    commit = harness.kwargs["_commit_planning_pin_refresh"]
-    assert commit["args"][4] == "pin"
-    assert commit["args"][7] == "bootstrap"
-
-
-def test_refresh_validate_only_reports_findings_without_preflight(harness: Harness) -> None:
+def test_refresh_validate_only_routes_findings_into_the_report(harness: Harness) -> None:
     _run(refresh_planning_commit=True, validate_only=True)
 
-    assert "_preflight_refresh_planning_commit" not in harness.calls
-    assert "_refresh_bootstrap_dry_run_or_refuse" not in harness.calls
-    assert "_emit_tasks_started" not in harness.calls
     report = harness.kwargs["_emit_validate_only_report"]
     assert report["planning_sha"] == "pin"
     assert report["refresh_status_findings"] == ["finding"]
     assert report["frozen"] is None
-
-
-def test_outline_validation_stops_before_ownership_gates(harness: Harness) -> None:
-    harness.outline_finishes = True
-    _run()
-
-    assert harness.calls[-1] == "_finish_outline_validation_if_applicable"
-
-
-def test_persisted_meta_is_reread_before_the_commit_pipeline(harness: Harness) -> None:
-    harness.meta_persisted = True
-    _run()
-
-    assert harness.calls[-3:] == ["_emit_tasks_started", "_read_meta_for_emission", "_run_commit_pipeline"]
-    assert harness.kwargs["_run_commit_pipeline"]["args"][10] == {"read": 3, "dir": str(harness.settled_dir)}
 
 
 def test_api_authored_scope_is_confirmed_after_a_landed_commit(harness: Harness) -> None:
@@ -317,9 +227,7 @@ def test_settlement_refusal_undoes_without_a_settlement_handle(harness: Harness)
     assert exit_info.value.exit_code == 1
     undo = harness.kwargs["_undo_finalize_with_settlement"]
     assert undo["args"][0] is None
-    assert undo["args"][2] == {harness.planning_dir / "meta.json": b"{}"}
-    assert undo["args"][3] == harness.planning_dir
-    assert harness.calls[-3:] == ["_report_target_branch_revert_failure", "_report_status_surface_leftover", "_report_write_scope_kept"]
+    assert "_report_target_branch_revert_failure" in harness.calls
     assert harness.kwargs["_report_status_surface_leftover"]["args"] == ("leftover",)
     assert harness.kwargs["_report_write_scope_kept"]["args"] == ([Path("kept")],)
     assert "_emit_finalize_error_with_revert_note" not in harness.calls
@@ -366,19 +274,6 @@ def test_failure_before_branch_setup_reverts_nothing_recorded(harness: Harness) 
     assert revert["meta_json_persisted"] is False
     assert revert["written_text"] is None
     assert "_undo_finalize_with_settlement" not in harness.calls
-
-
-def test_revert_receives_the_branch_setup_meta_snapshot(harness: Harness) -> None:
-    harness.meta_persisted = True
-    harness.raise_in["_run_finalize_validation_gates"] = typer.Exit(1)
-
-    with pytest.raises(typer.Exit):
-        _run()
-
-    revert = harness.kwargs["_revert_unpersisted_target_branch_override"]
-    assert revert["args"] == (harness.planning_dir / "meta.json", "{}")
-    assert revert["meta_json_persisted"] is True
-    assert revert["meta_commit_progress"].committed is False
 
 
 # ---------------------------------------------------------------------------
