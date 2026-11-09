@@ -22,6 +22,18 @@ cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
 # Python dev environment, pinned to uv.lock (idempotent; cached after first run).
 uv sync --frozen --all-extras
+# The pinned packs/built-in and packs/internal trees (`make sync-packs`). Every
+# spec-kitty command needs them, so a failed sync fails the script, like `uv sync`.
+# The offline check re-hashes the placed trees (well under a second); only a
+# missing or stale tree triggers the fetch.
+if ! PYTHONPATH="$PWD/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all --check >/dev/null 2>&1; then
+  PYTHONPATH="$PWD/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+fi
+# The pinned service extras (`make sync-services ARGS=--extras-only`, as `make dev-setup`
+# runs it): the contract and conformance tests read them and fail closed without them.
+# The CLI does not need them, so a failure is only a note. Cached extras verify in ~2 s.
+PYTHONPATH="$PWD/src" uv run --frozen --no-sync python scripts/sync_services.py --service all --extras-only \
+  || echo "note: the pinned service extras could not be fetched; run \`make sync-services ARGS=--extras-only\` before the contract tests."
 # Wheel-building packaging tests need the PEP 517 frontend.
 uv pip install --quiet build
 # The spec-kitty CLI from this checkout (subprocess-driven tests shell out to it).
