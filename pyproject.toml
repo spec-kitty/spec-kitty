@@ -86,7 +86,7 @@ dependencies = [
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
     "cryptography>=50.0.0",  # AES-256-GCM + scrypt KDF for encrypted auth session storage (feature 080); CVE-2026-69247 fix
-    "mcp>=1.27.1,<2.0.0",  # Official Model Context Protocol SDK — Z7-C stdio adapter (mcp.server.stdio); pinned below 2.0 to avoid its httpx2 major-dependency swap against our httpx[socks]>=0.28.1 pin
+    "mcp>=1.30.0,<2.0.0",  # Official Model Context Protocol SDK — Z7-C stdio adapter (mcp.server.stdio); pinned below 2.0 to avoid its httpx2 major-dependency swap against our httpx[socks]>=0.28.1 pin
 ]
 
 [project.urls]
@@ -121,7 +121,7 @@ services = ["spec-kitty-services==4.0.0rc9"]
 lint = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
-    "msgpack>=1.2.1",  # GHSA-6v7p-g79w-8964 fix; transitive via CacheControl/pip-audit
+    "msgpack>=1.2.3",  # GHSA-6v7p-g79w-8964 + GHSA-j586-36cw-2gc2 fix; transitive via CacheControl/pip-audit
     "types-jsonschema>=4.0.0",
     "types-psutil>=5.9.0",
     "types-PyYAML>=6.0",

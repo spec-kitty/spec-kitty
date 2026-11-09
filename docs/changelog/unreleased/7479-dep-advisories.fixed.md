@@ -1,0 +1,1 @@
+- **Dependencies moved past 14 known advisories** (#7479). **Before:** the lockfile resolved `mcp` 1.29.0 (4 advisories, a runtime dependency), `msgpack` 1.2.1 (1 advisory) and `filelock` 3.29.0 (9 advisories, lint extra only). **After:** it resolves `mcp` 1.30.0, `msgpack` 1.2.4 and `filelock` 4.2.10, and the declared lower bounds are `mcp>=1.30.0` and `msgpack>=1.2.3`.
