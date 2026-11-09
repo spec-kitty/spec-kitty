@@ -156,6 +156,40 @@ def test_lane_head_only_policy_metadata_is_not_detected(tmp_path: Path) -> None:
     assert mission_carries_event_log_runtime(tmp_path) is False
 
 
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"lane_head": "d" * 40, "wp_window": {"schema_version": 1, "open_sha": "d" * 40}},
+        {"wp_window": {"schema_version": 1, "gap": {"reason": "lane_branch_missing", "detail": "refs/heads/x not found"}}},
+    ],
+    ids=["lane_head_and_wp_window", "wp_window_gap_only"],
+)
+def test_wp_window_provenance_is_not_detected(tmp_path: Path, metadata: dict[str, Any]) -> None:
+    """L8: ``wp_window`` is provenance the status pipeline writes on every window-opening move, like ``lane_head``.
+
+    A transition carrying only those two keys must not flip a mission to "runtime-carrying"; it did
+    not before the window record existed (its ``lane_head``-only twin is pinned above).
+    """
+    seed_status_event(tmp_path, _genesis_to_planned(event_id="01WPWINDOWONLYAAAAAAAAA1"))
+    provenance_only = StatusEvent(
+        event_id="01WPWINDOWONLYAAAAAAAAA2",
+        mission_slug=_MISSION_SLUG,
+        mission_id=_MISSION_ID,
+        wp_id="WP01",
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.PLANNED,
+        at="2026-01-01T00:01:00+00:00",
+        actor="claude",
+        force=True,
+        reason="re-anchor",
+        execution_mode="worktree",
+        policy_metadata=metadata,
+    )
+    seed_status_event(tmp_path, provenance_only)
+
+    assert mission_carries_event_log_runtime(tmp_path) is False
+
+
 def test_empty_policy_metadata_is_not_detected(tmp_path: Path) -> None:
     seed_status_event(tmp_path, _genesis_to_planned(event_id="01EMPTYMETADATAAAAAAAAA01"))
     empty_metadata = StatusEvent(
