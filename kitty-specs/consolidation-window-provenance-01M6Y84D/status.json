@@ -1,7 +1,7 @@
 {
-  "event_count": 43,
-  "last_event_id": "01M6YSE128W2HWZ7S2P38XQ4V9",
-  "materialized_at": "2026-11-08T23:55:52.803290+00:00",
+  "event_count": 45,
+  "last_event_id": "01M6YX40N1FJKSBYAZQMFEHB96",
+  "materialized_at": "2026-11-09T01:00:19.489856+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 17
   },
   "work_packages": {
@@ -120,20 +120,32 @@
       }
     },
     "WP04": {
-      "actor": "opencode",
-      "agent": "opencode:glm-5.3:python-pedro",
+      "actor": "claude",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "opencode:glm-5.3:python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6YSE128W2HWZ7S2P38XQ4V9",
-      "last_transition_at": "2026-11-08T23:55:52.803290+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6YX40N1FJKSBYAZQMFEHB96",
+      "last_transition_at": "2026-11-09T01:00:19.489856+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-09T00:55:36Z – opencode:glm-5.3:python-pedro – shell_pid=2896534 – WP04 implementation complete — reconciliation-family pin, guard and helper (test-side only, no production changes).\n\n## Files (4)\n- tests/consolidation/reconciliation_surface.json — 66 pinned names (AST scan of src/specify_cli/consolidation/reconciliation.py ∪ reconciliation.__all__), generated via SPEC_KITTY_REGEN_RECONCILIATION_SURFACE=1, never hand-edited.\n- tests/consolidation/test_reconciliation_surface_pin.py — scanner + 4 pin tests (test_every_pinned_name_is_importable, test_pinned_names_keep_object_identity, test_scanned_surface_is_pinned, test_removed_name_fails_the_pin).\n- tests/consolidation/reconciliation_family.py — RECONCILIATION_FAMILY = (reconciliation,), RECONCILIATION_CONSUMERS = (phase_claim, phase_gate, forecast), family_modules_binding / setattr_reconciliation_family / patch_reconciliation_family.\n- tests/consolidation/test_reconciliation_family_guard.py — pure-core unlooked_up_patches (stale-patch + narrowed-patch axes) + 8 tests.\n\n## DoD commands and results\n1. uv run --frozen pytest -q tests/consolidation/test_reconciliation_surface_pin.py tests/consolidation/test_reconciliation_family_guard.py\n   → 12 passed in 30.01s\n2. uv run --frozen pytest -q tests/consolidation/test_reconciliation.py tests/consolidation/test_canceled_dependency_attribution.py tests/consolidation/test_presence_lane_base.py\n   → 241 passed, 1 xfailed in 24.38s\n3. uv run --frozen pytest -q tests/consolidation/test_single_rollback_authority.py\n   → 23 passed in 12.08s\n4. uv run --frozen ruff check <3 .py files>\n   → All checks passed!\n5. uv run --frozen ruff format --check --force-exclude <3 .py files>\n   → 3 files already formatted\n6. uv run --frozen mypy <3 .py files>\n   → Success: no issues found in 3 source files\n7. make test-fast\n   → 2921 passed, 6 skipped, 18 warnings in 27.10s\n\nRegen (reviewer rerun): SPEC_KITTY_REGEN_RECONCILIATION_SURFACE=1 pytest -q tests/consolidation/test_reconciliation_surface_pin.py::test_scanned_surface_is_pinned → 1 passed in 88.81s; committed JSON byte-identical to generator output.\n\n## Consumer-tuple grep facts\n- run_state.py:50 binds ApprovedWpCommitSet/VerifyResult from reconciliation in annotations only — never read at runtime.\n- resolve.py:31/339 binds and runtime-calls write_post_fix_marker, but no corpus test patches that name.\n- orchestrator_api/consolidation.py:511 imports from reconciliation inside a function body — outside the reviewer's consumer grep glob (src/specify_cli/consolidation/*.py module-level imports).\nHence RECONCILIATION_CONSUMERS = (phase_claim, phase_gate, forecast), the prompt's explicit list.\n\n## Notes\n- mypy [attr-defined] fires on reads AND writes of fresh ModuleType attributes; combined with ruff B009/B010, synthetic binding modules use vars(fake)[\"ATTR\"] dict access (tracer: tooling-friction-87787a26ae89).\n- Design decisions recorded on the tracer: design-decisions-46e8c0ef4f0b (identity rule + 66-name pin), design-decisions-94802669cbb7 (family/consumer tuples + self-scan).",
+        "Ready for review: WP04 complete. Four test-side files committed (824d3682bf): reconciliation_surface.json (66 pinned names, generated via SPEC_KITTY_REGEN_RECONCILIATION_SURFACE=1), test_reconciliation_surface_pin.py (4 pin tests), reconciliation_family.py (family + consumer tuples with helpers), test_reconciliation_family_guard.py (stale/narrowed-patch guard + 8 tests). DoD green: 12 passed on the new files; 241 passed, 1 xfailed reconciliation corpus; 23 passed rollback-authority pin; ruff check/format and mypy clean on all three .py files; make test-fast 2921 passed, 6 skipped. All twelve reviewer-checked test names present and passing; real-corpus guard green (no stop-and-ask condition). Consumer tuple is the prompt's explicit list (phase_claim, phase_gate, forecast) — grep facts in the WP history note."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 2896534,
-      "shell_pid_created_at": "1794180301.02"
+      "role": "reviewer",
+      "shell_pid": 4108321,
+      "shell_pid_created_at": "1794186013.14",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
