@@ -677,7 +677,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | The explicit, typed absence of a recorded window for a work package: "not recorded" (no value on the opener), "capture failed" (with the recorded cause), "lane branch missing" (no opener of the cycle carries a SHA) or "not on lane" (the SHA is not an ancestor of the lane tip, or does not resolve in this clone). A gap never refuses by itself: the work package is judged by the approval-stamp bound and listed in the [gap report](#gap-report). ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
+| **Definition** | The explicit, typed absence of a recorded window for a work package: "not recorded" (no value on the opener), "capture failed" (with the recorded cause), "lane branch missing" (every opener of the cycle recorded that the lane branch did not exist yet) or "not on lane" (the SHA is not an ancestor of the lane tip, or does not resolve in this clone). A gap never refuses by itself: the work package is judged by the approval-stamp bound and listed in the [gap report](#gap-report). ADR [2026-11-08-2](../adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md). |
 | **Context** | Orchestration |
 | **Status** | candidate |
 | **Applicable to** | `4.x` |

@@ -5,7 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-08'
-updated: '2026-11-08T00:00:00Z'
+updated: '2026-11-09T00:00:00Z'
 ---
 
 # Work-package windows are recorded at the opening transition
@@ -38,7 +38,8 @@ forecast, and an agent doing either. It assumes you know the approval-stamp boun
 The consolidation gate rebuilds each work package's span of work from branch history after the
 fact. Every check keeps its own idea of that span. Nine base or window notions exist on `main`
 (see the table under Decision Outcome), and a fix to one check has repeatedly had to reason about
-the others. Most of the recent changes to the reconciliation module are fixes.
+the others. Of the 57 commits that touched `consolidation/reconciliation.py` on `main` before this
+Mission, 43 carry a `fix` subject (`git log --oneline main -- src/specify_cli/consolidation/reconciliation.py`).
 
 Three problems follow:
 
@@ -104,8 +105,9 @@ not describe:
 
 On every non-migration move of a lane-mapped work package into `claimed` or `in_progress`, the
 status shells write `policy_metadata.wp_window` on the transition event. The value comes from the
-**same lane-head reading** that produces `lane_head`, so recording adds no extra git read. The
-status transition pipeline stays git-free: the reading comes from the injected probe.
+**same lane-head reading** that produces `lane_head` (`status/lane_head.py`: `read_lane_head`
+returns a `LaneHeadReading`), so recording adds no extra git read. The status transition pipeline
+(`status/transition_pipeline.py`) stays git-free: the reading comes from the injected reader.
 
 The wire shape and the writer and reader rules (W-1 to W-7, R-1 to R-7) live in the contract
 `kitty-specs/consolidation-window-provenance-01M6Y84D/contracts/status-event-wp-window.md`. This
@@ -171,8 +173,11 @@ package's own earlier commits outside its window, refused with no attestation ro
 move to `planned` (today `in_progress -> planned`, or a forced move) is a rewind and starts a new
 cycle. The operator can overturn this reading in review.
 
-The same selector serves the `single_branch` derivation when no window is recorded, with its
-legacy first-claim rule (`cycle=False`). The opener rule lives once.
+The same selector (`consolidation/wp_attribution.py`: `window_opener_events`, `window_open_of`)
+serves the `single_branch` derivation when no window is recorded, with its legacy first-claim rule
+(`cycle=False`). The opener rule lives once. The review-rejection reading above stays an
+interpretation the operator may overturn; the shipped selector implements it and
+`tests/consolidation/test_window_opener.py` pins it.
 
 ### 4. The window and its exemption anchors
 
@@ -197,14 +202,32 @@ a stray commit, and B's work package was then approved, the stray commit is exem
 exception is deliberate and pinned by a dependency-chain fixture. The own-lane variant, where the
 stray commit is reachable only from the lane's own stamp, refuses.
 
+**Two tiers.** The lane check runs in two tiers (`consolidation/write_branch_bound.py`:
+`bind_lane_predicates`, `classify_windows`, `check_lane_windows`). Tier 1 is today's approval-stamp
+check, `check_lane`, unchanged and first: the stamp refusals and content after a lane's own
+approval stamps keep today's whole-lane text. Tier 2 runs only when tier 1 passed and refuses each
+content commit in `claim base..tip` that no window covers and no exemption anchor reaches, one
+refusal per commit, with the new per-commit text (`render_lane_window_refusals`), printed after
+every lane's tier-1 refusals. So the new text appears only for commits tier 1 cannot see (between
+two approvals, or work abandoned before a rewind); a claim with no tier-2 refusal renders
+byte-identical to today. The exempt set is computed once per lane and handed to both tiers.
+
+**Canceled work packages (operator ruling 2026-11-09).** A canceled work package gets no window, so
+its commits on a lane with recorded windows would otherwise refuse in tier 2 although the mixed-lane
+rules already judge them. The commits the mixed-lane resolution attributed to the lane's canceled
+work packages are therefore exempt from tier 2 (`reconciliation_bound._canceled_window_exempt`);
+the mixed-lane and canceled-content rules are their only judge. Tier 1 is unchanged: a canceled
+work package's commit after an approval stamp still refuses (#5720). The `orchestrator-api` door
+(`approved_bound_refusal`) resolves the same exemption.
+
 **All-gap lane.** A lane on which every approved work package has a gap runs today's
 approval-stamp check (`check_lane`) unchanged, with today's anchors, own stamps included. Its
 verdict and refusal text are byte-identical to today's (FR-023).
 
 ### 5. Claim inputs and their three sources
 
-`ClaimInputs` is one frozen value, built by one constructor, consumed by claim building and by the
-gate. Its fields are: the target base, the coordination base, the frozen lane tips, the frozen
+`ClaimInputs` is one frozen value (`consolidation/claim_inputs.py`), built by one constructor
+(`build_claim`), consumed by claim building and by the gate. Its source is a `ClaimInputSource`. Its fields are: the target base, the coordination base, the frozen lane tips, the frozen
 dependency anchors, the dependency refs and their pins, the excluded canceled work packages, the
 strategy, the status directory read, and its source.
 
@@ -216,8 +239,10 @@ strategy, the status directory read, and its source.
 
 Equality compares refs by the SHA they resolve to, and the status directory by its resolved path
 and the digest of its event log. Phase 2 of the Mission keeps every per-mode quirk exactly. Phase 4
-aligns the forecast's excluded canceled work packages, its coordination base (resolved to a SHA)
-and its status directory with the fresh run's (FR-013).
+aligns the forecast's excluded canceled work packages and its coordination base (resolved to a SHA)
+with the fresh run's (FR-013). The forecast keeps the status read door; it resolves the same status
+directory as the fresh run's write accessor on every topology the corpus builds, so no status
+directory change was needed (one residual, below).
 
 ### 6. Durability horizon
 
@@ -236,9 +261,17 @@ attestation flags keep their meaning. Every work package judged by the fallback 
 **gap report** with its reason. `APPROVAL_STAMP_MISSING` is unchanged. Missions in flight at
 upgrade therefore reach the verdict they would have reached before it.
 
-Gap-report surfaces: the fresh run, the resume and the forecast (a human block, "Window gaps", and
-`window_gaps` in the dry-run JSON). The `orchestrator-api` envelope is unchanged (no contract
-version change); see the residual below.
+Gap-report surfaces: the fresh run, the resume and the forecast (a human block headed "Window gaps
+(judged by the approval-stamp bound)", and `window_gaps` in the dry-run JSON, also on a refusal).
+Each entry is a `GapEntry` (`consolidation/wp_attribution.py`), rendered by
+`consolidation/window_gap_report.py`; the block prints before a claim-time refusal. The
+`orchestrator-api` envelope is unchanged (no contract version change); see the residual below.
+
+**The forecast reports the approved-bound refusals** (research R-09, settled by the corpus).
+`consolidate --dry-run` builds the full claim, so a post-approval commit is forecast as
+`CLAIM_REFUSED_FORECAST` naming `LANE_MOVED_AFTER_APPROVAL` (cell
+`forecast|single_lane|post_approval_commit`), and a missing or rewritten stamp as
+`APPROVAL_STAMP_MISSING` or `APPROVAL_STAMP_NOT_ON_LANE`. The window refusals reach it the same way.
 
 ### 8. The frozen anchor set on resume
 
@@ -253,7 +286,10 @@ claim capture, feeds every consumer of the closed-world anchors (Decision Moment
 
 A dependency lane that moved after the interruption no longer widens what is exempt on any axis.
 A fresh run reads live tips, which equal what the claim freezes on an unmutated state, so its
-verdict is unchanged.
+verdict is unchanged. A dependency lane the record froze no tip for is read live, listed in
+`ClaimInputs.degraded_dependency_anchors`, and named in a note on the resume. Only the coordination
+topology freezes lane tips, so a resume of a `LANES` or `single_branch` Mission with a dependency
+lane always prints that note.
 
 ### 9. The two recording tiers
 
@@ -269,19 +305,20 @@ outside the existing rollback authority (Follow-up: see #7359).
 ### 10. The nine base and window notions
 
 Every notion on `main` maps to the one window model or to a named window variant. Homes are module
-and symbol names; line numbers drift.
+and symbol names after the split of `reconciliation.py` (now a re-exporting facade); line numbers
+drift.
 
 | # | Notion | Home | Disposition in the window model |
 |---|---|---|---|
 | 1 | Coordination base (the lane-tip range base) | `consolidation/phase_claim.py`, `coord_base_ref` | `ClaimInputs.coord_base`. |
 | 2 | Excluded window base (the target's pre-mutation tip) | `consolidation/phase_claim.py`, `excluded_window_base` | `ClaimInputs.target_base` (a claim-base input). |
-| 3 | The bound's claim base | `consolidation/reconciliation.py`, `_bound_claim_base` | Derived from 1 and 2, unchanged. It is the degraded window's opening edge. |
+| 3 | The bound's claim base | `consolidation/reconciliation_bound.py`, `_bound_claim_base` | Derived from 1 and 2, unchanged. It is the degraded window's opening edge. |
 | 4 | Presence lane bases | `consolidation/wp_attribution.py`, `first_governed_open_stamp` | **Named variant "lane anchor"**: `blocked` counts as an opener. Kept, because unifying it would change closed-world verdicts. |
 | 5 | Implementation and review windows | `consolidation/wp_attribution.py`, `WorkWindow` | **Named variant "canceled-content windows"**: class-change windows of mixed lanes. Unchanged. |
 | 6 | The approval stamp | `consolidation/approved_bound.py`, `approval_stamp` | The window's closing edge, and the fallback bound. |
 | 7 | The owned-file evidence window (`planning_commit_sha..tip`) | `consolidation/wp_evidence.py` | **Named variant "owned-file evidence"**: not stamp-based. Unchanged. |
 | 8 | The `single_branch` authorship window (`merge-base(target, mission)..mission`) | `lanes/single_branch_landing.py` | **Named variant "`single_branch` authorship window"**, unchanged. `single_branch` approval windows read the recorded window-open SHA when present (FR-011) and keep today's derivation, reported as a gap, when absent. |
-| 9 | The closed-world anchors (dependency-lane tips and the target base) | `consolidation/reconciliation.py`, `_closed_world_anchors` | Anchor SHAs come from `ClaimInputs`. Frozen on resume (decision 8). |
+| 9 | The closed-world anchors (dependency-lane tips and the target base) | `consolidation/reconciliation_kernel.py`, `_closed_world_anchors` | Anchor SHAs come from `ClaimInputs`. Frozen on resume (decision 8). |
 
 The `blocked` asymmetry is a named window variant, not drift: the approval-window opener ignores
 `blocked`, the closed-world lane anchor counts it. Neither verdict changes.
@@ -302,6 +339,20 @@ These are accepted and named, so a later reader does not rediscover them:
   the next resume is a fresh capture by design.
 - **A canceled set that changes between capture and resume** only refuses or drops anchors, both
   safe.
+- **The forecast before the first status seed** (FR-013). A Mission whose coordination branch holds
+  no `status.events.jsonl` yet: the forecast reads the log through the read door's pre-seed
+  fallback (the write checkout), while the fresh run seeds the coordination worktree and measures
+  its claim from that seed commit. Same log bytes, excluded set, lane tips and target base, but a
+  different status directory and coordination SHA. Pinned as the strict `xfail`
+  `test_pre_seed_forecast_status_dir_and_coord_base_equal_fresh_run`
+  (`tests/consolidation/test_forecast_fresh_run_parity.py`).
+- **The presence scope reads canceled lanes live on resume.** `reconciliation_authorship._presence_scope`
+  is not one of the four frozen-anchor consumers. Its live read can only shrink the subtracted
+  canceled set, which makes the presence axis stricter, never looser.
+- **Compound refusals exempt no canceled commit.** The canceled-dependency compound refusal evaluates
+  the bound before the mixed lanes are resolved, so the bound text it appends exempts no canceled
+  work package's commit from tier 2. A canceled work package that is unattributable, attested
+  (`--attest-canceled-superseded`) or not, exempts nothing either. Both fail closed.
 - **The window downgrade is invisible on `orchestrator-api`.** The envelope carries no gap report,
   so a second writer that drops the key, or any other downgrade, is not visible to an orchestrator
   until a later contract version carries the gap report.
@@ -349,10 +400,35 @@ These are accepted and named, so a later reader does not rediscover them:
 
 ### Confirmation
 
-The characterization corpus, the refusal-precedence matrix and the surface pin land first and stay
-unchanged across the split. Each behaviour change in this Mission is a named corpus cell with a
-test committed failing before its fix and passing after. The closeout work package syncs this
-record with what shipped.
+The characterization corpus, the refusal-precedence matrix and the surface pin landed first and
+stayed unchanged across the split. Each behaviour change in this Mission is a named corpus cell
+(NFR-002) with a test committed failing before its fix and passing after. As landed:
+
+- (a), (b): a commit between two approvals refuses, naming the commit and the work package approved
+  before it (WP19). (c): a rewound work package's window opens after the rewind, on lanes (WP19) and
+  `single_branch` (WP20).
+- (d): a history-read error in the authored-content walk refuses the claim instead of counting the
+  path as deleted (#5048(b), WP16).
+- (e), (f): on resume the closed world and the approved bound read the frozen anchors (WP18). On the
+  corpus (e) shape the new refusal is carried by the approved bound, because the closed world walks
+  only the non-merge commits of the first-parent spine and the dependency commit sits behind a
+  merge; the closed world's own read of the frozen set is pinned by
+  `test_resume_closed_world_does_not_exempt_a_post_interrupt_dependency_commit`.
+- (g): recorded unreachable. A fully-canceled lane has no frozen tip and is never an anchor, so any
+  route that brings its advance into the claim reaches a dependency lane after that lane's approval
+  stamp, which the approved bound refuses with live or frozen anchors alike.
+  `test_resume_fully_canceled_lane_flip_is_unreachable` pins the reachable consequence.
+- (h): the forecast excludes the fresh run's canceled work packages (verdict-visible) and resolves
+  the coordination base to a SHA (field-level only) (WP17).
+
+The evidence: `tests/status/test_wp_window_capture.py`, `tests/consolidation/test_window_opener.py`,
+`test_claim_inputs_parity.py`, `test_forecast_fresh_run_parity.py`, `test_lane_approval_windows.py`,
+`test_refusal_precedence_matrix_windows.py`, `test_lane_window_query_count.py`,
+`test_window_gap_report.py`, `test_window_gap_report_entry_points.py`,
+`test_authored_walk_read_error.py`, `test_resume_frozen_anchors.py`,
+`test_reconciliation_characterization.py`, `test_reconciliation_intended_verdicts.py` and
+`test_reconciliation_seeded_mutations.py` (all under `tests/consolidation/` unless named), and
+`tests/integration/test_single_branch_approval_windows.py`.
 
 ## Pros and Cons of the Options
 

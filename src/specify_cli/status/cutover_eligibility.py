@@ -91,7 +91,7 @@ def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any]
     """True iff *policy_metadata* has any key other than the WP03 ``lane_head`` stamp.
 
     Conservative fix (orchestrator decision, review-feedback-1 Issue 5):
-    :func:`~specify_cli.status.lane_head.probe_lane_head`'s best-effort stamp
+    :func:`~specify_cli.status.lane_head.read_lane_head`'s best-effort stamp
     (FR-001, mission ``mixed-lane-authorship-soundness-01M3M7Y0``) is the ONLY
     key this predicate excludes. Every other ``policy_metadata`` shape this
     codebase writes keeps counting exactly as it always has — a real
@@ -193,7 +193,7 @@ def mission_carries_event_log_runtime(mission_dir: Path) -> bool:
       approval's ``tool``/``profile``/``model``-only dict;
       ``migration_original_actor``-only). Only a ``lane_head``-ONLY (or
       empty) dict, added by :func:`~specify_cli.status.lane_head.
-      probe_lane_head`'s best-effort stamp (FR-001, mission
+      read_lane_head`'s best-effort stamp (FR-001, mission
       ``mixed-lane-authorship-soundness-01M3M7Y0``) independent of claim
       state, stops counting.
 

@@ -593,7 +593,7 @@ Every persisted lifecycle transition of a WP mapped to a non-planning
 execution lane whose branch exists is stamped, best-effort, with
 `policy_metadata["lane_head"]` -- that lane branch's `git rev-parse` HEAD sha
 at the moment the transition is written. Both status shells inject the same
-probe (`specify_cli.status.lane_head.probe_lane_head`): the flat/primary
+probe (`specify_cli.status.lane_head.read_lane_head`): the flat/primary
 shell (`status.emit.emit_status_transition`) and the coordination
 transactional shell (`coordination.status_transition.
 emit_status_transition_transactional`). The stamp is a local, free-form

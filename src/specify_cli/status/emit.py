@@ -1003,7 +1003,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         readiness = _resolve_dependency_readiness(canonical_feature_dir, request.wp_id, snapshot)
 
         # Step 4: the status-owned pipeline (validate + build; pure).
-        from .lane_head import probe_lane_head  # noqa: PLC0415
+        from .lane_head import read_lane_head  # noqa: PLC0415
 
         prepared = prepare_transition(
             request=request,
@@ -1013,7 +1013,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             from_lane=from_lane,
             readiness=readiness,
             resolve_subtasks_dir=_flat_subtasks_dir_resolver,
-            lane_head_probe=probe_lane_head,
+            lane_head_reader=read_lane_head,
             repo_root=_repo_root_for_lane_head(canonical_feature_dir, request.repo_root),
         )
         if prepared.event is None:
@@ -1110,7 +1110,7 @@ def _prepare_batch(
     (D-2); operator decision 2026-09-07 reinstated it (mission-review
     DRIFT-3). The rule lives in the pipeline as a policy knob, not here.
     """
-    from .lane_head import probe_lane_head  # noqa: PLC0415
+    from .lane_head import read_lane_head  # noqa: PLC0415
 
     built: list[tuple[StatusEvent, PreparedTransition, TransitionRequest]] = []
     batch_started_at = now_utc()
@@ -1125,7 +1125,7 @@ def _prepare_batch(
             at=(batch_started_at + timedelta(microseconds=len(built))).isoformat(),
             resolve_subtasks_dir=_flat_subtasks_dir_resolver,
             default_workspace_context=False,
-            lane_head_probe=probe_lane_head,
+            lane_head_reader=read_lane_head,
             repo_root=_repo_root_for_lane_head(feature_dir, request.repo_root),
         )
         if prepared.event is None:

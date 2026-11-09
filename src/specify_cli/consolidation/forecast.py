@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -26,12 +27,13 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
 from specify_cli.consolidation.reconciliation import (
     MergeOutcomeVerifier,
+    VerifyResult,
     VerifyStatus,
     _lane_branch_for,
-    build_approved_wp_set,
     claim_integrity_refusal,
 )
 from specify_cli.lanes.persistence import (
@@ -50,6 +52,8 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
+from specify_cli.consolidation.phase_claim import _print_window_gaps
+from specify_cli.consolidation.window_gap_report import WINDOW_GAPS_KEY, gap_report_json
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     mission_branch_check_required,
@@ -67,6 +71,9 @@ from specify_cli.post_merge.review_artifact_consistency import (
     run_review_artifact_consistency_preflight,
 )
 
+if TYPE_CHECKING:
+    from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
+
 
 def _effective_delete_branch(delete_branch: bool, lanes_manifest: LanesManifest) -> bool:
     """Whether the merge would really delete a branch (#5100 B6).
@@ -83,14 +90,23 @@ def _effective_delete_branch(delete_branch: bool, lanes_manifest: LanesManifest)
     return not (only_planning and lanes_manifest.mission_branch == lanes_manifest.target_branch)
 
 
-def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | None = None) -> None:
-    """Emit a dry-run error in the right channel (``error_code`` added to JSON when given)."""
+def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | None = None, claim: ApprovedWpCommitSet | None = None) -> None:
+    """Emit a dry-run error in the right channel (``error_code`` added to JSON when given).
+
+    *claim*: the claim a refusal after the claim build was judged on; its window gaps (FR-010) ride
+    on the error as ``window_gaps`` (JSON) or print before the ``Error:`` line (human). A claim
+    without gaps, or none, leaves the error byte-identical.
+    """
+    gaps = claim.window_gaps if claim is not None else ()
     if json_output:
-        payload: dict[str, str] = {"spec_kitty_version": cli_version(), "error": error_msg}
+        payload: dict[str, object] = {"spec_kitty_version": cli_version(), "error": error_msg}
         if error_code is not None:
             payload["error_code"] = error_code
+        if gaps:
+            payload[WINDOW_GAPS_KEY] = gap_report_json(gaps)
         print(json.dumps(payload))
     else:
+        _print_window_gaps(claim)
         console.print(f"[red]Error:[/red] {error_msg}")
 
 
@@ -368,7 +384,9 @@ def _forecast_claim_status_dir(main_repo: Path, mission: str, *, json_output: bo
 
     surface = resolve_status_read(main_repo, mission)
     if surface.path is not None:
-        return surface.path
+        # Local annotation re-narrows to ``Path`` (the narrow-file mypy override erases the surface's type).
+        status_dir: Path = surface.path
+        return status_dir
     _emit_dry_run_error(
         error_msg=f"the Mission's status is read from {surface.ref}, which has no checkout for the forecast to read. {ref_source_remedy(surface, mission)}",
         json_output=json_output,
@@ -386,8 +404,9 @@ def _refuse_unattributable_in_forecast(
     dependency_refs: tuple[str, ...],
     json_output: bool,
     squashed_tree: str | None = None,
-) -> None:
-    """Run the content check the real run will run, before any ref moves (#6771, #7244).
+    strategy: MergeStrategy = MergeStrategy.SQUASH,
+) -> ApprovedWpCommitSet | None:
+    """Run the content check the real run will run, before any ref moves (#6771, #7244); return the claim it built.
 
     The pre-#6771 forecast terminated before reconciliation ever ran, so a mission whose lane
     merged a dependency branch's newer head previewed green and refused on the real run. This
@@ -404,7 +423,9 @@ def _refuse_unattributable_in_forecast(
 
     Only the content axis is forecast — the reachability axes cannot be judged before the
     landing exists. A refusal calls :func:`_emit_dry_run_error` (so ``--json`` stays valid
-    JSON) and exits 1. Nothing is mutated: the claim build and the checks are read-only.
+    JSON) and exits 1; a refusal after the claim build carries its window gaps (FR-010). Nothing
+    is mutated: the claim build and the checks are read-only. Returns ``None`` when the target
+    does not resolve (no claim is built).
     """
     main_repo = get_main_repo_root(repo_root)
     dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs, json_output=json_output)
@@ -416,24 +437,34 @@ def _refuse_unattributable_in_forecast(
         # it with a weaker message. Everything the forecast DOES evaluate is below this point,
         # where a probe error refuses (NFR-002).
         logger.debug("no resolvable window base for the closed-world forecast", exc_info=True)
-        return
+        return None
+    claim: ApprovedWpCommitSet | None = None
     try:
         status_dir = _forecast_claim_status_dir(main_repo, resolved_feature, json_output=json_output)
-        claim = build_approved_wp_set(
-            main_repo,
-            status_dir,
-            lanes_manifest,
-            coord_base_ref=lanes_manifest.mission_branch,
-            excluded_window_base=window_base,
-            external_dependency_refs=dependency_refs,
-            external_dependency_pins=dependency_pins,
+        # FR-012 (WP09) / FR-013 (WP17): the LIVE source excludes the canceled work packages the
+        # fresh run excludes and resolves the coordination base the fresh run resolves; it keeps its
+        # own (read-door) status dir.
+        inputs = claim_inputs(
+            ClaimInputSource.LIVE,
+            ClaimInputContext(
+                repo_root=main_repo,
+                manifest=lanes_manifest,
+                status_dir=status_dir,
+                strategy=strategy.value,
+                resolved_target_base=window_base,
+                dependency_refs=dependency_refs,
+                dependency_pins=dependency_pins,
+                mission_slug=resolved_feature,
+            ),
         )
+        claim = build_claim(main_repo, lanes_manifest, inputs)
         refusal = claim_integrity_refusal(claim)
         if refusal is not None:
             _emit_dry_run_error(
                 error_msg=f"Reconciliation would REFUSE (fail-closed): {refusal} The real run refuses this Mission at claim time; this dry run moved nothing.",
                 json_output=json_output,
                 error_code=CLAIM_REFUSED_FORECAST,
+                claim=claim,
             )
             raise typer.Exit(1)
         # The refs the landing would integrate: the mission branch, every lane branch the
@@ -449,8 +480,15 @@ def _refuse_unattributable_in_forecast(
             error_msg=f"the closed-world reconciliation window could not be read ({exc}); the forecast cannot prove the landing is attributable (fail-closed).",
             json_output=json_output,
             error_code=CLAIM_REFUSED_FORECAST,
+            claim=claim,
         )
         raise typer.Exit(1) from exc
+    _forecast_verdict_or_exit(claim, result, json_output=json_output)
+    return claim
+
+
+def _forecast_verdict_or_exit(claim: ApprovedWpCommitSet, result: VerifyResult, *, json_output: bool) -> None:
+    """Return on a PASS forecast; otherwise emit the REFUSE / FAIL the real run would hit (with the claim's gaps) and exit 1."""
     if result.status is VerifyStatus.PASS:
         return
     if result.status is VerifyStatus.REFUSE:
@@ -461,6 +499,7 @@ def _refuse_unattributable_in_forecast(
             ),
             json_output=json_output,
             error_code=CLAIM_REFUSED_FORECAST,
+            claim=claim,
         )
         raise typer.Exit(1)
     # The SAME clause rendering and the SAME recovery hint the real run prints: one authority
@@ -471,6 +510,7 @@ def _refuse_unattributable_in_forecast(
         error_msg=(f"Reconciliation would FAIL: {detail}.{hint} The real run refuses this landing and restores its pre-run refs; this dry run moved nothing."),
         json_output=json_output,
         error_code=UNATTRIBUTABLE_CONTENT_FORECAST,
+        claim=claim,
     )
     raise typer.Exit(1)
 
@@ -635,7 +675,7 @@ def run_dry_run_forecast(
 
     # #6771 / #7244: predict the content refusal the real run's strategy would hit, on the
     # content this landing would introduce — before this preview reports anything as ready.
-    _refuse_unattributable_in_forecast(
+    claim = _refuse_unattributable_in_forecast(
         repo_root=repo_root,
         resolved_feature=resolved_feature,
         resolved_target_branch=resolved_target_branch,
@@ -643,6 +683,7 @@ def run_dry_run_forecast(
         dependency_refs=dependency_refs,
         json_output=json_output,
         squashed_tree=integration_preview.squashed_tree if resolved_strategy is MergeStrategy.SQUASH else None,
+        strategy=resolved_strategy,
     )
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
@@ -681,6 +722,8 @@ def run_dry_run_forecast(
             "worktree_source": retention_decision.worktree_source,
             "warnings": list(retention_decision.warnings),
         },
+        # FR-010: always present; ``[]`` when no work package was judged by its approval-stamp bound.
+        WINDOW_GAPS_KEY: gap_report_json(claim.window_gaps) if claim is not None else [],
     }
     if dependency_refs and not json_output:
         console.print(f"[cyan]declared dependency ref(s)[/cyan] {', '.join(dependency_refs)} — their commits are attributed as inherited history.")
@@ -689,6 +732,7 @@ def run_dry_run_forecast(
     if json_output:
         print(json.dumps(payload))
     else:
+        _print_window_gaps(claim)
         console.print_json(json.dumps(payload))
 
 

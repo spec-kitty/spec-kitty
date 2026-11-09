@@ -130,13 +130,15 @@ def plan_approved_attestations(
     reason: str | None,
     *,
     excluded_canceled_wp_ids: Iterable[str],
+    frozen_dependency_tips: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Validate the request against the status log: work package id -> current lane, in request order.
 
     Raises :class:`AttestationError` (nothing recorded) for an invalid request, an
     unreadable status log, or a work package whose earlier attestation its lane has moved
     past (:func:`_refuse_moved_reattestations`). An empty request returns an empty mapping
-    without reading.
+    without reading. *frozen_dependency_tips* (FR-015) is a ``--resume``'s frozen anchor set,
+    the same one its claim reads; ``None`` (a fresh run) reads the live dependency lanes.
     """
     requested = tuple(wp_ids)
     if not requested:
@@ -149,7 +151,14 @@ def plan_approved_attestations(
     claim_lanes = approved_claim_lanes(work_packages, lanes_manifest, excluded_canceled_wp_ids)
     validated = validate_approved_attestation_request(requested, reason, events=events, claim_lanes=claim_lanes)
     _refuse_moved_reattestations(
-        repo_root, feature_dir, lanes_manifest, validated, events=events, work_packages=work_packages, excluded_canceled_wp_ids=frozenset(excluded_canceled_wp_ids)
+        repo_root,
+        feature_dir,
+        lanes_manifest,
+        validated,
+        events=events,
+        work_packages=work_packages,
+        excluded_canceled_wp_ids=frozenset(excluded_canceled_wp_ids),
+        frozen_tips=frozen_dependency_tips,
     )
     return {wp_id: claim_lanes[wp_id] for wp_id in validated}
 
@@ -163,6 +172,7 @@ def _refuse_moved_reattestations(
     events: Sequence[StatusEvent],
     work_packages: Mapping[str, Mapping[str, object]],
     excluded_canceled_wp_ids: frozenset[str],
+    frozen_tips: Mapping[str, str] | None = None,
 ) -> None:
     """Raise :class:`AttestationError` when a work package to re-attest has a lane beyond its earlier attestation.
 
@@ -173,7 +183,8 @@ def _refuse_moved_reattestations(
     it exactly as the claim reads it: a commit of a canceled work package of the lane made
     after the earlier attestation counts like any other (#5720). Any lane refusal (commits
     after the stamp, or a stamp that is no longer on the lane), or a lane that cannot be
-    read, refuses the request.
+    read, refuses the request. On a ``--resume`` the dependency lanes anchor on *frozen_tips*
+    (FR-015), so a commit a dependency lane gained after the interruption is not exempt here either.
     """
     reattested = frozenset(wp_id for wp_id in wp_ids if approval_is_attested(events, wp_id) and approval_stamp(events, wp_id) is not None)
     if not reattested:
@@ -195,7 +206,10 @@ def _refuse_moved_reattestations(
                 branch=branch,
                 approved_wp_ids=[wp_id for wp_id in approved if approval_stamp(events, wp_id) is not None],
                 claim_base=resolve_commit(repo_root, lanes_manifest.target_branch),
-                anchors=[*_closed_world_anchors(lanes_manifest, lane, None, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
+                anchors=[
+                    *_closed_world_anchors(lanes_manifest, lane, None, excluded_canceled_wp_ids=excluded_canceled_wp_ids, frozen_tips=frozen_tips),
+                    *stamp_anchors,
+                ],
                 is_bookkeeping=is_bookkeeping,
             )
         except GitProbeError as exc:

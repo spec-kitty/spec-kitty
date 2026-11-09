@@ -4,7 +4,7 @@ A mission has two independent code lanes: ``WP01`` on ``lane-a`` and ``WP02`` on
 ``lane-b``. Both work packages are implemented, reviewed and approved through the
 production transactional status shell
 (:func:`tests.terminus.mixed_lane_support.transition`), so every ``lane_head``
-stamp comes from ``probe_lane_head`` and never from a hand-written event. The
+stamp comes from ``read_lane_head`` and never from a hand-written event. The
 lane branches are cut and the lane worktrees allocated by the real
 ``allocate_lane_worktree``.
 

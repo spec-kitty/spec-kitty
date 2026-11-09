@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 from . import emit as _emit
-from .lane_head import LANE_HEAD_KEY
+from .lane_head import LANE_HEAD_KEY, WP_WINDOW_KEY, CaptureCause
 from .models import (
     FORCE_NOTE_HINT,
     FORCE_NOTE_REQUIRED,
@@ -63,7 +63,7 @@ from .wp_state import annotate
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
     from specify_cli.core.dependency_graph import DependencyReadiness
-    from .lane_head import LaneHeadProbe
+    from .lane_head import LaneHeadReader, LaneHeadReading
 
 #: Injected I/O seams (contract §1). ``Callable[..., ...]`` mirrors the shape
 #: of today's helpers; tests pass fakes with the same call signature.
@@ -177,27 +177,57 @@ def _infer_review_gates(
     return subtasks_complete, implementation_evidence_present
 
 
+#: The transitions that open a work-package window (W-1): ``wp_window`` is written only on these.
+_WINDOW_OPENING_LANES: frozenset[Lane] = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
+
+#: ``wp_window.schema_version`` this writer produces (contract ``status-event-wp-window.md``).
+_WP_WINDOW_SCHEMA_VERSION = 1
+
+
+def _wp_window_value(request: TransitionRequest, reading: LaneHeadReading, resolved_lane: str) -> dict[str, Any] | None:
+    """The ``wp_window`` value for this transition, or ``None`` when it does not qualify (W-1, W-3).
+
+    It qualifies only on a non-migration move into ``claimed`` / ``in_progress`` (after
+    alias resolution) whose reading is applicable. A sha writes ``open_sha``; a missing
+    lane branch writes the ``lane_branch_missing`` gap (no ``cause``); any other failed
+    reading writes ``capture_failed`` with its cause.
+    """
+    if resolved_lane not in _WINDOW_OPENING_LANES or is_migration_actor(request.actor) or not reading.applicable:
+        return None
+    if reading.sha is not None:
+        return {"schema_version": _WP_WINDOW_SCHEMA_VERSION, "open_sha": reading.sha}
+    gap: dict[str, Any]
+    if reading.cause is CaptureCause.LANE_BRANCH_MISSING:
+        gap = {"reason": "lane_branch_missing", "detail": reading.detail}
+    else:
+        gap = {"reason": "capture_failed", "cause": str(reading.cause), "detail": reading.detail}
+    return {"schema_version": _WP_WINDOW_SCHEMA_VERSION, "gap": gap}
+
+
 def _stamped_policy_metadata(
     *,
     request: TransitionRequest,
     mission_slug: str,
-    lane_head_probe: LaneHeadProbe | None,
+    lane_head_reader: LaneHeadReader | None,
     repo_root: Path | None,
+    resolved_lane: str,
 ) -> dict[str, Any] | None:
-    """Return *request*'s ``policy_metadata`` with a best-effort lane-head stamp (FR-001).
+    """Return *request*'s ``policy_metadata`` with the best-effort lane-head stamps (FR-001, FR-002).
 
-    ``lane_head_probe is None`` means no stamp: P-1 (purity) forbids this
-    module from ever defaulting to a real probe, so the composition shells
-    are the only source of one. When a probe IS supplied, the repo root it
+    ``lane_head_reader is None`` means no stamp: P-1 (purity) forbids this
+    module from ever defaulting to a real reader, so the composition shells
+    are the only source of one. When a reader IS supplied, the repo root it
     is called with prefers ``request.repo_root``; the *repo_root* keyword is
     only a fallback for a request that omits it (the shells resolve and pass
     both, but ``request.repo_root`` wins so a caller that pre-populated the
-    request is honored). Any missing repo root, or a probe result of
-    ``None`` (no lane, no branch, any git/read error -- the probe itself
-    never raises), leaves ``policy_metadata`` byte-identical to what the
-    request already carried. ``request.owned`` is forwarded so an owned
-    transition's probe reads the lane map from the fact, never from the
-    repository root.
+    request is honored). The reading is taken ONCE (W-2, NFR-006) and feeds
+    both keys: ``lane_head`` iff it carries a sha (unchanged behaviour), and
+    ``wp_window`` iff :func:`_wp_window_value` says the move opens a window.
+    When neither key is added (no repo root, nothing to stamp -- the reader
+    itself never raises), the request's ``policy_metadata`` is returned
+    unchanged, so the event is byte-identical to today (W-5). ``request.owned``
+    is forwarded so an owned transition's reader reads the lane map from the
+    fact, never from the repository root.
     """
     # Annotated local (mirrors `emit._repo_root_for_lane_head`): under this
     # repo's project-wide `specify_cli.*` mypy `follow_imports = "skip"`
@@ -208,15 +238,21 @@ def _stamped_policy_metadata(
     # annotation on this local re-asserts the field's real, already-declared
     # type without a `cast`.
     request_policy_metadata: dict[str, Any] | None = request.policy_metadata
-    if lane_head_probe is None or request.wp_id is None:
+    if lane_head_reader is None or request.wp_id is None:
         return request_policy_metadata
     effective_repo_root = request.repo_root if request.repo_root is not None else repo_root
     if effective_repo_root is None:
         return request_policy_metadata
-    sha = lane_head_probe(repo_root=effective_repo_root, mission_slug=mission_slug, wp_id=request.wp_id, owned=request.owned)
-    if not sha:
+    reading = lane_head_reader(repo_root=effective_repo_root, mission_slug=mission_slug, wp_id=request.wp_id, owned=request.owned)
+    added: dict[str, Any] = {}
+    if reading.sha:
+        added[LANE_HEAD_KEY] = reading.sha
+    window = _wp_window_value(request, reading, resolved_lane)
+    if window is not None:
+        added[WP_WINDOW_KEY] = window
+    if not added:
         return request_policy_metadata
-    return {**(request_policy_metadata or {}), LANE_HEAD_KEY: sha}
+    return {**(request_policy_metadata or {}), **added}
 
 
 #: Lanes a WP leaves only through a recorded verdict or a noted operator force (#5446).
@@ -288,7 +324,7 @@ def prepare_transition(
     infer_subtasks_complete: SubtasksCompleteInferrer | None = None,
     infer_implementation_evidence: ImplementationEvidenceInferrer | None = None,
     default_workspace_context: bool = True,
-    lane_head_probe: LaneHeadProbe | None = None,
+    lane_head_reader: LaneHeadReader | None = None,
     repo_root: Path | None = None,
 ) -> PreparedTransition:
     """Validate *request* against *from_lane* and build its event (pure).
@@ -335,16 +371,17 @@ def prepare_transition(
             it to fail-closed, expressed here so the pipeline stays the
             single validation authority instead of re-inlining the rule in
             the shell.
-        lane_head_probe: Injected lane-branch-head resolver (FR-001). ``None``
+        lane_head_reader: Injected lane-head reader (FR-001, FR-002). ``None``
             (the default) means no stamp -- P-1 forbids this module from
-            defaulting to a real probe itself; the shells inject
-            ``status.lane_head.probe_lane_head`` at all four call sites. When
-            supplied, its result (or lack of one) only ever appends
-            ``policy_metadata["lane_head"]``; it never changes any other
-            field or refuses the transition.
+            defaulting to a real reader itself; the shells inject
+            ``status.lane_head.read_lane_head`` at all four call sites. When
+            supplied, its one reading only ever appends
+            ``policy_metadata["lane_head"]`` and, on a window-opening move,
+            ``policy_metadata["wp_window"]``; it never changes any other
+            field or refuses the transition (W-4, W-5).
         repo_root: The canonical repository root the shell resolved for the
-            lane-head probe (fallback when ``request.repo_root`` is
-            ``None``). Unused when ``lane_head_probe`` is ``None``.
+            lane-head reader (fallback when ``request.repo_root`` is
+            ``None``). Unused when ``lane_head_reader`` is ``None``.
 
     Returns:
         A :class:`PreparedTransition`. ``event is None`` is the alias-collapse
@@ -429,15 +466,17 @@ def prepare_transition(
     # reducer folds annotations in a post-transition partition pass, so their
     # relative ULID order is not load-bearing.
     #
-    # FR-001 (mixed-lane-authorship-soundness-01M3M7Y0/WP03): best-effort
-    # lane-head stamp, appended to policy_metadata just before the event is
-    # built. Byte-identical to today when lane_head_probe is None or the
-    # probe finds nothing to stamp.
+    # FR-001 (mixed-lane-authorship-soundness-01M3M7Y0/WP03) and FR-002
+    # (consolidation-window-provenance-01M6Y84D/WP07): best-effort lane-head
+    # and window-open stamps from one reading, appended to policy_metadata
+    # just before the event is built. Byte-identical to today when
+    # lane_head_reader is None or the move adds neither key.
     stamped_policy_metadata = _stamped_policy_metadata(
         request=request,
         mission_slug=mission_slug,
-        lane_head_probe=lane_head_probe,
+        lane_head_reader=lane_head_reader,
         repo_root=repo_root,
+        resolved_lane=resolved_lane,
     )
     event = _emit.build_status_event(
         mission_slug=mission_slug,

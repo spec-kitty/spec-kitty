@@ -7,7 +7,7 @@ commits), then WP02's ENTIRE lifecycle -- and, for the superseded twin, WP01's
 rework -- is driven through
 ``specify_cli.coordination.status_transition.emit_status_transition_transactional``,
 the coord-topology transactional shell that injects the real
-``probe_lane_head``. Consolidation runs through the REAL ``spec-kitty
+``read_lane_head``. Consolidation runs through the REAL ``spec-kitty
 consolidate`` CLI (:func:`tests.terminus.conftest.run_terminus`). Unsuperseded
 canceled content FAILs; the superseded twin PASSes.
 

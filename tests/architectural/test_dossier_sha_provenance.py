@@ -119,6 +119,10 @@ DOSSIER_SHA_FIELDS: Mapping[tuple[str, str], ShaProvenance] = {
     # status/lane_head.py: the lane branch tip at each transition (append-only
     # log; consumed at consolidate time, before landing).
     ("status.events.jsonl", "policy_metadata.lane_head"): _BR,
+    # status/transition_pipeline.py: the window-open SHA on a work package's
+    # opening transition (wp_window, Mission consolidation-window-provenance-01M6Y84D);
+    # provenance of the lane branch, valid for one consolidation attempt.
+    ("status.events.jsonl", "policy_metadata.wp_window.open_sha"): _BR,
     # Review references that happen to be commit ids.
     ("status.events.jsonl", "review_ref"): _BR,
     ("status.events.jsonl", "review_result.reference"): _BR,
@@ -270,3 +274,23 @@ def test_removing_a_registry_entry_turns_the_real_tree_red() -> None:
     weakened = {key: value for key, value in DOSSIER_SHA_FIELDS.items() if key != ("status.events.jsonl", "policy_metadata.lane_head")}
     missing = unclassified(scan_sha_fields(KITTY_SPECS), weakened)
     assert ("status.events.jsonl", "policy_metadata.lane_head") in missing
+
+
+def test_wp_window_open_sha_is_classified_branch_relative(tmp_path: Path) -> None:
+    """FR-005: the window-open SHA a status row records is branch-relative provenance.
+
+    The scan walks nested objects, so ``policy_metadata.wp_window.open_sha`` is
+    reported by key path; a row that carries a gap records no SHA at all.
+    """
+    sha = "b" * 40
+    rows = [
+        {"policy_metadata": {"lane_head": sha, "wp_window": {"schema_version": 1, "open_sha": sha}}},
+        {"policy_metadata": {"wp_window": {"schema_version": 1, "gap": {"reason": "lane_branch_missing", "detail": "x"}}}},
+    ]
+    _write(tmp_path / "some-mission-01ABCDEF" / "status.events.jsonl", "\n".join(json.dumps(row) for row in rows) + "\n")
+
+    found = scan_sha_fields(tmp_path)
+
+    assert ("status.events.jsonl", "policy_metadata.wp_window.open_sha") in {(file, key) for file, key, _ in found}
+    assert unclassified(found, DOSSIER_SHA_FIELDS) == {}
+    assert DOSSIER_SHA_FIELDS[("status.events.jsonl", "policy_metadata.wp_window.open_sha")] is ShaProvenance.BRANCH_RELATIVE

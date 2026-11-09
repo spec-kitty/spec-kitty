@@ -22,13 +22,14 @@ Design references: plan.md D-2/D-3 (steps 2-4); data-model.md (``WorkWindow``,
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator, Sequence
+import re
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
 
-from specify_cli.status import LANE_HEAD_KEY, StatusEvent, is_migration_actor
+from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, StatusEvent, is_migration_actor
 
 from .git_probes import (
     GitProbeError,
@@ -692,11 +693,257 @@ def approval_window_open_stamp(events: Sequence[StatusEvent], wp_id: str) -> str
     Unlike :func:`first_governed_open_stamp` (the mixed-lane closed-world anchor, which also
     counts ``blocked``), a ``blocked`` move opens nothing here: a WP blocked at the start would
     otherwise open its window before the work of WPs approved ahead of it.
+
+    The candidates come from :func:`window_opener_events` with ``cycle=False`` (the whole
+    history, no skip), the selector :func:`window_open_of` shares, so the opener rule lives
+    in one place.
     """
-    for event in events:
-        if event.wp_id == wp_id and not is_migration_event(event) and event.to_lane in _ENTERED_IMPLEMENTATION_LANES:
-            return stamp_of(event)
+    candidates = window_opener_events(events, wp_id, cycle=False).candidates
+    return stamp_of(candidates[0]) if candidates else None
+
+
+# --------------------------------------------------------------------------- #
+# Window opener reader (Mission consolidation-window-provenance-01M6Y84D, WP08)
+# --------------------------------------------------------------------------- #
+#
+# data-model.md section 3 and contracts/status-event-wp-window.md R-1..R-5 (FR-004,
+# FR-021, FR-022). Pure: the caller passes the events in log order and two predicates
+# bound to the one lane tip the approved bound resolves; nothing here reads git.
+
+# A move to ``planned`` out of one of these lanes is review rework (a rejection), not a
+# rewind, so it does not start a new window cycle (spec Assumption "Returned to planned
+# excludes review rejections").
+_REWORK_FROM_LANES: frozenset[str] = frozenset({"for_review", "in_review", "approved", "done"})
+_PLANNED = "planned"
+_WP_WINDOW_SCHEMA_VERSION = 1
+_OPEN_SHA = re.compile(r"[0-9a-f]{40}")
+_WINDOW_KEYS: frozenset[str] = frozenset({"schema_version", "open_sha", "gap"})
+_GAP_KEYS: frozenset[str] = frozenset({"reason", "cause", "detail"})
+_CAPTURE_CAUSES: frozenset[str] = frozenset({"git_error", "probe_error"})
+_GAP_DETAIL_MAX = 500
+
+
+class WindowGapReason(StrEnum):
+    """Why a work package's window-open SHA is not usable (closed set, data-model section 3)."""
+
+    NOT_RECORDED = "not_recorded"
+    CAPTURE_FAILED = "capture_failed"
+    LANE_BRANCH_MISSING = "lane_branch_missing"
+    NOT_ON_LANE = "not_on_lane"
+
+    @property
+    def report_text(self) -> str:
+        """The gap report's reason string ("not recorded", "capture failed", ...)."""
+        return self.value.replace("_", " ")
+
+
+@dataclass(frozen=True, slots=True)
+class WindowOpen:
+    """The work package's window opens (exclusively) at ``sha``, a commit on the lane."""
+
+    sha: str
+
+
+@dataclass(frozen=True, slots=True)
+class WindowGap:
+    """No usable window-open SHA; the work package is judged by its degraded window.
+
+    ``cause`` and ``detail`` echo a recorded ``capture_failed`` / ``lane_branch_missing``
+    gap; ``sha`` names the recorded SHA of a ``not_on_lane`` gap; ``malformed`` flags a
+    ``not_recorded`` gap whose opener carried a value violating the contract (R-5).
+    """
+
+    reason: WindowGapReason
+    cause: str | None = None
+    detail: str = ""
+    sha: str | None = None
+    malformed: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class GapEntry:
+    """One approved work package the approved bound judged by its degraded window (data-model section 5).
+
+    ``reason`` is the :attr:`WindowGapReason.report_text` of the gap ("not recorded", ...);
+    ``cause`` and ``detail`` echo a recorded gap. The claim carries these as ``window_gaps``.
+    """
+
+    wp_id: str
+    lane_id: str
+    reason: str
+    cause: str | None = None
+    detail: str = ""
+
+    @classmethod
+    def from_gap(cls, wp_id: str, lane_id: str, gap: WindowGap) -> GapEntry:
+        """The entry for *wp_id* on *lane_id* whose window-open SHA is the typed *gap*."""
+        return cls(wp_id=wp_id, lane_id=lane_id, reason=gap.reason.report_text, cause=gap.cause, detail=gap.detail)
+
+
+@dataclass(frozen=True, slots=True)
+class OpenerSelection:
+    """The events that may open a window, in log order, plus the leading ones skipped.
+
+    ``skipped`` holds the leading ``lane_branch_missing`` candidates dropped by the
+    ``cycle=True`` selection (R-1(c)); it is always empty for ``cycle=False``.
+    """
+
+    candidates: tuple[StatusEvent, ...]
+    skipped: tuple[StatusEvent, ...] = ()
+
+    @property
+    def skipped_branch_missing(self) -> int:
+        """How many leading ``lane_branch_missing`` candidates were skipped."""
+        return len(self.skipped)
+
+
+@dataclass(frozen=True, slots=True)
+class _Parsed:
+    """A contract-valid ``wp_window`` value: exactly one of ``open_sha`` / ``gap_reason``."""
+
+    open_sha: str | None = None
+    gap_reason: str | None = None
+    cause: str | None = None
+    detail: str = ""
+
+
+def _valid_gap(gap: object) -> _Parsed | None:
+    if not isinstance(gap, Mapping) or not set(gap) <= _GAP_KEYS:
+        return None
+    reason, cause, detail = gap.get("reason"), gap.get("cause"), gap.get("detail", "")
+    if not isinstance(detail, str) or len(detail) > _GAP_DETAIL_MAX:
+        return None
+    if reason == WindowGapReason.CAPTURE_FAILED.value and cause in _CAPTURE_CAUSES:
+        return _Parsed(gap_reason=reason, cause=str(cause), detail=detail)
+    if reason == WindowGapReason.LANE_BRANCH_MISSING.value and "cause" not in gap:
+        return _Parsed(gap_reason=reason, detail=detail)
     return None
+
+
+def _parse_wp_window(value: object) -> _Parsed | None:
+    """Validate one ``wp_window`` value against schema version 1; ``None`` when it violates it (R-5)."""
+    if not isinstance(value, Mapping) or not set(value) <= _WINDOW_KEYS:
+        return None
+    version = value.get("schema_version")
+    # ``True == 1`` in Python; the contract's ``const: 1`` is an integer, never a boolean.
+    if type(version) is not int or version != _WP_WINDOW_SCHEMA_VERSION:
+        return None
+    if ("open_sha" in value) == ("gap" in value):
+        return None
+    if "gap" in value:
+        return _valid_gap(value["gap"])
+    sha = value["open_sha"]
+    return _Parsed(open_sha=sha) if isinstance(sha, str) and _OPEN_SHA.fullmatch(sha) else None
+
+
+def _window_value(event: StatusEvent) -> tuple[_Parsed | None, bool]:
+    """The event's parsed ``wp_window`` and whether a present value was malformed (read per event, R-2)."""
+    metadata = event.policy_metadata
+    if not metadata or WP_WINDOW_KEY not in metadata:
+        return None, False
+    parsed = _parse_wp_window(metadata[WP_WINDOW_KEY])
+    return parsed, parsed is None
+
+
+def _branch_missing_detail(event: StatusEvent) -> str | None:
+    """The detail of a valid ``lane_branch_missing`` gap on *event*; ``None`` when it records none."""
+    parsed, _ = _window_value(event)
+    if parsed is None or parsed.gap_reason != WindowGapReason.LANE_BRANCH_MISSING.value:
+        return None
+    return parsed.detail
+
+
+def _cycle_start_index(wp_events: Sequence[StatusEvent]) -> int:
+    """Index just after the last rewind to ``planned`` (R-1(a)); 0 when there is none (genesis)."""
+    start = 0
+    for index, event in enumerate(wp_events):
+        if event.to_lane == _PLANNED and event.from_lane not in _REWORK_FROM_LANES:
+            start = index + 1
+    return start
+
+
+def _candidates(wp_events: Sequence[StatusEvent]) -> tuple[StatusEvent, ...]:
+    """Moves into ``claimed`` / ``in_progress`` in log order; ``blocked`` is never one (R-1(b))."""
+    return tuple(event for event in wp_events if event.to_lane in _ENTERED_IMPLEMENTATION_LANES)
+
+
+def _skip_leading_branch_missing(candidates: tuple[StatusEvent, ...]) -> OpenerSelection:
+    """Drop leading candidates that recorded a valid ``lane_branch_missing`` gap (R-1(c))."""
+    index = 0
+    while index < len(candidates) and _branch_missing_detail(candidates[index]) is not None:
+        index += 1
+    return OpenerSelection(candidates=candidates[index:], skipped=candidates[:index])
+
+
+def window_opener_events(events: Sequence[StatusEvent], wp_id: str, *, cycle: bool) -> OpenerSelection:
+    """The one window opener selector (FR-021, contract R-1(a)-(c)).
+
+    *events* must be in event-log order (as ``read_events`` returns them); they are never
+    re-sorted by ``at``. Migration events are ignored: they never open a window and never
+    start a cycle. ``cycle=True`` keeps only the events after the work package's last move
+    to ``planned`` out of a non-review lane (a rewind; a review rejection to ``planned`` is
+    rework and keeps the cycle) and skips leading ``lane_branch_missing`` openers.
+    ``cycle=False`` is the first-claim rule over the whole history, with no skip.
+    """
+    wp_events = [event for event in events if event.wp_id == wp_id and not is_migration_event(event)]
+    if not cycle:
+        return OpenerSelection(candidates=_candidates(wp_events))
+    return _skip_leading_branch_missing(_candidates(wp_events[_cycle_start_index(wp_events) :]))
+
+
+def _topological_first(shas: Sequence[str], is_ancestor: Callable[[str, str], bool]) -> str:
+    """The SHA that is an ancestor of (or equal to) every other; the first in log order when none is."""
+    for sha in shas:
+        if all(is_ancestor(sha, other) for other in shas if other != sha):
+            return sha
+    return shas[0]
+
+
+def _bind(
+    candidates: tuple[StatusEvent, ...],
+    *,
+    on_lane: Callable[[str], bool],
+    is_ancestor: Callable[[str, str], bool],
+) -> WindowOpen | WindowGap:
+    """Bind a non-empty candidate tuple to an outcome (contract R-1(d), R-2..R-5)."""
+    first, malformed = _window_value(candidates[0])
+    if first is None:
+        # An unrecorded opener is never replaced by a later recorded one.
+        return WindowGap(WindowGapReason.NOT_RECORDED, malformed=malformed)
+    if first.open_sha is None:
+        # A leading lane_branch_missing was skipped, so this is a capture_failed gap.
+        return WindowGap(WindowGapReason.CAPTURE_FAILED, cause=first.cause, detail=first.detail)
+    shas = [parsed.open_sha for parsed, _ in map(_window_value, candidates) if parsed is not None and parsed.open_sha is not None]
+    chosen = _topological_first(shas, is_ancestor)
+    if not on_lane(chosen):
+        return WindowGap(WindowGapReason.NOT_ON_LANE, sha=chosen)
+    return WindowOpen(chosen)
+
+
+def window_open_of(
+    events: Sequence[StatusEvent],
+    wp_id: str,
+    *,
+    on_lane: Callable[[str], bool],
+    is_ancestor: Callable[[str, str], bool],
+) -> WindowOpen | WindowGap:
+    """The window-open SHA of *wp_id*'s current cycle, or the typed gap (data-model section 3).
+
+    *events* are in event-log order. ``on_lane(sha)`` is true iff *sha* resolves in this
+    clone and is an ancestor of the one lane tip the approved bound resolved (FR-022);
+    ``is_ancestor(a, b)`` is true iff *a* is an ancestor of or equal to *b*. Both are bound
+    by the caller to that one tip and must not raise: a caller maps a git error to False,
+    so an unresolvable SHA reads as ``not_on_lane``, never as a probe error (R-4). Among
+    the cycle's recorded SHAs the topological first wins, so a rework stamped on a skewed
+    clock cannot narrow the window; unrelated SHAs fall back to event-log order. This
+    function performs no git read.
+    """
+    selection = window_opener_events(events, wp_id, cycle=True)
+    if selection.candidates:
+        return _bind(selection.candidates, on_lane=on_lane, is_ancestor=is_ancestor)
+    if selection.skipped:
+        return WindowGap(WindowGapReason.LANE_BRANCH_MISSING, detail=_branch_missing_detail(selection.skipped[-1]) or "")
+    return WindowGap(WindowGapReason.NOT_RECORDED)
 
 
 def lane_dependency_merges(repo_root: Path, spine: Iterable[str], dependency_tips: Sequence[str]) -> frozenset[str]:
@@ -1009,6 +1256,7 @@ __all__ = [
     "canceled_spine_content",
     "approval_window_open_stamp",
     "first_governed_open_stamp",
+    "GapEntry",
     "is_migration_event",
     "lacks_lane_head_stamps",
     "lane_dependency_merges",
@@ -1017,4 +1265,8 @@ __all__ = [
     "lane_own_commits",
     "resolve_canceled_wp",
     "stamp_of",
+    "WindowGap",
+    "WindowGapReason",
+    "WindowOpen",
+    "window_open_of",
 ]

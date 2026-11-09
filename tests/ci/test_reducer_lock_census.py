@@ -100,7 +100,7 @@ def test_reducer_readers_route_the_indirect_consumers(census: ReducerLockCensus)
     via_reducer = frozenset().union(*census.reducer_owners.values())
     for module in ("consolidation", "lanes", "upgrade"):
         assert module in via_reducer, f"{module!r} reads the CLI reducer but the second census level lost it"
-    assert "src/specify_cli/consolidation/reconciliation.py" in census.reducer_owners
+    assert "src/specify_cli/consolidation/reconciliation_claim.py" in census.reducer_owners
 
 
 def test_unowned_test_importers_are_recorded_out_of_matrix(census: ReducerLockCensus) -> None:

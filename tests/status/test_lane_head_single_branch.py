@@ -31,7 +31,7 @@ from specify_cli.lanes.single_branch_landing import (
     minted_write_branch,
     write_branch_for,
 )
-from specify_cli.status.lane_head import LANE_HEAD_KEY, probe_lane_head
+from specify_cli.status.lane_head import LANE_HEAD_KEY, read_lane_head
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -120,7 +120,7 @@ def test_single_branch_probe_stamps_mission_branch_head(two_missions: Path) -> N
     head = _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
     assert head != _git(two_missions, "rev-parse", f"refs/heads/{_TARGET}")
 
-    assert probe_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01") == head
+    assert read_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01").sha == head
 
 
 @pytest.mark.fast
@@ -129,7 +129,7 @@ def test_single_branch_stamp_follows_the_mission_branch_from_another_checkout(tw
     head = _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
     _git(two_missions, "checkout", "-q", _TARGET)
 
-    assert probe_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01") == head
+    assert read_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01").sha == head
 
 
 @pytest.mark.fast
@@ -138,14 +138,14 @@ def test_single_branch_stamp_needs_no_lane_map(two_missions: Path) -> None:
     (two_missions / "kitty-specs" / _SB_SLUG / "lanes.json").unlink()
     head = _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
 
-    assert probe_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01") == head
+    assert read_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01").sha == head
 
 
 @pytest.mark.fast
 def test_lanes_planning_lane_wp_stays_unstamped(two_missions: Path) -> None:
     """Positive control, same run: a ``lanes`` Mission's planning-lane WP returns no stamp, while the ``single_branch`` one does."""
-    sb_stamp = probe_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01")
-    lanes_stamp = probe_lane_head(repo_root=two_missions, mission_slug=_LANES_SLUG, wp_id="WP01")
+    sb_stamp = read_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01").sha
+    lanes_stamp = read_lane_head(repo_root=two_missions, mission_slug=_LANES_SLUG, wp_id="WP01").sha
 
     assert sb_stamp == _git(two_missions, "rev-parse", f"refs/heads/{_SB_BRANCH}")
     assert lanes_stamp is None
@@ -162,7 +162,7 @@ def test_commit_to_target_single_branch_stays_unstamped(tmp_path: Path) -> None:
     _write_mission(repo, _SB_SLUG, topology="single_branch", mission_branch=None)
     _commit(repo, "seed.txt", "seed\n", "seed")
 
-    assert probe_lane_head(repo_root=repo, mission_slug=_SB_SLUG, wp_id="WP01") is None
+    assert read_lane_head(repo_root=repo, mission_slug=_SB_SLUG, wp_id="WP01").sha is None
 
 
 @pytest.mark.fast
@@ -171,7 +171,7 @@ def test_single_branch_probe_without_the_mission_branch_is_no_stamp_not_a_crash(
     _git(two_missions, "checkout", "-q", _TARGET)
     _git(two_missions, "branch", "-D", _SB_BRANCH)
 
-    assert probe_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01") is None
+    assert read_lane_head(repo_root=two_missions, mission_slug=_SB_SLUG, wp_id="WP01").sha is None
 
 
 # ---------------------------------------------------------------------------

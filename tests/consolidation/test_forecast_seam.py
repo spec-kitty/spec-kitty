@@ -50,6 +50,7 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
         "lanes",
         "would_assign_mission_number",
         "retention",
+        "window_gaps",  # added for the window gap report (#7403, 2026-11)
     }
 )
 
@@ -146,6 +147,7 @@ def test_clean_forecast_json_payload_key_set(
     assert payload["mission_slug"] == mission.mission_slug
     assert payload["strategy"] == "squash"
     assert payload["push"] is False
+    assert payload["window_gaps"] == []
 
 
 def test_squash_conflict_forecast_blocks_with_stable_json(

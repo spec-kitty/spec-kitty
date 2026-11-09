@@ -7,7 +7,7 @@ the allocator's dependency step then merges ``lane-a``'s tip into it, which is a
 fast-forward -- so ``WP01``'s commit lands on ``lane-b``'s ``--first-parent``
 spine with no merge commit. Every lifecycle transition runs through the
 production coord-topology status shell (:func:`tests.terminus.mixed_lane_support.transition`),
-so each ``lane_head`` stamp comes from ``probe_lane_head`` and not from a hand
+so each ``lane_head`` stamp comes from ``read_lane_head`` and not from a hand
 written event.
 """
 

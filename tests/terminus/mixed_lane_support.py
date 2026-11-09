@@ -76,7 +76,7 @@ def transition(
     """Drive ONE transition through the production coord-topology transactional shell.
 
     Never a hand-written ``policy_metadata`` stamp: the returned, persisted
-    :class:`StatusEvent` carries whatever ``probe_lane_head`` read at persist time.
+    :class:`StatusEvent` carries whatever ``read_lane_head`` read at persist time.
     """
     request = TransitionRequest(
         feature_dir=mission.feature_dir,

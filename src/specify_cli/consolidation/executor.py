@@ -251,6 +251,7 @@ def _record_operator_attestations(
     feature_dir: Path | None = None,
     lanes_manifest: LanesManifest | None = None,
     no_implementation_wp_ids: tuple[str, ...] = (),
+    frozen_dependency_tips: Mapping[str, str] | None = None,
 ) -> tuple[str, ...]:
     """Validate and record the operator attestations of the run, before any mutation.
 
@@ -267,14 +268,60 @@ def _record_operator_attestations(
     bounds the closed-world exemption (a straggler landed after an earlier
     attestation is covered only once the operator attests again). Written through the canonical transactional status seam
     (``canceled_attestation.record_canceled_superseded_attestation``).
+
+    *frozen_dependency_tips* (FR-015) is a ``--resume``'s frozen anchor set
+    (:func:`_resume_frozen_dependency_tips`), read by the approved-reviewed repeat check.
     """
     if not (wp_ids or approved_wp_ids or no_implementation_wp_ids):
         return ()
-    approved_plan = _plan_approved_attestations(main_repo, feature_dir, lanes_manifest, approved_wp_ids, reason, acceptably_canceled)
+    approved_plan = _plan_approved_attestations(
+        main_repo, feature_dir, lanes_manifest, approved_wp_ids, reason, acceptably_canceled, frozen_dependency_tips=frozen_dependency_tips
+    )
     no_implementation_plan = _plan_no_implementation_attestations(main_repo, feature_dir, lanes_manifest, no_implementation_wp_ids, reason, acceptably_canceled)
     canceled = _record_canceled_attestations(main_repo, mission_slug, wp_ids=wp_ids, reason=reason, acceptably_canceled=acceptably_canceled)
     approved = _record_approved_attestations(main_repo, mission_slug, approved_plan, reason)
     return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason)
+
+
+def _resume_frozen_dependency_tips(
+    main_repo: Path,
+    canonical_id: str,
+    feature_dir: Path,
+    lanes_manifest: LanesManifest,
+    excluded_canceled_wp_ids: frozenset[str],
+    *,
+    requested: tuple[str, ...],
+) -> Mapping[str, str] | None:
+    """A ``--resume``'s frozen dependency anchors for the approved-reviewed repeat check (FR-015, CI-5; WP09 review (d)).
+
+    The attestations run before the record is loaded for the run and before the claim, so the
+    resume's ``SAVED`` claim inputs are built here, read-only, from the same ``state.json``
+    ``_load_or_create_merge_state`` loads moments later: the repeat check then reads the anchor set
+    the claim reads. ``None`` -- the live read -- when no ``--attest-approved-reviewed`` was
+    requested or no record exists (a fresh run, whose live tips are what its claim then freezes).
+    """
+    if not requested:
+        return None
+    state = load_state(main_repo, canonical_id)
+    if state is None:
+        return None
+    from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, claim_inputs, frozen_dependency_tips
+
+    inputs = claim_inputs(
+        ClaimInputSource.SAVED,
+        ClaimInputContext(
+            repo_root=main_repo,
+            manifest=lanes_manifest,
+            status_dir=feature_dir,
+            strategy=state.strategy,
+            resolved_target_base=state.pre_mutation_target_sha,
+            state=state,
+            excluded_canceled_wp_ids=excluded_canceled_wp_ids,
+        ),
+    )
+    # Local annotation re-narrows the import (the narrow-file mypy override skips following it).
+    tips: Mapping[str, str] | None = frozen_dependency_tips(inputs)
+    return tips
 
 
 def _record_canceled_attestations(
@@ -322,6 +369,8 @@ def _plan_approved_attestations(
     wp_ids: tuple[str, ...],
     reason: str | None,
     excluded_canceled_wp_ids: frozenset[str],
+    *,
+    frozen_dependency_tips: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Validate ``--attest-approved-reviewed`` against the status log: WP id -> current lane (exit 1, nothing recorded, when refused)."""
     if not wp_ids or feature_dir is None or lanes_manifest is None:
@@ -330,10 +379,19 @@ def _plan_approved_attestations(
     from specify_cli.consolidation.canceled_attestation import AttestationError
 
     try:
-        return plan_approved_attestations(main_repo, feature_dir, lanes_manifest, wp_ids, reason, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
+        plan: dict[str, str] = plan_approved_attestations(
+            main_repo,
+            feature_dir,
+            lanes_manifest,
+            wp_ids,
+            reason,
+            excluded_canceled_wp_ids=excluded_canceled_wp_ids,
+            frozen_dependency_tips=frozen_dependency_tips,
+        )
     except AttestationError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
+    return plan
 
 
 def _record_approved_attestations(main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None) -> tuple[str, ...]:
@@ -458,6 +516,10 @@ def _run_lane_based_consolidation_locked(
     # #5686 (FR-005): refuse a move the record cannot explain BEFORE anything this
     # process does could move a branch (the attestations below, the resume heal).
     start_tips = _refuse_unexplained_branch_moves(main_repo, canonical_id)
+    # FR-015: a resume's repeat-attestation check reads the claim's frozen anchor set.
+    frozen_dependency_tips = _resume_frozen_dependency_tips(
+        main_repo, canonical_id, feature_dir, lanes_manifest, excluded_canceled_wp_ids, requested=attest_approved_reviewed
+    )
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -470,6 +532,7 @@ def _run_lane_based_consolidation_locked(
         feature_dir=feature_dir,
         lanes_manifest=lanes_manifest,
         no_implementation_wp_ids=attest_no_implementation,
+        frozen_dependency_tips=frozen_dependency_tips,
     )
     # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
     own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(_status_surface_ref(main_repo, mission_slug),))

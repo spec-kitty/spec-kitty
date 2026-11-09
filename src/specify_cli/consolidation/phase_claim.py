@@ -15,7 +15,7 @@ import contextlib
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import typer
 from rich.markup import escape
@@ -43,8 +43,8 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.reconciliation import (
-    build_approved_wp_set,
     claim_integrity_refusal,
     detect_legacy_in_flight_state,
     write_post_fix_marker,
@@ -55,6 +55,7 @@ from specify_cli.consolidation.state import (
     lane_tip_cas_ok,
     save_state,
 )
+from specify_cli.consolidation.window_gap_report import gap_report_lines
 from specify_cli.consolidation.run_state import (
     _resume_reconciliation_already_passed,
     _CONSOLIDATE_ABORT_AND_RESTART_HINT,
@@ -64,6 +65,10 @@ from specify_cli.consolidation.run_state import (
     _capture_coord_checkpoint,
     _stored_topology_for,
 )
+
+
+if TYPE_CHECKING:
+    from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
 
 
 #: rollback-anchor-authority (#5686, FR-005): a re-run or ``--resume`` found a
@@ -343,7 +348,9 @@ def _resolve_pre_mutation_coord_sha(state: ConsolidationState, run: _MergeRunSta
     if not state.pre_interrupt_lane_tips:
         state.pre_interrupt_lane_tips = _capture_pre_interrupt_lane_tips(run)
     save_state(state, run.main_repo)
-    return checkpoint.sha
+    # Local annotation re-narrows to ``str`` (the narrow-file mypy override erases the checkpoint's type).
+    captured: str = checkpoint.sha
+    return captured
 
 
 def _unanchored_lane_branches(run: _MergeRunState) -> list[str]:
@@ -513,29 +520,43 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # resolver falling back to a live capture.
     _enforce_resume_anchor_integrity(run, coord_topology=checkpoint is not None)
     coord_base_sha = _resolve_pre_mutation_coord_sha(run.state, run)
-    coord_base = coord_base_sha if coord_base_sha is not None else (checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch)
+    target_base = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
 
-    run.target_expected_old_sha = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
+    # FR-012 (WP09): the claim inputs come from the one constructor -- SAVED on a resume,
+    # LIVE_THEN_SAVED on a fresh run -- after the fail-closed anchor checks above. The declared
+    # external dependency refs (#6771) are verified fail-closed inside the claim builder, so a bad
+    # declaration refuses HERE, before the first mutation.
+    inputs = claim_inputs(
+        ClaimInputSource.SAVED if run.is_resume else ClaimInputSource.LIVE_THEN_SAVED,
+        ClaimInputContext(
+            repo_root=run.main_repo,
+            manifest=run.lanes_manifest,
+            status_dir=run.feature_dir,
+            strategy=run.strategy.value,
+            resolved_target_base=target_base,
+            resolved_coord_sha=coord_base_sha,
+            checkpoint_sha=checkpoint.sha if checkpoint is not None else None,
+            state=run.state,
+            dependency_refs=run.dependency_refs,
+            dependency_pins=run.dependency_ref_pins,
+            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+        ),
+    )
+    coord_base = inputs.coord_base
+    run.target_expected_old_sha = inputs.target_base
+    run.claim_inputs = inputs
+    _print_degraded_dependency_anchors(inputs.degraded_dependency_anchors)
 
     try:
-        run.approved_wp_set = build_approved_wp_set(
-            run.main_repo,
-            run.feature_dir,
-            run.lanes_manifest,
-            coord_base_ref=coord_base,
-            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
-            excluded_window_base=run.target_expected_old_sha,
-            # #6771: the declared external dependency refs (verified fail-closed inside the
-            # claim builder, so a bad declaration refuses HERE, before the first mutation).
-            external_dependency_refs=run.dependency_refs,
-            external_dependency_pins=run.dependency_ref_pins,
-        )
+        run.approved_wp_set = build_claim(run.main_repo, run.lanes_manifest, inputs)
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 
     _pin_dependency_refs(run)
     _print_dependency_refs(run)
     _print_no_implementation_lifts(run.feature_dir, run.approved_wp_set.no_implementation_attested_wp_ids)
+    # FR-010: before the integrity refusal, so a refused run still names the work packages it judged by the weaker check.
+    _print_window_gaps(run.approved_wp_set)
     run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
     run.bound_anchor_shas = _bound_anchor_shas(run, coord_base)
 
@@ -550,6 +571,25 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
     _capture_snapshot_and_begin_attempt(run)
+
+
+def _print_degraded_dependency_anchors(degraded: tuple[str, ...]) -> None:
+    """Name every dependency lane a resume anchors on its LIVE tip because the record froze none (FR-015).
+
+    A ``--resume`` anchors the closed world and the approved bound on the dependency-lane tips the
+    interrupted run froze (``pre_interrupt_lane_tips``). A dependency lane the record holds no tip for
+    (a record written without one: a topology with no coordination checkpoint, or an older release)
+    keeps the live read, a degraded anchor (ADR 2026-11-08-2): a commit that lane gained after the
+    interruption would be exempt. Said, never silent.
+    """
+    if not degraded:
+        return
+    console.print(
+        "[yellow]Note:[/yellow] the saved record froze no tip for dependency lane branch(es) "
+        + ", ".join(repr(branch) for branch in degraded)
+        + "; this resume anchors on their live tips (degraded anchor), so a commit they gained after the interruption is not refused on the lanes that merged it.",
+        soft_wrap=True,
+    )
 
 
 def _pin_dependency_refs(run: _MergeRunState) -> None:
@@ -605,6 +645,19 @@ def _print_no_implementation_lifts(feature_dir: Path, lifted_wp_ids: frozenset[s
 
     for line in lifted_notices(read_events(feature_dir), lifted_wp_ids):
         console.print(f"[yellow]{escape(line)}[/yellow]", soft_wrap=True)
+
+
+def _print_window_gaps(claim: ApprovedWpCommitSet | None) -> None:
+    """Print the window gap report when the claim judged a work package by its approval-stamp bound (FR-010).
+
+    The fresh run and ``--resume`` both build the claim here, so this one call covers both.
+    """
+    lines = gap_report_lines(claim.window_gaps) if claim is not None else []
+    if not lines:
+        return
+    console.print(f"[yellow]{escape(lines[0])}[/yellow]", soft_wrap=True)
+    for line in lines[1:]:
+        console.print(line, markup=False, soft_wrap=True)
 
 
 def _bound_anchor_shas(run: _MergeRunState, coord_base: str) -> tuple[str, ...]:

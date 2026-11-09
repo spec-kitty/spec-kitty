@@ -1171,16 +1171,6 @@ entries:
   category: category_c_terminus_reconciliation_5001
   rationale: T028 git probe (ancestry -> tree-equality integration under squash); consumed by the reconciliation
     verifier's own body (docstring cross-reference only) and exercised directly by tests/consolidation/test_reconciliation.py.
-- module: specify_cli.consolidation.reconciliation
-  name: TERMINUS_ENTRY_POINTS
-  category: category_c_terminus_reconciliation_5001
-  rationale: public vocabulary of the new reconciliation gate (the closed-world entry point registry `route_terminus`
-    consults).
-- module: specify_cli.consolidation.reconciliation
-  name: UnroutedTerminusPathError
-  category: category_c_terminus_reconciliation_5001
-  rationale: public vocabulary of the new reconciliation gate (raised by `route_terminus` for an unrouted
-    terminus path).
 - module: specify_cli.core.ledger_posture
   name: LedgerPosture
   category: category_c_hosted_removal_orphaned_api_6164
