@@ -11,6 +11,7 @@ bodies keep their own end-to-end coverage (``test_finalize_topology_settlement``
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -378,3 +379,20 @@ def test_revert_receives_the_branch_setup_meta_snapshot(harness: Harness) -> Non
     assert revert["args"] == (harness.planning_dir / "meta.json", "{}")
     assert revert["meta_json_persisted"] is True
     assert revert["meta_commit_progress"].committed is False
+
+
+# ---------------------------------------------------------------------------
+# Phase helpers, directly (#7410)
+# ---------------------------------------------------------------------------
+
+
+def test_undo_without_a_write_scope_only_reverts_meta(harness: Harness) -> None:
+    undo = seam._FinalizeUndoState(branch_setup=dataclasses.replace(_branch_setup(harness), mission_write_scope_dir=None))
+    ledger, ledger_token, observer_token = seam.begin_write_ledger()
+    try:
+        outcome = seam._undo_refused_finalize(undo, ledger)
+    finally:
+        seam.end_write_ledger(ledger_token, observer_token)
+
+    assert outcome == seam._FinalizeUndoOutcome(revert_error="revert-error", status_leftover=None, kept_files=[])
+    assert "_undo_finalize_with_settlement" not in harness.calls
