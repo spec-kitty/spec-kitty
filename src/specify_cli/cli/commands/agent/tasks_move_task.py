@@ -440,6 +440,20 @@ def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
     return str(agent) if agent else None
 
 
+#: The local review lifecycle an owned checkout supports, up to approval: both the
+#: lanes it may move a WP into and the lanes it may move one out of.
+_OWNED_LIFECYCLE_LANES: frozenset[Lane] = frozenset(
+    {
+        Lane.PLANNED,
+        Lane.CLAIMED,
+        Lane.IN_PROGRESS,
+        Lane.FOR_REVIEW,
+        Lane.IN_REVIEW,
+        Lane.APPROVED,
+    }
+)
+
+
 def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
     """Reject unsupported owned-checkout modes before any mission write.
 
@@ -450,14 +464,7 @@ def _mt_preflight_owned_request(st: _MoveTaskState) -> None:
     """
     assert st.owned is not None
     require_unstaged_index(st.owned)
-    if st.target_lane not in (
-        Lane.PLANNED,
-        Lane.CLAIMED,
-        Lane.IN_PROGRESS,
-        Lane.FOR_REVIEW,
-        Lane.IN_REVIEW,
-        Lane.APPROVED,
-    ):
+    if st.target_lane not in _OWNED_LIFECYCLE_LANES:
         raise ActionContextError(
             "OWNED_TRANSITION_UNSUPPORTED",
             "Owned checkout supports the local review lifecycle through approval only.",
@@ -635,14 +642,7 @@ def _mt_require_post30_layout(st: _MoveTaskState, feature_dir: Path) -> None:
 
 def _mt_require_owned_source_lane(st: _MoveTaskState) -> None:
     """Validate: an owned checkout moves a WP only out of the local review lifecycle, up to approval."""
-    if st.owned is not None and st.old_lane not in (
-        Lane.PLANNED,
-        Lane.CLAIMED,
-        Lane.IN_PROGRESS,
-        Lane.FOR_REVIEW,
-        Lane.IN_REVIEW,
-        Lane.APPROVED,
-    ):
+    if st.owned is not None and st.old_lane not in _OWNED_LIFECYCLE_LANES:
         raise ActionContextError(
             "OWNED_TRANSITION_UNSUPPORTED",
             "Owned checkout does not support transitions from this lane.",
