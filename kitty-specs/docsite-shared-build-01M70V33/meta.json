@@ -16,5 +16,7 @@
   "target_branch": "issue-6937-docs-site-shared-build",
   "topology": "single_branch",
   "topology_settled": false,
-  "topology_source": "default"
+  "topology_source": "default",
+  "contracts": "none",
+  "contracts_rationale": "The only interface is a GitHub Actions workflow_call contract, specified in data-model.md and pinned by tests/ci/test_docs_site_job.py; there is no API or schema to publish."
 }
