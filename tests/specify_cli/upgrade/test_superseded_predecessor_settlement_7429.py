@@ -120,3 +120,26 @@ def test_an_unparseable_successor_version_keeps_the_6688_rule(project: Path) -> 
     _record(project, successor, "success")
 
     assert migration_settled_in_view(project, successor) is False
+
+
+def test_the_adoption_ceiling_is_the_backfill_bound() -> None:
+    """The rule reads the ledger-adoption backfill's own bound, not a second copy of it."""
+    from packaging.version import Version
+
+    from specify_cli.upgrade.migrations.m_4_0_0rc8_backfill_migration_ledger import TARGET_VERSION
+    from specify_cli.upgrade.registry import _adoption_ceiling
+
+    assert _adoption_ceiling() == Version(TARGET_VERSION)
+
+
+def test_with_no_adoption_migration_registered_the_6688_rule_holds(project: Path) -> None:
+    """Fail closed: without a known adoption bound, a successor's own success settles nothing more."""
+    from specify_cli.upgrade.registry import _own_run_settles_superseded_predecessor
+
+    stamp = _get(STAMP)
+    _record(project, stamp, "success")
+    ledger = MigrationLedger(project)
+    assert _own_run_settles_superseded_predecessor(ledger, stamp) is True  # control: the bound is known
+
+    MigrationRegistry.clear()
+    assert _own_run_settles_superseded_predecessor(ledger, stamp) is False
