@@ -233,6 +233,308 @@
       "verified_by": "closeout WP21",
       "verified_at": "2026-11-09T20:46:44.741202+00:00",
       "notes": "WP19, by construction (check_lane with today's anchors)."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Split changes no verdict: 0 differences in verdict status, refusal code, divergence fields or exit code across the characterization corpus.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py::test_verdict_corpus_matches_the_golden_file; tests/consolidation/characterization/verdict_corpus.json",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold: changed_cells('d1e19dab48') lists only the M8 text cell and the added M9 cell; no status, code, divergence field or exit code of an existing cell moved."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "Behaviour changes are bounded to the named cells (a)-(h), each red-first.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py; tests/consolidation/test_reconciliation_intended_verdicts.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold adds one cell, fresh|single_lane|stamp=present|window=recorded|dependency_ref_merged_before_window (M9, red-first), and re-words cell (b)'s refusal text (M8, red-first); verdicts of the named cells are unchanged."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "The reconciliation facade defines no logic; no split module exceeds 1,200 lines; the largest is at most 30% of 4,096.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_split_shape.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold adds a rank table pinning the family's import direction (L7)."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "0 added or changed functions exceed cyclomatic complexity 15.",
+      "proof_type": "code_review",
+      "evidence": "uv run --frozen ruff check (C901, max-complexity 15) on every changed file: 0 findings",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Gate is ruff C901, aligned with Sonar S3776."
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Net 0 new allowlist entries or suppressions; formatter and lint gates pass with 0 findings.",
+      "proof_type": "code_review",
+      "evidence": "tests/architectural/test_no_dead_symbols.py, test_dead_symbol_allowlist_contract.py, test_clock_import_ban.py (no exemption row); ruff check / ruff format --check .",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "The one noqa in status/status_surface.py (BLE001, with its rationale) is moved verbatim from run_state._status_surface_ref, not new."
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "0 status moves refused because the window-open SHA could not be read; at most 1 lane-head read per move.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_wp_window_capture.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold: a failing rev-parse is now recorded as capture_failed/git_error (M3) and the move still succeeds."
+    },
+    {
+      "criterion_id": "NFR-007",
+      "description": "The lane window check issues O(approved work packages + exemption anchors) history queries.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_window_query_count.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "The M2 strict predicates add only rev-parse reads (cached per binding), which the counter does not count."
+    },
+    {
+      "criterion_id": "NFR-008",
+      "description": "Each moved check has at least one seeded mutation that turns a corpus cell red in process.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_seeded_mutations.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "NFR-009",
+      "description": "Changed-line coverage of the Mission diff is at least 90%.",
+      "proof_type": "automated_test",
+      "evidence": "ci-aggregate.yml diff-cover gate",
+      "pass_fail": "deferred",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Measured by the CI diff-cover gate on the PR (ci-aggregate.yml, >= 90%), not locally: mission work runs targeted tests only (C-013, NO_FULL_HEAVY_SUITES_IN_MISSION).",
+      "deferral_reason": "Changed-line coverage needs the full CI module matrix; local runs are targeted only (C-013).",
+      "deferral_follow_up": "ci-aggregate.yml diff-cover gate on this Mission PR (charter rule NO_FULL_HEAVY_SUITES_IN_MISSION)"
+    },
+    {
+      "criterion_id": "NFR-010",
+      "description": "Red-first tests drive the pre-existing entry point and assert no branch moved on a refusal; 0 hand-written state.json records.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py; tests/consolidation/test_resume_frozen_anchors.py; tests/consolidation/characterization_support.py::interrupt_after_claim",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Resume cells use the in-process fork/SIGKILL driver (interrupt_after_claim) instead of tests/terminus/rollback_harness.py, so a seeded mutation reaches the verdict; spec NFR-010 records the substitution."
+    },
+    {
+      "criterion_id": "C-001",
+      "description": "Window provenance lives only on status transition events.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/status/wp_window.py (codec of policy_metadata.wp_window); no other store",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-002",
+      "description": "The status transition pipeline performs no git reads; the window-open SHA comes from the injected reader.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_transition_pipeline.py; tests/status/test_wp_window_capture.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "status/wp_window.py is pure (no git, no I/O)."
+    },
+    {
+      "criterion_id": "C-003",
+      "description": "The Python status shells write the key; the Java writer is out of scope beyond the filed issue.",
+      "proof_type": "code_review",
+      "evidence": "FR-006 row of this matrix",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-004",
+      "description": "Only the behaviour changes NFR-002 names change a verdict, each red-first.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold M9 restores the pre-window verdict for a declared dependency ref (red-first, one added cell)."
+    },
+    {
+      "criterion_id": "C-005",
+      "description": "The reconciliation facade keeps every name FR-018 pins.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_surface_pin.py; tests/consolidation/reconciliation_surface.json",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "The claim record stays one type and the refusal order stays in one place.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_refusal_precedence_matrix.py; tests/consolidation/test_refusal_precedence_matrix_windows.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Precedence unchanged; the WP19 matrix's pinned window lines carry the M8 wording."
+    },
+    {
+      "criterion_id": "C-007",
+      "description": "Authorship and presence checks move together with one shared history walk.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/consolidation/reconciliation_authorship.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-008",
+      "description": "Characterization (FR-016..FR-018) merged before code moved.",
+      "proof_type": "code_review",
+      "evidence": "FR-016, FR-017, FR-018 rows of this matrix",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-009",
+      "description": "No new rollback or branch-restore caller outside the rollback authority.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_single_rollback_authority.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-010",
+      "description": "A window gap introduces no refusal code.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_window_gap_report.py; tests/consolidation/test_write_branch_bound.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Pre-PR fold M8 changes only the text of LANE_MOVED_AFTER_APPROVAL window refusals; no code added."
+    },
+    {
+      "criterion_id": "C-011",
+      "description": "ADRs are cited by full slug.",
+      "proof_type": "code_review",
+      "evidence": "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-012",
+      "description": "User-facing text follows the terminology canon.",
+      "proof_type": "code_review",
+      "evidence": "src/specify_cli/consolidation/write_branch_bound.py, window_gap_report.py (refusal and gap text)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-013",
+      "description": "Mission work runs targeted tests only.",
+      "proof_type": "code_review",
+      "evidence": "PR body Tests run section",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "C-014",
+      "description": "New and moved code passes lint, format and type checks without new suppressions.",
+      "proof_type": "code_review",
+      "evidence": "uv run --frozen ruff check / ruff format --check . / mypy on changed files",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Two pre-existing no-any-return findings in consolidation/executor.py are on unchanged lines."
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "A commit between two approvals on a lane refuses, naming the commit and the work package approved before it.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_stray_commit_between_two_approvals_refuses, ::test_following_the_printed_window_recovery_leads_to_a_passing_run",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "0 in-flight Missions refused solely for unrecorded windows; every degraded work package is reported.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_lane_approval_windows.py::test_all_gap_lane_passes; tests/consolidation/test_window_gap_report_entry_points.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "The forecast, a fresh run and a resume reach the same verdict wherever all three apply.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py::test_modes_agree_wherever_they_apply; tests/consolidation/test_claim_inputs_parity.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": "Added by the pre-PR fold (L9)."
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "No failed history read is accepted as a deletion; a dependency lane moved after an interruption is judged by its frozen tip.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py (cells d, e, f, g); tests/consolidation/test_resume_frozen_anchors.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "The split changes 0 verdicts and every moved check is guarded by a seeded mutation.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_characterization.py; tests/consolidation/test_reconciliation_seeded_mutations.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Each verification check lives in one module of at most 1,200 lines.",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_reconciliation_split_shape.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:python-pedro (pre-PR fold)",
+      "verified_at": "2026-11-09T23:21:58+00:00",
+      "notes": ""
     }
   ],
   "negative_invariants": []
