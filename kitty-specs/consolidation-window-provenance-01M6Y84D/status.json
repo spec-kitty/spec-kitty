@@ -271,7 +271,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-09T04:37:19Z – claude:claude-opus-5-5:python-pedro – shell_pid=2406972 – WP_BASE=dd21780d78e2f9ef081475164565341b05950a31. Implemented window_opener_events/window_open_of + WindowGapReason/WindowOpen/WindowGap/OpenerSelection; approval_window_open_stamp via selector; wp_window.open_sha classified BRANCH_RELATIVE. Corpus zero-diff, changed_cells=[].",
-        "Ready for review: window opener reader (one selector, typed gaps, topology-first binding, no git read), approval_window_open_stamp via selector, wp_window.open_sha BRANCH_RELATIVE; corpus zero-diff"
+        "Ready for review: window opener reader (one selector, typed gaps, topology-first binding, no git read), approval_window_open_stamp via selector, wp_window.open_sha BRANCH_RELATIVE; corpus zero-diff",
+        "Review passed (7bf370469f). R-1(a)-(e) map clause-by-clause to _cycle_start_index/_candidates/_skip_leading_branch_missing/_bind/window_open_of, each with a named test; review-rejection interpretation matches spec Assumption exactly. Implementer-settled rules accepted: malformed lane_branch_missing not skipped -> not_recorded+malformed (R-5 never trusted); schema_version True malformed (JSON const 1); OpenerSelection.skipped superset of the required count. T044 before/after closed by reviewer: 4 single_branch/write_branch files 41 passed 1 xfailed at dd21780d78 and at HEAD, per-test outcomes identical. Corpus zero-diff, changed_cells []=; WP05 pins 11 xfailed; WP06 harness green; C901<=15, ruff/format/mypy clean; every new line covered by test_window_opener.py; make test-fast 2941 passed. window_open_of has no prod caller yet by design (WP19 wires it). Shared file: wp_attribution.py is also owned by WP19 on the same lane (sequential, WP19 depends via WP10 chain)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
