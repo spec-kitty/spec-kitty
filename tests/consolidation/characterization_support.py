@@ -47,6 +47,8 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+from kernel.clock import parse_iso, timedelta
+
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -1322,9 +1324,7 @@ def _events(mission: ShapeMission) -> list[dict[str, Any]]:
 
 
 def _shift_iso(stamp: str, *, hours: int) -> str:
-    from datetime import datetime, timedelta
-
-    parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    parsed = parse_iso(stamp.replace("Z", "+00:00"))
     return (parsed + timedelta(hours=hours)).isoformat()
 
 

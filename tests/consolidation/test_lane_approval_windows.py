@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 
+from kernel.clock import parse_iso, timedelta
 from specify_cli.consolidation import forecast as forecast_module
 from specify_cli.consolidation import reconciliation_bound
 from specify_cli.consolidation.approved_bound import check_lane, render_refusals
@@ -537,9 +538,7 @@ def test_canceled_wp_commit_after_approval_still_refuses_in_tier_one(templates: 
 
 
 def _shift_seconds(stamp: str, seconds: int) -> str:
-    from datetime import datetime, timedelta
-
-    parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    parsed = parse_iso(stamp.replace("Z", "+00:00"))
     return (parsed + timedelta(seconds=seconds)).isoformat()
 
 
