@@ -272,16 +272,26 @@ def test_the_advisory_set_is_empty() -> None:
     assert not router_gate.ADVISORY_JOB_NAMES
 
 
-@pytest.mark.parametrize("conclusion", ["failure", "timed_out", "cancelled", ""])
-def test_a_failing_docs_site_row_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    rows = f"{_job()['name']}\t{conclusion}\nruff (fast, always-on)\tsuccess\n"
+CALLER_ROW = "docs site (doc-kitty build)"  # a called job's rows are reported as `<caller> / <callee>`
+CALLED_ROW = f"{CALLER_ROW} / build"
 
-    assert _gate_verdict(rows, monkeypatch, capsys).startswith("blocked")
+
+@pytest.mark.parametrize(
+    ("row", "conclusion", "blocks"),
+    [(CALLED_ROW, conclusion, True) for conclusion in ("failure", "timed_out", "cancelled", "")] + [(CALLER_ROW, "skipped", False)],
+)
+def test_the_docs_site_row_gates_by_conclusion(
+    row: str, conclusion: str, blocks: bool, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A red called-build row blocks; the caller row skipped (job not selected) does not."""
+    verdict = _gate_verdict(f"{row}\t{conclusion}\nruff (fast, always-on)\tsuccess\n", monkeypatch, capsys)
+
+    assert verdict.startswith("blocked") is blocks
 
 
 def test_a_green_docs_site_row_passes_beside_another_failure_row(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The gate blocks on the OTHER job: docs-site's own green row never masks a red."""
-    rows = f"{_job()['name']}\tsuccess\nruff (fast, always-on)\tfailure\n"
+    rows = f"{CALLED_ROW}\tsuccess\nruff (fast, always-on)\tfailure\n"
 
     assert _gate_verdict(rows, monkeypatch, capsys).startswith("blocked")
 
@@ -339,11 +349,3 @@ def test_the_shared_definition_is_only_callable_with_read_only_access() -> None:
     assert set(call) == {"workflow_call"}, "no automated trigger: callers own when it runs (and the fork guard)"
     assert "secrets" not in (call["workflow_call"] or {})
     assert workflow["permissions"] == {"contents": "read"}
-
-
-@pytest.mark.parametrize("conclusion", ["failure", "timed_out", "cancelled", ""])
-def test_the_called_build_row_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """The jobs API reports a called job as ``<caller name> / <callee name>``; router-gate classifies every row."""
-    row = f"{_job()['name']} / {_build_job()['name']}"
-
-    assert _gate_verdict(f"{row}\t{conclusion}\nruff (fast, always-on)\tsuccess\n", monkeypatch, capsys).startswith("blocked")
