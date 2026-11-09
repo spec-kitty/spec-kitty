@@ -135,6 +135,10 @@ class ClaimInputContext:
             rebuild's live ``mission_branch`` name (Phase 2 quirk, T052). Not a fourth source.
         mission_slug: The resolved Mission slug the run reads its status surface by (``LIVE`` derives
             the excluded canceled work packages from it); ``None`` falls back to the manifest's slug.
+        prior: ``SAVED`` only: the resume's ``SAVED`` value built earlier in this run (for the
+            approved-reviewed attestation check, before the record is loaded for the run). Its frozen
+            anchor set and degraded branches are reused, never read again, so the attestation check and
+            the claim read ONE anchor set (FR-015, L4); every other value is read from *state* as usual.
     """
 
     repo_root: Path
@@ -150,6 +154,7 @@ class ClaimInputContext:
     excluded_canceled_wp_ids: frozenset[str] = frozenset()
     coord_base_override: str | None = None
     mission_slug: str | None = None
+    prior: ClaimInputs | None = None
 
 
 def live_lane_tips(repo_root: Path, manifest: LanesManifest, excluded_canceled_wp_ids: frozenset[str]) -> dict[str, str]:
@@ -313,8 +318,11 @@ def _saved(context: ClaimInputContext) -> ClaimInputs:
     state = context.state
     if state is None:
         raise ValueError("ClaimInputSource.SAVED needs the run's saved ConsolidationState")
-    lane_tips = dict(state.pre_interrupt_lane_tips)
-    anchors, degraded = _saved_dependency_anchors(context, lane_tips)
+    prior = context.prior
+    if prior is not None and prior.source is ClaimInputSource.SAVED:
+        anchors, degraded = prior.dependency_anchors, prior.degraded_dependency_anchors
+    else:
+        anchors, degraded = _saved_dependency_anchors(context, dict(state.pre_interrupt_lane_tips))
     return ClaimInputs(
         source=ClaimInputSource.SAVED,
         target_base=state.pre_mutation_target_sha or context.resolved_target_base,

@@ -520,6 +520,8 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
             dependency_refs=run.dependency_refs,
             dependency_pins=run.dependency_ref_pins,
             excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+            # L4: a resume reuses the frozen anchor set the executor built for the attestation check.
+            prior=run.claim_inputs if run.is_resume else None,
         ),
     )
     coord_base = inputs.coord_base
