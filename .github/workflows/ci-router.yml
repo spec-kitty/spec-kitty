@@ -459,6 +459,7 @@ jobs:
               - 'scripts/docs/_dockitty_contract.py'
               - 'scripts/docs/site_contract.py'
               - 'scripts/docs/site_built_check.py'
+              - 'scripts/docs/site_link_gates.py'
               - '.github/workflows/ci-router.yml'
               - '.github/workflows/docs-site-build.yml'
             corpus:
