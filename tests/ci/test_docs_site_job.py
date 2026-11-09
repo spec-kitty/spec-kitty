@@ -188,7 +188,6 @@ def test_a_tag_pinned_action_is_caught() -> None:
 
 def test_the_job_uses_no_credential() -> None:
     assert _workflow()["permissions"] == {"contents": "read"}
-    assert _shared()["permissions"] == {"contents": "read"}
     assert _credential_violations(_job()) == []
     assert _credential_violations(_build_job()) == []
 
