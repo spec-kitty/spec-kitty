@@ -193,6 +193,7 @@ def test_reading_constructors_enforce_exactly_one_state() -> None:
         {"sha": _SHA, "applicable": True, "cause": CaptureCause.GIT_ERROR},
         {"sha": None, "applicable": True, "cause": None},
         {"sha": None, "applicable": False, "cause": CaptureCause.PROBE_ERROR},
+        {"sha": "", "applicable": True, "cause": None},
     ):
         with pytest.raises(ValueError, match="LaneHeadReading"):
             LaneHeadReading(**bad)
