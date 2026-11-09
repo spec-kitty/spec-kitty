@@ -50,6 +50,7 @@ from typer.testing import CliRunner
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.status import WP_WINDOW_KEY
 from tests.integration import single_branch_window_support as sb
 from tests.terminus.canceled_dependency_support import (
     ACTOR,
@@ -81,8 +82,6 @@ from tests.terminus.post_approval_support import add_post_approval_commit, build
 
 # --------------------------------------------------------------------------- vocabulary
 
-#: The status-event key the window-open capture will write (Phase 2, WP07 exports it from status).
-WP_WINDOW_KEY = "wp_window"
 WINDOW_SCHEMA_VERSION = 1
 
 GOLDEN_PATH = Path(__file__).resolve().parent / "characterization" / "verdict_corpus.json"
@@ -576,8 +575,11 @@ def _rewrite_one(log: Path, edit: Callable[[dict[str, Any]], dict[str, Any] | No
     for line in log.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        edited = edit(json.loads(line))
-        if edited is None:
+        event = json.loads(line)
+        edited = edit(event)
+        # An edit that restates the event is no change: since WP07 the status writer records
+        # the very ``wp_window`` a ``recorded`` state asks for, so there is nothing to commit.
+        if edited is None or edited == event:
             lines.append(line)
             continue
         changed = True

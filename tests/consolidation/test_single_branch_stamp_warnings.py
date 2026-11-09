@@ -168,7 +168,7 @@ def _to_claimed_review(slug: str, wp: str) -> None:
 @pytest.fixture
 def broken_stamp(monkeypatch: pytest.MonkeyPatch) -> None:
     """The best-effort stamp probe finds nothing (a git error, a missing branch): every transition is persisted unstamped."""
-    monkeypatch.setattr(lane_head, "_resolve_lane_head", lambda **_kwargs: None)
+    monkeypatch.setattr(lane_head, "_read_lane_head", lambda **_kwargs: lane_head.LaneHeadReading.not_applicable())
 
 
 def test_unstamped_single_branch_approval_warns(minted_template: tuple[Path, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, broken_stamp: None) -> None:

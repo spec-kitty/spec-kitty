@@ -413,8 +413,11 @@ from .cutover_eligibility import (
 # ``from specify_cli.status import LANE_HEAD_KEY`` -- SR-2
 # (test_status_module_boundary.py) forbids a direct
 # ``specify_cli.status.lane_head`` import outside this package.
+# WP07 (consolidation-window-provenance-01M6Y84D, FR-002): the window-open key,
+# re-exported the same way for the consolidation reader (WP08).
 from .lane_head import (
     LANE_HEAD_KEY,
+    WP_WINDOW_KEY,
 )
 
 # concurrent-mission-writers-01M4BT23 WP01 (#5819): the Mission write primitive
@@ -525,6 +528,7 @@ __all__ = [
     "ActiveWPStatus",
     "CutOverVerdict",
     "LANE_HEAD_KEY",
+    "WP_WINDOW_KEY",
     "API_PREFIX",
     "ENDPOINT_DIRECTORY",
     "HANDSHAKE_PATH",

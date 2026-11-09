@@ -6,7 +6,7 @@ Three groups:
    ``lanes.json`` written through the canonical lanes persistence API
    (T015).
 2. An AST pin (T013) proving every ``prepare_transition(...)`` call site in
-   ``src/specify_cli/`` passes ``lane_head_probe=probe_lane_head`` -- the bare
+   ``src/specify_cli/`` passes ``lane_head_reader=read_lane_head`` -- the bare
    name, never ``None`` and never a lambda -- with a numeric floor and a
    self-mutation (non-vacuity) check.
 3. End-to-end proof through both composition shells (the flat/primary door
@@ -36,7 +36,7 @@ from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata, emit_status_transition
-from specify_cli.status.lane_head import LANE_HEAD_KEY, probe_lane_head
+from specify_cli.status.lane_head import LANE_HEAD_KEY, WP_WINDOW_KEY, LaneHeadReading, probe_lane_head
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import read_events, read_events_from_text
 from tests.integration.coord_topology_fixture import (
@@ -236,14 +236,18 @@ def _prepare_transition_call_nodes(source: str) -> list[ast.Call]:
 
 
 def _lane_head_probe_violations(source: str) -> list[str]:
-    """One message per call that does not pass ``lane_head_probe=probe_lane_head`` (bare name)."""
+    """One message per call that does not pass ``lane_head_reader=read_lane_head`` (bare name).
+
+    WP07 (consolidation-window-provenance-01M6Y84D) renamed the injected probe to the
+    reading-returning reader; the pin follows the rename, its rule is unchanged.
+    """
     violations: list[str] = []
     for call in _prepare_transition_call_nodes(source):
-        kwarg = next((kw.value for kw in call.keywords if kw.arg == "lane_head_probe"), None)
+        kwarg = next((kw.value for kw in call.keywords if kw.arg == "lane_head_reader"), None)
         if kwarg is None:
-            violations.append(f"line {call.lineno}: missing lane_head_probe=")
-        elif not (isinstance(kwarg, ast.Name) and kwarg.id == "probe_lane_head"):
-            violations.append(f"line {call.lineno}: lane_head_probe is not the bare name probe_lane_head ({ast.dump(kwarg)})")
+            violations.append(f"line {call.lineno}: missing lane_head_reader=")
+        elif not (isinstance(kwarg, ast.Name) and kwarg.id == "read_lane_head"):
+            violations.append(f"line {call.lineno}: lane_head_reader is not the bare name read_lane_head ({ast.dump(kwarg)})")
     return violations
 
 
@@ -286,7 +290,7 @@ def test_pin_checker_flags_a_call_missing_the_kwarg() -> None:
 
 def test_pin_checker_flags_lane_head_probe_none() -> None:
     """Self-mutation: a call that explicitly nulls the probe must also be flagged."""
-    assert _lane_head_probe_violations("prepare_transition(request=r, lane_head_probe=None)\n") != []
+    assert _lane_head_probe_violations("prepare_transition(request=r, lane_head_reader=None)\n") != []
 
 
 def test_pin_checker_flags_attribute_call_form_missing_the_kwarg() -> None:
@@ -301,12 +305,12 @@ def test_pin_checker_flags_attribute_call_form_missing_the_kwarg() -> None:
 
 def test_pin_checker_flags_attribute_call_form_with_lane_head_probe_none() -> None:
     """Self-mutation: the attribute-call shape with an explicit ``None`` probe must also be caught."""
-    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_probe=None)\n") != []
+    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_reader=None)\n") != []
 
 
 def test_pin_checker_accepts_the_attribute_call_form_when_correct() -> None:
     """Non-vacuity in the other direction: a correct attribute-call site is NOT flagged."""
-    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_probe=probe_lane_head)\n") == []
+    assert _lane_head_probe_violations("_pipeline.prepare_transition(request=r, lane_head_reader=read_lane_head)\n") == []
 
 
 # ---------------------------------------------------------------------------
@@ -538,9 +542,9 @@ def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: 
     fact = _mint_owned_fact(flat_mission.repo, owned_mission_dir, flat_mission.slug)
     seen: list[object] = []
 
-    def _probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> str | None:
+    def _probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: OwnedCheckout | None = None) -> LaneHeadReading:
         seen.append(owned)
-        return "abc123"
+        return LaneHeadReading.of_sha("abc123")
 
     request = TransitionRequest(
         feature_dir=flat_mission.primary_feature_dir,
@@ -551,8 +555,9 @@ def test_stamped_policy_metadata_forwards_the_requests_owned_fact(flat_mission: 
         owned=fact,
     )
     stamped = transition_pipeline_module._stamped_policy_metadata(
-        request=request, mission_slug=flat_mission.slug, lane_head_probe=_probe, repo_root=flat_mission.repo
+        request=request, mission_slug=flat_mission.slug, lane_head_reader=_probe, repo_root=flat_mission.repo, resolved_lane=Lane.CLAIMED
     )
 
     assert seen == [fact]
-    assert stamped == {LANE_HEAD_KEY: "abc123"}
+    # The claim opens the window (WP07): the same one reading also feeds ``wp_window``.
+    assert stamped == {LANE_HEAD_KEY: "abc123", WP_WINDOW_KEY: {"schema_version": 1, "open_sha": "abc123"}}

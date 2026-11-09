@@ -226,10 +226,10 @@ def test_reapproval_lifts_refusal(mission: Mission) -> None:
 @pytest.fixture
 def broken_stamp(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """While active, the best-effort stamp probe finds nothing: a transition is persisted unstamped (a pre-upgrade approval)."""
-    real = lane_head._resolve_lane_head
-    monkeypatch.setattr(lane_head, "_resolve_lane_head", lambda **_kwargs: None)
+    real = lane_head._read_lane_head
+    monkeypatch.setattr(lane_head, "_read_lane_head", lambda **_kwargs: lane_head.LaneHeadReading.not_applicable())
     yield
-    monkeypatch.setattr(lane_head, "_resolve_lane_head", real)
+    monkeypatch.setattr(lane_head, "_read_lane_head", real)
 
 
 def test_unstamped_approval_refuses_then_attest_lifts(mission: Mission, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -239,7 +239,7 @@ def test_unstamped_approval_refuses_then_attest_lifts(mission: Mission, monkeypa
     implement(mission, "WP01")
     submit(mission, "WP01")
     with monkeypatch.context() as patch:
-        patch.setattr(lane_head, "_resolve_lane_head", lambda **_kwargs: None)
+        patch.setattr(lane_head, "_read_lane_head", lambda **_kwargs: lane_head.LaneHeadReading.not_applicable())
         approve(mission, "WP01")
     before = tip(mission, TARGET)
 

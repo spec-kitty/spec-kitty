@@ -26,6 +26,7 @@ from specify_cli.status.emit import (
     emit_status_transition,
     emit_status_transition_batch,
 )
+from specify_cli.status.lane_head import LaneHeadReading
 from specify_cli.status.models import (
     FORCE_NOTE_HINT,
     FORCE_NOTE_REQUIRED,
@@ -518,7 +519,7 @@ def test_batch_emit_reads_log_once_for_the_whole_batch(feature_dir: Path, monkey
 
 class TestLaneHeadStamping:
     def test_none_probe_means_no_stamp(self, feature_dir: Path) -> None:
-        """``lane_head_probe`` defaults to ``None`` -- P-1 (the pipeline never defaults to a real probe)."""
+        """``lane_head_reader`` defaults to ``None`` -- P-1 (the pipeline never defaults to a real reader)."""
         prepared = _prepare(feature_dir, _request(feature_dir=feature_dir, policy_metadata={"agent": "claude"}), Lane.PLANNED)
         assert prepared.event is not None
         assert prepared.event.policy_metadata == {"agent": "claude"}
@@ -526,19 +527,24 @@ class TestLaneHeadStamping:
     def test_probe_called_once_with_expected_args_and_stamps_the_event(self, feature_dir: Path) -> None:
         calls: list[dict[str, Any]] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> LaneHeadReading:
             calls.append({"repo_root": repo_root, "mission_slug": mission_slug, "wp_id": wp_id, "owned": owned})
-            return "deadbeef" * 5
+            return LaneHeadReading.of_sha("deadbeef" * 5)
 
         repo_root = feature_dir.parent.parent
         prepared = _prepare(
             feature_dir,
             _request(feature_dir=feature_dir, policy_metadata={"agent": "claude"}, repo_root=repo_root),
             Lane.PLANNED,
-            lane_head_probe=fake_probe,
+            lane_head_reader=fake_probe,
         )
         assert prepared.event is not None
-        assert prepared.event.policy_metadata == {"agent": "claude", "lane_head": "deadbeef" * 5}
+        # The claim opens the window (WP07): the same one reading also feeds ``wp_window``.
+        assert prepared.event.policy_metadata == {
+            "agent": "claude",
+            "lane_head": "deadbeef" * 5,
+            "wp_window": {"schema_version": 1, "open_sha": "deadbeef" * 5},
+        }
         assert calls == [{"repo_root": repo_root, "mission_slug": _SLUG, "wp_id": "WP01", "owned": None}]
 
     def test_probe_returning_none_leaves_policy_metadata_untouched(self, feature_dir: Path) -> None:
@@ -546,7 +552,7 @@ class TestLaneHeadStamping:
             feature_dir,
             _request(feature_dir=feature_dir, policy_metadata={"agent": "claude"}, repo_root=feature_dir),
             Lane.PLANNED,
-            lane_head_probe=lambda **_: None,
+            lane_head_reader=lambda **_: LaneHeadReading.not_applicable(),
         )
         assert prepared.event is not None
         assert prepared.event.policy_metadata == {"agent": "claude"}
@@ -562,7 +568,7 @@ class TestLaneHeadStamping:
             _request(**request_kwargs),
             Lane.PLANNED,
             at="2026-01-01T00:00:00+00:00",
-            lane_head_probe=lambda **_: None,
+            lane_head_reader=lambda **_: LaneHeadReading.not_applicable(),
         )
         assert baseline.event is not None
         assert with_probe_finding_nothing.event is not None
@@ -571,9 +577,9 @@ class TestLaneHeadStamping:
     def test_request_repo_root_is_preferred_over_the_repo_root_kwarg(self, feature_dir: Path) -> None:
         calls: list[Path] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> LaneHeadReading:
             calls.append(repo_root)
-            return None
+            return LaneHeadReading.not_applicable()
 
         request_root = feature_dir / "request-root"
         kwarg_root = feature_dir / "kwarg-root"
@@ -581,7 +587,7 @@ class TestLaneHeadStamping:
             feature_dir,
             _request(feature_dir=feature_dir, repo_root=request_root),
             Lane.PLANNED,
-            lane_head_probe=fake_probe,
+            lane_head_reader=fake_probe,
             repo_root=kwarg_root,
         )
         assert calls == [request_root]
@@ -589,16 +595,16 @@ class TestLaneHeadStamping:
     def test_repo_root_kwarg_is_the_fallback_when_request_repo_root_is_none(self, feature_dir: Path) -> None:
         calls: list[Path | None] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> LaneHeadReading:
             calls.append(repo_root)
-            return None
+            return LaneHeadReading.not_applicable()
 
         kwarg_root = feature_dir / "kwarg-root"
         _prepare(
             feature_dir,
             _request(feature_dir=feature_dir, repo_root=None),
             Lane.PLANNED,
-            lane_head_probe=fake_probe,
+            lane_head_reader=fake_probe,
             repo_root=kwarg_root,
         )
         assert calls == [kwarg_root]
@@ -606,15 +612,15 @@ class TestLaneHeadStamping:
     def test_probe_not_called_when_no_repo_root_is_available(self, feature_dir: Path) -> None:
         calls: list[Path] = []
 
-        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> str | None:
+        def fake_probe(*, repo_root: Path, mission_slug: str, wp_id: str, owned: object = None) -> LaneHeadReading:
             calls.append(repo_root)
-            return "deadbeef" * 5
+            return LaneHeadReading.of_sha("deadbeef" * 5)
 
         prepared = _prepare(
             feature_dir,
             _request(feature_dir=feature_dir, repo_root=None, policy_metadata={"agent": "claude"}),
             Lane.PLANNED,
-            lane_head_probe=fake_probe,
+            lane_head_reader=fake_probe,
             repo_root=None,
         )
         assert calls == []

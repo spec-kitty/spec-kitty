@@ -385,6 +385,9 @@ def test_move_task_claimed_before_implement_then_in_progress(flat_mission: FlatT
     _git(flat_mission.repo, "add", "-A")
     _git(flat_mission.repo, "commit", "-qm", "test: seed WP01 planned")
     monkeypatch.chdir(flat_mission.repo)
+    # A coordination-less ``lanes`` Mission targeting ``main`` records status on ``main``,
+    # which is protected by default; the operator override lets the fixture record it.
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     runner = CliRunner()
 
     def _move(to: str) -> None:
