@@ -102,29 +102,13 @@ Use this checklist for releases from `main`.
 
 ### Release-Candidate Hygiene
 
-The charter requires release-candidate verification to include the full CLI
-suite and cross-repo behavior evidence. Run these locally from a trusted runner
-before tagging; do not rely on the tag-time publish workflow to run live
-canary or cross-repo end-to-end suites.
+Run the full CLI suite locally from a trusted runner before tagging.
 
 - [ ] Record the full CLI test-suite result from `pytest tests/ -v`.
-- [ ] Run the cross-repo end-to-end suite locally. The suite lives in
-  `spec-kitty/EXPERIMENTAL-spec-kitty-end-to-end-testing` (it moved to the
-  programme org; clone it beside this checkout):
-  ```bash
-  cd ../../spec-kitty-end-to-end-testing
-  uv sync
-  SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/ -v
-  ```
-- [ ] Run the live deployed-dev canary from the trusted-runner profile:
-  ```bash
-  cd ../../spec-kitty-end-to-end-testing
-  ./scripts/run-canary.sh --profile local --phase all
-  ```
-- [ ] Record the e2e and canary result in the release PR, changelog note, or
-  release issue. If either fails or is inconclusive, do not tag until the
-  product issue is fixed or an explicit maintainer waiver with an issue link is
-  recorded.
+
+The cross-repo end-to-end suite and the live deployed-dev canary are no longer
+part of the release process: both were retired as unused. Cross-repository
+behavior checks are planned to return as a dedicated pipeline (#7468).
 
 ### Documentation and Metadata
 
@@ -253,9 +237,7 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - creates the GitHub release
   - publishes to PyPI
   - verifies exact installability from PyPI with no local wheel
-- [ ] Confirm release-candidate hygiene was already recorded before the tag:
-  live canary and cross-repo end-to-end suites are required pre-release
-  operator evidence, not tag-time publish workflow jobs.
+- [ ] Confirm the full CLI test-suite result was recorded before the tag.
 - [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
 - [ ] Verify the publishing workflow result separately from branch health.
   A successful PyPI/GitHub release proves publication only; it does not prove
