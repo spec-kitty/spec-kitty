@@ -157,7 +157,7 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude:claude-sonnet-5-5:python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
