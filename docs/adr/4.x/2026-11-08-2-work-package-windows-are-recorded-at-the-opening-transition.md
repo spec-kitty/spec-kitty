@@ -140,7 +140,7 @@ exist:
 | `capture_failed` (with `cause`) | written | The lane branch exists but the head could not be read (`git_error` or `probe_error`). |
 | `lane_branch_missing` | written | The lane branch did not exist at the opening move. This is normal before `implement` creates the lane. |
 | `not_recorded` | reader only | The window opener carries no key (written before the upgrade, or by a writer that drops it), or the key is malformed. |
-| `not_on_lane` | reader only | The recorded SHA is not an ancestor of the lane tip (a rewritten lane), **or does not resolve in this clone** (another clone, a collected object) (FR-022). Never a probe error. |
+| `not_on_lane` | reader only | The recorded SHA is not an ancestor of the lane tip (a rewritten lane), **or does not resolve in this clone** (another clone, a collected object) (FR-022). Never a probe error; a git failure on a SHA that is in the clone is one, and the bound refuses on it (pre-PR fold M2). |
 
 The gap is a fact about what the writer observed (written reasons) or about the log and the lane at
 read time (reader-only reasons). A missing approval stamp is not a window gap:
@@ -170,8 +170,10 @@ The recorded window binds to the **window opener**, found by one shared selector
 work package `in_review -> planned` today, and resetting the window there would put the work
 package's own earlier commits outside its window, refused with no attestation route. A move to
 `planned` out of `for_review`, `in_review`, `approved` or `done` is therefore rework. Any other
-move to `planned` (today `in_progress -> planned`, or a forced move) is a rewind and starts a new
-cycle. The operator can overturn this reading in review.
+move to `planned` (today `in_progress -> planned`) is a rewind and starts a new cycle. The `force`
+flag is not read: a forced `approved -> planned` or `done -> planned` is rework like its unforced
+twin, and a forced move to `planned` out of any other lane is a rewind. The operator can overturn
+this reading in review.
 
 The same selector (`consolidation/wp_attribution.py`: `window_opener_events`, `window_open_of`)
 serves the `single_branch` derivation when no window is recorded, with its legacy first-claim rule
@@ -219,6 +221,24 @@ work packages are therefore exempt from tier 2 (`reconciliation_bound._canceled_
 the mixed-lane and canceled-content rules are their only judge. Tier 1 is unchanged: a canceled
 work package's commit after an approval stamp still refuses (#5720). The `orchestrator-api` door
 (`approved_bound_refusal`) resolves the same exemption.
+
+**Declared dependency refs (pre-PR fold M9).** A lane can carry content inherited before its first
+window: an external ref merged into it before the work package's claim, or a lane cut from another
+ref. Before windows were recorded, the lane's own approval stamp exempted that content; with a
+recorded window it lies before the window. The commits of the operator's declared, pinned
+`--dependency-ref` refs (#6771; exactly the verified set the closed world exempts) are therefore
+exempt from tier 2 as well, so such a lane keeps its pre-window verdict. Tier 1 still never reads the
+declaration, the `single_branch` Mission-branch check is unchanged, and an undeclared external commit
+before the window still refuses. Corpus cell `fresh|single_lane|...|dependency_ref_merged_before_window`
+pins it.
+
+**Refusal text (pre-PR fold M8).** The tier-2 line names the commit and the work package approved
+before it, and the recovery is to send that work package back for review and approve it again: its
+window keeps its start and the new approval stamp moves its end past the commit. A commit that no
+work package's newest approval precedes (it lies before the named work package's window, for example
+work abandoned before a rewind) gets its own text and recovery: approving again moves a window's end,
+never its start, so no approval covers it and it has to come off the branch. A revert is never
+advised: it is new content of its own and clears no window refusal.
 
 **All-gap lane.** A lane on which every approved work package has a gap runs today's
 approval-stamp check (`check_lane`) unchanged, with today's anchors, own stamps included. Its
@@ -330,6 +350,11 @@ These are accepted and named, so a later reader does not rediscover them:
 - **Parallel claims on one lane**, and a claim parked without returning to `planned`: the window
   opens early and also covers the other work package's commits and any stray commit between them.
   Over-wide window, pinned as a strict `xfail`.
+- **A review rejection to `planned` followed by another work package on the same lane.** WP01 is
+  rejected to `planned` (rework: its cycle continues), WP02 is claimed, worked and approved on the
+  same lane, then WP01 is claimed again and approved. WP01's window still opens at its first opener,
+  so it covers WP02's commits and any stray commit made between them. Over-wide window, a consequence
+  of reading a review rejection as rework (section 3).
 - **The rewind boundary is found in event-log order.** Clock skew across the boundary itself is not
   topology-corrected. (Skew between openers inside a cycle is corrected by topology order.)
 - **Degraded anchors on resume.** A record written before the upgrade has no frozen tip for a

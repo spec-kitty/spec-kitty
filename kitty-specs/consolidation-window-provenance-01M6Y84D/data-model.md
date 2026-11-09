@@ -80,7 +80,7 @@ Written by `transition_pipeline._stamped_policy_metadata` from the reading.
 
 `WindowGapReason` (closed enum): `NOT_RECORDED`, `CAPTURE_FAILED`, `LANE_BRANCH_MISSING`, `NOT_ON_LANE`. These are the gap report's reason strings "not recorded", "capture failed", "lane branch missing", "not on lane".
 
-`on_lane(sha)` = `resolves(sha) and is_ancestor(sha, lane_tip)` (`approved_bound.resolves_commit` for the first part), with `lane_tip` the one tip the bound resolved (`ClaimInputs.lane_tips` on a resume).
+`on_lane(sha)` = `in_clone(sha) and is_ancestor(sha, lane_tip)` (`git_probes.commit_in_clone` and `git_probes.is_ancestor_strict`; a SHA not in this clone is False, any other git failure raises `GitProbeError` and the bound refuses), with `lane_tip` the one tip the bound resolved (`ClaimInputs.lane_tips` on a resume).
 
 ## 4. `WorkPackageWindow` (consolidation, value object)
 
@@ -125,7 +125,7 @@ approved -> done restamp: never read
 |---|---|---|
 | `entries` | `tuple[GapEntry, ...]` | One per approved work package judged by the fallback, sorted by `(lane_id, wp_id)`. |
 
-`GapEntry`: `wp_id`, `lane_id`, `reason` (`not recorded` / `capture failed` / `lane branch missing` / `not on lane`), `cause` (only for capture failed), `detail`.
+`GapEntry`: `wp_id`, `lane_id`, `reason` (`not recorded` / `capture failed` / `lane branch missing` / `not on lane`), `cause` (only for capture failed), `detail`, `sha` (the recorded SHA of a `not on lane` gap) and `malformed` (a `not recorded` gap whose recorded value violated the contract). The human block prints `not on lane: recorded <short sha>` and `not recorded (malformed wp_window value ignored)`; the `--dry-run --json` `window_gaps` items carry `sha` and `malformed: true` only when set.
 
 **Surfaces**: fresh run, resume and forecast. Human output is one block, "Window gaps (judged by the approval-stamp bound)", with one line per entry. JSON output has `window_gaps: [ {wp_id, lane_id, reason, cause?, detail?} ]` in the dry-run payload and in consolidate's JSON output. `orchestrator-api` envelope: unchanged (spec Assumption). `single_branch` Missions list work packages whose opening is not recorded, although their verdict comes from today's derived window (spec Assumption).
 
