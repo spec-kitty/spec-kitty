@@ -1,7 +1,7 @@
 {
-  "event_count": 53,
-  "last_event_id": "01M6YZQ6KAB1PYX53PD4V8DB1P",
-  "materialized_at": "2026-11-09T01:45:44.849944+00:00",
+  "event_count": 55,
+  "last_event_id": "01M6Z1G6Q2J9FTB8VTDG33VY50",
+  "materialized_at": "2026-11-09T02:16:53.218357+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 16
   },
   "work_packages": {
@@ -157,19 +157,30 @@
     },
     "WP05": {
       "actor": "claude",
-      "agent": "claude:claude-sonnet-5-5:python-pedro",
+      "agent": "claude:claude-opus-5-5:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude:claude-sonnet-5-5:python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6YZQ6KAB1PYX53PD4V8DB1P",
-      "last_transition_at": "2026-11-09T01:45:44.849944+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6Z1G6Q2J9FTB8VTDG33VY50",
+      "last_transition_at": "2026-11-09T02:16:53.218357+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 11 strict xfails pin the intended verdicts (a,a-mixed,b,c x2,d,e,f,h x2, WW-6); (g) is a passing consequence test because its flip is unreachable (see tracer)"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 57657,
-      "shell_pid_created_at": "1794188738.19"
+      "role": "reviewer",
+      "shell_pid": 264112,
+      "shell_pid_created_at": "1794190606.73",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
