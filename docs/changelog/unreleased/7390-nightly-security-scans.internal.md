@@ -1,0 +1,1 @@
+- **bandit and pip-audit now run in the nightly `security-scans` job, failing it on a finding not in `scripts/ci/bandit-baseline.json` or `scripts/ci/pip-audit-ignore.txt`; the docs no longer call them per-PR gates** (#7390, #5083).

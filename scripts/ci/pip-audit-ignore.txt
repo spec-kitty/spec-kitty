@@ -1,0 +1,25 @@
+# pip-audit ignore list for the nightly `security-scans` job (#7390, #5083).
+#
+# One advisory id per line, then a comment saying why it is accepted and what
+# lifts it. Every entry below is FIXABLE by a uv.lock refresh: they were present
+# on main when the scan was wired (2026-11-09) and are tracked for removal by the
+# follow-up lock bump. Remove an entry in the same PR that bumps its package; a
+# NEW advisory not listed here fails the nightly.
+#
+# filelock 3.29.0 (transitive via cachecontrol, lint extra only; fixed in 4.0.9 / 4.2.1)
+GHSA-v4x8-3wr5-3wq8
+GHSA-9vhv-jxww-xfm5
+GHSA-567q-5qvw-pf92
+GHSA-j8f7-rjxc-mr56
+GHSA-8mx5-7m5m-r77g
+GHSA-69hj-f68j-2879
+GHSA-rfpc-qcw5-3pc4
+GHSA-cwqr-hh33-gh44
+GHSA-fq56-3cx3-fjxp
+# mcp 1.29.0 (direct runtime dependency; fixed in 1.30.0)
+GHSA-84m7-p3x7-pcfv
+GHSA-5h93-6whr-6q8j
+GHSA-w4fh-qvv9-3v23
+GHSA-rwrf-2pqf-9j8j
+# msgpack 1.2.1 (direct dependency, also via cachecontrol; fixed in 1.2.3)
+GHSA-j586-36cw-2gc2
