@@ -33,24 +33,26 @@ pre-implementation state, not a lost stamp.
 those are imported function-locally inside :func:`_read_lane_head`, mirroring
 ``lanes/for_review_gate.py::_resolve_lane`` and the cold-import discipline
 ``tests/architectural/test_cold_import_status_boundary.py`` enforces on the
-``status`` package. ``LANE_HEAD_KEY``, ``WP_WINDOW_KEY``, :class:`LaneHeadReading`
+``status`` package. ``LANE_HEAD_KEY``, :class:`LaneHeadReading`
 and :class:`LaneHeadReader` are the only symbols a pure caller
 (``status/transition_pipeline.py``) needs, and none requires those imports.
 
 **Window-open record (WP07, FR-002/FR-003):** :func:`read_lane_head` returns a
 :class:`LaneHeadReading` -- the sha, "not applicable", or a typed failure
-(:class:`CaptureCause`) -- so the pipeline can write ``policy_metadata["wp_window"]``
+(:class:`CaptureCause`, defined with the rest of the ``wp_window`` codec in
+``status/wp_window.py``) -- so the pipeline can write ``policy_metadata["wp_window"]``
 from the same single reading as ``lane_head`` (W-2, NFR-006).
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from enum import StrEnum
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
+
+from .wp_window import GAP_DETAIL_MAX_LENGTH, CaptureCause
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -62,22 +64,6 @@ logger = logging.getLogger(__name__)
 #: ``specify_cli.status.<submodule>`` imports stay forbidden outside the
 #: ``status`` package (SR-2, ``tests/architectural/test_status_module_boundary.py``).
 LANE_HEAD_KEY: Final = "lane_head"
-
-#: The ``policy_metadata`` key the window-open record is written under (WP07, FR-002/FR-003):
-#: ``{"schema_version": 1, "open_sha": <sha>}`` or a typed gap. Re-exported from the facade
-#: like :data:`LANE_HEAD_KEY` (SR-2). Contract: the Mission's ``contracts/status-event-wp-window.md``.
-WP_WINDOW_KEY: Final = "wp_window"
-
-#: Contract ``maxLength`` of ``gap.detail``.
-_DETAIL_MAX_LENGTH: Final = 500
-
-
-class CaptureCause(StrEnum):
-    """Why a lane-head reading of an applicable work package has no sha (closed set)."""
-
-    LANE_BRANCH_MISSING = "lane_branch_missing"
-    GIT_ERROR = "git_error"
-    PROBE_ERROR = "probe_error"
 
 
 @dataclass(frozen=True)
@@ -99,8 +85,8 @@ class LaneHeadReading:
         states = (self.sha is not None, not self.applicable, self.cause is not None)
         if sum(states) != 1 or self.sha == "":
             raise ValueError(f"LaneHeadReading needs exactly one of sha / not applicable / cause, got {self!r}")
-        if len(self.detail) > _DETAIL_MAX_LENGTH:
-            object.__setattr__(self, "detail", self.detail[:_DETAIL_MAX_LENGTH])
+        if len(self.detail) > GAP_DETAIL_MAX_LENGTH:
+            object.__setattr__(self, "detail", self.detail[:GAP_DETAIL_MAX_LENGTH])
 
     @classmethod
     def of_sha(cls, sha: str) -> LaneHeadReading:

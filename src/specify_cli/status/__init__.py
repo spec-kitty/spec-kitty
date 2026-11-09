@@ -418,7 +418,16 @@ from .cutover_eligibility import (
 # re-exported the same way for the consolidation reader (WP08).
 from .lane_head import (
     LANE_HEAD_KEY,
+)
+
+# consolidation-window-provenance-01M6Y84D pre-PR fold (M5): the one ``wp_window`` codec,
+# shared by the status writer and the consolidation reader, re-exported for SR-2.
+from .wp_window import (
+    WINDOW_OPENING_LANES,
     WP_WINDOW_KEY,
+    ParsedWpWindow,
+    RecordedGapReason,
+    parse_wp_window,
 )
 
 # concurrent-mission-writers-01M4BT23 WP01 (#5819): the Mission write primitive
@@ -540,6 +549,10 @@ __all__ = [
     "CutOverVerdict",
     "LANE_HEAD_KEY",
     "WP_WINDOW_KEY",
+    "WINDOW_OPENING_LANES",
+    "ParsedWpWindow",
+    "RecordedGapReason",
+    "parse_wp_window",
     "API_PREFIX",
     "ENDPOINT_DIRECTORY",
     "HANDSHAKE_PATH",
