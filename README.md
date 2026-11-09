@@ -13,19 +13,22 @@ spec -> plan -> tasks -> next -> review -> accept -> merge
 Use it to build a governed software factory around Claude Code, Codex, Cursor, Gemini, GitHub Copilot, Windsurf, OpenCode, and other AI coding agents. Spec Kitty keeps specs, plans, work packages, acceptance criteria, review state, and merge decisions in your repository, then gives agents isolated git worktrees so implementation can happen in parallel without branch chaos.
 
 [![PyPI version](https://img.shields.io/pypi/v/spec-kitty-cli?style=flat-square&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
+[![Latest prerelease](https://img.shields.io/pypi/v/spec-kitty-cli?include_prereleases&label=prerelease&style=flat-square&logo=pypi&color=orange)](https://pypi.org/project/spec-kitty-cli/#history)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)](https://www.python.org/downloads/)
 
-## Team Kitty 4.x prerelease
+## Latest release candidate: 4.0.0rc8
 
-`main` carries the 4.x release-candidate line. To test RC2, install its exact version:
+`main` carries the 4.x release-candidate line. To try the latest candidate, install its exact version:
 
 ```bash
-uv tool install 'spec-kitty-cli==4.0.0rc2'
+uv tool install 'spec-kitty-cli==4.0.0rc8'
 ```
 
-This prerelease is for qualification; stable launch acceptance remains pending.
-Normal stable installs continue to select the published stable release.
+Then run `spec-kitty upgrade` in each project and commit the result. What changed and what to do is in the [4.0.0rc8 release notes](https://github.com/spec-kitty/spec-kitty/releases/tag/v4.0.0rc8).
+
+Release candidates are for qualification; stable launch acceptance is still pending.
+A normal install without a version still selects the latest stable release.
 
 ## Bright Software Factory, Not a Black Box
 
@@ -42,7 +45,7 @@ Use Spec Kitty when:
 - Multiple agents or developers need clear work-package boundaries.
 - You are running parallel Claude Code, Codex, Cursor, Copilot, Gemini, or Windsurf work and need git worktree isolation.
 - You are moving from vibe coding to a repeatable spec-driven development workflow.
-- You want a local workflow first, with optional hosted tracker and sync integrations later.
+- You want a local-first workflow where the repository stays the source of truth.
 
 It is probably overkill for one-off edits, tiny scripts, or teams that do not use Git.
 
