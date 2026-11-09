@@ -191,7 +191,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude:claude-opus-5-5:python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -202,7 +202,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: seeded-mutation harness, 16 rows, 21 tests green; 4 rows are reach/polarity (see tracer)",
-        "- 2026-11-09T03:29:00Z – claude:claude-opus-5-5:python-pedro – Review cycle 1 rework (commit 7e01670947): every PHASE3_CHECKS row now weakens its check and flips a cell in status/code/divergence. Sanctioned out-of-map, additive-only files: tests/consolidation/characterization_support.py, tests/consolidation/characterization/verdict_corpus.json (+4 keys, 0 changed), tests/consolidation/test_reconciliation_characterization.py (named-cell count 22->26, total 149). Extra rows kernel-anchors-strict and external-dependency-refs-exemption keep the strengthening guards. Tracer: design-decisions entry for the out-of-map addition."
+        "- 2026-11-09T03:29:00Z – claude:claude-opus-5-5:python-pedro – Review cycle 1 rework (commit 7e01670947): every PHASE3_CHECKS row now weakens its check and flips a cell in status/code/divergence. Sanctioned out-of-map, additive-only files: tests/consolidation/characterization_support.py, tests/consolidation/characterization/verdict_corpus.json (+4 keys, 0 changed), tests/consolidation/test_reconciliation_characterization.py (named-cell count 22->26, total 149). Extra rows kernel-anchors-strict and external-dependency-refs-exemption keep the strengthening guards. Tracer: design-decisions entry for the out-of-map addition.",
+        "Cycle 1 rework, commit 7e01670947. All 16 PHASE3 rows are weakening guards (plus 2 extra strengthening rows). Out-of-map, additive-only, sanctioned: tests/consolidation/characterization_support.py, tests/consolidation/characterization/verdict_corpus.json (+4 keys), tests/consolidation/test_reconciliation_characterization.py (count 22->26). changed_cells(lane-a pre-rework HEAD) == the 4 new keys. Deviation: closed-world is pinned to fresh|fully_canceled_dependency|canceled_content_reachable|strategy=merge, not the suggested mixed-lane merge cell, which passes and does not move under the weakening (see the tracer entry)."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
