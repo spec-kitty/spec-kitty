@@ -1,0 +1,1 @@
+- The doc-kitty docsite pin moves from 0.6.0 (`45e455b`) to 0.7.0 (`5acb83c`), with the frontmatter mirror pin in `_dockitty_contract.py` (#6100).
