@@ -4,13 +4,17 @@ A work package whose window-open SHA is not usable (a :class:`~specify_cli.conso
 is still judged, by its approval-stamp bound: a weaker check. The claim names every such work package
 (``ApprovedWpCommitSet.window_gaps``, a sorted tuple of :class:`~specify_cli.consolidation.wp_attribution.GapEntry`),
 and the fresh run, the resume and the forecast make it visible through this one renderer: the human
-block (:func:`gap_report_lines`) and the dry-run payload value (:func:`gap_report_json`, under
-:data:`WINDOW_GAPS_KEY`). Pure: no git, no I/O, no console; the callers print.
+block (:func:`gap_report_lines`), printed by the one printer :func:`print_gap_report` on the
+console the caller passes, and the dry-run payload value (:func:`gap_report_json`, under
+:data:`WINDOW_GAPS_KEY`). No git and no file I/O; the only output is the caller's console.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+
+from rich.console import Console
+from rich.markup import escape
 
 from .wp_attribution import GapEntry, WindowGapReason
 
@@ -49,6 +53,19 @@ def gap_report_lines(entries: Sequence[GapEntry]) -> list[str]:
     return [GAP_REPORT_HEADING, *(_line(entry) for entry in entries)]
 
 
+def print_gap_report(console: Console, entries: Sequence[GapEntry]) -> None:
+    """Print the gap report on *console*: the heading in yellow, then each entry verbatim; nothing when *entries* is empty.
+
+    The fresh run, the resume and the human forecast all print through this one call (FR-010).
+    """
+    lines = gap_report_lines(entries)
+    if not lines:
+        return
+    console.print(f"[yellow]{escape(lines[0])}[/yellow]", soft_wrap=True)
+    for line in lines[1:]:
+        console.print(line, markup=False, soft_wrap=True)
+
+
 def gap_report_json(entries: Sequence[GapEntry]) -> list[dict[str, str | bool]]:
     """One ``{wp_id, lane_id, reason, cause?, detail?, sha?, malformed?}`` per entry.
 
@@ -74,4 +91,5 @@ __all__ = [
     "WINDOW_GAPS_KEY",
     "gap_report_json",
     "gap_report_lines",
+    "print_gap_report",
 ]

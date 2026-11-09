@@ -6,9 +6,13 @@ the human forecast print; :func:`gap_report_json` is the ``window_gaps`` value o
 
 from __future__ import annotations
 
-import pytest
+import subprocess
+import sys
 
-from specify_cli.consolidation.window_gap_report import GAP_REPORT_HEADING, WINDOW_GAPS_KEY, gap_report_json, gap_report_lines
+import pytest
+from rich.console import Console
+
+from specify_cli.consolidation.window_gap_report import GAP_REPORT_HEADING, WINDOW_GAPS_KEY, gap_report_json, gap_report_lines, print_gap_report
 from specify_cli.consolidation.wp_attribution import GapEntry, WindowGap, WindowGapReason
 
 pytestmark = [pytest.mark.unit]
@@ -96,3 +100,22 @@ def test_malformed_not_recorded_gap_carries_the_malformed_note() -> None:
     assert entry.malformed is True
     assert gap_report_lines((entry,))[1] == "  - WP02 (lane-a): not recorded (malformed wp_window value ignored)"
     assert gap_report_json((entry,)) == [{"wp_id": "WP02", "lane_id": "lane-a", "reason": "not recorded", "malformed": True}]
+
+
+def test_print_gap_report_prints_every_line_and_nothing_for_no_entries() -> None:
+    """M6: the one printer the fresh run, the resume and the human forecast share."""
+    console = Console(record=True, width=200, color_system=None)
+    print_gap_report(console, ())
+    assert console.export_text() == ""
+
+    entries = (_entry("WP02", "lane-a", WindowGapReason.CAPTURE_FAILED, cause="git_error", detail="[bold]not markup[/bold]"),)
+    print_gap_report(console, entries)
+
+    assert console.export_text().splitlines() == gap_report_lines(entries)
+
+
+def test_forecast_does_not_load_the_claim_phase() -> None:
+    """M6: the dry-run forecast prints the gap report without importing the branch-moving phase modules."""
+    probe = "import sys, specify_cli.consolidation.forecast; print('specify_cli.consolidation.phase_claim' in sys.modules)"
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
+    assert result.stdout.strip() == "False", result.stdout + result.stderr

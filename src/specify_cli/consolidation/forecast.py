@@ -52,8 +52,7 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
-from specify_cli.consolidation.phase_claim import _print_window_gaps
-from specify_cli.consolidation.window_gap_report import WINDOW_GAPS_KEY, gap_report_json
+from specify_cli.consolidation.window_gap_report import WINDOW_GAPS_KEY, gap_report_json, print_gap_report
 from specify_cli.consolidation.preflight import (
     _check_mission_branch,
     mission_branch_check_required,
@@ -106,7 +105,7 @@ def _emit_dry_run_error(*, error_msg: str, json_output: bool, error_code: str | 
             payload[WINDOW_GAPS_KEY] = gap_report_json(gaps)
         print(json.dumps(payload))
     else:
-        _print_window_gaps(claim)
+        print_gap_report(console, gaps)
         console.print(f"[red]Error:[/red] {error_msg}")
 
 
@@ -732,7 +731,7 @@ def run_dry_run_forecast(
     if json_output:
         print(json.dumps(payload))
     else:
-        _print_window_gaps(claim)
+        print_gap_report(console, claim.window_gaps if claim is not None else ())
         console.print_json(json.dumps(payload))
 
 

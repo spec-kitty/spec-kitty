@@ -15,7 +15,7 @@ import contextlib
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn
+from typing import NoReturn
 
 import typer
 from rich.markup import escape
@@ -55,7 +55,7 @@ from specify_cli.consolidation.state import (
     lane_tip_cas_ok,
     save_state,
 )
-from specify_cli.consolidation.window_gap_report import gap_report_lines
+from specify_cli.consolidation.window_gap_report import print_gap_report
 from specify_cli.consolidation.run_state import (
     _resume_reconciliation_already_passed,
     _CONSOLIDATE_ABORT_AND_RESTART_HINT,
@@ -65,10 +65,6 @@ from specify_cli.consolidation.run_state import (
     _capture_coord_checkpoint,
     _stored_topology_for,
 )
-
-
-if TYPE_CHECKING:
-    from specify_cli.consolidation.reconciliation_claim_types import ApprovedWpCommitSet
 
 
 #: rollback-anchor-authority (#5686, FR-005): a re-run or ``--resume`` found a
@@ -556,7 +552,8 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     _print_dependency_refs(run)
     _print_no_implementation_lifts(run.feature_dir, run.approved_wp_set.no_implementation_attested_wp_ids)
     # FR-010: before the integrity refusal, so a refused run still names the work packages it judged by the weaker check.
-    _print_window_gaps(run.approved_wp_set)
+    # The fresh run and ``--resume`` both build the claim here, so this one call covers both.
+    print_gap_report(console, run.approved_wp_set.window_gaps)
     run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
     run.bound_anchor_shas = _bound_anchor_shas(run, coord_base)
 
@@ -645,19 +642,6 @@ def _print_no_implementation_lifts(feature_dir: Path, lifted_wp_ids: frozenset[s
 
     for line in lifted_notices(read_events(feature_dir), lifted_wp_ids):
         console.print(f"[yellow]{escape(line)}[/yellow]", soft_wrap=True)
-
-
-def _print_window_gaps(claim: ApprovedWpCommitSet | None) -> None:
-    """Print the window gap report when the claim judged a work package by its approval-stamp bound (FR-010).
-
-    The fresh run and ``--resume`` both build the claim here, so this one call covers both.
-    """
-    lines = gap_report_lines(claim.window_gaps) if claim is not None else []
-    if not lines:
-        return
-    console.print(f"[yellow]{escape(lines[0])}[/yellow]", soft_wrap=True)
-    for line in lines[1:]:
-        console.print(line, markup=False, soft_wrap=True)
 
 
 def _bound_anchor_shas(run: _MergeRunState, coord_base: str) -> tuple[str, ...]:
