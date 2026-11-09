@@ -594,6 +594,34 @@ def _mt_resolve_binding(st: _MoveTaskState) -> ResolvedBinding:
     return binding
 
 
+def _mt_refuse_protected_status_commit(st: _MoveTaskState) -> None:
+    """Validate: refuse an auto-committed status change the target branch's protection forbids.
+
+    Consulted only when the status commit would land on the target branch
+    (auto-commit on, not skipped). A ``--self-review-fallback`` option error
+    is reported in place of the protected-branch error; either exits 1.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if not st.resolved_auto_commit or st.skip_target_branch_commit:
+        return
+    protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
+    if protected_error is None:
+        return
+    self_review_error = _self_review_fallback_option_error(
+        enabled=st.self_review_fallback,
+        target_lane=str(st.target_lane),
+        force=st.force,
+        intended_reviewer=st.intended_reviewer,
+        failure_reason=st.reviewer_failure_reason,
+    )
+    if self_review_error is not None:
+        _tasks._output_error(st.json_output, self_review_error)
+        raise typer.Exit(1)
+    _tasks._output_error(st.json_output, protected_error)
+    raise typer.Exit(1)
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -620,21 +648,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     # matching the pre-rewire order. Deferring it into the decision core (pass 1)
     # let an un-bootstrapped event log raise "Canonical status not found" first,
     # masking the protected-branch refusal (issue #1386 regression).
-    if st.resolved_auto_commit and not st.skip_target_branch_commit:
-        protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task", st.mission_slug)
-        if protected_error is not None:
-            self_review_error = _self_review_fallback_option_error(
-                enabled=st.self_review_fallback,
-                target_lane=str(st.target_lane),
-                force=st.force,
-                intended_reviewer=st.intended_reviewer,
-                failure_reason=st.reviewer_failure_reason,
-            )
-            if self_review_error is not None:
-                _tasks._output_error(st.json_output, self_review_error)
-                raise typer.Exit(1)
-            _tasks._output_error(st.json_output, protected_error)
-            raise typer.Exit(1)
+    _mt_refuse_protected_status_commit(st)
     st.tracker_ref_values = tuple(t.strip() for t in (st.tracker_ref or []) if t and t.strip())
     _mt_warn_worktree_kitty_specs(st)
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation.
