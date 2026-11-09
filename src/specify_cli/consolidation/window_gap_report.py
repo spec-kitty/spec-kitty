@@ -47,7 +47,10 @@ def _line(entry: GapEntry) -> str:
 
 
 def gap_report_lines(entries: Sequence[GapEntry]) -> list[str]:
-    """The heading, then one line per entry in the given order; ``[]`` when there is no entry."""
+    """The heading, then one line per entry in the given order; ``[]`` when there is no entry.
+
+    Out of ``__all__``: callers print through :func:`print_gap_report`; the tests read the lines directly.
+    """
     if not entries:
         return []
     return [_GAP_REPORT_HEADING, *(_line(entry) for entry in entries)]
@@ -90,6 +93,5 @@ def gap_report_json(entries: Sequence[GapEntry]) -> list[dict[str, str | bool]]:
 __all__ = [
     "WINDOW_GAPS_KEY",
     "gap_report_json",
-    "gap_report_lines",
     "print_gap_report",
 ]
