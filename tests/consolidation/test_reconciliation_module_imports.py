@@ -23,6 +23,9 @@ _PACKAGE = "specify_cli.consolidation"
 SPLIT_MODULES: tuple[str, ...] = (
     "reconciliation_kernel",
     "reconciliation_claim_types",
+    "reconciliation_rendering",
+    "reconciliation_closed_world",
+    "reconciliation_bound",
 )
 _BOGUS = "reconciliation_this_module_does_not_exist"
 _DRIVER = """

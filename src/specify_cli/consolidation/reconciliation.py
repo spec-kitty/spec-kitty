@@ -60,26 +60,11 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from specify_cli.lanes._git import branch_exists
-from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_tip_branches
+from specify_cli.lanes.lane_tip import read_tip
 from specify_cli.lanes.compute import is_planning_lane, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.consolidation._constants import (
-    DEPENDENCY_REF_COVERS_MISSION_WORK,
-    DEPENDENCY_REF_MOVED,
-    DEPENDENCY_REF_UNREACHABLE,
-    DEPENDENCY_REF_UNRESOLVED,
-    DEPENDENCY_REF_UNVERIFIABLE,
-    error_code_suffix,
-)
 from specify_cli.consolidation.approved_bound import (
-    BoundRefusal,
-    BoundRefusalCode,
     approval_stamp,
-    check_lane,
-    commits_beyond,
-    content_commits,
-    render_refusals,
-    resolves_commit,
 )
 from specify_cli.consolidation.git_probes import (
     GitProbeError,
@@ -87,20 +72,16 @@ from specify_cli.consolidation.git_probes import (
     changed_paths_in_range,
     changed_paths_of,
     commits_in_range,
-    first_parent_commits_in_range,
     is_merge_commit,
     merge_own_changed_paths,
     merge_tree_write_tree_available,
     patch_id_of,
     patch_ids_in_range,
     path_state_at,
-    resolve_commit,
     sha_reachable_from,
     three_way_merge_blob,
 )
 from specify_cli.consolidation.canceled_attestation import (
-    ATTEST_FLAG,
-    ATTEST_REASON_FLAG,
     OVERRIDABLE_REASONS,
     attestation_stamps,
 )
@@ -119,7 +100,6 @@ from specify_cli.consolidation.wp_attribution import (
     lane_dependency_merges,
     lane_own_commits,
     resolve_canceled_wp,
-    stamp_of,
 )
 
 # Re-exports (C-005): every name moved out of this module stays importable from it.
@@ -148,6 +128,57 @@ from specify_cli.consolidation.reconciliation_kernel import (
     _lane_tip_commits as _lane_tip_commits,
     _planning_prefix as _planning_prefix,
 )
+from specify_cli.consolidation.reconciliation_rendering import (
+    APPROVED_CONTENT_MISSING as APPROVED_CONTENT_MISSING,
+    CANCELED_REACHABLE_VIA_DEPENDENCY as CANCELED_REACHABLE_VIA_DEPENDENCY,
+    _ALSO_HAS as _ALSO_HAS,
+    _BOTH_NEEDED as _BOTH_NEEDED,
+    _RECOVERY_TAIL as _RECOVERY_TAIL,
+    _attest_tail as _attest_tail,
+    _describe_approved_content_missing as _describe_approved_content_missing,
+    _describe_canceled_content as _describe_canceled_content,
+    _describe_canceled_reachable as _describe_canceled_reachable,
+    _join_refusals as _join_refusals,
+    _renamed_note as _renamed_note,
+)
+from specify_cli.consolidation.reconciliation_closed_world import (
+    ExternalDependencyAttribution as ExternalDependencyAttribution,
+    _REFUSE_DEPENDENCY_COVERS_MISSION_WORK as _REFUSE_DEPENDENCY_COVERS_MISSION_WORK,
+    _REFUSE_DEPENDENCY_MISSION_NAMESPACE as _REFUSE_DEPENDENCY_MISSION_NAMESPACE,
+    _REFUSE_DEPENDENCY_MOVED as _REFUSE_DEPENDENCY_MOVED,
+    _REFUSE_DEPENDENCY_NOT_MERGED as _REFUSE_DEPENDENCY_NOT_MERGED,
+    _REFUSE_DEPENDENCY_NO_WINDOW_BASE as _REFUSE_DEPENDENCY_NO_WINDOW_BASE,
+    _REFUSE_DEPENDENCY_PROBE as _REFUSE_DEPENDENCY_PROBE,
+    _REFUSE_DEPENDENCY_RECORDED_TIP as _REFUSE_DEPENDENCY_RECORDED_TIP,
+    _REFUSE_DEPENDENCY_UNRESOLVED as _REFUSE_DEPENDENCY_UNRESOLVED,
+    _collect_excluded as _collect_excluded,
+    _mission_namespaces as _mission_namespaces,
+    _mission_spines as _mission_spines,
+    _mission_tip_shas as _mission_tip_shas,
+    _mission_work_reaches as _mission_work_reaches,
+    _namespace_hit as _namespace_hit,
+    _recorded_lane_heads as _recorded_lane_heads,
+    _recorded_work_hit as _recorded_work_hit,
+    _refused as _refused,
+    _verify_declared_ref as _verify_declared_ref,
+    dependency_refs_moved_refusal as dependency_refs_moved_refusal,
+    resolve_external_dependency_refs as resolve_external_dependency_refs,
+)
+from specify_cli.consolidation.reconciliation_bound import (
+    _BoundVerdict as _BoundVerdict,
+    _WriteBranchScope as _WriteBranchScope,
+    _approved_bound_verdict as _approved_bound_verdict,
+    _bound_approved_wp_ids as _bound_approved_wp_ids,
+    _bound_claim_base as _bound_claim_base,
+    _bound_claim_base_unresolved_text as _bound_claim_base_unresolved_text,
+    _bound_events_unreadable_text as _bound_events_unreadable_text,
+    _bound_lanes as _bound_lanes,
+    _bound_write_branch as _bound_write_branch,
+    _write_branch_verdict as _write_branch_verdict,
+    approval_stamp_anchors as approval_stamp_anchors,
+    approved_bound_refusal as approved_bound_refusal,
+    lane_tips_moved_refusal as lane_tips_moved_refusal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -171,71 +202,7 @@ TERMINUS_ENTRY_POINTS: frozenset[str] = frozenset(
 # shared by the merge/rebase reachability path and the squash blob-attribution
 # path, which must refuse identically when the window base cannot be resolved).
 _REFUSE_WINDOW_BASE_UNRESOLVED = "the excluded-content window base could not be resolved; the excluded/closed-world axes cannot be verified (fail-closed)"
-# Mixed-lane canceled-content recovery tail (contract C4 / NFR-003, #5046):
-# shared by the FAIL rendering (:func:`_describe_canceled_content`) and both
-# REFUSE reasons the axis can raise (hoisted per Sonar S1192 — used 4+ times).
-_RECOVERY_TAIL = "then re-run spec-kitty consolidate"
-#: The compound claim refusal (#5720): the first refusal, then the approved-bound refusals the
-#: operator would otherwise meet one run later. The first refusal is never reworded.
-_ALSO_HAS = "This Mission also has:"
-_BOTH_NEEDED = (
-    "Both parts need their own fix, in either order: the recovery in the first part does not approve the new content, "
-    "and approving the work package again does not clear the first part. Re-run spec-kitty consolidate after both."
-)
-# Declared external dependency refs (#6771). A lane that merges a dependency branch's
-# newer head in (a two-parent merge, so the lane is still reviewed on one tree) brings
-# that branch's commits into the closed-world window. The window's authorship authority is
-# each approved lane's OWN first-parent spine, so every one of those commits reads as
-# "belongs to NO approved WP" and the landing is refused. The closed world cannot tell
-# that apart from a removed WP riding a carrier lane by structure alone (#4945 is the same
-# shape), so the operator DECLARES the ref: `specify_cli consolidate --dependency-ref`.
-# These are the fail-closed refusals of a declaration that cannot be honoured; each names
-# the declaration, because the operator has to fix the command, not the repository.
-_REFUSE_DEPENDENCY_UNRESOLVED: str = (
-    "external dependency ref '{ref}' does not resolve to a commit; declare a ref that resolves (a branch, tag or SHA), "
-    "or drop --dependency-ref. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNRESOLVED)
-)
-_REFUSE_DEPENDENCY_NOT_MERGED: str = (
-    "external dependency ref '{ref}' is not reachable from the mission branch {mission_branch} or from any lane branch, so the "
-    "mission never merged it in and it cannot explain any content in the landing window. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNREACHABLE)
-)
-_REFUSE_DEPENDENCY_COVERS_MISSION_WORK: str = (
-    "external dependency ref '{ref}' would exempt commit {sha} which sits on {spine} — an external dependency may never cover "
-    "mission-authored work (that is exactly how a removed work package's commit rides a carrier lane). Nothing was exempted"
-    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
-)
-_REFUSE_DEPENDENCY_MISSION_NAMESPACE: str = (
-    "external dependency ref '{ref}' is named inside this Mission's own branch namespace ({namespace}); a Mission's branches hold "
-    "mission-authored work, also after the branch is deleted or its work package is removed. Nothing was exempted"
-    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
-)
-_REFUSE_DEPENDENCY_RECORDED_TIP: str = (
-    "external dependency ref '{ref}' would exempt commit {sha}, which {recorded} — a Mission's recorded work tip is "
-    "mission-authored work, whether or not its work package or lane branch still exists. Nothing was exempted"
-    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
-)
-_REFUSE_DEPENDENCY_NO_WINDOW_BASE: str = (
-    "dependency ref(s) {refs} are declared but the target's pre-run commit could not be resolved, so the window a "
-    "declaration would exempt cannot be bounded (fail-closed). Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
-)
-_REFUSE_DEPENDENCY_PROBE: str = "a git probe failed while {doing}: {exc}. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
-_REFUSE_DEPENDENCY_MOVED: str = (
-    "external dependency ref '{ref}' was pinned to {pinned} when this consolidation claimed it, but now resolves to {now}. "
-    "A declaration is verified once, against the commit it named; a moved ref would exempt different history than the one "
-    "that was verified. Restore the ref to {pinned}, or run `spec-kitty consolidate --abort` and re-run with the new ref" + error_code_suffix(DEPENDENCY_REF_MOVED)
-)
 
-#: Error code of the #5571 verdict: an approved lane's final authored content is
-#: absent from (or not applied to) the target and no later approved lane
-#: superseded the path -- e.g. the operator committed the staged deletions an
-#: interrupted run left behind. A content verdict: it FAILs and rolls back.
-APPROVED_CONTENT_MISSING = "APPROVED_CONTENT_MISSING"
-#: Error code of the #5569 verdict (#5613): a fully-canceled dependency lane's
-#: content reached an approved lane through the allocator's fast-forwarded
-#: dependency step and is on the target. Rendered alongside the strategy axis's
-#: own clause. A content verdict: it FAILs and no attestation lifts it, for a
-#: stamped and for a legacy (unstamped) canceled WP alike.
-CANCELED_REACHABLE_VIA_DEPENDENCY = "CANCELED_REACHABLE_VIA_DEPENDENCY"
 # Squash-only (#5013 F1 corollary, widened by #5022): a production claim whose
 # authorship set came back empty — BOTH blobs and deletions — while it lists
 # approved WPs cannot attribute any target blob or deletion — the empty loop
@@ -381,82 +348,6 @@ def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> 
         "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
     )
     return replace(result, attribution_hint=hint)
-
-
-def _describe_canceled_content(entry: CanceledPathState) -> str:
-    """Render one mixed-lane canceled-content divergence clause (contract C4).
-
-    Exactly one internal ``;`` — a situation clause naming the path (in single
-    quotes) together with its wording, then a recovery clause — matching the
-    binding rendering contract with the real-CLI suite
-    (``tests/terminus/test_mixed_lane_canceled_content_verdicts.py`` extracts
-    the verdict block, splits it on ``;``, and matches each path to its own
-    clause; the recovery clause coming AFTER never shadows the situation
-    clause a path-substring search finds first).
-    """
-    who = f"canceled {entry.wp_id}"
-    recovery = f"revert {entry.wp_id}'s change to '{entry.path}' on the lane through a surviving WP's governed work, {_RECOVERY_TAIL}"
-    if entry.canceled_state is None:
-        situation = f"file '{entry.path}' was deleted by {who} (lane {entry.lane_id}) and that deletion is on the target — approved content would be lost"
-    else:
-        situation = f"file '{entry.path}'{_renamed_note(entry.renamed_from)} carries {who}'s change (lane {entry.lane_id}) on the target — canceled work would ship"
-    return f"{situation}; {recovery}"
-
-
-def _renamed_note(renamed_from: str | None) -> str:
-    """`` (renamed from '<old>')`` for canceled content a survivor moved to a new path (#6309), else empty.
-
-    No ``;`` (the clause contract splits situation from recovery on it).
-    """
-    return f" (renamed from '{renamed_from}')" if renamed_from else ""
-
-
-def _describe_approved_content_missing(entry: MissingApprovedContent) -> str:
-    """Render one #5571 clause: names the approved WP(s), their lane(s) and the path.
-
-    One ``;`` between the situation and the recovery, like
-    :func:`_describe_canceled_content`. The recovery names the cause an operator
-    can act on: a worktree that was committed while it lagged its own HEAD. The
-    axis only reports a path the target itself left alone since the lane was cut
-    (:func:`_dropped_own_change`), so the loss is on the mission side and the
-    recovery says so: it must never read as advice to revert a target commit.
-    """
-    who = ", ".join(entry.wp_ids)
-    lanes = ", ".join(entry.lane_ids)
-    if entry.expected is None:
-        what = f"its deletion of '{entry.path}' is not applied to the target"
-    elif entry.found == _GAP_ABSENT:
-        what = f"file '{entry.path}' is absent from the target"
-    else:
-        what = f"file '{entry.path}' on the target still holds its pre-consolidation content"
-    situation = f"{APPROVED_CONTENT_MISSING}: approved {who} (lane {lanes}) {what} and no later approved WP superseded it — approved work would be dropped"
-    recovery = (
-        f"restore {who}'s change to '{entry.path}' on the mission branch — the target branch did not change this path, so revert nothing there "
-        f"(if you committed the staged changes of a lagging coordination or mission worktree, revert that commit on the mission branch, "
-        f"and never commit such changes — discard them with `git reset --hard HEAD`), {_RECOVERY_TAIL}"
-    )
-    return f"{situation}; {recovery}"
-
-
-def _describe_canceled_reachable(entry: CanceledDependencyContent) -> str:
-    """Render one ``CANCELED_REACHABLE_VIA_DEPENDENCY`` clause: the canceled WP(s), both lanes and the path.
-
-    One ``;`` between the situation and the recovery, like
-    :func:`_describe_canceled_content`. No attestation is offered: the content is
-    on the target, and an attestation only ever covers attribution evidence.
-    """
-    who = f"canceled {', '.join(entry.wp_ids)}"
-    effect = "its deletion" if entry.state is None else "its change"
-    situation = (
-        f"{CANCELED_REACHABLE_VIA_DEPENDENCY}: file '{entry.path}'{_renamed_note(entry.renamed_from)} carries {who}'s work "
-        f"(lane {entry.canceled_lane_id}), which reached "
-        f"approved lane {entry.carrier_lane_id} through a dependency lane, and {effect} IS on the target — canceled work would ship"
-    )
-    recovery = (
-        f"undo {effect} to '{entry.path}' on lane {entry.carrier_lane_id} through a surviving WP's governed work "
-        f"(do not rebuild the lane, and no attestation lifts this while the content ships), {_RECOVERY_TAIL}"
-    )
-    return f"{situation}; {recovery}"
 
 
 #: #5318/#5296 (FR-009): printed BEFORE the single rollback authority runs, so it
@@ -1462,15 +1353,6 @@ def build_approved_wp_set(
     )
 
 
-def _join_refusals(refusals: Sequence[str]) -> str:
-    """One text for several refusals of one kind, in the order given: every refusal is named, none is reworded.
-
-    One refusal per line: each ends in a sentence of its own, so a ``; `` join would read ``....; mixed lane ...``.
-    The sibling multi-refusal texts further down join with ``; `` and stay as they are.
-    """
-    return "\n".join(refusals)
-
-
 def _compound_refusal(first: str, bound_verdict: Callable[[], _BoundVerdict], event_log: _ClaimEventLog) -> str:
     """*first* followed by the approved-bound refusals the operator would otherwise meet one run later (#5720).
 
@@ -1517,11 +1399,6 @@ def _mixed_lanes(
         return has_approved and has_canceled and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
 
     return sorted((lane for lane in lanes_manifest.lanes if _is_mixed(lane)), key=lambda lane: lane.lane_id)
-
-
-def _attest_tail(wp_id: str) -> str:
-    """The FR-012 override step, named in every REFUSE it can lift."""
-    return f're-run spec-kitty consolidate with {ATTEST_FLAG} {wp_id} {ATTEST_REASON_FLAG} "<what you checked>"'
 
 
 def _mixed_lane_recovery(reason: UnattributableReason, wp_id: str) -> str:
@@ -1695,304 +1572,6 @@ def _resolve_mixed_lane(scope: _MixedLaneScope, lane: ExecutionLane) -> tuple[se
         else:
             refusals.append(_mixed_lane_unattributable_refusal(lane.lane_id, wp_id, outcome))
     return content, refusals
-
-
-@dataclass(frozen=True)
-class _BoundVerdict:
-    """The approved-bound outcome of one claim: a refusal, or the lane tips it validated."""
-
-    refusal: str | None = None
-    lane_tips: tuple[tuple[str, str], ...] = ()
-    lane_branches: tuple[tuple[str, str], ...] = ()
-
-
-def _bound_events_unreadable_text(lane_id: str) -> str:
-    return (
-        f"the status event log could not be read, so the approvals of lane {lane_id} cannot be bounded to what was reviewed. "
-        "Recovery: repair or restore status.events.jsonl, then re-run"
-    )
-
-
-def _bound_claim_base_unresolved_text(claim_base: str) -> str:
-    return (
-        f"the commit the approved lanes are measured from ('{claim_base}') does not resolve, so their approvals cannot be bounded to what was reviewed. "
-        "Recovery: restore that branch or commit, then re-run"
-    )
-
-
-def _bound_approved_wp_ids(
-    lane: ExecutionLane,
-    work_packages: Mapping[str, Any],
-    excluded_canceled_wp_ids: frozenset[str],
-) -> list[str]:
-    """The work package ids of *lane* whose approval bounds it: approved membership, not canceled-with-provenance."""
-    return [wp for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids and str((work_packages.get(wp) or {}).get("lane", "")) in _APPROVED_MEMBERSHIP_LANES]
-
-
-def _bound_lanes(
-    lanes_manifest: LanesManifest,
-    work_packages: Mapping[str, Any],
-    excluded_canceled_wp_ids: frozenset[str],
-) -> list[ExecutionLane]:
-    """The code lanes the approved bound covers, by lane id: not planning, not fully canceled, with an approved work package."""
-    covered = [
-        lane
-        for lane in lanes_manifest.lanes
-        if not is_planning_lane(lane)
-        and not lane_fully_canceled(lane, excluded_canceled_wp_ids)
-        and _bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids)
-    ]
-    return sorted(covered, key=lambda lane: lane.lane_id)
-
-
-def _bound_claim_base(repo_root: Path, window_base: str | None, coord_base_ref: str) -> str:
-    """What a lane's own range is measured from: the target's pre-mutation tip when it resolves, else *coord_base_ref*.
-
-    The target's pre-mutation tip (persisted on a resume, the live tip on a fresh run)
-    predates every commit this run merges, so a post-approval commit that the mission
-    branch already carries is not reachable from it. A live mission-branch (or
-    coordination) tip is not: on a resume it already holds what the interrupted run merged.
-    """
-    return window_base if window_base and resolves_commit(repo_root, window_base) else coord_base_ref
-
-
-def approval_stamp_anchors(events: Sequence[Any], lanes: Sequence[ExecutionLane], work_packages: Mapping[str, Any], excluded: frozenset[str]) -> list[str]:
-    """The approval stamps of every bounded lane: reviewed content the tool's own mission-branch merges bring into another lane."""
-    stamps = (approval_stamp(events, wp_id) for lane in lanes for wp_id in _bound_approved_wp_ids(lane, work_packages, excluded))
-    return [stamp for stamp in stamps if stamp is not None]
-
-
-def _approved_bound_verdict(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    work_packages: Mapping[str, Any],
-    excluded_canceled_wp_ids: frozenset[str],
-    *,
-    coord_base_ref: str,
-    window_base: str | None,
-    planning_prefix: str | None,
-    event_log: _ClaimEventLog,
-) -> _BoundVerdict:
-    """Check every covered code lane against its approval stamps (#5668); read the log once via *event_log*.
-
-    A ``single_branch`` Mission that lands a minted Mission branch is checked through that
-    branch against its per-WP approval windows instead (:func:`_write_branch_verdict`, S8, #7283).
-
-    A lane that also holds a canceled work package is checked like any other: no commit,
-    status event or attestation of a canceled work package covers a commit (#5720).
-
-    The refused lanes render as one text (:func:`~specify_cli.consolidation.approved_bound.render_refusals`),
-    a line per lane in lane order. A lane tip is resolved once and both checked and recorded, so the gate re-check asks about
-    exactly the commit this check validated.
-    """
-    write_branch = _bound_write_branch(repo_root, lanes_manifest, work_packages, excluded_canceled_wp_ids)
-    if write_branch is not None:
-        return _write_branch_verdict(
-            repo_root,
-            lanes_manifest,
-            write_branch,
-            coord_base_ref=coord_base_ref,
-            window_base=window_base,
-            planning_prefix=planning_prefix,
-            event_log=event_log,
-        )
-    lanes = _bound_lanes(lanes_manifest, work_packages, excluded_canceled_wp_ids)
-    if not lanes:
-        return _BoundVerdict()
-    events = event_log.read()
-    if events is None:
-        return _BoundVerdict(refusal=_bound_events_unreadable_text(lanes[0].lane_id))
-    claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
-    if not resolves_commit(repo_root, claim_base):
-        return _BoundVerdict(refusal=_bound_claim_base_unresolved_text(claim_base))
-    stamp_anchors = approval_stamp_anchors(events, lanes, work_packages, excluded_canceled_wp_ids)
-    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
-    refusals: list[BoundRefusal] = []
-    tips: list[tuple[str, str]] = []
-    for lane in lanes:
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        try:
-            tip = resolve_commit(repo_root, branch)
-        except GitProbeError:
-            continue  # an unresolvable lane tip reads as an empty lane, as the collectors read it (:func:`_lane_tip_commits`)
-        found = check_lane(
-            repo_root,
-            events=events,
-            lane_id=lane.lane_id,
-            branch=branch,
-            approved_wp_ids=_bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids),
-            claim_base=claim_base,
-            anchors=[*_closed_world_anchors(lanes_manifest, lane, window_base, excluded_canceled_wp_ids=excluded_canceled_wp_ids), *stamp_anchors],
-            is_bookkeeping=is_bookkeeping,
-            tip=tip,
-        )
-        if found is not None:
-            refusals.append(found)
-        tips.append((branch, tip))
-    if refusals:
-        return _BoundVerdict(refusal=render_refusals(refusals, lanes_manifest.mission_slug))
-    return _BoundVerdict(lane_tips=tuple(tips))
-
-
-@dataclass(frozen=True)
-class _WriteBranchScope:
-    """The one ``single_branch`` lane the S8 bound reads, the Mission branch it reads it through, and its approved work packages."""
-
-    lane_id: str
-    branch: str
-    approved_wp_ids: tuple[str, ...]
-
-
-def _bound_write_branch(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    work_packages: Mapping[str, Any],
-    excluded_canceled_wp_ids: frozenset[str],
-) -> _WriteBranchScope | None:
-    """The S8 scope (#7283) when the Mission lands a minted Mission branch, else ``None``.
-
-    Only a STORED ``single_branch`` Mission whose write branch differs from its target
-    (``lands_mission_branch``) is bounded this way; a commit-to-target Mission stays unbounded
-    (FR-078). Its approved work packages are those of its planning lane(s), canceled-with-provenance excluded.
-    """
-    from specify_cli.lanes.single_branch_landing import minted_mission_branch
-
-    branch = minted_mission_branch(repo_root, lanes_manifest.mission_slug, lanes_manifest.target_branch)
-    if branch is None:
-        return None
-    planning = [lane for lane in lanes_manifest.lanes if is_planning_lane(lane)]
-    approved = tuple(sorted(wp for lane in planning for wp in _bound_approved_wp_ids(lane, work_packages, excluded_canceled_wp_ids)))
-    if not planning or not approved:
-        return None
-    return _WriteBranchScope(planning[0].lane_id, branch, approved)
-
-
-def _write_branch_verdict(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    scope: _WriteBranchScope,
-    *,
-    coord_base_ref: str,
-    window_base: str | None,
-    planning_prefix: str | None,
-    event_log: _ClaimEventLog,
-) -> _BoundVerdict:
-    """Check a ``single_branch`` Mission branch against its approval windows (S8, #7283; tiers 1 and 2).
-
-    The Mission branch tip is resolved once, checked and recorded with the lane's branch, so the
-    gate re-check reads the Mission branch (never ``lane-planning``'s created-branch alias, which
-    resolves to the target) and asks about exactly the commit validated here.
-    """
-    from .write_branch_bound import check_write_branch, render_write_branch_refusals
-
-    events = event_log.read()
-    if events is None:
-        return _BoundVerdict(refusal=_bound_events_unreadable_text(scope.lane_id))
-    claim_base = _bound_claim_base(repo_root, window_base, coord_base_ref)
-    if not resolves_commit(repo_root, claim_base):
-        return _BoundVerdict(refusal=_bound_claim_base_unresolved_text(claim_base))
-    tip = resolve_commit(repo_root, scope.branch)
-    refusals = check_write_branch(
-        repo_root,
-        events=events,
-        lane_id=scope.lane_id,
-        branch=scope.branch,
-        approved_wp_ids=scope.approved_wp_ids,
-        claim_base=claim_base,
-        anchors=[window_base] if window_base else [],
-        is_bookkeeping=functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix),
-        tip=tip,
-    )
-    if refusals:
-        return _BoundVerdict(refusal=render_write_branch_refusals(refusals, lanes_manifest.mission_slug))
-    return _BoundVerdict(lane_tips=((scope.branch, tip),), lane_branches=((scope.lane_id, scope.branch),))
-
-
-def approved_bound_refusal(
-    repo_root: Path,
-    feature_dir: Path,
-    lanes_manifest: LanesManifest,
-    *,
-    coord_base_ref: str,
-    excluded_canceled_wp_ids: Iterable[str] = (),
-    excluded_window_base: str | None = None,
-    event_log: _ClaimEventLog | None = None,
-) -> str | None:
-    """Refusal text when a code lane holds content beyond what review approved, else ``None`` (#5668).
-
-    The claim builder's approved-bound check as a public entry point for the one other
-    caller, ``orchestrator-api consolidate-mission`` (``consolidate`` runs the same check
-    inside :func:`build_approved_wp_set`, on a fresh run and on ``--resume``): the reduced
-    snapshot gives membership exactly as :func:`build_approved_wp_set` reads it, the
-    status events come from *event_log* (one read per claim; a caller that passes none
-    gets its own), and the refusal codes are rendered by
-    :func:`~specify_cli.consolidation.approved_bound.render_refusals`. A snapshot
-    that cannot be materialized raises, as it does for the claim builder's own caller.
-    """
-    from specify_cli.status import materialize_snapshot
-
-    snapshot = materialize_snapshot(feature_dir)
-    verdict = _approved_bound_verdict(
-        repo_root,
-        lanes_manifest,
-        snapshot.work_packages or {},
-        frozenset(excluded_canceled_wp_ids),
-        coord_base_ref=coord_base_ref,
-        window_base=excluded_window_base,
-        planning_prefix=_planning_prefix(repo_root, feature_dir),
-        event_log=event_log or _ClaimEventLog(feature_dir),
-    )
-    return verdict.refusal
-
-
-def lane_tips_moved_refusal(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    *,
-    validated_tips: Mapping[str, str],
-    anchor_shas: Sequence[str],
-    planning_prefix: str | None,
-    approved_wp_ids: Mapping[str, Sequence[str]] | None = None,
-    lane_branches: Mapping[str, str] | None = None,
-) -> str | None:
-    """Refusal text when content arrived on a lane after the claim-time check validated it, else ``None`` (#5668).
-
-    For each lane branch in *validated_tips* that still exists: the commits reachable from
-    the live tip and from none of the lane's own validated tip, any other lane's validated
-    tip or any of *anchor_shas*, less merge commits and bookkeeping-only commits. Reads no
-    status events: the stamps were checked at claim time and this asks only whether
-    content arrived since. Every reference it excludes is a SHA captured before the run
-    mutated anything, never a live branch name: at gate time the live mission branch
-    already reaches every merged lane commit and would exempt the commit this exists to
-    find. A lane is named with its manifest work packages, or with *approved_wp_ids*
-    (lane id -> approved work package ids) for the lanes it lists, so the recovery
-    command never names a canceled work package. *lane_branches* (lane id -> branch, the claim's
-    :attr:`ApprovedWpCommitSet.bound_lane_branches`) names the branch a lane was checked through
-    when it is not the lane's created branch: a ``single_branch`` Mission's ``lane-planning`` is
-    read through its Mission branch, never through its alias, which resolves to the target (S8, #7283).
-    """
-    is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=lanes_manifest.mission_slug, planning_prefix=planning_prefix)
-    refusals: list[BoundRefusal] = []
-    for lane in sorted(lanes_manifest.lanes, key=lambda candidate: candidate.lane_id):
-        branch = (lane_branches or {}).get(lane.lane_id) or _lane_branch_for(lanes_manifest, lane.lane_id)
-        validated = validated_tips.get(branch)
-        if validated is None or not branch_exists(repo_root, branch):
-            continue
-        others = [sha for other, sha in validated_tips.items() if other != branch]
-        beyond = commits_beyond(repo_root, branch, [validated, *others, *anchor_shas])
-        content = content_commits(repo_root, beyond, is_bookkeeping)
-        if content:
-            refusals.append(
-                BoundRefusal(
-                    BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
-                    lane.lane_id,
-                    branch,
-                    tuple(sorted((approved_wp_ids or {}).get(lane.lane_id) or lane.wp_ids)),
-                    commits=tuple(sha for sha, _path in content),
-                    path=content[0][1],
-                )
-            )
-    return render_refusals(refusals, lanes_manifest.mission_slug) if refusals else None
 
 
 def _fully_canceled_lane_commits(
@@ -2277,7 +1856,6 @@ def _missing_canceled_branch_refusal(
     if not lane_never_started(events, lane.wp_ids):
         return _UnreadableCanceledLane(lane.lane_id, branch)
     # Lazy import, as phase_teardown does: only this rare arm needs the lane-tip refs.
-    from specify_cli.lanes.lane_tip import read_tip
 
     if read_tip(repo_root, branch) is not None:
         return _UnreadableCanceledLane(lane.lane_id, branch)
@@ -2468,72 +2046,6 @@ def _collect_approved_shas(
             if lane_value in _APPROVED_MEMBERSHIP_LANES:
                 approved[wp_id] = tuple(_lane_tip_commits(repo_root, base, branch))
     return approved
-
-
-def _collect_excluded(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    coord_base_ref: str,
-    excluded_canceled_wp_ids: frozenset[str],
-    *,
-    authored_shas: frozenset[str] = frozenset(),
-    authored_patch_ids: frozenset[str] = frozenset(),
-) -> tuple[frozenset[str], frozenset[str]]:
-    """Canceled WP ids → their lane-tip commit SHAs + patch-ids (RN-F4), COMMIT-granular (#5018).
-
-    Sourced from ``acceptably_canceled_wp_ids`` (mapped to lane tips by the
-    caller) so a canceled lane's commits — including cherry-picked/re-lettered
-    copies caught by patch-id — never land. Empty when no provenance-canceled WP
-    exists; the verifier's excluded check stays non-vacuous regardless.
-
-    A lane qualifies (the ``any(...)`` guard) the moment it lists ANY
-    canceled-with-provenance WP — that stays LANE-granular, because a lane is one
-    shared branch and there is no cheaper way to find "does this lane need
-    narrowing at all". Within a qualifying (possibly MIXED) lane, though, the
-    excluded set is narrowed to COMMIT granularity (C-001: granularity, not
-    strictness) by subtracting *authored_shas* / *authored_patch_ids* — the
-    approved lanes' OWN first-parent authorship (:func:`_collect_authored`,
-    computed BEFORE this call in :func:`build_approved_wp_set`) — from the
-    qualifying lane's tip commits: ``excluded_shas ← lane_tips − authored_shas``,
-    ``excluded_patch_ids ← lane_patch_ids − authored_patch_ids``. A survivor WP
-    sharing a mixed lane with a canceled sibling therefore keeps its own
-    legitimately-approved commits OUT of the excluded set, closing #5018's
-    false-FAIL, while a commit NOT on any approved lane's first-parent spine — a
-    canceled WP's own work, OR a removed WP's commit smuggled into the lane via a
-    merge's SECOND parent (#4977's mechanism; ``_lane_tip_commits`` walks ALL
-    ancestry, first- and second-parent alike, so a smuggled second-parent commit
-    is present here but absent from the first-parent-only ``authored_*`` sets) —
-    is never subtracted and stays excluded. A fully-canceled lane (no approved
-    WP at all) never contributes to *authored_shas*/*authored_patch_ids*
-    (:func:`_collect_authored` skips it), so the subtraction is a no-op and every
-    one of its tip commits stays excluded, unchanged from the pre-#5018 behavior.
-
-    **Correction (#5046 WP05):** "stays excluded" here is SHA/patch-id
-    reachability only, NOT a guarantee that the canceled WP's CONTENT can
-    never ship — the #5046 hole a prior revision of this docstring stated as
-    if it were one. A squash mints new SHAs for every commit, so this axis
-    contributes nothing under the default strategy at all; and even under
-    merge/rebase, a LATER survivor commit on the SAME mixed lane can carry
-    the canceled WP's exact bytes forward unchanged (or a surviving commit
-    can simply never touch the canceled WP's paths), in which case those
-    bytes are perfectly reachable via the survivor's own SHA and this axis
-    never sees them. Whether that content is genuinely superseded, or is
-    exactly the unsuperseded #5046 defect, is what
-    :attr:`ApprovedWpCommitSet.canceled_content` /
-    :meth:`MergeOutcomeVerifier._canceled_content_divergence` decide — the
-    CONTENT-identity axis this SHA-level exclusion cannot substitute for.
-    """
-    shas: set[str] = set()
-    patch_ids: set[str] = set()
-    for lane in lanes_manifest.lanes:
-        if not any(wp in excluded_canceled_wp_ids for wp in lane.wp_ids):
-            continue
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        lane_tip_shas = set(_lane_tip_commits(repo_root, coord_base_ref, branch))
-        lane_patch_ids = {pid for sha in lane_tip_shas if (pid := patch_id_of(repo_root, sha))}
-        shas |= lane_tip_shas - authored_shas
-        patch_ids |= lane_patch_ids - authored_patch_ids
-    return frozenset(shas), frozenset(patch_ids)
 
 
 def _unsuperseded_holders(holders: Sequence[ApprovedLaneContent]) -> list[ApprovedLaneContent]:
@@ -2810,307 +2322,6 @@ def _own_dependency_merges(
     # typed local keeps the return honest instead of leaking ``Any``.
     merges: frozenset[str] = lane_dependency_merges(repo_root, spine, tips)
     return merges
-
-
-@dataclass(frozen=True)
-class ExternalDependencyAttribution:
-    """The verified result of the operator's ``--dependency-ref`` declarations (#6771).
-
-    ``shas`` are the declared refs' commits inside the closed-world window
-    (``window_base..ref``), ``blobs``/``deletions`` their final per-path state from the SAME
-    :func:`_final_authored_walk` the lane authorship uses (C-002 — never a second walk).
-    ``refusal`` is set when a declaration cannot be honoured fail-closed; the sets are then
-    EMPTY, so a refused declaration exempts nothing.
-    """
-
-    refs: tuple[str, ...] = ()
-    shas: frozenset[str] = frozenset()
-    blobs: frozenset[tuple[str, str]] = frozenset()
-    deletions: frozenset[str] = frozenset()
-    refusal: str | None = None
-    #: ``ref -> commit SHA`` each declared ref was verified against. The caller persists it
-    #: (``ConsolidationState.dependency_ref_pins``) so the gate and a ``--resume`` verify
-    #: the SAME commit, never whatever the name resolves to later.
-    pins: Mapping[str, str] = field(default_factory=dict)
-
-
-def _mission_spines(
-    repo_root: Path,
-    lanes_manifest: LanesManifest,
-    *,
-    coord_base_ref: str,
-    window_base: str,
-) -> dict[str, str]:
-    """Commit SHA -> the mission spine it sits on, for the #6771 declaration guard.
-
-    Every commit a mission AUTHORED or CARRIED onto a first-parent spine is mission work: a
-    lane's own spine (``coord_base_ref..lane-branch --first-parent``, tolerant of an
-    unresolvable lane exactly as :func:`_lane_first_parent_spine` is) and the mission
-    branch's own spine above the window base. A declaration that would exempt one of these
-    is refused, which keeps the closed world from being widened into a bypass: a removed work
-    package's commit is on its lane's spine, and a direct commit on the mission branch is on
-    the mission branch's spine. An external dependency's commits are on neither (they arrived
-    as a merge's second parent), which is exactly what makes them declarable.
-    """
-    spines: dict[str, str] = {}
-    for lane in lanes_manifest.lanes:
-        label = f"lane {lane.lane_id}'s first-parent spine"
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        # An ABSENT branch (deleted, or never cut) guards nothing here; the namespace and
-        # recorded-tip guards cover what it held. A branch that EXISTS but whose spine cannot
-        # be read is a probe failure: it raises, and the caller REFUSEs (it must never shrink
-        # the spine set the guard defends).
-        if not branch_exists(repo_root, branch):
-            continue
-        for sha in first_parent_commits_in_range(repo_root, coord_base_ref, branch):
-            spines.setdefault(sha, label)
-    mission_label = f"the mission branch {lanes_manifest.mission_branch}'s first-parent spine"
-    # The mission branch is READ, not tolerated: a spine this guard cannot read is a spine it
-    # cannot defend, and the caller turns the resulting GitProbeError into a REFUSE.
-    for sha in first_parent_commits_in_range(repo_root, window_base, lanes_manifest.mission_branch):
-        spines.setdefault(sha, mission_label)
-    return spines
-
-
-def _mission_work_reaches(
-    repo_root: Path,
-    sha: str,
-    mission_branch: str,
-    lanes_manifest: LanesManifest,
-) -> bool:
-    """True when the mission branch OR any lane branch reaches *sha* (#6771).
-
-    A work-package branch brings its dependency branch in during implementation, which is BEFORE the
-    consolidation folds the lanes into the mission branch — so at claim time the merged head is
-    reachable from the LANE, not yet from the mission branch. Both are the mission's own work
-    reaching the ref, so both count. An unresolvable lane branch (a fully-canceled lane, a
-    topology that cut it after this read) contributes nothing rather than failing the probe:
-    the same tolerance :func:`_lane_first_parent_spine` documents for authorship.
-    """
-    if sha_reachable_from(repo_root, sha, mission_branch):
-        return True
-    for lane in lanes_manifest.lanes:
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        if branch_exists(repo_root, branch) and sha_reachable_from(repo_root, sha, branch):
-            return True
-    return False
-
-
-def _recorded_lane_heads(feature_dir: Path) -> frozenset[str] | None:
-    """Every ``lane_head`` stamp ANY work package of the Mission recorded (canceled and removed ones included), or ``None`` when the log is unreadable."""
-    from specify_cli.status import StoreError, read_events
-
-    try:
-        events = read_events(feature_dir)
-    except StoreError:
-        return None
-    return frozenset(stamp for event in events if (stamp := stamp_of(event)))
-
-
-def _mission_namespaces(lanes_manifest: LanesManifest) -> tuple[str, ...]:
-    """Branch-name stems that mark a branch as this Mission's own (the mission branch and every lane branch it names)."""
-    stems: dict[str, None] = {lanes_manifest.mission_branch: None}
-    for lane in lanes_manifest.lanes:
-        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
-        stems[branch] = None
-        stems[branch.removesuffix(f"-{lane.lane_id}")] = None
-    return tuple(stems)
-
-
-def _mission_tip_shas(repo_root: Path, namespaces: Sequence[str]) -> dict[str, str]:
-    """``sha -> branch`` for every recorded lane work tip (``refs/spec-kitty/lane-tip/*``) in this Mission's namespace.
-
-    Raises :class:`GitProbeError` when the listing cannot be read: unknown is never "none".
-    """
-    try:
-        branches = recorded_tip_branches(repo_root)
-    except LaneTipListingError as exc:
-        raise GitProbeError(str(exc)) from exc
-    tips: dict[str, str] = {}
-    for branch in sorted(branches):
-        if any(branch.startswith(stem) for stem in namespaces):
-            tip = read_tip(repo_root, branch)
-            if tip:
-                tips.setdefault(tip, branch)
-    return tips
-
-
-def _namespace_hit(ref: str, namespaces: Sequence[str]) -> str | None:
-    """The Mission branch stem *ref* is named inside, or ``None`` (also catches ``refs/heads/`` and remote-qualified spellings)."""
-    return next((stem for stem in namespaces if stem in ref), None)
-
-
-def _recorded_work_hit(
-    repo_root: Path,
-    window_base: str,
-    window: Sequence[str],
-    lane_heads: frozenset[str],
-    tip_shas: Mapping[str, str],
-) -> tuple[str, str] | None:
-    """The first window commit on the first-parent history of a recorded Mission work tip, with how it was recorded, or ``None``.
-
-    A work package's stamps and a lane's recorded tip are where its work ENDED, not where a
-    carrier lane's `git merge` took it in: a lane that a carrier pulled in at commit X and that
-    kept going to a stamped Y holds X on Y's first-parent spine, while no stamp or tip sits in ``window_base..X``. So each
-    recorded commit contributes its first-parent spine back to the window base. Commits an
-    external dependency brought in sit on second-parent sides and are not on it. A recorded
-    commit that no longer resolves covers nothing and is skipped; a probe failure raises.
-    """
-    in_window = set(window)
-    recorded = [(sha, "a work package of this Mission recorded as a lane head in the status log") for sha in sorted(lane_heads)]
-    recorded += [(sha, f"is on the history of the recorded work tip of the Mission lane branch '{branch}'") for sha, branch in sorted(tip_shas.items())]
-    for tip, how in recorded:
-        try:
-            resolve_commit(repo_root, tip)
-        except GitProbeError:
-            continue
-        for sha in first_parent_commits_in_range(repo_root, window_base, tip):
-            if sha in in_window:
-                return sha, how
-    return None
-
-
-def _refused(refs: tuple[str, ...], message: str) -> ExternalDependencyAttribution:
-    return ExternalDependencyAttribution(refs=refs, refusal=message)
-
-
-def resolve_external_dependency_refs(
-    repo_root: Path,
-    *,
-    refs: Sequence[str],
-    window_base: str | None,
-    mission_branch: str,
-    lanes_manifest: LanesManifest,
-    coord_base_ref: str,
-    recorded_lane_heads: frozenset[str] = frozenset(),
-    pins: Mapping[str, str] | None = None,
-) -> ExternalDependencyAttribution:
-    """Verify the declared dependency refs and return the sets that are outside the closed world.
-
-    A declared ref is honoured only when it is an external branch the mission really merged
-    in: it resolves, the mission branch reaches it, it is not Mission-authored (below), and
-    NONE of its window commits sits on a mission spine (:func:`_mission_spines`). Those commits
-    then join the content that predates the window — the standing commits already on the
-    target have. Nothing else changes: an undeclared commit stays un-attributable.
-    Attribution is never widened toward merge simulation (C-001: #4945 and #6771 are
-    structurally identical, so only an explicit declaration separates them).
-
-    The guard fails closed against ANY Mission authorship, not just the CURRENT manifest's
-    live spines (a removed or canceled work package's lane branch is gone and absent from
-    ``lanes.json``, which is the #4945 shape): a ref NAMED inside the Mission's branch
-    namespace is refused, and so is a window commit that is a ``lane_head`` stamp any work
-    package recorded (*recorded_lane_heads*, canceled and removed ones included) or the
-    recorded work tip of a Mission lane branch (``refs/spec-kitty/lane-tip/*``).
-
-    *pins* (``ref -> SHA``) are the commits an earlier step of this consolidation verified.
-    A pinned ref is verified against its PIN; if the name now resolves elsewhere the
-    declaration REFUSEs naming both SHAs (``DEPENDENCY_REF_MOVED``). The SHAs verified now are
-    returned in :attr:`ExternalDependencyAttribution.pins`.
-
-    No declaration short-circuits before any git probe, so an undeclared run costs exactly
-    what it costs today (NFR-001). Every failure is a REFUSE with the sets left EMPTY, and
-    each carries a stable ``Error code:`` suffix: an unresolvable ref, a ref the mission never
-    merged, a ref that would cover mission work, a moved ref, an unbounded window, or any
-    :class:`GitProbeError` (NFR-002).
-    """
-    declared = tuple(dict.fromkeys(ref for ref in refs if ref.strip()))
-    if not declared:
-        return ExternalDependencyAttribution()
-    if window_base is None:
-        return _refused(declared, _REFUSE_DEPENDENCY_NO_WINDOW_BASE.format(refs=", ".join(declared)))
-    namespaces = _mission_namespaces(lanes_manifest)
-    try:
-        spines = _mission_spines(repo_root, lanes_manifest, coord_base_ref=coord_base_ref, window_base=window_base)
-        tip_shas = _mission_tip_shas(repo_root, namespaces)
-    except GitProbeError as exc:
-        return _refused(declared, _REFUSE_DEPENDENCY_PROBE.format(doing="reading the mission spines", exc=exc))
-    known_pins = pins or {}
-    verified_pins: dict[str, str] = {}
-    shas: set[str] = set()
-    blobs: set[tuple[str, str]] = set()
-    deletions: set[str] = set()
-    for ref in declared:
-        outcome = _verify_declared_ref(
-            repo_root,
-            ref,
-            pinned=known_pins.get(ref),
-            window_base=window_base,
-            mission_branch=mission_branch,
-            lanes_manifest=lanes_manifest,
-            namespaces=namespaces,
-            spines=spines,
-            guards=(recorded_lane_heads, tip_shas),
-        )
-        if isinstance(outcome, str):
-            return _refused(declared, outcome)
-        tip, window, ref_blobs, ref_deletions = outcome
-        verified_pins[ref] = tip
-        shas.update(window)
-        blobs |= ref_blobs
-        deletions |= ref_deletions
-    return ExternalDependencyAttribution(refs=declared, shas=frozenset(shas), blobs=frozenset(blobs), deletions=frozenset(deletions), pins=verified_pins)
-
-
-def _verify_declared_ref(
-    repo_root: Path,
-    ref: str,
-    *,
-    pinned: str | None,
-    window_base: str,
-    mission_branch: str,
-    lanes_manifest: LanesManifest,
-    namespaces: Sequence[str],
-    spines: Mapping[str, str],
-    guards: tuple[frozenset[str], Mapping[str, str]],
-) -> str | tuple[str, list[str], set[tuple[str, str]], set[str]]:
-    """Verify ONE declared ref: the refusal text, or ``(tip, window, blobs, deletions)``."""
-    lane_heads, tip_shas = guards
-    namespace = _namespace_hit(ref, namespaces)
-    if namespace is not None:
-        return _REFUSE_DEPENDENCY_MISSION_NAMESPACE.format(ref=ref, namespace=namespace)
-    try:
-        tip = resolve_commit(repo_root, ref)
-    except GitProbeError:
-        tip = ""
-    if pinned is not None:
-        if tip and tip != pinned:
-            return _REFUSE_DEPENDENCY_MOVED.format(ref=ref, pinned=pinned, now=tip)
-        tip = pinned  # SHA authority: a deleted name does not unpin a commit that still exists
-    if not tip:
-        return _REFUSE_DEPENDENCY_UNRESOLVED.format(ref=ref)
-    try:
-        if pinned is not None:
-            tip = resolve_commit(repo_root, pinned)
-        if not _mission_work_reaches(repo_root, tip, mission_branch, lanes_manifest):
-            return _REFUSE_DEPENDENCY_NOT_MERGED.format(ref=ref, mission_branch=mission_branch)
-        window = commits_in_range(repo_root, window_base, tip)
-        covered = [sha for sha in window if sha in spines]
-        if covered:
-            return _REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]])
-        recorded = _recorded_work_hit(repo_root, window_base, window, lane_heads, tip_shas)
-        if recorded is not None:
-            return _REFUSE_DEPENDENCY_RECORDED_TIP.format(ref=ref, sha=recorded[0][:10], recorded=recorded[1])
-        ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)
-    except GitProbeError as exc:
-        return _REFUSE_DEPENDENCY_PROBE.format(doing=f"verifying external dependency ref '{ref}'", exc=exc)
-    return tip, window, ref_blobs, ref_deletions
-
-
-def dependency_refs_moved_refusal(repo_root: Path, pins: Mapping[str, str]) -> str | None:
-    """Refusal text when a pinned declared ref now resolves to a different commit (``DEPENDENCY_REF_MOVED``), else ``None``.
-
-    The reconciliation gate runs this against the pins the claim recorded, so a ref moved
-    between claim and gate (or between an interrupted run and its ``--resume``) cannot widen
-    the exemption. A ref that no longer resolves is not "moved": the pinned commit still stands.
-    """
-    for ref, pinned in pins.items():
-        try:
-            now = resolve_commit(repo_root, ref)
-        except GitProbeError:
-            continue
-        if now != pinned:
-            return _REFUSE_DEPENDENCY_MOVED.format(ref=ref, pinned=pinned, now=now)
-    return None
 
 
 def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:
