@@ -191,7 +191,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": "claude:claude-opus-5-5:reviewer-renata",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -204,6 +204,7 @@
         "Ready for review: seeded-mutation harness, 16 rows, 21 tests green; 4 rows are reach/polarity (see tracer)"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/stijn/Documents/code/kitty/spec-kitty/.worktrees/consolidation-window-provenance-01M6Y84D-coord/kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP06-seeded-mutation-harness/review-cycle-1.md",
         "reference": "review-cycle://consolidation-window-provenance-01M6Y84D/WP06-seeded-mutation-harness/review-cycle-1.md",
@@ -211,13 +212,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 776206,
-      "shell_pid_created_at": "1794193429.1",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T030": "done",
-        "T031": "done",
-        "T032": "done",
-        "T033": "done"
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned"
       }
     },
     "WP07": {
