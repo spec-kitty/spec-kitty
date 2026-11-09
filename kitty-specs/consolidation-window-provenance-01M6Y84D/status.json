@@ -304,7 +304,8 @@
       "last_transition_at": "2026-11-09T05:41:58.919291+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-09T05:39:18Z – claude:claude-opus-5-5:python-pedro – shell_pid=2902570 – WP_BASE=0548efddbb0b221ad26a4400308b98b3db2807b4. Implemented ClaimInputs + build_claim (fc554913c8). run.claim_inputs NOT stored: _MergeRunState lives in run_state.py (not owned); inputs stay local in phase_claim (WP18 may add the field). Status-dir xfail XPASSed -> pinned as equality (see tracer). Retargeted 5 non-owned tests to claim_inputs (see tracer)."
+        "- 2026-11-09T05:39:18Z – claude:claude-opus-5-5:python-pedro – shell_pid=2902570 – WP_BASE=0548efddbb0b221ad26a4400308b98b3db2807b4. Implemented ClaimInputs + build_claim (fc554913c8). run.claim_inputs NOT stored: _MergeRunState lives in run_state.py (not owned); inputs stay local in phase_claim (WP18 may add the field). Status-dir xfail XPASSed -> pinned as equality (see tracer). Retargeted 5 non-owned tests to claim_inputs (see tracer).",
+        "Ready for review: one ClaimInputs constructor (LIVE/LIVE_THEN_SAVED/SAVED) + build_claim adopted by forecast, phase_claim, phase_gate; corpus zero-diff, changed_cells=[]; status-dir xfail pinned as equality (XPASS, see tracer); 5 non-owned test retargets to claim_inputs"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
