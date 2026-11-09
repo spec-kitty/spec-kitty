@@ -842,6 +842,24 @@ def _build_mixed_with_dependency(tmp_path: Path) -> ShapeMission:
     return _from_coord(mission, "coord", subject_wp="WP01", window_wps=tuple(wp for wp in sorted(mission.lane_branches) if wp not in mission.canceled_wps))
 
 
+def _build_mixed_lane_canceled_leaks(tmp_path: Path) -> ShapeMission:
+    """The mixed lane with the canceled WP's change SURVIVING on the lane (no ``survivor_after`` deletion); WP01 re-approved as it stands."""
+    mission = build_coord_mission_mixed_lane_canceled(
+        tmp_path,
+        canceled_changes=(PlantedChange(_CANCELED_PATH, "CANCELED = True\n"),),
+        survivor_before=(PlantedChange(WP01_PATH, "def wp01() -> int:\n    return 1\n"),),
+        survivor_reapproved=True,
+        mid8="01M6Y2K1",
+    )
+    return _from_coord(mission, "coord", subject_wp="WP01", window_wps=("WP01",))
+
+
+def _build_fully_canceled_dependency_reachable(tmp_path: Path) -> ShapeMission:
+    """The fully-canceled dependency whose content approved WP02 does NOT overwrite, so it stays live on the target."""
+    built = build_canceled_dependency_mission(tmp_path, wp01_final="canceled", depends=True, wp02_overwrites_wp01=False, mid8="01M6Y2G1")
+    return _from_coord(built.mission, "coord", subject_wp="WP02", window_wps=("WP02",))
+
+
 #: name -> (dependency template or None, builder). A builder takes (destination, dependency).
 TemplateBuilder = Callable[[Path, "ShapeMission | None"], ShapeMission]
 TEMPLATES: dict[str, tuple[str | None, TemplateBuilder]] = {
@@ -858,6 +876,8 @@ TEMPLATES: dict[str, tuple[str | None, TemplateBuilder]] = {
     "two_wp_lane_rewound": (None, lambda d, _b: build_two_wp_lane(d, mid8="01M6Y2W2", rewound=True)),
     "dependency_chain_stray": (None, lambda d, _b: build_dependency_chain_with_stray(d)),
     "mixed_lane_with_dependency": (None, lambda d, _b: _build_mixed_with_dependency(d)),
+    "mixed_lane_canceled_leaks": (None, lambda d, _b: _build_mixed_lane_canceled_leaks(d)),
+    "fully_canceled_dependency_reachable": (None, lambda d, _b: _build_fully_canceled_dependency_reachable(d)),
 }
 
 
@@ -1185,6 +1205,12 @@ def _fresh_approved_content_missing_released(ctx: CellContext) -> CellValue:
     return _run_cell(mission, "fresh")
 
 
+def _dependency_ref_names_mission_work(ctx: CellContext) -> CellValue:
+    """``--dependency-ref`` naming the Mission's own lane branch: the declaration must be refused as Mission work (#6771 namespace guard)."""
+    mission = ctx.copy("single_lane", "fresh")
+    return _run_cell(mission, "fresh", "--dependency-ref", mission.lane_branches["WP01"])
+
+
 # ---- exception and weaker-check cells (pinned as passing today)
 
 
@@ -1262,6 +1288,10 @@ NAMED_KEYS = {
     "mut_approved_content_missing": "resume|single_lane|approved_content_missing",
     "mut_approved_content_missing_released": "fresh|single_lane|approved_content_missing_released",
     "mut_unattributable_squash_path": "fresh|single_lane|unattributable_squash_path",
+    "mut_canceled_content_leaks": "fresh|mixed_lane_canceled_wp|canceled_content_leaks",
+    "mut_canceled_dependency_reachable": "fresh|fully_canceled_dependency|canceled_content_reachable",
+    "mut_canceled_dependency_reachable_merge": "fresh|fully_canceled_dependency|canceled_content_reachable|strategy=merge",
+    "mut_dependency_ref_mission_work": "fresh|single_lane|dependency_ref_names_mission_work",
     "x_dependency_chain_exception": cell_key("fresh", "dependency_chain", "present", "recorded", "fr007_exception"),
     "x_gap_covers_stray": cell_key("fresh", "two_wp_lane", "present", "recorded_then_gap", "commit_between_approvals"),
     "x_all_gap_post_approval": cell_key("fresh", "single_lane", "present", "capture_failed", "all_gap_post_approval_commit"),
@@ -1292,6 +1322,14 @@ def named_cells() -> list[Cell]:
         Cell(k["mut_approved_content_missing"], (), _resume_approved_content_missing),
         Cell(k["mut_approved_content_missing_released"], (), _fresh_approved_content_missing_released),
         Cell(k["mut_unattributable_squash_path"], ("single_lane",), _unattributable_squash_path),
+        Cell(k["mut_canceled_content_leaks"], ("mixed_lane_canceled_leaks",), _windowed("mixed_lane_canceled_leaks", "fresh", recorded)),
+        Cell(k["mut_canceled_dependency_reachable"], ("fully_canceled_dependency_reachable",), _windowed("fully_canceled_dependency_reachable", "fresh", recorded)),
+        Cell(
+            k["mut_canceled_dependency_reachable_merge"],
+            ("fully_canceled_dependency_reachable",),
+            _windowed("fully_canceled_dependency_reachable", "fresh", recorded, extra=("--strategy", "merge")),
+        ),
+        Cell(k["mut_dependency_ref_mission_work"], ("single_lane",), _dependency_ref_names_mission_work),
         Cell(k["x_dependency_chain_exception"], ("dependency_chain_stray",), _windowed("dependency_chain_stray", "fresh", recorded)),
         Cell(k["x_gap_covers_stray"], ("two_wp_lane_stray",), _windowed("two_wp_lane_stray", "fresh", _two_wp_windows("recorded", "not_recorded"))),
         Cell(k["x_all_gap_post_approval"], ("single_lane",), _all_gap_post_approval),

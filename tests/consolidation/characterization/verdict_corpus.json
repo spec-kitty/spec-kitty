@@ -349,6 +349,29 @@
     "exit_code": 1,
     "status": "refuse"
   },
+  "fresh|fully_canceled_dependency|canceled_content_reachable": {
+    "codes": [
+      "CANCELED_REACHABLE_VIA_DEPENDENCY"
+    ],
+    "divergence_fields": [
+      "canceled_reachable_via_dependency",
+      "unattributable_blobs"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
+  "fresh|fully_canceled_dependency|canceled_content_reachable|strategy=merge": {
+    "codes": [
+      "CANCELED_REACHABLE_VIA_DEPENDENCY"
+    ],
+    "divergence_fields": [
+      "canceled_reachable_via_dependency",
+      "reachable_excluded",
+      "unattributable_content"
+    ],
+    "exit_code": 1,
+    "status": "fail"
+  },
   "fresh|fully_canceled_dependency|stamp=missing|window=any": {
     "codes": [
       "APPROVAL_STAMP_MISSING"
@@ -404,6 +427,14 @@
     "divergence_fields": [],
     "exit_code": 1,
     "status": "refuse"
+  },
+  "fresh|mixed_lane_canceled_wp|canceled_content_leaks": {
+    "codes": [],
+    "divergence_fields": [
+      "canceled_content"
+    ],
+    "exit_code": 1,
+    "status": "fail"
   },
   "fresh|mixed_lane_canceled_wp|stamp=missing|window=any": {
     "codes": [
@@ -506,6 +537,14 @@
     "divergence_fields": [],
     "exit_code": 0,
     "status": "pass"
+  },
+  "fresh|single_lane|dependency_ref_names_mission_work": {
+    "codes": [
+      "DEPENDENCY_REF_COVERS_MISSION_WORK"
+    ],
+    "divergence_fields": [],
+    "exit_code": 1,
+    "status": "refuse"
   },
   "fresh|single_lane|lane_commit_during_run": {
     "codes": [

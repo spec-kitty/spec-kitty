@@ -36,8 +36,8 @@ Recomputing the count: the five lane shapes are built on the coordination topolo
 5 x 7 x 3 modes = 105; ``planning_lane`` and ``single_branch`` give 3 stamps x ``window=any`` = 3 per
 mode, so 2 x 3 x 3 = 18, of which the 6 resume cells are ``mode_not_applicable`` (P3) and the 4
 non-resume ``planning_lane`` cells with a missing or rewritten stamp are ``not_applicable`` (a planning
-lane is never stamped). Generic cells: 105 + 18 = **123**. Named cells: **22** (NFR-002 (a)-(h) incl.
-both (c) cells, the WP06 mutation targets, the exception cells, R-09). Total: **145**.
+lane is never stamped). Generic cells: 105 + 18 = **123**. Named cells: **26** (NFR-002 (a)-(h) incl.
+both (c) cells, the WP06 mutation targets, the exception cells, R-09). Total: **149**.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ from tests.consolidation import characterization_support as cs
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 GENERIC_CELL_COUNT = 123
-NAMED_CELL_COUNT = 22
+NAMED_CELL_COUNT = 26
 EXCEPTION_CELLS = (
     "x_dependency_chain_exception",
     "x_gap_covers_stray",
