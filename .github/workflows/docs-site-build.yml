@@ -1,0 +1,72 @@
+# ---------------------------------------------------------------------------
+# docs-site-build (#6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
+# D-11): the ONE build definition of the doc-kitty docsite. It checks the site's folder
+# contract, installs site/ with the frozen lockfile (no token: doc-kitty is public), builds
+# with drafts off (site/.env.production) and uploads site/dist.
+#
+# Callers:
+#   - ci-router.yml `docs-site` (the required pull-request gate): plain artifact upload. Its
+#     jobs-API row reads `docs site (doc-kitty build) / build`; router-gate classifies it.
+#   - the Pages deploy at cutover (#6938): `with: {pages-artifact: true}`, so main deploys the
+#     site the gate built. DocFX (docs-pages.yml) keeps deploying until then.
+#
+# workflow_call only: the callers own the triggers, path filters and the fork guard. Pinned by
+# tests/ci/test_docs_site_job.py.
+# ---------------------------------------------------------------------------
+name: docs site build (shared)
+
+on:
+  workflow_call:
+    inputs:
+      pages-artifact:
+        description: Upload site/dist as the GitHub Pages artifact (the deploy) instead of a plain artifact (the gate).
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Check the site's folder contract against scripts/docs/_dockitty_contract.py
+        # Standard library plus src/kernel (the contract reads dates through the
+        # kernel.clock door), so the runner's python3 is enough (no uv sync).
+        env:
+          PYTHONPATH: .:src
+        run: python3 -m scripts.docs.site_contract --check
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          # The pnpm version comes from site/package.json `packageManager`.
+          package_json_file: site/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - name: Install the site with the frozen lockfile (no token)
+        working-directory: site
+        run: pnpm install --frozen-lockfile
+      - name: Build the docsite (drafts off via site/.env.production)
+        working-directory: site
+        run: pnpm run build
+      - name: Upload the built site
+        if: ${{ !inputs.pages-artifact }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-site-${{ github.run_attempt }}
+          path: site/dist
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload the built site as the Pages artifact
+        if: ${{ inputs.pages-artifact }}
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist

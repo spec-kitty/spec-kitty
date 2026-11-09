@@ -1,0 +1,1 @@
+- The `docs-site` gate now builds through one shared reusable workflow, `.github/workflows/docs-site-build.yml`, which the Pages deploy will call at cutover (#6937).
