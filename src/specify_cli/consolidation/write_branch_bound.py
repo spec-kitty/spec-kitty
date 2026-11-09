@@ -111,11 +111,13 @@ def _window_reach(repo_root: Path, claim_base: str, window: ApprovalWindow) -> _
     return _WindowReach(window, reach, reach - opened)
 
 
-def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[_WindowReach]) -> str:
-    """The work package approved last before *sha*: the approval stamp *sha* reaches that reaches most.
+def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[_WindowReach]) -> tuple[str, bool]:
+    """``(wp_id, precedes_approvals)``: the work package approved last before *sha*, or the first approved after it.
 
-    When *sha* reaches no approval stamp (it predates every approval), the work package whose
-    approval stamp reaches *sha* with the fewest commits is named instead: the first approval after it.
+    The first case: the approval stamp *sha* reaches that reaches most, with ``precedes_approvals``
+    False. When *sha* reaches no approval stamp (it predates every approval), the work package whose
+    approval stamp reaches *sha* with the fewest commits is named instead, the first approval after
+    it, with ``precedes_approvals`` True: the refusal text must not claim the commit came after it.
 
     Invariant: some approval stamp reaches *sha*, so that fallback is never empty. Tier 2 asks only
     after tier 1 passed, and a passing tier 1 means every content commit outside its exempt set is
@@ -126,9 +128,9 @@ def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[
     ancestors = frozenset(commits_in_range(repo_root, claim_base, sha))
     before = [entry for entry in reaches if entry.window.approval_stamp in ancestors]
     if before:
-        return max(before, key=lambda entry: len(entry.reach)).window.wp_id
+        return max(before, key=lambda entry: len(entry.reach)).window.wp_id, False
     after = [entry for entry in reaches if sha in entry.reach]
-    return min(after, key=lambda entry: len(entry.reach)).window.wp_id
+    return min(after, key=lambda entry: len(entry.reach)).window.wp_id, True
 
 
 def _outside(repo_root: Path, claim_base: str, tip: str, reaches: Sequence[_WindowReach], exempt: frozenset[str]) -> list[str]:
@@ -149,17 +151,21 @@ def _window_refusals(
 ) -> tuple[BoundRefusal, ...]:
     reaches = [_window_reach(repo_root, claim_base, window) for window in windows]
     content = content_commits(repo_root, _outside(repo_root, claim_base, tip, reaches, exempt), is_bookkeeping)
-    return tuple(
-        BoundRefusal(
-            BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
-            lane_id,
-            branch,
-            (_preceding_wp(repo_root, claim_base, sha, reaches),),
-            commits=(sha,),
-            path=path,
+    refusals: list[BoundRefusal] = []
+    for sha, path in content:
+        wp_id, precedes = _preceding_wp(repo_root, claim_base, sha, reaches)
+        refusals.append(
+            BoundRefusal(
+                BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL,
+                lane_id,
+                branch,
+                (wp_id,),
+                commits=(sha,),
+                path=path,
+                precedes_approvals=precedes,
+            )
         )
-        for sha, path in content
-    )
+    return tuple(refusals)
 
 
 def check_write_branch(
@@ -375,10 +381,13 @@ def check_lane_windows(
 
 def _window_finding(refusal: BoundRefusal) -> str:
     sha = refusal.commits[0][:_SHORT_SHA]
-    return (
-        f"commit {sha} ('{refusal.path}') on branch '{refusal.branch}' ({refusal.lane_id}) was committed after "
-        f"{refusal.wp_ids[0]}'s approval and is in no later work package's review window; see it with `git show {sha}`."
-    )
+    where = f"commit {sha} ('{refusal.path}') on branch '{refusal.branch}' ({refusal.lane_id})"
+    if refusal.precedes_approvals:
+        return (
+            f"{where} was committed before {refusal.wp_ids[0]}'s review window opened, and no work package's newest approval "
+            f"comes before it, so it is in no work package's review window; see it with `git show {sha}`."
+        )
+    return f"{where} was committed after {refusal.wp_ids[0]}'s approval and is in no later work package's review window; see it with `git show {sha}`."
 
 
 def _is_window_refusal(refusal: BoundRefusal) -> bool:
@@ -389,7 +398,8 @@ def render_write_branch_refusals(refusals: Sequence[BoundRefusal], mission_slug:
     """The operator text for :func:`check_write_branch`'s refusals; it starts with ``<CODE>: `` like every bound refusal.
 
     Tier-2 window refusals print one line per commit, then the recovery: send the named work
-    package back for review and approve it again, or revert the commit. Tier-1 refusals render
+    package back for review and approve it again (a commit made before every approval gets its own
+    recovery, see :func:`_window_block`). Tier-1 refusals render
     through :func:`~specify_cli.consolidation.approved_bound.render_refusals` unchanged.
     """
     windows = [refusal for refusal in refusals if _is_window_refusal(refusal)]
@@ -400,18 +410,33 @@ def render_write_branch_refusals(refusals: Sequence[BoundRefusal], mission_slug:
     return "\n".join([*_window_block(windows, mission_slug), _TOOL_COMMIT_HINT])
 
 
+_PRE_WINDOW_RECOVERY = (
+    "A commit made before a work package's review window opened is covered by no approval: approving again moves a window's end, "
+    "never its start. Take the commit off the branch (for example rebuild the branch without it), then send the branch's work "
+    "packages back for review and approve them again."
+)
+
+
 def _window_block(windows: Sequence[BoundRefusal], mission_slug: str) -> list[str]:
-    """The window refusal lines: one finding per commit, then the move-back recovery (no tool-commit hint)."""
+    """The window refusal lines: one finding per commit, then the recovery (no tool-commit hint).
+
+    *windows* is never empty (both renderers pass only the window refusals they found). A commit
+    made after a work package's approval is cleared by sending that work package back for review and
+    approving it again: its window keeps its start and the new approval stamp moves its end past the
+    commit. A revert never clears it (the revert is new content of its own), so none is advised. A
+    commit that precedes every approval (``precedes_approvals``) gets its own recovery: no approval covers it.
+    """
+    assert windows, "a window block needs at least one window refusal"
     findings = [_window_finding(refusal) for refusal in windows]
-    wp_ids = list(dict.fromkeys(refusal.wp_ids[0] for refusal in windows))
-    named = ", ".join(wp_ids)
-    return [
-        f"{BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL.value}: {findings[0]}",
-        *findings[1:],
-        f"Recovery: Send {named} back for review and approve it again, or revert the commit:",
-        *(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission_slug)}" for wp_id in wp_ids),
-        "Then re-run spec-kitty consolidate.",
-    ]
+    wp_ids = list(dict.fromkeys(refusal.wp_ids[0] for refusal in windows if not refusal.precedes_approvals))
+    lines = [f"{BoundRefusalCode.LANE_MOVED_AFTER_APPROVAL.value}: {findings[0]}", *findings[1:]]
+    if wp_ids:
+        lines.append(f"Recovery: Send {', '.join(wp_ids)} back for review and approve it again; the new approval then covers the commit:")
+        lines.extend(f"{_COMMAND_INDENT}{move_back_command(wp_id, mission_slug)}" for wp_id in wp_ids)
+    if any(refusal.precedes_approvals for refusal in windows):
+        lines.append(f"Recovery: {_PRE_WINDOW_RECOVERY}")
+    lines.append("Then re-run spec-kitty consolidate.")
+    return lines
 
 
 def render_lane_window_refusals(refusals: Sequence[BoundRefusal], mission_slug: str) -> str:

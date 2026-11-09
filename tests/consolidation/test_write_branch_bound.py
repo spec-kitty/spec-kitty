@@ -198,7 +198,7 @@ def test_commit_before_every_approval_gets_its_own_text(repo: _Repo) -> None:
     assert refusal_codes(text) == ["LANE_MOVED_AFTER_APPROVAL"]
     assert early[:7] in text
     assert "after WP01's approval" not in text
-    assert "before any approval" in text and "before WP01's review window opened" in text
+    assert "before WP01's review window opened" in text and "no work package's newest approval comes before it" in text
     assert "approving again moves a window's end, never its start" in text
     assert "move-task" not in text and "revert" not in text
 

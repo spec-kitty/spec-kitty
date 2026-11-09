@@ -721,7 +721,7 @@
     "divergence_fields": [],
     "exit_code": 1,
     "status": "refuse",
-    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: commit <sha:1> ('src/pkg/stray.py') on branch 'kitty/mission-terminus-01M6Y2W1-lane-a' (lane-a) was committed after WP01's approval and is in no later work package's review window; see it with git show <sha:1>. Recovery: Send WP01 back for review and approve it again, or revert the commit: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2W1 Then re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
+    "text": "Error: Reconciliation refused (fail-closed) at claim time, before any change: LANE_MOVED_AFTER_APPROVAL: commit <sha:1> ('src/pkg/stray.py') on branch 'kitty/mission-terminus-01M6Y2W1-lane-a' (lane-a) was committed after WP01's approval and is in no later work package's review window; see it with git show <sha:1>. Recovery: Send WP01 back for review and approve it again; the new approval then covers the commit: spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y2W1 Then re-run spec-kitty consolidate. No branch, worktree or status record was changed by this run. Fix the cause, then re-run; if an earlier attempt left partial state, run spec-kitty consolidate --abort first."
   },
   "fresh|two_wp_lane|stamp=present|window=recorded|rewound": {
     "codes": [
