@@ -75,3 +75,24 @@ def test_json_reason_strings_are_the_report_texts(reason: WindowGapReason) -> No
     assert rendered["reason"] == reason.report_text
     assert "_" not in rendered["reason"]
     assert gap_report_lines((_entry("WP01", "lane-a", reason),))[1].startswith(f"  - WP01 (lane-a): {reason.report_text}")
+
+
+_OFF_LANE_SHA = "3f1c0d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
+
+
+def test_not_on_lane_gap_names_its_recorded_sha() -> None:
+    """M4: the recorded SHA a ``not on lane`` gap could not find on the lane is part of the report."""
+    entry = GapEntry.from_gap("WP04", "lane-a", WindowGap(WindowGapReason.NOT_ON_LANE, sha=_OFF_LANE_SHA))
+
+    assert entry.sha == _OFF_LANE_SHA
+    assert gap_report_lines((entry,))[1] == "  - WP04 (lane-a): not on lane: recorded 3f1c0d9"
+    assert gap_report_json((entry,)) == [{"wp_id": "WP04", "lane_id": "lane-a", "reason": "not on lane", "sha": _OFF_LANE_SHA}]
+
+
+def test_malformed_not_recorded_gap_carries_the_malformed_note() -> None:
+    """M4 / data-model section 3: a value that violates the contract reads as not recorded, with a note."""
+    entry = GapEntry.from_gap("WP02", "lane-a", WindowGap(WindowGapReason.NOT_RECORDED, malformed=True))
+
+    assert entry.malformed is True
+    assert gap_report_lines((entry,))[1] == "  - WP02 (lane-a): not recorded (malformed wp_window value ignored)"
+    assert gap_report_json((entry,)) == [{"wp_id": "WP02", "lane_id": "lane-a", "reason": "not recorded", "malformed": True}]
