@@ -44,7 +44,8 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 from . import emit as _emit
-from .lane_head import LANE_HEAD_KEY, WP_WINDOW_KEY, CaptureCause
+from .lane_head import LANE_HEAD_KEY
+from .wp_window import WINDOW_OPENING_LANES, WP_WINDOW_KEY, encode_gap, encode_open
 from .models import (
     FORCE_NOTE_HINT,
     FORCE_NOTE_REQUIRED,
@@ -177,31 +178,20 @@ def _infer_review_gates(
     return subtasks_complete, implementation_evidence_present
 
 
-#: The transitions that open a work-package window (W-1): ``wp_window`` is written only on these.
-_WINDOW_OPENING_LANES: frozenset[Lane] = frozenset({Lane.CLAIMED, Lane.IN_PROGRESS})
-
-#: ``wp_window.schema_version`` this writer produces (contract ``status-event-wp-window.md``).
-_WP_WINDOW_SCHEMA_VERSION = 1
-
-
 def _wp_window_value(request: TransitionRequest, reading: LaneHeadReading, resolved_lane: str) -> dict[str, Any] | None:
     """The ``wp_window`` value for this transition, or ``None`` when it does not qualify (W-1, W-3).
 
     It qualifies only on a non-migration move into ``claimed`` / ``in_progress`` (after
-    alias resolution) whose reading is applicable. A sha writes ``open_sha``; a missing
-    lane branch writes the ``lane_branch_missing`` gap (no ``cause``); any other failed
-    reading writes ``capture_failed`` with its cause.
+    alias resolution) whose reading is applicable. The value comes from the one codec
+    (``status/wp_window.py``): a sha writes ``open_sha``; a failed reading writes the gap
+    its cause maps to.
     """
-    if resolved_lane not in _WINDOW_OPENING_LANES or is_migration_actor(request.actor) or not reading.applicable:
+    if resolved_lane not in WINDOW_OPENING_LANES or is_migration_actor(request.actor) or not reading.applicable:
         return None
     if reading.sha is not None:
-        return {"schema_version": _WP_WINDOW_SCHEMA_VERSION, "open_sha": reading.sha}
-    gap: dict[str, Any]
-    if reading.cause is CaptureCause.LANE_BRANCH_MISSING:
-        gap = {"reason": "lane_branch_missing", "detail": reading.detail}
-    else:
-        gap = {"reason": "capture_failed", "cause": str(reading.cause), "detail": reading.detail}
-    return {"schema_version": _WP_WINDOW_SCHEMA_VERSION, "gap": gap}
+        return encode_open(reading.sha)
+    assert reading.cause is not None  # LaneHeadReading's invariant: applicable and no sha means a cause
+    return encode_gap(reading.cause, reading.detail)
 
 
 def _stamped_policy_metadata(

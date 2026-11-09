@@ -22,14 +22,22 @@ Design references: plan.md D-2/D-3 (steps 2-4); data-model.md (``WorkWindow``,
 
 from __future__ import annotations
 
-import re
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
 
-from specify_cli.status import LANE_HEAD_KEY, WP_WINDOW_KEY, StatusEvent, is_migration_actor
+from specify_cli.status import (
+    LANE_HEAD_KEY,
+    WINDOW_OPENING_LANES,
+    WP_WINDOW_KEY,
+    ParsedWpWindow,
+    RecordedGapReason,
+    StatusEvent,
+    is_migration_actor,
+    parse_wp_window,
+)
 
 from .git_probes import (
     GitProbeError,
@@ -53,7 +61,7 @@ _REVIEW_LANES: frozenset[str] = frozenset({"for_review", "in_review"})
 # blocked without ever having been claimed/in_progress (planned -> blocked ->
 # canceled) is not, by itself, entering implementation (review cycle 1,
 # issue 4).
-_ENTERED_IMPLEMENTATION_LANES: frozenset[str] = frozenset({"claimed", "in_progress"})
+_ENTERED_IMPLEMENTATION_LANES: frozenset[str] = WINDOW_OPENING_LANES
 # The lanes a WP may be canceled FROM and still have provably never started
 # (spec-kitty#5937).
 _NEVER_STARTED_CANCEL_FROM: frozenset[str] = frozenset({"planned", "blocked"})
@@ -715,20 +723,14 @@ def approval_window_open_stamp(events: Sequence[StatusEvent], wp_id: str) -> str
 # excludes review rejections").
 _REWORK_FROM_LANES: frozenset[str] = frozenset({"for_review", "in_review", "approved", "done"})
 _PLANNED = "planned"
-_WP_WINDOW_SCHEMA_VERSION = 1
-_OPEN_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
-_WINDOW_KEYS: frozenset[str] = frozenset({"schema_version", "open_sha", "gap"})
-_GAP_KEYS: frozenset[str] = frozenset({"reason", "cause", "detail"})
-_CAPTURE_CAUSES: frozenset[str] = frozenset({"git_error", "probe_error"})
-_GAP_DETAIL_MAX = 500
 
 
 class WindowGapReason(StrEnum):
     """Why a work package's window-open SHA is not usable (closed set, data-model section 3)."""
 
     NOT_RECORDED = "not_recorded"
-    CAPTURE_FAILED = "capture_failed"
-    LANE_BRANCH_MISSING = "lane_branch_missing"
+    CAPTURE_FAILED = RecordedGapReason.CAPTURE_FAILED.value
+    LANE_BRANCH_MISSING = RecordedGapReason.LANE_BRANCH_MISSING.value
     NOT_ON_LANE = "not_on_lane"
 
     @property
@@ -797,60 +799,27 @@ class OpenerSelection:
         return len(self.skipped)
 
 
-@dataclass(frozen=True, slots=True)
-class _Parsed:
-    """A contract-valid ``wp_window`` value: exactly one of ``open_sha`` / ``gap_reason``."""
+def _window_value(event: StatusEvent) -> tuple[ParsedWpWindow | None, bool]:
+    """The event's parsed ``wp_window`` and whether a present value was malformed (read per event, R-2).
 
-    open_sha: str | None = None
-    gap_reason: str | None = None
-    cause: str | None = None
-    detail: str = ""
-
-
-def _valid_gap(gap: object) -> _Parsed | None:
-    if not isinstance(gap, Mapping) or not set(gap) <= _GAP_KEYS:
-        return None
-    reason, cause, detail = gap.get("reason"), gap.get("cause"), gap.get("detail", "")
-    if not isinstance(detail, str) or len(detail) > _GAP_DETAIL_MAX:
-        return None
-    if reason == WindowGapReason.CAPTURE_FAILED.value and isinstance(cause, str) and cause in _CAPTURE_CAUSES:
-        return _Parsed(gap_reason=reason, cause=str(cause), detail=detail)
-    if reason == WindowGapReason.LANE_BRANCH_MISSING.value and "cause" not in gap:
-        return _Parsed(gap_reason=reason, detail=detail)
-    return None
-
-
-def _parse_wp_window(value: object) -> _Parsed | None:
-    """Validate one ``wp_window`` value against schema version 1; ``None`` when it violates it (R-5)."""
-    if not isinstance(value, Mapping) or not set(value) <= _WINDOW_KEYS:
-        return None
-    version = value.get("schema_version")
-    # ``True == 1`` in Python; the contract's ``const: 1`` is an integer, never a boolean.
-    if type(version) is not int or version != _WP_WINDOW_SCHEMA_VERSION:
-        return None
-    if ("open_sha" in value) == ("gap" in value):
-        return None
-    if "gap" in value:
-        return _valid_gap(value["gap"])
-    sha = value["open_sha"]
-    return _Parsed(open_sha=sha) if isinstance(sha, str) and _OPEN_SHA.fullmatch(sha) else None
-
-
-def _window_value(event: StatusEvent) -> tuple[_Parsed | None, bool]:
-    """The event's parsed ``wp_window`` and whether a present value was malformed (read per event, R-2)."""
+    Parsing goes through the one codec the status writer also uses (``parse_wp_window``).
+    """
     metadata = event.policy_metadata
     if not metadata or WP_WINDOW_KEY not in metadata:
         return None, False
-    parsed = _parse_wp_window(metadata[WP_WINDOW_KEY])
+    parsed = parse_wp_window(metadata[WP_WINDOW_KEY])
     return parsed, parsed is None
 
 
 def _branch_missing_detail(event: StatusEvent) -> str | None:
     """The detail of a valid ``lane_branch_missing`` gap on *event*; ``None`` when it records none."""
     parsed, _ = _window_value(event)
-    if parsed is None or parsed.gap_reason != WindowGapReason.LANE_BRANCH_MISSING.value:
+    if parsed is None or parsed.gap_reason is not RecordedGapReason.LANE_BRANCH_MISSING:
         return None
-    return parsed.detail
+    # Annotated local: under ``follow_imports = "skip"`` for ``specify_cli.*`` the facade's
+    # ``ParsedWpWindow`` reads as ``Any`` here; the codec declares ``detail: str``.
+    detail: str = parsed.detail
+    return detail
 
 
 def _cycle_start_index(wp_events: Sequence[StatusEvent]) -> int:

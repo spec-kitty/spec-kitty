@@ -48,7 +48,7 @@ _SCHEMA: dict[str, Any] = {
     "required": ["schema_version"],
     "properties": {
         "schema_version": {"const": 1},
-        "open_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "open_sha": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
         "gap": {
             "type": "object",
             "required": ["reason"],
