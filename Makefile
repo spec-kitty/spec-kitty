@@ -42,9 +42,12 @@ docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the change
 
 # doc-kitty docsite (#6930; ADR docs/adr/4.x/2026-10-31-1, D-1 and D-2). Needs node >= 22.22 and pnpm.
 # Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1).
-docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, build
+docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, build, built-site check
 	uv run --frozen python -m scripts.docs.site_contract --check
-	cd site && pnpm install --frozen-lockfile && pnpm run build
+	cd site && pnpm install --frozen-lockfile
+	cd site && pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
+	cd site && pnpm run build
+	uv run --frozen python -m scripts.docs.site_built_check site/dist --docs docs
 
 docs-site-bump: ## Bump the doc-kitty pin and peer ranges (REF=<tag|sha>; ADR D-2 steps 1-2)
 	@test -n "$(REF)" || { echo "Usage: make docs-site-bump REF=<doc-kitty tag or commit>"; exit 2; }

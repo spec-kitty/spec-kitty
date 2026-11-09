@@ -9,5 +9,6 @@
   "indexBasename": [
     "README",
     "index"
-  ]
+  ],
+  "llmsStance": "## Current Version Stance\n\n- Current docs: https://docs.spec-kitty.ai/\n- Current overview: https://docs.spec-kitty.ai/context/\n- Current runtime model: Charter-era Spec Kitty\n- Current project governance source: `.kittify/charter/charter.md`\n- Current mission loop command: `spec-kitty next --agent <name> --mission <slug>`\n- Historical 1.x and 2.x pages are archived under `/changelog/1x/` and `/changelog/2x/` and are not the starting point for new projects.\n"
 }

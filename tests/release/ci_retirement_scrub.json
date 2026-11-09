@@ -344,10 +344,11 @@
         "site/**",
         "scripts/docs/_dockitty_contract.py",
         "scripts/docs/site_contract.py",
+        "scripts/docs/site_built_check.py",
         ".github/workflows/ci-router.yml",
         ".github/workflows/docs-site-build.yml"
       ],
-      "note": "The doc-kitty docsite build inputs (#6930, ADR 2026-10-31-1 D-11): the pages, the site/ project, its folder contract, the router workflow and the shared build definition it calls (#6937); gates only docs-site; non-src, no --cov subject."
+      "note": "The doc-kitty docsite build inputs (#6930, ADR 2026-10-31-1 D-11): the pages, the site/ project, its folder contract, the built-site publication check (#6932), the router workflow and the shared build definition it calls (#6937); gates only docs-site; non-src, no --cov subject."
     },
     {
       "group": "path_literal_audit",
