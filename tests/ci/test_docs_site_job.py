@@ -26,7 +26,7 @@ import yaml
 
 from scripts.ci import router_gate
 from scripts.ci.gate_selection import HEAVY_BATTERY_JOB, load_router, select_gates, select_modules
-from tests.ci._gh_if import eval_gh_if
+from tests.ci._gh_if import eval_gh_if, strip_expr_wrapper
 
 pytestmark = pytest.mark.fast
 
@@ -34,6 +34,10 @@ ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / ".github" / "workflows" / "ci-router.yml"
 MAKEFILE = ROOT / "Makefile"
 SCRUB = ROOT / "tests" / "release" / "ci_retirement_scrub.json"
+SHARED = ROOT / ".github" / "workflows" / "docs-site-build.yml"
+SHARED_REF = "./.github/workflows/docs-site-build.yml"
+BUILD_JOB = "build"
+PAGES_INPUT = "pages-artifact"
 
 GROUP = "docs_site"
 JOB = "docs-site"
@@ -51,6 +55,22 @@ def _job() -> dict[str, Any]:
     return dict(_workflow()["jobs"][JOB])
 
 
+def _shared() -> dict[Any, Any]:
+    """The shared build definition (ADR D-11): one reusable workflow for the gate and the deploy."""
+    return dict(yaml.safe_load(SHARED.read_text(encoding="utf-8")))
+
+
+def _build_job() -> dict[str, Any]:
+    """The job that actually builds the site: the shared definition's ``build`` job."""
+    return dict(_shared()["jobs"][BUILD_JOB])
+
+
+def _triggers(workflow: dict[Any, Any]) -> dict[str, Any]:
+    """``on:`` parses as the boolean ``True`` key under YAML 1.1."""
+    raw = workflow.get("on", workflow.get(True))
+    return dict(raw) if isinstance(raw, dict) else {str(raw): None}
+
+
 def _run_text(job: dict[str, Any]) -> str:
     return "\n".join(str(step["run"]) for step in job.get("steps", []) if "run" in step)
 
@@ -58,7 +78,17 @@ def _run_text(job: dict[str, Any]) -> str:
 # --- routing (FR-007, C-002) -------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ["docs/guides/install.md", "docs/_meta/sections.yaml", "site/package.json", "site/pnpm-lock.yaml", "site/astro.config.mjs"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/guides/install.md",
+        "docs/_meta/sections.yaml",
+        "site/package.json",
+        "site/pnpm-lock.yaml",
+        "site/astro.config.mjs",
+        ".github/workflows/docs-site-build.yml",
+    ],
+)
 def test_a_docs_or_site_change_selects_the_job(path: str) -> None:
     router = load_router()
 
@@ -278,3 +308,72 @@ def test_a_required_job_with_continue_on_error_is_caught() -> None:
     jobs[JOB]["continue-on-error"] = True
 
     assert _advisory_violations(jobs, router_gate.ADVISORY_JOB_NAMES) == [f"{JOB}: advisory=False, job-level continue-on-error=True"]
+
+
+# --- one shared build definition (#6937 remainder, ADR D-11) -----------------------------------
+#
+# The router job only calls the shared definition; the build's steps live there once, and the
+# Pages deploy calls the same definition at cutover (#6938) with a Pages-artifact upload.
+
+
+def _upload_steps(job: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Upload steps keyed by the action they use (without the pin)."""
+    return {str(step["uses"]).split("@")[0]: step for step in job.get("steps", []) if "upload" in str(step.get("uses", ""))}
+
+
+def test_the_router_job_only_calls_the_shared_definition() -> None:
+    job = _job()
+
+    assert "steps" not in job, "the build lives in the shared definition, not inline in the router"
+    assert job["uses"] == SHARED_REF
+    assert PAGES_INPUT not in (job.get("with") or {}), "the gate uploads a plain artifact, never the Pages artifact"
+
+
+def test_the_shared_definition_is_only_callable() -> None:
+    workflow = _shared()
+    call = _triggers(workflow)
+
+    assert set(call) == {"workflow_call"}, "no automated trigger: callers own when it runs (and the fork guard)"
+    inputs = dict(call["workflow_call"]["inputs"])
+    assert set(inputs) == {PAGES_INPUT}
+    assert inputs[PAGES_INPUT]["type"] == "boolean"
+    assert inputs[PAGES_INPUT]["default"] is False
+    assert "secrets" not in call["workflow_call"]
+    assert workflow["permissions"] == {"contents": "read"}
+
+
+def test_the_build_job_carries_the_build() -> None:
+    """Non-vacuity floor: every step check below reads these steps, so they must be here."""
+    job = _build_job()
+    run = _run_text(job)
+
+    assert job["name"] == BUILD_JOB
+    assert job["runs-on"]
+    assert int(job["timeout-minutes"]) <= 20
+    for command in ("-m scripts.docs.site_contract --check", "pnpm install --frozen-lockfile", "pnpm run build"):
+        assert command in run
+
+
+def test_the_deploy_can_reuse_the_build_with_a_pages_artifact() -> None:
+    """#6938's deploy calls the definition with ``pages-artifact: true`` and gets the Pages artifact of site/dist."""
+    uploads = _upload_steps(_build_job())
+
+    assert set(uploads) == {"actions/upload-artifact", "actions/upload-pages-artifact"}
+    plain, pages = uploads["actions/upload-artifact"], uploads["actions/upload-pages-artifact"]
+    assert strip_expr_wrapper(str(plain["if"])) == f"!inputs.{PAGES_INPUT}"
+    assert strip_expr_wrapper(str(pages["if"])) == f"inputs.{PAGES_INPUT}"
+    assert plain["with"]["path"] == pages["with"]["path"] == "site/dist"
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "timed_out", "cancelled", ""])
+def test_the_called_build_row_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The jobs API reports a called job as ``<caller name> / <callee name>``; router-gate classifies every row."""
+    row = f"{_job()['name']} / {_build_job()['name']}"
+
+    assert _gate_verdict(f"{row}\t{conclusion}\nruff (fast, always-on)\tsuccess\n", monkeypatch, capsys).startswith("blocked")
+
+
+def test_a_green_called_build_row_does_not_mask_another_failure(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    row = f"{_job()['name']} / {_build_job()['name']}"
+
+    assert _gate_verdict(f"{row}\tsuccess\nruff (fast, always-on)\tfailure\n", monkeypatch, capsys).startswith("blocked")
