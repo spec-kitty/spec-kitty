@@ -52,8 +52,8 @@ from tests.terminus.post_approval_support import add_post_approval_commit, build
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-#: The tier-2 window refusal's own line (``write_branch_bound._window_finding``).
-WINDOW_MARKER = "is in no later work package's review window"
+#: The tier-2 window refusal's own line (``write_branch_bound._window_finding``), shared by both of its forms.
+WINDOW_MARKER = "review window; see it with"
 #: The tier-1 ``bound`` line (``approved_bound.render_refusals``).
 TIER_ONE_MARKER = "holds content committed after its approval stamp"
 _ABANDONED_PATH = "src/pkg/between.py"
@@ -140,27 +140,32 @@ SNAPSHOTS: dict[str, str] = {
                 "canceled WP01 (lane lane-a) is carried by approved lane(s) lane-b but cannot be attributed — WP01 in lane-a entered "
                 "implementation but its lifecycle events carry no commit attribution (missions created before this change, or a "
                 "transition made outside the governed workflow). This attribution evidence cannot appear later (the event log is "
-                "append-only), so re-running alone cannot clear it. Recovery: verify by hand that WP01's canceled content is absent or "
-                "superseded on the lane, then re-run spec-kitty consolidate with --attest-canceled-superseded WP01 --attest-reason "
+                "append-only), so re-running alone cannot clear it. Recovery: verify by hand that WP01's canceled content is absent "
+                "or superseded on the lane, then re-run spec-kitty consolidate with --attest-canceled-superseded WP01 --attest-reason "
                 '"<what you checked>".'
             ),
             "",
             "This Mission also has:",
             (
                 "LANE_MOVED_AFTER_APPROVAL: commit <sha> ('src/pkg/between.py') on branch 'kitty/mission-terminus-01M6Y9P1-lane-b' "
-                "(lane-b) was committed after WP02's approval and is in no later work package's review window; see it with `git show "
-                "<sha>`."
+                "(lane-b) was committed before WP02's review window opened, and no work package's newest approval comes before it, so "
+                "it is in no work package's review window; see it with `git show <sha>`."
             ),
             (
-                "commit <sha> ('src/pkg/wp02.py') on branch 'kitty/mission-terminus-01M6Y9P1-lane-b' (lane-b) was committed after "
-                "WP02's approval and is in no later work package's review window; see it with `git show <sha>`."
+                "commit <sha> ('src/pkg/wp02.py') on branch 'kitty/mission-terminus-01M6Y9P1-lane-b' (lane-b) was committed before "
+                "WP02's review window opened, and no work package's newest approval comes before it, so it is in no work package's "
+                "review window; see it with `git show <sha>`."
             ),
             (
-                "commit <sha> ('src/pkg/wp01.py') on branch 'kitty/mission-terminus-01M6Y9P1-lane-b' (lane-b) was committed after "
-                "WP02's approval and is in no later work package's review window; see it with `git show <sha>`."
+                "commit <sha> ('src/pkg/wp01.py') on branch 'kitty/mission-terminus-01M6Y9P1-lane-b' (lane-b) was committed before "
+                "WP02's review window opened, and no work package's newest approval comes before it, so it is in no work package's "
+                "review window; see it with `git show <sha>`."
             ),
-            "Recovery: Send WP02 back for review and approve it again, or revert the commit:",
-            "  spec-kitty agent tasks move-task WP02 --to in_progress --mission terminus-01M6Y9P1",
+            (
+                "Recovery: A commit made before a work package's review window opened is covered by no approval: approving again "
+                "moves a window's end, never its start. Take the commit off the branch (for example rebuild the branch without it), "
+                "then send the branch's work packages back for review and approve them again."
+            ),
             "Then re-run spec-kitty consolidate.",
             "",
             (
@@ -172,29 +177,35 @@ SNAPSHOTS: dict[str, str] = {
     "mixed_lane": "\n".join(
         (
             (
-                "mixed lane lane-a: canceled WP02 cannot be attributed — lane-a carries commit(s) <sha> (touching 'src/pkg/between.py') "
-                "that lie outside every WP's recorded work window — no governed WP owns them, so canceled WP02's content cannot be told "
-                "apart from approved work. No governed WP window will ever cover those commits, so re-running alone cannot clear this. "
-                "Recovery: verify by hand that they carry no canceled work and that WP02's canceled content is absent or superseded, "
-                'then re-run spec-kitty consolidate with --attest-canceled-superseded WP02 --attest-reason "<what you checked>".'
+                "mixed lane lane-a: canceled WP02 cannot be attributed — lane-a carries commit(s) <sha> (touching "
+                "'src/pkg/between.py') that lie outside every WP's recorded work window — no governed WP owns them, so canceled "
+                "WP02's content cannot be told apart from approved work. No governed WP window will ever cover those commits, so "
+                "re-running alone cannot clear this. Recovery: verify by hand that they carry no canceled work and that WP02's "
+                "canceled content is absent or superseded, then re-run spec-kitty consolidate with --attest-canceled-superseded WP02 "
+                '--attest-reason "<what you checked>".'
             ),
             "",
             "This Mission also has:",
             (
                 "LANE_MOVED_AFTER_APPROVAL: commit <sha> ('src/pkg/between.py') on branch 'kitty/mission-terminus-01M6Y9P2-lane-a' "
-                "(lane-a) was committed after WP01's approval and is in no later work package's review window; see it with `git show "
-                "<sha>`."
+                "(lane-a) was committed before WP01's review window opened, and no work package's newest approval comes before it, so "
+                "it is in no work package's review window; see it with `git show <sha>`."
             ),
             (
-                "commit <sha> ('src/pkg/wp01.py') on branch 'kitty/mission-terminus-01M6Y9P2-lane-a' (lane-a) was committed after "
-                "WP01's approval and is in no later work package's review window; see it with `git show <sha>`."
+                "commit <sha> ('src/pkg/wp01.py') on branch 'kitty/mission-terminus-01M6Y9P2-lane-a' (lane-a) was committed before "
+                "WP01's review window opened, and no work package's newest approval comes before it, so it is in no work package's "
+                "review window; see it with `git show <sha>`."
             ),
             (
-                "commit <sha> ('src/pkg/canceled.py') on branch 'kitty/mission-terminus-01M6Y9P2-lane-a' (lane-a) was committed after "
-                "WP01's approval and is in no later work package's review window; see it with `git show <sha>`."
+                "commit <sha> ('src/pkg/canceled.py') on branch 'kitty/mission-terminus-01M6Y9P2-lane-a' (lane-a) was committed "
+                "before WP01's review window opened, and no work package's newest approval comes before it, so it is in no work "
+                "package's review window; see it with `git show <sha>`."
             ),
-            "Recovery: Send WP01 back for review and approve it again, or revert the commit:",
-            "  spec-kitty agent tasks move-task WP01 --to in_progress --mission terminus-01M6Y9P2",
+            (
+                "Recovery: A commit made before a work package's review window opened is covered by no approval: approving again "
+                "moves a window's end, never its start. Take the commit off the branch (for example rebuild the branch without it), "
+                "then send the branch's work packages back for review and approve them again."
+            ),
             "Then re-run spec-kitty consolidate.",
             "",
             (
@@ -215,15 +226,19 @@ SNAPSHOTS: dict[str, str] = {
             "Then approve it again and re-run spec-kitty consolidate.",
             (
                 "LANE_MOVED_AFTER_APPROVAL: commit <sha> ('src/pkg/between.py') on branch 'kitty/mission-terminus-01M6Y9P3-lane-b' "
-                "(lane-b) was committed after WP02's approval and is in no later work package's review window; see it with `git show "
-                "<sha>`."
+                "(lane-b) was committed before WP02's review window opened, and no work package's newest approval comes before it, so "
+                "it is in no work package's review window; see it with `git show <sha>`."
             ),
             (
-                "commit <sha> ('src/pkg/wp02.py') on branch 'kitty/mission-terminus-01M6Y9P3-lane-b' (lane-b) was committed after "
-                "WP02's approval and is in no later work package's review window; see it with `git show <sha>`."
+                "commit <sha> ('src/pkg/wp02.py') on branch 'kitty/mission-terminus-01M6Y9P3-lane-b' (lane-b) was committed before "
+                "WP02's review window opened, and no work package's newest approval comes before it, so it is in no work package's "
+                "review window; see it with `git show <sha>`."
             ),
-            "Recovery: Send WP02 back for review and approve it again, or revert the commit:",
-            "  spec-kitty agent tasks move-task WP02 --to in_progress --mission terminus-01M6Y9P3",
+            (
+                "Recovery: A commit made before a work package's review window opened is covered by no approval: approving again "
+                "moves a window's end, never its start. Take the commit off the branch (for example rebuild the branch without it), "
+                "then send the branch's work packages back for review and approve them again."
+            ),
             "Then re-run spec-kitty consolidate.",
         )
     ),

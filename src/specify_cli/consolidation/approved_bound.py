@@ -79,6 +79,9 @@ class BoundRefusal:
     commits: tuple[str, ...] = ()
     path: str | None = None
     stamp: str | None = None
+    #: A window refusal only: the commit precedes every newest approval stamp on the branch, so ``wp_ids``
+    #: names the first work package approved after it, and approving again cannot cover it.
+    precedes_approvals: bool = False
 
     def render(self, mission_slug: str) -> str:
         """The operator-facing text of this one refusal, led by ``<CODE>: `` like the other claim refusals."""

@@ -169,7 +169,7 @@ def test_commit_between_two_approvals_refuses_naming_preceding_wp(mission: Missi
     assert_refused(mission, rc, out, before, _MOVED)
     assert late[:7] in out, f"the refusal must name the commit outside every window:\n{out}"
     assert "WP01" in out, f"the refusal must name the work package approved before the commit:\n{out}"
-    assert "Send WP01 back for review and approve it again, or revert the commit" in out, out
+    assert "Send WP01 back for review and approve it again; the new approval then covers the commit" in out, out
 
 
 def test_overlapping_review_passes(mission: Mission) -> None:
