@@ -148,3 +148,31 @@ def test_plans_has_restricted_feeds() -> None:
     sections = {section["id"]: section for section in yaml.safe_load(_read(SECTIONS))["sections"]}
 
     assert sections["plans"]["feeds"] == ["sitemap"], "plans: no llms, agent or rss feed (ADR D-8)"
+
+
+# --- working-note folders are drafts (#6932, FR-001) --------------------------------------------
+
+
+def _frontmatter(path: Path) -> dict[str, object]:
+    parts = contract.split_frontmatter(_read(path))
+    data = yaml.safe_load(parts[0].strip().strip("-")) if parts else None
+    return data if isinstance(data, dict) else {}
+
+
+def _not_draft_in_draft_folders(docs: Path) -> list[str]:
+    """Pages under a draft-only folder whose frontmatter doc-kitty would publish."""
+    pages = ((path.relative_to(docs).as_posix(), path) for path in docs.rglob("*.md"))
+    return sorted(rel for rel, path in pages if contract.is_in_draft_folder(rel) and contract.is_published(rel, _frontmatter(path)))
+
+
+def test_every_page_in_a_draft_folder_is_a_draft() -> None:
+    """doc-kitty decides by frontmatter: a working note that is not a draft would be built and published."""
+    assert _not_draft_in_draft_folders(DOCS) == []
+
+
+def test_a_published_working_note_is_caught(tmp_path: Path) -> None:
+    (tmp_path / "plans" / "research").mkdir(parents=True)
+    (tmp_path / "plans" / "research" / "note.md").write_text("---\ntitle: t\ndoc_status: active\n---\n", encoding="utf-8")
+    (tmp_path / "plans" / "research" / "wip.md").write_text("---\ntitle: t\ndoc_status: draft\n---\n", encoding="utf-8")
+
+    assert _not_draft_in_draft_folders(tmp_path) == ["plans/research/note.md"]
