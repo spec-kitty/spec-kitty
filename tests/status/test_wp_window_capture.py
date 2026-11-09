@@ -319,6 +319,20 @@ def test_probe_exception_records_capture_failed_with_probe_error_cause(flat_miss
     }
 
 
+def test_probe_and_git_error_details_carry_no_absolute_paths(flat_mission: FlatTopologyContext, monkeypatch: pytest.MonkeyPatch) -> None:
+    """N4: the detail lands in the committed event log, so the repository root and the home directory are redacted."""
+    repo, home = flat_mission.repo, Path.home()
+
+    def _explode(**_kwargs: Any) -> LaneHeadReading:
+        raise FileNotFoundError(f"{repo}/kitty-specs/x/lanes.json and {home}/.config/y")
+
+    monkeypatch.setattr(lane_head_module, "_read_lane_head", _explode)
+    reading = read_lane_head(repo_root=repo, mission_slug=flat_mission.slug, wp_id="WP01")
+
+    assert reading.cause is CaptureCause.PROBE_ERROR
+    assert reading.detail == "FileNotFoundError: <repo>/kitty-specs/x/lanes.json and ~/.config/y"
+
+
 def test_corrupt_lanes_json_reads_as_probe_error(flat_mission: FlatTopologyContext) -> None:
     (flat_mission.primary_feature_dir / "lanes.json").write_text("{not json", encoding="utf-8")
 

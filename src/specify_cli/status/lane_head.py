@@ -136,7 +136,8 @@ def read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Own
     ``sha`` is ``None`` for every non-exceptional "no stamp" case (no ``lanes.json``,
     corrupt ``lanes.json``, *wp_id* unassigned, the planning lane, or the lane branch not
     existing in *repo_root*); an unexpected error becomes
-    ``failed(PROBE_ERROR, "<exception class>: <message>")``.
+    ``failed(PROBE_ERROR, "<exception class>: <message>")``, with the repository root and
+    the home directory redacted from the message.
 
     Args:
         repo_root: The canonical repository root (never ``feature_dir`` --
@@ -163,7 +164,21 @@ def read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Own
             repo_root,
             exc_info=True,
         )
-        return LaneHeadReading.failed(CaptureCause.PROBE_ERROR, f"{type(exc).__name__}: {exc}")
+        return LaneHeadReading.failed(CaptureCause.PROBE_ERROR, _redacted(f"{type(exc).__name__}: {exc}", repo_root))
+
+
+def _redacted(detail: str, repo_root: Path) -> str:
+    """*detail* with the repository root and the home directory replaced (N4).
+
+    The detail is written into the committed event log, so it must not carry a
+    machine-specific absolute path: the repository root reads ``<repo>`` and the
+    home directory ``~``.
+    """
+    roots = {str(repo_root): "<repo>", str(repo_root.resolve()): "<repo>"}
+    for root, placeholder in sorted(roots.items(), key=lambda item: -len(item[0])):
+        detail = detail.replace(root, placeholder)
+    home = str(Path.home())
+    return detail.replace(home, "~") if home not in ("", "/") else detail
 
 
 _NO_STAMP_WARNING = (
@@ -234,7 +249,7 @@ def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_bra
         sha = _branch_head(repo_root, write_branch)
     except _GitReadError as exc:
         _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, f"git error: {exc}")
-        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, str(exc))
+        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, _redacted(str(exc), repo_root))
     if sha is None:
         why = f"Mission branch {write_branch} does not exist"
         _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, why)
@@ -274,7 +289,7 @@ def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Ow
         sha = _branch_head(repo_root, branch)
     except Exception as exc:  # noqa: BLE001 — best-effort (C-1): a git error is logged, never raised
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"git error: {exc}")
-        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, str(exc))
+        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, _redacted(str(exc), repo_root))
     if sha is not None:
         return LaneHeadReading.of_sha(sha)
     other_branches = (lane_created_branch(manifest, other.lane_id) for other in manifest.lanes if other.lane_id != lane.lane_id and not is_planning_lane(other))
