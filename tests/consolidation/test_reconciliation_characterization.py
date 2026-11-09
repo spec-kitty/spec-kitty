@@ -189,6 +189,18 @@ def test_refusal_codes_reads_a_code_after_a_json_escape() -> None:
     assert cs.refusal_codes(text) == ("APPROVAL_STAMP_MISSING", "APPROVAL_STAMP_NOT_ON_LANE", "LANE_MOVED_AFTER_APPROVAL")
 
 
+def test_corpus_workers_default_to_one_inside_an_xdist_worker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M10: under ``-n auto`` each xdist worker computes its corpus in process; the explicit setting still wins."""
+    monkeypatch.delenv(cs.WORKERS_ENV, raising=False)
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw3")
+    assert cs.corpus_workers() == 1
+    monkeypatch.setenv(cs.WORKERS_ENV, "4")
+    assert cs.corpus_workers() == 4
+    monkeypatch.delenv(cs.WORKERS_ENV)
+    monkeypatch.delenv("PYTEST_XDIST_WORKER")
+    assert cs.corpus_workers() >= 1
+
+
 @pytest.mark.timeout(600)  # the corpus budget (10 min serial); on >=8 cores the forked workers finish it in about a minute
 def test_verdict_corpus_matches_the_golden_file(tmp_path: Path) -> None:
     """Every cell recomputed; byte equality with the golden file (or a deterministic rewrite under the switch)."""
