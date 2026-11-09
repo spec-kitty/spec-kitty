@@ -200,6 +200,9 @@
       "last_event_id": "01M6Z42MWHAJJ7MX66ZSZRT773",
       "last_transition_at": "2026-11-09T03:01:54.705406+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: seeded-mutation harness, 16 rows, 21 tests green; 4 rows are reach/polarity (see tracer)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 553674,
