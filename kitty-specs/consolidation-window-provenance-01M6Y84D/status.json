@@ -1,7 +1,7 @@
 {
-  "event_count": 93,
-  "last_event_id": "01M6ZK3M02ECZ8KMDZTBA3XRJ3",
-  "materialized_at": "2026-11-09T07:24:34.727622+00:00",
+  "event_count": 95,
+  "last_event_id": "01M6ZMZ3F8VY49XFNBBS6VC5C5",
+  "materialized_at": "2026-11-09T07:57:04.360290+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 10
   },
   "work_packages": {
@@ -363,20 +363,31 @@
       }
     },
     "WP11": {
-      "actor": "opencode",
-      "agent": "opencode:glm-5.3:python-pedro",
+      "actor": "claude",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "opencode:glm-5.3:python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6ZK3M02ECZ8KMDZTBA3XRJ3",
-      "last_transition_at": "2026-11-09T07:24:34.727622+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6ZMZ3F8VY49XFNBBS6VC5C5",
+      "last_transition_at": "2026-11-09T07:57:04.360290+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-09T07:52:36Z – opencode:glm-5.3:python-pedro – shell_pid=4185396 – WP11 complete, commit acf1c88d6c on lane-a. WP base 1e76ac904613b6291386beb4537a21c565a2d2b2. Moved 45 symbols AST-identical to base (rtool check: 45 same, 0 DIFFERS): rendering 11 (100 lines), closed world 21 (383 lines), bound 13 (272 lines). Facade shrunk 3526->2737 lines, re-exports every moved name as 'name as name'; facade __all__ still 10 names. Exactly one forward reference (function-local _final_authored_walk in _verify_declared_ref, marked TEMPORARY moves in WP15). RECONCILIATION_FAMILY and SPLIT_MODULES extended; import test 6 passed. Oracle counts BEFORE==AFTER: characterization 8 passed; precedence matrix 17 passed; surface pin + family guard 17 passed; intended verdicts 2 passed 11 xfailed (only xfailed, no XPASS); seeded mutations 23 passed; parity pins 16 passed 2 xfailed; six mutation rows -k filter: 7 passed 16 deselected. Zero-diff witness: git diff --exit-code WP_BASE HEAD -- verdict_corpus.json rc=0; changed_cells(WP_BASE)==[]. Blast radius: tests/consolidation/ full 2945 passed 1 skipped 22 xfailed; projection_teardown+merge_resume+single_branch_mission_to_target 82 passed 1 skipped; terminus 9 files 46 passed; reducer lock census + single rollback authority 34 passed. Architectural gates: test_no_dead_symbols/test_dead_symbol_allowlist_contract/test_no_dead_modules/test_exemption_registry_ratchet => 3 failed (test_no_public_symbol_in_all_is_unimported, test_m11c_gate_reads_the_widened_section_it_is_given, test_m11_gate_reads_the_allowlist_file_it_is_given) — the standing known pre-existing red on WP07-WP09 symbols, not touched; 52 passed. ruff check and ruff format --check --force-exclude clean on all 6 touched files. mypy: 3 no-any-return errors in reconciliation.py (688/1007/2127) verified PRE-EXISTING on WP base in-place (797/1116/2615) via throwaway worktree — not new, not fixed (would edit an unmoved body). make test-fast 2941 passed 6 skipped. Friction: one transient seeded-mutations failure on a first run (1 failed 22 passed), unreproducible, two reruns green 23 passed — recorded in tracer, not chased. Module sizes: facade 2737, rendering 151, closed world 489, bound 353, kernel 334, claim types 334.",
+        "Ready for review: behaviour-preserving move of 45 symbols into reconciliation_rendering.py (11), reconciliation_closed_world.py (21) and reconciliation_bound.py (13); 45/45 AST-identical to WP base, oracle counts identical, golden corpus byte-identical, one sanctioned WP15 forward reference; commit acf1c88d6c"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 4185396,
-      "shell_pid_created_at": "1794203754.29"
+      "role": "reviewer",
+      "shell_pid": 2262275,
+      "shell_pid_created_at": "1794211018.2",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done"
+      }
     },
     "WP12": {
       "actor": "finalize-tasks",
