@@ -1258,6 +1258,98 @@ def _undo_refused_finalize(undo: _FinalizeUndoState, write_ledger: FinalizeWrite
     return _FinalizeUndoOutcome(revert_error=revert_error, status_leftover=status_leftover, kept_files=kept_files)
 
 
+@dataclass(frozen=True)
+class _FinalizeValidated:
+    """Validate phase result: the gates passed, the topology decided, the frozen membership checked."""
+
+    req_gates: _FinalizeRequirementGates
+    own_gates: _FinalizeOwnershipGates
+    meta: dict[str, object] | None
+    topology_decision: TopologyDecision | None
+    frozen: FrozenLaneMembership | None
+
+
+def _finalize_validate_phase(
+    ctx: _FinalizeContext,
+    branch_setup: _FinalizeBranchSetup,
+    *,
+    validate_only: bool,
+    refresh_planning_commit: bool,
+    json_output: bool,
+) -> _FinalizeValidated | None:
+    """Phase Validate: requirement, dependency and ownership gates, lane inputs, topology decision.
+
+    Returns ``None`` when an outline-only validation already rendered its own
+    result. Every refusal renders and raises ``typer.Exit``. Not strictly
+    read-only: the ownership gate flushes the bootstrap frontmatter and
+    regenerates tasks.md (both INV-6-guarded, so ``--validate-only`` writes
+    nothing), exactly as before the split; the branch setup's write-scope
+    snapshot covers them.
+    """
+    target_branch = branch_setup.target_branch
+    req_gates = _run_finalize_validation_gates(
+        ctx,
+        target_branch,
+        validate_only=validate_only,
+        json_output=json_output,
+        refresh_planning_commit=refresh_planning_commit,
+    )
+    if _finish_outline_validation_if_applicable(req_gates, ctx.mission_slug, validate_only=validate_only, json_output=json_output):
+        return None
+
+    # #5100 / planning-refresh: a --refresh-planning-commit run is a
+    # primary-only lanes.json pin write, so every frontmatter/tasks.md
+    # writer below runs in its INV-6 zero-mutation mode.
+    own_gates = _run_finalize_ownership_gates(
+        ctx,
+        req_gates,
+        target_branch,
+        branch_setup.merge_target_branch,
+        validate_only=validate_only or refresh_planning_commit,
+        json_output=json_output,
+    )
+    eligible_wp_ids = frozenset(own_gates.eligibility.eligible_wp_ids)
+
+    meta = _read_meta_for_emission(ctx.planning_dir)
+    _warn_missing_meta(ctx.planning_dir, meta, json_output=json_output)
+    # S7 (#7282, FR-053): decide a provisional Mission's topology by size before the
+    # frozen preflight; it is settled (FR-055) before the run's first status write.
+    topology_decision = (
+        None
+        if refresh_planning_commit
+        else _decide_topology_by_size(
+            ctx.repo_root,
+            ctx.mission_slug,
+            meta,
+            target_branch,
+            eligible_wp_ids=eligible_wp_ids,
+            lane_wp_manifests=own_gates.lane_wp_manifests,
+            lane_wp_dependencies=own_gates.lane_wp_dependencies,
+            lane_wp_bodies=own_gates.lane_wp_bodies,
+        )
+    )
+    _bind_topology_decision(meta, topology_decision, settled=False, preview=validate_only)
+    # #5573: refuse a re-finalize that would move started work BEFORE the
+    # first status write (``_emit_tasks_started``), ``--validate-only``
+    # included; a refresh-only run never recomputes membership.
+    frozen: FrozenLaneMembership | None = None
+    if not refresh_planning_commit:
+        frozen = _preflight_frozen_lane_membership(
+            ctx.planning_dir,
+            ctx.repo_root,
+            ctx.mission_slug,
+            meta,
+            target_branch,
+            lane_wp_manifests=own_gates.lane_wp_manifests,
+            lane_wp_dependencies=own_gates.lane_wp_dependencies,
+            lane_wp_bodies=own_gates.lane_wp_bodies,
+            wp_frontmatters=own_gates.wp_frontmatters,
+            eligible_wp_ids=eligible_wp_ids,
+            owned=ctx.owned,
+        )
+    return _FinalizeValidated(req_gates=req_gates, own_gates=own_gates, meta=meta, topology_decision=topology_decision, frozen=frozen)
+
+
 def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1399,7 +1491,6 @@ def finalize_tasks(
         )
         undo.branch_setup = branch_setup
         target_branch = branch_setup.target_branch
-        merge_target_branch = branch_setup.merge_target_branch
         target_branch_persist = branch_setup.target_branch_persist
         meta_json_persisted = branch_setup.meta_json_persisted
 
@@ -1447,95 +1538,51 @@ def finalize_tasks(
                     mission_slug,
                 )
 
-        req_gates = _run_finalize_validation_gates(
+        validated = _finalize_validate_phase(
             ctx,
-            target_branch,
+            branch_setup,
             validate_only=validate_only,
-            json_output=json_output,
             refresh_planning_commit=refresh_planning_commit,
+            json_output=json_output,
         )
+        if validated is None:
+            return
+        req_gates = validated.req_gates
+        own_gates = validated.own_gates
         tasks_dir = req_gates.tasks_dir
         functional_spec_requirement_ids = req_gates.functional_spec_requirement_ids
         preexisting_primary_files = req_gates.preexisting_primary_files
-
-        if _finish_outline_validation_if_applicable(req_gates, mission_slug, validate_only=validate_only, json_output=json_output):
-            return
-
-        # #5100 / planning-refresh: a --refresh-planning-commit run is a
-        # primary-only lanes.json pin write, so every frontmatter/tasks.md
-        # writer below runs in its INV-6 zero-mutation mode.
-        own_gates = _run_finalize_ownership_gates(
-            ctx,
-            req_gates,
-            target_branch,
-            merge_target_branch,
-            validate_only=validate_only or refresh_planning_commit,
-            json_output=json_output,
-        )
         state = own_gates.state
         wp_frontmatters = own_gates.wp_frontmatters
         eligibility = own_gates.eligibility
         lane_wp_manifests = own_gates.lane_wp_manifests
         lane_wp_dependencies = own_gates.lane_wp_dependencies
         lane_wp_bodies = own_gates.lane_wp_bodies
+        meta = validated.meta
+        topology_decision = validated.topology_decision
+        frozen = validated.frozen
 
-        meta = _read_meta_for_emission(planning_dir)
-        _warn_missing_meta(planning_dir, meta, json_output=json_output)
-        # #5573: refuse a re-finalize that would move started work BEFORE the
-        # first status write (``_emit_tasks_started``), ``--validate-only``
-        # included; a refresh-only run never recomputes membership.
-        frozen: FrozenLaneMembership | None = None
-        # S7 (#7282, FR-053): decide a provisional Mission's topology by size before the
-        # frozen preflight; settle it (FR-055) before the run's first status write.
-        topology_decision = (
-            None
-            if refresh_planning_commit
-            else _decide_topology_by_size(
+        if topology_decision is not None and not validate_only:
+            assert meta is not None
+            undo.settlement = _settle_or_refuse(
                 repo_root,
-                mission_slug,
-                meta,
-                target_branch,
-                eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
-                lane_wp_manifests=lane_wp_manifests,
-                lane_wp_dependencies=lane_wp_dependencies,
-                lane_wp_bodies=lane_wp_bodies,
-            )
-        )
-        _bind_topology_decision(meta, topology_decision, settled=False, preview=validate_only)
-        if not refresh_planning_commit:
-            frozen = _preflight_frozen_lane_membership(
                 planning_dir,
-                repo_root,
                 mission_slug,
                 meta,
+                topology_decision,
                 target_branch,
                 lane_wp_manifests=lane_wp_manifests,
                 lane_wp_dependencies=lane_wp_dependencies,
-                lane_wp_bodies=lane_wp_bodies,
                 wp_frontmatters=wp_frontmatters,
-                eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
-                owned=owned,
+                lane_wp_bodies=lane_wp_bodies,
+                json_output=json_output,
             )
-            if topology_decision is not None and not validate_only:
-                assert meta is not None
-                undo.settlement = _settle_or_refuse(
-                    repo_root,
-                    planning_dir,
-                    mission_slug,
-                    meta,
-                    topology_decision,
-                    target_branch,
-                    lane_wp_manifests=lane_wp_manifests,
-                    lane_wp_dependencies=lane_wp_dependencies,
-                    wp_frontmatters=wp_frontmatters,
-                    lane_wp_bodies=lane_wp_bodies,
-                    json_output=json_output,
-                )
-                planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
-                    planning_dir, undo.settlement.planning_dir, tasks_dir, preexisting_primary_files
-                )
-                meta = _read_meta_for_emission(planning_dir)
-                _bind_topology_decision(meta, topology_decision, settled=True, preview=False)
+            planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
+                planning_dir, undo.settlement.planning_dir, tasks_dir, preexisting_primary_files
+            )
+            meta = _read_meta_for_emission(planning_dir)
+            _bind_topology_decision(meta, topology_decision, settled=True, preview=False)
+        if not refresh_planning_commit:
             _emit_tasks_started(
                 mission_slug,
                 state,
