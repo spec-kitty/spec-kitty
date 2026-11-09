@@ -2256,7 +2256,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-cli"
-version = "4.0.0rc8"
+version = "4.0.0rc9"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
@@ -2415,7 +2415,7 @@ wheels = [
 
 [[package]]
 name = "spec-kitty-services"
-version = "4.0.0rc8"
+version = "4.0.0rc9"
 source = { editable = "packages/spec-kitty-services" }
 
 [[package]]
