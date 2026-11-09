@@ -555,6 +555,45 @@ def _mt_locate_checkout(st: _MoveTaskState) -> Path:
     return located_root
 
 
+def _mt_resolve_binding(st: _MoveTaskState) -> ResolvedBinding:
+    """Resolve the dispatch binding (profile/model) this transition records.
+
+    With an ``--invocation-id`` the claim's ``mission_id`` is read off the
+    PRIMARY metadata first. ``in_review``/``approved``/``done`` resolve the
+    reviewer role (``action="review"``), every other target the implementer.
+    """
+    from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
+
+    claim_mission_id: str | None = None
+    if st.invocation_id is not None:
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed
+        # off the retiring ``primary_feature_dir_for_mission`` wrapper onto the
+        # seam directly — PRIMARY_METADATA, since the read is meta.json's
+        # ``mission_id`` (resolve_mission_identity). WP08 (T036): dropped the
+        # caller-side canonicalizer fold — redundant with the seam's own
+        # internal fold for a PRIMARY-partition kind.
+        primary_feature_dir = placement_seam(
+            st.main_repo_root,
+            st.mission_slug,
+            owned=st.owned,
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
+    binding: ResolvedBinding = _resolve_dispatch_binding(
+        model=st.model,
+        profile=st.profile,
+        invocation_id=st.invocation_id,
+        repo_root=st.owned.owned_root if st.owned else st.main_repo_root,
+        mission_id=claim_mission_id,
+        wp_id=st.task_id,
+        # FR-006 (IC-04): APPROVED/DONE are reviewer-role decisions, not
+        # implementer ones -- resolving them with action="implement" (the
+        # pre-WP04 brownfield gap) stamped the WRONG profile/model onto the
+        # approval's policy_metadata (``_mt_approval_policy_metadata``).
+        action=("review" if st.target_lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE) else "implement"),
+    )
+    return binding
+
+
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -572,35 +611,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     else:
         st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
         st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
-    from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
-
-    claim_mission_id: str | None = None
-    if st.invocation_id is not None:
-        # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed
-        # off the retiring ``primary_feature_dir_for_mission`` wrapper onto the
-        # seam directly — PRIMARY_METADATA, since the read is meta.json's
-        # ``mission_id`` (resolve_mission_identity). WP08 (T036): dropped the
-        # caller-side canonicalizer fold — redundant with the seam's own
-        # internal fold for a PRIMARY-partition kind.
-        primary_feature_dir = placement_seam(
-            st.main_repo_root,
-            st.mission_slug,
-            owned=st.owned,
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-        claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
-    st.resolved_binding = _resolve_dispatch_binding(
-        model=st.model,
-        profile=st.profile,
-        invocation_id=st.invocation_id,
-        repo_root=st.owned.owned_root if st.owned else st.main_repo_root,
-        mission_id=claim_mission_id,
-        wp_id=st.task_id,
-        # FR-006 (IC-04): APPROVED/DONE are reviewer-role decisions, not
-        # implementer ones -- resolving them with action="implement" (the
-        # pre-WP04 brownfield gap) stamped the WRONG profile/model onto the
-        # approval's policy_metadata (``_mt_approval_policy_metadata``).
-        action=("review" if st.target_lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE) else "implement"),
-    )
+    st.resolved_binding = _mt_resolve_binding(st)
     st.skip_target_branch_commit = (
         _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if st.resolved_auto_commit and st.owned is None else False
     )
