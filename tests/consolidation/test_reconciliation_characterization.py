@@ -43,6 +43,8 @@ canceled-commit-before-window cells, operator ruling 2026-11-09). Total: **151**
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import json
 import os
 import subprocess
@@ -199,6 +201,44 @@ def test_corpus_workers_default_to_one_inside_an_xdist_worker(monkeypatch: pytes
     monkeypatch.delenv(cs.WORKERS_ENV)
     monkeypatch.delenv("PYTEST_XDIST_WORKER")
     assert cs.corpus_workers() >= 1
+
+
+#: Codes only one mode can print, never a verdict of the claim: the forecast's own refusal wrapper, and the
+#: post-landing remote notice a real run prints after it lands (the forecast never lands).
+_MODE_ONLY_CODES = frozenset({"CLAIM_REFUSED_FORECAST", "NOT_LANDED_ON_NAMED_REMOTE"})
+
+
+def _mode_verdict(value: Mapping[str, Any]) -> tuple[str, tuple[str, ...]] | None:
+    """``(status, underlying codes)`` of one recorded cell, or ``None`` when the mode does not apply to it."""
+    if "status" in value:
+        return str(value["status"]), tuple(sorted(set(value["codes"]) - _MODE_ONLY_CODES))
+    return None
+
+
+def test_modes_agree_wherever_they_apply() -> None:
+    """SC-003 (pre-PR fold L9): one scenario judged by the forecast, the fresh run and the resume gets one verdict.
+
+    Over the golden file: cells are grouped by everything after the mode; wherever two or more modes apply,
+    their status and their codes (less the mode-only codes) are equal. A resume that never got an
+    interrupted state records the fresh run's codes under ``interrupted_run``; they must match too.
+    """
+    groups: dict[str, dict[str, Mapping[str, Any]]] = {}
+    for key, value in cs.load_golden().items():
+        mode, _, scenario = key.partition("|")
+        groups.setdefault(scenario, {})[mode] = value
+    compared, disagreements = 0, {}
+    for scenario, modes in sorted(groups.items()):
+        verdicts = {mode: verdict for mode, value in modes.items() if (verdict := _mode_verdict(value)) is not None}
+        interrupted = {mode: tuple(sorted(value["interrupted_run"]["codes"])) for mode, value in modes.items() if "interrupted_run" in value}
+        if interrupted and "fresh" in verdicts and any(codes != verdicts["fresh"][1] for codes in interrupted.values()):
+            disagreements[scenario] = {"fresh": verdicts["fresh"], **interrupted}
+        if len(verdicts) < 2:
+            continue
+        compared += 1
+        if len(set(verdicts.values())) > 1:
+            disagreements[scenario] = verdicts
+    assert compared >= 40, f"only {compared} scenarios had two or more applicable modes; the parity check would be vacuous"
+    assert not disagreements, f"modes disagree on one scenario: {disagreements}"
 
 
 @pytest.mark.timeout(600)  # the corpus budget (10 min serial); on >=8 cores the forked workers finish it in about a minute
