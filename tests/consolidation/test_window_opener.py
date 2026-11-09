@@ -379,6 +379,8 @@ _MALFORMED: dict[str, Any] = {
     "lane_branch_missing_with_cause": {"schema_version": 1, "gap": {"reason": "lane_branch_missing", "cause": "git_error"}},
     "capture_failed_without_cause": {"schema_version": 1, "gap": {"reason": "capture_failed"}},
     "capture_failed_unknown_cause": {"schema_version": 1, "gap": {"reason": "capture_failed", "cause": "oops"}},
+    "capture_failed_list_cause": {"schema_version": 1, "gap": {"reason": "capture_failed", "cause": []}},
+    "capture_failed_dict_cause": {"schema_version": 1, "gap": {"reason": "capture_failed", "cause": {}}},
     "detail_not_str": {"schema_version": 1, "gap": {"reason": "capture_failed", "cause": "git_error", "detail": 3}},
     "detail_too_long": {"schema_version": 1, "gap": {"reason": "capture_failed", "cause": "git_error", "detail": "x" * 501}},
 }
