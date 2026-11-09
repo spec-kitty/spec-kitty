@@ -1,7 +1,7 @@
 {
-  "event_count": 68,
-  "last_event_id": "01M6Z4X6B58KW1AVSAGNBXMNRE",
-  "materialized_at": "2026-11-09T03:16:24.062516+00:00",
+  "event_count": 69,
+  "last_event_id": "01M6Z5NQ2QTXEHP98QBCKME9FV",
+  "materialized_at": "2026-11-09T03:29:48.119975+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 15
   },
@@ -196,12 +196,13 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6Z4X6B58KW1AVSAGNBXMNRE",
-      "last_transition_at": "2026-11-09T03:16:24.062516+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6Z5NQ2QTXEHP98QBCKME9FV",
+      "last_transition_at": "2026-11-09T03:29:48.119975+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: seeded-mutation harness, 16 rows, 21 tests green; 4 rows are reach/polarity (see tracer)"
+        "Ready for review: seeded-mutation harness, 16 rows, 21 tests green; 4 rows are reach/polarity (see tracer)",
+        "- 2026-11-09T03:29:00Z – claude:claude-opus-5-5:python-pedro – Review cycle 1 rework (commit 7e01670947): every PHASE3_CHECKS row now weakens its check and flips a cell in status/code/divergence. Sanctioned out-of-map, additive-only files: tests/consolidation/characterization_support.py, tests/consolidation/characterization/verdict_corpus.json (+4 keys, 0 changed), tests/consolidation/test_reconciliation_characterization.py (named-cell count 22->26, total 149). Extra rows kernel-anchors-strict and external-dependency-refs-exemption keep the strengthening guards. Tracer: design-decisions entry for the out-of-map addition."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -215,10 +216,10 @@
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
-        "T030": "planned",
-        "T031": "planned",
-        "T032": "planned",
-        "T033": "planned"
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
       }
     },
     "WP07": {
