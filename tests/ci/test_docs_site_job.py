@@ -167,6 +167,8 @@ def _pin_violations(job: dict[str, Any]) -> list[str]:
 def _credential_violations(job: dict[str, Any]) -> list[str]:
     text = yaml.safe_dump(job)
     found = [token for token in ("secrets.", "github.token", "GITHUB_TOKEN", "NODE_AUTH_TOKEN", "NPM_TOKEN") if token in text]
+    if "secrets" in job:  # `secrets: inherit` hands every caller secret to the called workflow
+        found.append(f"secrets: {job['secrets']}")
     permissions = job.get("permissions")
     if permissions not in (None, {"contents": "read"}):
         found.append(f"permissions: {permissions}")
@@ -192,10 +194,12 @@ def test_the_job_uses_no_credential() -> None:
 
 
 def test_a_token_in_the_job_is_caught() -> None:
-    mutant = copy.deepcopy(_build_job())
-    mutant["steps"].append({"run": "pnpm install", "env": {"NPM_CONFIG_USERCONFIG": "${{ secrets.NPMRC }}"}})
+    expression = copy.deepcopy(_build_job())
+    expression["steps"].append({"run": "pnpm install", "env": {"NPM_CONFIG_USERCONFIG": "${{ secrets.NPMRC }}"}})
+    inherited = {**_job(), "secrets": "inherit"}  # the caller-job form of a credential leak
 
-    assert _credential_violations(mutant)
+    assert _credential_violations(expression)
+    assert _credential_violations(inherited) == ["secrets: inherit"]
 
 
 def test_the_job_installs_frozen_and_checks_the_contract() -> None:
