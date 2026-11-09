@@ -149,6 +149,7 @@ _TEMPLATES: dict[str, Callable[[Path], cs.ShapeMission]] = {
     "canceled_superseded": lambda d: cs.build_mixed_lane_shell_shape(d, mid8="01M6Y9A7", supersede=True),
     "canceled_unsuperseded": lambda d: cs.build_mixed_lane_shell_shape(d, mid8="01M6Y9A8", supersede=False),
     "canceled_after_approval": lambda d: _build_canceled_commit_after_approval(d, mid8="01M6Y9A9"),
+    "dependency_ref_before_window": lambda d: cs.build_dependency_ref_before_window(d, mid8="01M6Y9B1"),
 }
 
 
@@ -385,6 +386,30 @@ def test_rejected_and_reapproved_wp_passes(templates: _Templates, tmp_path: Path
     require(len(_open_shas(mission, "WP02")) >= (4 if to_lane == "planned" else 2), "WP02 must have re-opened after the rejection")
 
     _assert_passes(_fresh(mission))
+
+
+def test_declared_dependency_ref_merged_before_the_window_is_exempt(templates: _Templates, tmp_path: Path) -> None:
+    """M9: an external ref merged before WP01's window, declared and pinned, keeps the pre-window verdict (pass).
+
+    Without recorded windows the lane's own approval stamp exempted the dependency's commit; with a
+    recorded window that commit lies before the window, so only the declaration can exempt it: the
+    window check exempts the same declared, pinned commits the closed world does.
+    """
+    mission = templates.copy("dependency_ref_before_window", tmp_path)
+    dep_commit = _last_commit_touching(mission, mission.lane_branches["WP01"], "src/dep/mod0.py")
+    require(all(_open_shas(mission, "WP01")), "WP01's window must be recorded by the status shell")
+    require(all(_is_ancestor(mission, dep_commit, str(sha)) for sha in _open_shas(mission, "WP01")), "the dependency commit must precede WP01's window")
+
+    _assert_passes(_fresh(mission, "--dependency-ref", cs.DEP_BRANCH))
+
+
+def test_undeclared_dependency_merged_before_the_window_still_refuses(templates: _Templates, tmp_path: Path) -> None:
+    """M9 counterpart: without the declaration nothing exempts the external commit; the run refuses."""
+    mission = templates.copy("dependency_ref_before_window", tmp_path)
+
+    result = _fresh(mission)
+
+    assert result.exit_code != 0, result.output
 
 
 def test_dependency_chain_stray_is_exempt(templates: _Templates, tmp_path: Path) -> None:
