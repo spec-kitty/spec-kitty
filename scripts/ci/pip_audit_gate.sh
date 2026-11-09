@@ -7,7 +7,9 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 req="${1:-${RUNNER_TEMP:-/tmp}/pip-audit-requirements.txt}"
 uv export --frozen --no-hashes --all-extras --no-emit-project --no-emit-workspace -o "$req" >/dev/null
 ignores=()
-while read -r id; do
-  ignores+=(--ignore-vuln "$id")
-done < <(grep -Ev '^[[:space:]]*(#|$)' "$here/pip-audit-ignore.txt")
+while read -r line; do
+  id="${line%%#*}"
+  id="${id//[[:space:]]/}"
+  if [ -n "$id" ]; then ignores+=(--ignore-vuln "$id"); fi
+done < "$here/pip-audit-ignore.txt"
 uv run --frozen --no-sync pip-audit --disable-pip --no-deps -r "$req" "${ignores[@]}"
