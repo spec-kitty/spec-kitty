@@ -25,10 +25,18 @@ def _shows_cause(entry: GapEntry) -> bool:
     return entry.cause is not None and entry.reason == _CAPTURE_FAILED
 
 
+_SHORT_SHA = 7
+_MALFORMED_NOTE = " (malformed wp_window value ignored)"
+
+
 def _line(entry: GapEntry) -> str:
     text = f"  - {entry.wp_id} ({entry.lane_id}): {entry.reason}"
+    if entry.malformed:
+        text += _MALFORMED_NOTE
     if _shows_cause(entry):
         text += f" ({entry.cause})"
+    if entry.sha:
+        text += f": recorded {entry.sha[:_SHORT_SHA]}"
     if entry.detail:
         text += f": {entry.detail}"
     return text
@@ -41,15 +49,23 @@ def gap_report_lines(entries: Sequence[GapEntry]) -> list[str]:
     return [GAP_REPORT_HEADING, *(_line(entry) for entry in entries)]
 
 
-def gap_report_json(entries: Sequence[GapEntry]) -> list[dict[str, str]]:
-    """One ``{wp_id, lane_id, reason, cause?, detail?}`` per entry: ``cause`` only when set, ``detail`` only when non-empty."""
-    rendered: list[dict[str, str]] = []
+def gap_report_json(entries: Sequence[GapEntry]) -> list[dict[str, str | bool]]:
+    """One ``{wp_id, lane_id, reason, cause?, detail?, sha?, malformed?}`` per entry.
+
+    ``cause`` and ``sha`` only when set, ``detail`` only when non-empty, ``malformed`` (``true``)
+    only on a gap whose recorded value violated the contract.
+    """
+    rendered: list[dict[str, str | bool]] = []
     for entry in entries:
-        item = {"wp_id": entry.wp_id, "lane_id": entry.lane_id, "reason": entry.reason}
+        item: dict[str, str | bool] = {"wp_id": entry.wp_id, "lane_id": entry.lane_id, "reason": entry.reason}
         if entry.cause is not None:
             item["cause"] = entry.cause
         if entry.detail:
             item["detail"] = entry.detail
+        if entry.sha:
+            item["sha"] = entry.sha
+        if entry.malformed:
+            item["malformed"] = True
         rendered.append(item)
     return rendered
 
