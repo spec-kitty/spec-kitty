@@ -2661,7 +2661,7 @@ def test_mixed_lane_wiring_events_unreadable_refuses(tmp_path: Path) -> None:
 
     work_packages = {"WP01": {"lane": "approved"}, "WP02": {"lane": "canceled"}}
     canceled_content, attested, refusal = _resolve_mixed_lane_canceled_content(
-        repo, feature_dir, manifest, work_packages, frozenset({"WP02"}), coord_base, None, canceled_lane_commits=frozenset()
+        repo, feature_dir, manifest, work_packages, frozenset({"WP02"}), coord_base, None, canceled_lane_commits=frozenset(), frozen_tips=None
     )
     assert canceled_content == frozenset()
     assert attested == frozenset()
@@ -3078,11 +3078,11 @@ def test_closed_world_anchors_are_transitive_dependency_tips_plus_target_base() 
         computed_at=_now_iso(),
         computed_from="anchor-test",
     )
-    anchors = _closed_world_anchors(manifest, manifest.lanes[2], "target-tip-sha", excluded_canceled_wp_ids=frozenset())
+    anchors = _closed_world_anchors(manifest, manifest.lanes[2], "target-tip-sha", excluded_canceled_wp_ids=frozenset(), frozen_tips=None)
     assert anchors[-1] == "target-tip-sha"
     assert len(anchors) == 3  # lane-a, lane-b; the unknown lane-zz is ignored
     assert all("lane-" in a for a in anchors[:2])
-    assert _closed_world_anchors(manifest, manifest.lanes[0], None, excluded_canceled_wp_ids=frozenset()) == []
+    assert _closed_world_anchors(manifest, manifest.lanes[0], None, excluded_canceled_wp_ids=frozenset(), frozen_tips=None) == []
 
 
 def _commit_on_lane(repo: Path, lane_branch: str, path: str) -> str:
@@ -3162,6 +3162,7 @@ def test_a_mixed_lane_refusal_is_followed_by_the_approval_bound_refusal_in_one_t
         None,
         canceled_lane_commits=frozenset(),
         event_log=_ClaimEventLog(feature_dir),
+        frozen_tips=None,
     )
     assert closed_world_alone is not None and _CLOSED_WORLD in closed_world_alone
     assert refusal.startswith(closed_world_alone + "\n\n" + _ALSO + "\n" + _MOVED), refusal

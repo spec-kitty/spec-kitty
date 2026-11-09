@@ -156,7 +156,7 @@ def _approved_bound_verdict(
     window_base: str | None,
     planning_prefix: str | None,
     event_log: _ClaimEventLog,
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
     canceled_commits: Mapping[str, frozenset[str]] | None = None,
     dependency_commits: frozenset[str] = frozenset(),
 ) -> _BoundVerdict:
@@ -434,7 +434,10 @@ def approved_bound_refusal(
     planning_prefix = _planning_prefix(repo_root, feature_dir)
     log = event_log or _ClaimEventLog(feature_dir)
     sb_window = authorship_window(repo_root, lanes_manifest.mission_slug, lanes_manifest.mission_branch, lanes_manifest.target_branch)
-    query = _CanceledLaneQuery(repo_root, feature_dir, lanes_manifest, work_packages, excluded, coord_base_ref, planning_prefix, excluded_window_base, sb_window)
+    # orchestrator-api has no resume record: every anchor is read live (frozen_tips=None, FR-015).
+    query = _CanceledLaneQuery(
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded, coord_base_ref, planning_prefix, excluded_window_base, sb_window, None
+    )
     verdict = _approved_bound_verdict(
         repo_root,
         lanes_manifest,
@@ -444,6 +447,7 @@ def approved_bound_refusal(
         window_base=excluded_window_base,
         planning_prefix=planning_prefix,
         event_log=log,
+        frozen_tips=None,
         canceled_commits=_canceled_window_exemptions(query, log),
     )
     return verdict.refusal

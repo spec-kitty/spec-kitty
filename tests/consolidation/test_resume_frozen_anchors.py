@@ -264,7 +264,7 @@ def test_closed_world_anchors_keep_live_name_without_a_frozen_tip() -> None:
 
 
 def test_closed_world_anchors_without_frozen_tips_are_unchanged() -> None:
-    live = _closed_world_anchors(_MANIFEST, _LANE_C, _TARGET, excluded_canceled_wp_ids=frozenset())
+    live = _closed_world_anchors(_MANIFEST, _LANE_C, _TARGET, excluded_canceled_wp_ids=frozenset(), frozen_tips=None)
 
     assert live == [_BRANCH_A, _BRANCH_B, _TARGET]
     assert _closed_world_anchors(_MANIFEST, _LANE_C, _TARGET, excluded_canceled_wp_ids=frozenset(), frozen_tips={}) == live

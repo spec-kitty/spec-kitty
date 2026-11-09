@@ -286,6 +286,7 @@ def test_the_executor_records_the_attestation_and_it_is_neither_a_stamp_nor_the_
         no_implementation_wp_ids=("WP01",),
         feature_dir=mission.feature_dir,
         lanes_manifest=_manifest(mission),
+        frozen_dependency_tips=None,
     )
 
     assert recorded == ("WP01",)
@@ -317,6 +318,7 @@ def test_a_refused_request_records_nothing(tmp_path: Path) -> None:
             no_implementation_wp_ids=("WP01", "WP09"),
             feature_dir=mission.feature_dir,
             lanes_manifest=_manifest(mission),
+            frozen_dependency_tips=None,
         )
 
     assert exited.value.exit_code == 1

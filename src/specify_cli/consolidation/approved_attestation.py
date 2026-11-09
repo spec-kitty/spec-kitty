@@ -130,7 +130,7 @@ def plan_approved_attestations(
     reason: str | None,
     *,
     excluded_canceled_wp_ids: Iterable[str],
-    frozen_dependency_tips: Mapping[str, str] | None = None,
+    frozen_dependency_tips: Mapping[str, str] | None,
 ) -> dict[str, str]:
     """Validate the request against the status log: work package id -> current lane, in request order.
 
@@ -172,7 +172,7 @@ def _refuse_moved_reattestations(
     events: Sequence[StatusEvent],
     work_packages: Mapping[str, Mapping[str, object]],
     excluded_canceled_wp_ids: frozenset[str],
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
 ) -> None:
     """Raise :class:`AttestationError` when a work package to re-attest has a lane beyond its earlier attestation.
 

@@ -210,7 +210,7 @@ def _closed_world_anchors(
     target_base: str | None,
     *,
     excluded_canceled_wp_ids: frozenset[str],
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
 ) -> list[str]:
     """FR-013 anchors for *lane*: dependency-lane tips (the allocator merges them in
     without ``--no-ff``, also on its reuse path after work began) and the target's

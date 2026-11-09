@@ -147,7 +147,7 @@ def _resolve_mixed_lanes(
     *,
     canceled_lane_commits: frozenset[str],
     event_log: _ClaimEventLog | None = None,
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
 ) -> _MixedLaneResolution:
     """Resolve every mixed lane's canceled-with-provenance WPs (T022/T023).
 
@@ -242,7 +242,7 @@ class _MixedLaneScope:
     is_bookkeeping: Callable[[str], bool]
     canceled_lane_commits: frozenset[str]
     #: FR-015: a ``--resume``'s frozen dependency-lane tips (``None``: the live read).
-    frozen_tips: Mapping[str, str] | None = None
+    frozen_tips: Mapping[str, str] | None
 
 
 def _resolve_mixed_lane(scope: _MixedLaneScope, lane: ExecutionLane) -> tuple[set[CanceledPathState], list[str], frozenset[str]]:
@@ -298,7 +298,7 @@ def _fully_canceled_lane_commits(
     coord_base_ref: str,
     target_base: str | None,
     *,
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
 ) -> frozenset[str]:
     """Commits authored by FULLY-canceled lanes since their own base (#5569).
 
@@ -330,7 +330,7 @@ def _fully_canceled_lane_own_commits(
     coord_base_ref: str,
     target_base: str | None,
     *,
-    frozen_tips: Mapping[str, str] | None = None,
+    frozen_tips: Mapping[str, str] | None,
 ) -> dict[str, frozenset[str]]:
     """:func:`_fully_canceled_lane_commits`, kept per fully-canceled lane id (#5613); *frozen_tips* as there (FR-015)."""
     by_lane: dict[str, frozenset[str]] = {}
@@ -357,7 +357,7 @@ class _CanceledLaneQuery:
     target_base: str | None
     sb_window: tuple[str, str] | None
     #: FR-015: a ``--resume``'s frozen dependency-lane tips (``None``: the live read).
-    frozen_tips: Mapping[str, str] | None = None
+    frozen_tips: Mapping[str, str] | None
 
 
 @dataclass(frozen=True)
