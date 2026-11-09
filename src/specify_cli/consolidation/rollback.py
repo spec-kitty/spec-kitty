@@ -911,7 +911,7 @@ def _coord_anchor_is_the_target(state: ConsolidationState) -> bool:
     """True when the persisted coordination anchor names the TARGET ref itself (LANES / SINGLE_BRANCH).
 
     The status surface resolves to the coordination branch only under a coordination topology;
-    otherwise it resolves to the target (``run_state._status_surface_ref``), so
+    otherwise it resolves to the target (``status_surface.status_surface_ref``), so
     ``pre_mutation_coord_sha`` is a second copy of the target's own transaction-start tip and must
     be dropped with it rather than re-seeding the next attempt's snapshot.
     """

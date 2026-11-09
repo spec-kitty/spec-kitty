@@ -28,7 +28,7 @@ import pytest
 
 from charter.hasher import hash_content
 from specify_cli.consolidation import claim_inputs as ci
-from specify_cli.consolidation import forecast, phase_claim, phase_gate, run_state
+from specify_cli.consolidation import forecast, phase_claim, phase_gate, status_surface
 from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState
@@ -136,11 +136,9 @@ def test_live_and_live_then_saved_agree_on_target_base(chain: ShapeMission) -> N
     assert _ref_sha(chain.repo, live.target_base) == _ref_sha(chain.repo, fresh.target_base)
 
 
-def test_live_and_live_then_saved_agree_on_lane_tips(chain: ShapeMission) -> None:
+def test_live_and_live_then_saved_agree_on_dependency_anchors(chain: ShapeMission) -> None:
     live, fresh = _forecast_and_fresh(chain)
 
-    assert live.lane_tips, "the dependency chain has two code lanes; an empty tip map would make this vacuous"
-    assert {b: _ref_sha(chain.repo, s) for b, s in live.lane_tips.items()} == {b: _ref_sha(chain.repo, s) for b, s in fresh.lane_tips.items()}
     assert live.dependency_anchors, "the chain's dependency lane must be an anchor"
     assert dict(live.dependency_anchors) == dict(fresh.dependency_anchors)
 
@@ -171,9 +169,9 @@ def test_saved_reads_the_persisted_record(chain: ShapeMission) -> None:
     assert saved.source is ClaimInputSource.SAVED
     assert saved.target_base == record["pre_mutation_target_sha"]
     assert saved.coord_base == record["pre_mutation_coord_sha"]
-    assert dict(saved.lane_tips) == frozen
     assert saved.dependency_anchors, "the chain's dependency lane must be frozen as an anchor"
     assert set(saved.dependency_anchors) <= set(frozen), "dependency_anchors share the key space of pre_interrupt_lane_tips"
+    assert all(frozen[branch] == sha for branch, sha in saved.dependency_anchors.items()), "the anchors are the frozen tips"
     assert saved.strategy == record["strategy"]
     assert saved.dependency_refs == tuple(record.get("dependency_refs", ()))
     assert dict(saved.dependency_pins) == record.get("dependency_ref_pins", {})
@@ -288,8 +286,8 @@ def recorded(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[tuple[Any, 
     monkeypatch.setattr(ci, "build_approved_wp_set", lambda *a, **k: calls.append((a, k)) or "claim")
     monkeypatch.setattr(ci, "capture_branch_tip", lambda _repo, branch: f"tip-of-{branch}")
     monkeypatch.setattr(ci, "acceptably_canceled_wp_ids", lambda _repo, _slug: set(_EXCLUDED))
-    monkeypatch.setattr(run_state, "_status_surface_ref", lambda _repo, _slug: _COORD_REF)
-    monkeypatch.setattr(ci, "run_command", lambda cmd, **_k: (0, f"{_COORD}\n", "") if cmd == ["git", "rev-parse", _COORD_REF] else (1, "", "unknown"))
+    monkeypatch.setattr(status_surface, "status_surface_ref", lambda _repo, _slug: _COORD_REF)
+    monkeypatch.setattr(status_surface, "run_command", lambda cmd, **_k: (0, f"{_COORD}\n", "") if cmd == ["git", "rev-parse", _COORD_REF] else (1, "", "unknown"))
     yield calls
 
 
@@ -359,7 +357,6 @@ def test_live_reads_lane_tips_live_and_derives_dependency_anchors(recorded: list
     monkeypatch.setattr(ci, "acceptably_canceled_wp_ids", lambda _repo, _slug: set())
     inputs = claim_inputs(ClaimInputSource.LIVE, _context(state=None))
 
-    assert dict(inputs.lane_tips) == {_LANE_A: f"tip-of-{_LANE_A}", _LANE_B: f"tip-of-{_LANE_B}"}
     assert dict(inputs.dependency_anchors) == {_LANE_A: f"tip-of-{_LANE_A}"}, "lane-b depends on lane-a, nothing depends on lane-b"
 
 
@@ -400,8 +397,8 @@ def test_live_coord_base_resolves_like_the_fresh_run(
         asked.append(slug)
         return surface_ref
 
-    monkeypatch.setattr(run_state, "_status_surface_ref", _surface_ref)
-    monkeypatch.setattr(ci, "run_command", lambda *_a, **_k: rev_parse)
+    monkeypatch.setattr(status_surface, "status_surface_ref", _surface_ref)
+    monkeypatch.setattr(status_surface, "run_command", lambda *_a, **_k: rev_parse)
 
     inputs = claim_inputs(ClaimInputSource.LIVE, _context(state=None, mission_slug="resolved-slug"))
 
@@ -427,10 +424,29 @@ def test_saved_reads_the_record_never_live(recorded: list[Any], monkeypatch: pyt
     inputs = claim_inputs(ClaimInputSource.SAVED, _context(state=state, resolved_target_base="f" * 40, resolved_coord_sha="f" * 40))
 
     assert inputs.target_base == _TARGET and inputs.coord_base == _COORD
-    assert dict(inputs.lane_tips) == state.pre_interrupt_lane_tips
     assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
     assert inputs.strategy == "merge"
     assert inputs.dependency_refs == _REFS and dict(inputs.dependency_pins) == _PINS
+
+
+def test_live_then_saved_reuses_the_tips_the_claim_phase_captured(recorded: list[Any], monkeypatch: pytest.MonkeyPatch) -> None:
+    """M7: a fresh run's dependency anchors come from the tips the claim phase just captured, never a second read."""
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("LIVE_THEN_SAVED must reuse the captured tips"))
+    state = _state()
+
+    inputs = claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(state=state))
+
+    assert dict(inputs.dependency_anchors) == {_LANE_A: "1" * 40}
+
+
+def test_live_then_saved_reads_live_when_nothing_was_captured(recorded: list[Any]) -> None:
+    """A run with no status-surface checkpoint captured no tips; the fresh run then reads them live."""
+    state = _state()
+    state.pre_interrupt_lane_tips = {}
+
+    inputs = claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(state=state))
+
+    assert dict(inputs.dependency_anchors) == {_LANE_A: f"tip-of-{_LANE_A}"}
 
 
 def test_saved_without_a_saved_base_keeps_todays_resolution(recorded: list[Any]) -> None:
@@ -457,7 +473,7 @@ def test_claim_inputs_is_immutable(recorded: list[Any]) -> None:
 
     assert "other" not in inputs.dependency_pins, "the value holds its own copy"
     with pytest.raises(TypeError):
-        cast(dict[str, str], inputs.lane_tips)["x"] = "y"
+        cast(dict[str, str], inputs.dependency_anchors)["x"] = "y"
 
 
 @pytest.mark.parametrize(("is_resume", "source"), [(False, ClaimInputSource.LIVE_THEN_SAVED), (True, ClaimInputSource.SAVED)])

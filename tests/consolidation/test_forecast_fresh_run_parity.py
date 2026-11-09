@@ -161,7 +161,7 @@ def test_pre_seed_forecast_reads_the_log_the_fresh_run_seeds(pre_seed_template: 
 
     assert live_identity[1] == fresh_identity[1], "the seed carries the write checkout's log byte for byte"
     assert live.excluded_canceled_wp_ids == fresh.excluded_canceled_wp_ids
-    assert dict(live.lane_tips) == dict(fresh.lane_tips)
+    assert dict(live.dependency_anchors) == dict(fresh.dependency_anchors)
     assert live.target_base == fresh.target_base
     assert _git(fresh_mission.repo, "rev-parse", f"{fresh.coord_base}^") == live.coord_base, "the fresh run's base is the seed commit on the forecast's base"
     assert sorted(seeded) == sorted(f"kitty-specs/{fresh.status_dir.name}/{name}" for name in _STATUS_FILES), seeded

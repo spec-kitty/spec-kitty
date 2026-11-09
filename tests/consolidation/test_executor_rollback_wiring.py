@@ -39,6 +39,7 @@ from specify_cli.consolidation import (
     coord_strand,
     phase_claim,
     run_state,
+    status_surface,
 )
 from tests.consolidation.executor_family import (
     family_modules_binding,
@@ -960,7 +961,7 @@ def test_the_attestation_status_branch_is_the_status_surface(tmp_path: Path, mon
         expected = mission.coord_branch
     monkeypatch.setenv("HOME", str(mission.home))
 
-    assert run_state._status_surface_ref(mission.repo, mission.slug) == expected
+    assert status_surface.status_surface_ref(mission.repo, mission.slug) == expected
 
 
 def test_door_persists_an_advance_intent_for_every_span_advance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
