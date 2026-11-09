@@ -1,0 +1,641 @@
+schema_version: 1
+mission_id: 01M6Y84DMCSNYCP6XTD4C4Q8M6
+mission_slug: consolidation-window-provenance-01M6Y84D
+mission_number: 252
+friendly_name: Consolidation window provenance and reconciliation split
+mission_type: software-dev
+target_branch: feat/consolidation-window-provenance
+created_at: '2026-11-09T21:27:20.395523+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-09T21:27:20.395523+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-003
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-004
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-005
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-006
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-007
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-008
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-009
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-010
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-011
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-012
+  category: implementation
+  summary: WP17 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-013
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-014
+  category: implementation
+  summary: WP21 completed without rejection cycles
+  evidence_refs:
+  - e-026
+- id: h-016
+  category: tooling
+  summary: 'Tracer: [2026-11-08][specify] First `mission create` output lost to a shell parse error; resume probe showed not_found.'
+  evidence_refs:
+  - e-040
+  details: '- **[2026-11-08][specify] First `mission create` output lost to a shell parse error; resume probe showed not_found.**
+    The create output never reached the agent, and the resume probe correctly reported `not_found`, so the create was re-run
+    cleanly. No change needed: the probe worked as designed.'
+- id: h-017
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] A planning-artifact WP at both ends of a Mission makes the lane graph cyclic.'
+  evidence_refs:
+  - e-040
+  details: "- **[2026-11-08][tasks] A planning-artifact WP at both ends of a Mission makes the lane graph cyclic.** WP01 (ADR,
+    upstream of the code) and WP21 (closeout, downstream of the code) shared `lane-planning`, so `lane-planning -> lane-a
+    -> lane-planning` refused finalize with `LANE_DEPENDENCY_CYCLE`, and the provisional-topology dry run computes lanes even
+    when the Mission might settle to `single_branch`. Separately, strict phase ordering put WP07 (disjoint status files) between
+    two halves of one ownership-collapsed lane. Fixed in the plan (WP21 to `code_change`; WP07 takes over WP02's planned stand-in-constant
+    replacement), but the tool gave no hint that the planning lane is a single node in the lane graph.\n\n2026-11-08 · analyze
+    (review sub-agent) · check-prerequisites warns 'Missing recommended directory: research/' although research.md is present.
+    The analyze step's check-prerequisites --include-tasks run reports a research/ directory warning for a Mission whose Phase
+    0 output is the si"
+- id: h-015
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] Two lane-graph cycles broken in the plan, not the tool.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][tasks] Two lane-graph cycles broken in the plan, not the tool.** (1) WP07 owns only status files,
+    but strict phase order puts it between lane-a's Phase 1 WPs (WP02/04/05/06) and its Phase 3 WPs (WP08/WP10 onward), so
+    a separate lane for WP07 is cyclic. WP07 now also owns `tests/consolidation/characterization_support.py`, for the edit
+    WP02's prompt already scheduled (\"use a local `WP_WINDOW_KEY` constant; the status export arrives in WP07\"): WP07 replaces
+    that stand-in with the import, which puts it in lane-a. (2) WP21 moved from `planning_artifact` to `code_change`: with
+    WP01 upstream and WP21 downstream of the code, the single planning lane formed a cycle, and WP21's verification sweep
+    needs the integrated code, which a planning-lane checkout does not have before consolidation.\n\n2026-11-08 · planner-priti
+    (post-tasks fold) · Post-tasks squad fold (29 findings: 23 accepted, 6 changed). Key decisions: (1) WP04 family helper
+    also patches the by-name reconciliation bindin"
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-037
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-008
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-034
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-035
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP20 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-033
+  details: WP WP20 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-010
+  category: process
+  summary: WP20 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-036
+  details: WP WP20 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-027
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-028
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP05 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-029
+  details: WP WP05 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-030
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP16 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-031
+  details: WP WP16 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP19 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-032
+  details: WP WP19 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] Behaviour changes land after the split, not before.'
+  evidence_refs:
+  - e-038
+  details: '- **[2026-11-08][plan] Behaviour changes land after the split, not before.** The squad (architect-alphonso) recommended
+    deferring all behaviour changes to follow-up Missions; the operator kept four bounded ones in scope, so they are ordered
+    last and each one flips only its pre-pinned strict `xfail` corpus scenario.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] Flat `reconciliation_<unit>.py` modules, not a subpackage.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][plan] Flat `reconciliation_<unit>.py` modules, not a subpackage.** A subpackage cannot share
+    the facade's name, and a new `__init__.py` would trigger the version-bump rule. Ownership is by directory glob, so the
+    CI module registry needs no edit."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] Four strict phases on one PR.'
+  evidence_refs:
+  - e-038
+  details: '- **[2026-11-08][plan] Four strict phases on one PR.** Pin and decide (characterization corpus, refusal-precedence
+    matrix, surface pin, `RECONCILIATION_FAMILY` guard, Proposed ADR) → record and unify inputs (`policy_metadata.wp_window`
+    capture, one `ClaimInputs` constructor, zero verdict change) → behaviour-preserving split of `reconciliation.py` behind
+    a facade → red-first behaviour changes (lane windows with fallback and gap report, #5048(b), resume frozen dependency
+    tips, forecast excluded-set alignment). Source: operator-confirmed Engineering Alignment.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] Implementer routing by model tier.'
+  evidence_refs:
+  - e-038
+  details: "- **[2026-11-08][plan] Implementer routing by model tier.** Pins, pure moves and patch retargeting are routed
+    to cheaper implementer models (oracle = corpus + surface pin + guard). The ADR, capture probe, `ClaimInputs` and lane-window
+    adoption go to top-tier models (see plan.md Implementation Concern Map).\n\n2026-11-08 · claude:claude-sonnet-5-5:python-pedro
+    · WP03 rework (review cycle 1): (1) SHA flake fixed by exact replacement of the commits each pair factory created (full,
+    10- and 7-char), 40-hex backstop kept, all-digit unit test added. (2) Adjacent-pair pin: 9 refusals, 36 pairs, 2 co-occurring,
+    34 not: 4 witnessed (dependency_refs/surface, unresolvable_branches/unreadable_canceled_dependency, bound/evidence, evidence/presence),
+    3 data_dependency, 0 unreachable_without_production_change, 27 transitive; 3 non-adjacent extra witnesses kept. Every
+    witness has a later-only control proving the later condition is live. Deviation from the review's candidate list: canceled_dependency/mixe"
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] No version bump for the `status/__init__.py` re-export.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][plan] No version bump for the `status/__init__.py` re-export.** Operator ruling: the `WP_WINDOW_KEY`
+    re-export carries a changelog fragment only; `pyproject.toml`'s version is not touched (charter standing order 7 wins
+    over the CLAUDE.md `__init__.py` rule)."
+- id: n-023
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] On resume, one frozen claim-time anchor set feeds every anchor consumer.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][plan] On resume, one frozen claim-time anchor set feeds every anchor consumer.** Operator ruling,
+    Decision Moment `01M6YAFZVZAYR4G20Q2X4PN0FT`: closed world, approved bound, fully-canceled lane and attestation read the
+    same frozen set (FR-015 widened). Each verdict flip is named in NFR-002 with its own red-first test through `consolidate
+    --resume` on the SIGKILL harness (NFR-010).'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] The `blocked` opener asymmetry stays a named window variant.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][plan] The `blocked` opener asymmetry stays a named window variant.** Unifying it would change
+    closed-world verdicts outside NFR-002, so the ADR maps it rather than removing it.'
+- id: n-022
+  category: tooling
+  summary: "Tracer: [2026-11-08][plan] The lane's own approval stamps stop exempting its commits on the window path."
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][plan] The lane's own approval stamps stop exempting its commits on the window path.** Operator
+    ruling, Decision Moment `01M6YAFYHT0RMVZB03THW1WWSE`: windows decide; other lanes' approved tips stay exemption anchors
+    (content inside another lane's reviewed tip). FR-007 and SC-001 state the exception; a dependency-chain fixture pins it.
+    An all-gap lane runs today's check unchanged (FR-023)."
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] The spec-kitty-events writer issue is filed now.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][plan] The spec-kitty-events writer issue is filed now.** Operator ruling, Decision Moment `01M6YAG2HE6Q2XNQMGK6X3MBEK`:
+    spec-kitty/spec-kitty-events#229, linked from FR-006, research R-12 and the ADR concern. The `lane_branch_missing` gap
+    reason postdates the filing and needs a follow-up comment there (operator-authorized GitHub write).'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] The window opens at the window opener, not the first claim ever.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][plan] The window opens at the window opener, not the first claim ever.** Operator ruling, Decision
+    Moment `01M6YAG16WDVMM37HCJCHAC5YW`: the first claimed/in_progress move after the WP last returned to planned, skipping
+    leading \"lane branch missing\" openers (written as their own gap reason, not `capture_failed`), ordered by lane topology
+    with log-order fallback (FR-021). Interpretation recorded for review: a review rejection to `planned` (out of `for_review`/`in_review`/`approved`/`done`)
+    is rework and does not reset the window; otherwise the gate would refuse a reworked WP's own earlier commits."
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] Write on every opening move, read the first.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][plan] Write on every opening move, read the first.** The pure pipeline cannot know a move is
+    the first without reading history, so it writes on each non-migration entry into `claimed`/`in_progress`, reusing the
+    `lane_head` reading (0 extra git reads). The reader binds to the first such event, mirroring `approval_window_open_stamp`.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] `ClaimInputs` keeps per-mode quirks in Phase 2.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][plan] `ClaimInputs` keeps per-mode quirks in Phase 2.** The extraction is witnessed by the corpus
+    with zero verdict change. Aligning the forecast's excluded set and freezing the resume anchors are separate red-first
+    changes in Phase 4."
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-08][specify] A missing window falls back and is reported, never refused alone.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][specify] A missing window falls back and is reported, never refused alone.** The approval-stamp
+    bound applies (a degraded window from the claim base), so in-flight Missions keep their verdict. `APPROVAL_STAMP_MISSING`
+    is unchanged (Decision Moment `missing_window_rule`).'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-08][specify] The window lives on the status event, under one namespaced key.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][specify] The window lives on the status event, under one namespaced key.** `policy_metadata.wp_window`
+    holds `open_sha` or a typed `gap`. There is no sidecar or second store, because the event log is the only authority (Decision
+    Moments `window_source`, `window_writer`; ADR `2026-09-29-1-closed-world-refuse-on-mixed-lanes` Decision 2).'
+- id: n-035
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] Changelog fragments follow the work package that changes operator-visible behaviour.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] Changelog fragments follow the work package that changes operator-visible behaviour.**
+    Issue 12: WP19 owns the FR-007 refusal fragment, WP20 keeps the gap-report fragment, WP21 writes the WP16 (#5048(b)) and
+    WP18 (resume frozen anchors) fragments; WP07 keeps its internal fragment. NFR-002 (c) `single_branch` flips in WP20 (requirement
+    refs gain NFR-002, NFR-010); the lanes case in WP19.'
+- id: n-030
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] One forward-reference convention for Phase 3.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] One forward-reference convention for Phase 3.** Issue 4: WP11, WP12 and WP14 each add
+    exactly one function-local import from the facade under `# TEMPORARY FORWARD REFERENCE (moves in WP15)`. WP15 removes
+    all three (closed world, verifier, claim), replacing them with module-level imports from `reconciliation_authorship`,
+    and `test_split_modules_never_import_the_facade` keeps them gone. WP15 now also retargets the `_final_authored_walk` patch
+    through the family helper, because the closed world binds that name after the move.'
+- id: n-026
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] One name for the fresh-interpreter smoke test.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] One name for the fresh-interpreter smoke test.** Orchestrator decision: the file is `tests/consolidation/test_reconciliation_module_imports.py`
+    (WP10 creates it). WP13, WP14, WP15 and WP21 referred to `test_reconciliation_modules_import.py`, which no work package
+    creates; their text and `owned_files` now use the canonical name.'
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] Shared helper homes are fixed before Phase 3 starts.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][tasks] Shared helper homes are fixed before Phase 3 starts.** Orchestrator decision (issue 5,
+    consistency decision c): `_attest_tail`, `_RECOVERY_TAIL`, `_join_refusals`, `_ALSO_HAS`, `_BOTH_NEEDED` go to `reconciliation_rendering.py`
+    in WP11; `_refused` and `_collect_excluded` go to `reconciliation_closed_world.py` in WP11 (`_refused` is not a kernel
+    symbol; plan IC-10 note corrected); `_collect_approved_shas`, `_unresolvable_approved_lane_branches`, `_refusal_claim`
+    go to `reconciliation_claim.py` in WP14. WP13 imports `_join_refusals` instead of moving it and expects `moved 21`. WP15's
+    facade sweep moves any straggler to these homes."
+- id: n-029
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] The `path_state_at` patch retarget belongs to WP12.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] The `path_state_at` patch retarget belongs to WP12.** Orchestrator decision (consistency
+    decision d): the verifier move is what breaks the patch in `test_canceled_dependency_attribution.py`, so WP12 retargets
+    it through `setattr_reconciliation_family`. WP13 keeps ownership of that file only for the canceled-slice retargets (`attestation_stamps`,
+    `OVERRIDABLE_REASONS`, `canceled_spine_content`).'
+- id: n-031
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] The patch-lookup guard also catches narrowed interception.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][tasks] The patch-lookup guard also catches narrowed interception.** Issue 8: WP04's guard fails
+    when a patched name is looked up in any reconciliation module other than the one patched; a lookup bound by a facade forward
+    reference counts as a facade lookup. Two new controls (`test_narrowed_patch_fails_the_guard`, `test_facade_forward_reference_counts_as_a_facade_lookup`)."
+- id: n-032
+  category: tooling
+  summary: "Tracer: [2026-11-08][tasks] WP06's `rendering` mutation targets a helper that lands in rendering."
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][tasks] WP06's `rendering` mutation targets a helper that lands in rendering.** Issue 7 check:
+    `_compound_refusal` moves to the claim module (WP14), so a `rendering` row aimed at it would fail WP15's home test. The
+    row now targets `_join_refusals`, `_attest_tail` or a `_describe_*` helper."
+- id: n-034
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] WP11 and WP12 stay on the cheap tier, with an explicit reviewer-focus list.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] WP11 and WP12 stay on the cheap tier, with an explicit reviewer-focus list.** Issue 9:
+    both prompts carry the judgment points pre-decided (forward references, helper homes, `claim_integrity_refusal` placement,
+    retargets, pinned aliases); the Claude reviewer checks each listed point explicitly instead of the work moving to a mid-tier
+    implementer.'
+- id: n-033
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] WP19 uses a two-tier lane check.'
+  evidence_refs:
+  - e-039
+  details: "- **[2026-11-08][tasks] WP19 uses a two-tier lane check.** Orchestrator accepted the WP19 design call (issue 17):
+    tier 1 is today's `check_lane`, unchanged (its rules unchanged; it gains only a defaulted `exempt=None` so both tiers
+    share one exempt set, plan IC-13); tier 2 checks the window coverage of commits tier 1 cannot see (between approvals,
+    an abandoned cycle). Content after the last approval keeps today's tier-1 text; the new window text appears only for tier-2
+    refusals."
+- id: n-027
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] `claim_integrity_refusal` moves with the verifier in WP12.'
+  evidence_refs:
+  - e-039
+  details: '- **[2026-11-08][tasks] `claim_integrity_refusal` moves with the verifier in WP12.** Orchestrator decision: `MergeOutcomeVerifier.verify`
+    calls `claim_integrity_refusal`, which calls `MergeOutcomeVerifier._refusal_reason`, so the two share `reconciliation_verifier.py`
+    and no import cycle exists. Its only other collaborator is `ApprovedWpCommitSet`. WP12 now moves 14 symbols with one forward
+    reference (`unmet_approved_content`); WP14 lost its conditional branch and no longer edits the verifier module. tasks.md
+    T064/T072 updated.'
+- id: n-036
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] `create_intent` is checked per work package, not across the dependency chain.'
+  evidence_refs:
+  - e-040
+  details: "- **[2026-11-08][tasks] `create_intent` is checked per work package, not across the dependency chain.** `finalize-tasks
+    --validate-only` refused 42 owned paths in WP10-WP20 that an earlier work package in the same chain creates (`reconciliation_family.py`,
+    the split modules, the corpus files). The only remedy is to repeat each such path in every later owner's `create_intent`,
+    so the field now reads \"does not exist at planning time\" rather than \"this work package creates it\". A chain-aware
+    check (accept a path that a dependency's `create_intent` lists) would keep the field truthful."
+- id: n-037
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] `map-requirements` rewrites every WP frontmatter in a different YAML style.'
+  evidence_refs:
+  - e-040
+  details: '- **[2026-11-08][tasks] `map-requirements` rewrites every WP frontmatter in a different YAML style.** The call
+    sorted and unquoted the keys and switched lists to zero-indent block sequences in all 21 prompts, with `--no-auto-commit`.
+    A text edit made against the old style broke the YAML until it was re-normalised. The command should preserve the existing
+    frontmatter layout, or say that it reformats.'
+gaps:
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-08][plan] TokenFactory deepseek endpoint unreachable during the post-plan squad.'
+  evidence_refs:
+  - e-040
+  details: '- **[2026-11-08][plan] TokenFactory deepseek endpoint unreachable during the post-plan squad.** The coverage check
+    routed to deepseek failed with "Cannot connect to host"; it was rerun on glm-5.3 and completed. Candidate gap: the opencode/LiteLLM
+    routing had no fallback model group, so one unreachable endpoint stopped the delegate instead of failing over.'
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-08][specify] `agent mission create` refused with WRITE_CHECKOUT_DIRTY over untracked scratch
+    folders.'
+  evidence_refs:
+  - e-040
+  details: "- **[2026-11-08][specify] `agent mission create` refused with WRITE_CHECKOUT_DIRTY over untracked scratch folders.**
+    The operator's untracked `reports/` and `research_notes/` folders made the write checkout count as dirty. Workaround:
+    added them to `.git/info/exclude`. Candidate gap: create could ignore untracked paths outside `kitty-specs/`, or name
+    the `.git/info/exclude` remedy in its refusal."
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-11-08][specify] `spec-kitty spec-commit` failed on a transient `.git/index.lock`.'
+  evidence_refs:
+  - e-040
+  details: '- **[2026-11-08][specify] `spec-kitty spec-commit` failed on a transient `.git/index.lock`.** A concurrent git
+    process held the lock; a retry succeeded. Candidate gap: a bounded retry/backoff on `index.lock`, or a clearer message
+    saying the lock is transient and how to check for a live git process.'
+- id: g-004
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] A WP prompt writer (Claude Opus) simulated the implementation in a temp directory
+    to "make sure the instructions hold".'
+  evidence_refs:
+  - e-040
+  details: "- **[2026-11-08][tasks] A WP prompt writer (Claude Opus) simulated the implementation in a temp directory to \"\
+    make sure the instructions hold\".** That effectively implements the work twice: once while writing the prompt and again
+    in the implement step. It is very wasteful in tokens and wall-clock. The operator flagged it. Disposition: candidate gap.
+    Prompt-writer briefs (and the tasks command contract) should say to verify instructions by reading code and running existing
+    tests only, never by prototyping the change. Applied from here on in this mission's delegate briefs. Filed upstream as
+    spec-kitty/spec-kitty-open-packs#176 so the tasks, tasks-packages, plan and specify prompts carry the rule."
+- id: g-005
+  category: tooling
+  summary: 'Tracer: [2026-11-08][tasks] TokenFactory glm-5.3 timed out with no output on the cross-prompt consistency check.'
+  evidence_refs:
+  - e-040
+  details: '- **[2026-11-08][tasks] TokenFactory glm-5.3 timed out with no output on the cross-prompt consistency check.**
+    The opencode run hit its 25-minute timeout and wrote an empty file (no partial output, no error). The same check was rerouted
+    to Claude Haiku. Disposition: candidate gap. With deepseek unreachable earlier the same day, TokenFactory reliability
+    is too low to rely on for blocking steps; the opencode route needs streamed or partial output and a fallback model group.'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP01-window-model-adr-and-glossary.md
+- id: e-006
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP02-characterization-corpus.md
+- id: e-007
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP03-refusal-precedence-matrix.md
+- id: e-008
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP04-surface-pin-and-family-guard.md
+- id: e-009
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP05-intended-verdict-pins.md
+- id: e-010
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP06-seeded-mutation-harness.md
+- id: e-011
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP07-wp-window-capture.md
+- id: e-012
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP08-window-opener-reader.md
+- id: e-013
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP09-claim-inputs.md
+- id: e-014
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP10-extract-kernel-and-claim-types.md
+- id: e-015
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP11-move-rendering-closed-world-bound.md
+- id: e-016
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP12-move-verifier.md
+- id: e-017
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP13-move-canceled-pair.md
+- id: e-018
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP14-move-claim-orchestration.md
+- id: e-019
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP15-move-authorship-presence-and-facade.md
+- id: e-020
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP16-history-read-error-refuses.md
+- id: e-021
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP17-forecast-claim-input-parity.md
+- id: e-022
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP18-resume-frozen-anchors.md
+- id: e-023
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP19-lane-window-model.md
+- id: e-024
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP20-gap-report-and-single-branch.md
+- id: e-025
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/tasks/WP21-closeout-docs-and-verification.md
+- id: e-026
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+- id: e-027
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6YM8YZNGZ5PHXA1NJV17B0K
+- id: e-028
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6YXHSVN1QTMYT6QKH5YFA4K
+- id: e-029
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6Z23D7SQHB8KD4CC9JDQJHK
+- id: e-030
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6Z4S6E4SHXA1V4JF0C31NRC
+- id: e-031
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M70A9CM9M2FTFVCQM6RTWP5P
+- id: e-032
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M70SKNC853BV8R0N831XV93Z
+- id: e-033
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M71283N8Z0TYZ61QQT84X503
+- id: e-034
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6YM7RNEVT985PPK0NXNPBS5
+- id: e-035
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M6YR0JPKXF5Q4STZZ454W6SM
+- id: e-036
+  kind: event_range
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/status.events.jsonl
+  range: 01M71283N8Z0TYZ61QQT84X503
+- id: e-037
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/analysis-report.md
+- id: e-038
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/traces/approach.md
+- id: e-039
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/traces/design-decisions.md
+- id: e-040
+  kind: file
+  path: kitty-specs/consolidation-window-provenance-01M6Y84D/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
