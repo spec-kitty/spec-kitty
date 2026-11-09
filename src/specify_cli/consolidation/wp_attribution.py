@@ -886,13 +886,18 @@ def _bind(
     on_lane: Callable[[str], bool],
     is_ancestor: Callable[[str, str], bool],
 ) -> WindowOpen | WindowGap:
-    """Bind a non-empty candidate tuple to an outcome (contract R-1(d), R-2..R-5)."""
+    """Bind a non-empty candidate tuple to an outcome (contract R-1(d), R-2..R-5).
+
+    *candidates* come from a ``cycle=True`` selection, so no leading ``lane_branch_missing``
+    candidate is left: the first one carries an ``open_sha``, a ``capture_failed`` gap, or no usable value.
+    """
     first, malformed = _window_value(candidates[0])
     if first is None:
         # An unrecorded opener is never replaced by a later recorded one.
         return WindowGap(WindowGapReason.NOT_RECORDED, malformed=malformed)
     if first.open_sha is None:
-        # A leading lane_branch_missing was skipped, so this is a capture_failed gap.
+        # A leading lane_branch_missing was skipped (cycle=True), so this is a capture_failed gap.
+        assert first.gap_reason is RecordedGapReason.CAPTURE_FAILED, "a cycle=True selection never leads with lane_branch_missing"
         return WindowGap(WindowGapReason.CAPTURE_FAILED, cause=first.cause, detail=first.detail)
     shas = [parsed.open_sha for parsed, _ in map(_window_value, candidates) if parsed is not None and parsed.open_sha is not None]
     chosen = _topological_first(shas, is_ancestor)
