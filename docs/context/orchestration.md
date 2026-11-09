@@ -3,7 +3,7 @@ title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-08T00:00:00Z'
+updated: '2026-11-09T00:00:00Z'
 related:
 - context/charter
 - context/identity
