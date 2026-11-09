@@ -1,7 +1,7 @@
 {
-  "event_count": 84,
-  "last_event_id": "01M6ZD7R07HX2645Q0SJZ456D0",
-  "materialized_at": "2026-11-09T05:41:58.919291+00:00",
+  "event_count": 85,
+  "last_event_id": "01M6ZDB8KYF4RZR4CXRAEA60MT",
+  "materialized_at": "2026-11-09T05:43:54.238477+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 12
   },
   "work_packages": {
@@ -294,23 +294,23 @@
     },
     "WP09": {
       "actor": "claude",
-      "agent": "claude:claude-opus-5-5:python-pedro",
+      "agent": "claude:claude-opus-5-5:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M6ZD7R07HX2645Q0SJZ456D0",
-      "last_transition_at": "2026-11-09T05:41:58.919291+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6ZDB8KYF4RZR4CXRAEA60MT",
+      "last_transition_at": "2026-11-09T05:43:54.238477+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-09T05:39:18Z – claude:claude-opus-5-5:python-pedro – shell_pid=2902570 – WP_BASE=0548efddbb0b221ad26a4400308b98b3db2807b4. Implemented ClaimInputs + build_claim (fc554913c8). run.claim_inputs NOT stored: _MergeRunState lives in run_state.py (not owned); inputs stay local in phase_claim (WP18 may add the field). Status-dir xfail XPASSed -> pinned as equality (see tracer). Retargeted 5 non-owned tests to claim_inputs (see tracer).",
         "Ready for review: one ClaimInputs constructor (LIVE/LIVE_THEN_SAVED/SAVED) + build_claim adopted by forecast, phase_claim, phase_gate; corpus zero-diff, changed_cells=[]; status-dir xfail pinned as equality (XPASS, see tracer); 5 non-owned test retargets to claim_inputs"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 2902570,
-      "shell_pid_created_at": "1794200366.09",
+      "role": "reviewer",
+      "shell_pid": 3955687,
+      "shell_pid_created_at": "1794203027.95",
       "subtasks": {
         "T047": "done",
         "T048": "done",
