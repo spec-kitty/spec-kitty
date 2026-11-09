@@ -767,7 +767,9 @@ class GapEntry:
     """One approved work package the approved bound judged by its degraded window (data-model section 5).
 
     ``reason`` is the :attr:`WindowGapReason.report_text` of the gap ("not recorded", ...);
-    ``cause`` and ``detail`` echo a recorded gap. The claim carries these as ``window_gaps``.
+    ``cause`` and ``detail`` echo a recorded gap; ``sha`` is the recorded SHA a ``not on lane``
+    gap could not find on the lane; ``malformed`` marks a ``not recorded`` gap whose opener
+    carried a value that violates the contract. The claim carries these as ``window_gaps``.
     """
 
     wp_id: str
@@ -775,11 +777,21 @@ class GapEntry:
     reason: str
     cause: str | None = None
     detail: str = ""
+    sha: str | None = None
+    malformed: bool = False
 
     @classmethod
     def from_gap(cls, wp_id: str, lane_id: str, gap: WindowGap) -> GapEntry:
         """The entry for *wp_id* on *lane_id* whose window-open SHA is the typed *gap*."""
-        return cls(wp_id=wp_id, lane_id=lane_id, reason=gap.reason.report_text, cause=gap.cause, detail=gap.detail)
+        return cls(
+            wp_id=wp_id,
+            lane_id=lane_id,
+            reason=gap.reason.report_text,
+            cause=gap.cause,
+            detail=gap.detail,
+            sha=gap.sha,
+            malformed=gap.malformed,
+        )
 
 
 @dataclass(frozen=True, slots=True)
