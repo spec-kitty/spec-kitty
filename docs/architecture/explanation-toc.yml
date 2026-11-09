@@ -40,8 +40,6 @@
   href: host-surface-parity.md
 - name: Multi-Agent Orchestration
   href: multi-agent-orchestration.md
-- name: Zeitgeist Publisher and Lease Identity
-  href: zeitgeist-session-identity.md
 - name: Pip vs pipx vs uv
   href: pip-vs-pipx-vs-uv.md
 - name: "Understanding Charter: Synthesis, DRG, and Governed Context"

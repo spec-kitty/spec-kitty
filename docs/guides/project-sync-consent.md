@@ -8,7 +8,6 @@ audience:
 - profile: external/tech-lead-evaluator
   guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- guides/how-to/collaboration/sync-workspaces
 - api/environment-variables
 - adr/3.x/2026-08-09-1-project-sync-store-boundary
 - adr/3.x/2026-08-04-1-egress-consent-boundary

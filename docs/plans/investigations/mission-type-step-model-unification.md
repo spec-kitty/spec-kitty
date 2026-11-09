@@ -1,7 +1,7 @@
 ---
 title: 'Mission-type step-model unification — retire "template" as a discriminator'
 description: 'Operator proposal to reserve "template" for doctrine example-artefacts and make recursive steps the mission-type building block; assessment + grounding questions.'
-doc_status: deprecated
+doc_status: draft
 kind: Planning
 updated: '2026-08-12T00:00:00Z'
 related:

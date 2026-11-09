@@ -11,7 +11,6 @@ related:
 - guides/how-to/missions/generate-tasks
 - guides/how-to/missions/implement-work-package
 - guides/how-to/collaboration/parallel-development
-- guides/how-to/collaboration/sync-workspaces
 ---
 # How to handle work package dependencies
 
@@ -66,7 +65,7 @@ cd <workspace path printed by spec-kitty implement>
 spec-kitty sync workspace
 ```
 
-You may need to resolve conflicts during sync. See [Sync Workspaces](../collaboration/sync-workspaces.md).
+You may need to resolve conflicts during sync.
 
 ## What Dependencies Do
 

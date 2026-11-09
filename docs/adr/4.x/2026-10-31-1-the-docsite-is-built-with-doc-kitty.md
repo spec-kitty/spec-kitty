@@ -336,3 +336,12 @@ Gaps filed or to file:
   - packaging: [#6926](https://github.com/spec-kitty/spec-kitty/issues/6926) (D-12).
 - The upstream doc-kitty issue drafts (a)–(i) sit in the same folder as the spike evidence.
 - doc-kitty commit the spike ran against: `494f2d878e2e4766d9859a4f073efb793ad86900` (doc-toolkit 0.5.0 plus unreleased commits).
+
+## Amendment 2026-11-09
+
+Recorded with #6932 (publication). D-8's text above is unchanged; this section records how it is carried out and where it drifted.
+
+- **Folder exclusion runs through doc-kitty's `exclude` option.** Gap (f) closed upstream (doc-kitty ADR-0070) before #6932 started. `site/astro.config.mjs` passes `exclude` from the generated `site/dockitty-contract.json`, which `scripts/docs/site_contract.py` projects from `EXCLUDED_FOLDERS` in `scripts/docs/_dockitty_contract.py`. No loader-filter shim exists: `site/src/content.config.ts` does not filter. The D-14 shim list therefore no longer includes the loader filter.
+- **Working-note folders are drafts.** `plans/engineering-notes/`, `plans/investigations/` and `plans/research/` are named once, as `DRAFT_FOLDERS` in the contract module. Every page in them takes `doc_status: draft` (a frontmatter-only change; the bodies are history). They are not excluded folders, because `exclude` would also drop them from the frontmatter and link gates.
+- **Retired single pages are archived.** `exclude` takes folders only, and the retired hosted and sync pages are single files spread over several sections. The operator decided on 2026-11-09 to move them under `docs/archive/<section>/` with their bodies unchanged. Each old route gets an append-only `site/moves.yaml` row to its section hub (D-5 rule 4).
+- **One authority for the unpublished set.** `unpublished_routes()` in the contract module derives it: pages in an excluded folder, pages in a draft folder, and pages that are not published. The built-site check `scripts/docs/site_built_check.py` reads it after the build, and so does the redirect generator (#6933). The check walks the built pages, links, sitemap, OKF export, search index, `llms.txt` and the agent index.

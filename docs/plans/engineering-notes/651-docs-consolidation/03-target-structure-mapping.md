@@ -1,7 +1,7 @@
 ---
 title: 'Target structure & tree mapping — #651 docs consolidation'
 description: The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions, including the glossary/dashboard constraint and engineering_notes location.
-doc_status: deprecated
+doc_status: draft
 kind: Planning
 updated: '2026-09-30T00:00:00Z'
 audience:

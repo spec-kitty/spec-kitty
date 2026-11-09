@@ -162,7 +162,6 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 - [Git worktrees](git-worktrees.md) — what worktrees share and keep separate.
 - [Git workflow: who does what](git-workflow.md) — infrastructure git vs content git.
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.
-- [Zeitgeist publisher and lease identity](zeitgeist-session-identity.md) — **deprecated historical design** for logical agents, SaaS leases, and relay session references before the hosted clients were removed.
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
 - [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
 - [The acceptance scenario contract](acceptance-scenario-contract.md) — how scenarios link to product promises by identifier only, the per-PR scenario check, and the nightly evidence bundle.

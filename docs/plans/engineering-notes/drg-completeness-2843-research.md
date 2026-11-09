@@ -1,7 +1,7 @@
 ---
 title: 'DRG completeness (#2843/#2847) — pre-spec research squad findings'
 description: 'Four-lens pre-spec research findings on the #2833 post-landing residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus split.'
-doc_status: deprecated
+doc_status: draft
 kind: Planning
 updated: '2026-09-30T00:00:00Z'
 audience:

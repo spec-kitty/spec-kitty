@@ -23,7 +23,6 @@ related:
 - migrations/relocate-builtin-doctrine-packs
 - migrations/retrospective-events-upstream
 - migrations/shared-package-boundary-cutover
-- migrations/teamspace-mission-state-920-closeout
 - migrations/teamspace-mission-state-repair
 - migrations/tracker-egress-refusal
 - migrations/upgrade-to-0-12-0
@@ -70,7 +69,6 @@ These pages are preserved for older cutovers, closeouts, and engineering context
 - [Historical 2.1 cutover](2-1-main-cutover-checklist.md)
 - [Historical upgrade to 0.12.0](upgrade-to-0-12-0.md)
 - [TeamSpace mission-state repair](teamspace-mission-state-repair.md)
-- [TeamSpace mission-state closeout](teamspace-mission-state-920-closeout.md)
 - [Charter ownership consolidation](charter-ownership-consolidation.md)
 - [Cross-repo E2E gate](cross-repo-e2e-gate.md)
 - [Retrospective events upstream](retrospective-events-upstream.md)

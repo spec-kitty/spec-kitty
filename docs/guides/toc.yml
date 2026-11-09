@@ -153,8 +153,6 @@
           href: how-to/collaboration/run-external-orchestrator.md
         - name: "Build a Custom Orchestrator"
           href: how-to/collaboration/build-custom-orchestrator.md
-        - name: "How to Sync Workspaces"
-          href: how-to/collaboration/sync-workspaces.md
         - name: "How to Keep MCP Agents in the Worktree"
           href: how-to/collaboration/worktrees-with-mcp-agents.md
         - name: "Managing AI Agents"
