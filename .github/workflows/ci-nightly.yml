@@ -1195,9 +1195,9 @@ jobs:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 2 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
-    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, so the cap follows that floor (>=13:12) until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
-    # headroom (#5378): max-suite>=13:12 runs=42556248147,42516534769 formula=ceil((max+0:30)*1.5)
-    timeout-minutes: 25
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
+    # headroom (#5378): max-suite=17:21 runs=42570568758,42556248147,42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 30
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -1225,7 +1225,7 @@ jobs:
       - name: Run integration + next suites, shard 2 (full-mode, run-all-regardless)
         if: always()
         # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
-        timeout-minutes: 20
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
@@ -1278,9 +1278,9 @@ jobs:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 3 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
-    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, so the cap follows that floor (>=13:12) until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
-    # headroom (#5378): max-suite>=13:12 runs=42556248147,42516534769 formula=ceil((max+0:30)*1.5)
-    timeout-minutes: 25
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
+    # headroom (#5378): max-suite=13:02 runs=42570568758,42556248147,42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 30
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -1308,7 +1308,7 @@ jobs:
       - name: Run integration + next suites, shard 3 (full-mode, run-all-regardless)
         if: always()
         # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
-        timeout-minutes: 20
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
@@ -1361,9 +1361,9 @@ jobs:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: "Integration + next suite shard 4 (nightly-only, #4729, #7456)"
     runs-on: ubuntu-24.04
-    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, so the cap follows that floor (>=13:12) until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
-    # headroom (#5378): max-suite>=13:12 runs=42556248147,42516534769 formula=ceil((max+0:30)*1.5)
-    timeout-minutes: 25
+    # #7456 / #6787: projected share of the 44:34 worst recorded single-job suite time (run 42442477189): 25% of the lane's weight in .github/ci-shard-timings.json, ~11 min projected. The first sharded nightly (run 42556248147) measured shard 3 at 12:30 and stopped shards 2 and 4 at their 13-minute step cap with no test failure, run 42570568758 then measured shards 2/3/4 at 17:21/13:02/16:05; caps 30/25 by operator ruling, until the per-shard xunit recapture (capture_shard_timings.py --suite integration_next) rebalances the lane.
+    # headroom (#5378): max-suite=16:05 runs=42570568758,42556248147,42516534769 formula=ceil((max+0:30)*1.5)
+    timeout-minutes: 30
     # `issues: write` for the FR-007 escalation step below.
     permissions:
       contents: read
@@ -1391,7 +1391,7 @@ jobs:
       - name: Run integration + next suites, shard 4 (full-mode, run-all-regardless)
         if: always()
         # #6787: below the job cap, so a timeout fails this step and the if: always() steps still escalate.
-        timeout-minutes: 20
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
