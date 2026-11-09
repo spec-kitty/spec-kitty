@@ -235,7 +235,8 @@
       "last_transition_at": "2026-11-09T04:11:17.124800+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-09T03:41:48Z – claude:claude-opus-5-5:python-pedro – shell_pid=1288207 – WP_BASE=4695e932a2be4708c6a213fe38130c65ad462611 (lane-a HEAD before first WP07 commit)"
+        "- 2026-11-09T03:41:48Z – claude:claude-opus-5-5:python-pedro – shell_pid=1288207 – WP_BASE=4695e932a2be4708c6a213fe38130c65ad462611 (lane-a HEAD before first WP07 commit)",
+        "Ready for review: wp_window capture (LaneHeadReading/read_lane_head injected by both shells, _wp_window_value in the pipeline, WP_WINDOW_KEY re-export, changelog). Corpus byte-identical vs WP_BASE 4695e932a2 (changed_cells []), intended verdicts all xfail, seeded mutations green. Scope note: two non-owned test fixtures retargeted _resolve_lane_head -> _read_lane_head (see tracer)."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
