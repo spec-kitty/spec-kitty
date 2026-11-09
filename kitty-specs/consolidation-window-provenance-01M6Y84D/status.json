@@ -270,7 +270,8 @@
       "last_transition_at": "2026-11-09T04:40:00.532977+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-09T04:37:19Z – claude:claude-opus-5-5:python-pedro – shell_pid=2406972 – WP_BASE=dd21780d78e2f9ef081475164565341b05950a31. Implemented window_opener_events/window_open_of + WindowGapReason/WindowOpen/WindowGap/OpenerSelection; approval_window_open_stamp via selector; wp_window.open_sha classified BRANCH_RELATIVE. Corpus zero-diff, changed_cells=[]."
+        "- 2026-11-09T04:37:19Z – claude:claude-opus-5-5:python-pedro – shell_pid=2406972 – WP_BASE=dd21780d78e2f9ef081475164565341b05950a31. Implemented window_opener_events/window_open_of + WindowGapReason/WindowOpen/WindowGap/OpenerSelection; approval_window_open_stamp via selector; wp_window.open_sha classified BRANCH_RELATIVE. Corpus zero-diff, changed_cells=[].",
+        "Ready for review: window opener reader (one selector, typed gaps, topology-first binding, no git read), approval_window_open_stamp via selector, wp_window.open_sha BRANCH_RELATIVE; corpus zero-diff"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
