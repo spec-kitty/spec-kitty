@@ -41,7 +41,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.consolidation import executor, phase_claim, rollback
+from specify_cli.consolidation import claim_inputs, executor, rollback
 from specify_cli.consolidation.reconciliation import (
     Divergence,
     MergeOutcomeVerifier,
@@ -164,13 +164,13 @@ def test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_cur
 
     # FR-002: the re-run is fresh, so its reconciliation window base is T1, not T0.
     bases: list[str | None] = []
-    real_build = phase_claim.build_approved_wp_set
+    real_build = claim_inputs.build_approved_wp_set
 
     def spy(*args: object, **kwargs: object) -> object:
         bases.append(kwargs.get("excluded_window_base"))  # type: ignore[arg-type]
         return real_build(*args, **kwargs)
 
-    monkeypatch.setattr(phase_claim, "build_approved_wp_set", spy)
+    monkeypatch.setattr(claim_inputs, "build_approved_wp_set", spy)
 
     # The attempt's SNAPSHOT must be re-derived too, not just its window base. On this LANES
     # mission the status surface IS the target, so a coordination anchor kept from attempt 1

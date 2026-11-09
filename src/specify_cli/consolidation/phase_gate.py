@@ -24,13 +24,13 @@ from specify_cli.consolidation.bookkeeping_projection import (
     _resolve_ref_sha,
     projected_content_matches_target,
 )
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     VerifyResult,
-    build_approved_wp_set,
     dependency_refs_moved_refusal,
     lane_tips_moved_refusal,
     route_terminus,
@@ -44,6 +44,31 @@ from specify_cli.consolidation.run_state import (
     _NOTHING_TORN_DOWN,
     _resume_reconciliation_already_passed,
 )
+
+
+def _gate_rebuild_inputs(run: _MergeRunState) -> ClaimInputs:
+    """The claim inputs of the gate's defensive rebuild: the run's own source (FR-012, T052).
+
+    Keeps today's live ``mission_branch`` NAME as the coordination base through the documented
+    ``coord_base_override`` (a Phase 2 quirk, not a fourth source). The target base is the one
+    the claim phase resolved (``run.target_expected_old_sha``); a ``SAVED`` rebuild reads the
+    record first, which on the real path is the same value (the claim phase set both).
+    """
+    return claim_inputs(
+        ClaimInputSource.SAVED if run.is_resume else ClaimInputSource.LIVE_THEN_SAVED,
+        ClaimInputContext(
+            repo_root=run.main_repo,
+            manifest=run.lanes_manifest,
+            status_dir=run.feature_dir,
+            strategy=run.strategy.value,
+            resolved_target_base=run.target_expected_old_sha,
+            state=run.state,
+            dependency_refs=run.dependency_refs,
+            dependency_pins=run.dependency_ref_pins,
+            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+            coord_base_override=run.lanes_manifest.mission_branch,
+        ),
+    )
 
 
 def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
@@ -69,16 +94,7 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
     if captured is None:
         # Defensive: the claim should have been captured at transaction start.
         # Rebuild fail-closed rather than pass vacuously.
-        captured = build_approved_wp_set(
-            run.main_repo,
-            run.feature_dir,
-            run.lanes_manifest,
-            coord_base_ref=run.lanes_manifest.mission_branch,
-            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
-            excluded_window_base=run.target_expected_old_sha,
-            external_dependency_refs=run.dependency_refs,
-            external_dependency_pins=run.dependency_ref_pins,
-        )
+        captured = build_claim(run.main_repo, run.lanes_manifest, _gate_rebuild_inputs(run))
     # #6771: a declared ref that moved since the claim pinned it would exempt different history
     # than the one that was verified -- the gate refuses (and the door rolls the run back).
     moved = dependency_refs_moved_refusal(run.main_repo, run.dependency_ref_pins)

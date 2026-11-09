@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 import typer
 
-from specify_cli.consolidation import forecast
+from specify_cli.consolidation import claim_inputs, forecast
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     MergeOutcomeVerifier,
@@ -138,7 +138,7 @@ def test_forecast_renders_a_content_refuse_as_a_claim_refusal(monkeypatch: pytes
     import specify_cli.status as _status_pkg  # #7276: callers import the read door from the package
 
     monkeypatch.setattr(_status_pkg, "resolve_status_read", lambda repo, mission: SimpleNamespace(path=tmp_path, ref=None))
-    monkeypatch.setattr(forecast, "build_approved_wp_set", lambda *args, **kwargs: claim)
+    monkeypatch.setattr(claim_inputs, "build_approved_wp_set", lambda *args, **kwargs: claim)
     monkeypatch.setattr(MergeOutcomeVerifier, "forecast_content_verdict", _verdict)
 
     class _Manifest:

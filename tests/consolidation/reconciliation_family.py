@@ -40,6 +40,7 @@ from unittest import mock
 import pytest
 
 from specify_cli.consolidation import (
+    claim_inputs,
     forecast,
     phase_claim,
     phase_gate,
@@ -65,7 +66,7 @@ RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (reconciliation,)
 # widen every family patch to modules no patch needs to reach. WP08/WP09
 # retargets: when a patched name becomes bound by one of these modules, add
 # that module here.
-RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast)
+RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast, claim_inputs)
 
 
 def _is_patch_receiver(value: ast.expr) -> bool:

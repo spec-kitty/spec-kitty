@@ -26,12 +26,12 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
 from specify_cli.consolidation.reconciliation import (
     MergeOutcomeVerifier,
     VerifyStatus,
     _lane_branch_for,
-    build_approved_wp_set,
     claim_integrity_refusal,
 )
 from specify_cli.lanes.persistence import (
@@ -386,6 +386,7 @@ def _refuse_unattributable_in_forecast(
     dependency_refs: tuple[str, ...],
     json_output: bool,
     squashed_tree: str | None = None,
+    strategy: MergeStrategy = MergeStrategy.SQUASH,
 ) -> None:
     """Run the content check the real run will run, before any ref moves (#6771, #7244).
 
@@ -419,15 +420,21 @@ def _refuse_unattributable_in_forecast(
         return
     try:
         status_dir = _forecast_claim_status_dir(main_repo, resolved_feature, json_output=json_output)
-        claim = build_approved_wp_set(
-            main_repo,
-            status_dir,
-            lanes_manifest,
-            coord_base_ref=lanes_manifest.mission_branch,
-            excluded_window_base=window_base,
-            external_dependency_refs=dependency_refs,
-            external_dependency_pins=dependency_pins,
+        # FR-012 (WP09): the LIVE source keeps the forecast's Phase 2 quirks (no excluded canceled
+        # work packages, the live mission-branch NAME as coordination base, its own status dir).
+        inputs = claim_inputs(
+            ClaimInputSource.LIVE,
+            ClaimInputContext(
+                repo_root=main_repo,
+                manifest=lanes_manifest,
+                status_dir=status_dir,
+                strategy=strategy.value,
+                resolved_target_base=window_base,
+                dependency_refs=dependency_refs,
+                dependency_pins=dependency_pins,
+            ),
         )
+        claim = build_claim(main_repo, lanes_manifest, inputs)
         refusal = claim_integrity_refusal(claim)
         if refusal is not None:
             _emit_dry_run_error(
@@ -643,6 +650,7 @@ def run_dry_run_forecast(
         dependency_refs=dependency_refs,
         json_output=json_output,
         squashed_tree=integration_preview.squashed_tree if resolved_strategy is MergeStrategy.SQUASH else None,
+        strategy=resolved_strategy,
     )
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)

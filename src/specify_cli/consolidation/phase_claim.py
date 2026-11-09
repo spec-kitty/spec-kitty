@@ -43,8 +43,8 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
 from specify_cli.consolidation.reconciliation import (
-    build_approved_wp_set,
     claim_integrity_refusal,
     detect_legacy_in_flight_state,
     write_post_fix_marker,
@@ -513,23 +513,33 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # resolver falling back to a live capture.
     _enforce_resume_anchor_integrity(run, coord_topology=checkpoint is not None)
     coord_base_sha = _resolve_pre_mutation_coord_sha(run.state, run)
-    coord_base = coord_base_sha if coord_base_sha is not None else (checkpoint.sha if checkpoint is not None else run.lanes_manifest.mission_branch)
+    target_base = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
 
-    run.target_expected_old_sha = _resolve_pre_mutation_target_sha(run.main_repo, run.lanes_manifest.target_branch, run.state)
+    # FR-012 (WP09): the claim inputs come from the one constructor -- SAVED on a resume,
+    # LIVE_THEN_SAVED on a fresh run -- after the fail-closed anchor checks above. The declared
+    # external dependency refs (#6771) are verified fail-closed inside the claim builder, so a bad
+    # declaration refuses HERE, before the first mutation.
+    inputs = claim_inputs(
+        ClaimInputSource.SAVED if run.is_resume else ClaimInputSource.LIVE_THEN_SAVED,
+        ClaimInputContext(
+            repo_root=run.main_repo,
+            manifest=run.lanes_manifest,
+            status_dir=run.feature_dir,
+            strategy=run.strategy.value,
+            resolved_target_base=target_base,
+            resolved_coord_sha=coord_base_sha,
+            checkpoint_sha=checkpoint.sha if checkpoint is not None else None,
+            state=run.state,
+            dependency_refs=run.dependency_refs,
+            dependency_pins=run.dependency_ref_pins,
+            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
+        ),
+    )
+    coord_base = inputs.coord_base
+    run.target_expected_old_sha = inputs.target_base
 
     try:
-        run.approved_wp_set = build_approved_wp_set(
-            run.main_repo,
-            run.feature_dir,
-            run.lanes_manifest,
-            coord_base_ref=coord_base,
-            excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
-            excluded_window_base=run.target_expected_old_sha,
-            # #6771: the declared external dependency refs (verified fail-closed inside the
-            # claim builder, so a bad declaration refuses HERE, before the first mutation).
-            external_dependency_refs=run.dependency_refs,
-            external_dependency_pins=run.dependency_ref_pins,
-        )
+        run.approved_wp_set = build_claim(run.main_repo, run.lanes_manifest, inputs)
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 

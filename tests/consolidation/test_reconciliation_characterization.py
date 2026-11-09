@@ -70,15 +70,18 @@ class _CorpusSentinel(Exception):
 
 
 def test_runner_computes_the_verdict_in_this_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Control (T007): a patch applied here reaches the claim computation, which a subprocess runner could not see."""
-    from specify_cli.consolidation import phase_claim
+    """Control (T007): a patch applied here reaches the claim computation, which a subprocess runner could not see.
+
+    WP09 moved the claim build behind ``claim_inputs.build_claim``, so the builder is looked up there.
+    """
+    from specify_cli.consolidation import claim_inputs
 
     mission = cs.build_shape(tmp_path / "m", "single_lane")
 
     def _sentinel(*_args: object, **_kwargs: object) -> object:
         raise _CorpusSentinel("corpus-sentinel reached the claim")
 
-    monkeypatch.setattr(phase_claim, "build_approved_wp_set", _sentinel)
+    monkeypatch.setattr(claim_inputs, "build_approved_wp_set", _sentinel)
 
     result = cs.run_in_process(mission, cs.consolidate_args(mission, "fresh"))
 

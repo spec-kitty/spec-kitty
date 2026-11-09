@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from specify_cli.consolidation import phase_claim, phase_gate, forecast, reconciliation
+from specify_cli.consolidation import claim_inputs, reconciliation
 from tests.consolidation import reconciliation_family
 from tests.consolidation.reconciliation_family import patch_callee_name, setattr_reconciliation_family
 
@@ -461,9 +461,9 @@ def test_family_helper_patches_consumer_bindings(monkeypatch: pytest.MonkeyPatch
     sentinel = object()
     setattr_reconciliation_family(monkeypatch, "build_approved_wp_set", sentinel)
     assert reconciliation.build_approved_wp_set is sentinel
-    assert phase_claim.build_approved_wp_set is sentinel
-    assert phase_gate.build_approved_wp_set is sentinel
-    assert forecast.build_approved_wp_set is sentinel
+    # WP09: the three call sites build the claim through claim_inputs.build_claim, the one
+    # by-name consumer of the builder now.
+    assert claim_inputs.build_approved_wp_set is sentinel
 
     fake_consumer = types.ModuleType("fake_consumer")
     vars(fake_consumer)["build_approved_wp_set"] = object()
