@@ -49,6 +49,7 @@ from typing import Any, Literal
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status.lane_head import LANE_HEAD_KEY
+from specify_cli.status.wp_window import WP_WINDOW_KEY
 from specify_cli.status.reducer import materialize_snapshot, wp_snapshot_state
 from specify_cli.status.store import StoreError, read_event_stream
 
@@ -87,8 +88,14 @@ REASON_PHASE_MALFORMED = "status_phase is malformed (not an integer)"
 REASON_LEGACY_UNDECIDABLE = f"{_NOT_FLIPPED}: legacy WP runtime could not be read to decide the pre-accept exemption"
 
 
+#: The provenance keys the status pipeline stamps on its own (never operator or runtime state):
+#: the WP03 ``lane_head`` stamp and the window-open record ``wp_window`` (Mission
+#: consolidation-window-provenance-01M6Y84D, written on every window-opening move).
+_PROVENANCE_KEYS: frozenset[str] = frozenset({LANE_HEAD_KEY, WP_WINDOW_KEY})
+
+
 def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any] | None) -> bool:
-    """True iff *policy_metadata* has any key other than the WP03 ``lane_head`` stamp.
+    """True iff *policy_metadata* has any key other than the provenance stamps (``lane_head``, ``wp_window``).
 
     Conservative fix (orchestrator decision, review-feedback-1 Issue 5):
     :func:`~specify_cli.status.lane_head.read_lane_head`'s best-effort stamp
@@ -100,8 +107,10 @@ def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any]
     an approval/done hop's ``shell_pid`` (``tasks_move_task
     ._mt_approval_policy_metadata``), a ``pre_review_gate``-only dict, an
     approval's ``tool``/``profile``/``model``-only dict, and a
-    ``migration_original_actor``-only dict. A dict that is ``lane_head``-ONLY
-    (or empty, or ``None``) is the sole shape that stops counting.
+    ``migration_original_actor``-only dict. A dict whose keys are only
+    ``lane_head`` and/or ``wp_window`` (or empty, or ``None``) is the sole shape
+    that stops counting: ``wp_window`` is written from the same lane-head reading,
+    so it is provenance like ``lane_head``, never runtime state (pre-PR fold L8).
 
     The FR-012 operator attestation's ``attestation`` key
     (``consolidation/canceled_attestation.py``) deliberately COUNTS: it is
@@ -111,7 +120,7 @@ def _policy_metadata_carries_runtime_evidence(policy_metadata: Mapping[str, Any]
     """
     if not policy_metadata:
         return False
-    return any(key != LANE_HEAD_KEY for key in policy_metadata)
+    return any(key not in _PROVENANCE_KEYS for key in policy_metadata)
 
 
 def _read_meta(mission_dir: Path) -> dict[str, Any]:
