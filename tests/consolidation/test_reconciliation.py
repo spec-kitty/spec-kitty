@@ -56,6 +56,7 @@ from specify_cli.consolidation.wp_attribution import (
     UnattributableReason,
 )
 from tests.terminus.conftest import record_evidence_prerequisites
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -2088,7 +2089,7 @@ def test_squash_fails_closed_when_merge_tree_write_tree_unavailable(tmp_path: Pa
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
     assert "src/shared.py" in claim.multi_lane_paths
-    monkeypatch.setattr("specify_cli.consolidation.reconciliation.merge_tree_write_tree_available", lambda _repo_root: False)
+    setattr_reconciliation_family(monkeypatch, "merge_tree_write_tree_available", lambda _repo_root: False)
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(_TARGET, squash_claim)
     assert result.status is VerifyStatus.FAIL

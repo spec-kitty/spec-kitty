@@ -36,6 +36,7 @@ from specify_cli.consolidation.reconciliation import (
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.status import read_events
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 from tests.terminus.canceled_dependency_support import (
     LANE_A,
     LANE_B,
@@ -430,7 +431,7 @@ def test_verifier_step_noop_without_entries_refuses_without_window_base_and_on_p
     def boom(*_args: object, **_kwargs: object) -> str | None:
         raise GitProbeError("probe failed")
 
-    monkeypatch.setattr(f"{_RECONCILIATION}.path_state_at", boom)
+    setattr_reconciliation_family(monkeypatch, "path_state_at", boom)
     _, probe = verifier._canceled_dependency_divergence(target, claim)
     assert probe is not None and "probe failed" in probe
 

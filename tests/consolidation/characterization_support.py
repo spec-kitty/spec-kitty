@@ -79,6 +79,7 @@ from tests.terminus.conftest import (
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.mixed_lane_support import transition
 from tests.terminus.post_approval_support import add_post_approval_commit, build_post_approval_coord_mission, rework_and_reapprove, strip_approval_stamps
+from tests.consolidation.reconciliation_family import setattr_reconciliation_family
 
 # --------------------------------------------------------------------------- vocabulary
 
@@ -1066,7 +1067,7 @@ def _fault_history_read_error(ctx: CellContext) -> CellValue:
         return str(real(repo_root, ref, path))
 
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(reconciliation, "blob_id_at", _failing)
+        setattr_reconciliation_family(patch, "blob_id_at", _failing)
         return _run_cell(mission, "fresh")
 
 

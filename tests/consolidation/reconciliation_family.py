@@ -50,6 +50,7 @@ from specify_cli.consolidation import (
     reconciliation_closed_world,
     reconciliation_kernel,
     reconciliation_rendering,
+    reconciliation_verifier,
 )
 
 # Today only the facade exists; later work packages of the mission append
@@ -61,6 +62,7 @@ RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (
     reconciliation_rendering,
     reconciliation_closed_world,
     reconciliation_bound,
+    reconciliation_verifier,
 )
 
 # The ONE explicit list of modules outside the family that bind reconciliation
