@@ -2,10 +2,12 @@
 
 ADR ``docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md`` D-11 puts a
 ``docs-site`` job in ``ci-router.yml`` behind a ``docs/**`` + ``site/**`` path filter
-parsed by ``scripts/ci/gate_selection.py``. It installs the site with the frozen
-lockfile and no token, builds it, and uploads ``site/dist``. Since #6937 it is
-**required**: ``router-gate``'s ``needs:`` names it and it carries no
-``continue-on-error``. DocFX keeps deploying (D-13).
+parsed by ``scripts/ci/gate_selection.py``. The job calls the ONE shared build definition,
+``.github/workflows/docs-site-build.yml`` (#6937), which installs the site with the frozen
+lockfile and no token, builds it, and uploads ``site/dist`` (or, for the Pages deploy at
+#6938, the Pages artifact). The step checks below read that called job, the steps that
+actually run. Since #6937 the gate is **required**: ``router-gate``'s ``needs:`` names it
+and it carries no ``continue-on-error``. DocFX keeps deploying (D-13).
 
 Every routing assertion reads the parsed router (``gate_selection.load_router``), the one
 routing authority. Each structural checker has a mutant fed through the same checker
@@ -34,6 +36,9 @@ ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / ".github" / "workflows" / "ci-router.yml"
 MAKEFILE = ROOT / "Makefile"
 SCRUB = ROOT / "tests" / "release" / "ci_retirement_scrub.json"
+SHARED = ROOT / ".github" / "workflows" / "docs-site-build.yml"
+SHARED_REF = "./.github/workflows/docs-site-build.yml"
+BUILD_JOB = "build"
 
 GROUP = "docs_site"
 JOB = "docs-site"
@@ -51,6 +56,22 @@ def _job() -> dict[str, Any]:
     return dict(_workflow()["jobs"][JOB])
 
 
+def _shared() -> dict[Any, Any]:
+    """The shared build definition (ADR D-11): one reusable workflow for the gate and the deploy."""
+    return dict(yaml.safe_load(SHARED.read_text(encoding="utf-8")))
+
+
+def _build_job() -> dict[str, Any]:
+    """The job that actually builds the site: the shared definition's ``build`` job."""
+    return dict(_shared()["jobs"][BUILD_JOB])
+
+
+def _triggers(workflow: dict[Any, Any]) -> dict[str, Any]:
+    """``on:`` parses as the boolean ``True`` key under YAML 1.1."""
+    raw = workflow.get("on", workflow.get(True))
+    return dict(raw) if isinstance(raw, dict) else {str(raw): None}
+
+
 def _run_text(job: dict[str, Any]) -> str:
     return "\n".join(str(step["run"]) for step in job.get("steps", []) if "run" in step)
 
@@ -58,7 +79,17 @@ def _run_text(job: dict[str, Any]) -> str:
 # --- routing (FR-007, C-002) -------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ["docs/guides/install.md", "docs/_meta/sections.yaml", "site/package.json", "site/pnpm-lock.yaml", "site/astro.config.mjs"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/guides/install.md",
+        "docs/_meta/sections.yaml",
+        "site/package.json",
+        "site/pnpm-lock.yaml",
+        "site/astro.config.mjs",
+        ".github/workflows/docs-site-build.yml",
+    ],
+)
 def test_a_docs_or_site_change_selects_the_job(path: str) -> None:
     router = load_router()
 
@@ -143,11 +174,11 @@ def _credential_violations(job: dict[str, Any]) -> list[str]:
 
 
 def test_every_action_is_pinned_by_commit() -> None:
-    assert _pin_violations(_job()) == []
+    assert _pin_violations(_build_job()) == []
 
 
 def test_a_tag_pinned_action_is_caught() -> None:
-    mutant = copy.deepcopy(_job())
+    mutant = copy.deepcopy(_build_job())
     mutant["steps"].append({"uses": "actions/setup-node@v7"})
 
     assert _pin_violations(mutant) == ["actions/setup-node@v7"]
@@ -155,18 +186,20 @@ def test_a_tag_pinned_action_is_caught() -> None:
 
 def test_the_job_uses_no_credential() -> None:
     assert _workflow()["permissions"] == {"contents": "read"}
+    assert _shared()["permissions"] == {"contents": "read"}
     assert _credential_violations(_job()) == []
+    assert _credential_violations(_build_job()) == []
 
 
 def test_a_token_in_the_job_is_caught() -> None:
-    mutant = copy.deepcopy(_job())
+    mutant = copy.deepcopy(_build_job())
     mutant["steps"].append({"run": "pnpm install", "env": {"NPM_CONFIG_USERCONFIG": "${{ secrets.NPMRC }}"}})
 
     assert _credential_violations(mutant)
 
 
 def test_the_job_installs_frozen_and_checks_the_contract() -> None:
-    run = _run_text(_job())
+    run = _run_text(_build_job())
 
     assert "pnpm install --frozen-lockfile" in run
     assert "-m scripts.docs.site_contract --check" in run
@@ -174,8 +207,9 @@ def test_the_job_installs_frozen_and_checks_the_contract() -> None:
 
 def test_no_step_swallows_a_failure() -> None:
     """A required job never swallows a failure: no step-level ``continue-on-error`` and no shell fallback."""
-    job = _job()
+    job = _build_job()
 
+    assert job["steps"], "the build job carries the steps (non-vacuity)"
     assert all("continue-on-error" not in step for step in job["steps"])
     assert not re.search(r"\|\|\s*true\b|\bset\s+\+e\b", _run_text(job))
 
@@ -190,6 +224,7 @@ def _astro_config_violations(text: str) -> list[str]:
 
 def test_every_dockitty_call_passes_the_astro_config() -> None:
     assert _astro_config_violations(ROUTER.read_text(encoding="utf-8")) == []
+    assert _astro_config_violations(SHARED.read_text(encoding="utf-8")) == []
     assert _astro_config_violations(MAKEFILE.read_text(encoding="utf-8")) == []
 
 
@@ -278,3 +313,33 @@ def test_a_required_job_with_continue_on_error_is_caught() -> None:
     jobs[JOB]["continue-on-error"] = True
 
     assert _advisory_violations(jobs, router_gate.ADVISORY_JOB_NAMES) == [f"{JOB}: advisory=False, job-level continue-on-error=True"]
+
+
+# --- one shared build definition (#6937 remainder, ADR D-11) -----------------------------------
+#
+# The router job calls the shared definition, so every step check above reads the steps that
+# actually run. What is pinned here is what a real CI run would not catch on its own: the call
+# target the step checks follow, the definition's security surface, and that a red row of the
+# called job blocks the terminal gate (issue #7484: no YAML-shape restatements).
+
+
+def test_the_router_job_calls_the_shared_definition() -> None:
+    """The step checks read SHARED; this keeps them reading the file the router actually calls."""
+    assert _job()["uses"] == SHARED_REF
+
+
+def test_the_shared_definition_is_only_callable_with_read_only_access() -> None:
+    workflow = _shared()
+    call = _triggers(workflow)
+
+    assert set(call) == {"workflow_call"}, "no automated trigger: callers own when it runs (and the fork guard)"
+    assert "secrets" not in (call["workflow_call"] or {})
+    assert workflow["permissions"] == {"contents": "read"}
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "timed_out", "cancelled", ""])
+def test_the_called_build_row_blocks_the_gate(conclusion: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The jobs API reports a called job as ``<caller name> / <callee name>``; router-gate classifies every row."""
+    row = f"{_job()['name']} / {_build_job()['name']}"
+
+    assert _gate_verdict(f"{row}\t{conclusion}\nruff (fast, always-on)\tsuccess\n", monkeypatch, capsys).startswith("blocked")
