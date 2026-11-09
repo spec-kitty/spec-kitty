@@ -2,7 +2,8 @@
 
 NFR-003 as durable gates: the facade defines nothing, every module is within the size limit, no split module
 imports the facade (the split is acyclic), every split module imports alone in a fresh interpreter, no body
-exists twice, and every seeded-mutation row targets a symbol that has exactly one home.
+exists twice, every seeded-mutation row targets a symbol that has exactly one home, and every family import
+points down the rank table (:data:`_RANKS`, the facade docstring's order).
 """
 
 from __future__ import annotations
@@ -108,6 +109,66 @@ def test_facade_import_scan_catches_a_facade_import(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert len(_imports_the_facade(sample)) == 2
+
+
+#: Import-direction ranks of the split family (pre-PR fold L7): a module may import, at module level or
+#: function-locally, only family modules of a strictly LOWER rank. The facade docstring lists them in this order.
+_RANKS: dict[str, int] = {
+    "reconciliation_kernel": 0,
+    "reconciliation_claim_types": 0,
+    "reconciliation_rendering": 1,
+    "reconciliation_canceled": 2,
+    "reconciliation_authorship": 3,
+    "reconciliation_bound": 3,
+    "reconciliation_closed_world": 4,
+    "reconciliation_verifier": 4,
+    "reconciliation_claim": 5,
+}
+
+
+def _family_imports(path: Path) -> set[str]:
+    """Every split-family module *path* imports, module-level and function-local (absolute or relative)."""
+    found: set[str] = set()
+    for node in ast.walk(_tree(path)):
+        if not isinstance(node, ast.ImportFrom) or node.module is None:
+            continue
+        leaf = node.module.rsplit(".", 1)[-1]
+        in_package = node.level == 1 or node.module.startswith("specify_cli.consolidation.")
+        if in_package and leaf in _RANKS:
+            found.add(leaf)
+    return found
+
+
+def _rank_violations(paths: list[Path]) -> dict[str, list[str]]:
+    return {
+        path.stem: sorted(target for target in _family_imports(path) if _RANKS[target] >= _RANKS[path.stem])
+        for path in paths
+        if any(_RANKS[target] >= _RANKS[path.stem] for target in _family_imports(path))
+    }
+
+
+def test_rank_table_names_every_split_module() -> None:
+    assert sorted(path.stem for path in _SPLIT_MODULES) == sorted(_RANKS)
+
+
+def test_family_imports_point_down_the_rank_table() -> None:
+    offenders = _rank_violations(_SPLIT_MODULES)
+    assert not offenders, f"a split module imports a module of its own or a higher rank: {offenders}"
+
+
+def test_facade_docstring_lists_the_modules_in_rank_order() -> None:
+    doc = ast.get_docstring(_tree(_FACADE)) or ""
+    listed = [line.split("``")[1] for line in doc.splitlines() if line.startswith("* ``reconciliation_")]
+    assert sorted(listed) == sorted(_RANKS)
+    ranks = [_RANKS[name] for name in listed]
+    assert ranks == sorted(ranks), f"the facade docstring must list the modules in import order: {listed}"
+
+
+def test_rank_scan_catches_an_upward_import(tmp_path: Path) -> None:
+    """Control: a function-local relative import of a higher-rank module is a violation."""
+    sample = tmp_path / "reconciliation_kernel.py"
+    sample.write_text("def f():\n    from .reconciliation_claim import x\n    return x\n", encoding="utf-8")
+    assert _rank_violations([sample]) == {"reconciliation_kernel": ["reconciliation_claim"]}
 
 
 def test_no_top_level_name_is_defined_in_two_split_modules() -> None:
