@@ -85,6 +85,8 @@ from specify_cli.consolidation.preflight import (
     mission_branch_check_required,
 )
 from specify_cli.consolidation import rollback
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, claim_inputs
+from specify_cli.consolidation.claim_inputs import frozen_dependency_tips as frozen_dependency_tips_of
 from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync_preflight
 from specify_cli.consolidation.resolve import DependencyRefSetChanged, _load_merge_state_entry_for_mission, _load_or_create_merge_state
 from specify_cli.consolidation.state import (
@@ -270,7 +272,7 @@ def _record_operator_attestations(
     (``canceled_attestation.record_canceled_superseded_attestation``).
 
     *frozen_dependency_tips* (FR-015) is a ``--resume``'s frozen anchor set
-    (:func:`_resume_frozen_dependency_tips`), read by the approved-reviewed repeat check.
+    (:func:`_resume_claim_inputs`), read by the approved-reviewed repeat check.
     """
     if not (wp_ids or approved_wp_ids or no_implementation_wp_ids):
         return ()
@@ -283,31 +285,27 @@ def _record_operator_attestations(
     return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason)
 
 
-def _resume_frozen_dependency_tips(
+def _resume_claim_inputs(
     main_repo: Path,
     canonical_id: str,
     feature_dir: Path,
     lanes_manifest: LanesManifest,
     excluded_canceled_wp_ids: frozenset[str],
-    *,
-    requested: tuple[str, ...],
-) -> Mapping[str, str] | None:
-    """A ``--resume``'s frozen dependency anchors for the approved-reviewed repeat check (FR-015, CI-5; WP09 review (d)).
+) -> ClaimInputs | None:
+    """A ``--resume``'s ``SAVED`` claim inputs, built once before the attestations (FR-015, CI-5; L4).
 
-    The attestations run before the record is loaded for the run and before the claim, so the
-    resume's ``SAVED`` claim inputs are built here, read-only, from the same ``state.json``
-    ``_load_or_create_merge_state`` loads moments later: the repeat check then reads the anchor set
-    the claim reads. ``None`` -- the live read -- when no ``--attest-approved-reviewed`` was
-    requested or no record exists (a fresh run, whose live tips are what its claim then freezes).
+    A saved record is what makes this run a resume (``resolve._load_or_create_merge_state`` resumes
+    exactly when one loads). The attestations run before the record is loaded for the run and before
+    the claim, so the resume's ``SAVED`` inputs are built here, read-only, from the same ``state.json``:
+    the approved-reviewed repeat check reads their frozen anchor set, and the claim phase reuses that
+    same set (``ClaimInputContext.prior``) instead of reading the dependency lanes again. ``None`` -- the
+    live read -- when no record exists (a fresh run, whose live tips are what its claim then freezes).
     """
-    if not requested:
-        return None
     state = load_state(main_repo, canonical_id)
     if state is None:
         return None
-    from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, claim_inputs, frozen_dependency_tips
-
-    inputs = claim_inputs(
+    # Local annotation re-narrows the import (the narrow-file mypy override skips following it).
+    inputs: ClaimInputs = claim_inputs(
         ClaimInputSource.SAVED,
         ClaimInputContext(
             repo_root=main_repo,
@@ -319,9 +317,7 @@ def _resume_frozen_dependency_tips(
             excluded_canceled_wp_ids=excluded_canceled_wp_ids,
         ),
     )
-    # Local annotation re-narrows the import (the narrow-file mypy override skips following it).
-    tips: Mapping[str, str] | None = frozen_dependency_tips(inputs)
-    return tips
+    return inputs
 
 
 def _record_canceled_attestations(
@@ -516,10 +512,10 @@ def _run_lane_based_consolidation_locked(
     # #5686 (FR-005): refuse a move the record cannot explain BEFORE anything this
     # process does could move a branch (the attestations below, the resume heal).
     start_tips = _refuse_unexplained_branch_moves(main_repo, canonical_id)
-    # FR-015: a resume's repeat-attestation check reads the claim's frozen anchor set.
-    frozen_dependency_tips = _resume_frozen_dependency_tips(
-        main_repo, canonical_id, feature_dir, lanes_manifest, excluded_canceled_wp_ids, requested=attest_approved_reviewed
-    )
+    # FR-015: a resume's SAVED claim inputs are built once here; the repeat-attestation check and
+    # the claim phase both read their one frozen anchor set.
+    resume_inputs = _resume_claim_inputs(main_repo, canonical_id, feature_dir, lanes_manifest, excluded_canceled_wp_ids)
+    frozen_dependency_tips = frozen_dependency_tips_of(resume_inputs) if resume_inputs is not None else None
     # FR-012: record any operator attestation BEFORE the claim is captured, so
     # the reconciliation gate reads it from the event log it already reads.
     recorded_attestations = _record_operator_attestations(
@@ -606,6 +602,8 @@ def _run_lane_based_consolidation_locked(
         dependency_ref_pins=dict(state.dependency_ref_pins),
         recorded_attestations=recorded_attestations,
         own_pre_claim_moves=own_pre_claim_moves,
+        # L4: the resume's SAVED inputs built above; the claim phase reuses their frozen anchor set.
+        claim_inputs=resume_inputs if is_resume else None,
     )
 
     # FR-006: at resume startup, heal any coord strand a prior attempt left

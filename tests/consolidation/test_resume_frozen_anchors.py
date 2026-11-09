@@ -374,22 +374,49 @@ def test_no_degraded_anchor_prints_nothing(monkeypatch: pytest.MonkeyPatch) -> N
     assert sink.getvalue() == ""
 
 
-def _resume_tips(monkeypatch: pytest.MonkeyPatch, state: ConsolidationState | None, requested: tuple[str, ...]) -> Any:
+def _resume_inputs(monkeypatch: pytest.MonkeyPatch, state: ConsolidationState | None) -> Any:
     monkeypatch.setattr(executor, "load_state", lambda _repo, _id: state)
     monkeypatch.setattr(ci, "capture_branch_tip", lambda _repo, branch: f"live-{branch}")
-    return executor._resume_frozen_dependency_tips(_REPO, "m", _REPO / "status", _MANIFEST, frozenset(), requested=requested)
+    return executor._resume_claim_inputs(_REPO, "m", _REPO / "status", _MANIFEST, frozenset())
 
 
 def test_attestation_reads_the_resume_records_frozen_tips(monkeypatch: pytest.MonkeyPatch) -> None:
     """WP09 review (d): the attestation check gets the SAVED claim inputs' anchor set, built before the claim phase."""
-    tips = _resume_tips(monkeypatch, _state({_BRANCH_A: _FROZEN_A, _BRANCH_B: _FROZEN_B}), ("WP02",))
+    inputs = _resume_inputs(monkeypatch, _state({_BRANCH_A: _FROZEN_A, _BRANCH_B: _FROZEN_B}))
 
-    assert dict(tips) == {_BRANCH_A: _FROZEN_A, _BRANCH_B: _FROZEN_B}
+    assert inputs.source is ci.ClaimInputSource.SAVED
+    assert dict(ci.frozen_dependency_tips(inputs)) == {_BRANCH_A: _FROZEN_A, _BRANCH_B: _FROZEN_B}
 
 
-def test_attestation_reads_live_without_a_record_or_a_request(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _resume_tips(monkeypatch, None, ("WP02",)) is None, "a fresh run: its live tips are what the claim then freezes (CI-5)"
-    assert _resume_tips(monkeypatch, _state({_BRANCH_A: _FROZEN_A}), ()) is None, "no --attest-approved-reviewed: nothing to read"
+def test_resume_inputs_are_built_on_a_resume_whatever_was_attested(monkeypatch: pytest.MonkeyPatch) -> None:
+    """L4: gated on the saved record (the resume flag), not on an attestation request; a fresh run reads live."""
+    assert _resume_inputs(monkeypatch, None) is None, "a fresh run: its live tips are what the claim then freezes (CI-5)"
+    assert _resume_inputs(monkeypatch, _state({_BRANCH_A: _FROZEN_A})) is not None
+
+
+def test_claim_phase_reuses_the_resume_anchor_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """L4: a SAVED build handed the executor's earlier SAVED value reads no dependency lane again."""
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda _repo, branch: f"live-{branch}")
+    prior = _saved({_BRANCH_A: _FROZEN_A})
+    assert prior.degraded_dependency_anchors, "lane-b has no frozen tip: the prior read it live once (degraded)"
+    monkeypatch.setattr(ci, "capture_branch_tip", lambda *_a: pytest.fail("the prior SAVED anchor set is reused, never read again"))
+    state = _state({_BRANCH_A: _FROZEN_A})
+
+    rebuilt = ci.claim_inputs(
+        ci.ClaimInputSource.SAVED,
+        ci.ClaimInputContext(
+            repo_root=_REPO,
+            manifest=_MANIFEST,
+            status_dir=_REPO / "status",
+            strategy=state.strategy,
+            resolved_target_base=None,
+            state=state,
+            prior=prior,
+        ),
+    )
+
+    assert rebuilt.dependency_anchors is prior.dependency_anchors
+    assert rebuilt.degraded_dependency_anchors == prior.degraded_dependency_anchors
 
 
 def test_gate_rebuild_reuses_the_claim_phase_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
