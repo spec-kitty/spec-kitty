@@ -32,15 +32,15 @@ from __future__ import annotations
 
 import ast
 import re
+import types
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-import types
 from specify_cli.consolidation import phase_claim, phase_gate, forecast, reconciliation
 from tests.consolidation import reconciliation_family
-from tests.consolidation.reconciliation_family import setattr_reconciliation_family
+from tests.consolidation.reconciliation_family import patch_callee_name, setattr_reconciliation_family
 
 pytestmark = pytest.mark.fast
 
@@ -70,17 +70,6 @@ class _PatchTarget:
 
 def _is_family_module(dotted: str) -> bool:
     return dotted.startswith(_FAMILY_PREFIX)
-
-
-def _patch_callee_name(func: ast.expr) -> str | None:
-    """The patch-ish callee name: ``setattr``, ``patch`` or ``patch.object``."""
-    if isinstance(func, ast.Attribute):
-        if func.attr == "object" and isinstance(func.value, ast.Attribute):
-            return "patch.object"
-        return func.attr
-    if isinstance(func, ast.Name):
-        return func.id
-    return None
 
 
 def _reconciliation_aliases(tree: ast.AST) -> dict[str, str]:
@@ -131,7 +120,7 @@ def _fstring_target(node: ast.JoinedStr, consts: Mapping[str, str]) -> tuple[str
 
 def _target_from_call(node: ast.Call, aliases: Mapping[str, str], consts: Mapping[str, str]) -> _PatchTarget | None:
     """The reconciliation-family patch target of one call, if it is one."""
-    callee = _patch_callee_name(node.func)
+    callee = patch_callee_name(node.func)
     if callee not in _PATCH_CALLEES or not node.args:
         return None
     first = node.args[0]
@@ -354,6 +343,22 @@ def test_stale_patch_fails_the_guard() -> None:
         "plain string": 'def test(monkeypatch):\n    monkeypatch.setattr("specify_cli.consolidation.reconciliation.Y", 3)\n',
         "f-string constant": 'BASE = "specify_cli.consolidation.reconciliation"\n\ndef test(monkeypatch):\n    monkeypatch.setattr(f"{BASE}.Y", 3)\n',
         "module object": 'from specify_cli.consolidation import reconciliation as rec\n\ndef test(monkeypatch):\n    monkeypatch.setattr(rec, "Y", 3)\n',
+        "mock.patch string": ('from unittest import mock\n\ndef test():\n    with mock.patch("specify_cli.consolidation.reconciliation.Y"):\n        pass\n'),
+        "mock.patch.object": (
+            "from specify_cli.consolidation import reconciliation as rec\n"
+            "from unittest import mock\n\n"
+            "def test():\n"
+            '    with mock.patch.object(rec, "Y"):\n'
+            "        pass\n"
+        ),
+        "bare patch string": ('from unittest.mock import patch\n\ndef test():\n    with patch("specify_cli.consolidation.reconciliation.Y"):\n        pass\n'),
+        "bare patch.object": (
+            "from specify_cli.consolidation import reconciliation as rec\n"
+            "from unittest.mock import patch\n\n"
+            "def test():\n"
+            '    with patch.object(rec, "Y"):\n'
+            "        pass\n"
+        ),
     }
     for form, source in cases.items():
         messages = unlooked_up_patches({Path("t.py"): source}, module_sources)
@@ -432,6 +437,15 @@ def test_forward_reference_precedence_and_alias() -> None:
     bound_patch = 'def test(monkeypatch):\n    monkeypatch.setattr("specify_cli.consolidation.reconciliation_bound.Y", 3)\n'
     assert unlooked_up_patches({Path("t.py"): bound_patch}, rule3_modules) == []
 
+    # Rule 4: a function-local import from any other module is ignored — the
+    # name counts as a lookup in M itself.
+    rule4_modules = {
+        "specify_cli.consolidation.reconciliation": "X = 0\n",
+        "specify_cli.consolidation.reconciliation_kernel": "def g():\n    from os import Y\n    return Y\n",
+    }
+    kernel_patch = 'def test(monkeypatch):\n    monkeypatch.setattr("specify_cli.consolidation.reconciliation_kernel.Y", 3)\n'
+    assert unlooked_up_patches({Path("t.py"): kernel_patch}, rule4_modules) == []
+
 
 def test_family_helper_patches_every_binding_module(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = types.ModuleType("fake")
@@ -466,3 +480,18 @@ def test_family_helper_patches_consumer_bindings(monkeypatch: pytest.MonkeyPatch
 def test_family_helper_refuses_unbound_name() -> None:
     with pytest.raises(AttributeError, match="no consolidation reconciliation-family module binds"):
         reconciliation_family.family_modules_binding("definitely_not_bound")
+
+
+def test_patch_reconciliation_family_patches_and_restores(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``patch_reconciliation_family`` patches every binding module and restores them all."""
+    fake = types.ModuleType("fake")
+    original = reconciliation.TERMINUS_ENTRY_POINTS
+    vars(fake)["TERMINUS_ENTRY_POINTS"] = original
+    monkeypatch.setattr(reconciliation_family, "RECONCILIATION_FAMILY", (reconciliation, fake))
+    sentinel = object()
+    with reconciliation_family.patch_reconciliation_family("TERMINUS_ENTRY_POINTS", sentinel) as patched:
+        assert patched is sentinel
+        assert reconciliation.TERMINUS_ENTRY_POINTS is sentinel
+        assert vars(fake)["TERMINUS_ENTRY_POINTS"] is sentinel
+    assert reconciliation.TERMINUS_ENTRY_POINTS is original
+    assert vars(fake)["TERMINUS_ENTRY_POINTS"] is original

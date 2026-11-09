@@ -21,10 +21,16 @@ Scope notes:
   step 4 uses) is likewise outside the guard's scope.
 - ``RECONCILIATION_FAMILY`` grows as later work packages of the mission create
   the split modules; each new module must be appended there.
+- :func:`patch_callee_name` is the ONE AST helper both the surface-pin scanner
+  (``test_reconciliation_surface_pin.py``) and the patch-lookup guard
+  (``test_reconciliation_family_guard.py``) use to recognize a patch call
+  (review cycle 1: it was duplicated verbatim between the two files and had
+  drifted — the guard and the scanner disagreed on ``patch.object``).
 """
 
 from __future__ import annotations
 
+import ast
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from types import ModuleType
@@ -48,7 +54,43 @@ RECONCILIATION_FAMILY: tuple[ModuleType, ...] = (reconciliation,)
 # names by name at import time (verified: phase_claim.py, phase_gate.py and
 # forecast.py import reconciliation names directly, so a family-only patch does
 # not reach their bindings). A new by-name consumer must be added here.
+#
+# Deliberately NOT listed (review cycle 1): approved_attestation.py (binds
+# _APPROVED_MEMBERSHIP_LANES, _bound_approved_wp_ids, _bound_lanes,
+# _closed_world_anchors, _is_bookkeeping, _lane_branch_for, _planning_prefix
+# and approval_stamp_anchors through a relative import), resolve.py (binds
+# write_post_fix_marker) and run_state.py (binds ApprovedWpCommitSet and
+# VerifyResult). They do bind reconciliation names by name, but no name any
+# test in the corpus patches is bound by them today, so listing them would
+# widen every family patch to modules no patch needs to reach. WP08/WP09
+# retargets: when a patched name becomes bound by one of these modules, add
+# that module here.
 RECONCILIATION_CONSUMERS: tuple[ModuleType, ...] = (phase_claim, phase_gate, forecast)
+
+
+def _is_patch_receiver(value: ast.expr) -> bool:
+    """``patch`` or anything ending in ``.patch`` (``mock.patch``, ``unittest.mock.patch``)."""
+    if isinstance(value, ast.Name):
+        return value.id == "patch"
+    return isinstance(value, ast.Attribute) and value.attr == "patch"
+
+
+def patch_callee_name(func: ast.expr) -> str | None:
+    """The patch-ish callee name: ``setattr``, ``patch`` or ``patch.object``.
+
+    Covers every spelling the corpus uses: ``monkeypatch.setattr(...)``,
+    ``mock.patch(...)`` / ``mock.patch.object(...)``, ``unittest.mock.patch(...)``
+    / ``unittest.mock.patch.object(...)``, and the ``from unittest.mock import
+    patch`` spellings ``patch(...)`` and ``patch.object(...)`` (review cycle 1:
+    the bare-``patch`` ``patch.object`` form was missed).
+    """
+    if isinstance(func, ast.Attribute):
+        if func.attr == "object" and _is_patch_receiver(func.value):
+            return "patch.object"
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return None
 
 
 def family_modules_binding(name: str) -> tuple[ModuleType, ...]:
