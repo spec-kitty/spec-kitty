@@ -25,7 +25,7 @@ What the injected probe observed for one work package at one transition. It repl
 
 | Field | Type | Meaning |
 |---|---|---|
-| `sha` | `str \| None` | 40-hex lane head (`single_branch` with a minted Mission branch: that branch's head). |
+| `sha` | `str \| None` | 40- or 64-hex lane head (`single_branch` with a minted Mission branch: that branch's head). |
 | `applicable` | `bool` | `False` for a planning lane, a work package not in `lanes.json`, or no `lanes.json`. Nothing is windowed then. |
 | `cause` | `CaptureCause \| None` | Set exactly when `applicable` and `sha is None`. |
 | `detail` | `str` | Short human text (branch name, git stderr head). Empty when `sha` is set. |
