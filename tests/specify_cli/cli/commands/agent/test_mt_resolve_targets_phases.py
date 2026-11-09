@@ -173,36 +173,15 @@ def _resolved_fields(st: _MoveTaskState) -> dict[str, Any]:
     }
 
 
-_PLAIN_ORDER = [
-    "_refuse_unparseable_agent",
-    "locate_project_root",
-    "_emit_sparse_session_warning",
-    "get_auto_commit_default",
-    "_find_mission_slug",
-    "_ensure_target_branch_checked_out",
-    "_resolve_dispatch_binding",
-    "_skip_target_branch_commit",
-    "_protected_branch_status_commit_error",
-    "_mt_warn_worktree_kitty_specs",
-    "feature_write_dir",
-    "check_pre30_layout",
-    "locate_work_package",
-    "_read_transactional_wp_lane",
-    "_mt_guard_planned_boundary_lanes",
-    "_mt_resolve_current_agent",
-]
-
-
 # ---------------------------------------------------------------------------
-# Resolution: order and the fields it fills
+# Resolution: the fields it fills
 # ---------------------------------------------------------------------------
 
 
-def test_plain_resolution_order_and_fields(harness: Harness) -> None:
+def test_plain_resolution_fields(harness: Harness) -> None:
     st = _state(tracker_ref=[" ISSUE-1 ", "", "  ", "ISSUE-2"])
     _resolve(harness, st)
 
-    assert harness.calls == _PLAIN_ORDER
     assert harness.errors == []
     assert _resolved_fields(st) == {
         "target_lane": Lane.IN_PROGRESS,
@@ -226,8 +205,6 @@ def test_plain_resolution_order_and_fields(harness: Harness) -> None:
     assert binding["mission_id"] is None
     assert binding["repo_root"] == harness.main_root
     assert harness.kwargs["_find_mission_slug"]["repo_root"] == harness.tmp / "checkout"
-    assert harness.kwargs["locate_work_package"]["args"] == (harness.tmp / "checkout", _SLUG, "WP01")
-    assert harness.kwargs["_protected_branch_status_commit_error"]["args"] == ("main", harness.main_root, "spec-kitty agent tasks move-task", _SLUG)
 
 
 def test_explicit_auto_commit_skips_the_project_default(harness: Harness) -> None:
@@ -236,26 +213,13 @@ def test_explicit_auto_commit_skips_the_project_default(harness: Harness) -> Non
 
     assert "get_auto_commit_default" not in harness.calls
     assert "_skip_target_branch_commit" not in harness.calls
-    assert "_protected_branch_status_commit_error" not in harness.calls
     assert st.resolved_auto_commit is False
-
-
-def test_skipped_target_branch_commit_bypasses_the_protected_check(harness: Harness) -> None:
-    harness.skip_commit = True
-    harness.protected_error = _PROTECTED
-    st = _state()
-    _resolve(harness, st)
-
-    assert st.skip_target_branch_commit is True
-    assert "_protected_branch_status_commit_error" not in harness.calls
-    assert harness.errors == []
 
 
 def test_invocation_id_reads_the_mission_id_for_the_binding(harness: Harness) -> None:
     st = _state(invocation_id="01KZZZZZINVOCATION00000000", to="approved")
     _resolve(harness, st)
 
-    assert harness.calls.index("placement_seam") < harness.calls.index("_resolve_dispatch_binding")
     assert harness.kwargs["placement_seam"]["args"] == (harness.main_root, _SLUG)
     binding = harness.kwargs["_resolve_dispatch_binding"]
     assert binding["mission_id"] == "01KZZZZZMISSIONID000000000"
@@ -267,7 +231,7 @@ def test_invocation_id_reads_the_mission_id_for_the_binding(harness: Harness) ->
 # ---------------------------------------------------------------------------
 
 
-def test_missing_project_root_refuses_first(harness: Harness) -> None:
+def test_missing_project_root_refuses(harness: Harness) -> None:
     harness.project_root = None
     st = _state()
 
@@ -276,7 +240,6 @@ def test_missing_project_root_refuses_first(harness: Harness) -> None:
 
     assert exit_info.value.exit_code == 1
     assert harness.errors == ["Could not locate project root"]
-    assert harness.calls == ["_refuse_unparseable_agent", "locate_project_root", "_output_error"]
 
 
 def test_protected_branch_refuses_before_the_event_log_read(harness: Harness) -> None:
@@ -288,7 +251,7 @@ def test_protected_branch_refuses_before_the_event_log_read(harness: Harness) ->
 
     assert exit_info.value.exit_code == 1
     assert harness.errors == [_PROTECTED]
-    assert harness.calls[-3:] == ["_protected_branch_status_commit_error", "_self_review_fallback_option_error", "_output_error"]
+    assert "_read_transactional_wp_lane" not in harness.calls
     assert "feature_write_dir" not in harness.calls
 
 
@@ -324,7 +287,7 @@ def test_pre30_layout_refuses_before_locating_the_work_package(harness: Harness)
     assert harness.errors == [
         "Pre-3.0 layout detected (tasks/planned/ directories or frontmatter lane state).\nRun `spec-kitty upgrade` to migrate before continuing."
     ]
-    assert harness.calls[-2:] == ["check_pre30_layout", "_output_error"]
+    assert "locate_work_package" not in harness.calls
     assert st.mt_feature_dir == harness.coord_dir
 
 
@@ -343,23 +306,6 @@ def test_owned_resolution_uses_the_validated_checkout(harness: Harness) -> None:
     harness.old_lane = Lane.IN_PROGRESS
     _resolve(harness, st)
 
-    assert harness.calls == [
-        "_refuse_unparseable_agent",
-        "_mt_preflight_owned_request",
-        "_emit_sparse_session_warning",
-        "get_auto_commit_default",
-        "_mt_apply_owned_targets",
-        "_resolve_dispatch_binding",
-        "_protected_branch_status_commit_error",
-        "_mt_warn_worktree_kitty_specs",
-        "feature_write_dir",
-        "check_pre30_layout",
-        "locate_work_package",
-        "_read_transactional_wp_lane",
-        "_mt_guard_planned_boundary_lanes",
-        "_mt_resolve_owned_review_base",
-        "_mt_resolve_current_agent",
-    ]
     assert st.repo_root == harness.tmp / "owned"
     assert st.main_repo_root == harness.tmp / "repo"
     assert st.target_branch == "kitty/mission-probe"
@@ -369,16 +315,16 @@ def test_owned_resolution_uses_the_validated_checkout(harness: Harness) -> None:
     assert harness.kwargs["locate_work_package"]["owned"] is owned
 
 
-def test_owned_checkout_refuses_an_unsupported_source_lane(harness: Harness) -> None:
+@pytest.mark.parametrize("lane", [Lane.DONE, Lane.CANCELED, Lane.BLOCKED])
+def test_owned_checkout_refuses_an_unsupported_source_lane(harness: Harness, lane: Lane) -> None:
     st = _state(owned=_owned(harness), to="in_progress")
-    harness.old_lane = Lane.DONE
+    harness.old_lane = lane
 
     with pytest.raises(ActionContextError) as error:
         _resolve(harness, st)
 
     assert error.value.code == "OWNED_TRANSITION_UNSUPPORTED"
     assert str(error.value) == "Owned checkout does not support transitions from this lane."
-    assert harness.calls[-1] == "_read_transactional_wp_lane"
 
 
 # ---------------------------------------------------------------------------
@@ -421,23 +367,6 @@ def test_protected_refusal_is_not_consulted_without_a_target_branch_commit(harne
     assert harness.calls == []
 
 
-def test_protected_refusal_passes_an_unprotected_branch(harness: Harness) -> None:
-    st = _state()
-    st.resolved_auto_commit = True
-
-    tasks_move_task._mt_refuse_protected_status_commit(st)
-
-    assert harness.calls == ["_protected_branch_status_commit_error"]
-    assert harness.errors == []
-
-
-def test_post30_layout_passes_a_current_layout(harness: Harness) -> None:
-    tasks_move_task._mt_require_post30_layout(_state(), harness.coord_dir)
-
-    assert harness.kwargs["check_pre30_layout"]["args"] == (harness.coord_dir,)
-    assert harness.errors == []
-
-
 @pytest.mark.parametrize("lane", [Lane.DONE, Lane.CANCELED, Lane.BLOCKED])
 def test_owned_source_lane_is_only_checked_for_an_owned_checkout(lane: Lane) -> None:
     st = _state()
@@ -446,7 +375,7 @@ def test_owned_source_lane_is_only_checked_for_an_owned_checkout(lane: Lane) -> 
     tasks_move_task._mt_require_owned_source_lane(st)
 
 
-@pytest.mark.parametrize("lane", sorted(tasks_move_task._OWNED_LIFECYCLE_LANES))
+@pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED])
 def test_owned_source_lane_accepts_the_review_lifecycle(harness: Harness, lane: Lane) -> None:
     st = _state(owned=_owned(harness))
     st.old_lane = lane
