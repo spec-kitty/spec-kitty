@@ -341,6 +341,15 @@ def test_minted_single_branch_write_branch_readings(tmp_path: Path, caplog: pyte
     assert read_lane_head(repo_root=ctx.repo, mission_slug=ctx.slug, wp_id="WP01") == LaneHeadReading.of_sha(head)
 
 
+def test_minted_write_branch_rev_parse_failure_reads_as_git_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ctx = build_flat_topology_mission(tmp_path, topology="single_branch", mission_branch="kitty/mission-flat-write")
+    _rev_parse_exits(monkeypatch, 128, "fatal: bad ref")
+
+    reading = read_lane_head(repo_root=ctx.repo, mission_slug=ctx.slug, wp_id="WP01")
+
+    assert reading.cause is CaptureCause.GIT_ERROR and "fatal: bad ref" in reading.detail, reading
+
+
 def test_planning_lane_writes_no_wp_window(flat_mission: FlatTopologyContext) -> None:
     _write_manifest(flat_mission, [_lane(PLANNING_LANE_ID, "WP01")])
     seed_wp_to_planned(flat_mission.primary_feature_dir, "WP01", slug=flat_mission.slug)

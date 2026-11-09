@@ -48,6 +48,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Protocol
 
@@ -175,20 +176,46 @@ _NO_STAMP_WARNING = (
 _WRITE_BRANCH_LANE = "the Mission write branch"
 
 
+#: ``git rev-parse --verify --quiet`` exits 1 when the ref does not exist; any other
+#: non-zero exit is a git failure (FR-003), never "branch missing".
+_REF_ABSENT_EXIT: Final = 1
+
+
+class _GitReadError(RuntimeError):
+    """A lane-branch read that failed for a reason other than the branch not existing."""
+
+
 def _branch_head(repo_root: Path, branch: str) -> str | None:
-    """``refs/heads/<branch>`` sha, ``None`` when the branch does not exist."""
+    """``refs/heads/<branch>`` sha, ``None`` when the branch does not exist.
+
+    Raises :class:`_GitReadError` when git itself fails (any exit other than 0 and
+    :data:`_REF_ABSENT_EXIT`), so the caller records a git error, not a missing branch.
+    """
     from specify_cli.core.git_ops import run_command
 
-    ret, out, _err = run_command(
+    ret, out, err = run_command(
         ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
         capture=True,
         check_return=False,
         cwd=repo_root,
     )
-    if ret != 0:
+    if ret == _REF_ABSENT_EXIT:
         return None
+    if ret != 0:
+        raise _GitReadError(f"git rev-parse exited {ret}: {err.strip()}")
     sha = out.strip()
     return sha or None
+
+
+def _any_branch_exists(repo_root: Path, branches: Iterable[str]) -> bool:
+    """Whether any of *branches* exists; a git failure counts as "exists" (it only raises the log level)."""
+    for branch in branches:
+        try:
+            if _branch_head(repo_root, branch) is not None:
+                return True
+        except _GitReadError:
+            return True
+    return False
 
 
 def _warn_no_stamp(mission_slug: str, wp_id: str, lane_id: str, why: str) -> None:
@@ -200,11 +227,14 @@ def _write_branch_head(repo_root: Path, mission_slug: str, wp_id: str, write_bra
 
     Every work package of such a Mission is stamped with this one branch's head, whatever
     lane ``lanes.json`` puts it in. A missing branch is logged at WARNING and reads as
-    ``lane_branch_missing``; a git error propagates to :func:`read_lane_head`, which turns it
-    into ``probe_error`` (C-1). Either way ``consolidate`` then treats the approval as
-    unstamped (FR-074).
+    ``lane_branch_missing``; a failing git read is logged and reads as ``git_error`` (FR-003).
+    Either way ``consolidate`` then treats the approval as unstamped (FR-074).
     """
-    sha = _branch_head(repo_root, write_branch)
+    try:
+        sha = _branch_head(repo_root, write_branch)
+    except _GitReadError as exc:
+        _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, f"git error: {exc}")
+        return LaneHeadReading.failed(CaptureCause.GIT_ERROR, str(exc))
     if sha is None:
         why = f"Mission branch {write_branch} does not exist"
         _warn_no_stamp(mission_slug, wp_id, _WRITE_BRANCH_LANE, why)
@@ -248,7 +278,7 @@ def _read_lane_head(*, repo_root: Path, mission_slug: str, wp_id: str, owned: Ow
     if sha is not None:
         return LaneHeadReading.of_sha(sha)
     other_branches = (lane_created_branch(manifest, other.lane_id) for other in manifest.lanes if other.lane_id != lane.lane_id and not is_planning_lane(other))
-    if any(_branch_head(repo_root, other) is not None for other in other_branches):
+    if _any_branch_exists(repo_root, other_branches):
         _warn_no_stamp(mission_slug, wp_id, lane.lane_id, f"lane branch {branch} does not exist")
     else:
         logger.debug("read_lane_head: %s/%s lane %s has no branch yet (pre-implementation)", mission_slug, wp_id, lane.lane_id)
