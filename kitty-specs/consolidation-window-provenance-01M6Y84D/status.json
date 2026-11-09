@@ -166,6 +166,9 @@
       "last_event_id": "01M6Z1C6DQNP54P5D4XCNY0GJZ",
       "last_transition_at": "2026-11-09T02:14:41.847553+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 11 strict xfails pin the intended verdicts (a,a-mixed,b,c x2,d,e,f,h x2, WW-6); (g) is a passing consequence test because its flip is unreachable (see tracer)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 57657,
