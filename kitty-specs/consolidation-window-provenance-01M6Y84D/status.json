@@ -1,7 +1,7 @@
 {
-  "event_count": 89,
-  "last_event_id": "01M6ZHNK0ZDN4XB8H620Q8VSNV",
-  "materialized_at": "2026-11-09T06:59:26.879212+00:00",
+  "event_count": 90,
+  "last_event_id": "01M6ZHSQ8VGMFFKPHX78T3GW97",
+  "materialized_at": "2026-11-09T07:01:42.299340+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 11
   },
   "work_packages": {
@@ -328,15 +328,15 @@
       }
     },
     "WP10": {
-      "actor": "opencode",
-      "agent": "opencode:glm-5.3:python-pedro",
+      "actor": "claude",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "opencode:glm-5.3:python-pedro",
-      "lane": "for_review",
-      "last_event_id": "01M6ZHNK0ZDN4XB8H620Q8VSNV",
-      "last_transition_at": "2026-11-09T06:59:26.879212+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6ZHSQ8VGMFFKPHX78T3GW97",
+      "last_transition_at": "2026-11-09T07:01:42.299340+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-09T06:14:05Z – opencode:glm-5.3:python-pedro – shell_pid=4185396 – Red oracle (stopped per prompt rule): uv run --frozen pytest -q tests/consolidation/test_reconciliation_surface_pin.py tests/consolidation/test_reconciliation_family_guard.py tests/consolidation/test_reconciliation.py -> '1 failed, 227 passed, 1 xfailed'. test_pinned_names_keep_object_identity fails with '__all__ drifted across the reconciliation family'. Cause: reconciliation_surface.json pins __all__ (WP04 trace: '__all__ itself from the regen path's own facade access'), and the identity check requires every family module binding a pinned non-function/class name to bind the facade's exact object; the two new modules' own __all__ lists (R6, plan C-007 row) necessarily differ. Verified __all__ is the ONLY drift: with the two __all__ lines temporarily removed the pin reports 7 passed (restored afterwards; tree clean except intended WP10 files). All 21 rtool.py check lines say 'same'; moved 13+8 symbols at expected line counts; facade is 3,526 lines; prune listed exactly the five expected deletable imports. Conflict is between WP10 R6 ('every new module declares __all__') and the WP04 pin's family-wide identity rule — asking the orchestrator for a ruling before continuing.",
@@ -345,9 +345,9 @@
         "Ready for review: commit 3c066aff95 on kitty/mission-consolidation-window-provenance-01M6Y84D-lane-a, WP base 1d7be36e. Pure move of 13 kernel + 8 claim-type symbols behind alias-form re-exports; 21/21 rtool.py check same; corpus byte-identical and changed_cells([]); every Phase 1/2 oracle green with BEFORE-equal counts (details in history). AUTHORIZED AMENDMENT (orchestrator ruling 2026-11-09): tests/consolidation/test_reconciliation_surface_pin.py identity check skips __all__ only + control test; pin JSON untouched. KNOWN BASELINE RED (orchestrator ruling 2026-11-09, closeout blocker, NOT WP10's): tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported, ::test_m11c_gate_reads_the_widened_section_it_is_given and tests/architectural/test_dead_symbol_allowlist_contract.py::test_m11_gate_reads_the_allowlist_file_it_is_given fail (3 failed, 52 passed) on 9 mission symbols (claim_inputs::live_lane_tips; wp_attribution::OpenerSelection, WindowGap, WindowGapReason, WindowOpen, window_open_of, window_opener_events; status.lane_head::LaneHeadProbe, probe_lane_head) — reproduced at the WP base before any WP10 edit; wired by WP19/WP21; no allowlist rows added. The dead-symbol gate must be green before the PR."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 4185396,
-      "shell_pid_created_at": "1794203754.29",
+      "role": "reviewer",
+      "shell_pid": 713959,
+      "shell_pid_created_at": "1794207695.91",
       "subtasks": {
         "T054": "done",
         "T055": "done",
