@@ -329,6 +329,7 @@ def check_lane_windows(
     is_bookkeeping: Callable[[str], bool],
     tip: str,
     canceled_exempt: frozenset[str] = frozenset(),
+    dependency_exempt: frozenset[str] = frozenset(),
 ) -> tuple[tuple[BoundRefusal, ...], tuple[BoundRefusal, ...]]:
     """``(tier_one, tier_two)`` refusals of one code lane judged by its work-package windows (FR-007, WW-1, WW-2).
 
@@ -347,6 +348,11 @@ def check_lane_windows(
     them, so a canceled work package's commit after an approval stamp still refuses there (#5720).
     Adding to tier 2's exempt set keeps :func:`_preceding_wp`'s invariant (tier 2 judges only
     commits tier 1 did).
+
+    *dependency_exempt* is the commits of the operator's declared, pinned external dependency refs
+    (#6771, the set the closed world exempts). Tier 2 exempts them, so a declared ref merged before a
+    work package's window keeps the pre-window verdict; tier 1 is not given them (the approval-stamp
+    bound never read the declaration).
     """
     anchors = list(exemption_anchors)
     exempt = lane_exempt_commits(repo_root, claim_base, anchors)
@@ -373,7 +379,7 @@ def check_lane_windows(
         tip=tip,
         claim_base=claim_base,
         windows=windows,
-        exempt=exempt | canceled_exempt,
+        exempt=exempt | canceled_exempt | dependency_exempt,
         is_bookkeeping=is_bookkeeping,
     )
     return (), tier_two

@@ -626,6 +626,13 @@
     "exit_code": 0,
     "status": "pass"
   },
+  "fresh|single_lane|stamp=present|window=recorded|dependency_ref_merged_before_window": {
+    "codes": [],
+    "divergence_fields": [],
+    "exit_code": 0,
+    "status": "pass",
+    "text": "\u2713 Reconciliation verified: approved-WP claim integrity and squash content attribution verified (no un-attributable content on the target); per-SHA approved-reachability deferred under squash strategy."
+  },
   "fresh|single_lane|stamp=present|window=recorded|history_read_error": {
     "codes": [],
     "divergence_fields": [],
