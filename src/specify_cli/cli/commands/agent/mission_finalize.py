@@ -53,7 +53,7 @@ are NOT relocated here — WP08 moves them to ``commit_router``.
 from __future__ import annotations
 
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
@@ -1157,6 +1157,107 @@ def _enter_api_authored_finalize_scope(
         raise typer.Exit(1) from None
 
 
+# ---------------------------------------------------------------------------
+# Phase records (#7410): Validate -> Settle -> Write
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FinalizeUndoState:
+    """What a refused run must undo, filled in as the run progresses (FR-015/NFR-001, SK3466).
+
+    The write-then-restore atomicity guard (T070/T073; operator decision on
+    T072/T073, follow-up: #5343 -- a true plan/apply split is NOT implemented).
+    What a refused run is guaranteed to leave behind, exactly:
+
+    * COVERED: the mission directory (bytes restored, new files removed;
+      meta.json via the SK3466 single-writer revert); for EVERY topology,
+      the status surface the transactional status emitter commits to
+      (#5641: the coordination branch and worktree for ``coord`` /
+      ``lanes_with_coord``, the current branch for ``lanes`` /
+      ``single_branch``, P's branch for an owned run) -- branch tip
+      restored by compare-and-swap, index by ``read-tree``, status files by
+      bytes, see ``finalize_status_surface.StatusSurfaceGuard``; owned runs
+      only, P's ``.kittify/derived/<slug>``; and the topology settlement
+      (S7, #7282) when this run applied one.
+    * NOT UNDONE, REPORTED: status commits on a branch that gained a
+      commit the run did not make -- after its last status write (a
+      foreign commit on top), or inside the status-write window (every
+      commit in ``tip_before..tip_after`` must be a non-merge commit
+      touching only this Mission's status files and the acceptance-matrix
+      scaffold, else the range is not provably the run's own). The branch
+      is never forced, the files those commits changed are left as they
+      left them, and the run names the commits it left. The window holds
+      the Mission's status lock, so another process's status write waits
+      for it; residual: a committer that takes no status lock, or one that
+      lands between the capture and the window opening, is
+      indistinguishable from the run's own. On a ``lanes`` /
+      ``single_branch`` surface the finalize commit itself shares that
+      branch, so a failure after it lands but before ``commit_landed`` is
+      set reads as "moved" too (same safe outcome).
+    * NOT COVERED (tracked in #5343): a status surface the guard cannot
+      capture at the run's first status write -- a coordination worktree
+      the run itself materializes, a detached HEAD -- whose status commits
+      are then neither undone nor reported (logged only); and the
+      non-owned ``R/.kittify/derived/<slug>`` view (untracked).
+    * Like any restore-on-failure guard it does not survive a hard process
+      kill mid-run (nor would a literal plan/apply without git-object
+      staging); it also never runs once ``commit_landed`` is set.
+
+    ``branch_setup`` stays ``None`` until the pre-write snapshot exists, so a
+    failure before it (nothing written yet) reverts nothing.
+    """
+
+    meta_commit_progress: _MetaBranchOverrideProgress = field(default_factory=_MetaBranchOverrideProgress)
+    commit_landed: _FinalizeCommitLanded = field(default_factory=_FinalizeCommitLanded)
+    # #5641: captured by ``_emit_tasks_started`` just before the run's first status write.
+    status_surface: StatusSurfaceGuard = field(default_factory=StatusSurfaceGuard)
+    branch_setup: _FinalizeBranchSetup | None = None
+    # S7 (#7282): what this run's topology settlement did, so a later failure undoes it.
+    settlement: SettlementHandle | None = None
+
+
+@dataclass(frozen=True)
+class _FinalizeUndoOutcome:
+    """What :func:`_undo_refused_finalize` did, for the failure reports."""
+
+    revert_error: str | None
+    status_leftover: StatusSurfaceLeftover | None
+    kept_files: list[Path]
+
+
+def _undo_refused_finalize(undo: _FinalizeUndoState, write_ledger: FinalizeWriteLedger) -> _FinalizeUndoOutcome:
+    """Undo a refused run: the meta.json override (SK3466), then the write scope and settlement.
+
+    Only undoes the mission-directory writes when the finalize commit never
+    landed. ``commit_landed`` (set inside ``_run_commit_pipeline`` the instant
+    the commit succeeds) is the guards' OWN marker; ``meta_commit_progress.
+    committed`` only means "meta.json rode the commit" and stays False when a
+    foreign meta.json field excludes it. A LATER, unrelated failure after a
+    real commit must never unwind an already-durable finalize.
+    """
+    setup = undo.branch_setup
+    meta_path = setup.meta_path_for_revert if setup is not None else None
+    revert_error = _revert_unpersisted_target_branch_override(
+        meta_path,
+        setup.meta_original_text if setup is not None else None,
+        meta_json_persisted=setup.meta_json_persisted if setup is not None else False,
+        meta_commit_progress=undo.meta_commit_progress,
+        written_text=write_ledger.text_for(meta_path) if meta_path is not None else None,
+    )
+    if setup is None or setup.mission_write_scope_dir is None or undo.commit_landed.landed:
+        return _FinalizeUndoOutcome(revert_error=revert_error, status_leftover=None, kept_files=[])
+    status_leftover, kept_files = _undo_finalize_with_settlement(
+        undo.settlement,
+        undo.status_surface,
+        setup.mission_write_scope_snapshot,
+        setup.mission_write_scope_dir,
+        owned_derived_snapshot=setup.owned_derived_snapshot,
+        owned_derived_dir=setup.owned_derived_dir,
+    )
+    return _FinalizeUndoOutcome(revert_error=revert_error, status_leftover=status_leftover, kept_files=kept_files)
+
+
 def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1254,74 +1355,8 @@ def finalize_tasks(
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --refresh-planning-commit --allow-orphaned
     """
-    # SK3466-R-001: tracked across the whole try body (not just the persist
-    # call site) so the except blocks below can undo an already-applied
-    # meta.json write if any later validation gate bails with typer.Exit
-    # before the finalize commit actually lands it. Declared before ``try``
-    # so a failure BEFORE the persist call (nothing written yet) still leaves
-    # these names bound.
-    meta_json_persisted = False
-    meta_commit_progress = _MetaBranchOverrideProgress()
-    commit_landed = _FinalizeCommitLanded()
-    meta_path_for_revert: Path | None = None
-    meta_original_text: str | None = None
-    # FR-015/NFR-001: the write-then-restore atomicity guard (T070/T073;
-    # operator decision on T072/T073, follow-up: #5343 -- a true plan/apply
-    # split is NOT implemented). What a refused run is guaranteed to leave
-    # behind, exactly:
-    #   * COVERED: the mission directory (bytes restored, new files removed;
-    #     meta.json via the SK3466 single-writer revert); for EVERY topology,
-    #     the status surface the transactional status emitter commits to
-    #     (#5641: the coordination branch and worktree for ``coord`` /
-    #     ``lanes_with_coord``, the current branch for ``lanes`` /
-    #     ``single_branch``, P's branch for an owned run) -- branch tip
-    #     restored by compare-and-swap, index by ``read-tree``, status files by
-    #     bytes, see ``finalize_status_surface.StatusSurfaceGuard``; and, owned
-    #     runs only, P's ``.kittify/derived/<slug>``.
-    #   * NOT UNDONE, REPORTED: status commits on a branch that gained a
-    #     commit the run did not make -- after its last status write (a
-    #     foreign commit on top), or inside the status-write window (every
-    #     commit in ``tip_before..tip_after`` must be a non-merge commit
-    #     touching only this Mission's status files and the acceptance-matrix
-    #     scaffold, else the range is not provably the run's own). The branch
-    #     is never forced, the files those commits changed are left as they
-    #     left them, and the run names the commits it left. The window holds
-    #     the Mission's status lock, so another process's status write waits
-    #     for it; residual: a committer that takes no status lock, or one that
-    #     lands between the capture and the window opening, is
-    #     indistinguishable from the run's own. On a ``lanes`` /
-    #     ``single_branch`` surface the finalize commit itself shares that
-    #     branch, so a failure after it lands but before ``commit_landed`` is
-    #     set reads as "moved" too (same safe outcome).
-    #   * NOT COVERED (tracked in #5343): a status surface the guard cannot
-    #     capture at the run's first status write -- a coordination worktree
-    #     the run itself materializes, a detached HEAD -- whose status commits
-    #     are then neither undone nor reported (logged only); and the
-    #     non-owned ``R/.kittify/derived/<slug>`` view (untracked).
-    #   * Like any restore-on-failure guard it does not survive a hard process
-    #     kill mid-run (nor would a literal plan/apply without git-object
-    #     staging); it also never runs once ``commit_landed`` is set.
-    # Populated just before the first write below and restored from every
-    # terminal ``except`` handler, in addition to (not instead of) the
-    # pre-existing meta.json-only SK3466 guard above.
-    mission_write_scope_snapshot: dict[Path, bytes] = {}
-    mission_write_scope_dir: Path | None = None
-    # FR-015/NFR-001 (#5641): captured by ``_emit_tasks_started`` just before
-    # the run's first status write; restored from the except handlers below.
-    status_surface = StatusSurfaceGuard()
-    status_leftover: StatusSurfaceLeftover | None = None
-    kept_files: list[Path] = []
-    owned_derived_dir: Path | None = None
-    owned_derived_snapshot: dict[Path, bytes] = {}
-    # FR-007 (WP13 T074): bound before ``try`` so the except handlers below
-    # can thread it into the refusal envelope's ``stale_repository_root_copy``
-    # even when the exception fires before ``_resolve_finalize_context``
-    # itself returns (nothing resolved yet -- stays ``None``, so the refusal
-    # envelope omits the key exactly as a non-owned run's does).
-    owned: OwnedCheckout | None = None
+    undo = _FinalizeUndoState()
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
-    # S7 (#7282): what this run's topology settlement did, so a later failure undoes it.
-    settlement: SettlementHandle | None = None
     # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
     write_ledger, ledger_token, observer_token = begin_write_ledger()
     scope_stack = contextlib.ExitStack()
@@ -1335,6 +1370,7 @@ def finalize_tasks(
         )
         owned = ctx.owned
         if owned is not None:
+            # FR-007 (WP13 T074): the refusal envelope's ``stale_repository_root_copy``.
             _OWNED_ENVELOPE_EXTRAS.set(stale_copy_payload(owned))
         repo_root = ctx.repo_root
         mission_slug = ctx.mission_slug
@@ -1361,14 +1397,9 @@ def finalize_tasks(
             json_output=json_output,
             refresh_planning_commit=refresh_planning_commit,
         )
+        undo.branch_setup = branch_setup
         target_branch = branch_setup.target_branch
         merge_target_branch = branch_setup.merge_target_branch
-        mission_write_scope_snapshot = branch_setup.mission_write_scope_snapshot
-        mission_write_scope_dir = branch_setup.mission_write_scope_dir
-        owned_derived_dir = branch_setup.owned_derived_dir
-        owned_derived_snapshot = branch_setup.owned_derived_snapshot
-        meta_path_for_revert = branch_setup.meta_path_for_revert
-        meta_original_text = branch_setup.meta_original_text
         target_branch_persist = branch_setup.target_branch_persist
         meta_json_persisted = branch_setup.meta_json_persisted
 
@@ -1487,7 +1518,7 @@ def finalize_tasks(
             )
             if topology_decision is not None and not validate_only:
                 assert meta is not None
-                settlement = _settle_or_refuse(
+                undo.settlement = _settle_or_refuse(
                     repo_root,
                     planning_dir,
                     mission_slug,
@@ -1501,7 +1532,7 @@ def finalize_tasks(
                     json_output=json_output,
                 )
                 planning_dir, tasks_dir, preexisting_primary_files = _rebase_onto_settled_dir(
-                    planning_dir, settlement.planning_dir, tasks_dir, preexisting_primary_files
+                    planning_dir, undo.settlement.planning_dir, tasks_dir, preexisting_primary_files
                 )
                 meta = _read_meta_for_emission(planning_dir)
                 _bind_topology_decision(meta, topology_decision, settled=True, preview=False)
@@ -1511,7 +1542,7 @@ def finalize_tasks(
                 validate_only=validate_only,
                 repo_root=repo_root,
                 owned=owned,
-                status_surface=status_surface,
+                status_surface=undo.status_surface,
                 planning_dir=planning_dir,
             )
 
@@ -1580,12 +1611,12 @@ def finalize_tasks(
             json_output=json_output,
             target_branch_override=target_branch_override,
             target_branch_persist=target_branch_persist,
-            meta_commit_progress=meta_commit_progress,
-            commit_landed=commit_landed,
+            meta_commit_progress=undo.meta_commit_progress,
+            commit_landed=undo.commit_landed,
             refresh_planning_commit=refresh_planning_commit,
             allow_orphaned=allow_orphaned,
             planning_sha=planning_sha,
-            status_surface=status_surface,
+            status_surface=undo.status_surface,
             frozen=frozen,
             **({"owned": owned} if owned else {}),
         )
@@ -1596,54 +1627,19 @@ def finalize_tasks(
             scope_stack.close()
 
     except typer.Exit:
-        revert_error = _revert_unpersisted_target_branch_override(
-            meta_path_for_revert,
-            meta_original_text,
-            meta_json_persisted=meta_json_persisted,
-            meta_commit_progress=meta_commit_progress,
-            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
-        )
-        # FR-015/NFR-001: only undo the mission-directory writes when the
-        # finalize commit never landed. ``commit_landed`` (set inside
-        # ``_run_commit_pipeline`` the instant the commit succeeds) is the
-        # guards' OWN marker; ``meta_commit_progress.committed`` only means
-        # "meta.json rode the commit" and stays False when a foreign meta.json
-        # field excludes it. A LATER, unrelated failure after a real commit
-        # must never unwind an already-durable finalize.
-        if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover, kept_files = _undo_finalize_with_settlement(
-                settlement,
-                status_surface,
-                mission_write_scope_snapshot,
-                mission_write_scope_dir,
-                owned_derived_snapshot=owned_derived_snapshot,
-                owned_derived_dir=owned_derived_dir,
-            )
+        outcome = _undo_refused_finalize(undo, write_ledger)
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
-        _report_target_branch_revert_failure(revert_error, json_output=json_output)
-        _report_status_surface_leftover(status_leftover, json_output=json_output)
-        _report_write_scope_kept(kept_files, json_output=json_output)
+        _report_target_branch_revert_failure(outcome.revert_error, json_output=json_output)
+        _report_status_surface_leftover(outcome.status_leftover, json_output=json_output)
+        _report_write_scope_kept(outcome.kept_files, json_output=json_output)
         raise
     except Exception as e:
-        revert_error = _revert_unpersisted_target_branch_override(
-            meta_path_for_revert,
-            meta_original_text,
-            meta_json_persisted=meta_json_persisted,
-            meta_commit_progress=meta_commit_progress,
-            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
+        outcome = _undo_refused_finalize(undo, write_ledger)
+        _emit_finalize_error_with_revert_note(
+            e, outcome.revert_error, json_output=json_output, status_leftover=outcome.status_leftover, kept_files=outcome.kept_files
         )
-        if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover, kept_files = _undo_finalize_with_settlement(
-                settlement,
-                status_surface,
-                mission_write_scope_snapshot,
-                mission_write_scope_dir,
-                owned_derived_snapshot=owned_derived_snapshot,
-                owned_derived_dir=owned_derived_dir,
-            )
-        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover, kept_files=kept_files)
         raise typer.Exit(1) from None
     finally:
         scope_stack.close()
