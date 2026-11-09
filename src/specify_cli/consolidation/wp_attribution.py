@@ -716,7 +716,7 @@ def approval_window_open_stamp(events: Sequence[StatusEvent], wp_id: str) -> str
 _REWORK_FROM_LANES: frozenset[str] = frozenset({"for_review", "in_review", "approved", "done"})
 _PLANNED = "planned"
 _WP_WINDOW_SCHEMA_VERSION = 1
-_OPEN_SHA = re.compile(r"[0-9a-f]{40}")
+_OPEN_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 _WINDOW_KEYS: frozenset[str] = frozenset({"schema_version", "open_sha", "gap"})
 _GAP_KEYS: frozenset[str] = frozenset({"reason", "cause", "detail"})
 _CAPTURE_CAUSES: frozenset[str] = frozenset({"git_error", "probe_error"})
