@@ -173,7 +173,7 @@ def _mutate_kernel_anchors_frozen(monkeypatch: pytest.MonkeyPatch) -> None:
     real = _real("_closed_world_anchors")
 
     def _live_dependency_tips(lanes_manifest: Any, lane: Any, target_base: str | None, **kwargs: Any) -> list[str]:
-        kwargs.pop("frozen_tips", None)
+        kwargs["frozen_tips"] = None  # the live read (frozen_tips is keyword-only with no default since the pre-PR fold, L6)
         return list(real(lanes_manifest, lane, target_base, **kwargs))
 
     _patch_function(monkeypatch, "_closed_world_anchors", _live_dependency_tips)
