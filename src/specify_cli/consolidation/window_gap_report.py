@@ -18,7 +18,7 @@ from rich.markup import escape
 
 from .wp_attribution import GapEntry, WindowGapReason
 
-GAP_REPORT_HEADING = "Window gaps (judged by the approval-stamp bound)"
+_GAP_REPORT_HEADING = "Window gaps (judged by the approval-stamp bound)"
 WINDOW_GAPS_KEY = "window_gaps"
 
 _CAPTURE_FAILED = WindowGapReason.CAPTURE_FAILED.report_text
@@ -50,7 +50,7 @@ def gap_report_lines(entries: Sequence[GapEntry]) -> list[str]:
     """The heading, then one line per entry in the given order; ``[]`` when there is no entry."""
     if not entries:
         return []
-    return [GAP_REPORT_HEADING, *(_line(entry) for entry in entries)]
+    return [_GAP_REPORT_HEADING, *(_line(entry) for entry in entries)]
 
 
 def print_gap_report(console: Console, entries: Sequence[GapEntry]) -> None:

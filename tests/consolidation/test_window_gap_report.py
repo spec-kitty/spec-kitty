@@ -12,7 +12,7 @@ import sys
 import pytest
 from rich.console import Console
 
-from specify_cli.consolidation.window_gap_report import GAP_REPORT_HEADING, WINDOW_GAPS_KEY, gap_report_json, gap_report_lines, print_gap_report
+from specify_cli.consolidation.window_gap_report import WINDOW_GAPS_KEY, gap_report_json, gap_report_lines, print_gap_report
 from specify_cli.consolidation.wp_attribution import GapEntry, WindowGap, WindowGapReason
 
 pytestmark = [pytest.mark.unit]
@@ -40,7 +40,6 @@ def test_heading_then_one_line_per_entry_in_order() -> None:
         "  - WP03 (lane-b): capture failed (git_error): boom",
         "  - WP04 (lane-a): not on lane: abc1234",
     ]
-    assert GAP_REPORT_HEADING == "Window gaps (judged by the approval-stamp bound)"
     assert WINDOW_GAPS_KEY == "window_gaps"
 
 
