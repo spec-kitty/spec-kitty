@@ -901,8 +901,9 @@ def window_open_of(
     *events* are in event-log order. ``on_lane(sha)`` is true iff *sha* resolves in this
     clone and is an ancestor of the one lane tip the approved bound resolved (FR-022);
     ``is_ancestor(a, b)`` is true iff *a* is an ancestor of or equal to *b*. Both are bound
-    by the caller to that one tip and must not raise: a caller maps a git error to False,
-    so an unresolvable SHA reads as ``not_on_lane``, never as a probe error (R-4). Among
+    by the caller to that one tip; a SHA that is not in this clone reads as False, so it is
+    ``not_on_lane``, never a probe error (R-4), while a git failure on a SHA that is in the
+    clone raises ``GitProbeError`` through this function for the approved bound to refuse on. Among
     the cycle's recorded SHAs the topological first wins, so a rework stamped on a skewed
     clock cannot narrow the window; unrelated SHAs fall back to event-log order. This
     function performs no git read.

@@ -419,6 +419,43 @@ def sha_reachable_from(repo_root: Path, sha: str, ref: str) -> bool:
     return bool(ret == 0)
 
 
+def commit_in_clone(repo_root: Path, sha: str) -> bool:
+    """True iff *sha* names a commit in this clone; False when it does not.
+
+    ``git rev-parse --verify --quiet <sha>^{commit}`` exits 1 when the object is absent (another
+    clone's SHA, a garbage-collected object). Any other failure raises :class:`GitProbeError`, so
+    a broken git read is never mistaken for "not in this clone".
+    """
+    ret, _out, err = run_command(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret in (0, 1):
+        return ret == 0
+    raise GitProbeError(f"git rev-parse --verify {sha} exited {ret}: {err.strip()}")
+
+
+def is_ancestor_strict(repo_root: Path, ancestor: str, descendant: str) -> bool:
+    """True iff *ancestor* is an ancestor of (or equal to) *descendant*; raises on a git failure.
+
+    ``git merge-base --is-ancestor`` exits 0 (ancestor) or 1 (not); any other exit raises
+    :class:`GitProbeError`. Unlike :func:`sha_reachable_from`, which reads every failure as
+    "not reachable", this lets a caller tell a real answer from a probe it could not run. Both
+    commits must be in the clone (:func:`commit_in_clone`); an absent one is a git failure here.
+    """
+    ret, _out, err = run_command(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret in (0, 1):
+        return ret == 0
+    raise GitProbeError(f"git merge-base --is-ancestor {ancestor} {descendant} exited {ret}: {err.strip()}")
+
+
 def resolve_commit(repo_root: Path, ref: str) -> str:
     """Return the commit SHA *ref* names now (``git rev-parse --verify <ref>^{commit}``).
 
@@ -992,6 +1029,8 @@ __all__ = [
     "_has_branch_ref",
     "GitProbeError",
     "sha_reachable_from",
+    "commit_in_clone",
+    "is_ancestor_strict",
     "resolve_commit",
     "commits_in_range",
     "merge_own_changed_paths",
