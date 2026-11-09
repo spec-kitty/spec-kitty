@@ -1,21 +1,21 @@
 {
-  "event_count": 75,
-  "last_event_id": "01M6Z85PW8JT7HNDPP5QCP5R08",
-  "materialized_at": "2026-11-09T04:13:29.352248+00:00",
+  "event_count": 78,
+  "last_event_id": "01M6Z8QZM3V0WDHJX5KEEGA5VC",
+  "materialized_at": "2026-11-09T04:23:27.596366+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
-    "in_review": 1,
-    "planned": 14
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 13
   },
   "work_packages": {
     "WP01": {
@@ -230,15 +230,21 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M6Z85PW8JT7HNDPP5QCP5R08",
-      "last_transition_at": "2026-11-09T04:13:29.352248+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6Z8MGBQVAKCGKMSPAZMRQDB",
+      "last_transition_at": "2026-11-09T04:21:34.199960+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-09T03:41:48Z – claude:claude-opus-5-5:python-pedro – shell_pid=1288207 – WP_BASE=4695e932a2be4708c6a213fe38130c65ad462611 (lane-a HEAD before first WP07 commit)",
-        "Ready for review: wp_window capture (LaneHeadReading/read_lane_head injected by both shells, _wp_window_value in the pipeline, WP_WINDOW_KEY re-export, changelog). Corpus byte-identical vs WP_BASE 4695e932a2 (changed_cells []), intended verdicts all xfail, seeded mutations green. Scope note: two non-owned test fixtures retargeted _resolve_lane_head -> _read_lane_head (see tracer)."
+        "Ready for review: wp_window capture (LaneHeadReading/read_lane_head injected by both shells, _wp_window_value in the pipeline, WP_WINDOW_KEY re-export, changelog). Corpus byte-identical vs WP_BASE 4695e932a2 (changed_cells []), intended verdicts all xfail, seeded mutations green. Scope note: two non-owned test fixtures retargeted _resolve_lane_head -> _read_lane_head (see tracer).",
+        "Review passed (reviewer-renata, opus-5.5). W-1..W-6 match contracts/status-event-wp-window.md and data-model sec 1-2: wp_window written on every non-migration move into claimed/in_progress of an applicable reading (window-opener selection is the WP08 reader's job, per plan); lane_branch_missing gap w/o cause, capture_failed w/ git_error|probe_error; not_applicable writes nothing; one reading feeds lane_head+wp_window (test_capture_adds_no_git_read); pipeline git-free (read_lane_head injected at all 4 shell sites, AST pin updated); corrupt lanes.json -> probe_error; detail truncated to 500; read_lane_head never raises. Gates: corpus zero-diff vs 4695e932a2 and changed_cells==[]; WP05 pins 11 xfail + 1 residual, no XPASS; WP06 harness 23 passed; status+coordination 2816 passed; make test-fast 2941 passed; new lines 100% covered; ruff/C901/format/mypy/changelog clean; no pyproject bump. Out-of-map edits accepted: the two broken_stamp fixtures follow the private rename and keep the pre-WP07 'no stamp' event shape; _rewrite_one no-op is sound (probe: recorded cells carry the writer's own open_sha==lane_head, commit count unchanged). Shared files (characterization_support.py, lane_head.py, transition_pipeline.py) are also touched by WP02/05/06/08/16-21, all in lane-a, so they are sequential: downstream WPs build on this rename. LOW: a git error in _read_lane_head's other-branch scan surfaces as probe_error, not git_error. For WP21: the #229 follow-up must add gap.reason lane_branch_missing (no cause); the emitted shape otherwise equals the contract."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261109",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2200038,
       "shell_pid_created_at": "1794197603.18",
@@ -253,11 +259,20 @@
       }
     },
     "WP08": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude:claude-opus-5-5:python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6YHCV74BGFX5QD2AEA5P7JV",
-      "last_transition_at": "2026-11-08T21:35:25.924735+00:00"
+      "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M6Z8QZM3V0WDHJX5KEEGA5VC",
+      "last_transition_at": "2026-11-09T04:23:27.596366+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 2406972,
+      "shell_pid_created_at": "1794198200.87"
     },
     "WP09": {
       "actor": "finalize-tasks",
