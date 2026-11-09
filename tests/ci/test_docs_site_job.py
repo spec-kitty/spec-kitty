@@ -2,10 +2,12 @@
 
 ADR ``docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md`` D-11 puts a
 ``docs-site`` job in ``ci-router.yml`` behind a ``docs/**`` + ``site/**`` path filter
-parsed by ``scripts/ci/gate_selection.py``. It installs the site with the frozen
-lockfile and no token, builds it, and uploads ``site/dist``. Since #6937 it is
-**required**: ``router-gate``'s ``needs:`` names it and it carries no
-``continue-on-error``. DocFX keeps deploying (D-13).
+parsed by ``scripts/ci/gate_selection.py``. The job calls the ONE shared build definition,
+``.github/workflows/docs-site-build.yml`` (#6937), which installs the site with the frozen
+lockfile and no token, builds it, and uploads ``site/dist`` (or, for the Pages deploy at
+#6938, the Pages artifact). The step checks below read that called job, the steps that
+actually run. Since #6937 the gate is **required**: ``router-gate``'s ``needs:`` names it
+and it carries no ``continue-on-error``. DocFX keeps deploying (D-13).
 
 Every routing assertion reads the parsed router (``gate_selection.load_router``), the one
 routing authority. Each structural checker has a mutant fed through the same checker
@@ -173,11 +175,11 @@ def _credential_violations(job: dict[str, Any]) -> list[str]:
 
 
 def test_every_action_is_pinned_by_commit() -> None:
-    assert _pin_violations(_job()) == []
+    assert _pin_violations(_build_job()) == []
 
 
 def test_a_tag_pinned_action_is_caught() -> None:
-    mutant = copy.deepcopy(_job())
+    mutant = copy.deepcopy(_build_job())
     mutant["steps"].append({"uses": "actions/setup-node@v7"})
 
     assert _pin_violations(mutant) == ["actions/setup-node@v7"]
@@ -185,18 +187,20 @@ def test_a_tag_pinned_action_is_caught() -> None:
 
 def test_the_job_uses_no_credential() -> None:
     assert _workflow()["permissions"] == {"contents": "read"}
+    assert _shared()["permissions"] == {"contents": "read"}
     assert _credential_violations(_job()) == []
+    assert _credential_violations(_build_job()) == []
 
 
 def test_a_token_in_the_job_is_caught() -> None:
-    mutant = copy.deepcopy(_job())
+    mutant = copy.deepcopy(_build_job())
     mutant["steps"].append({"run": "pnpm install", "env": {"NPM_CONFIG_USERCONFIG": "${{ secrets.NPMRC }}"}})
 
     assert _credential_violations(mutant)
 
 
 def test_the_job_installs_frozen_and_checks_the_contract() -> None:
-    run = _run_text(_job())
+    run = _run_text(_build_job())
 
     assert "pnpm install --frozen-lockfile" in run
     assert "-m scripts.docs.site_contract --check" in run
@@ -204,8 +208,9 @@ def test_the_job_installs_frozen_and_checks_the_contract() -> None:
 
 def test_no_step_swallows_a_failure() -> None:
     """A required job never swallows a failure: no step-level ``continue-on-error`` and no shell fallback."""
-    job = _job()
+    job = _build_job()
 
+    assert job["steps"], "the build job carries the steps (non-vacuity)"
     assert all("continue-on-error" not in step for step in job["steps"])
     assert not re.search(r"\|\|\s*true\b|\bset\s+\+e\b", _run_text(job))
 
@@ -220,6 +225,7 @@ def _astro_config_violations(text: str) -> list[str]:
 
 def test_every_dockitty_call_passes_the_astro_config() -> None:
     assert _astro_config_violations(ROUTER.read_text(encoding="utf-8")) == []
+    assert _astro_config_violations(SHARED.read_text(encoding="utf-8")) == []
     assert _astro_config_violations(MAKEFILE.read_text(encoding="utf-8")) == []
 
 

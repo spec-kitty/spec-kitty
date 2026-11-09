@@ -451,13 +451,15 @@ jobs:
               - 'scripts/docs/**'
             # Docsite group (#6930; ADR docs/adr/4.x/2026-10-31-1 D-11): NON-src (not in the unmatched
             # loop); gates only `docs-site`. The site's inputs: the pages, the site/ project, the folder
-            # contract the site's config is generated from, and this workflow (the job's own definition).
+            # contract the site's config is generated from, this workflow (the job's call) and the
+            # shared build definition it calls (#6937).
             docs_site:
               - 'docs/**'
               - 'site/**'
               - 'scripts/docs/_dockitty_contract.py'
               - 'scripts/docs/site_contract.py'
               - '.github/workflows/ci-router.yml'
+              - '.github/workflows/docs-site-build.yml'
             corpus:
               - 'packs/**'
               - 'kitty-specs/**/spec.md'
@@ -1756,55 +1758,24 @@ jobs:
   # docs-site (#6930, required since #6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
   # D-1, D-2, D-11): the doc-kitty parallel run. Builds the published docs/ corpus with
   # the site/ project on every PR that touches docs/**, site/** or the inputs of the
-  # site's folder contract (the `docs_site` group), and uploads site/dist. DocFX keeps
-  # deploying (docs-pages.yml) until cutover (#6938). doc-kitty is a pnpm git dependency
-  # pinned by commit in site/pnpm-lock.yaml; the install needs no token (the repository is
-  # public).
+  # site's folder contract (the `docs_site` group), and uploads site/dist. The build is
+  # the shared definition .github/workflows/docs-site-build.yml (D-11, #6937), which the
+  # Pages deploy calls at cutover (#6938); DocFX keeps deploying (docs-pages.yml) until
+  # then. doc-kitty is a pnpm git dependency pinned by commit in site/pnpm-lock.yaml; the
+  # install needs no token (the repository is public).
   #
   # REQUIRED: the job is in `router-gate.needs:` and carries no job-level
-  # continue-on-error, so a failed build blocks the PR that caused it. It cannot join
-  # ci-aggregate.yml's `aggregate-gate` (that runs on `workflow_run`; Actions has no
-  # cross-workflow `needs:`). Every dockitty-* call must pass
+  # continue-on-error, so a failed build blocks the PR that caused it. Its jobs-API row is
+  # the called job's, `docs site (doc-kitty build) / build`, which router-gate classifies
+  # like every other row. It cannot join ci-aggregate.yml's `aggregate-gate` (that runs on
+  # `workflow_run`; Actions has no cross-workflow `needs:`). Every dockitty-* call must pass
   # `--astro-config astro.config.mjs` (D-1). Pinned by tests/ci/test_docs_site_job.py.
   # ---------------------------------------------------------------------------
   docs-site:
     name: docs site (doc-kitty build)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
     needs: [changes]
     if: ${{ needs.changes.outputs.docs_site == 'true' }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          persist-credentials: false
-      - name: Check the site's folder contract against scripts/docs/_dockitty_contract.py
-        # Standard library plus src/kernel (the contract reads dates through the
-        # kernel.clock door), so the runner's python3 is enough (no uv sync).
-        env:
-          PYTHONPATH: .:src
-        run: python3 -m scripts.docs.site_contract --check
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          # The pnpm version comes from site/package.json `packageManager`.
-          package_json_file: site/package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22'
-          cache: pnpm
-          cache-dependency-path: site/pnpm-lock.yaml
-      - name: Install the site with the frozen lockfile (no token)
-        working-directory: site
-        run: pnpm install --frozen-lockfile
-      - name: Build the docsite (drafts off via site/.env.production)
-        working-directory: site
-        run: pnpm run build
-      - name: Upload the built site
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: docs-site-${{ github.run_attempt }}
-          path: site/dist
-          if-no-files-found: error
-          retention-days: 7
+    uses: ./.github/workflows/docs-site-build.yml
 
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
