@@ -112,11 +112,9 @@ Release PR check ownership:
 2. `CI Quality` owns tests, wheel build, lockfile checks, and exact install verification.
 3. `Check Shared Package Drift` owns shared-package pin drift evidence.
 
-Live canary and cross-repo end-to-end runs are release-candidate hygiene, not
-tag-time publish jobs. The charter still requires them before a release
-candidate is tagged; the release owner must run them locally from a trusted
-runner and record the pass, product failure, inconclusive result, or explicit
-maintainer waiver.
+The cross-repo end-to-end suite and the live deployed-dev canary are retired
+from the release process; cross-repository checks are planned as a dedicated
+pipeline (#7468).
 
 Tag-time publish workflow sequence:
 
@@ -148,17 +146,10 @@ python -m build
 python scripts/release/check_exact_install.py --package spec-kitty-cli
 twine check dist/*
 
-# 3) release-candidate hygiene (local trusted-runner evidence, before tagging)
-pushd ../../spec-kitty-end-to-end-testing
-uv sync
-SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/ -v
-./scripts/run-canary.sh --profile local --phase all
-popd
-
-# 4) clean build artifacts
+# 3) clean build artifacts
 rm -rf dist/ build/
 
-# 5) commit, push, and merge the release metadata through a PR
+# 4) commit, push, and merge the release metadata through a PR
 spec-kitty safe-commit --message "chore(release): prepare 3.1.0a0" pyproject.toml CHANGELOG.md
 git push origin release/3.1.0a0
 gh pr create --base main --title "Release 3.1.0a0" --fill
