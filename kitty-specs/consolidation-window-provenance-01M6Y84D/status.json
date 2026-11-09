@@ -167,7 +167,8 @@
       "last_transition_at": "2026-11-09T02:39:10.551909+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: 11 strict xfails pin the intended verdicts (a,a-mixed,b,c x2,d,e,f,h x2, WW-6); (g) is a passing consequence test because its flip is unreachable (see tracer)"
+        "Ready for review: 11 strict xfails pin the intended verdicts (a,a-mixed,b,c x2,d,e,f,h x2, WW-6); (g) is a passing consequence test because its flip is unreachable (see tracer)",
+        "Cycle 2: pin (b) now asserts on the line naming the stray SHA that WP01 is present and WP02 absent, and fails if no line names it; (g) docstring records the second route (C's dependency lane A advancing and merging C's tip) as unreachable. 11 strict xfail (all fail under --runxfail on verdict reasons: exit 0 / missing lane-b / forecast mismatch), 2 pass; ruff, format, mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
