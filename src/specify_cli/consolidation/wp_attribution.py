@@ -813,7 +813,7 @@ def _valid_gap(gap: object) -> _Parsed | None:
     reason, cause, detail = gap.get("reason"), gap.get("cause"), gap.get("detail", "")
     if not isinstance(detail, str) or len(detail) > _GAP_DETAIL_MAX:
         return None
-    if reason == WindowGapReason.CAPTURE_FAILED.value and cause in _CAPTURE_CAUSES:
+    if reason == WindowGapReason.CAPTURE_FAILED.value and isinstance(cause, str) and cause in _CAPTURE_CAUSES:
         return _Parsed(gap_reason=reason, cause=str(cause), detail=detail)
     if reason == WindowGapReason.LANE_BRANCH_MISSING.value and "cause" not in gap:
         return _Parsed(gap_reason=reason, detail=detail)
