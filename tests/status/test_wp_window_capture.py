@@ -265,6 +265,41 @@ def test_git_error_records_capture_failed_with_git_error_cause(flat_mission: Fla
     }
 
 
+def _rev_parse_exits(monkeypatch: pytest.MonkeyPatch, code: int, stderr: str) -> None:
+    """Make every ``git rev-parse --verify`` of a branch exit *code* (the rest of git stays real)."""
+    import specify_cli.core.git_ops as git_ops
+
+    real = git_ops.run_command
+
+    def _fake(cmd: Any, **kwargs: Any) -> tuple[int, str, str]:
+        if list(cmd[:3]) == ["git", "rev-parse", "--verify"]:
+            return code, "", stderr
+        return real(cmd, **kwargs)
+
+    monkeypatch.setattr(git_ops, "run_command", _fake)
+
+
+def test_rev_parse_failure_other_than_absent_ref_records_git_error(flat_mission: FlatTopologyContext, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-003: only ``rev-parse --verify --quiet`` exit 1 means "branch missing"; any other failure is a git error."""
+    seed_wp_to_planned(flat_mission.primary_feature_dir, "WP01", slug=flat_mission.slug)
+    _create_lane_branch(flat_mission)
+    _rev_parse_exits(monkeypatch, 128, "fatal: unable to read packed-refs")
+
+    reading = read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01")
+
+    assert reading.cause is CaptureCause.GIT_ERROR, reading
+    assert "fatal: unable to read packed-refs" in reading.detail
+
+
+def test_rev_parse_exit_one_still_reads_as_lane_branch_missing(flat_mission: FlatTopologyContext, monkeypatch: pytest.MonkeyPatch) -> None:
+    seed_wp_to_planned(flat_mission.primary_feature_dir, "WP01", slug=flat_mission.slug)
+    _rev_parse_exits(monkeypatch, 1, "")
+
+    reading = read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01")
+
+    assert reading.cause is CaptureCause.LANE_BRANCH_MISSING, reading
+
+
 def test_probe_exception_records_capture_failed_with_probe_error_cause(flat_mission: FlatTopologyContext, monkeypatch: pytest.MonkeyPatch) -> None:
     seed_wp_to_planned(flat_mission.primary_feature_dir, "WP01", slug=flat_mission.slug)
 
