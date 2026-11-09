@@ -163,7 +163,9 @@ def test_commit_between_two_approvals_refuses_naming_the_preceding_work_package(
     text = render_write_branch_refusals(refusals, _SLUG)
     assert refusal_codes(text) == ["LANE_MOVED_AFTER_APPROVAL"]
     assert between[:7] in text and "WP01" in text
-    assert "Send WP01 back for review and approve it again, or revert the commit" in text
+    assert "Send WP01 back for review and approve it again" in text
+    assert "revert" not in text  # M8: a revert is new content of its own; it never clears a window refusal
+    assert "was committed after WP01's approval" in text
     assert f"spec-kitty agent tasks move-task WP01 --to in_progress --mission {_SLUG}" in text
     assert "spec-kitty upgrade" in text
 
@@ -184,6 +186,35 @@ def test_commit_before_the_first_claim_names_the_first_approval_after_it(repo: _
     )
 
     assert [(r.wp_ids, r.commits) for r in refusals] == [(("WP01",), (early,))]
+
+
+def test_commit_before_every_approval_gets_its_own_text(repo: _Repo) -> None:
+    """M8: a commit no approval precedes is not "committed after" anything, and approving again cannot cover it."""
+    early = repo.commit("src/early.py")
+    _build(repo, "WP01", "src/m1.py")
+
+    text = render_write_branch_refusals(repo.check(approved=("WP01",)), _SLUG)
+
+    assert refusal_codes(text) == ["LANE_MOVED_AFTER_APPROVAL"]
+    assert early[:7] in text
+    assert "after WP01's approval" not in text
+    assert "before any approval" in text and "before WP01's review window opened" in text
+    assert "approving again moves a window's end, never its start" in text
+    assert "move-task" not in text and "revert" not in text
+
+
+def test_following_the_window_recovery_clears_the_refusal(repo: _Repo) -> None:
+    """M8: the printed recovery (send WP01 back, approve it again) leads to a passing check."""
+    _build(repo, "WP01", "src/m1.py")
+    repo.commit("src/between.py")
+    _build(repo, "WP02", "src/m2.py")
+    text = render_write_branch_refusals(repo.check(), _SLUG)
+    assert f"spec-kitty agent tasks move-task WP01 --to in_progress --mission {_SLUG}" in text
+
+    repo.event("WP01", Lane.APPROVED, Lane.IN_PROGRESS)
+    repo.approve("WP01")
+
+    assert repo.check() == ()
 
 
 def test_overlapping_windows_pass(repo: _Repo) -> None:

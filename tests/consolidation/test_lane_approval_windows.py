@@ -271,6 +271,22 @@ def test_stray_commit_between_two_approvals_refuses(templates: _Templates, tmp_p
     assert _refs(mission) == before
 
 
+def test_following_the_printed_window_recovery_leads_to_a_passing_run(templates: _Templates, tmp_path: Path) -> None:
+    """M8: the recovery the refusal prints (send WP01 back, approve it again) clears it; it never advises a revert."""
+    mission, _stray = _stray_fixture(templates, tmp_path)
+    refused = _fresh(mission)
+    assert refused.exit_code == 1, refused.output
+    flat = " ".join(refused.output.split())
+    assert "revert" not in flat, flat
+    assert f"spec-kitty agent tasks move-task WP01 --to in_progress --mission {mission.slug}" in flat, flat
+
+    coord = mission.coord_mission()
+    transition(coord, "WP01", "in_progress", actor=ACTOR, review_ref="review-WP01-window-recovery")
+    _approve(coord, "WP01", reference="review-WP01-window-recovery-approved")
+
+    _assert_passes(_fresh(mission))
+
+
 def test_stray_commit_between_two_approvals_forecast_refuses(templates: _Templates, tmp_path: Path) -> None:
     """US2-5: the ``--dry-run`` forecast refuses the same claim, with ``CLAIM_REFUSED_FORECAST``."""
     mission, stray = _stray_fixture(templates, tmp_path)
