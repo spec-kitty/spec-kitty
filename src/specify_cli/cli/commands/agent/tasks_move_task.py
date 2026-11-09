@@ -650,7 +650,16 @@ def _mt_require_owned_source_lane(st: _MoveTaskState) -> None:
 
 
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
+    """Resolve roots/branch/feature-dir and load the WP + its canonical lane.
+
+    Thin orchestration (#7410): resolvers (``_mt_locate_checkout``,
+    ``_mt_resolve_binding``) return values, validators
+    (``_mt_refuse_protected_status_commit``, ``_mt_require_post30_layout``,
+    ``_mt_require_owned_source_lane``, ``_mt_guard_planned_boundary_lanes``)
+    refuse or return, and only this function writes the resolved targets into
+    *st*. The order is load-bearing: every refusal fires before the first read
+    that would mask it (#1386) and before any mission write.
+    """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     _tasks._refuse_unparseable_agent(st.json_output, st.agent)
