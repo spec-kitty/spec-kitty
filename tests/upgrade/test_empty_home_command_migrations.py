@@ -82,6 +82,22 @@ GLOBALIZATION_SUCCESSOR = "4.0.0rc8_stamp_globalize_commands"
 _COMMAND_FILE = "spec-kitty.specify.md"
 
 
+@pytest.fixture(autouse=True)
+def _isolated_user_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fresh ``Path.home()`` per case, so an earlier test's global command install never leaks in.
+
+    The globalization migrations remove a project-local command file only when the exact
+    global replacement exists under ``Path.home()/<agent_root>/<subdir>``. A previous test
+    that runs a real ``upgrade`` installs those global files into the shared test HOME, which
+    let ``3.2.0a4_safe_globalize_commands`` remove the file first in the bootstrapped arm only
+    (#7429 CI, upgrade shard 1/4). The case controls the operator's home, so it owns this one too.
+    """
+    user_home = tmp_path / "user-home"
+    user_home.mkdir()
+    monkeypatch.setenv("HOME", str(user_home))
+    monkeypatch.setenv("USERPROFILE", str(user_home))
+
+
 def _marker() -> str:
     return f"<!-- spec-kitty-command-version: {current_cli_version()} -->"
 
