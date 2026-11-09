@@ -21,7 +21,7 @@ import typer
 from rich.markup import escape
 
 from specify_cli.cli.console import console
-from specify_cli.core.git_ops import run_command
+
 from specify_cli.core.vcs.git import capture_branch_tip
 
 # Shared FR-004/FR-009 "fully canceled" predicate and lane-branch composer
@@ -43,7 +43,7 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.entry_preflight import _REFUSED_WITH_EARLIER_RECORD
-from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputSource, build_claim, claim_inputs, live_lane_tips
 from specify_cli.consolidation.reconciliation import (
     claim_integrity_refusal,
     detect_legacy_in_flight_state,
@@ -290,32 +290,16 @@ def _capture_pre_interrupt_lane_tips(run: _MergeRunState) -> dict[str, str]:
 
     terminus-integrity-followups WP05 (T021, b2); re-keyed by
     lane-branch-naming-authority-01M3EVC4 WP02 (T031). Keyed by the lane's
-    CREATED branch (:func:`_created_lane_branch` — never a Mission identity),
-    so a resume CAS-checks the SAME ref via :func:`lane_tip_cas_ok`
-    (``refs/heads/<key>``). The canonical ``lane-planning`` lane resolves to
-    the target branch (not a ``kitty/mission-…`` branch) and is skipped — its
-    "tip" is the moving target ref, never a pre-interrupt identity to
-    preserve. A fully-canceled lane (FR-009, every WP an acceptable canceled
-    ending) is also skipped — its branch may never have been created. A
-    branch that does not resolve for any other reason contributes no entry
-    (tolerant, like the claim builder). Captured ONCE before
-    ``_phase_merge_lanes`` mutates anything."""
-    tips: dict[str, str] = {}
-    for lane in run.lanes_manifest.lanes:
-        if lane.lane_id == "lane-planning":
-            continue
-        if _lane_fully_canceled(lane, run.excluded_canceled_wp_ids):
-            continue
-        branch = _created_lane_branch(run.lanes_manifest, lane.lane_id)
-        ret, sha, _err = run_command(
-            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"],
-            capture=True,
-            check_return=False,
-            cwd=run.main_repo,
-        )
-        resolved = sha.strip() if ret == 0 and sha.strip() else None
-        if resolved is not None:
-            tips[branch] = resolved
+    CREATED branch (never a Mission identity), so a resume CAS-checks the SAME
+    ref via :func:`lane_tip_cas_ok` (``refs/heads/<key>``). Read through the one
+    lane-tip reader the claim inputs share
+    (:func:`~specify_cli.consolidation.claim_inputs.live_lane_tips`): the planning
+    lane (its "tip" is the moving target ref) and a fully-canceled lane (FR-009;
+    its branch may never have been created) are skipped, and a branch that does
+    not resolve contributes no entry. Captured ONCE before ``_phase_merge_lanes``
+    mutates anything."""
+    # Local annotation re-narrows to ``dict[str, str]`` (the narrow-file mypy override erases the callee's return type).
+    tips: dict[str, str] = live_lane_tips(run.main_repo, run.lanes_manifest, run.excluded_canceled_wp_ids)
     return tips
 
 

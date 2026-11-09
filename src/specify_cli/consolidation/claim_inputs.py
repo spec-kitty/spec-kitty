@@ -20,7 +20,8 @@ packages the fresh run excludes (:func:`~specify_cli.consolidation.done_bookkeep
 read-only) and resolves its coordination base to the SHA the fresh run's claim phase captures (the
 status surface ref, ``git rev-parse``d), falling back to the ``mission_branch`` name exactly where the
 fresh run does. The forecast still reads its own status directory, and the gate's defensive rebuild
-keeps the live ``mission_branch`` name through ``coord_base_override``. WP18 (FR-015) makes
+keeps the live ``mission_branch`` name through ``coord_base_override``. The status surface read is
+the neutral :mod:`~specify_cli.consolidation.status_surface`, shared with the claim phase. WP18 (FR-015) makes
 :attr:`ClaimInputs.dependency_anchors` of a ``SAVED`` value the ONE frozen anchor set of a resume:
 :func:`build_claim` hands it to every claim-time reader of the closed-world anchors, and the
 executor hands it to the approved-reviewed attestation check. ``LIVE`` and ``LIVE_THEN_SAVED`` pass
@@ -28,8 +29,8 @@ none, so the forecast and the fresh run read live, exactly as before.
 
 This module never writes: persisting the pre-mutation anchors stays with the claim phase
 (``phase_claim._resolve_pre_mutation_*``), which runs before the constructor, as do the resume's
-fail-closed anchor checks. It imports no executor-family module and never touches the event log or
-the rollback snapshot (CI-4, C-009).
+fail-closed anchor checks. It imports no executor-family module, at module level or deferred, and never
+touches the event log or the rollback snapshot (CI-4, C-009).
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ from types import MappingProxyType
 from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
 from specify_cli.consolidation.reconciliation import ApprovedWpCommitSet, build_approved_wp_set
 from specify_cli.consolidation.state import ConsolidationState
-from specify_cli.core.git_ops import run_command
+from specify_cli.consolidation.status_surface import status_surface_tip
 from specify_cli.core.vcs.git import capture_branch_tip
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import LanesManifest
@@ -55,9 +56,9 @@ __all__ = [
     "build_claim",
     "claim_inputs",
     "frozen_dependency_tips",
+    "live_lane_tips",
 ]
 
-_PLANNING_LANE_ID = "lane-planning"
 _EMPTY: Mapping[str, str] = MappingProxyType({})
 
 
@@ -80,11 +81,11 @@ class ClaimInputs:
         coord_base: The coordination base the claim measures lanes from: a SHA, or the live
             ``mission_branch`` NAME when no status surface ref resolves, and for the gate rebuild
             (Phase 2 quirk).
-        lane_tips: Created lane branch -> tip SHA, the key space of
-            ``ConsolidationState.pre_interrupt_lane_tips`` (no planning lane, no fully canceled lane).
         dependency_anchors: Created dependency-lane branch -> tip SHA, for every lane another lane
             depends on that is neither a planning lane nor fully canceled under the CURRENT excluded
-            set. For ``SAVED`` it is the resume's one frozen anchor set (FR-015), passed to the claim
+            set, drawn from the lane tips in the key space of ``ConsolidationState.pre_interrupt_lane_tips``
+            (``LIVE``: read live; ``LIVE_THEN_SAVED``: the tips the claim phase captured; ``SAVED``: the
+            record's). For ``SAVED`` it is the resume's one frozen anchor set (FR-015), passed to the claim
             builder; a dependency lane the record froze no tip for is read live and named in
             :attr:`degraded_dependency_anchors`.
         dependency_refs: The declared external dependency refs (#6771).
@@ -100,7 +101,6 @@ class ClaimInputs:
     source: ClaimInputSource
     target_base: str | None
     coord_base: str
-    lane_tips: Mapping[str, str]
     dependency_anchors: Mapping[str, str]
     dependency_refs: tuple[str, ...]
     dependency_pins: Mapping[str, str]
@@ -155,13 +155,15 @@ class ClaimInputContext:
 def live_lane_tips(repo_root: Path, manifest: LanesManifest, excluded_canceled_wp_ids: frozenset[str]) -> dict[str, str]:
     """Every lane's CREATED branch -> its live tip, over the lanes ``pre_interrupt_lane_tips`` keys.
 
-    Skips the ``lane-planning`` lane (its "tip" is the moving target) and a fully canceled lane
-    (its branch may never have been created); a branch that does not resolve contributes nothing,
-    as in ``phase_claim._capture_pre_interrupt_lane_tips``.
+    The one lane-tip reader of a claim: the claim phase captures ``pre_interrupt_lane_tips`` with it
+    (``phase_claim._capture_pre_interrupt_lane_tips``) and the forecast reads its tips with it. Skips
+    the planning lane (:func:`~specify_cli.lanes.compute.is_planning_lane`; its "tip" is the moving
+    target) and a fully canceled lane (its branch may never have been created); a branch that does not
+    resolve contributes nothing.
     """
     tips: dict[str, str] = {}
     for lane in manifest.lanes:
-        if lane.lane_id == _PLANNING_LANE_ID or lane_fully_canceled(lane, excluded_canceled_wp_ids):
+        if is_planning_lane(lane) or lane_fully_canceled(lane, excluded_canceled_wp_ids):
             continue
         branch = lane_created_branch(manifest, lane.lane_id)
         tip = capture_branch_tip(repo_root, branch)
@@ -243,26 +245,18 @@ def _live_excluded_canceled(context: ClaimInputContext) -> frozenset[str]:
     return frozenset(acceptably_canceled_wp_ids(context.repo_root, _mission_slug(context)))
 
 
-def _rev_parse(repo_root: Path, ref: str) -> str | None:
-    """``git rev-parse <ref>`` as the fresh run's ``_capture_coord_checkpoint`` runs it; ``None`` when it fails."""
-    ret, sha, _err = run_command(["git", "rev-parse", ref], capture=True, check_return=False, cwd=repo_root)
-    return sha.strip() if ret == 0 and sha.strip() else None
-
-
 def _live_coord_base(context: ClaimInputContext) -> str:
     """The coordination base a fresh run resolves before it persists anything (FR-013).
 
-    The fresh run's claim phase captures the status surface ref (``run_state._status_surface_ref``,
-    the one authority) and ``git rev-parse``s it; with no SHA it falls back to the ``mission_branch``
-    name (``coord_base_sha or checkpoint.sha or mission_branch``). Read-only: placement resolution
-    and ``rev-parse`` never seed or materialize a surface. ``run_state`` belongs to the executor
-    family, so it is imported here, not at module level.
+    The fresh run's claim phase captures the status surface tip (``run_state._capture_coord_checkpoint``,
+    through the one neutral read :func:`~specify_cli.consolidation.status_surface.status_surface_tip`);
+    with no SHA it falls back to the ``mission_branch`` name (``coord_base_sha or checkpoint.sha or
+    mission_branch``). Read-only: placement resolution and ``rev-parse`` never seed or materialize a surface.
     """
-    from specify_cli.consolidation.run_state import _status_surface_ref
-
-    ref = _status_surface_ref(context.repo_root, _mission_slug(context))
-    sha = _rev_parse(context.repo_root, ref) if ref is not None else None
-    if sha is not None:
+    tip = status_surface_tip(context.repo_root, _mission_slug(context))
+    if tip is not None:
+        # Local annotation re-narrows to ``str`` (the narrow-file mypy override erases the callee's return type).
+        sha: str = tip[1]
         return sha
     mission_branch: str = context.manifest.mission_branch
     return mission_branch
@@ -276,7 +270,6 @@ def _live(context: ClaimInputContext) -> ClaimInputs:
         source=ClaimInputSource.LIVE,
         target_base=context.resolved_target_base,
         coord_base=_live_coord_base(context),
-        lane_tips=_frozen(lane_tips),
         dependency_anchors=_dependency_anchors(context.manifest, lane_tips, excluded),
         dependency_refs=tuple(context.dependency_refs),
         dependency_pins=_frozen(context.dependency_pins),
@@ -286,14 +279,26 @@ def _live(context: ClaimInputContext) -> ClaimInputs:
     )
 
 
+def _captured_lane_tips(context: ClaimInputContext) -> Mapping[str, str]:
+    """The lane tips the claim phase captured into the record (``pre_interrupt_lane_tips``), else read live.
+
+    A fresh run on a topology with a status surface checkpoint captures them just before the
+    constructor runs (``phase_claim._resolve_pre_mutation_coord_sha``), with :func:`live_lane_tips`;
+    reusing them keeps one read. A run that captured none (no checkpoint) reads them live.
+    """
+    captured = context.state.pre_interrupt_lane_tips if context.state is not None else {}
+    if captured:
+        return captured
+    return live_lane_tips(context.repo_root, context.manifest, context.excluded_canceled_wp_ids)
+
+
 def _live_then_saved(context: ClaimInputContext) -> ClaimInputs:
     """A fresh run's inputs: the values the claim phase resolved (and saved) before any mutation."""
-    lane_tips = live_lane_tips(context.repo_root, context.manifest, context.excluded_canceled_wp_ids)
+    lane_tips = _captured_lane_tips(context)
     return ClaimInputs(
         source=ClaimInputSource.LIVE_THEN_SAVED,
         target_base=context.resolved_target_base,
         coord_base=_run_coord_base(context, context.resolved_coord_sha),
-        lane_tips=_frozen(lane_tips),
         dependency_anchors=_dependency_anchors(context.manifest, lane_tips, frozenset(context.excluded_canceled_wp_ids)),
         dependency_refs=tuple(context.dependency_refs),
         dependency_pins=_frozen(context.dependency_pins),
@@ -314,7 +319,6 @@ def _saved(context: ClaimInputContext) -> ClaimInputs:
         source=ClaimInputSource.SAVED,
         target_base=state.pre_mutation_target_sha or context.resolved_target_base,
         coord_base=_run_coord_base(context, state.pre_mutation_coord_sha or context.resolved_coord_sha),
-        lane_tips=_frozen(lane_tips),
         dependency_anchors=anchors,
         dependency_refs=tuple(state.dependency_refs),
         dependency_pins=_frozen(state.dependency_ref_pins),

@@ -57,11 +57,8 @@ from specify_cli.consolidation.state import (
     ConsolidationState,
     reconciliation_passed_for_tip,
 )
-from mission_runtime import (
-    MissionArtifactKind,
-    MissionTopology,
-    resolve_placement_only,
-)
+from specify_cli.consolidation.status_surface import status_surface_tip
+from mission_runtime import MissionTopology
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport
 
 
@@ -434,42 +431,22 @@ class _CoordCheckpoint:
     sha: str
 
 
-def _status_surface_ref(main_repo: Path, mission_slug: str) -> str | None:
-    """The branch status commits (``done`` bookkeeping, operator attestations) land on; ``None`` when unresolvable.
-
-    The canonical write target ``resolve_placement_only(..., kind=STATUS_STATE)``:
-    the coordination branch under a coordination topology, the target otherwise.
-    """
-    try:
-        ref: str = resolve_placement_only(main_repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref
-    except Exception:  # noqa: BLE001 — unresolvable placement: callers treat it as "no status surface"
-        return None
-    return ref
-
-
 def _capture_coord_checkpoint(run: _MergeRunState) -> _CoordCheckpoint | None:
     """Resolve + capture the coordination branch's CURRENT ref + tip SHA.
 
     Pure resolution step shared by every named checkpoint. The ref is sourced
     from the canonical write-target ``done``/bake commits resolve to
-    (``resolve_placement_only(..., kind=STATUS_STATE).ref``) — NOT an inline
+    (:func:`~specify_cli.consolidation.status_surface.status_surface_tip`, the
+    read the dry-run forecast shares) — NOT an inline
     ``meta.get("coordination_branch")`` (the retired D-2 CWD-divergence
     class). Returns ``None`` when the placement cannot be resolved (a
     non-coord topology, or a legacy mission) — every checkpoint built from
     ``None`` is a proven no-op wherever it is later consumed.
     """
-    coord_ref = _status_surface_ref(run.main_repo, run.mission_slug)
-    if coord_ref is None:
+    tip = status_surface_tip(run.main_repo, run.mission_slug)
+    if tip is None:
         return None
-    ret, sha, _err = run_command(
-        ["git", "rev-parse", coord_ref],
-        capture=True,
-        check_return=False,
-        cwd=run.main_repo,
-    )
-    if ret == 0 and sha.strip():
-        return _CoordCheckpoint(ref=coord_ref, sha=sha.strip())
-    return None
+    return _CoordCheckpoint(ref=tip[0], sha=tip[1])
 
 
 def _stored_topology_for(feature_dir: Path) -> MissionTopology | None:

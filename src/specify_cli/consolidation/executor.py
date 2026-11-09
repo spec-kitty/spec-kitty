@@ -150,9 +150,9 @@ from specify_cli.consolidation.resume_recovery import (
 from specify_cli.consolidation.run_state import (
     _MergeRunState,
     _resume_reconciliation_already_passed,
-    _status_surface_ref,
     landing_verified_for_resume,
 )
+from specify_cli.consolidation.status_surface import status_surface_ref
 
 
 def _pending_heal_branch(state: ConsolidationState) -> str | None:
@@ -535,7 +535,7 @@ def _run_lane_based_consolidation_locked(
         frozen_dependency_tips=frozen_dependency_tips,
     )
     # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
-    own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(_status_surface_ref(main_repo, mission_slug),))
+    own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(status_surface_ref(main_repo, mission_slug),))
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
     # consistency gate runs BEFORE merge-state is loaded/created, so a rejected
