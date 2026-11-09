@@ -1,7 +1,7 @@
 {
-  "event_count": 83,
-  "last_event_id": "01M6ZAT21KSMCJJB17M4R8VFBT",
-  "materialized_at": "2026-11-09T04:59:32.798728+00:00",
+  "event_count": 84,
+  "last_event_id": "01M6ZD7R07HX2645Q0SJZ456D0",
+  "materialized_at": "2026-11-09T05:41:58.919291+00:00",
   "mission_number": "",
   "mission_slug": "consolidation-window-provenance-01M6Y84D",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 12
   },
@@ -299,14 +299,26 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M6ZAT21KSMCJJB17M4R8VFBT",
-      "last_transition_at": "2026-11-09T04:59:32.798728+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6ZD7R07HX2645Q0SJZ456D0",
+      "last_transition_at": "2026-11-09T05:41:58.919291+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-09T05:39:18Z – claude:claude-opus-5-5:python-pedro – shell_pid=2902570 – WP_BASE=0548efddbb0b221ad26a4400308b98b3db2807b4. Implemented ClaimInputs + build_claim (fc554913c8). run.claim_inputs NOT stored: _MergeRunState lives in run_state.py (not owned); inputs stay local in phase_claim (WP18 may add the field). Status-dir xfail XPASSed -> pinned as equality (see tracer). Retargeted 5 non-owned tests to claim_inputs (see tracer)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 2902570,
-      "shell_pid_created_at": "1794200366.09"
+      "shell_pid_created_at": "1794200366.09",
+      "subtasks": {
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done"
+      }
     },
     "WP10": {
       "actor": "finalize-tasks",
