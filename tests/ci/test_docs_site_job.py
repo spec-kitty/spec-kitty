@@ -89,6 +89,7 @@ def _run_text(job: dict[str, Any]) -> str:
         "site/astro.config.mjs",
         ".github/workflows/docs-site-build.yml",
         "scripts/docs/site_built_check.py",
+        "scripts/docs/site_link_gates.py",
     ],
 )
 def test_a_docs_or_site_change_selects_the_job(path: str) -> None:
@@ -222,7 +223,9 @@ def _gate_order_violations(job: dict[str, Any]) -> list[str]:
     violations = []
     for needle, after, name in (
         ("dockitty-validate-frontmatter", install, "install"),
+        ("dockitty-check-links", install, "install"),
         ("-m scripts.docs.site_built_check", build, "build"),
+        ("dockitty-assert-no-broken-links", build, "build"),
     ):
         index = _step_index(job, needle)
         if index <= after or after < 0:
