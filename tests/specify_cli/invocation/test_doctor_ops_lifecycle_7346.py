@@ -232,23 +232,6 @@ def test_two_identical_started_records_in_one_checkout_are_both_closed(tmp_path:
     assert _abandoned(worktree) == []
 
 
-def test_a_second_sweep_does_not_close_a_shared_record_again_in_a_worktree(tmp_path: Path) -> None:
-    """WP02 review B1, scenario 1: once the root checkout closed it, the worktree's open copy is not closed again."""
-    repo = _repo(tmp_path)
-    checkout_issue_branch(repo)
-    _started(repo, "implement::shared", hours_ago=48)
-    _commit_all(repo, "orphan on the issue branch")
-    worktree = tmp_path / "lane"
-    run_git(repo, "worktree", "add", "-q", "-b", "lane-topic", str(worktree))
-    close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
-
-    entries = close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
-
-    assert entries == []
-    assert _abandoned(repo) == ["implement::shared"]
-    assert _abandoned(worktree) == []
-
-
 def test_a_record_completed_in_the_root_checkout_is_not_closed_in_a_stale_worktree(tmp_path: Path) -> None:
     """WP02 review B1, scenario 2: a stale worktree's open copy of a record the root already paired stays alone."""
     repo = _repo(tmp_path)
@@ -361,7 +344,10 @@ def test_exact_matches_pair_before_any_fallback() -> None:
 
 
 def test_a_retry_closed_across_checkouts_is_not_closed_again(tmp_path: Path) -> None:
-    """Pre-PR review M1: an ``abandoned`` record pairs the exact record it closes, so a second sweep is a no-op."""
+    """Pre-PR review M1 and WP02 review B1, scenario 1: an ``abandoned`` record pairs the exact record it closes.
+
+    A second sweep is a no-op and never closes a worktree's copy again.
+    """
     repo = _repo(tmp_path)
     checkout_issue_branch(repo)
     write_started(repo, canonical_action_id="implement::implement", agent="claude", mission_id=_MISSION, wp_id="WP04", at=_NOW - timedelta(hours=50))
