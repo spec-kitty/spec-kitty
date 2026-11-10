@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.git import GitPath
-from mission_runtime import MissionArtifactKind, MissionTopology, is_single_branch, placement_seam, resolve_topology, single_branch_write_ref
+from mission_runtime import MissionTopology, is_single_branch, resolve_topology, single_branch_write_ref
 
 __all__ = ["SharedWorkspaceWriter", "dirty_paths", "in_progress_wps_in_write_checkout", "is_single_branch_repo_root_lane", "shared_workspace_writers"]
 
@@ -264,14 +264,19 @@ def _writers_in_write_checkout(
 
 
 def _lane_mates_writing(repo_root: Path, mission_slug: str, wp_id: str, lane_wp_ids: Sequence[str]) -> list[SharedWorkspaceWriter]:
-    """Other WPs of the same lane worktree that are ``in_progress`` / ``in_review``."""
-    from specify_cli.status import read_events as _read_events
+    """Other WPs of the same lane worktree that are ``in_progress`` / ``in_review``.
+
+    Read through the one status read door (ADR 2026-11-06-2, #7310): an empty or
+    unmaterialized coordination worktree reads the committed coordination branch, so the
+    advisory never crashes the command it decorates.
+    """
+    from specify_cli.status import read_status_events, resolve_status_read
     from specify_cli.status import reduce as _reduce_events
 
     mates = [other for other in lane_wp_ids if other != wp_id]
     if not mates:
         return []
-    snapshot = _reduce_events(_read_events(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)))
+    snapshot = _reduce_events(read_status_events(resolve_status_read(repo_root, mission_slug)))
     writers: list[SharedWorkspaceWriter] = []
     for other in mates:
         state = snapshot.work_packages.get(other)
