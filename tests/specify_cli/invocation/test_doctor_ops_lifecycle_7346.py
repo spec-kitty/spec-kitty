@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from kernel.clock import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from specify_cli import app as cli_app
 from specify_cli.doctor.ops import close_stale_lifecycle_records
 from specify_cli.invocation.lifecycle import (
@@ -200,7 +200,7 @@ def test_a_record_held_by_two_checkouts_is_closed_once(tmp_path: Path) -> None:
 def test_the_cli_reports_lifecycle_records_and_exits_on_fresh_orphans(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hours_ago: float, exit_code: int) -> None:
     repo = _repo(tmp_path)
     checkout_issue_branch(repo)
-    write_started(repo, canonical_action_id="implement::cli", agent="claude", mission_id=_MISSION, wp_id="WP04", at=datetime.now(UTC) - timedelta(hours=hours_ago))
+    write_started(repo, canonical_action_id="implement::cli", agent="claude", mission_id=_MISSION, wp_id="WP04", at=now_utc() - timedelta(hours=hours_ago))
     monkeypatch.chdir(repo)
 
     result = runner.invoke(cli_app, ["doctor", "ops", "--close-stale", "--json"])
@@ -437,8 +437,8 @@ def test_a_commit_that_cannot_start_is_reported_and_the_closure_kept(tmp_path: P
 def test_the_cli_text_report_lists_lifecycle_records(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _repo(tmp_path)
     checkout_issue_branch(repo)
-    write_started(repo, canonical_action_id="implement::stale", agent="claude", mission_id=_MISSION, wp_id="WP04", at=datetime.now(UTC) - timedelta(hours=48))
-    write_started(repo, canonical_action_id="implement::fresh", agent="claude", mission_id=_MISSION, wp_id="WP05", at=datetime.now(UTC) - timedelta(hours=1))
+    write_started(repo, canonical_action_id="implement::stale", agent="claude", mission_id=_MISSION, wp_id="WP04", at=now_utc() - timedelta(hours=48))
+    write_started(repo, canonical_action_id="implement::fresh", agent="claude", mission_id=_MISSION, wp_id="WP05", at=now_utc() - timedelta(hours=1))
     monkeypatch.chdir(repo)
 
     result = runner.invoke(cli_app, ["doctor", "ops", "--close-stale"], terminal_width=200)
