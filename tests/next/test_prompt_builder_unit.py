@@ -698,6 +698,36 @@ class TestGovernanceContext:
         text = _governance_context(feature_dir.parent.parent)
         assert "Governance: unavailable" in text
 
+    def test_bare_project_block_does_not_enumerate_the_catalog_default(self, tmp_path: Path) -> None:
+        """#7511: with no governance selected, the block names the catalog default instead of listing its ids."""
+        import subprocess
+
+        from charter.activation.resolver import resolve_project_governance
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        resolution = resolve_project_governance(tmp_path)
+        assert len(resolution.paradigms) > 1 and len(resolution.directives) > 1, "the bare project must resolve the catalog default"
+        fallbacks = [d.message for d in resolution.diagnostics if d.code is GovernanceDiagnosticCode.FALLBACK_APPLIED]
+        assert len(fallbacks) == 2, resolution.diagnostics
+
+        lines = _governance_context(tmp_path).splitlines()
+
+        assert lines[:5] == [
+            "Governance:",
+            "  - Template set: software-dev-default",
+            f"  - Paradigms: built-in catalog default ({len(resolution.paradigms)}; none selected by this project)",
+            f"  - Directives: built-in catalog default ({len(resolution.directives)}; none selected by this project)",
+            "  - Tools: git, spec-kitty",
+        ]
+        body = "\n".join(lines)
+        listed = [item for item in (*resolution.paradigms, *resolution.directives) if item in body]
+        assert listed == [], f"catalog-default ids are enumerated in the prompt block: {listed}"
+        # One line names the command that selects project governance, the same one the preflight advisory names.
+        assert sum("`spec-kitty charter generate`" in line for line in lines) == 1, lines
+        # The compact lines already state the catalog default; only the other notes stay as diagnostics.
+        assert f"  - Diagnostics: {' | '.join(fallbacks)}" in lines
+        assert sum("catalog default" in line for line in lines) == 2, lines
+
     @pytest.mark.fast
     def test_scope_not_found_is_not_swallowed(self, feature_dir: Path) -> None:
         from charter.activation.scope import CharterScopeNotFound
