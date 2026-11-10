@@ -19,6 +19,7 @@ from charter.activation.resolver import (
 
 from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
 from charter.activation.resolver import GovernanceResolution
+from charter.offering.artifact_kinds import ArtifactKind
 from tests.charter.org_pack_identity_support import real_pack_context, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
@@ -34,7 +35,8 @@ def _messages(resolution: GovernanceResolution) -> list[str]:
 
 def _dropped(message: str) -> GovernanceDiagnostic:
     """The typed ``UNKNOWN_SELECTION_DROPPED`` entry carrying *message*."""
-    return GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, message)
+    kind = ArtifactKind.PARADIGM if "selected paradigm" in message else ArtifactKind.DIRECTIVE
+    return GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, message, kind=kind)
 
 
 def _write_charter_files(
