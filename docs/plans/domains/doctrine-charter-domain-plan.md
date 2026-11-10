@@ -217,11 +217,11 @@ The planning was distributed across four surfaces, none of which is the domain's
    / §2.2 done-bar), the built-in → module extraction (§2.2 item 3), and the
    Creed/Values schema build (§3 item 4). It carries the *what-ships-in-3.2.x* framing;
    it does not hold the domain's standing invariants across versions.
-2. **[Glossary Doctrine Overhaul — Program Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/glossary-doctrine-overhaul-program.md)**
+2. **Glossary Doctrine Overhaul — Program Plan**
    — a four-mission program promoting the glossary to a first-order `GLOSSARY_PACK`
    doctrine kind and building the executable ASSET-kind gate. A program plan scoped to
    one sub-area, not the domain.
-3. **[`docs/plans/doctrine/`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/index.md)** — the design/review corpus: the
+3. **`docs/plans/doctrine/`** — the design/review corpus: the
    charter-activation-vs-reachability assessment, the `runtime → charter → doctrine`
    boundary audit, the charter-as-central-path-resolver gap analysis, the layered
    resolution design, the doctrine-inclusion assessment, the FoundationalValues/Creed
@@ -371,7 +371,7 @@ same "resolves means reachable, not just present" honesty the activation surface
 
 **Design of record.** *None as an owning workstream* — this is the domain's content-QA
 gap (see §4). The nearest guardrails are the terminology enforcement in the
-[glossary program](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/glossary-doctrine-overhaul-program.md) (canonical-term casing, banned
+glossary program (canonical-term casing, banned
 synonyms) and the reachability-metric discipline recorded in the now-archived
 [reachability assessment §5](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-activation-reachability-assessment.md) *(deprecated)*
 (measure reachability, not incidence) — both wiring/terminology gates, neither a
@@ -458,7 +458,7 @@ executable-ASSET primitive it introduces is what lets other repo-specific enforc
 move out of the shared runtime into doctrine.
 
 **Design of record.** The
-[Glossary Doctrine Overhaul — Program Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/glossary-doctrine-overhaul-program.md) — four
+Glossary Doctrine Overhaul — Program Plan — four
 sequenced missions **A** (glossary-pack kind keystone, #1418) → **D** (executable
 ASSET-kind gate, #2599/#2535, phased built-in-only trust model) → **B** (enforcement +
 cleanup, #2822/#2830/#2823) → **C** (retire the runtime glossary, #2727) — and its
@@ -570,12 +570,12 @@ content-QA gap (no owning workstream) stands.*
   delivery strategy: charter-as-sole-door done-bar (§1.1/§2.2), built-in → module
   extraction (§2.2), Creed/Values schema (§3 item 4). The `what-ships-in-3.2.x` view of
   §3.1/§3.2 here.
-- [Glossary Doctrine Overhaul — Program Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/glossary-doctrine-overhaul-program.md) —
+- Glossary Doctrine Overhaul — Program Plan —
   the §3.7 program in detail (missions A/D/B/C; #1418/#2599/#2822/#2830/#2823/#2727).
 - [Charter as Sole Door: Deferred Issues Record](../doctrine/charter-sole-door-deferred-issues.md) —
   the citable residual-door summary for §3.1 (six deferred follow-ons).
 
-**Doctrine design corpus** ([`docs/plans/doctrine/`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/index.md)):
+**Doctrine design corpus** (`docs/plans/doctrine/`):
 
 - [Charter as Central Path Resolver — Gap Analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](../doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
 
