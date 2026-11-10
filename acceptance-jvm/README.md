@@ -112,6 +112,12 @@ Each pass writes only under `build/acceptance/<pass>/`, so running `wip` after `
 `environment.properties` carries `cli.version`, `commit.sha`, `os.name`, `java.version` and
 `acceptance.pass`. An unknown pass value fails the build. Only the `wip` pass may run zero scenarios.
 
+To run one shard of a pass, add `-Pacceptance.shard=K/N` (for example
+`gradle test -Pacceptance.pass=gating -Pacceptance.shard=2/3 --no-daemon`). `ShardFilter`
+(`kitty.acceptance.sharding`) orders the scenarios the tag filter would run by feature path and
+line and deals them out round-robin, so the N shards are disjoint and together run every scenario.
+A malformed value fails the build. The nightly runs the gating pass in three shards per OS.
+
 For an ad-hoc run, omit the property and pass a tag filter instead
 (`gradle test -Dcucumber.filter.tags='@init' --no-daemon`); its results land in
 `build/acceptance/adhoc/`. Giving both the property and `-Dcucumber.filter.tags` is refused.
