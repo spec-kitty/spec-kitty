@@ -191,11 +191,20 @@ def test_check_fails_when_the_map_is_missing(tree: dict[str, Path]) -> None:
     assert _main(tree, "--check") == 1
 
 
-def test_check_reports_a_refusal_instead_of_a_traceback(tree: dict[str, Path], capsys: pytest.CaptureFixture[str]) -> None:
-    tree["baseline"].write_text("/guides/ghost.html\n", encoding="utf-8")
+@pytest.mark.parametrize(
+    ("baseline", "reported"),
+    [
+        ("/guides/ghost.html\n", "/guides/ghost.html"),
+        ("guides/no-slash.html\n", "must start with '/'"),
+        ("# comments only\n", "lists no route"),
+    ],
+    ids=["unknown-route", "malformed-line", "empty-baseline"],
+)
+def test_check_reports_a_refusal_instead_of_a_traceback(tree: dict[str, Path], capsys: pytest.CaptureFixture[str], baseline: str, reported: str) -> None:
+    tree["baseline"].write_text(baseline, encoding="utf-8")
 
     assert _main(tree, "--check") == 1
-    assert "/guides/ghost.html" in capsys.readouterr().err
+    assert reported in capsys.readouterr().err
 
 
 def test_a_route_with_no_published_ancestor_is_refused(tree: dict[str, Path]) -> None:

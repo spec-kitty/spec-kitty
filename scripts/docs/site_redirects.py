@@ -131,11 +131,17 @@ def build_map(*, baseline: Path = _BASELINE, moves: Path = _MOVES, docs: Path = 
         moved = collapse(load_moves(moves))
     except MovesLedgerError as error:
         raise RedirectMapError(f"{moves}: {error}") from error
+    try:
+        routes = load_baseline(baseline)
+    except MovesLedgerError as error:
+        raise RedirectMapError(str(error)) from error
+    if not routes:
+        raise RedirectMapError(f"{baseline}: the URL baseline lists no route, so the map would cover nothing")
     pages = _page_routes(docs)
     live = pages - unpublished_routes(docs)
     mapping: dict[str, str] = {}
     problems: list[str] = []
-    for route in load_baseline(baseline):
+    for route in routes:
         try:
             target = _entry(route, moved, docs, public, pages, live)
         except RedirectMapError as error:
