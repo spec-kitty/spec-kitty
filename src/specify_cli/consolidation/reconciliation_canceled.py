@@ -581,8 +581,6 @@ def _missing_canceled_branch_refusal(
         return _UnreadableCanceledLane(lane.lane_id, branch, detail)
     if not lane_never_started(events, lane.wp_ids):
         return _UnreadableCanceledLane(lane.lane_id, branch)
-    # Lazy import, as phase_teardown does: only this rare arm needs the lane-tip refs.
-
     if read_tip(repo_root, branch) is not None:
         return _UnreadableCanceledLane(lane.lane_id, branch)
     return None
