@@ -419,25 +419,18 @@ def approved_bound_refusal(
     gets its own), and the refusal codes are rendered by
     :func:`~specify_cli.consolidation.approved_bound.render_refusals`. A snapshot
     that cannot be materialized raises, as it does for the claim builder's own caller.
-    The canceled work packages' attributed commits are resolved as the claim resolves them
-    (:func:`~specify_cli.consolidation.reconciliation_canceled._canceled_window_exemptions`) and exempt
-    from the window check (tier 2) only, so this door and the claim give the same verdict (FR-022).
+    This door runs no mixed-lane or canceled-content check, so it exempts no canceled work package's
+    commit from the window check (tier 2): the strict window rule judges them, and the canceled-content
+    rules stay the sole judge only on the ``consolidate`` claim, which does exempt them.
     """
-    from specify_cli.lanes.single_branch_landing import authorship_window
     from specify_cli.status import materialize_snapshot
-
-    from .reconciliation_canceled import _CanceledLaneQuery, _canceled_window_exemptions
 
     snapshot = materialize_snapshot(feature_dir)
     work_packages = snapshot.work_packages or {}
     excluded = frozenset(excluded_canceled_wp_ids)
     planning_prefix = _planning_prefix(repo_root, feature_dir)
     log = event_log or _ClaimEventLog(feature_dir)
-    sb_window = authorship_window(repo_root, lanes_manifest.mission_slug, lanes_manifest.mission_branch, lanes_manifest.target_branch)
     # orchestrator-api has no resume record: every anchor is read live (frozen_tips=None, FR-015).
-    query = _CanceledLaneQuery(
-        repo_root, feature_dir, lanes_manifest, work_packages, excluded, coord_base_ref, planning_prefix, excluded_window_base, sb_window, None
-    )
     verdict = _approved_bound_verdict(
         repo_root,
         lanes_manifest,
@@ -448,7 +441,6 @@ def approved_bound_refusal(
         planning_prefix=planning_prefix,
         event_log=log,
         frozen_tips=None,
-        canceled_commits=_canceled_window_exemptions(query, log),
     )
     return verdict.refusal
 
