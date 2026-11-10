@@ -486,6 +486,28 @@ def test_check_lane_windows_stray_between_windows_names_preceding_wp(repo: _Repo
     assert render_write_branch_refusals(tier_two, _SLUG).startswith(f"{text}\n"), "the single_branch text is the lane text plus its hint"
 
 
+def test_check_lane_windows_work_committed_before_the_claim_is_not_after_its_own_approval(repo: _Repo) -> None:
+    """A commit made before the claim lies before the window even when it IS the approval stamp.
+
+    The work package is approved with nothing committed after its claim, so its approval stamp is
+    the pre-claim commit itself and its window ``(open, stamp]`` is empty. The commit is refused
+    (ADR 2026-11-08-2, section 4: content before the window refuses unless an exemption anchor
+    reaches it), but it was not committed after that approval: it is the approval's own head.
+    """
+    early = repo.commit("src/m1.py")
+    repo.claim("WP01", window=True)
+    repo.approve("WP01")
+
+    tier_one, tier_two = _check_lane_windows(repo, approved=("WP01",))
+
+    assert tier_one == ()
+    (refusal,) = tier_two
+    assert (refusal.commits, refusal.wp_ids, refusal.precedes_approvals) == ((early,), ("WP01",), True)
+    text = render_lane_window_refusals(tier_two, _SLUG)
+    assert "after WP01's approval" not in text
+    assert "before WP01's review window opened" in text
+
+
 def test_check_lane_windows_anchor_exempts_the_stray(repo: _Repo) -> None:
     """WW-2a: a commit an exemption anchor (another lane's stamp) reaches is exempt from tier 2."""
     _build_windowed(repo, "WP01", "src/m1.py")
