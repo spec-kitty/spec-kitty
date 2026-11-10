@@ -3,7 +3,7 @@ title: Trail Model
 description: 'Operator reference for the Phase 4 trail model: how every standalone spec-kitty dispatch writes an auditable JSONL trail for accountability, SaaS coherence, and provenance.'
 doc_status: active
 kind: Explanation
-updated: '2026-10-18T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 audience:
 - profile: internal/system-architect
   guidance_text: Written for the System Architect reader.
@@ -216,6 +216,30 @@ Rejected alternatives: letting the sweep mutate per-record files without
 committing (still reds the gate, which compares the working tree against the
 merge-base — and leaves closures non-durable), and narrowing the archive roots
 themselves (weakens the preservation guarantee far beyond this surface).
+
+### Lifecycle records in the same sweep (#7346)
+
+`spec-kitty next` writes WP lifecycle records, one file per record under
+`kitty-ops/lifecycle/` (ADR 2026-11-01-2), and pairs a `started` record only when
+it reports a result. `doctor ops --close-stale` closes the rest:
+
+- Every checkout is read, the project root first. Each `started` record that no
+  completion pairs is reported once, even when several checkouts hold it (a
+  record tracked on a shared branch).
+- One older than `--threshold` (any, at `0`) gets an **`abandoned`** record in the
+  checkout that holds it: a new file, copying the action id, agent, Mission and
+  work package, with a reason that names the sweep and `metadata.closed_by =
+  doctor_sweep`. Pairing counts it as a completion. Nothing is rewritten, so the
+  preservation gate admits it as any other added `kitty-ops/` file.
+- Each checkout's closures are committed once (`op(doctor): close N stale
+  lifecycle record(s) (doctor sweep)`) through the same executor commit as an Op
+  close, with the #6410 rules judged for lifecycle records: the commit is skipped
+  when the path is ignored or the primary branch tracks no
+  `kitty-ops/lifecycle/<ULID>.json` record. A protected-branch refusal is
+  reported and the closures stay on disk.
+- Mission status, `meta.json` and work package files are never touched.
+- `--json` lists them under the additive `lifecycle_records` key; a fresh one left
+  open makes the command exit 1, as a fresh Op does.
 
 ## SaaS Read-Model Policy
 
