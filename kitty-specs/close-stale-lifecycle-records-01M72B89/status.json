@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M72DN6664W1715GMRJYA80AR",
-  "materialized_at": "2026-11-10T09:47:02.708942+00:00",
+  "event_count": 10,
+  "last_event_id": "01M72FRJDWQAV6E9RZ2M899Q3W",
+  "materialized_at": "2026-11-10T10:23:50.716285+00:00",
   "mission_number": "",
   "mission_slug": "close-stale-lifecycle-records-01M72B89",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -57,9 +57,9 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M72DN6664W1715GMRJYA80AR",
-      "last_transition_at": "2026-11-10T09:47:02.708942+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M72FRJDWQAV6E9RZ2M899Q3W",
+      "last_transition_at": "2026-11-10T10:23:50.716285+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-11-10T10:17:03Z – claude – shell_pid=29706 – SC-001 on a scratch clone of this repository: 123 orphans before, 123 closed in one commit, 0 after, clean tree. NFR-003: a sweep of the 1,652-file store with no orphans takes 0.07 s (the first sweep, closing 123, 7.4 s). Design note: the shared commit stays inside ProfileInvocationExecutor (_commit_record_paths, commit_lifecycle_closures) instead of a new trail_commit.py, so the existing tests that patch executor.safe_commit/_current_branch keep covering it. WP01 review L1 (phase set from the Literal) and L2 (next never writes abandoned) folded here."
@@ -67,7 +67,15 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 29706,
-      "shell_pid_created_at": "1794304014.5"
+      "shell_pid_created_at": "1794304014.5",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     }
   }
 }
