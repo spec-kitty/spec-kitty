@@ -84,6 +84,7 @@ __all__ = [
     "parse_instant",
     "persona_page",
     "profile_of_persona_path",
+    "redirect_stub_target",
     "route_of",
     "slug_of",
     "split_frontmatter",
@@ -130,6 +131,13 @@ _FENCE: Final[str] = "---"
 _DATED_ADR: Final[re.Pattern[str]] = re.compile(r"^adr/\d+\.x/\d{4}-\d{2}-\d{2}-[^/]+\.md$")
 _IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = ("plans/", "reports/", "changelog/", "archive/")
 _DOC_STATUS_LINE: Final[re.Pattern[str]] = re.compile(r"""^doc_status:[ \t]*(?P<value>[^\s#]*)""", re.MULTILINE)
+#: doc-kitty's redirect stub (``renderLegacyStub``, ``lib/legacy-html-redirects.mjs``): the same
+#: two-part shape its coverage gate reads (``REDIRECT_STUB_RE``, ``scripts/check-redirect-coverage.mjs``),
+#: a ``Redirecting to:`` title AND a ``meta refresh``, so a page that merely uses a refresh tag is not one.
+_REDIRECT_STUB: Final[re.Pattern[str]] = re.compile(
+    r'<title>Redirecting to: [^<]*</title>[\s\S]*?<meta http-equiv="refresh" content="\d+;\s*url=([^"]*)"',
+    re.IGNORECASE,
+)
 _PERSONA_PATH: Final[re.Pattern[str]] = re.compile(r"^(?:\./|(?:\.\./)+|docs/)?context/audience/(?P<profile>.+)\.md$")
 
 
@@ -244,6 +252,17 @@ def unpublished_routes(docs_root: Path) -> frozenset[str]:
         if not is_published(rel, {} if status is None else {"doc_status": status}):
             routes.add(route_of(rel))
     return frozenset(routes)
+
+
+def redirect_stub_target(html: str) -> str | None:
+    """The target of the redirect stub *html*, or ``None`` when *html* is not a stub (#6933).
+
+    A stub is a redirect, not a publication: the built-site check skips it as a page and
+    as a page to render, while its ``<a href>`` still meets the ``link`` surface, so a stub
+    pointing at an unpublished route is still reported. The one predicate every reader uses.
+    """
+    match = _REDIRECT_STUB.search(html)
+    return match.group(1) if match else None
 
 
 def profile_of_persona_path(value: str) -> str | None:

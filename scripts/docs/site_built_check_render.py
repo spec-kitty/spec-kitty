@@ -12,7 +12,9 @@ Every built HTML page must carry the head tags DocFX's ``seo_postprocess.py`` an
   unrendered alert; ``githubAlerts`` in ``site/astro.config.mjs`` turns them into asides).
 
 Starlight and doc-kitty emit these tags; this proves them on the built output so the
-DocFX scripts can retire at #6943. Standard library only (``html.parser``).
+DocFX scripts can retire at #6943. A redirect stub (#6933,
+:func:`~scripts.docs._dockitty_contract.redirect_stub_target`) is not a page and is skipped.
+Standard library only (``html.parser``).
 """
 
 from __future__ import annotations
@@ -22,6 +24,8 @@ from collections.abc import Iterator
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
+
+from scripts.docs._dockitty_contract import redirect_stub_target
 
 if TYPE_CHECKING:
     from scripts.docs.site_built_check import Finding
@@ -110,6 +114,9 @@ def surface(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
     del routes
     for page in sorted(dist.rglob(f"*{_HTML_SUFFIX}")):
         rel = page.relative_to(dist).as_posix()
+        html = page.read_text(encoding="utf-8", errors="replace")
+        if redirect_stub_target(html) is not None:
+            continue  # a redirect stub (#6933) is not a page: no description, its canonical is its target
         url = own_url(rel, SITE_ORIGIN)
-        for defect in page_defects(page.read_text(encoding="utf-8", errors="replace"), url):
+        for defect in page_defects(html, url):
             yield Finding(SURFACE, url.removeprefix(SITE_ORIGIN), f"{rel}: {defect}")
