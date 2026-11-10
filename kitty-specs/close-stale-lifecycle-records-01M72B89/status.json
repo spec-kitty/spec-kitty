@@ -1,0 +1,92 @@
+{
+  "event_count": 29,
+  "last_event_id": "01M72K6Q8RQBAAHPVWF07Y820Y",
+  "materialized_at": "2026-11-10T11:24:00.152094+00:00",
+  "mission_number": "253",
+  "mission_slug": "close-stale-lifecycle-records-01M72B89",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M72K6NHGNF09W6QHNCDVT55A",
+      "last_transition_at": "2026-11-10T11:23:58.384204+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: abandoned phase, one completion predicate, unpaired_started, write_abandoned_completion, ADR amendment. Archive gate red only from the shallow clone.",
+        "Approved: red-first verified (c766a27b fails on base: ImportError write_abandoned_completion + unknown phase); abandoned accepted by record contract; COMPLETION_PHASES is the one completion predicate; unpaired_started replaces both slices; write_abandoned_completion copies ids verbatim, stamps reason/metadata, refuses non-started, writes one new file via append_lifecycle_record; write_paired_completion refuses abandoned; pair_previous_lifecycle_record unchanged and correct; ADR amendment accurate. 172 tests passed; ruff/format/mypy/C901 clean. Deferred to WP02: L1 derive _PROFILE_INVOCATION_PHASES from the Literal via typing.get_args; L2 add a test that write_paired_completion refuses abandoned."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261110",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24297,
+      "shell_pid_created_at": "1794303814.75",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M72K6Q8RQBAAHPVWF07Y820Y",
+      "last_transition_at": "2026-11-10T11:24:00.152094+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T10:17:03Z – claude – shell_pid=29706 – SC-001 on a scratch clone of this repository: 123 orphans before, 123 closed in one commit, 0 after, clean tree. NFR-003: a sweep of the 1,652-file store with no orphans takes 0.07 s (the first sweep, closing 123, 7.4 s). Design note: the shared commit stays inside ProfileInvocationExecutor (_commit_record_paths, commit_lifecycle_closures) instead of a new trail_commit.py, so the existing tests that patch executor.safe_commit/_current_branch keep covering it. WP01 review L1 (phase set from the Literal) and L2 (next never writes abandoned) folded here.",
+        "Ready for review: lifecycle sweep in doctor ops --close-stale (every checkout, counted dedupe, one commit per checkout via the executor's record commit, additive lifecycle_records JSON, exit 1 on fresh orphans), docs and changelog. SC-001 verified on this repository's store (123/123 closed, 0 left).",
+        "Rework cycle 1: B1 fixed (dedupe counts every started occurrence an earlier checkout holds, paired or not; red tests for both reproduced scenarios); L1 (record-kind wording in commit logs/probe reason) and L2 (lifecycle pattern and probe tests) folded; L3 deferred: an unreadable lifecycle store is logged, not added to the Op sweep's unreadable_checkouts stderr report, which names Op records. 1037 passed.",
+        "Rework cycle 2: B2 fixed. The sweep reads every checkout first; an unpaired copy is acted on only beyond both the copies any checkout holds paired and the copies earlier checkouts hold. Red-first test for the review's scenario. SC-001 re-run with a linked worktree holding all 123 records: 123 closed once in the root checkout, lane untouched, second sweep 0 entries. 1038 passed.",
+        "Rework cycle 3: B3 fixed inside the sweep only. _unpaired_ids matches each completion to a started record of the same agent and work package first, then by read order; unpaired_started, doctor invocation-pairing and the group key unchanged. Red-first tests for both requested cases. Follow-up issue filed for the read-only report's latest-record label. 1040 passed.",
+        "Review passed (cycle 4). B1-B3 fixed with red-first tests; executor refactor behavior-preserving; C-003/C-005/FR-004 verified; ruff/format/mypy/C901<=15 clean; targeted suite 1071 passed, 5 skipped. Non-blocking residuals: (1) _unpaired_ids matches completions in one pass, so a fallback can take a record a later completion matches exactly (two-pass exact-then-fallback would be tighter); (2) two starts of the same agent+WP whose completions are reported in different checkouts are still ambiguous (completions carry no started at); (3) L3 unreadable lifecycle store only logged. Follow-up #7505 covers unpaired_started labelling."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261110",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14469,
+      "shell_pid_created_at": "1794309318.84",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}

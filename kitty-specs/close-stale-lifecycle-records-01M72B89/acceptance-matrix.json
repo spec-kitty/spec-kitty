@@ -1,0 +1,109 @@
+{
+  "mission_slug": "close-stale-lifecycle-records-01M72B89",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py::test_the_abandoned_phase_round_trips",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:01.880583+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py::test_an_abandoned_record_pairs_its_started_record",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:08.393567+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py (stale/fresh, threshold 0); SC-001 run: 123 closed, 0 left",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:13.942667+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py (commit carries closures only; Mission status untouched)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:19.074060+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py::test_the_writer_appends_one_abandoned_file_and_changes_nothing_else",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:24.348866+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py (commit, skip, protected main refusal); tests/specify_cli/invocation/test_op_commit_policy.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:29.681500+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py (worktree, shared record, B1/B2 cross-checkout)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:34.961017+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py (fresh orphan reported, exit 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:40.207203+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/test_doctor_ops_cli.py (lifecycle_records key); tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py CLI JSON",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:46.010876+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr amendment 2026-11-01-2; docs/context/ops-vs-missions.md; docs/architecture/trail-model.md; docs/api/cli-commands.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T11:22:51.821161+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

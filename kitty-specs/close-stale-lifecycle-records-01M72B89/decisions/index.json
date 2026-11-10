@@ -1,0 +1,102 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-10T09:05:20.283748Z",
+      "decision_id": "01M72B8TCVPNVSD9NMVTS2W84E",
+      "final_answer": "extend doctor ops --close-stale (operator triage ruling on #7346, 2026-11-08); no new command",
+      "input_key": "close_route",
+      "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+      "mission_slug": "close-stale-lifecycle-records-01M72B89",
+      "opened_by": "cli",
+      "options": [
+        "extend doctor ops --close-stale",
+        "new command",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which CLI route closes an orphaned WP lifecycle record without advancing the Mission?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:05:22.817098Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.close-route",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T09:05:25.135356Z",
+      "decision_id": "01M72B8Z4FQ7J02B2HJ0ZNTC25",
+      "final_answer": "new abandoned phase (operator ruling via AskUserQuestion, 2026-11-10); record contract change with an ADR 2026-11-01-2 amendment",
+      "input_key": "abandoned_representation",
+      "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+      "mission_slug": "close-stale-lifecycle-records-01M72B89",
+      "opened_by": "cli",
+      "options": [
+        "failed phase + abandoned reason",
+        "new abandoned phase",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How is a sweep closure of a lifecycle record represented?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:05:27.749027Z",
+      "resolved_by": null,
+      "slot_key": "specify.contract.abandoned-phase",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T09:05:30.190265Z",
+      "decision_id": "01M72B942EZG713N48E0ERWE9K",
+      "final_answer": "auto-commit like the Op sweep (operator ruling via AskUserQuestion, 2026-11-10): #6410 skip semantics, protected-branch refusal reported, never bypassed",
+      "input_key": "sweep_commit",
+      "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+      "mission_slug": "close-stale-lifecycle-records-01M72B89",
+      "opened_by": "cli",
+      "options": [
+        "write and list, no commit",
+        "auto-commit like the Op sweep",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does the sweep commit the lifecycle closures it writes?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:05:32.941768Z",
+      "resolved_by": null,
+      "slot_key": "specify.commit.sweep-commit",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T09:05:41.848808Z",
+      "decision_id": "01M72B9FER5AYKRVXF0QX06XK1",
+      "final_answer": "Confirm as written (operator via AskUserQuestion, 2026-11-10): sweep every checkout; fresh lifecycle orphans exit 1 as fresh Ops do; abandoned counts as a completion; additive lifecycle_records JSON key; older CLIs skip abandoned records",
+      "input_key": "intent_summary_confirmed",
+      "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+      "mission_slug": "close-stale-lifecycle-records-01M72B89",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as written",
+        "Confirm with changes",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary for #7346 (sweep scope: every checkout; fresh orphans exit 1 like fresh Ops; abandoned counts as a completion in pairing)?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:26:00.586618Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.summary-confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+  "version": 1
+}

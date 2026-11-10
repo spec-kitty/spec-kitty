@@ -1,0 +1,52 @@
+{
+  "accept_commit": "68614c7a646077993c8c295ffd308d1c595996de",
+  "acceptance_history": [
+    {
+      "accept_commit": "59c2a836ffe825e865f8d2b4da2b63c26e30ccf5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-10T11:22:57.034409+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "5d668d7a415fc22ba7d12f0222fbddcaf16a4708"
+    },
+    {
+      "accept_commit": "68614c7a646077993c8c295ffd308d1c595996de",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-10T11:23:05.895231+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "f07e90794b78d0a0fd00c38c160019ba74cc3748"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-10T11:23:05.895231+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "f07e90794b78d0a0fd00c38c160019ba74cc3748",
+  "baseline_merge_commit": "17d313cbfa2ab3897082b8a76adf2873c9f833f1",
+  "create_return_branch": "feat/7346-close-stale-lifecycle-records",
+  "created_at": "2026-11-10T09:05:04.863238+00:00",
+  "flattened": false,
+  "friendly_name": "Close stale WP lifecycle records",
+  "merged_at": "2026-11-10T11:24:28.750964+00:00",
+  "merged_commit": "5c9e3bf479146b20efc0f844ed85e8cb43e90b48",
+  "mid8": "01M72B89",
+  "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+  "mission_number": 253,
+  "mission_slug": "close-stale-lifecycle-records-01M72B89",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A work package's lifecycle record under kitty-ops/lifecycle/ could only be closed by spec-kitty next reporting a result, which also advances the Mission, so stale records shipped open (#7346). The operator ruled that the existing stale sweep closes them as abandoned and commits the closures.",
+  "purpose_tldr": "Let doctor ops --close-stale close orphaned work-package lifecycle records as abandoned without advancing the Mission.",
+  "slug": "close-stale-lifecycle-records-01M72B89",
+  "status_phase": "1",
+  "target_branch": "feat/7346-close-stale-lifecycle-records",
+  "topology": "single_branch",
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
+  "topology_source": "default"
+}
