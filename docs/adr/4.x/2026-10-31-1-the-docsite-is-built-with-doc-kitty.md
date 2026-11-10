@@ -348,3 +348,40 @@ Recorded with #6932 (publication). D-8's text above is unchanged; this section r
 - **The link gates run with priced debt.** `dockitty-check-links --strict` and `dockitty-assert-no-broken-links` run in the shared build through `scripts/docs/site_link_gates.py`. It fails on any problem that `site/link-debt.json` does not list. That file lists only problems whose source is immutable history (dated ADRs, `plans/`, `reports/`, `changelog/`, `archive/`), whose bodies are never rewritten (Standing Order #5, burn-down #7489). A problem in an editable page is fixed, not listed. The relative-link test reads the same file. It is not a ratchet.
 - Clarification 2026-11-10: a live hub (`kind: Hub`) is never an immutable source, and neither is a `plans/` page whose `doc_status` is `active` or `durable`, or whose `kind` or `doc_status` cannot be read; such a page fixes its broken links instead of pricing them in `site/link-debt.json`. One predicate, `is_debt_eligible_source`, judges both the link gates and the relative-link debt.
 - **One frontmatter edit to a dated ADR.** `docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md` dropped `related: plans/investigations/2026-08-pack-level-metadata-manifest`. That page is now a draft (working-note folder, above), and a `related` entry that names an unpublished page is a build-fatal dangling reference in doc-kitty's `Related` block. The ADR body is unchanged.
+
+## Amendment 2026-11-10
+
+Recorded with #6933 (redirects). D-5's and D-14's text above is unchanged. This section records how the redirect layer is carried out with doc-kitty v0.7.0 (`5acb83c`), and where it departs from them.
+
+- **The map is doc-kitty's `legacyHtmlRedirects`, not Astro's `redirects`.**
+  - Every one of the 970 baseline routes ends in `.html`. doc-kitty refuses `.html` keys in Astro's `redirects` on static output (doc-kitty #253), so Astro's `redirects` stays empty.
+  - The generated map is `site/legacy-redirects.json`, not D-5's `site/redirects.json`. It is a flat JSON object with no comment key, because doc-kitty validates every key as a legacy `.html` path.
+  - `site/astro.config.mjs` reads it, and doc-kitty writes one flat stub per key (`dist/a/b.html`).
+- **D-5's fallback is now the mechanism.** Flat stubs, the fallback D-5 evaluated and did not choose, are what upstream writes. The coverage gate sees them (doc-kitty ADR-0071), and they remove the 301 hop D-5's spike worried about. The D-13 canary still decides the GitHub Pages leg.
+- **The gate override is retired.** Gap (b) closed upstream: the gate resolves `/a/index.html` to the file that `/a/` serves. Both runs report 970/970 with no `--redirects` override, so the D-14 shim list no longer includes the gate override.
+- **One generator, one authority per input.** `scripts/docs/site_redirects.py` derives the map from three inputs:
+  - the URL baseline;
+  - `site/moves.yaml`, with chains collapsed by `moves_ledger.collapse`;
+  - the published set: `route_of` of every page minus `unpublished_routes()`.
+
+  `--check` fails the build when the committed map is stale.
+- **Rule 4 lives in the generator.** While DocFX still publishes drafts, a `moves.yaml` row away from a draft page fails DocFX's own map check. The generator therefore redirects an unpublished page's route to its nearest published ancestor. Rule 4 moves into the ledger only once #6943 retires DocFX.
+- **Rule 5: resources.** `docs/assets/spec-kitty-backlog.html` and `docs/assets/spec-kitty-evolution-v1-to-v3.html` are standalone HTML that DocFX copied as resources; doc-kitty publishes only pages.
+  - Operator ruling 2026-11-10: they redirect to the `/assets/` hub.
+  - The generator applies this as a rule, not a list: a baseline route backed by a non-page file under `docs/` goes to its nearest published ancestor.
+  - Any other baseline route with no page and no move is refused.
+- **Counts at this amendment.** 970 baseline routes and 929 keys:
+
+  | Kind of route | Count |
+  |---|---|
+  | its own page | 571 |
+  | its moved page | 305 |
+  | a section hub, page unpublished | 51 |
+  | a section hub, resource | 2 |
+  | no key: a live, unmoved `dir/index.html` (rule 3) | 41 |
+
+  D-5's "11 dead-section `dir/index.html` keys" are now 21, because more sections moved since.
+- **The gate runs twice, as D-5 says, and proves itself.** The shared build runs `dockitty-check-redirect-coverage` once with `--docs` and the declared map, and once with neither. A self-test then runs the gate against a hard-linked copy of the built site with three mutants: a dead target, a missing key and a draft-excused URL. It requires each verdict, so a gate that stops failing is caught.
+- **Redirect stubs are not publications.** The built-site check recognises doc-kitty's stub through one predicate, `redirect_stub_target` in `scripts/docs/_dockitty_contract.py`. That predicate mirrors doc-kitty's `REDIRECT_STUB_RE`.
+  - The `page` and `render` surfaces skip stubs.
+  - The `link` surface still reports a stub whose target is unpublished.
