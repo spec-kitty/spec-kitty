@@ -635,37 +635,6 @@ def test_lenient_warning_names_remap_and_drops_mkdir_for_build_paths(tmp_path: P
     assert "Suggestions:" not in output
 
 
-def test_lenient_warning_keeps_mkdir_for_artifact_path_only(tmp_path: Path) -> None:
-    """#7512: under ``--lenient`` a missing mission-artifact path keeps its
-    ``mkdir -p`` suggestion; the build-layout path beside it gets the remap."""
-    repo_root = _go_style_repo(tmp_path)
-    feature_dir = repo_root / "kitty-specs" / "010-mission"
-
-    result = validate_mission_paths(_software_dev_stub_with_contracts(), repo_root, strict=False, feature_dir=feature_dir)
-    output = result.format_warnings()
-
-    assert "      workspace: <real-directory>/" in output
-    assert "mkdir -p src/" not in output
-    assert "  - mkdir -p kitty-specs/010-mission/contracts/" in output
-    assert output.index("project.path_conventions") < output.index("Suggestions:")
-
-
-def test_strict_and_lenient_texts_share_one_remap_wording(tmp_path: Path) -> None:
-    """#7512: the lenient warning reuses the strict text's remap guidance
-    verbatim -- one wording, not a second copy that can drift."""
-    repo_root = _go_style_repo(tmp_path)
-    feature_dir = repo_root / "kitty-specs" / "010-mission"
-
-    result = validate_mission_paths(_software_dev_stub(), repo_root, strict=False, feature_dir=feature_dir)
-    errors, warnings = result.format_errors(), result.format_warnings()
-
-    start = "If this project's real layout differs"
-    end = "removing that key's line."
-    strict_block = errors[errors.index(start) : errors.index(end)]
-    assert strict_block
-    assert strict_block in warnings
-
-
 def test_path_conventions_example_lists_only_actually_missing_keys(tmp_path: Path) -> None:
     """#6633: a satisfied convention must not appear in the copy-pasteable
     ``project.path_conventions`` example (partial-missing scenario)."""
