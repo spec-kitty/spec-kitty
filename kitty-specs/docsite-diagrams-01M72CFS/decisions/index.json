@@ -1,0 +1,70 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-10T09:55:52.547447Z",
+      "decision_id": "01M72E5BK32RSKY3Z8QH62M0ZF",
+      "final_answer": null,
+      "input_key": "startyaml_handling",
+      "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+      "mission_slug": "docsite-diagrams-01M72CFS",
+      "opened_by": "cli",
+      "options": [
+        "upstream fix then pin bump",
+        "convert the 5 blocks",
+        "ship without them for now"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "If CI confirms doc-kitty v0.7.0 cannot render @startyaml, how are the 5 @startyaml blocks handled: upstream fix then pin bump, convert the blocks, or ship without them for now?",
+      "rationale": "Operator question pending (asked 2026-11-10); the first CI run confirms whether the gap is real.",
+      "resolved_at": "2026-11-10T09:55:54.419492Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.startyaml",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T09:55:56.290220Z",
+      "decision_id": "01M72E5F829E54912CTZ8XAA51",
+      "final_answer": "plantuml/plantuml-server:jetty-v1.2026.9@sha256:065c66adc6728ba6dd353a29d4ada73f8358b68549a0f710c4bf46b43c103618, the digest doc-kitty v0.7.0's consumer guide recommends (operator brief).",
+      "input_key": "plantuml_image",
+      "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+      "mission_slug": "docsite-diagrams-01M72CFS",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which PlantUML server image is used?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:55:58.029952Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.image",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T09:55:59.840512Z",
+      "decision_id": "01M72E5JQ0MN4FZ3NMYA2FJZXV",
+      "final_answer": "No: SANDBOX profile plus the canary check is enough; external includes stay off; doc-kitty #268's opt-in is not used (operator ruling 2026-11-01 on #6936).",
+      "input_key": "plantuml_isolation",
+      "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+      "mission_slug": "docsite-diagrams-01M72CFS",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is network isolation of the PlantUML server required?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T09:56:01.681410Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.isolation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+  "version": 1
+}
