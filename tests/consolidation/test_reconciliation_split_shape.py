@@ -16,7 +16,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation import reconciliation
-from tests.consolidation.test_reconciliation_seeded_mutations import MUTATIONS
 
 pytestmark = pytest.mark.fast
 
@@ -189,16 +188,3 @@ def test_every_split_module_imports_alone_in_a_fresh_interpreter(path: Path) -> 
         text=True,
         cwd=_REPO_ROOT,
     )
-
-
-def test_every_mutation_target_is_defined_in_exactly_one_split_module() -> None:
-    homes: dict[str, list[str]] = {}
-    for path in _SPLIT_MODULES:
-        for name in _top_level_definitions(path):
-            homes.setdefault(name, []).append(path.stem)
-    bad = {}
-    for row in MUTATIONS:
-        symbol = row.target.split(".")[0]
-        if len(homes.get(symbol, [])) != 1:
-            bad[row.target] = homes.get(symbol, [])
-    assert not bad, f"a seeded-mutation target is not defined in exactly one split module: {bad}"

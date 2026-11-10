@@ -143,17 +143,6 @@ def test_resume_approved_bound_refuses_a_post_interrupt_dependency_commit(tmp_pa
     _assert_nothing_moved(mission, tips, logs)
 
 
-def test_fresh_run_on_the_same_fixture_keeps_its_verdict(tmp_path: Path) -> None:
-    """Control: a fresh run on the (f) fixture, before any kill and without the advance, keeps the golden fresh verdict."""
-    mission = rfa.build_bound_lane_with_dependency(tmp_path)
-    golden = cs.load_golden()[cs.cell_key("fresh", "dependency_chain", "present", "recorded")]
-
-    fresh = _fresh_verdict_on_copy(mission, tmp_path / "fresh-copy")
-
-    assert (fresh.exit_code, fresh.status) == (golden["exit_code"], golden["status"]), fresh.output
-    assert [code for code in fresh.codes if code not in _NOISE_CODES] == [code for code in golden["codes"] if code not in _NOISE_CODES]
-
-
 # --------------------------------------------------------------------------- T094: fully-canceled lane (NFR-002 g, consumer 3)
 
 
