@@ -181,9 +181,9 @@ def test_axis_commits_of_two_log_copies_are_one_commit_across_a_second_boundary(
 
 def test_normalization_and_code_extraction_are_stable() -> None:
     sha = "0123456789abcdef0123456789abcdef01234567"
-    text = f"LANE_MOVED_AFTER_APPROVAL: commit {sha[:7]} on /tmp/x/repo after {sha} at 2026-11-08T10:00:00+00:00; SPEC_KITTY_HOME"
+    text = f"LANE_MOVED_AFTER_APPROVAL: commit {sha[:7]} on /srv/x/repo after {sha} at 2026-11-08T10:00:00+00:00; SPEC_KITTY_HOME"
     assert cs.refusal_codes(text) == ("LANE_MOVED_AFTER_APPROVAL",)
-    assert cs.normalize_text(text, (Path("/tmp/x"),)) == "LANE_MOVED_AFTER_APPROVAL: commit <sha:1> on <root0>/repo after <sha:2> at <ts>; SPEC_KITTY_HOME"
+    assert cs.normalize_text(text, (Path("/srv/x"),)) == "LANE_MOVED_AFTER_APPROVAL: commit <sha:1> on <root0>/repo after <sha:2> at <ts>; SPEC_KITTY_HOME"
 
 
 def test_refusal_codes_reads_a_code_after_a_json_escape() -> None:
