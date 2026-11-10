@@ -194,11 +194,20 @@ def test_a_failing_gate_with_no_parseable_problem_fails(tmp_path: Path, docs: Pa
 # --- a failing gate is never hidden by listed problems (review cycle 1, finding 1) -------------
 
 
-def test_a_route_collision_beside_a_listed_problem_fails(tmp_path: Path, docs: Path) -> None:
-    """``dockitty-check-links`` exits 1 on a route collision it prints as ``[dk-routes] …``, with no ``✖``."""
-    output = CHECK_LINKS_OUT + "\n[dk-routes] 1 route collision(s): /guides/x/ is served by guides/x.md and guides/x/index.md\n"
+@pytest.mark.parametrize(
+    "extra",
+    [
+        pytest.param(
+            "\n[dk-routes] 1 route collision(s): /guides/x/ is served by guides/x.md and guides/x/index.md\n",
+            id="route-collision",
+        ),
+        pytest.param("check-links: error something broke\n", id="forged-check-links-line"),
+    ],
+)
+def test_an_unrecognised_line_beside_a_listed_problem_fails(tmp_path: Path, docs: Path, extra: str) -> None:
+    """``dockitty-check-links`` can exit 1 on output with no ``✖`` (a ``[dk-routes]`` collision); only its two informational ``check-links:`` lines are accepted."""
     debt = _debt(tmp_path, _entry("check-links", ADR))
-    argv = ["check-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, output, 1)]
+    argv = ["check-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, CHECK_LINKS_OUT + extra, 1)]
 
     assert _gates().main(argv) == 1
 
