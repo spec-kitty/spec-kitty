@@ -14,6 +14,7 @@ from __future__ import annotations
 import gzip
 import importlib
 import json
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
@@ -189,6 +190,28 @@ def test_a_missing_dist_is_refused(site: tuple[Path, Path]) -> None:
     docs, dist = site
 
     assert _check().main([str(dist / "absent"), "--docs", str(docs)]) == 2
+
+
+@pytest.mark.parametrize(
+    ("surface", "remove"),
+    [
+        pytest.param("sitemap", "sitemap-*.xml", id="sitemap"),
+        pytest.param("okf", "okf", id="okf"),
+        pytest.param("search", "pagefind/fragment", id="search"),
+    ],
+)
+def test_a_surface_whose_artifact_is_not_built_is_a_finding(site: tuple[Path, Path], surface: str, remove: str) -> None:
+    """An absent ``okf/``, pagefind fragment or sitemap must not make its check pass vacuously."""
+    docs, dist = site
+    for target in dist.glob(remove):
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+    findings = _findings(docs, dist)
+
+    assert [finding for finding in findings if finding.startswith(f"{surface}: missing ")] != [], findings
 
 
 def test_a_corrupt_search_fragment_is_reported_not_skipped(site: tuple[Path, Path]) -> None:

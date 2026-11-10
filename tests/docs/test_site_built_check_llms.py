@@ -158,7 +158,8 @@ def test_the_registered_surface_checks_the_real_site_contract(tmp_path: Path) ->
 
     def run(llms_txt: str) -> list[str]:
         _write(dist, "llms.txt", llms_txt)
-        return [str(finding) for finding in check.check(dist, routes)]
+        # This dist carries no sitemap, okf or search artifact: only the llms surfaces are under test.
+        return [str(finding) for finding in check.check(dist, routes) if finding.surface.startswith("llms")]
 
     assert run(_llms_txt("/guides/live/")) == []
     assert run(_llms_txt("/plans/")) == ["llms-content: /plans/ (llms.txt: section plans does not feed llms)"]
