@@ -118,13 +118,33 @@ def test_an_unlisted_problem_fails(tmp_path: Path, docs: Path) -> None:
     assert ADR in verdict.failures[0]
 
 
-def test_a_listed_problem_from_an_editable_source_fails(tmp_path: Path, docs: Path) -> None:
-    output = CHECK_LINKS_OUT.replace(ADR, GUIDE)
-    debt = _debt(tmp_path, _entry("check-links", GUIDE))
+@pytest.mark.parametrize(
+    ("source", "text"),
+    [
+        pytest.param(GUIDE, None, id="editable-section"),
+        pytest.param("plans/live-hub.md", "---\ntitle: t\ndoc_status: draft\nkind: Hub\n---\n", id="live-hub-under-plans"),
+        pytest.param("plans/live-plan.md", "---\ntitle: t\ndoc_status: active\nkind: Planning\n---\n", id="active-plan"),
+    ],
+)
+def test_a_listed_problem_from_an_editable_source_fails(tmp_path: Path, docs: Path, source: str, text: str | None) -> None:
+    if text is not None:
+        _write(docs, source, text)
+    output = CHECK_LINKS_OUT.replace(ADR, source)
+    debt = _debt(tmp_path, _entry("check-links", source))
 
     verdict = _verdict("check-links", output, docs, debt)
 
-    assert any(GUIDE in failure and "not immutable" in failure for failure in verdict.failures), verdict.failures
+    assert any(source in failure and "not immutable" in failure for failure in verdict.failures), verdict.failures
+
+
+def test_a_superseded_plan_stays_immutable_history(tmp_path: Path, docs: Path) -> None:
+    source = "plans/old-plan.md"
+    _write(docs, source, "---\ntitle: t\ndoc_status: superseded\nkind: Planning\n---\n")
+    debt = _debt(tmp_path, _entry("check-links", source))
+
+    verdict = _verdict("check-links", CHECK_LINKS_OUT.replace(ADR, source), docs, debt)
+
+    assert verdict.failures == [], verdict.failures
 
 
 def test_an_entry_listed_for_the_other_gate_does_not_cover_a_problem(tmp_path: Path, docs: Path) -> None:

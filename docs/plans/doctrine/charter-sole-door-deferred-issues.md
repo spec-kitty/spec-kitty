@@ -19,7 +19,7 @@ construction, the `._inner` reach-around, the template/command resolver axis, an
 paths) and extends activation gating to all 9 charter-activatable `ArtifactKind` members plus the
 `mission-type` token. A pre-spec research squad confirmed five adjacent GitHub issues are
 **not domain-matched** to this mission's diff and must stay deferred as their own tracked follow-ons —
-see [`spec.md` §C-003](../../../kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/spec.md) for the full,
+see [`spec.md` §C-003](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/spec.md) for the full,
 authoritative context (this document is a citable summary, not a re-derivation). A cycle-2 WP10 review
 found a sixth adjacent issue, #3101, that belongs in the same tracker-hygiene sweep even though it is not
 one of FR-011/SC-006's five named issues.
