@@ -20,7 +20,7 @@ fragment + skill + this doc. Activation is one change to the active charter. The
 no new artifact kind, no new loader path, and no new template engine.
 
 > **Mission status:** the pack ships with mission
-> [`spdd-reasons-doctrine-pack-01KQC4AX`](../../kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/spec.md).
+> [`spdd-reasons-doctrine-pack-01KQC4AX`](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/spec.md).
 > See that mission's `spec.md`, `data-model.md`, and `quickstart.md` for the
 > authoritative requirements (FR-001 through FR-020, C-001 through C-007).
 
@@ -384,10 +384,10 @@ Data artifacts ship under the built-in pack root `packs/built-in/`; the template
 
 Mission seed material:
 
-- [Mission spec](../../kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/spec.md)
-- [Data model (full canvas semantics)](../../kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/data-model.md)
-- [Quickstart (activation walkthrough)](../../kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/quickstart.md)
-- [Research and ADRs](../../kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/research.md)
+- [Mission spec](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/spec.md)
+- [Data model (full canvas semantics)](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/data-model.md)
+- [Quickstart (activation walkthrough)](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/quickstart.md)
+- [Research and ADRs](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/research.md)
 
 Related Spec Kitty docs:
 

@@ -1,7 +1,7 @@
 ---
 title: WP Runtime-State Eviction — Architecture Design
 description: 'Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1.'
-doc_status: draft
+doc_status: active
 kind: Explanation
 updated: '2026-10-05T00:00:00Z'
 audience:
@@ -23,8 +23,8 @@ mutation. It is the charter-completion of #2093 / #2400 and the prerequisite for
 the YAML-authoritative WP-prompt schema (proposal Part 4 **B3**).
 
 The authoritative scope, corrected writer/reader inventory, and the five pinned
-decisions live in the ADR and in
-[`docs/plans/investigations/wp-runtime-state-eviction-scope.md`](../plans/investigations/wp-runtime-state-eviction-scope.md)
+decisions live in the ADR and in the working note
+`docs/plans/investigations/wp-runtime-state-eviction-scope.md` (unpublished)
 §"Squad review corrections (2026-07-16)". This document is the buildable design
 against those decisions.
 

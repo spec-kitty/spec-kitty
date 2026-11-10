@@ -1,7 +1,7 @@
 ---
 title: WP Runtime-State Eviction — Prerequisite Mission Scope
 description: 'Scope for evicting runtime-mutable state (shell_pid, history, subtask-checkbox, review) from tasks/WP##.md into the event log — prerequisite for the WP-prompt flip.'
-doc_status: deprecated
+doc_status: draft
 kind: Planning
 updated: '2026-08-12T00:00:00Z'
 external_references:

@@ -177,7 +177,6 @@ Deeper topics:
 - [Git Worktrees](docs/architecture/git-worktrees.md)
 - [Multi-Agent Orchestration](docs/architecture/multi-agent-orchestration.md)
 - [External Orchestrator Runbook](docs/guides/how-to/collaboration/run-external-orchestrator.md)
-- [Hosted Sync Workspaces](docs/guides/how-to/collaboration/sync-workspaces.md)
 
 Hosted auth, sync, and tracker flows were removed from open-core (#6164; the code is
 preserved in `spec-kitty/event-router`). For background, see

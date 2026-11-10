@@ -16,8 +16,8 @@ alongside the rendered docs and are not consumed directly by readers.
 
 - `css/` — stylesheets for the rendered documentation.
 - `images/` — logos and diagrams used across the docs.
-- [Spec Kitty backlog (HTML)](spec-kitty-backlog.html) — standalone backlog view.
-- [Spec Kitty evolution v1 to v3 (HTML)](spec-kitty-evolution-v1-to-v3.html) — version-evolution overview.
+- [Spec Kitty backlog (HTML)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/assets/spec-kitty-backlog.html) — standalone backlog view.
+- [Spec Kitty evolution v1 to v3 (HTML)](https://github.com/spec-kitty/spec-kitty/blob/main/docs/assets/spec-kitty-evolution-v1-to-v3.html) — version-evolution overview.
 
 ## See also
 

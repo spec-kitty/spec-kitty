@@ -33,7 +33,7 @@ This zone is subdivided by concern:
 - **[Reference](reference/index.md)** — policy and ledgers: [friction points](reference/known-friction-points.md), [coverage signals](reference/coverage-signals.md), [CI and architectural gate mechanics](reference/ci-gate-mechanics.md), [issue-matrix verdicts](reference/issue-matrix-verdicts.md), [standing orders](reference/quality-and-tech-debt-standing-orders.md), [the read-side seam ledger](reference/read-side-seam-classification.md), [red-main policy](reference/red-main-and-release-readiness.md), [terminology exemptions](reference/terminology-exemptions.md), and the [version taxonomy](reference/version-taxonomy.md).
 - **[Testing](testing/index.md)** — [CLI acceptance scenarios](testing/acceptance-scenarios.md), [flakiness policy](testing/testing-flakiness.md), [parallel runs](testing/testing-parallel.md), [mutation tests](testing/run-mutation-tests.md), [UI e2e](testing/ui-e2e.md), and [time-dependent tests](testing/write-time-dependent-tests.md).
 - **Reporting** — the [executive debrief styleguide](reporting/debrief-styleguide.md).
-- **Other records** — [analysis-report transactions (`record-analysis --report-only`)](analysis-report-transactions.md) and the [inline meta-read allowlist baseline deviation](inline-meta-read-allowlist-baseline-deviation.md).
+- **Other records** — analysis-report transactions (`record-analysis --report-only`, an unpublished draft) and the [inline meta-read allowlist baseline deviation](inline-meta-read-allowlist-baseline-deviation.md).
 
 ### Archived records
 
@@ -91,10 +91,10 @@ subcommand — plus the regen command for generated agent copies:
   → independent aggregate-diff review → local consolidation → compact history →
   rebase onto upstream → draft PR + pre-merge squad → hand off. Canonical
   source: the
-  [`mission-wrap-up-sequence` procedure](../../packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml).
+  [`mission-wrap-up-sequence` procedure](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml).
   Its three binding quality pillars — linear history, complete scope,
   independent review — are
-  [DIRECTIVE_046](../../packs/built-in/directives/046-readable-consistent-prs.directive.yaml)
+  [DIRECTIVE_046](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/built-in/directives/046-readable-consistent-prs.directive.yaml)
   ("Readable and Consistent Pull Requests"). Referenced from the
   [onboarding-run cadence](getting-started/onboarding-run.md), step 12.
 

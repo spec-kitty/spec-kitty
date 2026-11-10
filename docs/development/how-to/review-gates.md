@@ -23,7 +23,7 @@ satisfy to reach `approved`/`done`. The issue-matrix verdict vocabulary and
 the rule for which references need a row are owned by the
 [Issue-Matrix Verdict Reference](../reference/issue-matrix-verdicts.md); review
 error codes live in
-[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md).
+[`ERROR_CODES.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/review/ERROR_CODES.md).
 This page cites them rather than restating them.
 
 ## Environment hygiene before review/PR
@@ -85,7 +85,7 @@ silently diverge from CI without this check.
 
 **Warn-loud by default**: a divergence prints a `MISSION_REVIEW_ENV_SKEW`
 warning (see
-[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md#env_skew))
+[`ERROR_CODES.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/review/ERROR_CODES.md#env_skew))
 and `spec-kitty review` proceeds.
 
 **Fail-closed is opt-in**: set `SPEC_KITTY_ENV_SKEW_FAIL_CLOSED=1` to make
@@ -226,18 +226,18 @@ candidate exited 0 (#6751).
 
 Every WP that reaches a terminal review lane (`approved` or `done` —
 `TERMINAL_REVIEW_LANES` in
-[`review/artifacts.py`](../../../src/specify_cli/review/artifacts.py)) is
+[`review/artifacts.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/review/artifacts.py)) is
 checked against one invariant:
 **`terminal_wp_latest_review_artifact_must_not_be_rejected`**. It is
 implemented by `find_rejected_review_artifact_conflicts` in
-[`post_merge/review_artifact_consistency.py`](../../../src/specify_cli/post_merge/review_artifact_consistency.py)
+[`post_merge/review_artifact_consistency.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/post_merge/review_artifact_consistency.py)
 and is the **single shared implementation** behind three call sites:
 `spec-kitty consolidate`
-([`consolidation/preflight.py`](../../../src/specify_cli/consolidation/preflight.py)),
+([`consolidation/preflight.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/consolidation/preflight.py)),
 `spec-kitty consolidate --dry-run`
-([`consolidation/forecast.py`](../../../src/specify_cli/consolidation/forecast.py)), and
+([`consolidation/forecast.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/consolidation/forecast.py)), and
 `spec-kitty review`'s Gate 1 lane check
-([`cli/commands/review/_lane_gate.py`](../../../src/specify_cli/cli/commands/review/_lane_gate.py))
+([`cli/commands/review/_lane_gate.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/review/_lane_gate.py))
 — so the three surfaces cannot drift from one another.
 
 **The gate is purely event-sourced.** It reads the reduced status
@@ -258,13 +258,13 @@ a genuine `move-task` transition can change the event-sourced verdict:
   writes its own `approved` `ReviewResult` into the event log from the fact
   that the transition itself is happening
   (`_mt_plan_review_result` in
-  [`tasks_move_task_hops.py`](../../../src/specify_cli/cli/commands/agent/tasks_move_task_hops.py))
+  [`tasks_move_task_hops.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/agent/tasks_move_task_hops.py))
   — no artifact content is read to decide this.
 - When the WP's current event-sourced verdict was `changes_requested`,
   that same approval transition additionally synthesizes a durable
   `review-cycle-N.md` record on disk
   (`_persist_approved_review_cycle` in
-  [`tasks_verdict_persistence.py`](../../../src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py)),
+  [`tasks_verdict_persistence.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py)),
   with a machine-written body (`"Approved by {reviewer}: {reference}"`), so
   the on-disk history stays consistent with the event log. This is the
   CLI's own record of a genuine approval that already happened — never a
@@ -279,12 +279,12 @@ a genuine `move-task` transition can change the event-sourced verdict:
 the arbiter-override path — `--note` is mandatory here; omitting it is
 refused before the override can fire
 (`_guard_rejected_verdict` in
-[`tasks_transition_core.py`](../../../src/specify_cli/cli/commands/agent/tasks_transition_core.py)).
+[`tasks_transition_core.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/agent/tasks_transition_core.py)).
 It records a `ReviewOverride {at, actor, wp_id, reason}`
-([`status/models.py`](../../../src/specify_cli/status/models.py)) via a
+([`status/models.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/status/models.py)) via a
 single, topology-resolved `InnerStateChanged` event emit
 (`_persist_review_artifact_override` in
-[`tasks_materialization.py`](../../../src/specify_cli/cli/commands/agent/tasks_materialization.py))
+[`tasks_materialization.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/agent/tasks_materialization.py))
 — one write, not a **PRIMARY-partition-plus-coord** frontmatter mirror (that dual-write
 is retired; the reduced `review` snapshot slot is the single authority both
 partitions resolve). The gate only treats the override as clearing when
@@ -297,7 +297,7 @@ superseded rejection, never as a substitute for a real re-review.
 writes it into a freshly allocated, properly frontmattered
 `review-cycle-N.md`
 (`create_rejected_review_cycle` in
-[`review/cycle.py`](../../../src/specify_cli/review/cycle.py); cycle
+[`review/cycle.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/review/cycle.py); cycle
 numbers are allocated under a lock as `max(existing) + 1`, never a file
 count, so a numbering gap can't collide). The command refuses `<path>`
 outright — by path identity **and** by content (does `<path>` itself parse
@@ -316,16 +316,16 @@ Issue-matrix **verdict vocabulary** (`fixed`, `verified-already-fixed`,
 `.json`-canonical rule (a legacy `.md` matrix is read via failover, never
 re-authored), and the `in-mission` semantics (accepted at per-WP `approved`,
 **rejected on the mission `done` transition**) are already documented in
-[`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
+[`ERROR_CODES.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/review/ERROR_CODES.md)
 and the Gate 4 section of
-[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md)
+[`spec-kitty-mission-review/SKILL.md`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/skills/spec-kitty-mission-review/SKILL.md)
 (C-008) — see those two for the full vocabulary and worked examples. This
 section covers only the genuinely-absent operational half: how a reference
 is *discovered*, and how a verdict is *recorded*.
 
 **Discovery runs over every mission doc, not just `spec.md`.**
 `discover_issue_references`
-([`tasks/issue_reference_discovery.py`](../../../src/specify_cli/tasks/issue_reference_discovery.py))
+([`tasks/issue_reference_discovery.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/tasks/issue_reference_discovery.py))
 scans `spec.md`, `plan.md`, `research.md`, `analysis-report.md` (each
 optional), plus every `.md` file directly under `tasks/` and `contracts/`
 (non-recursive, sorted by filename), in that fixed order. It reuses the one
@@ -338,7 +338,7 @@ appears in (in scan order) wins both the context snippet and the recorded
 
 **The consolidation-time completeness gate.**
 `_evaluate_issue_matrix_completeness_gate`
-([`policy/merge_gates.py`](../../../src/specify_cli/policy/merge_gates.py))
+([`policy/merge_gates.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/policy/merge_gates.py))
 diffs `discover_issue_references`'s output against
 `load_issue_matrix`'s rows and fails (blocking) when a discovered `#NNNN`
 has no matrix row at all — it does not check verdicts (that is Gate 4's
@@ -348,7 +348,7 @@ job, cited above). A mission with **zero** discovered references is a
 **`issue-verdict` requires `--actor`.**
 `spec-kitty agent issue-verdict --mission <slug> --issue <#N> --verdict
 <verdict> --actor <identity>`
-([`cli/commands/agent/issue_verdict.py`](../../../src/specify_cli/cli/commands/agent/issue_verdict.py))
+([`cli/commands/agent/issue_verdict.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/cli/commands/agent/issue_verdict.py))
 sets or upserts one issue-matrix row. `--actor` has no default and is
 validated non-empty (`do_issue_verdict` raises `IssueVerdictError` /
 `empty_actor` otherwise) — there is no anonymous or implicit-actor path for
@@ -394,7 +394,7 @@ understands — e.g. "`spec-kitty research` now finds its templates through
 the same resolver as every other mission template" — not an
 internal-mechanism summary. The fragment holds the entry exactly as it will
 read in [`docs/changelog/CHANGELOG.md`](../../changelog/CHANGELOG.md), with no
-heading; see [`docs/changelog/unreleased/README.md`](../../changelog/unreleased/README.md).
+heading; see [`docs/changelog/unreleased/README.md`](https://github.com/spec-kitty/spec-kitty/blob/main/docs/changelog/unreleased/README.md).
 
 Two automated checks keep docs prose and that `[Unreleased]` section in shape:
 a spelling check and a changelog style guard. Both run in CI as the always-on
@@ -608,7 +608,7 @@ references live in
 - [`local-overrides.md`](local-overrides.md) -- developer-only workflow
   for working across `spec-kitty-cli` / `spec-kitty-events` /
   `spec-kitty-tracker` checkouts without committing editable sources.
-- [`tests/architectural/test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py)
+- [`tests/architectural/test_pyproject_shape.py`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/architectural/test_pyproject_shape.py)
   -- TOML-shape assertions for the shared-package boundary
   (compatibility ranges, no committed editable sources, etc.).
 - The CI job `clean-install-verification` in

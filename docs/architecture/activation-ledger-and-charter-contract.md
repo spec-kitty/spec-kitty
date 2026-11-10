@@ -1,7 +1,7 @@
 ---
 title: Activation Ledger and the Charter Contract
 description: 'Impact assessment of the proposed charter activation contract on core''s activation ledger: the ACL seam, content alignment, divergences, rc8 gaps and remaining work.'
-doc_status: draft
+doc_status: active
 kind: Explanation
 updated: '2026-10-20T00:00:00Z'
 audience:
@@ -229,7 +229,7 @@ Each entry is a place where core's local semantics and the proposed contract dif
 **meaning**, not shape. None requires reverting WP01 to WP07 (inferred). Every divergence
 that is not aligned, ruled or open, is also kept as data, with the conformance cases that pin
 each one, in the `divergences:` section of
-[`tests/charter/conformance/activation_ledger_cases.yaml`](../../tests/charter/conformance/activation_ledger_cases.yaml).
+[`tests/charter/conformance/activation_ledger_cases.yaml`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/charter/conformance/activation_ledger_cases.yaml).
 The aligned rows (Activate, Deactivate) are not divergences, so they live only on this page.
 
 | Divergence | Core | Contract (Proposed) | Status |
@@ -383,9 +383,9 @@ off GA.
 - Core ADR [`2026-10-19-1`: one activation ledger persists deactivation](../adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md)
 - Core ADR [`2026-10-16-1`: extract the charter offering first; activation rework post-GA](../adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md)
 - Core ADR [`2026-10-12-2`: charter extraction to its own repository](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)
-- Mission [specification](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md),
-  [plan](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md) and
-  [decisions](../../kitty-specs/persistent-deactivation-ledger-01M59YAA/decisions/) (rulings
+- Mission [specification](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md),
+  [plan](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md) and
+  [decisions](https://github.com/spec-kitty/spec-kitty/tree/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/decisions) (rulings
   `contract_document_scope` and `required_always_active_divergence`, 2026-10-20)
 - spec-kitty-charter PR [#123](https://github.com/spec-kitty/spec-kitty-charter/pull/123):
   ADR-0020 (offering and activations), ADR-0021 (contract-first seam, generated client, routing

@@ -228,25 +228,25 @@ the PR so the next reader does not re-litigate it.
 ## Where each signal is configured
 
 - **Internal `diff-cover` gate** — the `diff-cover` job in
-  [`.github/workflows/ci-aggregate.yml`](../../../.github/workflows/ci-aggregate.yml)
+  [`.github/workflows/ci-aggregate.yml`](https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/ci-aggregate.yml)
   (`--fail-under=90` over the statement diff produced by
   `scripts/ci/validate_diff_coverage.py`). The critical-path list itself is
   single-sourced as `CRITICAL_PATHS` in
-  [`scripts/ci/aggregate_source.py`](../../../scripts/ci/aggregate_source.py),
+  [`scripts/ci/aggregate_source.py`](https://github.com/spec-kitty/spec-kitty/blob/main/scripts/ci/aggregate_source.py),
   which materialises the diff the gate scores.
 - **Per-change SonarCloud report** — the `sonar-pr` job in the same file,
   driven by `scripts/ci/sonar_pr_analysis.py`. Informational only.
 - **Nightly SonarCloud analysis** —
-  [`.github/workflows/sonar.yml`](../../../.github/workflows/sonar.yml)
+  [`.github/workflows/sonar.yml`](https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/sonar.yml)
   (cron `0 3 * * *`), which aggregates the same shard coverage artefacts.
 - **The measurement itself** —
-  [`.github/workflows/module-tests.yml`](../../../.github/workflows/module-tests.yml)
+  [`.github/workflows/module-tests.yml`](https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/module-tests.yml)
   and the module registry `.github/ci-module-registry.yml`.
 - **SonarCloud scope and exclusions** —
-  [`sonar-project.properties`](../../../sonar-project.properties)
+  [`sonar-project.properties`](https://github.com/spec-kitty/spec-kitty/blob/main/sonar-project.properties)
   (`sonar.sources=src`, `sonar.tests=tests`, `sonar.exclusions=...`).
 - **Read-only query tool** —
-  [`scripts/ci/sonarcloud_branch_review.sh`](../../../scripts/ci/sonarcloud_branch_review.sh),
+  [`scripts/ci/sonarcloud_branch_review.sh`](https://github.com/spec-kitty/spec-kitty/blob/main/scripts/ci/sonarcloud_branch_review.sh),
   which reproduces every number above against the public API with no
   `SONAR_TOKEN`.
 - **Related testing guides** — [Test-flakiness handling policy](../testing/testing-flakiness.md),

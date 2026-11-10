@@ -10,6 +10,9 @@ their tests all need the same answers to the same questions:
   :func:`page_for_slug`), mirroring doc-kitty's ``readmeToIndexId``;
 * whether a page is published (:func:`is_published`), mirroring doc-kitty's
   ``isDraftStatus`` (an absent ``doc_status`` is a draft);
+* which routes the site must not publish (:func:`unpublished_routes`): excluded
+  folders, the working-note folders that are drafts only (:data:`DRAFT_FOLDERS`)
+  and every page that is not published (#6932);
 * which persona page an ``audience`` profile names (:func:`persona_page`),
   mirroring doc-kitty's ``resolveProfile`` (``context/audience/<profile>``);
 * which files are immutable history whose body may never change
@@ -58,10 +61,12 @@ __all__ = [
     "DOCKITTY_PIN",
     "DOC_STATUSES",
     "DOC_TYPES",
+    "DRAFT_FOLDERS",
     "DRAFT_STATUS",
     "EXCLUDED_FOLDERS",
     "INDEX_BASENAMES",
     "KINDS",
+    "LLMS_STANCE",
     "NOT_A_DATE_MESSAGE",
     "PERSONA_ROOT",
     "REQUIRED_FIELDS",
@@ -73,13 +78,16 @@ __all__ = [
     "is_dated_adr",
     "is_excluded",
     "is_immutable",
+    "is_in_draft_folder",
     "is_published",
     "page_for_slug",
     "parse_instant",
     "persona_page",
     "profile_of_persona_path",
+    "route_of",
     "slug_of",
     "split_frontmatter",
+    "unpublished_routes",
     "validate_frontmatter",
 ]
 
@@ -96,11 +104,32 @@ PERSONA_ROOT: Final[str] = "context/audience"
 #: doc-kitty's draft status; an absent ``doc_status`` counts as a draft.
 DRAFT_STATUS: Final[str] = "draft"
 
+#: Working-note folders whose pages are all drafts (#6932, FR-001): never published, and still
+#: built by DocFX until its retirement. doc-kitty's ``exclude`` would also drop them from the
+#: frontmatter and link gates, so they stay in the tree as drafts instead of an excluded folder.
+DRAFT_FOLDERS: Final[tuple[str, ...]] = ("plans/engineering-notes", "plans/investigations", "plans/research")
+
+#: The version stance the generated ``llms.txt`` carries (ADR 2026-10-31-1 D-9). Projected to
+#: ``site/dockitty-contract.json`` (``llmsStance``). ``docs/llms.txt`` keeps its own copy until
+#: #6938 deletes it (temporary duplication; ``tests/docs/test_dockitty_contract.py`` keeps them equal).
+LLMS_STANCE: Final[str] = (
+    "## Current Version Stance\n"
+    "\n"
+    "- Current docs: https://docs.spec-kitty.ai/\n"
+    "- Current overview: https://docs.spec-kitty.ai/context/\n"
+    "- Current runtime model: Charter-era Spec Kitty\n"
+    "- Current project governance source: `.kittify/charter/charter.md`\n"
+    "- Current mission loop command: `spec-kitty next --agent <name> --mission <slug>`\n"
+    "- Historical 1.x and 2.x pages are archived under `/changelog/1x/` and `/changelog/2x/`"
+    " and are not the starting point for new projects.\n"
+)
+
 _INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(name.lower() for name in INDEX_BASENAMES)
 _MD_SUFFIX: Final[str] = ".md"
 _FENCE: Final[str] = "---"
 _DATED_ADR: Final[re.Pattern[str]] = re.compile(r"^adr/\d+\.x/\d{4}-\d{2}-\d{2}-[^/]+\.md$")
 _IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = ("plans/", "reports/", "changelog/", "archive/")
+_DOC_STATUS_LINE: Final[re.Pattern[str]] = re.compile(r"""^doc_status:[ \t]*(?P<value>[^\s#]*)""", re.MULTILINE)
 _PERSONA_PATH: Final[re.Pattern[str]] = re.compile(r"^(?:\./|(?:\.\./)+|docs/)?context/audience/(?P<profile>.+)\.md$")
 
 
@@ -149,6 +178,17 @@ def is_excluded(rel_under_docs: str) -> bool:
     return any(rel_under_docs == folder or rel_under_docs.startswith(f"{folder}/") for folder in EXCLUDED_FOLDERS)
 
 
+def is_in_draft_folder(rel_under_docs: str) -> bool:
+    """True when *rel_under_docs* lies in a working-note folder whose pages are drafts (:data:`DRAFT_FOLDERS`)."""
+    return any(rel_under_docs.startswith(f"{folder}/") for folder in DRAFT_FOLDERS)
+
+
+def route_of(rel_under_docs: str) -> str:
+    """The built directory route of the page at *rel_under_docs* (``guides/x.md`` -> ``/guides/x/``)."""
+    slug = slug_of(rel_under_docs)
+    return f"/{slug}/" if slug else "/"
+
+
 def page_for_slug(docs_root: Path, slug: str) -> Path | None:
     """The page a slug names: ``<slug>.md``, else the folder's index (``README``/``index``, any case)."""
     clean = slug.strip("/")
@@ -172,6 +212,38 @@ def is_published(rel_under_docs: str, frontmatter: Mapping[str, Any]) -> bool:
         return False
     status = frontmatter.get("doc_status")
     return (DRAFT_STATUS if status is None else status) != DRAFT_STATUS
+
+
+def _doc_status_of(text: str) -> str | None:
+    """The top-level ``doc_status`` scalar of a page's frontmatter, or ``None`` when absent.
+
+    A narrow standard-library reader (no YAML parser, so the built-site check runs on a
+    bare ``python3``): a top-level ``doc_status:`` line, its value unquoted.
+    """
+    parts = split_frontmatter(text)
+    match = _DOC_STATUS_LINE.search(parts[0]) if parts else None
+    value = match["value"].strip("'\"") if match else ""
+    return value or None
+
+
+def unpublished_routes(docs_root: Path) -> frozenset[str]:
+    """The routes of every page under *docs_root* the site must not publish (#6932, FR-003).
+
+    A page is unpublished when it lies in an excluded folder, in a draft-only working-note
+    folder (:data:`DRAFT_FOLDERS`, whatever its frontmatter says) or is not
+    :func:`is_published`. This is the one derivation the built-site check and the
+    redirect generator (#6933) read; routes are in :func:`route_of` form.
+    """
+    routes: set[str] = set()
+    for path in docs_root.rglob(f"*{_MD_SUFFIX}"):
+        rel = path.relative_to(docs_root).as_posix()
+        if is_excluded(rel) or is_in_draft_folder(rel):
+            routes.add(route_of(rel))
+            continue
+        status = _doc_status_of(path.read_text(encoding="utf-8"))
+        if not is_published(rel, {} if status is None else {"doc_status": status}):
+            routes.add(route_of(rel))
+    return frozenset(routes)
 
 
 def profile_of_persona_path(value: str) -> str | None:

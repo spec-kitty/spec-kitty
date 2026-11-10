@@ -106,7 +106,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [Internal Audience Index](../../docs/context/audience/internal/index.md), [Lead Developer](../../docs/context/audience/internal/lead-developer.md), [Maintainer](../../docs/context/audience/internal/maintainer.md), [System Architect](../../docs/context/audience/internal/system-architect.md), [Spec Kitty CLI Runtime](../../docs/context/audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](../../docs/context/audience/internal/ai-collaboration-agent.md), [Project Codebase](../../docs/context/audience/internal/project-codebase.md) |
+| **Persona catalog** | [Internal Audience Index](audience/internal/index.md), [Lead Developer](audience/internal/lead-developer.md), [Maintainer](audience/internal/maintainer.md), [System Architect](audience/internal/system-architect.md), [Spec Kitty CLI Runtime](audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](audience/internal/ai-collaboration-agent.md), [Project Codebase](audience/internal/project-codebase.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Participant](#mission-participant) |
 
 ---
@@ -119,7 +119,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [External Audience Index](../../docs/context/audience/external/index.md), [Project Owner](../../docs/context/audience/external/project-owner.md), [External Tech Lead Evaluator](../../docs/context/audience/external/tech-lead-evaluator.md), [External Architect Evaluator](../../docs/context/audience/external/architect-evaluator.md), [External Product Manager Evaluator](../../docs/context/audience/external/product-manager-evaluator.md) |
+| **Persona catalog** | [External Audience Index](audience/external/index.md), [Project Owner](audience/external/project-owner.md), [External Tech Lead Evaluator](audience/external/tech-lead-evaluator.md), [External Architect Evaluator](audience/external/architect-evaluator.md), [External Product Manager Evaluator](audience/external/product-manager-evaluator.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Owner](#mission-owner) |
 
 ---

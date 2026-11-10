@@ -860,7 +860,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 
 ## 8. Tracker Snapshot Publish Payload (Feature 048)
 
-**Historical.** The CLI no longer publishes tracker snapshots: `sync_publish` refuses for both SaaS-backed and local tracker providers (`src/specify_cli/tracker/saas_service.py`, `src/specify_cli/tracker/local_service.py`, #3168), so this repository produces no snapshot payload for the SaaS to validate. The endpoint contract is owned upstream (`spec-kitty/saas`). The payload the CLI used to send, with its routing fields, null semantics and idempotency key, is recorded in [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md).
+**Historical.** The CLI no longer publishes tracker snapshots: `sync_publish` refuses for both SaaS-backed and local tracker providers (`src/specify_cli/tracker/saas_service.py`, `src/specify_cli/tracker/local_service.py`, #3168), so this repository produces no snapshot payload for the SaaS to validate. The endpoint contract is owned upstream (`spec-kitty/saas`). The payload the CLI used to send, with its routing fields, null semantics and idempotency key, is recorded in [tracker-snapshot-publish.md](https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md).
 
 ---
 

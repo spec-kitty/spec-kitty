@@ -1,9 +1,9 @@
 """Project the doc-kitty contract onto the docsite (#6930; ADR 2026-10-31-1 D-1, D-8).
 
 ``scripts/docs/_dockitty_contract.py`` is the single authority for which ``docs/``
-folders the site leaves out and which basenames are section indexes. The site's
-``astro.config.mjs`` is JavaScript and cannot import it, so this module writes the
-two values to ``site/dockitty-contract.json`` and checks that the committed copy
+folders the site leaves out, which basenames are section indexes and the version
+stance ``llms.txt`` carries (D-9, #6934). The site is JavaScript and cannot import it,
+so this module writes those values to ``site/dockitty-contract.json`` and checks that the committed copy
 still equals them. The copy is generated, never hand-edited.
 
 Usage::
@@ -22,7 +22,7 @@ from typing import Final
 
 # Runnable bare (`python3 scripts/docs/site_contract.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from scripts.docs._dockitty_contract import EXCLUDED_FOLDERS, INDEX_BASENAMES  # noqa: E402
+from scripts.docs._dockitty_contract import EXCLUDED_FOLDERS, INDEX_BASENAMES, LLMS_STANCE  # noqa: E402
 
 __all__ = ["CONTRACT_PATH", "check", "main", "render", "write"]
 
@@ -36,6 +36,7 @@ def _expected() -> dict[str, object]:
         "$comment": _COMMENT,
         "exclude": list(EXCLUDED_FOLDERS),
         "indexBasename": list(INDEX_BASENAMES),
+        "llmsStance": LLMS_STANCE,
     }
 
 

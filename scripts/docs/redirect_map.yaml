@@ -38,6 +38,8 @@ architecture/README-1.x.html: adr/1.x/index.html
 architecture/README-2.x.html: adr/2.x/index.html
 architecture/README-3.x.html: adr/3.x/index.html
 architecture/README.html: architecture/index.html
+architecture/team-kitty-saas.html: architecture/index.html
+architecture/zeitgeist-session-identity.html: architecture/index.html
 archive/1x/artifacts-and-commands.html: changelog/1x/artifacts-and-commands.html
 archive/1x/branches-and-workspaces.html: changelog/1x/branches-and-workspaces.html
 archive/1x/index.html: changelog/1x/index.html
@@ -136,6 +138,7 @@ guides/harnesses/qwen.html: guides/how-to/harnesses/qwen.html
 guides/harnesses/roo.html: guides/how-to/harnesses/roo.html
 guides/harnesses/setup-lint-hooks.html: guides/how-to/harnesses/setup-lint-hooks.html
 guides/harnesses/windsurf.html: guides/how-to/harnesses/windsurf.html
+guides/how-to/collaboration/sync-workspaces.html: guides/how-to/collaboration/index.html
 guides/implement-work-package.html: guides/how-to/missions/implement-work-package.html
 guides/install-and-upgrade.html: guides/how-to/installation/install-and-upgrade.html
 guides/install-claude-code-plugin.html: guides/how-to/installation/install-claude-code-plugin.html
@@ -143,7 +146,7 @@ guides/install-linux.html: guides/how-to/installation/install-linux.html
 guides/install-macos.html: guides/how-to/installation/install-macos.html
 guides/install-spec-kitty.html: guides/how-to/installation/install-spec-kitty.html
 guides/install-windows.html: guides/how-to/installation/install-windows.html
-guides/internal-hosted-readiness.html: operations/internal-hosted-readiness.html
+guides/internal-hosted-readiness.html: operations/index.html
 guides/keep-main-clean.html: guides/how-to/missions/keep-main-clean.html
 guides/local-overrides.html: development/how-to/local-overrides.html
 guides/manage-agents.html: guides/how-to/collaboration/manage-agents.html
@@ -156,6 +159,7 @@ guides/non-interactive-init.html: guides/how-to/installation/non-interactive-ini
 guides/orchestrator-quickstart.html: guides/tutorials/orchestrator-quickstart.html
 guides/parallel-development.html: guides/how-to/collaboration/parallel-development.html
 guides/pr-landing.html: development/how-to/pr-landing.html
+guides/project-sync-consent.html: guides/index.html
 guides/recover-from-implementation-crash.html: guides/how-to/recovery/recover-from-implementation-crash.html
 guides/recover-from-interrupted-merge.html: guides/how-to/recovery/recover-from-interrupted-merge.html
 guides/red-main-and-release-readiness.html: development/reference/red-main-and-release-readiness.html
@@ -169,7 +173,7 @@ guides/run-mutation-tests.html: development/testing/run-mutation-tests.html
 guides/setup-codex-spec-kitty-launcher.html: guides/how-to/harnesses/setup-codex-spec-kitty-launcher.html
 guides/setup-governance.html: guides/how-to/governance/setup-governance.html
 guides/switch-missions.html: guides/how-to/missions/switch-missions.html
-guides/sync-workspaces.html: guides/how-to/collaboration/sync-workspaces.html
+guides/sync-workspaces.html: guides/how-to/collaboration/index.html
 guides/synthesize-doctrine.html: guides/how-to/governance/synthesize-doctrine.html
 guides/testing-flakiness.html: development/testing/testing-flakiness.html
 guides/testing-parallel.html: development/testing/testing-parallel.html
@@ -222,7 +226,7 @@ how-to/install-linux.html: guides/how-to/installation/install-linux.html
 how-to/install-macos.html: guides/how-to/installation/install-macos.html
 how-to/install-spec-kitty.html: guides/how-to/installation/install-spec-kitty.html
 how-to/install-windows.html: guides/how-to/installation/install-windows.html
-how-to/internal-hosted-readiness.html: operations/internal-hosted-readiness.html
+how-to/internal-hosted-readiness.html: operations/index.html
 how-to/keep-main-clean.html: guides/how-to/missions/keep-main-clean.html
 how-to/manage-agents.html: guides/how-to/collaboration/manage-agents.html
 how-to/manage-glossary.html: guides/how-to/governance/manage-glossary.html
@@ -240,7 +244,7 @@ how-to/run-mutation-tests.html: development/testing/run-mutation-tests.html
 how-to/setup-codex-spec-kitty-launcher.html: guides/how-to/harnesses/setup-codex-spec-kitty-launcher.html
 how-to/setup-governance.html: guides/how-to/governance/setup-governance.html
 how-to/switch-missions.html: guides/how-to/missions/switch-missions.html
-how-to/sync-workspaces.html: guides/how-to/collaboration/sync-workspaces.html
+how-to/sync-workspaces.html: guides/how-to/collaboration/index.html
 how-to/synthesize-doctrine.html: guides/how-to/governance/synthesize-doctrine.html
 how-to/tool-surface-upgrade-and-repair.html: guides/how-to/installation/tool-surface-upgrade-and-repair.html
 how-to/troubleshoot-charter.html: guides/how-to/governance/troubleshoot-charter.html
@@ -255,6 +259,11 @@ how-to/use-wps-yaml-manifest.html: guides/how-to/missions/use-wps-yaml-manifest.
 how-to/worktrees-with-mcp-agents.html: guides/how-to/collaboration/worktrees-with-mcp-agents.html
 how-to/write-time-dependent-tests.html: development/testing/write-time-dependent-tests.html
 migrations/06_migration_and_shim_rules.html: migrations/migration-and-shim-rules.html
+migrations/teamspace-mission-state-920-closeout.html: migrations/index.html
+migrations/teamspace-mission-state-repair.html: migrations/index.html
+operations/internal-hosted-readiness.html: operations/index.html
+operations/logged-out-teamspace.html: operations/index.html
+operations/sync-daemon-orphan-cleanup.html: operations/index.html
 p0-baseline-refresh.html: operations/p0-baseline-refresh.html
 plans/2497-external-observability-endpoints-assessment.html: plans/investigations/index.html
 plans/charter-sole-door-deferred-issues.html: plans/doctrine/charter-sole-door-deferred-issues.html
@@ -271,8 +280,9 @@ plans/saas-hosted-sync-domain-plan.html: plans/index.html
 plans/test-change-coupling-caacs.html: plans/testing/index.html
 plans/testing/test-change-coupling-caacs.html: plans/testing/index.html
 plans/user_journey/README.html: plans/user_journey/index.html
+plans/zeitgeist-client-wp01-remaining.html: plans/index.html
 recovery/index.html: operations/index.html
-recovery/logged-out-teamspace.html: operations/logged-out-teamspace.html
+recovery/logged-out-teamspace.html: operations/index.html
 reference/README.html: api/index.html
 reference/agent-plan-artifacts.html: api/agent-plan-artifacts.html
 reference/agent-subcommands.html: api/agent-subcommands.html

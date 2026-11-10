@@ -1,7 +1,7 @@
 ---
 title: '06 — Domains & Splits (Archived)'
 description: 'Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve.'
-doc_status: deprecated
+doc_status: draft
 kind: Planning
 updated: '2026-10-19T00:00:00Z'
 audience:
