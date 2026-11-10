@@ -89,6 +89,8 @@ def _run_text(job: dict[str, Any]) -> str:
         "site/astro.config.mjs",
         ".github/workflows/docs-site-build.yml",
         "scripts/docs/site_built_check.py",
+        "scripts/docs/site_built_check_llms.py",
+        "scripts/docs/site_built_check_render.py",
         "scripts/docs/site_link_gates.py",
     ],
 )
