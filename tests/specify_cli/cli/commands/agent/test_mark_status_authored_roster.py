@@ -42,6 +42,7 @@ exactly as before; this is additive, not a replacement.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
@@ -223,7 +224,7 @@ _runner = CliRunner()
 
 
 @contextmanager
-def _null_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-def]
+def _null_lock(repo_root: Path, mission_slug: str) -> Iterator[None]:
     del repo_root, mission_slug
     yield
 
