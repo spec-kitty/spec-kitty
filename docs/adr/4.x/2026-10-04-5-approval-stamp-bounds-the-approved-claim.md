@@ -340,4 +340,4 @@ Every non-migration move of a lane-mapped work package into `claimed` or `in_pro
 - A submission can fill the model a claim never records (#7013), so a later approver under the same profile and another model is independent of it, as it would be of a claim that recorded the model (ruling 7).
 - The refusal text of the review-lane exit (`work_package_lifecycle`) still names the unrefined claim.
 
-**Confirmation.** `tests/integration/test_7159_implement_claim_profile.py` (the fresh-lane claim on coord and lanes; the agent-less placeholder; a refusal before any lane exists; a bare claim refined by a submission), `tests/specify_cli/cli/commands/test_dispatched_claim_identity_7159.py` (the seam) and the `latest_implementer_identity` truth table in `tests/unit/status/test_review_roles.py`.
+**Confirmation.** `tests/integration/test_7159_implement_claim_profile.py` (the fresh-lane claim on coord and lanes; the agent-less placeholder; a refusal before any lane exists; a bare claim refined by a submission), `tests/cli/commands/test_dispatched_claim_identity_7159.py` (the seam) and the `latest_implementer_identity` truth table in `tests/unit/status/test_review_roles.py`.
