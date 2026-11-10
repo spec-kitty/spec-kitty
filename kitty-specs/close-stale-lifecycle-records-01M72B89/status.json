@@ -29,6 +29,9 @@
       "last_event_id": "01M72DDGYJ92EF4W9VSPBRD82E",
       "last_transition_at": "2026-11-10T09:42:51.602659+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: abandoned phase, one completion predicate, unpaired_started, write_abandoned_completion, ADR amendment. Archive gate red only from the shallow clone."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 4225,
