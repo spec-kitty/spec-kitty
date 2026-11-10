@@ -112,7 +112,7 @@ dirty one ([#7342](https://github.com/spec-kitty/spec-kitty/issues/7342)).
 | Tag | Rule |
 |-----|------|
 | `@promise:<id>` | Names the promise the scenario checks. `<id>` matches `[A-Za-z0-9][A-Za-z0-9._-]*`, for example `PR-CLI-INIT-001`. Not repeated on one scenario. |
-| `@wip` | Draft or under repair. Needs `@wip-owner:<handle>` and `@wip-since:<YYYY-MM-DD>`. Runs in a separate non-gating step that never fails the leg. |
+| `@wip` | Draft or under repair. Needs `@wip-owner:<handle>` and `@wip-since:<YYYY-MM-DD>`. Runs in the separate non-gating `acceptance-bdd-wip` nightly job, which never fails a leg and nothing waits on (#7492). |
 | `@wip-owner:<handle>` | Owner of the draft. `<handle>` matches `[A-Za-z0-9][A-Za-z0-9._-]*`. |
 | `@wip-since:<YYYY-MM-DD>` | Date the scenario was marked `@wip`. |
 | `@manual` | Never runs automatically. |
@@ -205,8 +205,11 @@ after `gating` leaves the gating results untouched:
 - Allure results: `acceptance-jvm/build/acceptance/<pass>/allure-results/`
 
 The nightly's evidence script also writes `acceptance-jvm/build/acceptance/evidence.json`,
-counted from the JUnit XML of both passes. It is also given the outcome of the gating step,
-so a gating run that stopped after writing some passing JUnit XML is recorded as failed.
+counted from the JUnit XML of the passes. The nightly runs the two passes in separate jobs
+(`acceptance-bdd` for gating, `acceptance-bdd-wip` for `@wip`, #7492), so each job's bundle
+lists the pass it ran in `passes_run` and reports the other pass as `missing`. It is also given
+the outcome of the step that ran each pass, so a run that stopped after writing some passing
+JUnit XML is recorded as failed. Only a gating pass that did not pass fails the evidence step.
 
 A gating run fails if no scenario ran, so a mistyped tag filter or a wrong feature path
 cannot pass as green. Only the `@wip` run may find none.
@@ -252,8 +255,9 @@ allure open acceptance-jvm/allure-report
 ```
 
 The nightly does not build this report; it uploads the raw Allure results inside the
-`acceptance-bdd-results-<os>` artifact. To view a nightly run as a report, download that
-artifact and run one of these commands on its `gating/allure-results/` directory.
+`acceptance-bdd-results-<os>` artifact (the `@wip` pass in `acceptance-bdd-wip-results-<os>`).
+To view a nightly run as a report, download that artifact and run one of these commands on its
+`gating/allure-results/` (or `wip/allure-results/`) directory.
 
 ## Change a dependency
 

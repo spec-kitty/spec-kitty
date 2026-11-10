@@ -169,6 +169,13 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   `acceptance-jvm/build/acceptance/`, fails when the gating results are missing
   (`if-no-files-found: error`), and sets `retention-days: 30`.
 - The job's `if:` drops the `pull_request` clause.
+- **Amendment (#7492, 2026-11-10).** The `@wip` pass moved to its own non-gating job,
+  `acceptance-bdd-wip`: on Windows the gating pass and the `@wip` pass together ran into the
+  leg's 60-minute cap, and the canceled leg escalated a P0 with no failing test. Each job now
+  writes its own `evidence.json` (schema version 1 unchanged: both passes are present, the one
+  the job did not run is `missing`, and the additive `passes_run` field names the one it ran).
+  The gating bundle stays in `acceptance-bdd-results-<os>`; the `@wip` bundle is uploaded as
+  `acceptance-bdd-wip-results-<os>`. spec-kitty-qa reads the `@wip` results from that artifact.
 
 ## D. Fixture builders (built)
 

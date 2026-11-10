@@ -1,0 +1,1 @@
+- **The nightly `@wip` acceptance scenarios run in their own job (`acceptance-bdd-wip`), so they no longer push the Windows leg past its time cap, and a nightly P0 names a suite that timed out or was skipped instead of only saying no test failed** (#7492).
