@@ -34,6 +34,7 @@ NOT produced here — pulling them into the reader would regress the dashboard
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,6 +58,8 @@ __all__ = [
     "WPView",
     "reconstruct_wp_view",
 ]
+
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ResolvedGroup:
@@ -213,7 +216,8 @@ def _authored_group(metadata: WPMetadata | None) -> AuthoredGroup:
         return AuthoredGroup()
     try:
         subtasks = tuple(normalize_authored_subtask_roster(metadata.subtasks))
-    except SubtaskRosterEntryError:
+    except SubtaskRosterEntryError as exc:
+        logger.debug("Authored subtask roster of %s refused; showing no subtasks: %s", metadata.work_package_id, exc)
         subtasks = ()
     return AuthoredGroup(
         role=metadata.role,
