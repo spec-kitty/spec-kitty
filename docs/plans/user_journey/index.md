@@ -49,7 +49,7 @@ User journeys in this directory serve three roles:
 
 ## Template
 
-Journeys follow the [User Journey Template](../../../src/charter/offering/templates/architecture/user-journey-template.md),
+Journeys follow the [User Journey Template](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/templates/architecture/user-journey-template.md),
 which captures:
 
 - **Actors** (with type annotations and persona links)

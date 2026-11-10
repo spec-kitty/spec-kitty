@@ -149,7 +149,7 @@ before acting; milestones and counts move between release candidates.*
 
 **Five release candidates have shipped; rc6 is open on `main`.** PyPI upload dates: rc1
 2026-09-13, rc2 09-14, rc3 09-17, rc4 09-21, rc5 10-02. `main` carries the unreleased
-`4.0.0rc6` (`[Unreleased]` in [`CHANGELOG.md`](../../CHANGELOG.md), `version` in
+`4.0.0rc6` (`[Unreleased]` in [`CHANGELOG.md`](https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md), `version` in
 `pyproject.toml`).
 
 **rc5 shipped under a waiver.** The release workflow requires a green nightly on the release

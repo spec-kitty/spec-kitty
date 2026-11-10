@@ -43,7 +43,7 @@ below, a throughline does not retire when a milestone closes.
   [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md) (the
   [3.2.x Open-Core Delivery Plan](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md) is the prior-cycle
   record); its program-scoped companions are the
-  [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) and the
+  Glossary Doctrine Overhaul — Program Plan and the
   [Charter-Resolution Program](charter-resolution/README.md).
 - **Packs extraction** — [Packs Extraction — Domain Plan](domains/packs-extraction-domain-plan.md):
   re-extracting the doctrine layer from `src/charter/offering/` and `packs/built-in/`
@@ -93,12 +93,12 @@ their next steps; the 4.0.0 roadmap is the plan of record.
 
 Standalone plans and status notes that sit at the top of `plans/` or in their own folder:
 
-- [Glossary Doctrine Overhaul — Program Plan](glossary-doctrine-overhaul-program.md) —
+- Glossary Doctrine Overhaul — Program Plan —
   *draft.* Promote the glossary to a first-order doctrine artefact; see its status line for
   which missions landed.
 - [Charter-Resolution Program](charter-resolution/README.md) — *resumed for 4.x (#5431).* Mission map (M1–M6)
   for org/project doctrine that loads healthy but reaches no consumer.
-- [zeitgeist_client WP01 — remaining scope](zeitgeist-client-wp01-remaining.md) — status
+- zeitgeist_client WP01 — remaining scope — status
   note for the bundled Zeitgeist client; error messages in
   `src/specify_cli/zeitgeist_client/transport.py` point here.
 - [Agent moment delivery policy](agent-moment-delivery-4216.md) — how agents receive Team
@@ -110,25 +110,25 @@ Standalone plans and status notes that sit at the top of `plans/` or in their ow
 Subdirectories of the distil-then-retire surface. These are working notes, not plans of
 record: each folder's own `index.md` says what in it is live and what is retired.
 
-- **[Doctrine](doctrine/index.md)** — doctrine layering, charter boundary, and
+- **Doctrine** — doctrine layering, charter boundary, and
   artifact-selection planning. The [Charter-Resolution Program](charter-resolution/README.md)
   is a sibling folder in the same area.
 - **[Code quality](code-quality/index.md)** — the SonarCloud baseline, quality-metric
   evolution, the smell/vulnerability cluster taxonomy, and targeted cleanup scoping.
-- **[Testing](testing/index.md)** — mutation testing, acceleration, friction audit,
+- **Testing** — mutation testing, acceleration, friction audit,
   and CI gate tuning.
-- **[Investigations](investigations/index.md)** — scope assessments, compatibility
+- **Investigations** — scope assessments, compatibility
   matrices, and RFC/endpoint research.
-- **[Engineering notes](engineering-notes/index.md)** — the live remainder: architecture
+- **Engineering notes** — the live remainder: architecture
   audits & reviews, mission notes, DRG/doctrine analyses, and maintenance/field-report
   briefs. (The runtime/state-overhaul, surface-resolution-cluster, naming/identity
   SSOT strangler, and triage-log sub-clusters have been distilled, retired to
   `deprecated`, and moved to `docs/archive/plans/engineering-notes/` as archived
   provenance; one stub at the old runtime/state-overhaul path keeps ADR links resolving.)
-- **[User journeys](user_journey/index.md)** — the 2.x-era vision journeys (historical); the
+- **User journeys** — the 2.x-era vision journeys (historical); the
   init/charter walkthrough moved to the
   [guides](../guides/how-to/governance/init-and-project-charter.md).
-- **[Research](research/index.md)** — research deliverables (era spikes/explorations).
+- **Research** — research deliverables (era spikes/explorations).
 
 Retired collections (distilled and closed out; their `index.md` is `deprecated`, kept
 on disk as archived provenance, not a live working surface): the **Reviews** collection

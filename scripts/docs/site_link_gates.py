@@ -12,7 +12,8 @@ problem (``gate``, ``source`` page under ``docs/``, ``target``) and:
 
 * fails on a problem the debt file does not list;
 * fails on a debt entry whose source is not immutable
-  (``_dockitty_contract.is_immutable``): an editable page fixes its links instead;
+  (``_dockitty_contract.is_immutable``) and is not a live ``plans/`` page (a ``kind: Hub`` page, or one whose
+  ``doc_status`` is ``active`` or ``durable``): an editable page fixes its links instead;
 * fails closed when the gate exits non-zero: every output line must be a parsed
   problem or one of the gate's known informational lines (anything else, such as a
   ``[dk-routes]`` route collision, fails), and the gate's own summary count must be
@@ -44,7 +45,7 @@ from typing import Final
 # Runnable bare (`python3 scripts/docs/site_link_gates.py`): resolve `scripts.*` from the script, not the cwd.
 _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
-from scripts.docs._dockitty_contract import is_immutable, page_for_slug  # noqa: E402  (after the path bootstrap above)
+from scripts.docs._dockitty_contract import is_immutable, page_for_slug, split_frontmatter  # noqa: E402  (after the path bootstrap above)
 
 __all__ = ["DEBT_PATH", "GATES", "RELATIVE_LINKS_GATE", "Problem", "Verdict", "evaluate", "load_debt", "main", "parse", "unaccounted_output"]
 
@@ -77,6 +78,9 @@ _SUMMARY: Final[dict[str, re.Pattern[str]]] = {
     "built-links": re.compile(r"^assert-no-broken-links: FAILED — (?P<count>\d+) broken "),
 }
 _INDEX_HTML: Final[str] = "index.html"
+_PLANS_PREFIX: Final[str] = "plans/"
+_LIVE_PLAN_STATUSES: Final[frozenset[str]] = frozenset({"active", "durable"})
+_FRONTMATTER_SCALAR: Final[re.Pattern[str]] = re.compile(r"""^(?P<key>kind|doc_status):[ \t]*['"]?(?P<value>[^\s#'"]*)""", re.MULTILINE)
 _UNPARSED: Final[str] = "?"
 
 
@@ -165,6 +169,16 @@ def load_debt(path: Path) -> list[Problem]:
     return [Problem(entry["gate"], entry["source"], entry["target"]) for entry in data["entries"]]
 
 
+def _is_live_plan(source: str, docs: Path) -> bool:
+    """True for a ``plans/`` page that is maintained, not history: a hub or an active/durable plan (ADR 2026-10-31-1, Amendment 2026-11-09)."""
+    page = docs / source
+    if not source.startswith(_PLANS_PREFIX) or not page.is_file():
+        return False
+    parts = split_frontmatter(page.read_text(encoding="utf-8"))
+    fields = {match["key"]: match["value"] for match in _FRONTMATTER_SCALAR.finditer(parts[0])} if parts else {}
+    return fields.get("kind") == "Hub" or fields.get("doc_status") in _LIVE_PLAN_STATUSES
+
+
 def evaluate(problems: Iterable[Problem], debt: Iterable[Problem], docs: Path) -> Verdict:
     """The verdict on a gate's *problems* against the *debt* entries; sources are pages under *docs*."""
     found = set(problems)
@@ -173,7 +187,7 @@ def evaluate(problems: Iterable[Problem], debt: Iterable[Problem], docs: Path) -
     verdict = Verdict()
     verdict.failures.extend(f"not in the link debt: {problem}" for problem in sorted(found - entries, key=str))
     for entry in sorted(entries, key=str):
-        if not is_immutable(entry.source):
+        if not is_immutable(entry.source) or _is_live_plan(entry.source, docs):
             verdict.failures.append(f"debt entry source is not immutable, fix the link instead: {entry}")
         elif not (docs / entry.source).is_file():
             verdict.failures.append(f"debt entry source page does not exist: {entry}")
