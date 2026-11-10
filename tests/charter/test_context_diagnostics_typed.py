@@ -20,6 +20,7 @@ import pytest
 
 from charter.activation.context import build_charter_context_json
 from charter.activation.interview import default_interview
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.activation.resolver import (
     UNKNOWN_SELECTION_DIAGNOSTIC,
     GovernanceResolution,
@@ -88,6 +89,9 @@ def test_unknown_selected_directive_has_drop_code(tmp_path: Path) -> None:
     assert len(dropped) == 1, _entries(payload)
     assert dropped[0]["message"] == UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
     assert "NOPE_999" in cast("str", dropped[0]["message"])
+    # #7511: the producer names the kind, so a consumer cannot read the dropped id as "none selected".
+    in_process = [d for d in resolve_project_governance(repo).diagnostics if d.code.value == "UNKNOWN_SELECTION_DROPPED"]
+    assert [d.kind for d in in_process] == [ArtifactKind.DIRECTIVE]
 
 
 def test_bare_project_resolution_codes_catalog_default_and_fallback(tmp_path: Path) -> None:
@@ -109,7 +113,6 @@ def test_bare_project_resolution_codes_catalog_default_and_fallback(tmp_path: Pa
 def test_catalog_default_diagnostics_name_their_kind(tmp_path: Path) -> None:
     """#7511: the two catalog-default entries share a code and differ by ``kind``; the JSON form is unchanged."""
     from charter.activation.api import GovernanceDiagnosticCode
-    from charter.offering.artifact_kinds import ArtifactKind
 
     _write_charter_files(tmp_path, governance="charter: {}\n")
 
@@ -125,10 +128,13 @@ def test_selection_beyond_base_codes_selection_merged(tmp_path: Path) -> None:
     """Charter selections, extra tools and project-local directives merged onto a base are ``SELECTION_MERGED``."""
     repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=["001-architectural-integrity-standard"])
 
-    codes = _codes_by_message(resolve_project_governance(repo))
+    resolution = resolve_project_governance(repo)
+    codes = _codes_by_message(resolution)
 
     merged = [m for m, c in codes.items() if c == "SELECTION_MERGED"]
     assert any("beyond the activation base" in m and "QA_003" in m for m in merged), codes
+    # #7511: the kind is set at the producer, so a consumer decides per kind.
+    assert {d.kind for d in resolution.diagnostics if d.code.value == "SELECTION_MERGED"} == {ArtifactKind.DIRECTIVE}
 
 
 def test_project_local_and_tool_merges_code_selection_merged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,11 +154,15 @@ def test_project_local_and_tool_merges_code_selection_merged(tmp_path: Path, mon
         directives="directives:\n  - id: LOCAL_ONLY\n    title: Local rule\n",
     )
 
-    codes = _codes_by_message(resolve_project_governance(tmp_path, tool_registry={"git"}))
+    resolution = resolve_project_governance(tmp_path, tool_registry={"git"})
+    codes = _codes_by_message(resolution)
 
     merged = [m for m, c in codes.items() if c == "SELECTION_MERGED"]
     assert any("beyond the runtime registry" in m and "ruff" in m for m in merged), codes
     assert any("project-local directive" in m and "LOCAL_ONLY" in m for m in merged), codes
+    # #7511: the tool merge names no artifact kind (it must not un-compact paradigms or directives); the directive merge does.
+    kinds = {("tool" in d.message): d.kind for d in resolution.diagnostics if d.code.value == "SELECTION_MERGED"}
+    assert kinds == {True: None, False: ArtifactKind.DIRECTIVE}, resolution.diagnostics
 
 
 def test_profile_path_unresolved_reference_code() -> None:
