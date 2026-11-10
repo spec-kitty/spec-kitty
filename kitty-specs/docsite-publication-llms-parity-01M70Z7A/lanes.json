@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-publication-llms-parity-01M70Z7A",
+  "mission_id": "01M70Z7A50ME6RMNJ72CQDD6N1",
+  "mission_branch": "kitty/mission-docsite-publication-llms-parity-01M70Z7A",
+  "target_branch": "issue-6932-docsite-publication-llms-parity",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/docs-site-build.yml",
+        "Makefile",
+        "docs/**",
+        "scripts/docs/_dockitty_contract.py",
+        "scripts/docs/redirect_map.yaml",
+        "scripts/docs/site_built_check.py",
+        "scripts/docs/site_built_check_llms.py",
+        "scripts/docs/site_built_check_render.py",
+        "scripts/docs/site_contract.py",
+        "site/astro.config.mjs",
+        "site/dockitty-contract.json",
+        "site/moves.yaml",
+        "site/src/pages/api/index.json.ts",
+        "site/src/pages/llms.txt.ts",
+        "site/url-baseline.txt",
+        "tests/ci/test_docs_site_job.py",
+        "tests/docs/test_dockitty_contract.py",
+        "tests/docs/test_site_built_check.py",
+        "tests/docs/test_site_built_check_llms.py",
+        "tests/docs/test_site_built_check_render.py",
+        "tests/docs/test_site_bump.py",
+        "tests/docs/test_site_scaffold.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-09T20:28:10.695988+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "136d38cacc34cb095c5e70374d65ae62776f7b04"
+}
