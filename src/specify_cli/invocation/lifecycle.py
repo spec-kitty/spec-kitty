@@ -255,15 +255,54 @@ def group_by_action(records: Iterable[ProfileInvocationRecord]) -> list[Lifecycl
 
 
 def unpaired_started(group: LifecycleGroup) -> tuple[ProfileInvocationRecord, ...]:
-    """The ``started`` records of *group* that no completion pairs: its last ``deficit`` ones.
+    """The ``started`` records of *group* that no completion pairs, in read order.
 
-    Pairing is count-based, so the unpaired records are the latest ``started``
-    records in read order. Empty for a balanced group.
+    The one record-level pairing authority: ``spec-kitty next``, the doctor
+    pairing report and the ``doctor ops --close-stale`` sweep all name the same
+    open records. One ``implement::implement`` group holds every work package of
+    a Mission, so a count-only label would name a record its own agent completed.
+    Completions pair in three rounds, so a weaker match never takes a stronger
+    one's record:
+
+    1. an ``abandoned`` record pairs the exact record it names
+       (:data:`CLOSES_STARTED_AT`);
+    2. any other completion pairs the latest record of its own agent and work
+       package started no later than it;
+    3. each completion left over pairs the oldest remaining record of its own
+       agent, else the oldest remaining record of any agent.
+
+    The count per group is unchanged: ``len(started) - len(completions)``,
+    never below zero.
     """
-    deficit = len(group.started) - len(group.completions)
-    if deficit <= 0:
-        return ()
-    return group.started[-deficit:]
+    open_started = list(group.started)
+    completions = group.completions
+    linked = [c for c in completions if c.metadata.get(CLOSES_STARTED_AT)]
+    rest = [c for c in completions if not c.metadata.get(CLOSES_STARTED_AT)]
+    leftovers: list[ProfileInvocationRecord] = []
+    for completion in linked + rest:
+        match = _matching_started(open_started, completion)
+        if match is None:
+            leftovers.append(completion)
+        else:
+            open_started.remove(match)
+    for completion in leftovers:
+        if not open_started:
+            break
+        same_agent = next((s for s in open_started if s.agent == completion.agent), None)
+        open_started.remove(same_agent if same_agent is not None else open_started[0])
+    return tuple(open_started)
+
+
+def _matching_started(open_started: list[ProfileInvocationRecord], completion: ProfileInvocationRecord) -> ProfileInvocationRecord | None:
+    """The open ``started`` record *completion* pairs in rounds 1 and 2, or ``None``."""
+    same = [s for s in open_started if (s.agent, s.wp_id) == (completion.agent, completion.wp_id)]
+    closes = completion.metadata.get(CLOSES_STARTED_AT)
+    if closes:
+        exact = next((s for s in same if s.at.isoformat() == closes), None)
+        if exact is not None:
+            return exact
+    preceding = [s for s in same if _utc_at(s) <= _utc_at(completion)] or same
+    return max(preceding, key=_utc_at, default=None)
 
 
 def find_orphans(

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError
-from specify_cli.invocation.lifecycle import CLOSES_STARTED_AT, find_orphans, read_lifecycle_records, write_abandoned_completion
+from specify_cli.invocation.lifecycle import find_orphans, read_lifecycle_records, unpaired_started, write_abandoned_completion
 from specify_cli.invocation.op_custody import repository_checkouts
 from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH, open_invocation_ids
 
@@ -380,53 +380,12 @@ def _read_lifecycle_store(checkout: Path) -> list[ProfileInvocationRecord] | Non
 
 
 def _unpaired_ids(records: list[ProfileInvocationRecord]) -> set[int]:
-    """The ``started`` records no completion pairs, matched record by record (WP02 review B3).
+    """The ``started`` records no completion pairs (WP02 review B3).
 
-    Pairing counts per ``(mission_id, canonical_action_id)`` group, and
-    :func:`~specify_cli.invocation.lifecycle.unpaired_started` names the group's
-    latest records as the unpaired ones. One ``implement::implement`` group holds
-    every work package of a Mission, so that label can name a record its own
-    checkout completed, and the sweep compares records across checkouts. Here the
-    completions pair in three rounds, so a weaker match never takes a stronger one's
-    record (WP02 review N1):
-
-    1. a sweep's ``abandoned`` record pairs the exact record it names
-       (:data:`~specify_cli.invocation.lifecycle.CLOSES_STARTED_AT`), so a second
-       sweep never closes another copy (pre-PR review M1);
-    2. any other completion pairs the latest record of its own agent and work
-       package started no later than it, as ``spec-kitty next`` pairs the latest
-       open record (pre-PR review m2);
-    3. each completion left over pairs the oldest remaining record.
-
-    The counts per group are unchanged.
+    The matching is :func:`~specify_cli.invocation.lifecycle.unpaired_started`, the
+    one pairing authority shared with ``spec-kitty next`` and the pairing report.
     """
-    unpaired: set[int] = set()
-    for group in find_orphans(records):
-        open_started = list(group.started)
-        linked = [c for c in group.completions if c.metadata.get(CLOSES_STARTED_AT)]
-        rest = [c for c in group.completions if not c.metadata.get(CLOSES_STARTED_AT)]
-        leftover = 0
-        for completion in linked + rest:
-            match = _matching_started(open_started, completion)
-            if match is None:
-                leftover += 1
-            else:
-                open_started.remove(match)
-        del open_started[:leftover]
-        unpaired.update(id(record) for record in open_started)
-    return unpaired
-
-
-def _matching_started(open_started: list[ProfileInvocationRecord], completion: ProfileInvocationRecord) -> ProfileInvocationRecord | None:
-    """The open ``started`` record *completion* pairs, or ``None`` when it names none."""
-    same = [s for s in open_started if (s.agent, s.wp_id) == (completion.agent, completion.wp_id)]
-    closes = completion.metadata.get(CLOSES_STARTED_AT)
-    if closes:
-        exact = next((s for s in same if s.at.isoformat() == closes), None)
-        if exact is not None:
-            return exact
-    preceding = [s for s in same if _aware(s.at) <= _aware(completion.at)] or same
-    return max(preceding, key=lambda s: _aware(s.at), default=None)
+    return {id(record) for group in find_orphans(records) for record in unpaired_started(group)}
 
 
 def _aware(at: datetime) -> datetime:

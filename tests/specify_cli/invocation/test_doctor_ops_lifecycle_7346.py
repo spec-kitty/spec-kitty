@@ -330,15 +330,16 @@ def test_exact_matches_pair_before_any_fallback() -> None:
     completion takes the oldest remaining record, and WP01 stays unpaired.
     """
     from specify_cli.doctor.ops import _unpaired_ids
+    from specify_cli.invocation.lifecycle import find_latest_unpaired_started
     from specify_cli.invocation.record import ProfileInvocationRecord
 
-    def record(phase: str, wp_id: str, minutes: int) -> ProfileInvocationRecord:
+    def record(phase: str, wp_id: str, minutes: int, agent: str = "claude") -> ProfileInvocationRecord:
         return ProfileInvocationRecord.from_dict(
             {
                 "canonical_action_id": "implement::implement",
                 "phase": phase,
                 "at": (datetime(2026, 11, 1, tzinfo=UTC) + timedelta(minutes=minutes)).isoformat(),
-                "agent": "claude",
+                "agent": agent,
                 "mission_id": "01M6VYS1MISSION0000000000",
                 "wp_id": wp_id,
             }
@@ -348,6 +349,15 @@ def test_exact_matches_pair_before_any_fallback() -> None:
     records = [first, other, retry, record("completed", "WP09", 3), record("completed", "WP02", 4)]
 
     assert _unpaired_ids(records) == {id(other)}
+    # One pairing authority: ``spec-kitty next`` names the record the sweep leaves open.
+    assert find_latest_unpaired_started(records) is other
+
+    # A leftover completion takes its own agent's oldest record before another agent's:
+    # a late completion for an already-abandoned WP01 must not consume codex's older WP02.
+    wp01, wp02, wp03 = record("started", "WP01", 0), record("started", "WP02", 1, "codex"), record("started", "WP03", 2)
+    abandoned = ProfileInvocationRecord.from_dict({**record("abandoned", "WP01", 3).to_dict(), "metadata": {"closes_started_at": wp01.at.isoformat()}})
+    late = record("completed", "WP01", 4)
+    assert _unpaired_ids([wp01, wp02, wp03, abandoned, late]) == {id(wp02)}
 
 
 def test_a_retry_closed_across_checkouts_is_not_closed_again(tmp_path: Path) -> None:

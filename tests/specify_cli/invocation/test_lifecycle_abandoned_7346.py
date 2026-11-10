@@ -31,7 +31,7 @@ _AT = datetime(2026, 11, 7, 10, 0, tzinfo=UTC)
 _REASON = "abandoned by doctor ops --close-stale (older than 24h)"
 
 
-def _record(phase: str, *, at: datetime = _AT, wp_id: str | None = "WP04") -> ProfileInvocationRecord:
+def _record(phase: str, *, at: datetime = _AT, wp_id: str | None = "WP04", closes: datetime | None = None) -> ProfileInvocationRecord:
     return ProfileInvocationRecord.from_dict(
         {
             "canonical_action_id": "implement::implement",
@@ -41,7 +41,7 @@ def _record(phase: str, *, at: datetime = _AT, wp_id: str | None = "WP04") -> Pr
             "mission_id": "01M6VYS1MISSION0000000000",
             "wp_id": wp_id,
             "reason": _REASON if phase == "abandoned" else None,
-            "metadata": {"closed_by": "doctor_sweep"} if phase == "abandoned" else {},
+            "metadata": {"closed_by": "doctor_sweep", **({"closes_started_at": closes.isoformat()} if closes else {})} if phase == "abandoned" else {},
         }
     )
 
@@ -68,7 +68,8 @@ def test_an_abandoned_record_pairs_its_started_record() -> None:
 
 def test_a_second_started_record_stays_unpaired() -> None:
     later = _record("started", at=_AT + timedelta(hours=1))
-    records = [_record("started"), later, _record("abandoned", at=_AT + timedelta(days=2))]
+    # The sweep's record names the exact record it closes, so the retry stays open.
+    records = [_record("started"), later, _record("abandoned", at=_AT + timedelta(days=2), closes=_AT)]
     assert find_latest_unpaired_started(records) == later
     assert compute_pairing_rate(records) == 0.5
 
