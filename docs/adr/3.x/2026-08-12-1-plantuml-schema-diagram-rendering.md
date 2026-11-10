@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-12'
-updated: '2026-08-12T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 ---
 
 ## Context and Problem Statement
@@ -181,3 +181,14 @@ entry is amended to state this carve-out and cross-link this ADR.
   `docs-accessibility`.
 - Amended R-04 entry: [`docs/architecture/diagrams/README.md`](../../architecture/diagrams/README.md).
 - Upstream generation-scope issue this carve-out refines: `#1839` (deduped vs `#1812`).
+
+## Amendment 2026-11-10 — the doc-kitty site renders against a sandboxed PlantUML service
+
+Issue #6936 (epic #6100), under ADR `docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md` D-11.
+
+- **Renderer.** On the doc-kitty site, PlantUML renders at build time against a PlantUML server that runs as a service container of the `docs-site` job (`.github/workflows/docs-site-build.yml`): `plantuml/plantuml-server:jetty-v1.2026.9@sha256:065c66adc6728ba6dd353a29d4ada73f8358b68549a0f710c4bf46b43c103618`, pinned by digest, with `PLANTUML_SECURITY_PROFILE=SANDBOX`. `make docs-site` renders against the same image (`make docs-site-plantuml`); a test keeps the two digests equal. The render output is the static SVG figure doc-kitty emits; the built-site check's `diagrams` surface proves every published diagram is one.
+- **`docker run --network=none` no longer applies on this path.** A service container has a network, so Decision 2 cannot carry over.
+- **The guarantee is now behavioural: the renderer refuses every remote include, proven by a canary check on every docs-site run.** Before the build, `dockitty-assert-plantuml-no-remote-include --service-container <the service> --canary-host <its network gateway>` proves the canary is reachable from inside the service, then that a `!includeurl` and an `!include <url>` diagram both render as errors with zero canary requests, then that the running container's security profile is exactly SANDBOX. Any failure fails the job before the build. doc-kitty's `plantuml-guard` check also runs and fails if the toolkit's PlantUML stage names `plantuml.com`.
+- **External includes stay off.** doc-kitty's external-include opt-in (doc-kitty #268) is not used, per the operator ruling of 2026-11-01 on #6936. No current diagram uses `!include`.
+- **The DocFX lane is unchanged.** The pinned jar, the digest-pinned JRE container under `--network=none` and `scripts/docs/plantuml_render.py` keep serving DocFX until its retirement (#6943). The two lanes run different PlantUML versions (jar 1.2025.4, server v1.2026.9), so a rendering may differ slightly.
+- **`@startyaml` still renders.** doc-kitty v0.7.0 wraps a block in `@startuml`/`@enduml` and prepends its theme preamble; through that transform the five `@startyaml` blocks rendered error-free, byte-identical to a plain render, with the pinned 1.2025.4 jar (checked 2026-11-10); the service renders them on every docs-site run, and a render error fails the build. The preamble does not reach them, so they keep PlantUML's default colours.
