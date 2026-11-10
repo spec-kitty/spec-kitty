@@ -16,7 +16,7 @@ import pytest
 
 from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
 from specify_cli.lanes.compute import PLANNING_LANE_ID
-from specify_cli.lanes.implement_support import _owned_status_prefixes
+from specify_cli.lanes.implement_support import _claim_dirty_paths, _owned_status_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from tests.utils import _seed_canonical_wp_state, write_wp
@@ -558,3 +558,55 @@ def test_dirty_paths_real_claim_list_still_refuses_look_alikes(tmp_path: Path, o
     offending_path = offender(repo)
 
     assert dirty_paths(repo, owned_prefixes=_owned_status_prefixes(_SLUG)) == [offending_path]
+
+
+# ---------------------------------------------------------------------------
+# _claim_dirty_paths: the claim drops every Mission's decisions runtime lock (#7493)
+# ---------------------------------------------------------------------------
+
+_SELF = "claim-self"
+_OTHER = "claim-other"
+_LOCK = "decisions/index.json.lock"
+
+
+def _lock_beside_committed_ledger(repo: Path) -> None:
+    """Another Mission's lock, untracked beside its committed ledger (listed as an exact file)."""
+    _commit_file(repo, f"kitty-specs/{_OTHER}/decisions/index.json")
+    _write_file(repo, f"kitty-specs/{_OTHER}/{_LOCK}")
+
+
+def _lock_alone_in_untracked_dir(repo: Path) -> None:
+    """Git collapses the lock's untracked directory to one ``decisions/`` entry."""
+    _commit_file(repo, f"kitty-specs/{_SELF}/spec.md")
+    _write_file(repo, f"kitty-specs/{_SELF}/{_LOCK}")
+
+
+def _collapsed_dir_with_ledger(repo: Path) -> None:
+    _commit_file(repo, f"kitty-specs/{_SELF}/spec.md")
+    _write_file(repo, f"kitty-specs/{_SELF}/{_LOCK}")
+    _write_file(repo, f"kitty-specs/{_SELF}/decisions/index.json")
+
+
+def _lock_lookalike_outside_decisions(repo: Path) -> None:
+    _commit_file(repo, f"kitty-specs/{_SELF}/spec.md")
+    _write_file(repo, f"kitty-specs/{_SELF}/research/index.json.lock")
+
+
+@pytest.mark.parametrize(
+    ("setup", "expected"),
+    [
+        (_lock_beside_committed_ledger, []),
+        (_lock_alone_in_untracked_dir, []),
+        (_collapsed_dir_with_ledger, [f"kitty-specs/{_SELF}/decisions/"]),
+        (_lock_lookalike_outside_decisions, [f"kitty-specs/{_SELF}/research/"]),
+    ],
+    ids=["other-mission-lock", "lock-alone-in-collapsed-dir", "collapsed-dir-with-ledger", "lookalike-outside-decisions"],
+)
+def test_claim_dirty_paths_drops_only_decisions_runtime_locks(tmp_path: Path, setup: Callable[[Path], None], expected: list[str]) -> None:
+    """A lock (or a collapsed dir holding only locks) is dropped; real content beside it,
+    and a lookalike outside ``decisions/``, still count as dirt."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    setup(repo)
+
+    assert _claim_dirty_paths(repo, _SELF) == expected
