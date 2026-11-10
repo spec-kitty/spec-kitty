@@ -1,38 +1,22 @@
-"""Characterization corpus support: today's consolidation verdict per scenario cell (FR-016, NFR-001, C-008).
+"""Shared fixture builders for the consolidation window tests (``ShapeMission``, in-process CLI runner, interrupted-state helper).
 
-Before any code moves out of ``specify_cli.consolidation.reconciliation``, the verdict matrix
-``characterization/verdict_corpus.json`` pins today's actual verdict for every cell: verdict
-status, refusal codes, the ``Divergence`` fields the gate reported, and the exit code. Known-wrong
-verdicts are recorded as they are today; intended verdicts live in separate strict ``xfail`` tests.
-
-Pieces (each reused by later work packages, so each is importable on its own):
+Pieces (each importable on its own):
 
 * :func:`run_in_process` -- runs ``spec-kitty consolidate`` through the Typer app in THIS process
-  (``CliRunner``), with the per-mission HOME the subprocess harness gives (``_cli_env``). A seeded
-  mutation applied with ``monkeypatch`` before the call reaches the verdict computation; a
-  subprocess (``run_terminus``) could not be reached.
-* :func:`interrupt_after_claim` -- a real interrupted state for resume cells: a forked child of
+  (``CliRunner``), with the per-mission HOME the subprocess harness gives (``_cli_env``).
+* :func:`interrupt_after_claim` -- a real interrupted state for resume tests: a forked child of
   this process runs the real CLI and SIGKILLs itself right after the claim anchors are saved and
-  before the first lane merge (hook: ``executor._phase_merge_lanes``, see its docstring). No
-  hand-written ``state.json``.
-* :func:`build_shape` / :class:`ShapeMission` -- one builder per lane shape of IC-02, composed from
-  the terminus builders and the promoted ``single_branch`` builder.
+  before the first lane merge (hook: ``executor._phase_merge_lanes``). No hand-written ``state.json``.
+* :func:`build_shape` / :class:`ShapeMission` -- one builder per lane shape, composed from
+  the terminus builders and the ``single_branch`` builder.
 * :func:`apply_stamp` and :func:`set_window_state` -- the approval-stamp and window-state axes,
-  set explicitly after the builder runs (IC-02: never left to which builder wrote the events).
-* :func:`compute_cells`, :func:`assert_cells_match`, :func:`regenerate_cells`,
-  :func:`changed_cells` -- the golden-file machinery. A Phase 4 work package regenerates only its
-  named cells and checks its diff with :func:`changed_cells`.
-
-Cell values hold codes and field names, never raw prose, except the cells that pin text (FR-023
-all-gap cell, NFR-002 (b)); pinned text is normalized (SHAs and temporary paths become labels).
+  set explicitly after the builder runs.
 """
 
 from __future__ import annotations
 
 import contextlib
-import difflib
 import json
-import multiprocessing
 import os
 import re
 import shutil
@@ -49,8 +33,6 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from kernel.clock import parse_iso, timedelta
-
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
@@ -66,6 +48,7 @@ from tests.terminus.canceled_dependency_support import (
     build_canceled_dependency_mission,
 )
 from tests.terminus.conftest import (
+    _STATUS_EVENTS_FILENAME,
     CoordMission,
     PlantedChange,
     _bootstrapped_home_template,
@@ -74,7 +57,6 @@ from tests.terminus.conftest import (
     _finish_coord_mission,
     _init_fixture_repo,
     _now_iso,
-    _STATUS_EVENTS_FILENAME,
     _write_meta,
     build_coord_mission_mixed_lane_canceled,
     build_coord_mission_mixed_lane_with_dependency,
@@ -82,27 +64,15 @@ from tests.terminus.conftest import (
 )
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.mixed_lane_support import transition
-from tests.terminus.post_approval_support import add_post_approval_commit, build_post_approval_coord_mission, rework_and_reapprove, strip_approval_stamps
-from tests.consolidation.reconciliation_family import setattr_reconciliation_family
+from tests.terminus.post_approval_support import build_post_approval_coord_mission, strip_approval_stamps
 
 # --------------------------------------------------------------------------- vocabulary
 
 WINDOW_SCHEMA_VERSION = 1
 
-GOLDEN_PATH = Path(__file__).resolve().parent / "characterization" / "verdict_corpus.json"
-GOLDEN_REPO_PATH = "tests/consolidation/characterization/verdict_corpus.json"
-REGEN_ENV = "SPEC_KITTY_REGEN_VERDICT_CORPUS"
 
-MODES = ("forecast", "fresh", "resume")
-LANE_SHAPES = ("single_lane", "two_wp_lane", "mixed_lane_canceled_wp", "fully_canceled_dependency", "dependency_chain")
-FLAT_SHAPES = ("planning_lane", "single_branch")
-SHAPES = (*LANE_SHAPES, *FLAT_SHAPES)
-STAMPS = ("present", "missing", "rewritten")
-WINDOWS = ("recorded", "not_recorded", "capture_failed", "lane_branch_missing", "not_on_lane")
 WINDOW_ANY = "any"
 
-MODE_NA_RESUME = "no frozen tips without a coordination checkpoint (phase_claim.py _resolve_pre_mutation_coord_sha)"
-NA_PLANNING_STAMP = "planning lanes are never stamped (status/lane_head.py: no lane branch), so no approval stamp can be missing or rewritten"
 
 _OPENING_LANES = ("claimed", "in_progress")
 _MIGRATION_PREFIX = "migration:"
@@ -111,9 +81,6 @@ _NO_HOOKS = ("-c", "core.hooksPath=/dev/null")
 _CODE_TOKEN = re.compile(r"(?<![A-Za-z0-9_])([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)(?![A-Za-z0-9_])")
 _JSON_ESCAPE = re.compile(r"\\[nrt]")  # a literal backslash + letter in raw --json output: it would otherwise glue to the next code
 _CODE_NOISE_PREFIXES = ("SPEC_KITTY_", "GIT_", "XDG_")
-_HEX = re.compile(r"(?<![0-9a-zA-Z])(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}(?![0-9a-zA-Z])")
-_ISO_TS = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?")
-_ULID = re.compile(r"(?<![0-9A-Z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Z])")
 
 
 # --------------------------------------------------------------------------- git helpers
@@ -148,7 +115,7 @@ def deterministic_commit_dates(repo: Path) -> Iterator[None]:
     parent with the same tree and message are one commit only when their dates match; with
     wall-clock dates they diverge whenever the two commits straddle a second boundary, the target
     branch then carries a commit the Mission branch does not, and the landing refuses with
-    ``TARGET_BRANCH_CONTENT_CONFLICT`` on the status log (the WP02 corpus flake). A date taken
+    ``TARGET_BRANCH_CONTENT_CONFLICT`` on the status log. A date taken
     from the repository makes the commit identity a function of the repository alone. The newest
     date keeps every new commit no older than its parent (git's merge-base walk relies on dates).
     """
@@ -296,7 +263,7 @@ def mission_environment(mission: ShapeMission) -> Iterator[pytest.MonkeyPatch]:
 
 @dataclass(frozen=True)
 class CellResult:
-    """One CLI run, reduced to what the corpus records.
+    """One CLI run, reduced to the verdict the tests assert on.
 
     ``status`` is ``pass`` (exit 0), ``fail`` / ``refuse`` (the reconciliation verdict the
     verifier returned, or ``refuse`` for an exit before any verifier call: a claim-time or
@@ -309,12 +276,6 @@ class CellResult:
     codes: tuple[str, ...]
     divergence_fields: tuple[str, ...]
     exception: str | None = None
-
-    def cell(self) -> dict[str, Any]:
-        value: dict[str, Any] = {"status": self.status, "exit_code": self.exit_code, "codes": list(self.codes), "divergence_fields": list(self.divergence_fields)}
-        if self.exception is not None:
-            value["exception"] = self.exception
-        return value
 
 
 def refusal_codes(text: str) -> tuple[str, ...]:
@@ -399,9 +360,6 @@ class ResumeUnreachableError(AssertionError):
         self.interrupted_run = dict(interrupted_run)
 
 
-RESUME_UNREACHABLE = "the fresh run ends before its first lane merge (claim-time or preflight refusal), so no interrupted state exists to resume"
-
-
 def interrupt_after_claim(mission: ShapeMission, *extra: str) -> dict[str, Any]:
     """SIGKILL a real ``consolidate`` right after the claim anchors were saved; return the persisted record.
 
@@ -464,16 +422,6 @@ def _interrupted_child_report(mission: ShapeMission, extra: Sequence[str]) -> di
     if result.exception is not None and not isinstance(result.exception, SystemExit):
         reported["exception"] = type(result.exception).__name__
     return reported
-
-
-def resume_after_interrupt(mission: ShapeMission, *, between: Callable[[ShapeMission], None] | None = None, extra: Sequence[str] = ()) -> CellResult:
-    """Interrupt after the claim, assert the frozen tips exist, optionally act, then resume in process."""
-    record = interrupt_after_claim(mission, *extra)
-    if not record.get("pre_interrupt_lane_tips"):
-        raise AssertionError(f"resume precondition: the record holds no pre_interrupt_lane_tips (the resume would be a fresh run): {sorted(record)}")
-    if between is not None:
-        between(mission)
-    return run_in_process(mission, consolidate_args(mission, "resume", *extra))
 
 
 # --------------------------------------------------------------------------- the event-log axes
@@ -800,7 +748,7 @@ def build_mixed_lane_through_the_shell(tmp_path: Path, *, mid8: str, supersede: 
 
 
 def build_mixed_lane_shell_shape(tmp_path: Path, *, mid8: str, supersede: bool = False) -> ShapeMission:
-    """:func:`build_mixed_lane_through_the_shell` as a corpus shape: WP01 is the subject and the one windowed work package."""
+    """:func:`build_mixed_lane_through_the_shell` as a shape: WP01 is the subject and the one windowed work package."""
     return _from_coord(build_mixed_lane_through_the_shell(tmp_path, mid8=mid8, supersede=supersede), "coord", subject_wp="WP01", window_wps=("WP01",))
 
 
@@ -964,198 +912,6 @@ def _need(mission: ShapeMission | None) -> ShapeMission:
     return mission
 
 
-# --------------------------------------------------------------------------- cells
-
-
-CellValue = dict[str, Any]
-
-
-@dataclass
-class CellContext:
-    """Where a cell computes: the shared templates and a scratch directory of its own."""
-
-    templates: Mapping[str, ShapeMission]
-    scratch: Path
-
-    def copy(self, template: str, label: str = "m") -> ShapeMission:
-        return copy_mission(self.templates[template], self.scratch / label)
-
-
-@dataclass(frozen=True)
-class Cell:
-    """One corpus cell: its key, the templates it copies, and how it computes its value."""
-
-    key: str
-    templates: tuple[str, ...]
-    compute: Callable[[CellContext], CellValue]
-
-
-def cell_key(mode: str, shape: str, stamp: str, window: str, variant: str | None = None) -> str:
-    key = f"{mode}|{shape}|stamp={stamp}|window={window}"
-    return f"{key}|{variant}" if variant else key
-
-
-def normalize_text(text: str, roots: Sequence[Path] = ()) -> str:
-    """Collapse whitespace and backticks, replace temporary roots, SHAs, ULIDs and timestamps by stable labels."""
-    for index, root in enumerate(roots):
-        text = text.replace(str(root), f"<root{index}>")
-    labels: dict[str, str] = {}
-
-    def _label(match: re.Match[str]) -> str:
-        token = match.group(0)
-        return labels.setdefault(token, f"<sha:{len(labels) + 1}>")
-
-    text = _HEX.sub(_label, text)
-    text = _ULID.sub("<ulid>", text)
-    text = _ISO_TS.sub("<ts>", text)
-    return " ".join(text.replace("`", "").split())
-
-
-_REFUSAL_MARKERS = ("Reconciliation refused", "Reconciliation FAILED", "Error:")
-_PASS_MARKER = "Reconciliation verified"
-_ROLLBACK_MARKER = "Rollback to the pre-consolidation snapshot"
-
-
-def _verdict_text(result: CellResult, mission: ShapeMission) -> str:
-    """The operator-facing verdict, normalized.
-
-    Forecast (``--json``): the payload's ``error``. Otherwise the refusal or failure block, from its
-    header to the rollback report (exclusive), or the one ``Reconciliation verified`` line of a pass.
-    """
-    roots = (mission.root,)
-    stripped = result.output.strip()
-    with contextlib.suppress(ValueError):
-        payload = json.loads(stripped.splitlines()[-1]) if stripped else {}
-        if isinstance(payload, dict) and "error" in payload:
-            return normalize_text(str(payload["error"]), roots)
-    lines = result.output.splitlines()
-    for index, line in enumerate(lines):
-        if any(marker in line for marker in _REFUSAL_MARKERS):
-            block: list[str] = []
-            for candidate in lines[index:]:
-                if _ROLLBACK_MARKER in candidate:
-                    break
-                block.append(candidate)
-            return normalize_text("\n".join(block), roots)
-    return normalize_text(next((line for line in lines if _PASS_MARKER in line), ""), roots)
-
-
-def _run_cell(mission: ShapeMission, mode: str, *extra: str, pin_text: bool = False) -> CellValue:
-    result = run_in_process(mission, consolidate_args(mission, mode, *extra))
-    value = result.cell()
-    if pin_text:
-        value["text"] = _verdict_text(result, mission)
-    return value
-
-
-def _generic_state(ctx: CellContext, shape: str, stamp: str, window: str, label: str) -> ShapeMission:
-    mission = ctx.copy(shape, label)
-    apply_stamp(mission, stamp)
-    set_window_states(mission, window)
-    return mission
-
-
-def _generic_compute(mode: str, shape: str, stamp: str, window: str) -> Callable[[CellContext], CellValue]:
-    def _compute(ctx: CellContext) -> CellValue:
-        mission = _generic_state(ctx, shape, stamp, window, mode)
-        if mode == "resume":
-            try:
-                return resume_after_interrupt(mission).cell()
-            except ResumeUnreachableError as unreachable:
-                return {"mode_not_applicable": RESUME_UNREACHABLE, "interrupted_run": unreachable.interrupted_run}
-        return _run_cell(mission, mode)
-
-    return _compute
-
-
-def _static(value: CellValue) -> Callable[[CellContext], CellValue]:
-    return lambda _ctx: dict(value)
-
-
-def _shape_topology(shape: str) -> str:
-    return {"planning_lane": "lanes", "single_branch": "single_branch"}.get(shape, "coord")
-
-
-def generic_cells() -> list[Cell]:
-    """Mode x shape x stamp x window, pruned by P1-P3 (see the test module docstring)."""
-    cells: list[Cell] = []
-    for mode in MODES:
-        for shape in SHAPES:
-            for stamp in STAMPS:
-                windows = WINDOWS if (stamp == "present" and shape in LANE_SHAPES) else (WINDOW_ANY,)  # P1, P2
-                for window in windows:
-                    key = cell_key(mode, shape, stamp, window)
-                    if mode == "resume" and _shape_topology(shape) != "coord":  # P3
-                        cells.append(Cell(key, (), _static({"mode_not_applicable": MODE_NA_RESUME})))
-                    elif shape == "planning_lane" and stamp != "present":
-                        cells.append(Cell(key, (), _static({"not_applicable": NA_PLANNING_STAMP})))
-                    else:
-                        cells.append(Cell(key, (shape,), _generic_compute(mode, shape, stamp, window)))
-    return cells
-
-
-# ---- named cells: NFR-002 (a)-(h)
-
-
-def _two_wp_windows(first: str, second: str) -> Callable[[ShapeMission], None]:
-    def _apply(mission: ShapeMission) -> None:
-        set_window_state(mission, "WP01", first)
-        set_window_state(mission, "WP02", second)
-
-    return _apply
-
-
-def _windowed(
-    template: str, mode: str, windows: Callable[[ShapeMission], None], *, pin_text: bool = False, extra: Sequence[str] = ()
-) -> Callable[[CellContext], CellValue]:
-    def _compute(ctx: CellContext) -> CellValue:
-        mission = ctx.copy(template, mode)
-        windows(mission)
-        return _run_cell(mission, mode, *extra, pin_text=pin_text)
-
-    return _compute
-
-
-def _all_windows(state: str) -> Callable[[ShapeMission], None]:
-    return lambda mission: set_window_states(mission, state)
-
-
-def _recorded_by_the_shell(_mission: ShapeMission) -> None:
-    """Keep the windows the production status shell recorded: the cell's events are the pipeline's own, never rewritten."""
-
-
-def _single_branch_recorded(mission: ShapeMission) -> None:
-    for wp_id in ("WP01", "WP02"):
-        set_window_state(mission, wp_id, "recorded")
-
-
-def _fault_history_read_error(ctx: CellContext) -> CellValue:
-    """(d) FR-014: a history read of WP01's authored file fails while the claim collects lane-a's authored content.
-
-    Both probe names fail for that one ``(commit, path)`` pair: the walk read it with ``blob_id_at`` before WP16 and reads it
-    with ``path_state_at`` since, so the fault reaches the walk on either side of the fix. Every other read is untouched.
-    """
-    from specify_cli.consolidation import git_probes
-    from specify_cli.consolidation.git_probes import GitProbeError
-
-    mission = ctx.copy("single_lane", "fresh")
-    set_window_states(mission, "recorded")
-    authored = _git(mission.repo, "rev-list", "-1", mission.lane_branches["WP01"], "--", WP01_PATH)
-
-    def _failing_for(real: Callable[[Path, str, str], str | None]) -> Callable[[Path, str, str], str | None]:
-        def _failing(repo_root: Path, ref: str, path: str) -> str | None:
-            if ref == authored and path == WP01_PATH:
-                raise GitProbeError(f"injected history-read error for {path} at {ref}")
-            return real(repo_root, ref, path)
-
-        return _failing
-
-    with pytest.MonkeyPatch.context() as patch:
-        for name in ("blob_id_at", "path_state_at"):
-            setattr_reconciliation_family(patch, name, _failing_for(getattr(git_probes, name)))
-        return _run_cell(mission, "fresh")
-
-
 @contextlib.contextmanager
 def lane_checkout(mission: ShapeMission, branch: str) -> Iterator[Path]:
     """The checkout holding *branch*, or a temporary worktree of it (removed afterwards) when none does."""
@@ -1176,173 +932,7 @@ def _advance_lane(mission: ShapeMission, wp_id: str, path: str, message: str) ->
         return _commit_in(checkout, path, f"ADVANCED = {path!r}\n", message)
 
 
-def _resume_with(template: str, between: Callable[[ShapeMission], None]) -> Callable[[CellContext], CellValue]:
-    """A resume cell whose dependency lane moves between the interruption and the resume; the verdict text is pinned.
-
-    The codes alone may not change when the anchors do (the dependency lane's own check can refuse
-    either way), so the pinned text carries the per-lane refusals an anchor change would alter.
-    """
-
-    def _compute(ctx: CellContext) -> CellValue:
-        mission = ctx.copy(template, "resume")
-        set_window_states(mission, "recorded")
-        result = resume_after_interrupt(mission, between=between)
-        return {**result.cell(), "text": _verdict_text(result, mission)}
-
-    return _compute
-
-
-def _mixed_dependency_advances(mission: ShapeMission) -> None:
-    """(e): the dependency lane of the mixed lane gains a commit after the interruption, and the mixed lane merges it."""
-    dependency = sorted({wp for wp in mission.lane_branches if wp not in mission.canceled_wps and wp != mission.subject_wp})
-    dependency_wp = next((wp for wp in dependency if mission.lane_branches[wp] != mission.lane_branches[mission.subject_wp]), dependency[0])
-    _advance_lane(mission, dependency_wp, "src/advanced/after_interrupt.py", "feat: dependency lane advanced after the interruption")
-    with lane_checkout(mission, mission.lane_branches[mission.subject_wp]) as mixed_lane:
-        _git(mixed_lane, "merge", "-q", "--no-ff", "--no-edit", mission.lane_branches[dependency_wp])
-
-
-def _chain_dependency_advances_and_merges(mission: ShapeMission) -> None:
-    """(f): lane-a gains a commit after the interruption and lane-b merges it."""
-    _advance_lane(mission, "WP01", "src/advanced/after_interrupt.py", "feat: dependency lane advanced after the interruption")
-    with lane_checkout(mission, mission.lane_branches["WP02"]) as lane_b:
-        _git(lane_b, "merge", "-q", "--no-ff", "--no-edit", mission.lane_branches["WP01"])
-
-
-def _canceled_lane_advances(mission: ShapeMission) -> None:
-    """(g): the fully-canceled dependency lane gains a commit after the interruption."""
-    _advance_lane(mission, "WP01", "src/advanced/after_interrupt.py", "feat: canceled dependency lane advanced after the interruption")
-
-
-# ---- mutation-target cells (WP06)
-
-
-def _lane_commit_during_run(ctx: CellContext) -> CellValue:
-    """A lane commit lands after the claim and before the gate (wraps the first lane-merge step, ``_inject_then_merge`` model)."""
-    from specify_cli.consolidation import executor
-    from specify_cli.consolidation.phase_advance import _phase_merge_lanes as real
-
-    mission = ctx.copy("single_lane", "fresh")
-
-    def _inject_then_merge(run: Any) -> None:
-        _advance_lane(mission, "WP01", "src/pkg/during_run.py", "feat: unreviewed change added during consolidate")
-        real(run)
-
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(executor, "_phase_merge_lanes", _inject_then_merge)
-        return _run_cell(mission, "fresh")
-
-
 DEP_BRANCH = "dep-branch"
-
-
-def _dependency_ref(ctx: CellContext) -> CellValue:
-    """``--dependency-ref`` naming an external branch merged into lane-a, lane re-approved (the #6771 model)."""
-    from tests.terminus.conftest import restamp_approvals_at_lane_tips
-
-    mission = ctx.copy("single_lane", "fresh")
-    repo = mission.repo
-    root_commit = _git(repo, "rev-list", "--max-parents=0", mission.target_branch)
-    _git(repo, "branch", DEP_BRANCH, root_commit)
-    dep_wt = ctx.scratch / "dep-wt"
-    _git(repo, "worktree", "add", "-q", str(dep_wt), DEP_BRANCH)
-    _commit_in(dep_wt, "src/dep/mod0.py", "DEP = 0\n", "feat(dep): mod0")
-    _git(repo, "worktree", "remove", str(dep_wt))
-    with lane_checkout(mission, mission.lane_branches["WP01"]) as lane_a:
-        _git(lane_a, "merge", "-q", "--no-ff", "--no-edit", DEP_BRANCH)
-    restamp_approvals_at_lane_tips(mission.coord_mission())
-    return _run_cell(mission, "fresh", "--dependency-ref", DEP_BRANCH)
-
-
-def _unattributable_squash_path(ctx: CellContext) -> CellValue:
-    """A content commit on the mission (coordination) branch outside every lane before the gate (default squash)."""
-    mission = ctx.copy("single_lane", "fresh")
-    coord = _worktree_of(mission.repo, mission.mission_branch)
-    if coord is None:
-        raise AssertionError("no checkout holds the coordination branch")
-    _commit_in(coord, "src/outside/unowned.py", "UNOWNED = True\n", "feat: content outside every lane")
-    return _run_cell(mission, "fresh")
-
-
-def _staged_deletions_interrupted(ctx: CellContext) -> tuple[Any, ShapeMission]:
-    from tests.terminus.approved_content_support import InterruptedConsolidate
-
-    run = InterruptedConsolidate(ctx.scratch, "kill_coord", "squash", mid8="01M6Y2A1")
-    mission = _from_coord(run.mission, "coord", subject_wp="WP01", window_wps=("WP01", "WP02"))
-    state = _state_json(mission)
-    if state is None or not json.loads(state.read_text(encoding="utf-8")).get("pre_interrupt_lane_tips"):
-        raise AssertionError("resume precondition: the killed run left no record with pre_interrupt_lane_tips")
-    _git(run.lagging, "commit", "-qm", "operator: commit the staged changes")
-    run.operator_clears_stale_locks()
-    return run, mission
-
-
-def _resume_approved_content_missing(ctx: CellContext) -> CellValue:
-    """The lagging checkout's staged deletions committed, then ``--resume`` (``test_resume_refuses_committed_staged_deletions``)."""
-    _run, mission = _staged_deletions_interrupted(ctx)
-    return run_in_process(mission, consolidate_args(mission, "resume")).cell()
-
-
-def _fresh_approved_content_missing_released(ctx: CellContext) -> CellValue:
-    """The same committed deletions kept with ``--abort --release-branch``, then a fresh run: the path that reaches the presence axis (#5788)."""
-    _run, mission = _staged_deletions_interrupted(ctx)
-    released = run_in_process(
-        mission, ["consolidate", "--abort", "--mission", mission.slug, "--release-branch", mission.mission_branch, "--release-reason", "keep the operator commit"]
-    )
-    if released.exit_code != 0:
-        raise AssertionError(f"precondition: the release clears the record:\n{released.output}")
-    return _run_cell(mission, "fresh")
-
-
-def _dependency_ref_names_mission_work(ctx: CellContext) -> CellValue:
-    """``--dependency-ref`` naming the Mission's own lane branch: the declaration must be refused as Mission work (#6771 namespace guard)."""
-    mission = ctx.copy("single_lane", "fresh")
-    return _run_cell(mission, "fresh", "--dependency-ref", mission.lane_branches["WP01"])
-
-
-# ---- exception and weaker-check cells (pinned as passing today)
-
-
-def _all_gap_post_approval(ctx: CellContext) -> CellValue:
-    """FR-023: every work package of the lane has a window gap and a commit lands after WP01's approval; refusal text pinned."""
-    mission = ctx.copy("single_lane", "fresh")
-    set_window_states(mission, "capture_failed")
-    add_post_approval_commit(mission.coord_mission())
-    return _run_cell(mission, "fresh", pin_text=True)
-
-
-def _skewed_clock_rework(ctx: CellContext) -> CellValue:
-    """WP01 reworked and re-approved; the rework opener's clock runs an hour behind the first approval."""
-    mission = ctx.copy("single_lane", "fresh")
-    coord = mission.coord_mission()
-    rework_and_reapprove(coord, "WP01")
-    approvals = [e for e in _events(mission) if e.get("wp_id") == "WP01" and e.get("to_lane") == "approved"]
-    first_approval_at = str(approvals[0]["at"])
-    skewed = _shift_iso(first_approval_at, hours=-1)
-
-    def _skew(event: dict[str, Any]) -> dict[str, Any] | None:
-        if event.get("wp_id") == "WP01" and event.get("from_lane") == "approved" and event.get("to_lane") == "in_progress":
-            return {**event, "at": skewed}
-        return None
-
-    rewrite_events(mission, _skew, "test: skew the rework opener's clock")
-    set_window_states(mission, "recorded")
-    return _run_cell(mission, "fresh")
-
-
-def _leading_branch_missing(ctx: CellContext) -> CellValue:
-    """WP01's first opener recorded ``lane_branch_missing``, its later opener a recorded SHA."""
-    mission = ctx.copy("single_lane", "fresh")
-    set_window_state(mission, "WP01", "lane_branch_missing", openers=(0,))
-    set_window_state(mission, "WP01", "recorded", openers=(1,))
-    set_window_state(mission, "WP02", "recorded")
-    return _run_cell(mission, "fresh")
-
-
-def _r09_post_approval_forecast(ctx: CellContext) -> CellValue:
-    """R-09: the ``--dry-run`` verdict on the post-approval-commit fixture."""
-    mission = ctx.copy("single_lane", "forecast")
-    add_post_approval_commit(mission.coord_mission())
-    return _run_cell(mission, "forecast", pin_text=True)
 
 
 def _events(mission: ShapeMission) -> list[dict[str, Any]]:
@@ -1352,146 +942,11 @@ def _events(mission: ShapeMission) -> list[dict[str, Any]]:
     return [json.loads(line) for line in source.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def _shift_iso(stamp: str, *, hours: int) -> str:
-    parsed = parse_iso(stamp.replace("Z", "+00:00"))
-    return (parsed + timedelta(hours=hours)).isoformat()
-
-
-NAMED_KEYS = {
-    "a_commit_between_approvals": cell_key("fresh", "two_wp_lane", "present", "recorded", "commit_between_approvals"),
-    "a_gap_then_recorded": cell_key("fresh", "two_wp_lane", "present", "gap_then_recorded", "commit_between_approvals"),
-    "b_refusal_text": cell_key("fresh", "two_wp_lane", "present", "recorded", "commit_between_approvals_text"),
-    "c_rewound_lanes": cell_key("fresh", "two_wp_lane", "present", "recorded", "rewound"),
-    "c_rewound_single_branch": cell_key("fresh", "single_branch", "present", "recorded", "rewound"),
-    "c_rewound_single_branch_forecast": cell_key("forecast", "single_branch", "present", "recorded", "rewound"),
-    "d_history_read_error": cell_key("fresh", "single_lane", "present", "recorded", "history_read_error"),
-    "e_resume_closed_world": cell_key("resume", "mixed_lane_canceled_wp", "present", "recorded", "dependency_lane_advanced"),
-    "f_resume_approved_bound": cell_key("resume", "dependency_chain", "present", "recorded", "dependency_lane_advanced_and_merged"),
-    "g_resume_fully_canceled": cell_key("resume", "fully_canceled_dependency", "present", "recorded", "canceled_lane_advanced"),
-    "h_forecast_excluded_canceled": cell_key("forecast", "mixed_lane_canceled_wp", "present", "recorded", "excluded_canceled"),
-    "mut_lane_commit_during_run": "fresh|single_lane|lane_commit_during_run",
-    "mut_dependency_ref": "fresh|single_lane|dependency_ref",
-    "mut_approved_content_missing": "resume|single_lane|approved_content_missing",
-    "mut_approved_content_missing_released": "fresh|single_lane|approved_content_missing_released",
-    "mut_unattributable_squash_path": "fresh|single_lane|unattributable_squash_path",
-    "mut_canceled_content_leaks": "fresh|mixed_lane_canceled_wp|canceled_content_leaks",
-    "mut_canceled_dependency_reachable": "fresh|fully_canceled_dependency|canceled_content_reachable",
-    "mut_canceled_dependency_reachable_merge": "fresh|fully_canceled_dependency|canceled_content_reachable|strategy=merge",
-    "mut_dependency_ref_mission_work": "fresh|single_lane|dependency_ref_names_mission_work",
-    "x_dependency_chain_exception": cell_key("fresh", "dependency_chain", "present", "recorded", "fr007_exception"),
-    "x_gap_covers_stray": cell_key("fresh", "two_wp_lane", "present", "recorded_then_gap", "commit_between_approvals"),
-    "x_all_gap_post_approval": cell_key("fresh", "single_lane", "present", "capture_failed", "all_gap_post_approval_commit"),
-    "x_skewed_clock_rework": cell_key("fresh", "single_lane", "present", "recorded", "skewed_clock_rework"),
-    "x_leading_branch_missing": cell_key("fresh", "single_lane", "present", "lane_branch_missing_then_recorded", "leading_branch_missing"),
-    "r09_post_approval_forecast": "forecast|single_lane|post_approval_commit",
-    "x_canceled_commit_before_window": cell_key("fresh", "mixed_lane_canceled_wp", "present", "recorded", "canceled_commit_before_window"),
-    "x_canceled_commit_before_window_superseded": cell_key("fresh", "mixed_lane_canceled_wp", "present", "recorded", "canceled_commit_before_window_superseded"),
-    # Pre-PR fold M9: a declared, pinned external ref merged into the lane before its first window (#6771 x FR-007).
-    "x_dependency_ref_before_window": cell_key("fresh", "single_lane", "present", "recorded", "dependency_ref_merged_before_window"),
-}
-
-
-def named_cells() -> list[Cell]:
-    """The NFR-002 cells (a)-(h), the WP06 mutation targets, the exception cells and R-09, each addressable by key."""
-    k = NAMED_KEYS
-    recorded = _all_windows("recorded")
-    return [
-        Cell(k["a_commit_between_approvals"], ("two_wp_lane_stray",), _windowed("two_wp_lane_stray", "fresh", recorded)),
-        Cell(k["a_gap_then_recorded"], ("two_wp_lane_stray",), _windowed("two_wp_lane_stray", "fresh", _two_wp_windows("capture_failed", "recorded"))),
-        Cell(k["b_refusal_text"], ("two_wp_lane_stray",), _windowed("two_wp_lane_stray", "fresh", recorded, pin_text=True)),
-        Cell(k["c_rewound_lanes"], ("two_wp_lane_rewound",), _windowed("two_wp_lane_rewound", "fresh", recorded)),
-        Cell(k["c_rewound_single_branch"], ("single_branch_rewound",), _windowed("single_branch_rewound", "fresh", _single_branch_recorded)),
-        Cell(k["c_rewound_single_branch_forecast"], ("single_branch_rewound",), _windowed("single_branch_rewound", "forecast", _single_branch_recorded)),
-        Cell(k["d_history_read_error"], ("single_lane",), _fault_history_read_error),
-        Cell(k["e_resume_closed_world"], ("mixed_lane_with_dependency",), _resume_with("mixed_lane_with_dependency", _mixed_dependency_advances)),
-        Cell(k["f_resume_approved_bound"], ("dependency_chain",), _resume_with("dependency_chain", _chain_dependency_advances_and_merges)),
-        Cell(k["g_resume_fully_canceled"], ("fully_canceled_dependency",), _resume_with("fully_canceled_dependency", _canceled_lane_advances)),
-        Cell(k["h_forecast_excluded_canceled"], ("mixed_lane_canceled_wp",), _windowed("mixed_lane_canceled_wp", "forecast", recorded)),
-        Cell(k["mut_lane_commit_during_run"], ("single_lane",), _lane_commit_during_run),
-        Cell(k["mut_dependency_ref"], ("single_lane",), _dependency_ref),
-        Cell(k["mut_approved_content_missing"], (), _resume_approved_content_missing),
-        Cell(k["mut_approved_content_missing_released"], (), _fresh_approved_content_missing_released),
-        Cell(k["mut_unattributable_squash_path"], ("single_lane",), _unattributable_squash_path),
-        Cell(k["mut_canceled_content_leaks"], ("mixed_lane_canceled_leaks",), _windowed("mixed_lane_canceled_leaks", "fresh", recorded)),
-        Cell(k["mut_canceled_dependency_reachable"], ("fully_canceled_dependency_reachable",), _windowed("fully_canceled_dependency_reachable", "fresh", recorded)),
-        Cell(
-            k["mut_canceled_dependency_reachable_merge"],
-            ("fully_canceled_dependency_reachable",),
-            _windowed("fully_canceled_dependency_reachable", "fresh", recorded, extra=("--strategy", "merge")),
-        ),
-        Cell(k["mut_dependency_ref_mission_work"], ("single_lane",), _dependency_ref_names_mission_work),
-        Cell(k["x_dependency_chain_exception"], ("dependency_chain_stray",), _windowed("dependency_chain_stray", "fresh", recorded)),
-        Cell(k["x_gap_covers_stray"], ("two_wp_lane_stray",), _windowed("two_wp_lane_stray", "fresh", _two_wp_windows("recorded", "not_recorded"))),
-        Cell(k["x_all_gap_post_approval"], ("single_lane",), _all_gap_post_approval),
-        Cell(k["x_skewed_clock_rework"], ("single_lane",), _skewed_clock_rework),
-        Cell(k["x_leading_branch_missing"], ("single_lane",), _leading_branch_missing),
-        Cell(k["r09_post_approval_forecast"], ("single_lane",), _r09_post_approval_forecast),
-        # Operator ruling 2026-11-09 (WP19 R1): canceled WP02's own commit before WP01's recorded window is judged by the
-        # mixed-lane / canceled-content rules alone, never by the window check (windows recorded by the status shell).
-        Cell(k["x_canceled_commit_before_window"], ("mixed_lane_shell",), _windowed("mixed_lane_shell", "fresh", _recorded_by_the_shell)),
-        Cell(
-            k["x_canceled_commit_before_window_superseded"],
-            ("mixed_lane_shell_superseded",),
-            _windowed("mixed_lane_shell_superseded", "fresh", _recorded_by_the_shell),
-        ),
-        Cell(
-            k["x_dependency_ref_before_window"],
-            ("dependency_ref_before_window",),
-            _windowed("dependency_ref_before_window", "fresh", _recorded_by_the_shell, extra=("--dependency-ref", DEP_BRANCH), pin_text=True),
-        ),
-    ]
-
-
-def all_cells() -> dict[str, Cell]:
-    cells = [*generic_cells(), *named_cells()]
-    registry = {cell.key: cell for cell in cells}
-    if len(registry) != len(cells):
-        raise AssertionError("duplicate corpus cell keys")
-    return dict(sorted(registry.items()))
-
-
-# --------------------------------------------------------------------------- computing cells
-
-
-def _template_order(names: Sequence[str]) -> list[list[str]]:
-    """*names* plus their dependencies, as build levels (each level depends only on earlier ones)."""
-    wanted: set[str] = set()
-    pending = list(names)
-    while pending:
-        name = pending.pop()
-        if name in wanted:
-            continue
-        wanted.add(name)
-        dependency = TEMPLATES[name][0]
-        if dependency is not None:
-            pending.append(dependency)
-    levels: list[list[str]] = []
-    built: set[str] = set()
-    while wanted - built:
-        level = sorted(n for n in wanted - built if TEMPLATES[n][0] is None or TEMPLATES[n][0] in built)
-        levels.append(level)
-        built.update(level)
-    return levels
-
-
-def _build_template(args: tuple[str, Path, ShapeMission | None]) -> tuple[str, ShapeMission]:
-    name, dest, dependency = args
-    return name, TEMPLATES[name][1](dest, dependency)
-
-
-def _compute_one(args: tuple[str, Mapping[str, ShapeMission], Path]) -> tuple[str, CellValue]:
-    key, templates, scratch = args
-    cell = all_cells()[key]
-    scratch.mkdir(parents=True, exist_ok=True)
-    return key, cell.compute(CellContext(templates=templates, scratch=scratch))
-
-
 def stop_inherited_tracing() -> None:
     """Stop, in a forked child, the coverage measurement and trace hooks it inherited from the parent.
 
     A forked child exits through ``os._exit``, so whatever a ``pytest --cov`` tracer records in it is
-    never saved; left running, the tracer only slows every line the child executes (the full corpus
-    under ``--cov`` on a 4-vCPU runner took ~590 s of its 600 s budget). Nothing is saved here either:
+    never saved; left running, the tracer only slows every line the child executes. Nothing is saved here either:
     ``Coverage.stop`` only detaches the collector. Module state, so a monkeypatch applied in the parent
     before the fork, is untouched. Without a running tracer this is a no-op.
     """
@@ -1500,127 +955,3 @@ def stop_inherited_tracing() -> None:
         running.stop()
     sys.settrace(None)
     threading.settrace(None)
-
-
-def _map(function: Callable[[Any], Any], items: Sequence[Any], workers: int) -> list[Any]:
-    if workers <= 1 or len(items) <= 1:
-        return [function(item) for item in items]
-    with warnings.catch_warnings():
-        # Python 3.12+ warns on fork() from a multi-threaded process (an xdist worker); the forked
-        # workers only build repositories and run the CLI, and each returns a plain value.
-        warnings.simplefilter("ignore", DeprecationWarning)
-        context = multiprocessing.get_context("fork")
-        with context.Pool(processes=min(workers, len(items)), initializer=stop_inherited_tracing) as pool:
-            return pool.map(function, items, chunksize=1)
-
-
-def compute_cells(names: Sequence[str], workdir: Path, *, workers: int = 1) -> dict[str, CellValue]:
-    """Compute the corpus cells *names* under *workdir* and return their values.
-
-    ``workers=1`` computes every cell in THIS process. ``workers>1`` forks worker processes from
-    this process (``multiprocessing`` ``fork`` context), so a patch applied here before the call is
-    inherited by every worker; the templates are built once and copied per cell either way.
-    """
-    registry = all_cells()
-    unknown = sorted(set(names) - set(registry))
-    if unknown:
-        raise KeyError(f"unknown corpus cells: {unknown}")
-    templates: dict[str, ShapeMission] = {}
-    needed = sorted({t for name in names for t in registry[name].templates})
-    for level in _template_order(needed):
-        jobs = [(name, workdir / "templates" / name, templates.get(TEMPLATES[name][0] or "")) for name in level]
-        for name, mission in _map(_build_template, jobs, workers):
-            templates[name] = mission
-    jobs2 = [(name, templates, workdir / "cells" / f"{index:04d}") for index, name in enumerate(names)]
-    return dict(sorted(_map(_compute_one, jobs2, workers)))
-
-
-WORKERS_ENV = "SPEC_KITTY_VERDICT_CORPUS_WORKERS"
-
-
-#: Set by ``pytest-xdist`` in each of its worker processes.
-_XDIST_WORKER_ENV = "PYTEST_XDIST_WORKER"
-
-
-def corpus_workers() -> int:
-    """Forked workers for the full corpus.
-
-    ``$SPEC_KITTY_VERDICT_CORPUS_WORKERS`` when set (``1`` = all in this process); else ``1`` inside a
-    ``pytest-xdist`` worker (``-n auto`` already runs one worker per core, so forking up to 8 more per
-    worker would oversubscribe the machine); else up to 8.
-    """
-    configured = os.environ.get(WORKERS_ENV, "").strip()
-    if configured:
-        return max(1, int(configured))
-    if os.environ.get(_XDIST_WORKER_ENV):
-        return 1
-    return max(1, min(8, (os.cpu_count() or 1)))
-
-
-# --------------------------------------------------------------------------- the golden file
-
-
-def dump_golden(cells: Mapping[str, CellValue]) -> str:
-    return json.dumps(dict(sorted(cells.items())), indent=2, sort_keys=True) + "\n"
-
-
-def load_golden(path: Path = GOLDEN_PATH) -> dict[str, CellValue]:
-    if not path.exists():
-        return {}
-    loaded: dict[str, CellValue] = json.loads(path.read_text(encoding="utf-8"))
-    return loaded
-
-
-def write_golden(cells: Mapping[str, CellValue], path: Path = GOLDEN_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(dump_golden(cells), encoding="utf-8")
-
-
-def cell_diff(expected: Mapping[str, CellValue], actual: Mapping[str, CellValue]) -> str:
-    """A unified diff of the cells whose values differ (added and removed keys included)."""
-    chunks: list[str] = []
-    for key in sorted(set(expected) | set(actual)):
-        if expected.get(key) == actual.get(key):
-            continue
-        before = json.dumps(expected.get(key), indent=2, sort_keys=True).splitlines() if key in expected else []
-        after = json.dumps(actual.get(key), indent=2, sort_keys=True).splitlines() if key in actual else []
-        chunks.extend(difflib.unified_diff(before, after, f"golden {key}", f"actual {key}", lineterm=""))
-    return "\n".join(chunks)
-
-
-def assert_cells_match(cells: Mapping[str, CellValue], golden: Mapping[str, CellValue] | None = None) -> None:
-    """Every computed cell equals its golden value (only the keys of *cells* are compared)."""
-    reference = load_golden() if golden is None else golden
-    subset = {key: reference[key] for key in cells if key in reference}
-    diff = cell_diff(subset, cells)
-    if diff:
-        raise AssertionError(
-            f"verdict corpus differs from the golden file ({len(cells)} cells compared); regenerate with {REGEN_ENV}=1 only for named cells:\n{diff}"
-        )
-
-
-def regenerate_cells(names: Sequence[str], workdir: Path, *, workers: int = 1) -> dict[str, CellValue]:
-    """Recompute only *names* and write them into the golden file, every other cell untouched."""
-    computed = compute_cells(names, workdir, workers=workers)
-    golden = load_golden()
-    golden.update(computed)
-    write_golden(golden)
-    return computed
-
-
-def changed_cells(base_ref: str, *, repo: Path | None = None, golden_path: Path = GOLDEN_PATH) -> list[str]:
-    """Sorted cell keys whose value differs between the golden file at *base_ref* and the working tree.
-
-    Reads ``git show <base_ref>:tests/consolidation/characterization/verdict_corpus.json``; a key
-    added or removed counts as changed. *base_ref* must resolve to a commit (``ValueError``
-    otherwise: a typo must never read as "every cell added"); only a golden file absent at a valid
-    *base_ref* reads as empty.
-    """
-    root = repo if repo is not None else Path(_git(golden_path.parent, "rev-parse", "--show-toplevel"))
-    if _try_git(root, "rev-parse", "--verify", "-q", f"{base_ref}^{{commit}}") is None:
-        raise ValueError(f"changed_cells: {base_ref!r} does not resolve to a commit in {root}")
-    relative = golden_path.resolve().relative_to(root.resolve()).as_posix()
-    present = _try_git(root, "cat-file", "-e", f"{base_ref}:{relative}") is not None
-    before: dict[str, CellValue] = json.loads(_git(root, "show", f"{base_ref}:{relative}")) if present else {}
-    after = load_golden(golden_path)
-    return sorted(key for key in set(before) | set(after) if before.get(key) != after.get(key))
