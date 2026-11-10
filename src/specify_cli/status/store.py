@@ -319,11 +319,13 @@ def _event_ident(event_dict: Mapping[str, Any]) -> str:
     return " ".join(parts) if parts else "<unidentified>"
 
 
-def _jsonl_lines(text: str) -> Iterator[tuple[int, str]]:
+def jsonl_lines(text: str) -> Iterator[tuple[int, str]]:
     """Yield ``(1-based physical line number, line)`` for each row of JSONL *text*.
 
-    Rows end only at CRLF, LF or a lone CR (see :data:`_LINE_BREAK`), so a row
-    whose string field holds U+2028 or a similar separator stays one row.
+    This is the single home of status JSONL row framing: every reader of the
+    event log splits rows here and nowhere else. Rows end only at CRLF, LF or
+    a lone CR (see :data:`_LINE_BREAK`), so a row whose string field holds
+    U+2028 or a similar separator stays one row.
     """
     return enumerate(_LINE_BREAK.split(text), start=1)
 
@@ -437,7 +439,7 @@ def seed_scratch_event_log(feature_dir: Path, raw: bytes) -> None:
             fails closed); nothing is written.
     """
     rows: list[dict[str, Any]] = []
-    for line_number, line in _jsonl_lines(raw.decode("utf-8")):
+    for line_number, line in jsonl_lines(raw.decode("utf-8")):
         if not line.strip():
             continue
         try:
@@ -710,7 +712,7 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
     resolver = _SlugResolver(feature_dir)
     transitions: list[StatusEvent] = []
     annotations: list[InnerStateChanged] = []
-    for line_number, raw_line in _jsonl_lines(content):
+    for line_number, raw_line in jsonl_lines(content):
         stripped = raw_line.strip()
         if not stripped:
             continue
@@ -837,7 +839,7 @@ def read_events_lenient(feature_dir: Path) -> list[StatusEvent]:
         text = _events_path(feature_dir).read_text(encoding="utf-8")
     except OSError:
         return []
-    events = (_lenient_lane_event(number, line) for number, line in _jsonl_lines(text) if line.strip())
+    events = (_lenient_lane_event(number, line) for number, line in jsonl_lines(text) if line.strip())
     return [event for event in events if event is not None]
 
 
