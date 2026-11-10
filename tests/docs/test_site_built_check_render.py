@@ -119,3 +119,29 @@ def test_the_registered_surface_runs_in_the_built_site_check(dist: Path) -> None
     findings = [str(finding) for finding in check.check(dist, frozenset())]
 
     assert "render: /guides/live/ (guides/live/index.html: no og:url)" in findings
+
+
+# --- Redirect stubs (#6933) ------------------------------------------------------------
+
+
+def _stub(target: str, source: str) -> str:
+    return (
+        f"<!doctype html><title>Redirecting to: {target}</title>"
+        f'<meta http-equiv="refresh" content="0;url={target}">'
+        '<meta name="robots" content="noindex">'
+        f'<link rel="canonical" href="{SITE}{target}">'
+        f'<body>\t<a href="{target}">Redirecting from <code>{source}</code> to <code>{target}</code></a></body>'
+    )
+
+
+def test_a_redirect_stub_is_not_a_page_to_render(dist: Path) -> None:
+    _write(dist, "guides/old.html", _stub("/guides/live/", "/guides/old.html"))
+    _write(dist, "guides/older/index.html", _stub("/guides/live/", "/guides/older/index.html"))
+
+    assert _findings(dist) == []
+
+
+def test_a_page_with_a_refresh_tag_but_no_stub_title_is_still_checked(dist: Path) -> None:
+    _write(dist, "guides/odd/index.html", '<html><head><meta http-equiv="refresh" content="5;url=/x/"><title>Odd</title></head></html>')
+
+    assert "render: /guides/odd/ (guides/odd/index.html: no meta description)" in _findings(dist)

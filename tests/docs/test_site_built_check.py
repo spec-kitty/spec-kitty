@@ -223,3 +223,30 @@ def test_a_corrupt_search_fragment_is_reported_not_skipped(site: tuple[Path, Pat
 
     assert len(findings) == 1
     assert findings[0].startswith("search: unreadable ")
+
+
+# --- Redirect stubs (#6933): a stub is a redirect, not a publication ------------------
+
+
+def _stub(target: str, source: str) -> str:
+    return (
+        f"<!doctype html><title>Redirecting to: {target}</title>"
+        f'<meta http-equiv="refresh" content="0;url={target}">'
+        '<meta name="robots" content="noindex">'
+        f'<link rel="canonical" href="{SITE}{target}">'
+        f'<body>\t<a href="{target}">Redirecting from <code>{source}</code> to <code>{target}</code></a></body>'
+    )
+
+
+def test_a_redirect_stub_at_an_unpublished_route_is_not_a_published_page(site: tuple[Path, Path]) -> None:
+    docs, dist = site
+    _write(dist, "guides/wip/index.html", _stub("/guides/live/", "/guides/wip/index.html"))
+
+    assert _findings(docs, dist) == []
+
+
+def test_a_redirect_stub_pointing_at_an_unpublished_route_is_still_reported(site: tuple[Path, Path]) -> None:
+    docs, dist = site
+    _write(dist, "guides/old.html", _stub("/guides/wip/", "/guides/old.html"))
+
+    assert _findings(docs, dist) == ["link: /guides/wip/ (guides/old.html)"]

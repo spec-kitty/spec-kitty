@@ -396,3 +396,33 @@ def test_the_hand_written_llms_txt_still_carries_the_stance() -> None:
     """``docs/llms.txt`` keeps a copy of the stance until #6938 deletes it; the copies must agree."""
     assert contract.LLMS_STANCE.startswith("## Current Version Stance\n")
     assert contract.LLMS_STANCE in _DOCS_LLMS.read_text(encoding="utf-8")
+
+
+# --- Redirect stubs (#6933) ----------------------------------------------------------
+
+
+def _stub(target: str, source: str = "/guides/old.html") -> str:
+    """The stub doc-kitty's ``renderLegacyStub`` writes (``lib/legacy-html-redirects.mjs``)."""
+    return (
+        f"<!doctype html><title>Redirecting to: {target}</title>"
+        f'<meta http-equiv="refresh" content="0;url={target}">'
+        '<meta name="robots" content="noindex">'
+        f'<link rel="canonical" href="https://docs.spec-kitty.ai{target}">'
+        f'<body>\t<a href="{target}">Redirecting from <code>{source}</code> to <code>{target}</code></a></body>'
+    )
+
+
+def test_a_doc_kitty_redirect_stub_names_its_target() -> None:
+    assert contract.redirect_stub_target(_stub("/guides/new/")) == "/guides/new/"
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        pytest.param('<html><head><meta http-equiv="refresh" content="0;url=/x/"><title>A page</title></head></html>', id="refresh-without-stub-title"),
+        pytest.param("<html><head><title>Redirecting to: /x/</title></head><body>prose</body></html>", id="stub-title-without-refresh"),
+        pytest.param('<html><head><title>Guide</title><meta name="description" content="d"></head></html>', id="ordinary-page"),
+    ],
+)
+def test_a_page_that_is_not_a_redirect_stub_has_no_target(html: str) -> None:
+    assert contract.redirect_stub_target(html) is None
