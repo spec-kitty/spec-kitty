@@ -594,7 +594,10 @@ def _legacy_lane_mirror_enabled(feature_dir: Path) -> bool:
 def _match_wp_files(feature_dir: Path, wp_id: str) -> list[Path]:
     """Every ``tasks/`` markdown file whose name matches *wp_id* (pure, no logging).
 
-    Zero matches means genuinely no WP file (case (a)); more than one means
+    Delegates to :func:`specify_cli.core.wp_task_files.match_wp_task_files`:
+    the match is case-insensitive (``wp02-old.md`` matches ``WP02``) and
+    non-regular entries are returned too, so each caller decides what one
+    means. Zero matches means genuinely no WP file (case (a)); more than one means
     the canonical file is ambiguous, e.g. a rename leftover such as
     ``WP03.md`` alongside a surviving ``WP03-run-state.md`` (case (b)). The
     two cases carry different meaning to different callers -- :func:`_find_wp_file`
@@ -608,10 +611,12 @@ def _match_wp_files(feature_dir: Path, wp_id: str) -> list[Path]:
 def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
     """Locate the canonical WP markdown file for *wp_id* under tasks/.
 
-    Used only by the phase-1 lane mirror: both zero matches and multiple
-    matches collapse to ``None`` there (skip quietly) -- unlike the
-    dependency-guard read, which must distinguish the two (see
-    :func:`_match_wp_files`).
+    Used only by the phase-1 lane mirror. Matching is case-insensitive (see
+    :func:`_match_wp_files`). Zero matches, multiple matches and a single
+    match that is not a regular file all collapse to ``None`` there (skip the
+    mirror); the latter two also log a warning. This is unlike the
+    dependency-guard read, which must distinguish these cases and refuses on
+    ambiguity or a non-regular file (see :func:`_match_wp_files`).
     """
     matches = _match_wp_files(feature_dir, wp_id)
     if len(matches) != 1:
@@ -623,6 +628,11 @@ def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
             )
         return None
     if non_regular(matches):
+        logger.warning(
+            "Work package file %s for %s is not a regular file; skipping phase-1 lane mirror",
+            matches[0],
+            wp_id,
+        )
         return None
     return matches[0]
 

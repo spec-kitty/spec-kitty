@@ -1049,6 +1049,18 @@ class TestPhase1CompatibilityBridge:
 
         assert "Multiple work package files matched" in caplog.text
 
+    def test_find_wp_file_warns_and_skips_a_non_regular_single_match(
+        self,
+        feature_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        (feature_dir / "tasks" / "WP01-dir.md").mkdir(parents=True)
+
+        with caplog.at_level("WARNING"):
+            assert _find_wp_file(feature_dir, "WP01") is None
+
+        assert "WP01-dir.md for WP01 is not a regular file" in caplog.text
+
     def test_mirror_phase1_frontmatter_lane_skips_missing_lane_field(
         self,
         feature_dir: Path,
