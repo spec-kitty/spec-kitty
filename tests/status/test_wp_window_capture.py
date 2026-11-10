@@ -324,13 +324,40 @@ def test_probe_and_git_error_details_carry_no_absolute_paths(flat_mission: FlatT
     repo, home = flat_mission.repo, Path.home()
 
     def _explode(**_kwargs: Any) -> LaneHeadReading:
-        raise FileNotFoundError(f"{repo}/kitty-specs/x/lanes.json and {home}/.config/y")
+        raise FileNotFoundError(f"{repo}/kitty-specs/x/lanes.json and {home}/.config/y and {repo}b/sibling")
 
     monkeypatch.setattr(lane_head_module, "_read_lane_head", _explode)
-    reading = read_lane_head(repo_root=repo, mission_slug=flat_mission.slug, wp_id="WP01")
+    reading = read_lane_head(repo_root=flat_mission.repo, mission_slug=flat_mission.slug, wp_id="WP01")
 
     assert reading.cause is CaptureCause.PROBE_ERROR
-    assert reading.detail == "FileNotFoundError: <repo>/kitty-specs/x/lanes.json and ~/.config/y"
+    # A sibling whose name merely starts with the root ("<root>b") is not under the root.
+    assert reading.detail == f"FileNotFoundError: <repo>/kitty-specs/x/lanes.json and ~/.config/y and {repo}b/sibling"
+
+    # A relative root (``Path('.')``) would turn every ``.`` into ``<repo>``: it is not redacted.
+    relative = read_lane_head(repo_root=Path("."), mission_slug=flat_mission.slug, wp_id="WP01")
+    assert relative.detail is not None and "<repo>" not in relative.detail
+
+
+def test_unknown_home_directory_does_not_fail_the_transition(flat_mission: FlatTopologyContext, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``Path.home()`` raises when HOME is unset and the uid has no passwd entry: the transition still records a gap."""
+    seed_wp_to_planned(flat_mission.primary_feature_dir, "WP01", slug=flat_mission.slug)
+
+    def _explode(**_kwargs: Any) -> LaneHeadReading:
+        raise RuntimeError("placement seam exploded")
+
+    def _no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(lane_head_module, "_read_lane_head", _explode)
+    monkeypatch.setattr(Path, "home", staticmethod(_no_home))
+
+    event = _emit(flat_mission, "claimed")
+
+    assert event.policy_metadata[WP_WINDOW_KEY]["gap"] == {
+        "reason": "capture_failed",
+        "cause": "probe_error",
+        "detail": "RuntimeError: placement seam exploded",
+    }
 
 
 def test_corrupt_lanes_json_reads_as_probe_error(flat_mission: FlatTopologyContext) -> None:
