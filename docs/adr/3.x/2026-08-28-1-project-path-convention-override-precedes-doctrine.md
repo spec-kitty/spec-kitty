@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-08-28'
-updated: '2026-08-28T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 ---
 
 # ADR: A project `path_conventions` override precedes the doctrine default, without changing the blocking policy
@@ -177,7 +177,7 @@ inference is layered on top.
 
 * Precedence and remap-only behaviour: `tests/agent/test_validators_unit.py` (override resolves `apps/`,
   no `src/` violation; SC-006 declared-but-absent still blocks under strict).
-* Non-reversal of #3783: `tests/cross_cutting/misc/test_acceptance_support.py`
+* Non-reversal of #3783: `tests/specify_cli/acceptance/test_acceptance_support.py`
   `test_no_override_still_blocks_strict` pins the exact `path_violations` payload and full
   `format_errors()` string beside the untouched `test_lenient_downgrades_path_conventions_to_warning`;
   the accept-boundary fail-closed and one-read cases live in the same file.
@@ -193,3 +193,13 @@ inference is layered on top.
   (`validate_mission_paths`, `_remap_declared_paths`). Seam wiring:
   `src/specify_cli/acceptance/summary_core.py` (`evaluate_path_conventions`). Canonical key set:
   `src/specify_cli/mission.py` (`VALID_PATH_KEYS`).
+
+## Amendment 2026-11-10: no `mkdir` remedy for a remappable path (#7512)
+
+A missing path whose key the project can remap (any key outside `ARTIFACT_ROUTED_KEYS`, such as
+`src/`, `tests/` or `docs/`) no longer gets a `mkdir -p` suggestion, in the strict failure or the
+`--lenient` warning: an empty directory passes the check without making it true. `accept --lenient`
+and the `project.path_conventions` remap are the remedies named for it, and the `--lenient` warning
+now carries the same remap guidance. A missing Mission artifact path (`deliverables`) keeps its
+`mkdir -p` suggestion. Which paths are checked, and whether a missing path blocks, is unchanged, so a
+plain Python project whose `src/` is really missing still blocks, but no longer sees a `mkdir` hint.
