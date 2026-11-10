@@ -16,6 +16,9 @@ names one of those routes:
 * ``llms`` -- a URL in ``llms.txt`` (when the site builds one);
 * ``agent-index`` -- a URL in ``api/index.json`` (when the site builds one).
 
+A surface whose artifact is absent from the built site is a ``missing`` finding, not a pass
+(a toolkit layout change must not make a check vacuous).
+
 Each surface is one entry of :data:`SURFACES`, so a later slice adds a surface
 with one function and one line. Standard library only, like ``site_contract.py``.
 
@@ -121,7 +124,10 @@ def _links(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
 
 
 def _sitemaps(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
-    for sitemap in sorted(dist.glob("sitemap-*.xml")):
+    sitemaps = sorted(dist.glob("sitemap-*.xml"))
+    if not sitemaps:
+        yield Finding("sitemap", "missing", "sitemap-*.xml: not built")
+    for sitemap in sitemaps:
         for match in _LOC.finditer(sitemap.read_text(encoding="utf-8")):
             target = normalise_url(match.group(1))
             if target in routes:
@@ -138,6 +144,7 @@ def _okf_route(rel: str) -> str:
 def _okf(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
     root = dist / "okf"
     if not root.is_dir():
+        yield Finding("okf", "missing", "okf/: not built")
         return
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
         route = _okf_route(path.relative_to(root).as_posix())
@@ -152,7 +159,10 @@ def _fragment_url(path: Path) -> str:
 
 
 def _search(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
-    for path in sorted((dist / "pagefind" / "fragment").glob("*.pf_fragment")):
+    fragments = sorted((dist / "pagefind" / "fragment").glob("*.pf_fragment"))
+    if not fragments:
+        yield Finding("search", "missing", "pagefind/fragment/: no fragment built")
+    for path in fragments:
         where = path.relative_to(dist).as_posix()
         try:
             url = _fragment_url(path)
