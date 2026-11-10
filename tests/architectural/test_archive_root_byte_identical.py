@@ -134,7 +134,20 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 # dossier SHA is branch-relative provenance unless it is classified LANDED, and it
 # is never repointed (ADR 2026-11-07-1, #7322; the classification and its gate are
 # test_dossier_sha_provenance.py). Never sanction a correction for one.
-_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset()
+# 2026-11-10 operator decision on #7442 (mission quick-win-remediation-01M72855):
+# Mission 058's WP files author `subtasks:` as maps (`- id: TNNN / title / status`),
+# which the list-only roster rule now refuses; WP05 rewrites the 28 entries as plain
+# task ids. Remove these entries in a follow-up once the PR is on main.
+_OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
+    {
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP01-restore-command-templates.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP02-registry-and-generator.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP03-init-hybrid-install.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP04-consumer-migration.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP05-deploy-to-consumers.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP06-tests-and-validation.md",
+    }
+)
 
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:

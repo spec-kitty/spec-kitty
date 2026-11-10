@@ -43,7 +43,6 @@ pipeline ``status/transition_pipeline.py::prepare_transition`` (FR-005):
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -54,6 +53,7 @@ from pydantic import ValidationError
 from kernel.clock import now_utc, now_utc_iso, timedelta
 from specify_cli.core import ledger_posture
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.wp_task_files import match_wp_task_files, non_regular
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 from specify_cli.workspace import canonicalize_feature_dir
@@ -395,6 +395,9 @@ def _declared_dependencies(planning_feature_dir: Path, wp_id: str, *, owned: Own
     if not matches:
         return ()
     wp_file = matches[0]
+    if non_regular(matches):
+        logger.warning("Work package file %s for %s is not a regular file; dependency declarations are unresolvable", wp_file, wp_id)
+        raise TransitionError(f"Cannot resolve the declared dependencies of {wp_id}: {wp_file.name} is not a regular file")
     try:
         frontmatter, _body = read_frontmatter(wp_file)
     except FrontmatterError as exc:
@@ -599,12 +602,7 @@ def _match_wp_files(feature_dir: Path, wp_id: str) -> list[Path]:
     read in :func:`_declared_dependencies` must not collapse them, since case
     (b) means the declarations are unresolvable, not absent.
     """
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return []
-
-    wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
-    return [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
+    return match_wp_task_files(feature_dir, wp_id)
 
 
 def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
@@ -623,6 +621,8 @@ def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
                 wp_id,
                 feature_dir,
             )
+        return None
+    if non_regular(matches):
         return None
     return matches[0]
 

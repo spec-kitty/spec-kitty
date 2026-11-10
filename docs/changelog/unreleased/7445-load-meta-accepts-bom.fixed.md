@@ -1,0 +1,1 @@
+- **Mission metadata tolerates a UTF-8 byte-order mark** (#7445). **Before:** a `meta.json` saved with a UTF-8 byte-order mark made the Mission invisible to status commands or failed with "Malformed JSON". **After:** it loads like the same file without one.

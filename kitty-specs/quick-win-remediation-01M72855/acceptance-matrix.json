@@ -1,0 +1,169 @@
+{
+  "mission_slug": "quick-win-remediation-01M72855",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Rows end only at line breaks",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a: tests/status/test_store_line_framing.py tests/status/test_store.py tests/specify_cli/events/test_sanitizer.py (161 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:20:35.757733+00:00",
+      "notes": "Verified at accept against spec.md FR-001."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "JSON-limit failures use the documented error",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a: tests/status/test_store_line_framing.py tests/status/test_store.py tests/specify_cli/events/test_sanitizer.py (161 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:20:40.661012+00:00",
+      "notes": "Verified at accept against spec.md FR-002."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Non-finite numbers are refused before writing",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a: tests/status/test_store_line_framing.py tests/status/test_store.py tests/specify_cli/events/test_sanitizer.py (161 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:20:45.561589+00:00",
+      "notes": "Verified at accept against spec.md FR-003."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "LF-only log writes on every OS",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a: tests/status/test_store_line_framing.py tests/status/test_store.py tests/specify_cli/events/test_sanitizer.py (161 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:20:50.499479+00:00",
+      "notes": "Verified at accept against spec.md FR-004."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Mixed session pair is dropped, not raised",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a: tests/status/test_store_line_framing.py tests/status/test_store.py tests/specify_cli/events/test_sanitizer.py (161 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:20:55.480494+00:00",
+      "notes": "Verified at accept against spec.md FR-005."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "One case-insensitive task-file locator",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:00.423243+00:00",
+      "notes": "Verified at accept against spec.md FR-006."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Non-regular matches fail closed",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:05.388952+00:00",
+      "notes": "Verified at accept against spec.md FR-007."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Only task ids are roster entries",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:10.329626+00:00",
+      "notes": "Verified at accept against spec.md FR-008."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Oversized integer entries refuse legibly",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:15.342332+00:00",
+      "notes": "Verified at accept against spec.md FR-009."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The WP view tolerates a refused roster",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:20.362624+00:00",
+      "notes": "Verified at accept against spec.md FR-010."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Mission-wide mark-status refusal is legible",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b: tests/specify_cli/core/test_wp_task_files.py test_subtask_rows_snapshot.py tests/specify_cli/status/test_reconstruct_wp_view.py tests/status/test_dependency_guard.py tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py (157 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:25.392023+00:00",
+      "notes": "Verified at accept against spec.md FR-011."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Mission 058 roster data repaired",
+      "proof_type": "automated_test",
+      "evidence": "WP05 commit 1e25300f13 (28 entries rewritten, ids/order identical; WP05 review); tests/architectural/test_archive_root_byte_identical.py 26 passed; re-verified on landed tree post-consolidation",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:30.364793+00:00",
+      "notes": "Verified at accept against spec.md FR-012."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "BOM-prefixed meta.json loads",
+      "proof_type": "automated_test",
+      "evidence": "WP03 lane-c: tests/specify_cli/test_mission_metadata.py (25 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:35.297763+00:00",
+      "notes": "Verified at accept against spec.md FR-013."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Glossary conflict listing is single-pass",
+      "proof_type": "automated_test",
+      "evidence": "WP04 lane-d: tests/agent/cli/commands/test_glossary.py (66 passed; de-dup + 2n count); linearity timing table per PR body (operator decision, no wall-clock test)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:40.274399+00:00",
+      "notes": "Verified at accept against spec.md FR-014."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Accepted inputs stay accepted",
+      "proof_type": "automated_test",
+      "evidence": "Paired accepted-input cases in each WP's tests: lane-a 161, lane-b 157, lane-c 25, lane-d 66 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:45.297976+00:00",
+      "notes": "Verified at accept against spec.md FR-015."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "One changelog fragment per issue",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/unreleased/{7439,7440,7441,7442,7443,7445,7463}-*.fixed.md: one fixed fragment per issue",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-5-5:orchestrator",
+      "verified_at": "2026-11-10T09:21:50.181574+00:00",
+      "notes": "Verified at accept against spec.md FR-016."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -43,7 +43,7 @@ from specify_cli.meta_keys import (
 # decode encodings appear across this module and the legacy contracts it absorbs.
 META_FILENAME: str = "meta.json"
 _UTF8: str = "utf-8"
-_UTF8_SIG: str = "utf-8-sig"  # BOM-tolerant decode preserved from contract (b).
+_UTF8_SIG: str = "utf-8-sig"  # Default decode of the canonical readers -- BOM-tolerant (#7445).
 _HEAD: str = "HEAD"
 
 #: Why git could not answer what it holds for a Mission's ``meta.json`` (#7131). One cause per
@@ -338,7 +338,7 @@ def load_meta(
     *,
     allow_missing: bool = True,
     on_malformed: OnMalformed = "raise",
-    encoding: str = _UTF8,
+    encoding: str = _UTF8_SIG,
 ) -> dict[str, Any] | None:
     """Load ``meta.json`` from *feature_dir* -- the ONE canonical reader (FR-006a).
 
@@ -349,9 +349,7 @@ def load_meta(
       ``None`` on a missing file; raises :class:`ValueError` on malformed JSON
       or a non-object top level.  This preserves the historical default.
     - **Strict (b)** ``allow_missing=False`` (see :func:`load_meta_strict`):
-      raises :class:`FileNotFoundError` on a missing file.  Combine with
-      ``encoding="utf-8-sig"`` for the BOM-tolerant decode of the legacy
-      task-helper contract.
+      raises :class:`FileNotFoundError` on a missing file.
     - **Silent (c)** ``on_malformed="empty"`` (see :func:`load_meta_or_empty`):
       returns ``{}`` on a missing file *and* on any malformed/non-object
       content -- never raises for content errors.
@@ -364,7 +362,8 @@ def load_meta(
         on_malformed: Policy for malformed JSON / non-object top level --
             ``"raise"`` (default), ``"empty"`` (``{}``), or ``"none"``
             (``None``).
-        encoding: Decode encoding.  Use ``"utf-8-sig"`` to tolerate a UTF-8 BOM.
+        encoding: Decode encoding (default ``utf-8-sig``: a UTF-8 BOM is
+            tolerated).  Pass ``"utf-8"`` to reject a BOM.
 
     Returns:
         The parsed ``meta.json`` mapping, or the absorbed sentinel
@@ -460,7 +459,7 @@ def parse_meta_file(
     path: Path,
     *,
     on_malformed: OnMalformed = "raise",
-    encoding: str = _UTF8,
+    encoding: str = _UTF8_SIG,
 ) -> dict[str, Any] | None:
     """Public path-holding L2 reader over :func:`_parse_meta_text` (FR-002).
 
@@ -475,8 +474,8 @@ def parse_meta_file(
         path: The concrete ``meta.json`` file path to read and parse.
         on_malformed: ``"raise"`` (default) → path-named :class:`ValueError`;
             ``"empty"`` → ``{}``; ``"none"`` → ``None`` on malformed content.
-        encoding: Decode encoding (``"utf-8"`` by default; ``"utf-8-sig"`` for a
-            BOM-tolerant decode).
+        encoding: Decode encoding (default ``utf-8-sig``: a UTF-8 BOM is
+            tolerated).  Pass ``"utf-8"`` to reject a BOM.
 
     Returns:
         The parsed mapping, or the absorbed sentinel per *on_malformed*.

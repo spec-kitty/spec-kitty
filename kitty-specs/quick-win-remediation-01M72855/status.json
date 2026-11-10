@@ -1,0 +1,190 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M72CAWXSXC5APNHH2FTMT0BD",
+  "materialized_at": "2026-11-10T09:23:56.985632+00:00",
+  "mission_number": "253",
+  "mission_slug": "quick-win-remediation-01M72855",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:claude-opus-5-5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M72CA8DHWS8MER4M303BGRFB",
+      "last_transition_at": "2026-11-10T09:23:35.985334+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T08:35:31Z – claude:claude-opus-5-5:python-pedro – shell_pid=2815414 – T001 red: 30 failed, 42 passed (tests/status/test_store_line_framing.py on base b00cfb5; U+0085/U+2028/U+2029 split rows in every text reader but read_events_raw; long-integer/deep-nesting rows escape as raw ValueError/RecursionError; C0 separators are escaped by json.dumps and pass as pins)",
+        "- 2026-11-10T08:38:21Z – claude:claude-opus-5-5:python-pedro – shell_pid=2815414 – T003 red: 7 failed, 3 passed (TestWriterByteRule on 8978f9f: no StoreError for NaN/+-Inf in serialize_event_line/append_raw_rows_atomic; write fdopen has no newline kwarg; LF-bytes pin, finite control and serialize_record parity ratchet pass on base)",
+        "- 2026-11-10T08:40:30Z – claude:claude-opus-5-5:python-pedro – shell_pid=2815414 – T005 red: 2 failed, 30 passed (tests/specify_cli/events/test_sanitizer.py; both mixed naive/aware pairs raise TypeError: can't subtract offset-naive and offset-aware datetimes; both-naive/both-aware controls pass)",
+        "- 2026-11-10T08:45:17Z – claude:claude-opus-5-5:python-pedro – shell_pid=2815414 – Validation on tip 5f0fb02: pytest status/sanitizer set (test_store_line_framing, test_store, test_store_sanitized, test_sanitizer, test_repair_row_parity, test_reducer_recovery_integrity, test_writer_serialization, test_shape_registry_status_json_parity) 250 passed; architectural gates (status_events_writes_gate, status_unsafe_allowlist, ledger_floor, mypy_scoped_typing_debt, untrusted_path_containment) 71 passed; ruff check + ruff format --check --force-exclude clean on 4 touched py files; mypy clean on store.py, sanitizer.py and both test files; changelog style 0/0, spelling 0 findings; no new noqa/type: ignore.",
+        "Ready for review: #7439 row framing + JSON-limit StoreError, #7441 allow_nan=False refusal + LF writes, #7440 mixed naive/aware session pair dropped; red-first commits per issue; 250+71 targeted tests pass; ruff/format/mypy clean",
+        "Review passed: #7439 shared _jsonl_lines splitter + _decode_json_line on all five store.py text readers (half-by-half revert proves both halves); #7441 allow_nan=False -> StoreError naming event, refused append byte-identical + no temp file, fdopen newline=LF; #7440 mixed naive/aware pair dropped. Red-first: 39 tip tests fail on pre-fix source, 114 pass on tip. Targeted 250 passed + arch gates 71 passed; ruff/format(--force-exclude)/mypy clean; owned files only; no shared-file overlap with other WPs. Non-blocking follow-ups: (1) doctor mission-state --fix errors the whole Mission (not quarantine) when a NaN lane row also needs rewriting - writer-shaped NaN rows stay verbatim, fail-closed before log replace, fragment documents it; (2) read_events_lenient still raises UnicodeDecodeError on invalid UTF-8 (pre-existing, contradicts its never-raises docstring); (3) C-003 sibling splitlines() sites remain for the planned follow-up issue."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261110",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2963213,
+      "shell_pid_created_at": "1794300585.84",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude:claude-opus-5-5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude:claude-opus-5-5:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M72CADGP2KC69G58EXGVWBFY",
+      "last_transition_at": "2026-11-10T09:23:41.206660+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T08:48:14Z – claude:claude-opus-5-5:python-pedro – shell_pid=2815649 – Reviewer findings: (1) for_review doors: move-task's catch-all renders the SubtaskRosterEntryError text as an error (no traceback); the emit pipeline (emit_status_transition) raises SubtaskRosterEntryError, not TransitionError — same class of behaviour it already had for a missing/ambiguous WP file (callers catching only TransitionError see it propagate). Unowned doors not edited. (2) mypy on status/emit.py reports 2 no-any-return errors at :1388/:1420 that exist on the base (verified against HEAD's emit.py), outside this WP's hunks. (3) FR-011 test drives the real mark-status command (CliRunner, same patch set as test_mark_status_owner_authority.py). (4) test_dogfood_corpus_backfilled.py is green after T011 (it does not read Mission 058's rosters), so nothing is expected-red until WP05. (5) Lane worktree had no .venv; tests ran with the root .venv interpreter after scripts/sync_packs.py --pack all in the lane.",
+        "Ready for review: one case-insensitive regular-file WP task-file locator (#7443); list-only subtask roster with typed refusal (#7442); Mission 058 sanctioned correction; fragments. Red-first commits acc194854a / 2c3712b6e9.",
+        "Review passed: one locator (core/wp_task_files.py) used by subtask_rows/emit/wp_view, no leftover copies in those three; case-insensitive, readme excluded, non-regular refused by guard+roster, None in view/mirror; roster accepts only str/non-bool int, refusal names file/position/type/remedy, huge int caught; view tolerates; mark-status Mission-wide refusal legible; move-task for_review renders via catch-all _output_error (exit 1, no traceback). Red-first replay: 18 red on base src, green on tip; mutants (case flag, regular-file check, bool) all caught. Archive entry: exactly six 058 paths, dated 2026-11-10 operator decision. Tests: WP strategy 297 passed; arch gates 143 passed; ruff/format clean; mypy only the 2 pre-existing emit.py:1388/1420 (identical on base). Non-blocking: _null_lock carries an unexplained type: ignore (annotate -> Iterator[None]); no CLI-level move-task test for the rendered refusal."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261110",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2984239,
+      "shell_pid_created_at": "1794300740.97",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "opencode:glm-5.3:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M72CAJJB2JZQ8YW0C5PMZZH7",
+      "last_transition_at": "2026-11-10T09:23:46.379103+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T08:37:37Z – opencode:glm-5.3:python-pedro – shell_pid=2716110 – T014 red-first: 5 new BOM tests failed on base (test_contract_a_bom_prefixed_file_loads, ..._on_malformed_none, ..._parse_meta_file, ..._and_plain_decode_identically, test_load_mission_id_reads_bom_prefixed_meta); 20 pre-existing passed (.venv/bin/python -m pytest -q tests/specify_cli/test_mission_metadata.py: 5 failed, 20 passed).",
+        "- 2026-11-10T08:40:33Z – opencode:glm-5.3:python-pedro – shell_pid=2716110 – T015+T016 green: fix = load_meta/parse_meta_file default encoding _UTF8-> _UTF8_SIG + stale docstring wording only; kernel/meta_decode.py and load_meta_strict untouched. Tests: .venv/bin/python -m pytest -q tests/specify_cli/test_mission_metadata.py tests/tasks/test_tasks_support.py -> 48 passed (incl. untouched negative control test_contract_b_bom_intolerant_when_disabled); .venv/bin/python -m pytest -q tests/specify_cli/test_mission_metadata.py tests/tasks/test_tasks_support.py tests/kernel/test_meta_decode.py -> 65 passed; .venv/bin/python -m pytest -q tests/architectural/test_meta_decode_l1.py tests/architectural/test_inline_meta_read_gate.py tests/architectural/test_lifted_root_meta_fail_closed_census.py tests/architectural/test_meta_decoder_comparator_singletons.py tests/architectural/test_no_legacy_terminology.py -> 190 passed, 1 skipped. ruff check clean; ruff format --check --force-exclude clean (test file is on the formatter-debt ratchet); mypy src/specify_cli/mission_metadata.py -> no issues. Changelog fragment 7445-load-meta-accepts-bom.fixed.md: style 0 errors, spelling 0 findings.",
+        "Ready for review: #7445 Option A — load_meta and parse_meta_file now default to utf-8-sig so a BOM-prefixed meta.json loads like the same file without one (kernel decoder and load_meta_strict untouched; negative control unchanged and green). Red-first: 5 new tests failed on base, green on tip. 3 commits on lane-c: c1b05e73f0 (tests), 53b5bf1d1f (fix), 6e39ae4f4a (changelog fragment). Ruff/format/mypy clean; census + terminology gates green.",
+        "Review passed: #7445 BOM tolerance. Only the two defaults changed (load_meta, parse_meta_file -> utf-8-sig) plus stale wording; kernel/meta_decode.py and load_meta_strict untouched. 5 new tests red on base (5 failed), green on tip. Targeted 65 passed; meta arch gates 190 passed/1 skipped; ruff/mypy clean; fragment present, changelog style + spelling clean. Non-blocking: new test lines in ratchet-excluded test file are not ruff-formatted (match file's existing style)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261110",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2958851,
+      "shell_pid_created_at": "1794300537.77",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "opencode:glm-5.3:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M72CAQSBQY28B3ZXQR5ADJZ1",
+      "last_transition_at": "2026-11-10T09:23:51.723684+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T08:34:20Z – opencode:glm-5.3:python-pedro – shell_pid=2716110 – T017 characterisation green on base, as designed: 66 passed (tests/agent/cli/commands/test_glossary.py, incl. 3 new tests). Red-first exception per spec NFR-003 — the defect is speed, not output; test_repeated_resolved_only_events_yield_one_conflict is the control for the hoist-without-add mistake.",
+        "- 2026-11-10T08:35:15Z – opencode:glm-5.3:python-pedro – shell_pid=2716110 – T018 mutation check performed: deleted existing_ids.add(cid) -> test_repeated_resolved_only_events_yield_one_conflict FAILED (1 failed in 0.48s); restored the line -> full module green again (66 passed). Hoist-without-add trap covered.",
+        "- 2026-11-10T08:36:02Z – opencode:glm-5.3:python-pedro – shell_pid=2716110 – T019 timings for #7463 (throwaway script in scratchpad, best of 3, time.perf_counter, n requested + n resolved-only distinct-id events): BEFORE 500->5.4 ms, 1000->27.9 ms, 2000->105.0 ms, 4000->562.6 ms (~x4 per doubling, matches issue). AFTER 500->0.3 ms, 1000->0.7 ms, 2000->1.4 ms, 4000->2.9 ms (~x2 per doubling, linear). For the PR body: | n | before | after | |---|---|---| | 500 | 5.4 ms | 0.3 ms | | 1000 | 27.9 ms | 0.7 ms | | 2000 | 105.0 ms | 1.4 ms | | 4000 | 562.6 ms | 2.9 ms |",
+        "Ready for review: #7463 hoist+add in _extract_conflicts_from_events — existing_ids built once before the resolved pass, in-loop rebuild deleted, existing_ids.add(cid) after each append; 3 characterisation tests added (de-dup control, distinct-ids order control, n=2000 scale counts); mutation check recorded (removing the add turns the control red); before/after timings recorded in WP history (4000: 562.6 ms -> 2.9 ms); changelog fragment written; ruff/format/mypy clean.",
+        "Review passed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261110",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2895515,
+      "shell_pid_created_at": "1794300207.07",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude:claude-sonnet-5-5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "opencode:glm-5.3:implementer-ivan",
+      "lane": "done",
+      "last_event_id": "01M72CAWXSXC5APNHH2FTMT0BD",
+      "last_transition_at": "2026-11-10T09:23:56.985632+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T09:08:57Z – opencode:glm-5.3:implementer-ivan – shell_pid=2716110 – T020 baseline: 6/6 refused (authored_subtask_roster on WP02 lane-b tip 938c454b6b, module path verified): each of 058's six WP files refuses 'subtasks: entry 1 is a mapping'; entry counts grep '^- id: T' = 7,4,4,3,5,5 (total 28), matching the WP table. Note: repo-root checkout is on fix/quick-win-remediation which does not yet include lane-b (#5296 warning), so the red check ran against the approved WP02 lane tip.",
+        "28 map entries -> list ids in six 058 WP files (1e25300f13); committed by orchestrator after safe-commit refused root-on-topic-branch",
+        "Review passed: only subtask lines changed; 28 ids/order identical; all 6 rosters resolve via authored_subtask_roster (lane-b code); archive-root byte-identical test 26 passed on overlay copy"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261110",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3032862,
+      "shell_pid_created_at": "1794302002.52",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    }
+  }
+}

@@ -38,16 +38,13 @@ section-exit semantics are encoded.
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from kernel._safe_re import re
 
-#: WP-file name matcher tail: ``WP04.md`` / ``WP04-slug.md`` / ``WP04_slug.md``
-#: but NOT ``WP04b.md`` — the same word-boundary rule the emit / wp_view locators
-#: use (mirrors ``status.wp_view._WP_FILE_SEP``). Kept in lockstep by convention;
-#: consolidating the four private WP-file locators is out of scope for this WP.
-_WP_FILE_SEP = r"(?:[-_.]|\.md$)"
+from .wp_task_files import WP_FILE_SEP, match_wp_task_files, non_regular
 
 #: Unchecked canonical subtask row: ``- [ ] T001 ...`` (blocks lane transitions).
 UNCHECKED_SUBTASK_ROW = re.compile(r"^-\s*\[\s*\]\s*(T\d{3,})\b")
@@ -255,33 +252,42 @@ class SubtaskRosterMissingError(SubtaskRosterResolutionError):
     """The WP file is readable but authors no ``subtasks:`` roster (legacy ``tasks.md``-only WP)."""
 
 
+class SubtaskRosterEntryError(SubtaskRosterResolutionError):
+    """An authored ``subtasks:`` entry is not a task id (#7442).
+
+    Only ``str`` and non-``bool`` ``int`` entries are task ids. A map such as
+    ``- id: T001`` used to be coerced to its ``str()`` text, an id nobody could
+    ever mark, so the ``for_review`` gate blocked forever.
+    """
+
+
 def _locate_wp_file(feature_dir: Path, wp_id: str) -> Path:
     """Locate the single canonical WP markdown file for *wp_id* under ``tasks/``.
 
-    Mirrors the word-boundary rule the emit / wp_view locators use
-    (``WP04.md`` / ``WP04-slug.md`` but not ``WP04b.md``). Missing or ambiguous
-    sources are errors: collapsing them to an empty roster would make the review
-    gate fail open and conflate corruption with an explicitly authored ``[]``.
+    Matching is :func:`~specify_cli.core.wp_task_files.match_wp_task_files`, the
+    one rule the dependency guard and the WP view share (#7443). Missing,
+    ambiguous or non-regular sources are errors: collapsing them to an empty
+    roster would make the review gate fail open and conflate corruption with an
+    explicitly authored ``[]``. Several matches are reported as ambiguous even
+    when one of them is a directory.
     """
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
+    if not (feature_dir / "tasks").exists():
         raise SubtaskRosterResolutionError(
             f"Cannot resolve subtask roster for {wp_id}: tasks directory is missing"
         )
-    pattern = re.compile(rf"^{re.escape(wp_id)}{_WP_FILE_SEP}", re.IGNORECASE)
-    matches = [
-        path
-        for path in tasks_dir.glob("*.md")
-        if path.name.lower() != "readme.md" and pattern.match(path.name)
-    ]
+    matches = match_wp_task_files(feature_dir, wp_id)
     if not matches:
         raise SubtaskRosterResolutionError(
             f"Cannot resolve subtask roster for {wp_id}: work-package file is missing"
         )
     if len(matches) > 1:
-        paths = ", ".join(path.name for path in sorted(matches))
+        paths = ", ".join(path.name for path in matches)
         raise SubtaskRosterResolutionError(
             f"Cannot resolve subtask roster for {wp_id}: ambiguous files ({paths})"
+        )
+    if non_regular(matches):
+        raise SubtaskRosterResolutionError(
+            f"Cannot resolve subtask roster for {wp_id}: {matches[0].name} is not a regular file"
         )
     return matches[0]
 
@@ -299,10 +305,13 @@ def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
     removal safe: an emptied ``tasks.md`` can no longer silently empty the
     roster and disable the guard.
 
-    Returns the task ids in authored order, de-duplicated and coerced to
-    ``str``. Only an explicitly readable empty ``subtasks`` list yields ``[]``
-    ("nothing to block on"). Missing, ambiguous, or malformed WP metadata raises
-    :class:`SubtaskRosterResolutionError` so transition callers fail closed.
+    Returns the task ids in authored order, de-duplicated, as ``str``: a ``str``
+    entry is stripped, a non-``bool`` ``int`` becomes its decimal text. Only an
+    explicitly readable empty ``subtasks`` list yields ``[]`` ("nothing to
+    block on"). Missing, ambiguous, or malformed WP metadata raises
+    :class:`SubtaskRosterResolutionError` so transition callers fail closed; any
+    other entry type raises its :class:`SubtaskRosterEntryError` subclass naming
+    the WP file, the entry and the expected list form (#7442).
     """
     wp_file = _locate_wp_file(feature_dir, wp_id)
     # Lazy imports: ``core`` must not import ``status`` at module scope
@@ -317,13 +326,17 @@ def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
                 f"Cannot resolve subtask roster for {wp_id}: subtasks key is missing"
             )
         metadata = WPMetadata.model_validate(frontmatter, strict=False)
+        return normalize_authored_subtask_roster(metadata.subtasks)
+    except SubtaskRosterEntryError as exc:
+        raise SubtaskRosterEntryError(
+            f"Cannot resolve subtask roster for {wp_id}: {wp_file.name}: {exc}"
+        ) from exc
     except SubtaskRosterResolutionError:
         raise
     except Exception as exc:
         raise SubtaskRosterResolutionError(
             f"Cannot resolve subtask roster for {wp_id}: {wp_file.name} is unreadable"
         ) from exc
-    return normalize_authored_subtask_roster(metadata.subtasks)
 
 
 def authored_roster_owner_map(feature_dir: Path) -> dict[str, frozenset[str]]:
@@ -342,7 +355,7 @@ def authored_roster_owner_map(feature_dir: Path) -> dict[str, frozenset[str]]:
         return {}
     owner_map: dict[str, frozenset[str]] = {}
     for path in sorted(tasks_dir.glob("*.md")):
-        prefix = re.match(rf"^(WP\d+){_WP_FILE_SEP}", path.name, re.IGNORECASE)
+        prefix = re.match(rf"^(WP\d+){WP_FILE_SEP}", path.name, re.IGNORECASE)
         if prefix is None:
             continue
         wp_id = prefix.group(1).upper()
@@ -350,6 +363,8 @@ def authored_roster_owner_map(feature_dir: Path) -> dict[str, frozenset[str]]:
             roster = authored_subtask_roster(feature_dir, wp_id)
         except SubtaskRosterMissingError:
             roster = []  # legacy WP: authors no roster, so ``tasks.md`` may attribute its ids
+        except SubtaskRosterEntryError:
+            raise  # already names the WP file, the entry and the remedy
         except SubtaskRosterResolutionError as exc:
             raise SubtaskRosterResolutionError(f"{path.name}: {exc}") from exc
         owner_map[wp_id] = frozenset(entry.upper() for entry in roster)
@@ -362,12 +377,62 @@ def authored_roster_owners(owner_map: Mapping[str, frozenset[str]], task_id: str
     return sorted(wp_id for wp_id, roster in owner_map.items() if normalized in roster)
 
 
+#: The remedy every refused roster entry names.
+_ROSTER_FORM = "author subtasks: as a list of task ids, e.g. - T001"
+
+#: Type labels for refused entries, checked in order (``datetime`` before
+#: ``date`` and ``bool`` before ``int``, since each is a subclass of the next).
+_REFUSED_ENTRY_LABELS: tuple[tuple[type, str], ...] = (
+    (bool, "bool"),
+    (datetime, "datetime"),
+    (date, "date"),
+    (float, "float"),
+    (Mapping, "mapping"),
+    (list, "list"),
+    (type(None), "null"),
+)
+
+
+def _entry_type_label(raw: object) -> str:
+    """Name *raw*'s kind for a refusal message (``mapping``, ``float``, ...)."""
+    for kind, label in _REFUSED_ENTRY_LABELS:
+        if isinstance(raw, kind):
+            return label
+    return type(raw).__name__
+
+
+def _entry_task_id(raw: object, position: int) -> str:
+    """Return the task id authored by *raw*, the ``position``-th (1-based) entry.
+
+    Accepts a ``str`` (stripped) or an ``int`` that is not a ``bool`` (its
+    decimal text). Refuses everything else, and an ``int`` too long for Python
+    to render (over 4300 digits), with :class:`SubtaskRosterEntryError`.
+    """
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, int) and not isinstance(raw, bool):
+        try:
+            return str(int(raw))
+        except ValueError as exc:
+            raise SubtaskRosterEntryError(
+                f"subtasks: entry {position} is an int too long to be a task id; {_ROSTER_FORM}"
+            ) from exc
+    preview = repr(raw)[:60]
+    raise SubtaskRosterEntryError(
+        f"subtasks: entry {position} is a {_entry_type_label(raw)} ({preview}); {_ROSTER_FORM}"
+    )
+
+
 def normalize_authored_subtask_roster(raw_values: Iterable[object]) -> list[str]:
-    """Normalize authored subtask IDs in order, trimming and de-duplicating."""
+    """Normalize authored subtask ids in order, trimming and de-duplicating.
+
+    Raises :class:`SubtaskRosterEntryError` for an entry that is not a task id
+    (see :func:`_entry_task_id`); callers add the WP file to the message.
+    """
     seen: set[str] = set()
     roster: list[str] = []
-    for raw in raw_values:
-        task_id = str(raw).strip()
+    for position, raw in enumerate(raw_values, start=1):
+        task_id = _entry_task_id(raw, position)
         if task_id and task_id not in seen:
             seen.add(task_id)
             roster.append(task_id)

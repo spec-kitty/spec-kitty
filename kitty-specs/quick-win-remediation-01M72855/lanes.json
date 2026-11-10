@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "mission_slug": "quick-win-remediation-01M72855",
+  "mission_id": "01M72855APNG65QWBNMJ5QDS60",
+  "mission_branch": "kitty/mission-quick-win-remediation-01M72855",
+  "target_branch": "fix/quick-win-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7439-status-log-line-framing.fixed.md",
+        "docs/changelog/unreleased/7440-sanitizer-mixed-session-pair.fixed.md",
+        "docs/changelog/unreleased/7441-status-log-writer-bytes.fixed.md",
+        "src/specify_cli/events/sanitizer.py",
+        "src/specify_cli/status/store.py",
+        "tests/specify_cli/events/test_sanitizer.py",
+        "tests/status/test_store.py",
+        "tests/status/test_store_line_framing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7442-subtask-roster-list-only.fixed.md",
+        "docs/changelog/unreleased/7443-wp-task-file-locator.fixed.md",
+        "src/specify_cli/core/subtask_rows.py",
+        "src/specify_cli/core/wp_task_files.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/wp_view.py",
+        "tests/architectural/test_archive_root_byte_identical.py",
+        "tests/specify_cli/cli/commands/agent/test_mark_status_authored_roster.py",
+        "tests/specify_cli/core/test_subtask_rows_snapshot.py",
+        "tests/specify_cli/core/test_wp_task_files.py",
+        "tests/specify_cli/status/test_reconstruct_wp_view.py",
+        "tests/status/test_dependency_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7445-load-meta-accepts-bom.fixed.md",
+        "src/specify_cli/mission_metadata.py",
+        "tests/specify_cli/test_mission_metadata.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7463-glossary-conflicts-linear.fixed.md",
+        "src/specify_cli/cli/commands/glossary.py",
+        "tests/agent/cli/commands/test_glossary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP01-restore-command-templates.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP02-registry-and-generator.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP03-init-hybrid-install.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP04-consumer-migration.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP05-deploy-to-consumers.md",
+        "kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP06-tests-and-validation.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-10T08:26:06.132247+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "9518fb71543e3e16d9aa6cd2224aab6590ba6d9a"
+}

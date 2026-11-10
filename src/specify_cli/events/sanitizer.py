@@ -82,6 +82,8 @@ def _replace_session_timestamps(envelope: dict[str, Any]) -> dict[str, Any]:
     * Neither present → envelope unchanged.
     * Malformed timestamp string → field removed silently, debug log emitted,
       no exception raised.
+    * One naive and one timezone-aware timestamp → treated as malformed: both
+      removed, no ``session_duration_s``, debug log emitted (#7440).
 
     Returns a *new* dict (shallow copy of *envelope* with timestamp keys
     possibly replaced).
@@ -113,7 +115,14 @@ def _replace_session_timestamps(envelope: dict[str, Any]) -> dict[str, Any]:
             )
 
     if started is not None and ended is not None:
-        result["session_duration_s"] = int((ended - started).total_seconds())
+        if (started.tzinfo is None) != (ended.tzinfo is None):
+            logger.debug(
+                "sanitize_event_for_log: mixed naive/aware session pair %r / %r — fields removed",
+                started_raw,
+                ended_raw,
+            )
+        else:
+            result["session_duration_s"] = int((ended - started).total_seconds())
 
     return result
 
@@ -140,8 +149,8 @@ def sanitize_event_for_log(envelope: dict[str, Any]) -> dict[str, Any]:
     Session timestamp replacement (top-level only):
       If both ``session_started_at`` and ``session_ended_at`` are present they
       are replaced by ``session_duration_s`` (integer seconds).  If only one is
-      present it is removed without replacement.  Malformed timestamps are
-      removed silently.
+      present it is removed without replacement.  Malformed timestamps, and a
+      pair mixing a naive with a timezone-aware timestamp, are removed silently.
 
     Fields that are explicitly **preserved**: ``node_id``, ``build_id``,
     ``mission_id``, ``project_uuid``, ``git_branch``, ``head_commit_sha``,
