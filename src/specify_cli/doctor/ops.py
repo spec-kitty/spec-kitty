@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError
-from specify_cli.invocation.lifecycle import find_orphans, read_lifecycle_records, unpaired_started, write_abandoned_completion
+from specify_cli.invocation.lifecycle import find_orphans, read_lifecycle_records, write_abandoned_completion
 from specify_cli.invocation.op_custody import repository_checkouts
 from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH, open_invocation_ids
 
@@ -380,7 +380,24 @@ def _read_lifecycle_store(checkout: Path) -> list[ProfileInvocationRecord] | Non
 
 
 def _unpaired_ids(records: list[ProfileInvocationRecord]) -> set[int]:
-    return {id(record) for group in find_orphans(records) for record in unpaired_started(group)}
+    """The ``started`` records no completion pairs, matched record by record (WP02 review B3).
+
+    Pairing counts per ``(mission_id, canonical_action_id)`` group, and
+    :func:`~specify_cli.invocation.lifecycle.unpaired_started` names the group's
+    latest records as the unpaired ones. One ``implement::implement`` group holds
+    every work package of a Mission, so that label can name a record its own
+    checkout completed, and the sweep compares records across checkouts. Here a
+    completion pairs a ``started`` record of its own agent and work package first,
+    then any remaining one in read order. The counts per group are unchanged.
+    """
+    unpaired: set[int] = set()
+    for group in find_orphans(records):
+        open_started = list(group.started)
+        for completion in group.completions:
+            match = next((s for s in open_started if (s.agent, s.wp_id) == (completion.agent, completion.wp_id)), None)
+            open_started.remove(match if match is not None else open_started[0])
+        unpaired.update(id(record) for record in open_started)
+    return unpaired
 
 
 def _paired_counts(records: list[ProfileInvocationRecord]) -> Counter[_LifecycleKey]:

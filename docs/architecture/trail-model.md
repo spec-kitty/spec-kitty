@@ -227,7 +227,9 @@ it reports a result. `doctor ops --close-stale` closes the rest:
   checkouts hold (tracked on a shared branch) is closed at most once: never when
   any checkout already holds its completion, otherwise once, in the first checkout
   that holds it. The branches therefore never collect two completions for one
-  record when they meet.
+  record when they meet. To tell which record a completion closed, the sweep pairs
+  it with a `started` record of the same agent and work package first, then any
+  remaining one in read order; pairing counts per group are unchanged.
 - One older than `--threshold` (any, at `0`) gets an **`abandoned`** record in the
   checkout that holds it: a new file, copying the action id, agent, Mission and
   work package, with a reason that names the sweep and `metadata.closed_by =
