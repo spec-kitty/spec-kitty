@@ -3333,6 +3333,7 @@ pages:
     - {slug: "follow-up-2026-10-27-an-unreadable-carrier-spine-refuses-6313", text: "Follow-up 2026-10-27: an unreadable carrier spine REFUSEs (#6313)", level: 2}
     - {slug: "amendment-2026-10-31-an-operator-declared-dependency-ref-is-inherited-history-6771", text: "Amendment 2026-10-31: an operator-declared dependency ref is inherited history (#6771)", level: 2}
     - {slug: "amendment-2026-11-07-a-lane-s-own-dependency-merges-are-its-work-7307", text: "Amendment 2026-11-07: a lane's own dependency merges are its work (#7307)", level: 2}
+    - {slug: "amendment-2026-11-08-work-package-windows-are-recorded-at-the-opening-transition-7403", text: "Amendment 2026-11-08: work-package windows are recorded at the opening transition (#7403)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
@@ -3539,6 +3540,7 @@ pages:
     - {slug: "amendment-2026-11-03-unresolved-ownership-is-its-own-verdict-not-a-missing-implementation-7149", text: "Amendment 2026-11-03 — unresolved ownership is its own verdict, not a missing implementation (#7149)", level: 3}
     - {slug: "amendment-2026-11-05-a-base-derived-from-git-stands-in-for-a-planning-commit-finalize-never-recorded-7209-7210", text: "Amendment 2026-11-05 — a base derived from git stands in for a planning commit finalize never recorded (#7209, #7210)", level: 3}
     - {slug: "amendment-2026-11-06-per-wp-approval-windows-for-single-branch-7283", text: "Amendment 2026-11-06: per-WP approval windows for single_branch (#7283)", level: 2}
+    - {slug: "amendment-2026-11-08-lane-approvals-are-judged-by-recorded-work-package-windows-7403", text: "Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
@@ -4094,6 +4096,7 @@ pages:
     - {slug: "github-packages", text: "GitHub Packages", level: 3}
     - {slug: "vendoring", text: "Vendoring", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-11-09", text: "Amendment 2026-11-09", level: 2}
   - path: "docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md"
     title: "ADR: pull requests touch no shared generated file and land through a merge queue"
     divio_type: "none"
@@ -4281,6 +4284,45 @@ pages:
     - {slug: "c-move-everything", text: "C. Move everything", level: 3}
     - {slug: "d-per-migration-authored-tests", text: "D. Per-migration authored tests", level: 3}
     - {slug: "e-generated-run-twice-check", text: "E. Generated run-twice check", level: 3}
+  - path: "docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md"
+    title: "ADR: work-package windows are recorded at the opening transition"
+    divio_type: "none"
+    abstract: "The consolidation gate judges each approved work package against the window recorded on the status event that opened it, built from one set of claim inputs."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-where-the-window-open-sha-is-recorded", text: "1. Where the window-open SHA is recorded", level: 3}
+    - {slug: "2-the-typed-window-gap", text: "2. The typed window gap", level: 3}
+    - {slug: "3-the-window-opener-fr-021", text: "3. The window opener (FR-021)", level: 3}
+    - {slug: "4-the-window-and-its-exemption-anchors", text: "4. The window and its exemption anchors", level: 3}
+    - {slug: "5-claim-inputs-and-their-three-sources", text: "5. Claim inputs and their three sources", level: 3}
+    - {slug: "6-durability-horizon", text: "6. Durability horizon", level: 3}
+    - {slug: "7-missing-window-fallback", text: "7. Missing-window fallback", level: 3}
+    - {slug: "8-the-frozen-anchor-set-on-resume", text: "8. The frozen anchor set on resume", level: 3}
+    - {slug: "9-the-two-recording-tiers", text: "9. The two recording tiers", level: 3}
+    - {slug: "10-the-nine-base-and-window-notions", text: "10. The nine base and window notions", level: 3}
+    - {slug: "11-named-residuals", text: "11. Named residuals", level: 3}
+    - {slug: "12-limits", text: "12. Limits", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-derive-from-lane-head-stamps-only", text: "A. Derive from `lane_head` stamps only", level: 3}
+    - {slug: "b-a-separate-file-or-sidecar", text: "B. A separate file or sidecar", level: 3}
+    - {slug: "c-a-new-canonical-event-type", text: "C. A new canonical event type", level: 3}
+    - {slug: "d-write-on-the-first-opening-move-only", text: "D. Write on the first opening move only", level: 3}
+    - {slug: "e-a-namespaced-key-on-every-opening-move-chosen", text: "E. A namespaced key on every opening move (chosen)", level: 3}
+    - {slug: "f-a-full-windowledger-now", text: "F. A full `WindowLedger` now", level: 3}
+    - {slug: "g-one-model-plus-named-variants-chosen", text: "G. One model plus named variants (chosen)", level: 3}
+    - {slug: "h-refuse-with-attestation", text: "H. Refuse with attestation", level: 3}
+    - {slug: "i-fall-back-and-report-chosen", text: "I. Fall back and report (chosen)", level: 3}
+    - {slug: "j-a-subpackage", text: "J. A subpackage", level: 3}
+    - {slug: "k-flat-sibling-modules-chosen", text: "K. Flat sibling modules (chosen)", level: 3}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "none"
@@ -6379,11 +6421,6 @@ pages:
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "coordination-status-write-guard", text: "Coordination status-write guard", level: 3}
     - {slug: "pre-3-0-layout-rejection", text: "Pre-3.0 layout rejection", level: 3}
-  - path: "docs/architecture/team-kitty-saas.md"
-    title: "Team Kitty (SaaS) Hosted-Sync Flow (Removed)"
-    divio_type: "explanation"
-    abstract: "The hosted Team Kitty sync flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
-    anchors: []
   - path: "docs/architecture/trail-model.md"
     title: "Trail Model"
     divio_type: "explanation"
@@ -6448,17 +6485,6 @@ pages:
     - {slug: "6-invariants-acceptance-criteria", text: "6. Invariants & acceptance criteria", level: 2}
     - {slug: "7-explicitly-out-of-scope-later-missions", text: "7. Explicitly out of scope (later missions)", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/architecture/zeitgeist-session-identity.md"
-    title: "Zeitgeist publisher and lease identity"
-    divio_type: "explanation"
-    abstract: "How logical agents, SaaS leases, and relay session references related before the hosted surfaces were removed."
-    anchors:
-    - {slug: "historical-design-before-6164", text: "Historical design before #6164", level: 2}
-    - {slug: "issuer-and-relay-boundaries", text: "Issuer and relay boundaries", level: 2}
-    - {slug: "cache-reconnects-and-restart", text: "Cache, reconnects, and restart", level: 2}
-    - {slug: "cleanup-is-separate-from-authority", text: "Cleanup is separate from authority", level: 2}
-    - {slug: "issue-traceability", text: "Issue traceability", level: 2}
-    - {slug: "reader-own-session-suppression", text: "Reader own-session suppression", level: 2}
   - path: "docs/archive/architecture/01_context/README.md"
     title: "2.x System Context"
     divio_type: "none"
@@ -6627,6 +6653,22 @@ pages:
     - {slug: "operator-playbook-for-the-launch-flip", text: "Operator playbook for the launch flip", level: 2}
     - {slug: "what-this-doc-deliberately-does-not-specify", text: "What this doc deliberately does not specify", level: 2}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/archive/architecture/team-kitty-saas.md"
+    title: "Team Kitty (SaaS) Hosted-Sync Flow (Removed)"
+    divio_type: "explanation"
+    abstract: "The hosted Team Kitty sync flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
+  - path: "docs/archive/architecture/zeitgeist-session-identity.md"
+    title: "Zeitgeist publisher and lease identity"
+    divio_type: "explanation"
+    abstract: "How logical agents, SaaS leases, and relay session references related before the hosted surfaces were removed."
+    anchors:
+    - {slug: "historical-design-before-6164", text: "Historical design before #6164", level: 2}
+    - {slug: "issuer-and-relay-boundaries", text: "Issuer and relay boundaries", level: 2}
+    - {slug: "cache-reconnects-and-restart", text: "Cache, reconnects, and restart", level: 2}
+    - {slug: "cleanup-is-separate-from-authority", text: "Cleanup is separate from authority", level: 2}
+    - {slug: "issue-traceability", text: "Issue traceability", level: 2}
+    - {slug: "reader-own-session-suppression", text: "Reader own-session suppression", level: 2}
   - path: "docs/archive/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
     divio_type: "none"
@@ -6671,6 +6713,84 @@ pages:
     - {slug: "cross-cone-reference-not-an-in-scope-entry", text: "Cross-cone reference (not an in-scope entry)", level: 2}
     - {slug: "per-bucket-counts", text: "Per-bucket counts", level: 2}
     - {slug: "review-response", text: "Review response", level: 2}
+  - path: "docs/archive/guides/how-to/collaboration/sync-workspaces.md"
+    title: "How to Sync Workspaces"
+    divio_type: "how-to"
+    abstract: "How to sync workspaces with Spec Kitty 3.2: Keep your workspace up to date with upstream changes from dependent work packages."
+    anchors:
+    - {slug: "the-problem", text: "The Problem", level: 2}
+    - {slug: "prerequisites", text: "Prerequisites", level: 2}
+    - {slug: "steps", text: "Steps", level: 2}
+    - {slug: "1-navigate-to-your-workspace", text: "1. Navigate to Your Workspace", level: 3}
+    - {slug: "2-run-sync", text: "2. Run Sync", level: 3}
+    - {slug: "3-verify-the-sync", text: "3. Verify the Sync", level: 3}
+    - {slug: "conflict-handling", text: "Conflict Handling", level: 2}
+    - {slug: "using-verbose-for-details", text: "Using --verbose for Details", level: 2}
+    - {slug: "recovering-with-repair", text: "Recovering with --repair", level: 2}
+    - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+    - {slug: "working-copy-is-not-clean", text: "\"Working copy is not clean\"", level: 3}
+    - {slug: "cannot-rebase-conflicts-detected-git-only", text: "\"Cannot rebase: conflicts detected\" (git only)", level: 3}
+    - {slug: "failed-to-update-base-branch-not-found", text: "\"Failed to update base: branch not found\"", level: 3}
+    - {slug: "workspace-not-found", text: "\"Workspace not found\"", level: 3}
+    - {slug: "when-to-sync", text: "When to Sync", level: 2}
+    - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/archive/guides/project-sync-consent.md"
+    title: "Per-Project Sync Consent"
+    divio_type: "how-to"
+    abstract: "Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state."
+    anchors:
+    - {slug: "the-model-in-one-table", text: "The model in one table", level: 2}
+    - {slug: "opt-a-project-in", text: "Opt a project in", level: 2}
+    - {slug: "opt-a-project-out", text: "Opt a project out", level: 2}
+    - {slug: "what-the-kill-switch-does-and-does-not-do", text: "What the kill switch does — and does not do", level: 2}
+    - {slug: "how-admission-pairs-with-the-saas-boundary", text: "How admission pairs with the SaaS boundary", level: 2}
+    - {slug: "migrating-legacy-shared-state-operators", text: "Migrating legacy shared state (operators)", level: 2}
+    - {slug: "where-the-evidence-lives", text: "Where the evidence lives", level: 2}
+    - {slug: "related-reading", text: "Related reading", level: 2}
+  - path: "docs/archive/migrations/teamspace-mission-state-920-closeout.md"
+    title: "TeamSpace Mission-State 920 Closeout Evidence"
+    divio_type: "how-to"
+    abstract: "Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly."
+    anchors:
+    - {slug: "current-conclusion", text: "Current conclusion", level: 2}
+    - {slug: "evidence-by-issue", text: "Evidence by issue", level: 2}
+    - {slug: "verification-run", text: "Verification run", level: 2}
+  - path: "docs/archive/migrations/teamspace-mission-state-repair.md"
+    title: "TeamSpace Mission-State Repair"
+    divio_type: "how-to"
+    abstract: "How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run."
+    anchors:
+    - {slug: "distributed-git-safety", text: "Distributed Git Safety", level: 2}
+    - {slug: "what-the-repair-canonicalizes", text: "What The Repair Canonicalizes", level: 2}
+    - {slug: "cross-repo-rehearsal", text: "Cross-Repo Rehearsal", level: 2}
+    - {slug: "release-sequencing", text: "Release Sequencing", level: 2}
+  - path: "docs/archive/operations/internal-hosted-readiness.md"
+    title: "Internal Hosted-Readiness Mode (Removed)"
+    divio_type: "how-to"
+    abstract: "Internal hosted-readiness mode was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
+  - path: "docs/archive/operations/logged-out-teamspace.md"
+    title: "Logged Out on a Connected Teamspace (Removed)"
+    divio_type: "how-to"
+    abstract: "The logged-out teamspace recovery flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
+    anchors: []
+  - path: "docs/archive/operations/sync-daemon-orphan-cleanup.md"
+    title: "Sync Daemon Orphan Cleanup — Operator Runbook"
+    divio_type: "how-to"
+    abstract: "How to inspect, classify, and clean up stale Spec Kitty sync daemons."
+    anchors:
+    - {slug: "why-orphans-accumulate", text: "Why orphans accumulate", level: 2}
+    - {slug: "the-two-command-operator-path", text: "The two-command operator path", level: 2}
+    - {slug: "cleanup-classes", text: "Cleanup classes", level: 2}
+    - {slug: "safe-auto", text: "`safe_auto`", level: 3}
+    - {slug: "operator-required", text: "`operator_required`", level: 3}
+    - {slug: "never-touch", text: "`never_touch`", level: 3}
+    - {slug: "what-is-never-touched", text: "What is never touched", level: 2}
+    - {slug: "json-output-for-scripting-and-ci", text: "JSON output for scripting and CI", level: 2}
+    - {slug: "reset-result-fields", text: "`reset_result` fields", level: 3}
+    - {slug: "hosted-auth-sync-test-environment-gate", text: "Hosted auth / sync test environment gate", level: 2}
+    - {slug: "developer-test-quickstart", text: "Developer / test quickstart", level: 2}
+    - {slug: "1071-regression-coverage", text: "#1071 regression coverage", level: 2}
   - path: "docs/archive/plans/3-2-doc-publication/3-2-archive-migration-plan.md"
     title: "Spec Kitty 3.2 — Archive & Migration Plan"
     divio_type: "none"
@@ -9952,6 +10072,12 @@ pages:
     - {slug: "scope", text: "Scope", level: 2}
     - {slug: "assessment", text: "Assessment", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
+  - path: "docs/archive/plans/zeitgeist-client-wp01-remaining.md"
+    title: "zeitgeist_client WP01 — remaining scope"
+    divio_type: "none"
+    abstract: "Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed."
+    anchors:
+    - {slug: "not-yet-implemented", text: "Not yet implemented", level: 2}
   - path: "docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md"
     title: "R2-T1 historical program evidence"
     divio_type: "none"
@@ -11448,6 +11574,14 @@ pages:
     - {slug: "branch-integration-git-merge", text: "Branch Integration / Git Merge", level: 3}
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
     - {slug: "branch-relative-provenance", text: "Branch-relative provenance", level: 3}
+    - {slug: "work-package-window", text: "Work-package window", level: 3}
+    - {slug: "window-open-sha", text: "Window-open SHA", level: 3}
+    - {slug: "window-opener", text: "Window opener", level: 3}
+    - {slug: "window-gap", text: "Window gap", level: 3}
+    - {slug: "gap-report", text: "Gap report", level: 3}
+    - {slug: "exemption-anchor", text: "Exemption anchor", level: 3}
+    - {slug: "claim-inputs", text: "Claim inputs", level: 3}
+    - {slug: "named-window-variant", text: "Named window variant", level: 3}
     - {slug: "evidence-gate", text: "Evidence gate", level: 3}
     - {slug: "origin-freshness-check", text: "Origin freshness check", level: 3}
     - {slug: "status-evidence-branch", text: "Status evidence branch", level: 3}
@@ -12539,27 +12673,6 @@ pages:
     - {slug: "policy-validation-failures", text: "Policy validation failures", level: 3}
     - {slug: "opencode-exits-before-review", text: "OpenCode exits before review", level: 3}
     - {slug: "protected-branch-commit-errors", text: "Protected branch commit errors", level: 3}
-    - {slug: "see-also", text: "See Also", level: 2}
-  - path: "docs/guides/how-to/collaboration/sync-workspaces.md"
-    title: "How to Sync Workspaces"
-    divio_type: "how-to"
-    abstract: "How to sync workspaces with Spec Kitty 3.2: Keep your workspace up to date with upstream changes from dependent work packages."
-    anchors:
-    - {slug: "the-problem", text: "The Problem", level: 2}
-    - {slug: "prerequisites", text: "Prerequisites", level: 2}
-    - {slug: "steps", text: "Steps", level: 2}
-    - {slug: "1-navigate-to-your-workspace", text: "1. Navigate to Your Workspace", level: 3}
-    - {slug: "2-run-sync", text: "2. Run Sync", level: 3}
-    - {slug: "3-verify-the-sync", text: "3. Verify the Sync", level: 3}
-    - {slug: "conflict-handling", text: "Conflict Handling", level: 2}
-    - {slug: "using-verbose-for-details", text: "Using --verbose for Details", level: 2}
-    - {slug: "recovering-with-repair", text: "Recovering with --repair", level: 2}
-    - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
-    - {slug: "working-copy-is-not-clean", text: "\"Working copy is not clean\"", level: 3}
-    - {slug: "cannot-rebase-conflicts-detected-git-only", text: "\"Cannot rebase: conflicts detected\" (git only)", level: 3}
-    - {slug: "failed-to-update-base-branch-not-found", text: "\"Failed to update base: branch not found\"", level: 3}
-    - {slug: "workspace-not-found", text: "\"Workspace not found\"", level: 3}
-    - {slug: "when-to-sync", text: "When to Sync", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md"
     title: "How to Keep MCP Agents in the Worktree"
@@ -13736,19 +13849,6 @@ pages:
     abstract: "End-user Spec Kitty guides: learning-oriented tutorials and task-oriented how-tos for installing, running, governing, and monitoring your missions."
     anchors:
     - {slug: "how-to-concerns", text: "How-To concerns", level: 2}
-  - path: "docs/guides/project-sync-consent.md"
-    title: "Per-Project Sync Consent"
-    divio_type: "how-to"
-    abstract: "Per-project hosted-sync consent in Spec Kitty 3.2: opting in and out, the deny-only kill switch, SaaS admission pairing, and migrating legacy shared sync state."
-    anchors:
-    - {slug: "the-model-in-one-table", text: "The model in one table", level: 2}
-    - {slug: "opt-a-project-in", text: "Opt a project in", level: 2}
-    - {slug: "opt-a-project-out", text: "Opt a project out", level: 2}
-    - {slug: "what-the-kill-switch-does-and-does-not-do", text: "What the kill switch does — and does not do", level: 2}
-    - {slug: "how-admission-pairs-with-the-saas-boundary", text: "How admission pairs with the SaaS boundary", level: 2}
-    - {slug: "migrating-legacy-shared-state-operators", text: "Migrating legacy shared state (operators)", level: 2}
-    - {slug: "where-the-evidence-lives", text: "Where the evidence lives", level: 2}
-    - {slug: "related-reading", text: "Related reading", level: 2}
   - path: "docs/guides/tutorials/charter-governed-workflow.md"
     title: "Tutorial: Governed Charter Workflow End-to-End"
     divio_type: "tutorial"
@@ -14215,23 +14315,6 @@ pages:
     - {slug: "developer-workflows", text: "Developer workflows", level: 2}
     - {slug: "why-this-happened", text: "Why this happened", level: 2}
     - {slug: "supersedes", text: "Supersedes", level: 2}
-  - path: "docs/migrations/teamspace-mission-state-920-closeout.md"
-    title: "TeamSpace Mission-State 920 Closeout Evidence"
-    divio_type: "how-to"
-    abstract: "Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly."
-    anchors:
-    - {slug: "current-conclusion", text: "Current conclusion", level: 2}
-    - {slug: "evidence-by-issue", text: "Evidence by issue", level: 2}
-    - {slug: "verification-run", text: "Verification run", level: 2}
-  - path: "docs/migrations/teamspace-mission-state-repair.md"
-    title: "TeamSpace Mission-State Repair"
-    divio_type: "how-to"
-    abstract: "How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run."
-    anchors:
-    - {slug: "distributed-git-safety", text: "Distributed Git Safety", level: 2}
-    - {slug: "what-the-repair-canonicalizes", text: "What The Repair Canonicalizes", level: 2}
-    - {slug: "cross-repo-rehearsal", text: "Cross-Repo Rehearsal", level: 2}
-    - {slug: "release-sequencing", text: "Release Sequencing", level: 2}
   - path: "docs/migrations/tracker-egress-refusal.md"
     title: "Migration: Tracker Egress Refusal"
     divio_type: "how-to"
@@ -14340,16 +14423,6 @@ pages:
     anchors:
     - {slug: "pages", text: "Pages", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/operations/internal-hosted-readiness.md"
-    title: "Internal Hosted-Readiness Mode (Removed)"
-    divio_type: "how-to"
-    abstract: "Internal hosted-readiness mode was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
-    anchors: []
-  - path: "docs/operations/logged-out-teamspace.md"
-    title: "Logged Out on a Connected Teamspace (Removed)"
-    divio_type: "how-to"
-    abstract: "The logged-out teamspace recovery flow was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve."
-    anchors: []
   - path: "docs/operations/manual-test-plan.md"
     title: "Comprehensive Manual Test Plan"
     divio_type: "reference"
@@ -14476,23 +14549,6 @@ pages:
     - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
     - {slug: "manual-fix-operator-approved", text: "Manual fix (operator-approved)", level: 2}
     - {slug: "related", text: "Related", level: 2}
-  - path: "docs/operations/sync-daemon-orphan-cleanup.md"
-    title: "Sync Daemon Orphan Cleanup — Operator Runbook"
-    divio_type: "how-to"
-    abstract: "How to inspect, classify, and clean up stale Spec Kitty sync daemons."
-    anchors:
-    - {slug: "why-orphans-accumulate", text: "Why orphans accumulate", level: 2}
-    - {slug: "the-two-command-operator-path", text: "The two-command operator path", level: 2}
-    - {slug: "cleanup-classes", text: "Cleanup classes", level: 2}
-    - {slug: "safe-auto", text: "`safe_auto`", level: 3}
-    - {slug: "operator-required", text: "`operator_required`", level: 3}
-    - {slug: "never-touch", text: "`never_touch`", level: 3}
-    - {slug: "what-is-never-touched", text: "What is never touched", level: 2}
-    - {slug: "json-output-for-scripting-and-ci", text: "JSON output for scripting and CI", level: 2}
-    - {slug: "reset-result-fields", text: "`reset_result` fields", level: 3}
-    - {slug: "hosted-auth-sync-test-environment-gate", text: "Hosted auth / sync test environment gate", level: 2}
-    - {slug: "developer-test-quickstart", text: "Developer / test quickstart", level: 2}
-    - {slug: "1071-regression-coverage", text: "#1071 regression coverage", level: 2}
   - path: "docs/operations/upgrade-with-live-lanes-recovery.md"
     title: "Recovery: consolidate, review or implement refuses after an upgrade mid-Mission"
     divio_type: "how-to"
@@ -15038,6 +15094,7 @@ pages:
     - {slug: "user-experience-findings", text: "User experience findings", level: 2}
     - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
     - {slug: "qualification-and-known-limitations", text: "Qualification and known limitations", level: 2}
+    - {slug: "follow-up-report-only-recording-7434-2026-11-10", text: "Follow-up: report-only recording (#7434, 2026-11-10)", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-30-owned-charter-context.md"
     title: "Owned prompt charter scope repair"
     divio_type: "none"
@@ -15662,12 +15719,6 @@ pages:
     - {slug: "historical-2-x-era-vision-snapshots", text: "Historical (2.x-era vision snapshots)", level: 2}
     - {slug: "relationship-to-other-architecture-artifacts", text: "Relationship to Other Architecture Artifacts", level: 2}
     - {slug: "evaluation", text: "Evaluation", level: 2}
-  - path: "docs/plans/zeitgeist-client-wp01-remaining.md"
-    title: "zeitgeist_client WP01 — remaining scope"
-    divio_type: "none"
-    abstract: "Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed."
-    anchors:
-    - {slug: "not-yet-implemented", text: "Not yet implemented", level: 2}
   - path: "docs/reports/dead-code-review/2026-09-30/README.md"
     title: "Dead-code review (2026-09-30)"
     divio_type: "none"
