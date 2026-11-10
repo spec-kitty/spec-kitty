@@ -236,7 +236,6 @@ LEGACY_READ_ALLOWLIST: dict[str, str] = {
     "src/specify_cli/core/owned_charter.py::charter_scope_for_owned::artifact(STATUS_STATE)": _IDENTITY,
     "src/specify_cli/design/validation.py::_tasks_finalized::read_dir(STATUS_STATE)": _DRIFT,
     "src/specify_cli/lanes/checkout_occupancy.py::_lane_mates_writing::read_dir(STATUS_STATE)": _PATH_CONSUMER,
-    "src/specify_cli/lanes/checkout_occupancy.py::_writers_in_write_checkout::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/implement_support.py::_ensure_repo_root_checkout_available::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/implement_support.py::reenter_lane_self_heal::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/recovery.py::scan_recovery_state::read_dir(STATUS_STATE)": _PATH_CONSUMER,
