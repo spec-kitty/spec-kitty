@@ -198,6 +198,28 @@ class TestFeatureDirStatusEntries:
         entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
         assert entries == []
 
+    def test_decisions_runtime_lock_is_dropped(self) -> None:
+        """#7493: the decision service's runtime lock persists untracked by design
+        (#5925) and no committer may stage it (#6628), so the planning auto-commit
+        must never see it as a candidate."""
+        fake = _FakeGitPort(entries=(_entry("??", "kitty-specs/m/decisions/index.json.lock"), _entry(" M", "kitty-specs/m/tasks.md")))
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == [_PorcelainEntry(xy=" M", path="kitty-specs/m/tasks.md", is_structural=False)]
+
+    @pytest.mark.parametrize("xy", [" M", "D ", " D"], ids=["tracked-modified", "staged-deletion", "unstaged-deletion"])
+    def test_tracked_decisions_lock_forms_are_dropped_too(self, xy: str) -> None:
+        """A legacy-tracked lock (modified, or being untracked) is still the runtime
+        lock: neither a planning artifact to commit nor a #1598 structural change."""
+        fake = _FakeGitPort(entries=(_entry(xy, "kitty-specs/m/decisions/index.json.lock"),))
+        assert _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake) == []
+        assert detect_structural_planning_changes(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake) == []
+
+    def test_lookalike_lock_outside_decisions_is_kept(self) -> None:
+        """The exemption is depth-exact: a same-named file elsewhere is real work."""
+        fake = _FakeGitPort(entries=(_entry("??", "kitty-specs/m/research/index.json.lock"),))
+        entries = _feature_dir_status_entries(Path("/repo"), Path("/repo/kitty-specs/m"), git=fake)
+        assert entries == [_PorcelainEntry(xy="??", path="kitty-specs/m/research/index.json.lock", is_structural=False)]
+
 
 # ---------------------------------------------------------------------------
 # _drop_if (WP14 / IC-07d generic filter)
@@ -735,6 +757,24 @@ class TestResolvePlanningArtifactStaging:
             git=fake,
         )
         assert coord_plan.files_to_commit == ["kitty-specs/m/extra.md"]
+
+    def test_coord_walk_never_offers_the_decisions_runtime_lock(self, tmp_path: Path) -> None:
+        """#7493: the coordination-topology walk lists every file on disk, git-dirty
+        or not, so the decisions lock must be dropped from that leg too."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        (artifact_dir / "decisions").mkdir(parents=True)
+        (artifact_dir / "decisions" / "index.json.lock").write_bytes(b"")
+        (artifact_dir / "extra.md").write_bytes(b"# extra")
+        fake = _FakeGitPort(entries=())
+        plan = resolve_planning_artifact_staging(
+            tmp_path,
+            artifact_dir,
+            "kitty/mission-m-AAAA1111",
+            ["kitty-specs/m/decisions/index.json.lock", "kitty-specs/m/extra.md"],
+            auto_commit=True,
+            git=fake,
+        )
+        assert plan.files_to_commit == ["kitty-specs/m/extra.md"]
 
     def test_idempotent_when_already_matching_its_partition_ref(self, tmp_path: Path) -> None:
         """Idempotency guard: a discovered-but-already-committed edit
