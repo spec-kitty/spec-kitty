@@ -104,6 +104,31 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T20:18:31.849625Z",
+      "decision_id": "01M73HSF99TDJK8ESTDF1H7NAG",
+      "final_answer": "Approve as proposed: read once into a BoardStatus value; owned-aware door entry; block decided from surface source; --auto-remediate via materialize_coord_surface_for_write; WP01-WP05 slicing; dual-typed params rejected.",
+      "input_key": "board_read_shape",
+      "mission_id": "01M73HHBGCYKH10797R6YR21WS",
+      "mission_slug": "runtime-status-read-door-01M73HHB",
+      "opened_by": "cli",
+      "options": [
+        "Approve as proposed",
+        "Dual-typed Path|surface params instead",
+        "Adjust slicing",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Engineering alignment: read once into a BoardStatus value passed to pure board consumers, plus an owned-aware door entry; 5 WPs as proposed?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T20:20:35.325644Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.board-read-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M73HHBGCYKH10797R6YR21WS",
