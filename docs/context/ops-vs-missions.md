@@ -3,7 +3,7 @@ title: Ops vs. Missions
 description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
 kind: Explanation
-updated: '2026-11-01T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 related:
 - context/mission-types
 - api/profile-invocation
@@ -110,7 +110,10 @@ different schema, `ProfileInvocationRecord`
 (`src/specify_cli/invocation/lifecycle.py`). Each record is its own file,
 `kitty-ops/lifecycle/<ulid>.json`, so two branches never edit the same lifecycle
 file. The older shared `kitty-ops/lifecycle.jsonl` log is still read, never
-written. There is no "close" command for lifecycle records.
+written. A lifecycle record closes when `spec-kitty next` reports a result for
+it. A record left open by an agent that stopped mid-action is closed by
+`spec-kitty doctor ops --close-stale`, which writes an `abandoned` record for
+every one older than `--threshold` and does not advance the Mission (#7346).
 
 ## Examples
 

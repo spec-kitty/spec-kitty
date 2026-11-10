@@ -1626,10 +1626,11 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            (auto-detected)   │
 │ --dry-run                                                  Show what would   │
 │                                                            be done without   │
-│                                                            executing; does   │
-│                                                            not check that    │
-│                                                            the mission       │
-│                                                            branch exists     │
+│                                                            executing;        │
+│                                                            refuses like the  │
+│                                                            real run when the │
+│                                                            mission branch is │
+│                                                            missing           │
 │ --json                                                     Output            │
 │                                                            deterministic     │
 │                                                            JSON (dry-run     │
@@ -2163,8 +2164,8 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │                         registry.                                            │
 │ contracts               Validate the Contract Registry for well-formedness.  │
 │ invocation-pairing      List orphan profile-invocation lifecycle records.    │
-│ ops                     List orphan Op records; --close-stale sweeps stale   │
-│                         ones closed as abandoned.                            │
+│ ops                     List orphan Op records; --close-stale closes stale   │
+│                         Ops and lifecycle records as abandoned.              │
 │ mission-state           Audit or repair mission-state shapes.                │
 │ charter-packs           Check org charter pack snapshot status and list      │
 │                         installed pack artifacts.                            │
@@ -2587,10 +2588,10 @@ _Project health diagnostics; a bare invocation runs the default check set_
 
  List orphan profile-invocation lifecycle records.
 
- WP05 (#843) wiring: scans
- ``.kittify/events/profile-invocation-lifecycle.jsonl`` for ``started``
- records with no paired ``completed`` or ``failed`` partner. Mid-cycle
- agent crashes show up here. The check observes; it does not remediate.
+ WP05 (#843) wiring: scans the lifecycle records (``kitty-ops/lifecycle/``)
+ for ``started`` records with no paired completion (``completed``,
+ ``failed`` or ``abandoned``). Mid-cycle agent crashes show up here. The
+ check observes; ``doctor ops --close-stale`` closes stale ones (#7346).
 
  Exit codes:
    0  No orphans observed.
@@ -2671,12 +2672,14 @@ _Project health diagnostics; a bare invocation runs the default check set_
 ```
  Usage: spec-kitty doctor ops [OPTIONS]
 
- List orphan Op records; --close-stale sweeps stale ones closed as abandoned.
+ List orphan Op records; --close-stale closes stale Ops and lifecycle records
+ as abandoned.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json                          Machine-readable JSON output                 │
-│ --close-stale                   Close open Ops older than --threshold as     │
-│                                 abandoned (closed_by=doctor_sweep)           │
+│ --close-stale                   Close open Ops and work-package lifecycle    │
+│                                 records older than --threshold as abandoned  │
+│                                 (closed_by=doctor_sweep)                     │
 │ --threshold            <float>  Staleness threshold in hours (default 24; 0  │
 │                                 closes all). Requires --close-stale.         │
 │ --help         -h               Show this message and exit.                  │
