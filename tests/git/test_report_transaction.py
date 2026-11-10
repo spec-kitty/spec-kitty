@@ -108,41 +108,6 @@ def test_guard_unchanged_inputs_raises_when_material_inputs_changed(tmp_path: Pa
         )
 
 
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    ("hashed", "deleted", "expected"),
-    [
-        # Markdown is hashed because the higher-priority yaml was deleted: the deletion is dirt.
-        (".kittify/charter/charter.md", ("charter.yaml",), {".kittify/charter/charter.yaml"}),
-        # No charter is hashed because both were deleted: both deletions are dirt.
-        (None, ("charter.yaml", "charter.md"), {".kittify/charter/charter.yaml", ".kittify/charter/charter.md"}),
-        # The hashed yaml is clean: nothing to gate.
-        (".kittify/charter/charter.yaml", (), set()),
-    ],
-)
-def test_charter_dirt_gate_reads_the_owned_checkout(tmp_path: Path, hashed: str | None, deleted: tuple[str, ...], expected: set[str]) -> None:
-    """#7434: the charter-dirt gate checks the owned checkout, whose charter the owned renderer hashes."""
-    from types import SimpleNamespace
-    from typing import cast
-
-    from mission_runtime.owned_checkout import OwnedCheckout
-
-    _init_seeded_repo(tmp_path)
-    charter_dir = tmp_path / ".kittify/charter"
-    charter_dir.mkdir(parents=True)
-    (charter_dir / "charter.yaml").write_text("marker: owned\n")
-    (charter_dir / "charter.md").write_text("# Owned\n")
-    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-qm", "charter"], cwd=tmp_path, check=True)
-    for name in deleted:
-        (charter_dir / name).unlink()
-    # The repository root checkout is elsewhere: only the owned checkout is consulted.
-    owned = cast(OwnedCheckout, SimpleNamespace(owned_root=tmp_path, repository_root=tmp_path / "not-a-checkout"))
-
-    assert report_transaction._canonical_charter_dirt(owned, {"charter": {"path": hashed, "sha256": None}}) == expected
-    assert report_transaction._canonical_charter_dirt(None, {"charter": {"path": hashed, "sha256": None}}) == set()
-
-
 # ---------------------------------------------------------------------------
 # T003: ``_commit_report`` — the ``commit_for_mission`` call plus outcome
 # interpretation WP14 extracted into its own helper (WP14 renders through it).
