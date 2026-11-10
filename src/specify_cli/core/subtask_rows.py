@@ -38,11 +38,11 @@ section-exit semantics are encoded.
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
-from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from kernel._safe_re import re
+from kernel.clock import date, datetime
 
 from .wp_task_files import WP_FILE_SEP, match_wp_task_files, non_regular
 
