@@ -25,6 +25,7 @@ from pathlib import Path
 from kernel.git import GitCommandError, blob_at
 from specify_cli.coordination.event_prefix import DuplicateEventIdError, MalformedEventLogLineError, event_ids_of
 from specify_cli.coordination.transaction_errors import BookkeepingStatusSurfaceUnreadable
+from specify_cli.status import jsonl_lines
 
 __all__ = ["committed_events_missing_from_worktree"]
 
@@ -32,10 +33,10 @@ __all__ = ["committed_events_missing_from_worktree"]
 def _working_tree_event_ids(raw: bytes) -> set[str]:
     """Event ids present in the working-tree log, read tolerantly: a torn trailing line from an interrupted append is legitimate there."""
     ids: set[str] = set()
-    for line in raw.decode("utf-8", "replace").splitlines():
+    for _, line in jsonl_lines(raw.decode("utf-8", "replace")):
         try:
             event = json.loads(line)
-        except ValueError:
+        except (ValueError, RecursionError):
             continue
         if isinstance(event, dict) and "event_id" in event:
             ids.add(str(event["event_id"]))
@@ -69,7 +70,7 @@ def committed_events_missing_from_worktree(worktree_root: Path, events_path: Pat
         return []
     try:
         # The single strict parser (``event_prefix``): a committed log is never torn.
-        committed_ids = event_ids_of(committed.decode("utf-8", "replace").splitlines())
+        committed_ids = event_ids_of(line for _, line in jsonl_lines(committed.decode("utf-8", "replace")))
     except (MalformedEventLogLineError, DuplicateEventIdError) as exc:
         raise _unreadable(f"the log committed at HEAD is not a valid event log ({exc})") from exc
     try:

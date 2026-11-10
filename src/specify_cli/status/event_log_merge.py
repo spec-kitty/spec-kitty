@@ -9,6 +9,7 @@ from typing import Any
 from specify_cli.status_lanes import CANONICAL_LANES
 
 from .models import Lane, NON_DISPLAY_LANES
+from .store import jsonl_lines
 
 
 class EventLogMergeError(Exception):
@@ -58,13 +59,13 @@ def _is_decision_destination(from_lane: str, to_lane: str) -> bool:
 def read_event_log_text(text: str, *, source: str = "<memory>") -> list[dict[str, Any]]:
     """Read status.events.jsonl-style content from an in-memory string."""
     events: list[dict[str, Any]] = []
-    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+    for line_number, raw_line in jsonl_lines(text):
         stripped = raw_line.strip()
         if not stripped:
             continue
         try:
             payload = json.loads(stripped)
-        except json.JSONDecodeError as exc:
+        except (ValueError, RecursionError) as exc:
             raise EventLogMergeError(
                 f"{source}: invalid JSON on line {line_number}: {exc}"
             ) from exc

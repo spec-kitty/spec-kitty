@@ -322,8 +322,11 @@ def _event_ident(event_dict: Mapping[str, Any]) -> str:
 def jsonl_lines(text: str) -> Iterator[tuple[int, str]]:
     """Yield ``(1-based physical line number, line)`` for each row of JSONL *text*.
 
-    This is the single home of status JSONL row framing: every reader of the
-    event log splits rows here and nowhere else. Rows end only at CRLF, LF or
+    This is the single home of status JSONL row framing for the store readers,
+    the status-write guard (``coordination/status_surface_guard.py``) and the
+    event-log merge (``status/event_log_merge.py``). ``lifecycle_events.py``,
+    ``migrate_lifecycle_envelope.py`` and ``dup_key_repair.py`` still split on
+    their own (a listed follow-up). Rows end only at CRLF, LF or
     a lone CR (see :data:`_LINE_BREAK`), so a row whose string field holds
     U+2028 or a similar separator stays one row.
     """

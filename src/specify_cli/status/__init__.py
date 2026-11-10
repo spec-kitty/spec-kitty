@@ -69,6 +69,7 @@ from .rematerialize import (
 )
 from .store import (
     is_non_lane_event,
+    jsonl_lines,
     serialize_event_line,
     is_retrospective_lifecycle_event,
     ANNOTATION_KIND,
@@ -702,6 +703,7 @@ __all__ = [
     "format_post_mission_events",
     "has_non_bootstrap_status_history",
     "is_non_lane_event",
+    "jsonl_lines",
     "serialize_event_line",
     "is_retrospective_lifecycle_event",
     "materialize_snapshot",

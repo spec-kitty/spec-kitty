@@ -69,6 +69,19 @@ def test_events_dropped_from_the_working_tree_are_reported_in_order(repo: Path) 
     assert committed_events_missing_from_worktree(repo, path) == ["B", "C"]
 
 
+def test_a_raw_line_separator_inside_a_row_does_not_split_it(repo: Path) -> None:
+    """The store frames rows at CR/LF only, so a raw U+2028 in a string is one row to the guard too."""
+    row = json.dumps({"event_id": "A", "wp_id": "WP01", "reason": "a\u2028b"}, ensure_ascii=False) + "\n"
+    assert "\u2028" in row
+    path = repo / _REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(row + _line("B"), encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "seed")
+
+    assert committed_events_missing_from_worktree(repo, path) == []
+
+
 def test_a_deleted_log_drops_every_committed_event(repo: Path) -> None:
     path = _commit_log(repo, "A", "B")
     path.unlink()
