@@ -7,7 +7,7 @@ result (which would also advance the Mission). Pairing counts it as a completion
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
