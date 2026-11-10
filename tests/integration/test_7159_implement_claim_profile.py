@@ -120,3 +120,6 @@ def test_an_unprovable_binding_refuses_before_any_lane_or_claim(tmp_path: Path) 
     worktrees_after = sorted(path.name for path in (mission.repo / ".worktrees").glob("*")) if (mission.repo / ".worktrees").exists() else []
     assert worktrees_after == worktrees_before, "the refusal must not leave a lane worktree behind"
     assert lanes_of(mission).get("WP02") == "planned"
+    branches = subprocess.run(["git", "branch", "--list", "kitty/*lane*"], cwd=mission.repo, capture_output=True, text=True, check=True).stdout
+    assert branches.strip() == "", f"the refusal must not leave a lane branch behind: {branches!r}"
+    assert _claim_events(mission, "WP02") == [], "the refusal must not append a claim event"
