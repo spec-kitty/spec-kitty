@@ -223,9 +223,10 @@ themselves (weakens the preservation guarantee far beyond this surface).
 `kitty-ops/lifecycle/` (ADR 2026-11-01-2), and pairs a `started` record only when
 it reports a result. `doctor ops --close-stale` closes the rest:
 
-- Every checkout is read, the project root first. Each `started` record that no
-  completion pairs is reported once, even when several checkouts hold it (a
-  record tracked on a shared branch).
+- Every checkout is read, the project root first. A record that several
+  checkouts hold (tracked on a shared branch) belongs to the first one, paired or
+  not: a later checkout never closes it again, even where its own copy still looks
+  open, so the branches do not collect two closures for one record when they meet.
 - One older than `--threshold` (any, at `0`) gets an **`abandoned`** record in the
   checkout that holds it: a new file, copying the action id, agent, Mission and
   work package, with a reason that names the sweep and `metadata.closed_by =

@@ -343,9 +343,10 @@ def close_stale_lifecycle_records(repo_root: Path, *, threshold_hours: float, no
     pairs is reported; one older than the threshold (any, at ``0``) gets an
     ``abandoned`` record written next to it in the checkout that holds it
     (:func:`~specify_cli.invocation.lifecycle.write_abandoned_completion`). A record
-    present in several checkouts (tracked on a shared branch) is handled once, in
-    the first checkout that holds it; identical records within one checkout are
-    each their own orphan, so occurrences are counted, not collapsed. Each checkout's closures are then committed
+    present in several checkouts (tracked on a shared branch) belongs to the first
+    checkout that holds it, paired or not: a later checkout never closes it again,
+    even where its own copy still looks open. Identical records within one checkout
+    are each their own orphan, so occurrences are counted, not collapsed. Each checkout's closures are then committed
     once through the executor's record commit (#6410 skip rules, protected-branch
     refusal reported). Mission status, ``meta.json`` and work package files are
     never read or written.
@@ -367,8 +368,10 @@ def _sweep_lifecycle_checkout(
 ) -> list[SweepLifecycleEntry]:
     """Close one checkout's stale unpaired ``started`` records, then commit the closures once.
 
-    *seen* counts each record identity handled in earlier checkouts; this checkout
-    skips that many occurrences of it and adds what it holds beyond them.
+    *seen* counts the occurrences of each record identity that earlier checkouts
+    hold, paired or not: those checkouts own them (an open one was closed there, a
+    paired one is already closed there), so this checkout acts only on unpaired
+    occurrences beyond that count, then adds what it holds itself.
     """
     try:
         records = read_lifecycle_records(checkout)
@@ -378,11 +381,12 @@ def _sweep_lifecycle_checkout(
     reason = LIFECYCLE_ABANDONED_REASON.format(threshold=f"{threshold_hours:g}")
     entries: list[SweepLifecycleEntry] = []
     closures: list[tuple[SweepLifecycleEntry, Path]] = []
+    unpaired = {id(record) for group in find_orphans(records) for record in unpaired_started(group)}
     held: Counter[_LifecycleKey] = Counter()
-    for started in (record for group in find_orphans(records) for record in unpaired_started(group)):
+    for started in (record for record in records if record.phase == "started"):
         key = (started.mission_id, started.canonical_action_id, started.agent, started.wp_id, started.at.isoformat())
         held[key] += 1
-        if held[key] <= seen[key]:
+        if id(started) not in unpaired or held[key] <= seen[key]:
             continue
         entry = _lifecycle_entry(started, now)
         entries.append(entry)
