@@ -95,6 +95,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-10T12:15:08.857279Z",
+      "decision_id": "01M72P4C1S5Z4MG13Q2W1S1KM0",
+      "final_answer": "Operator ruling: kitty-ops/lifecycle/ counts as spec-kitty bookkeeping in consolidate's classification (reconciliation_kernel._KITTY_OPS_ROOT_RECORD), so a closure committed on an approved lane branch does not trip the approval bound; the sweep keeps running in lane checkouts.",
+      "input_key": "lifecycle_closure_on_approved_lane",
+      "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+      "mission_slug": "close-stale-lifecycle-records-01M72B89",
+      "opened_by": "claude",
+      "options": [
+        "Count kitty-ops/lifecycle/ as bookkeeping; the sweep keeps running in lane checkouts",
+        "Skip lane checkouts in the sweep",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "A doctor-sweep closure committed on an approved lane branch trips consolidate's approval bound (LANE_MOVED_AFTER_APPROVAL). Skip lane checkouts in the sweep, or count kitty-ops/lifecycle/ as consolidate bookkeeping?",
+      "rationale": null,
+      "resolved_at": "2026-11-10T12:15:11.340808Z",
+      "resolved_by": null,
+      "slot_key": "plan.consolidation.lifecycle-closure-on-approved-lane",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
