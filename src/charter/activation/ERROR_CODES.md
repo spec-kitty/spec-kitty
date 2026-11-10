@@ -211,8 +211,8 @@ Template set not selected in charter; fallback 'software-dev-default' applied.
 **When it fires**: a selection in `charter.yaml` or a project-local declaration is
 unioned onto the base set: tools beyond the runtime registry, selected
 directives or paradigms beyond the base (or all already present), and
-project-local directives merged onto the resolved set (or all already present).
-In process, the
+project-local directives merged onto the resolved set (or all already present),
+and ids removed from a resolved list by `charter deactivate`. In process, the
 entry's `kind` says which list it is about (`None` for tools).
 
 **JSON stability**: this code string is stable across minor releases; consumers

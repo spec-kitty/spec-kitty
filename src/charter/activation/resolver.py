@@ -1082,10 +1082,11 @@ def resolve_project_governance(
 
     # FR-006 / US1.6: the effective deny applies after every union (activation
     # base, charter selection, project-local); it never holds a required id.
-    paradigm_deny, directive_deny = pack_ctx.denied_for(ArtifactKind.PARADIGM), pack_ctx.denied_for(ArtifactKind.DIRECTIVE)
+    paradigms = _apply_deny(ArtifactKind.PARADIGM, selected_paradigms, pack_ctx, diagnostics)
+    directives = _apply_deny(ArtifactKind.DIRECTIVE, resolved_directives, pack_ctx, diagnostics)
     return GovernanceResolution(
-        paradigms=[item for item in selected_paradigms if paradigm_deny.admits(item)],
-        directives=[item for item in resolved_directives if directive_deny.admits(item)],
+        paradigms=paradigms,
+        directives=directives,
         tactics=[],
         styleguides=[],
         toolguides=[],
@@ -1099,6 +1100,22 @@ def resolve_project_governance(
         },
         diagnostics=diagnostics,
     )
+
+
+def _apply_deny(kind: ArtifactKind, items: list[str], pack_ctx: PackContext, diagnostics: list[GovernanceDiagnostic]) -> list[str]:
+    """Drop the kind's denied ids; record the removal so the list no longer reads as the untouched catalog (#7511)."""
+    deny = pack_ctx.denied_for(kind)
+    kept = [item for item in items if deny.admits(item)]
+    if len(kept) != len(items):
+        removed = [item for item in items if not deny.admits(item)]
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.SELECTION_MERGED,
+                f"Deactivated {len(removed)} {kind.value}(s) removed from the resolved set: " + ", ".join(removed) + ".",
+                kind=kind,
+            )
+        )
+    return kept
 
 
 def resolve_governance_for_profile(
