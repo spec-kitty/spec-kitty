@@ -24,6 +24,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import (
     EVENTS_FILENAME,
     StoreError,
+    append_events_atomic,
     append_raw_rows_atomic,
     read_event_stream,
     read_event_stream_from_text,
@@ -293,3 +294,16 @@ class TestWriterByteRule:
         row = _row(_FIRST_ID, reason="café   done")
         expected = serialize_record(sanitize_event_for_log(row)).decode("ascii")
         assert serialize_event_line(row) + "\n" == expected
+
+
+def test_appending_to_a_crlf_and_lone_cr_log_keeps_every_event(tmp_path: Path) -> None:
+    """A foreign-ended log loses no row on append, and the rewritten file is LF only."""
+    ids = [_FIRST_ID, _SECOND_ID, "01HXYZ0123456789ABCDEFGHJN"]
+    new_id = "01HXYZ0123456789ABCDEFGHJP"
+    _write_log(tmp_path, _line(_row(ids[0])) + "\r\n" + _line(_row(ids[1])) + "\r" + _line(_row(ids[2])) + "\r\n")
+
+    new_event = StatusEvent.from_dict(_row(new_id))
+    append_events_atomic(tmp_path, [new_event])
+
+    assert [e.event_id for e in read_events(tmp_path)] == [*ids, new_id]
+    assert b"\r" not in (tmp_path / EVENTS_FILENAME).read_bytes()
