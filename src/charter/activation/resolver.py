@@ -749,7 +749,9 @@ def _resolve_paradigm_base(
         base = sorted(offering_catalog.paradigms)
         diagnostics.append(
             GovernanceDiagnostic(
-                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms)."
+                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED,
+                f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).",
+                kind=ArtifactKind.PARADIGM,
             )
         )
         return base, "catalog_fallback"
@@ -900,7 +902,9 @@ def _resolve_directive_base(
         base = sorted(catalog_ids)
         diagnostics.append(
             GovernanceDiagnostic(
-                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, f"No activated directive set configured; using built-in catalog default ({len(base)} directives)."
+                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED,
+                f"No activated directive set configured; using built-in catalog default ({len(base)} directives).",
+                kind=ArtifactKind.DIRECTIVE,
             )
         )
         base_source = "catalog_fallback"

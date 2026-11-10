@@ -662,6 +662,53 @@ class TestGovernanceContext:
         assert f"  - Diagnostics: {' | '.join(fallbacks)}" in lines
         assert sum("catalog default" in line for line in lines) == 2, lines
 
+    @patch("runtime.next.prompt_builder.resolve_project_governance")
+    def test_only_the_defaulted_list_is_compacted(self, mock_resolve: MagicMock, feature_dir: Path) -> None:
+        """#7511: a list the project activated keeps its ids; an unkinded catalog-default note is kept as is."""
+        from charter.drg import ArtifactKind
+
+        default = GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED
+        mock_resolve.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=["test-first"],
+            directives=["DIRECTIVE_001", "DIRECTIVE_003"],
+            tools=["git"],
+            diagnostics=[
+                GovernanceDiagnostic(default, "directives defaulted", kind=ArtifactKind.DIRECTIVE),
+                GovernanceDiagnostic(default, "unkinded default"),
+            ],
+        )
+        lines = _governance_context(feature_dir.parent.parent).splitlines()
+        assert "  - Paradigms: test-first" in lines
+        assert "  - Directives: built-in catalog default (2; none selected by this project)" in lines
+        assert sum("`spec-kitty charter generate`" in line for line in lines) == 1
+        assert lines[-1] == "  - Diagnostics: unkinded default"
+
+    @patch("runtime.next.prompt_builder.resolve_project_governance")
+    def test_a_merged_selection_keeps_the_enumerated_lists(self, mock_resolve: MagicMock, feature_dir: Path) -> None:
+        """#7511: once the project added to the catalog base, the block lists ids and every note as before."""
+        from charter.drg import ArtifactKind
+
+        default = GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED
+        mock_resolve.return_value = MagicMock(
+            template_set="software-dev-default",
+            paradigms=["test-first"],
+            directives=["DIRECTIVE_001", "QA_003"],
+            tools=["git"],
+            diagnostics=[
+                GovernanceDiagnostic(default, "paradigms defaulted", kind=ArtifactKind.PARADIGM),
+                GovernanceDiagnostic(default, "directives defaulted", kind=ArtifactKind.DIRECTIVE),
+                GovernanceDiagnostic(GovernanceDiagnosticCode.SELECTION_MERGED, "merged QA_003"),
+            ],
+        )
+        lines = _governance_context(feature_dir.parent.parent).splitlines()
+        assert lines[2:] == [
+            "  - Paradigms: test-first",
+            "  - Directives: DIRECTIVE_001, QA_003",
+            "  - Tools: git",
+            "  - Diagnostics: paradigms defaulted | directives defaulted | merged QA_003",
+        ]
+
     @pytest.mark.fast
     def test_scope_not_found_is_not_swallowed(self, feature_dir: Path) -> None:
         from charter.activation.scope import CharterScopeNotFound

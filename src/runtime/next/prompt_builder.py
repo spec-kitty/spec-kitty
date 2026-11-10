@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from specify_cli.workspace.context import ResolvedWorkspace
 
 from pydantic import ValidationError
+from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
 from charter.activation.context import build_charter_context
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.scope import (
@@ -37,6 +38,7 @@ from charter.activation.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.drg import ArtifactKind
 from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
 from specify_cli.core.paths import get_feature_target_branch
@@ -592,6 +594,11 @@ def _governance_context(
     return _legacy_governance_context(repo_root, scope=scope)
 
 
+#: #7511: shown when a list is the built-in catalog default. Names the command the
+#: charter preflight advisory names for an uninitialized project charter.
+_SELECT_GOVERNANCE_LINE = "  - Select project governance: run `spec-kitty charter generate` when this project is ready for charter-governed workflows"
+
+
 def _legacy_governance_context(repo_root: Path, *, scope: CharterScope | None = None) -> str:
     """Render compact governance context via resolver."""
     try:
@@ -601,20 +608,46 @@ def _legacy_governance_context(repo_root: Path, *, scope: CharterScope | None = 
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
 
-    paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
-    directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
+    defaulted = _catalog_default_kinds(resolution.diagnostics)
     tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
 
     lines = [
         "Governance:",
         f"  - Template set: {resolution.template_set}",
-        f"  - Paradigms: {paradigms}",
-        f"  - Directives: {directives}",
+        f"  - Paradigms: {_governance_list(resolution.paradigms, catalog_default=ArtifactKind.PARADIGM in defaulted)}",
+        f"  - Directives: {_governance_list(resolution.directives, catalog_default=ArtifactKind.DIRECTIVE in defaulted)}",
         f"  - Tools: {tools}",
     ]
-    if resolution.diagnostics:
-        lines.append(f"  - Diagnostics: {' | '.join(diagnostic.message for diagnostic in resolution.diagnostics)}")
+    if defaulted:
+        lines.append(_SELECT_GOVERNANCE_LINE)
+    # The compact lines above already state the catalog default; every other note stays.
+    notes = [d.message for d in resolution.diagnostics if not (d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED and d.kind in defaulted)]
+    if notes:
+        lines.append(f"  - Diagnostics: {' | '.join(notes)}")
     return "\n".join(lines)
+
+
+def _catalog_default_kinds(diagnostics: list[GovernanceDiagnostic]) -> frozenset[ArtifactKind]:
+    """Return the kinds whose resolved list is exactly the built-in catalog default (#7511).
+
+    Classified by diagnostic code and kind, never by message text. A
+    ``SELECTION_MERGED`` entry means the project added to a base, so the lists
+    are then enumerated in full rather than described as the default.
+    """
+    if any(d.code is GovernanceDiagnosticCode.SELECTION_MERGED for d in diagnostics):
+        return frozenset()
+    return frozenset(d.kind for d in diagnostics if d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED and d.kind is not None)
+
+
+def _governance_list(items: list[str], *, catalog_default: bool) -> str:
+    """Render one governance list: its ids, or a count when it is the catalog default.
+
+    The catalog default is every built-in id; listing ids that carry no text
+    gives the reader nothing to act on (#7511).
+    """
+    if catalog_default:
+        return f"built-in catalog default ({len(items)}; none selected by this project)"
+    return ", ".join(items) if items else "(none)"
 
 
 def read_wp_task(tasks_dir: Path, wp_id: str, mission_slug: str) -> tuple[Path, WPMetadata, str]:

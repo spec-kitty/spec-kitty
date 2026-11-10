@@ -106,6 +106,21 @@ def test_bare_project_resolution_codes_catalog_default_and_fallback(tmp_path: Pa
     assert "UNKNOWN_SELECTION_DROPPED" not in by_code
 
 
+def test_catalog_default_diagnostics_name_their_kind(tmp_path: Path) -> None:
+    """#7511: the two catalog-default entries share a code and differ by ``kind``; the JSON form is unchanged."""
+    from charter.activation.api import GovernanceDiagnosticCode
+    from charter.offering.artifact_kinds import ArtifactKind
+
+    _write_charter_files(tmp_path, governance="charter: {}\n")
+
+    diagnostics = resolve_project_governance(tmp_path).diagnostics
+
+    defaults = [d for d in diagnostics if d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED]
+    assert sorted(str(d.kind) for d in defaults) == [str(ArtifactKind.DIRECTIVE), str(ArtifactKind.PARADIGM)], defaults
+    assert all(d.kind is None for d in diagnostics if d not in defaults), diagnostics
+    assert all(set(d.to_json()) == {"code", "message"} for d in diagnostics)
+
+
 def test_selection_beyond_base_codes_selection_merged(tmp_path: Path) -> None:
     """Charter selections, extra tools and project-local directives merged onto a base are ``SELECTION_MERGED``."""
     repo = _identity_project(tmp_path, selected="[QA_003]", activated_directives=["001-architectural-integrity-standard"])
