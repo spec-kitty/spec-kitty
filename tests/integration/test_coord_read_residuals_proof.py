@@ -38,6 +38,7 @@ flat (single-branch) mission, where the routing is a structural no-op.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 from pathlib import Path
@@ -182,28 +183,6 @@ def _revert_resolver_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
         return resolved
 
     monkeypatch.setattr(PlacementSeam, "read_dir", _coord_aware)
-
-
-def _reroute_status_leg_to_primary(monkeypatch: pytest.MonkeyPatch, primary_feature_dir: Path) -> None:
-    """Re-route ONLY the ``STATUS_STATE`` seam read to PRIMARY (NFR-001 guard).
-
-    The kind-SELECTIVE counterpart of :func:`_revert_resolver_to_coord_aware`:
-    it simulates a silent STATUS→PRIMARY re-route while leaving every other
-    kind on the real seam, so the resulting domain-value flip is attributable
-    to the STATUS leg alone. Every non-STATUS kind delegates to the real
-    :meth:`~mission_runtime.PlacementSeam.read_dir` — no path is faked.
-    """
-    from mission_runtime import MissionArtifactKind, PlacementSeam
-
-    real_read_dir = PlacementSeam.read_dir
-
-    def _rerouted(self: PlacementSeam, kind: MissionArtifactKind) -> Path:
-        if kind is MissionArtifactKind.STATUS_STATE:
-            return primary_feature_dir
-        resolved: Path = real_read_dir(self, kind)
-        return resolved
-
-    monkeypatch.setattr(PlacementSeam, "read_dir", _rerouted)
 
 
 def _spy_seam_read_dir(monkeypatch: pytest.MonkeyPatch, captured: dict[Any, Path]) -> None:
@@ -379,15 +358,15 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
 ) -> None:
     """``scan_recovery_state`` reads the STATUS event log from the COORD husk.
 
-    NFR-001 primary evidence: ``read_events`` is invoked ONLY with the coord husk
-    dir during the scan — NEVER the PRIMARY dir — and the resolved
-    ``status_lane`` reflects the coord event (a returned domain value).
+    NFR-001 primary evidence: the status read door's ``read_status_events`` is invoked
+    ONLY with a surface on the coord husk dir during the scan — NEVER the PRIMARY dir —
+    and the resolved ``status_lane`` reflects the coord event (a returned domain value).
 
-    Revert-fails guard (executed below): re-routing the STATUS leg to PRIMARY
-    (kind-selectively, at the seam's ``read_dir(STATUS_STATE)`` projection) makes
-    ``read_events`` read the PRIMARY decoy — whose event carries a non-reducible
-    marker — so ``status_lane`` collapses to the ``planned`` default, flipping the
-    domain value. A silent STATUS→PRIMARY re-route is caught.
+    Revert-fails guard (executed below): re-routing the STATUS leg to PRIMARY (at the
+    door, ``resolve_status_read``, #7310) makes the scan read the PRIMARY decoy — whose
+    event carries a non-reducible marker — so ``status_lane`` collapses to the
+    ``planned`` default, flipping the domain value. A silent STATUS→PRIMARY re-route is
+    caught.
     """
     from specify_cli import status as status_mod
     from specify_cli.lanes import recovery
@@ -404,15 +383,15 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
     lane_branch = code_lane_branch_name(ctx.slug, "lane-a")
     _git_branch(ctx, lane_branch)
 
-    # Pass-through spy capturing every dir handed to read_events during the scan.
-    real_read_events = status_mod.read_events
+    # Pass-through spy capturing the dir of every surface the read door reads during the scan.
+    real_read_status_events = status_mod.read_status_events
     seen_dirs: list[Any] = []
 
-    def _spy_read_events(feature_dir: Any) -> Any:
-        seen_dirs.append(feature_dir)
-        return real_read_events(feature_dir)
+    def _spy_read_status_events(surface: Any) -> Any:
+        seen_dirs.append(surface.path)
+        return real_read_status_events(surface)
 
-    monkeypatch.setattr(status_mod, "read_events", _spy_read_events)
+    monkeypatch.setattr(status_mod, "read_status_events", _spy_read_status_events)
 
     states = scan_recovery_state(ctx.repo, ctx.slug)
     wp01 = next(rs for rs in states if rs.wp_id == "WP01")
@@ -425,7 +404,12 @@ def test_recovery_status_leg_reads_coord_husk_not_primary(
 
     # --- Executed revert-fails guard: re-route the STATUS leg to PRIMARY. ---
     seen_dirs.clear()
-    _reroute_status_leg_to_primary(monkeypatch, ctx.primary_feature_dir)
+    real_resolve_status_read = recovery.resolve_status_read
+
+    def _rerouted_to_primary(repo_root: Path, mission: str) -> Any:
+        return dataclasses.replace(real_resolve_status_read(repo_root, mission), path=ctx.primary_feature_dir)
+
+    monkeypatch.setattr(recovery, "resolve_status_read", _rerouted_to_primary)
     reverted_states = recovery.scan_recovery_state(ctx.repo, ctx.slug)
     reverted_wp01 = next(rs for rs in reverted_states if rs.wp_id == "WP01")
     assert ctx.primary_feature_dir in seen_dirs, "the revert must route the STATUS read to PRIMARY (guard setup sanity)"

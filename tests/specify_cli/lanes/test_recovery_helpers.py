@@ -271,3 +271,22 @@ def test_append_ready_to_start_dedupes_existing() -> None:
         states, ready_to_start=["WP02"], all_wp_lanes={},
     )
     assert len(states) == 1  # no duplicate appended
+
+
+# ---------------------------------------------------------------------------
+# #7310: the STATUS leg reads through the one status read door; no Mission -> no status
+# ---------------------------------------------------------------------------
+
+
+def test_status_surface_is_none_for_a_mission_that_does_not_exist(tmp_path: Path) -> None:
+    from specify_cli.lanes.recovery import _resolve_recovery_status_surface
+
+    (tmp_path / "kitty-specs").mkdir()
+    assert _resolve_recovery_status_surface(tmp_path, "no-such-mission") is None
+
+
+def test_lane_helpers_read_no_status_without_a_surface() -> None:
+    from specify_cli.lanes.recovery import _get_all_wp_lanes_from_events, _get_wp_lane_from_events
+
+    assert _get_wp_lane_from_events(None, "WP01") == Lane.PLANNED.value
+    assert _get_all_wp_lanes_from_events(None) == {}
