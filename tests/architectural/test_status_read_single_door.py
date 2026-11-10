@@ -267,7 +267,7 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
 )
 
 #: The live scan must see at least this many hits (anti-vacuity floor; lower it as the allowlist drains).
-_LIVE_HIT_FLOOR = 40
+_LIVE_HIT_FLOOR = 43
 
 
 def test_no_status_read_bypasses_the_door() -> None:
