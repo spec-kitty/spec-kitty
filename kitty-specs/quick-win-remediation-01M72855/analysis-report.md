@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: quick-win-remediation-01M72855
 mission_id: 01M72855APNG65QWBNMJ5QDS60
-generated_at: '2026-11-10T08:27:41.051460+00:00'
+generated_at: '2026-11-10T08:28:19.919294+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -21,16 +21,12 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  low: 5
-  medium: 2
-  critical: 0
   high: 0
+  medium: 1
+  critical: 0
+  low: 5
   info: 0
 findings:
-- id: C1
-  severity: medium
-  category: coverage
-  summary: FR-008's for_review refusal is pinned only at authored_subtask_roster; no production-path test drives move-task --to for_review or the emit transition pipeline with a map-shaped roster, and neither door catches SubtaskRosterResolutionError today, so how the refusal renders is unverified.
 - id: C2
   severity: medium
   category: coverage
@@ -63,7 +59,7 @@ Mission `quick-win-remediation-01M72855`. Artifacts: `spec.md` (16 FR, 5 NFR, 8 
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| C1 | Coverage | MEDIUM | spec.md FR-008, US5 sc.1; tasks/WP02 T010 | for_review refusal tested only at the roster function; the `move-task` door (`tasks_move_task.py:1449` → `tasks_shared._check_unchecked_subtasks`) and the emit pipeline (`transition_pipeline.py:168` → `emit._infer_subtasks_complete`) have no `SubtaskRosterResolutionError` handler, so rendering is unverified (tactic `acceptance-criteria-non-vacuity`: exercise the production path). | Add a WP02 T010 step: one production-path test of `move-task --to for_review` (or the emit pipeline) on a map-shaped WP asserting a non-zero, legible refusal naming the file and the list form; if the door shows a raw traceback, record it as a finding for the reviewer rather than widening into unowned files. |
+| C1 | Coverage | RESOLVED | tasks/WP02 T010 step 4 | Resolved before implementation (commit 777fda5): WP02 T010 now requires a production-path `for_review` refusal test (move-task door or emit pipeline) and records a traceback rendering as a reviewer finding without widening into unowned files. | — |
 | C2 | Coverage | MEDIUM | spec.md SC-007; charter Standing Order #8 | Issue-matrix rows, claims/tracker comments and the four follow-up issues are not owned by any WP. | Orchestrator handles at accept/wrap-up: issue-matrix rows for #7439 #7440 #7441 #7442 #7443 #7445 #7463, claim comments, file the four follow-ups, PR body `Closes` lines. |
 | U1 | Underspecification | LOW | tasks/WP0*.md "Branch Strategy" | Body placeholders not substituted. | Implementers read frontmatter `planning_base_branch` / `merge_target_branch`; no change needed. |
 | U2 | Underspecification | LOW | spec.md NFR-001 | Linearity not mechanically checked. | Accepted per operator decision; reviewer checks the timing table. |
@@ -82,7 +78,7 @@ Mission `quick-win-remediation-01M72855`. Artifacts: `spec.md` (16 FR, 5 NFR, 8 
 | FR-005 mixed-session-pair-dropped | Yes | T005 | |
 | FR-006 one-case-insensitive-locator | Yes | T007, T008, T009 | |
 | FR-007 non-regular-matches-fail-closed | Yes | T007, T009 | |
-| FR-008 only-task-ids-in-roster | Yes | T010, T011 | see C1 |
+| FR-008 only-task-ids-in-roster | Yes | T010, T011 | production-path for_review test added (C1 resolved) |
 | FR-009 oversized-int-refuses | Yes | T010, T011 | |
 | FR-010 view-tolerates-refused-roster | Yes | T010, T011 | |
 | FR-011 mark-status-mission-wide-refusal | Yes | T010 | no src change needed (`tasks_mark_status.py:418-420`) |
@@ -115,5 +111,5 @@ Mission `quick-win-remediation-01M72855`. Artifacts: `spec.md` (16 FR, 5 NFR, 8 
 ## Next Actions
 
 - No CRITICAL or HIGH findings: implementation may proceed.
-- C1: add one production-path `for_review` refusal test step to WP02 T010 (planning edit to the WP02 prompt, then re-run `/spec-kitty.analyze`).
+- C1: resolved (WP02 T010 step 4, commit 777fda5).
 - C2: orchestrator to create issue-matrix rows, claims and follow-up issues during accept/wrap-up.
