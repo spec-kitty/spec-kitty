@@ -33,8 +33,11 @@ _APPROVED_MEMBERSHIP_LANES: frozenset[str] = frozenset({"approved", "done"})
 # CONTAINS a ``kitty-ops/`` segment deeper in the tree is not mistaken for the
 # toolchain's own Op-record ledger. Mirrors the ULID shape
 # ``coordination/coherence.py`` uses for its (deliberately broader, whole-tree)
-# dirty-state-gate classifier.
-_KITTY_OPS_ROOT_RECORD = re.compile(r"^kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
+# dirty-state-gate classifier. A repo-ROOT ``kitty-ops/lifecycle/<ULID>.json`` work
+# package lifecycle record matches too (#7346 operator ruling): ``doctor ops
+# --close-stale`` commits its ``abandoned`` closures in lane checkouts, and such a
+# commit on an approved lane is spec-kitty's own bookkeeping, not unreviewed work.
+_KITTY_OPS_ROOT_RECORD = re.compile(r"^kitty-ops/(?:[0-9A-HJKMNP-TV-Z]{26}\.jsonl|lifecycle/[0-9A-HJKMNP-TV-Z]{26}\.json)$")
 
 
 def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
@@ -72,8 +75,8 @@ def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | 
       hand-built claim that sets the prefix without a ``mission_slug``);
     * a repo-ROOT ``.kittify/`` prefix — encoding-provenance,
       mission-state-audit, and other toolchain-owned state;
-    * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan
-      (:data:`_KITTY_OPS_ROOT_RECORD`);
+    * a repo-ROOT ``kitty-ops/<ULID>.jsonl`` Op-record orphan or
+      ``kitty-ops/lifecycle/<ULID>.json`` lifecycle record (:data:`_KITTY_OPS_ROOT_RECORD`, #7346);
     * for a bare-slug coordination claim only (a NESTED *planning_prefix*), the
       coordination-kind files (status pair, traces, matrices, decision log, review
       cycles) anywhere under the composed directory ``kitty-specs/<alias>/``
