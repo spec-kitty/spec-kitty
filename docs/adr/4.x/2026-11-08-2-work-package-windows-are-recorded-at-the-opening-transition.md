@@ -175,6 +175,11 @@ flag is not read: a forced `approved -> planned` or `done -> planned` is rework 
 twin, and a forced move to `planned` out of any other lane is a rewind. The operator can overturn
 this reading in review.
 
+**Clarification 2026-11-10 (operator ruling).** An unforced unclaim (`in_progress -> planned`, and
+`blocked -> planned`) is a rewind: it starts a new cycle, so commits from the abandoned cycle that
+are still on the lane are refused ("precedes approvals"). No attestation lifts that refusal. The
+recovery is to take those commits off the lane, or not to unclaim work you mean to keep.
+
 The same selector (`consolidation/wp_attribution.py`: `window_opener_events`, `window_open_of`)
 serves the `single_branch` derivation when no window is recorded, with its legacy first-claim rule
 (`cycle=False`). The opener rule lives once. The review-rejection reading above stays an
@@ -220,7 +225,8 @@ rules already judge them. The commits the mixed-lane resolution attributed to th
 work packages are therefore exempt from tier 2 (`reconciliation_bound._canceled_window_exempt`);
 the mixed-lane and canceled-content rules are their only judge. Tier 1 is unchanged: a canceled
 work package's commit after an approval stamp still refuses (#5720). The `orchestrator-api` door
-(`approved_bound_refusal`) resolves the same exemption.
+(`approved_bound_refusal`) runs neither the mixed-lane nor the canceled-content checks, so it
+exempts no canceled commit: the strict window rule judges them there.
 
 **Declared dependency refs (pre-PR fold M9).** A lane can carry content inherited before its first
 window: an external ref merged into it before the work package's claim, or a lane cut from another
@@ -305,6 +311,7 @@ claim capture, feeds every consumer of the closed-world anchors (Decision Moment
 4. the approved-reviewed attestation check.
 
 A dependency lane that moved after the interruption no longer widens what is exempt on any axis.
+A dependency lane rewound to an ancestor after the interrupted run keeps the frozen (wider) tip, matching what that run's claim already judged.
 A fresh run reads live tips, which equal what the claim freezes on an unmutated state, so its
 verdict is unchanged. A dependency lane the record froze no tip for is read live, listed in
 `ClaimInputs.degraded_dependency_anchors`, and named in a note on the resume. Only the coordination

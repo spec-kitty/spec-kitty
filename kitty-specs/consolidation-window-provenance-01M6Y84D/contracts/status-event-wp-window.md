@@ -96,5 +96,6 @@ A failed capture: the lane branch exists but cannot be read:
 
 - **Additive**: old readers ignore the key. New readers accept old rows (R-2).
 - **SHA classification**: `("status.events.jsonl", "policy_metadata.wp_window.open_sha")` is `BRANCH_RELATIVE` in `tests/architectural/test_dossier_sha_provenance.py::DOSSIER_SHA_FIELDS`.
+- **Closed key set**: the key set is closed. Adding any field, even an optional one, requires a `schema_version` bump; a reader treats an unknown field as malformed and falls back (R-5).
 - **Evolution**: a new field or cause bumps `schema_version`. Readers treat an unknown version as absent (R-5) until they are taught it. Typing the key in the spec-kitty-events status payload (with its own payload version) is the FR-006 follow-up; until then this document is the contract.
 - **Not affected**: `orchestrator-api` envelopes (no contract-version change); the `lane_head` key and its consumers; the rollback snapshot and `state.json`. Named residual: because the envelope carries no gap report, a W-7 downgrade is invisible to an orchestrator until a later contract version carries it.
