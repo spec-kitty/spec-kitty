@@ -87,7 +87,7 @@ flowchart LR
     harness -->|current CLI calls| cli
     harness -.->|planned governed MCP reads| charter
     cli -->|current direct writes in Python| sources
-    cli -.->|planned reads through the charter API seam (#645)| charter
+    cli -.->|"planned reads through the charter API seam (#645)"| charter
     charter -.->|planned authored-source read| sources
     ui -->|mission status only| status
 ```
