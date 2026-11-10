@@ -1,0 +1,80 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M737K3B27N4569FSC4P9STXY",
+  "materialized_at": "2026-11-10T17:20:17.250199+00:00",
+  "mission_number": "",
+  "mission_slug": "docsite-redirects-01M733MD",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M7365ZDYX93WM9H6GD4QQXSC",
+      "last_transition_at": "2026-11-10T16:55:38.686997+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Generator, map (929 keys), stub predicate, astro wiring, ADR amendment. Local: build 929 stubs; both coverage runs 970/970; built-site check and built-links gate green; 156 targeted tests pass.",
+        "Review passed (independent, reviewer-renata). Rules 1-5 live only in scripts/docs/site_redirects.py, not in moves.yaml or the tests. redirect_stub_target mirrors doc-kitty REDIRECT_STUB_RE exactly, and the page and render surfaces use it. --check passes. 929 keys, 0 dead targets. Both /assets/*.html go to the /assets/ hub (active Hub page, spec rule 5). The local pnpm build gives two coverage-gate runs, both 970/970, rc 0. Every key is a stub with the mapped target; 21 index.html stubs. The built-site check is green and the sitemap has no .html entry. Red commit ac033980d gives 20 failed, 136 passed. tests/docs 2244 passed / 8 skipped after uv sync (2 wheel errors were a stale venv). Terminology guard: 98 passed. ruff, format and mypy --strict are clean. The ADR is an added amendment only, and the DocFX path is untouched. Low: the ADR amendment describes the WP02 gate wiring (--check step, self-test) ahead of WP02. No test covers the 'no published ancestor' refusal. In this worktree make docs-site failed at the link gate (corepack fetched pnpm 12 instead of the pinned 10.28.0): environmental."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty-6933/kitty-specs/docsite-redirects-01M733MD/tasks/WP01-legacy-map-and-site/review-cycle-1.md",
+        "reference": "review-cycle://docsite-redirects-01M733MD/WP01-legacy-map-and-site/review-cycle-1.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M737K3B27N4569FSC4P9STXY",
+      "last_transition_at": "2026-11-10T17:20:17.250199+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Self-test (3 mutants, injectable gate, captured output) + unit tests; site_redirects --check before build; two coverage runs; self-test step; Makefile mirrors; router filter + scrub copy gain site_redirects*.py and moves_ledger.py. Folded WP01 lows: no-published-ancestor refusal test; ADR amendment wiring delivered as described. make docs-site green end to end (970/970 twice, self-test 3/3).",
+        "Review passed (independent, reviewer-renata). Mutants only unlink() in the hard-linked copy, and the draft map is written outside dist. A scratch mutant that writes in place makes test_the_built_site_is_never_modified fail, and a re-run of the gate on the real dist after the self-test gives 970/970. The self-test cannot pass vacuously: a gate that never fails, always fails, ignores --docs or exits 2 fails it, and a missing pnpm raises. The router filter and the scrub copy are in lockstep. The arch, ci and release gates give 394 passed. actionlint is clean and the SHA pins are unchanged. tests/docs 2252 passed. ruff, format and mypy --strict are clean. Red commit af27726c2: 7 failed. make docs-site with pnpm 10.28.0 gives rc 0: both coverage runs 970/970 and the self-test verdicts as expected. Cross-WP coordination: WP02 adds one test (no-published-ancestor refusal, WP01 review follow-up) to the WP01-owned tests/docs/test_site_redirects.py; WP01 is approved and both land in one PR. Low: on a mismatch the self-test discards the gate output it captured; printing it would aid triage. The no-ancestor test was green at the red commit, because the behaviour already existed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "feedback_path": "/home/user/spec-kitty-6933/kitty-specs/docsite-redirects-01M733MD/tasks/WP02-redirect-gates/review-cycle-1.md",
+        "reference": "review-cycle://docsite-redirects-01M733MD/WP02-redirect-gates/review-cycle-1.md",
+        "reviewer": "claude-reviewer::reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

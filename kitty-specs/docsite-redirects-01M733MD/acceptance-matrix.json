@@ -1,0 +1,79 @@
+{
+  "mission_slug": "docsite-redirects-01M733MD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "site/legacy-redirects.json is generated from moves.yaml, the URL baseline and the published set by D-5 rules 1-5",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_redirects.py (one mutant per rule and refusal); generator writes 929 keys",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:20:54.032938+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The site is built with legacyHtmlRedirects from the committed map",
+      "proof_type": "automated_test",
+      "evidence": "make docs-site: doc-kitty wrote 929 legacy .html redirect stubs; both coverage runs 970/970",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:20:59.836707+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "site_redirects --check runs before the build and fails on a stale map",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_redirects.py check tests (stale, missing, refusal); docs-site-build.yml and make docs-site step",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:21:06.389337+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "dockitty-check-redirect-coverage runs twice: with --docs and the declared map, and with neither",
+      "proof_type": "automated_test",
+      "evidence": "make docs-site: both runs 'OK - 970/970 baselined URL(s) covered'",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:21:12.355667+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The self-test proves the real gate's verdicts on dead-target, missing-key and draft-excused mutants",
+      "proof_type": "automated_test",
+      "evidence": "make docs-site: 'site redirects self-test: 3 mutant(s), every gate verdict as expected'; tests/docs/test_site_redirects_selftest.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:21:17.227325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Redirect stubs are skipped by the page and render surfaces through one predicate; a stub to an unpublished route is still reported",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_contract.py, test_site_built_check.py, test_site_built_check_render.py; built-site check green on the real build (929 stubs)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:21:22.047445+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "ADR 2026-10-31-1 amended for the legacy map, retired override and counts",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md '## Amendment 2026-11-10' (body unchanged); reviewer approved",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T17:21:26.854102+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
