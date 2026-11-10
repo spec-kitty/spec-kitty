@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Defect-remediation bundle: no new interface, endpoint or event shape. The Mission tightens existing error contracts (StoreError, SubtaskRosterResolutionError) and input rules, documented in data-model.md.",
   "create_return_branch": "fix/quick-win-remediation",
   "created_at": "2026-11-10T08:10:54.812313+00:00",
   "flattened": false,
