@@ -140,6 +140,7 @@ def _guard_unchanged_inputs(
     working: dict[str, tuple[str, int]],
     inputs: dict[str, dict[str, str | None]],
     canonical_inputs: dict[str, dict[str, str | None]] | None = None,
+    charter_root: Path | None = None,
 ) -> None:
     """Re-check the concurrency guard right before the commit.
 
@@ -152,7 +153,7 @@ def _guard_unchanged_inputs(
         or _index(repo_root, relative) != index
         or _working(repo_root, relative) != working
         or collect_material_inputs(feature_dir, repo_root) != inputs
-        or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
+        or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs, charter_root=charter_root)
     ):
         raise ValueError("Repository changed before report commit; retained report is unqualified")
 
@@ -246,25 +247,31 @@ def _owned_canonical_inputs(
     repo_root: Path,
     owned: OwnedCheckout | None,
 ) -> dict[str, dict[str, str | None]] | None:
-    """Snapshot the renderer's actual input hashes, including the canonical R charter."""
+    """Snapshot the renderer's actual input hashes, including the owned checkout's charter.
+
+    The charter is hashed from the validated owned checkout, as the full recorder
+    and ``next`` do (#6846, #7434): an owned recording binds its own charter.
+    """
     if owned is None:
         return None
     if repo_root.resolve() != owned.owned_root:
         raise ValueError("Owned report transactions must operate in the validated checkout")
     owned.files([feature_dir / ANALYSIS_REPORT_FILENAME])
-    return cast(dict[str, dict[str, str | None]], collect_input_artifact_hashes(feature_dir, repo_root))
+    return cast(dict[str, dict[str, str | None]], collect_input_artifact_hashes(feature_dir, repo_root, charter_root=owned.owned_root))
 
 
 def _canonical_inputs_changed(
     feature_dir: Path,
     repo_root: Path,
     expected: dict[str, dict[str, str | None]] | None,
+    *,
+    charter_root: Path | None,
 ) -> bool:
-    return expected is not None and collect_input_artifact_hashes(feature_dir, repo_root) != expected
+    return expected is not None and collect_input_artifact_hashes(feature_dir, repo_root, charter_root=charter_root) != expected
 
 
 def _canonical_charter_dirt(owned: OwnedCheckout | None, inputs: dict[str, dict[str, str | None]] | None) -> set[str]:
-    """Gate only the canonical charter actually hashed by the owned renderer."""
+    """Gate only the charter actually hashed by the owned renderer: the owned checkout's."""
     if owned is None or inputs is None:
         return set()
     path = inputs["charter"]["path"]
@@ -275,7 +282,7 @@ def _canonical_charter_dirt(owned: OwnedCheckout | None, inputs: dict[str, dict[
         candidates.add(CHARTER_YAML.as_posix())
     if path is None:
         candidates.add(CHARTER_MD.as_posix())
-    return candidates & _dirty_paths(owned.repository_root)
+    return candidates & _dirty_paths(owned.owned_root)
 
 
 def _dirty_material_inputs(
@@ -289,7 +296,7 @@ def _dirty_material_inputs(
     """Material inputs whose committed state this recording commit cannot establish.
 
     Four sources: index/worktree dirt on a material path (or on the report), a
-    dirty canonical charter, and a material path that exists on disk but is not
+    dirty charter of the owned checkout (the one the owned renderer hashes), and a material path that exists on disk but is not
     in the index. The last one is the only source that can be satisfied by
     committed authority the repository does not hold itself: a fetched pack tree
     is gitignored because its commit is pinned in ``packs/<name>.source.yaml``
@@ -334,6 +341,8 @@ def record_report_transaction(
     committed: str | None = None
     head: bytes | None = None
     token = uuid4().hex
+    # The charter an owned recording binds and checks: the validated owned checkout's (#7434).
+    charter_root = owned.owned_root if owned is not None else None
     try:
         canonical_inputs = _owned_canonical_inputs(feature_dir, repo_root, owned)
         relative = report.relative_to(repo_root).as_posix()
@@ -364,6 +373,7 @@ def record_report_transaction(
             analyzer_agent=analyzer_agent,
             material_inputs=inputs,
             transaction_id=token,
+            charter_root=charter_root,
         )
         existing = _matching_qualified_report(repo_root, report, rendered)
         if existing is not None:
@@ -372,7 +382,7 @@ def record_report_transaction(
                 or _index(repo_root, relative) != index
                 or _working(repo_root, relative) != working
                 or collect_material_inputs(feature_dir, repo_root) != inputs
-                or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
+                or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs, charter_root=charter_root)
                 or report.read_text(encoding="utf-8") != existing
             ):
                 raise ValueError("Repository changed during unchanged-report verification")
@@ -381,7 +391,13 @@ def record_report_transaction(
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write(receipt_path, json.dumps({"state": "pending", "report": relative}))
         result = write_analysis_report(
-            feature_dir=feature_dir, repo_root=repo_root, body=body, analyzer_agent=analyzer_agent, material_inputs=inputs, transaction_id=token
+            feature_dir=feature_dir,
+            repo_root=repo_root,
+            body=body,
+            analyzer_agent=analyzer_agent,
+            material_inputs=inputs,
+            transaction_id=token,
+            charter_root=charter_root,
         )
         wrote = True
         report_hash = result.content_sha256
@@ -397,6 +413,7 @@ def record_report_transaction(
             working=working,
             inputs=inputs,
             canonical_inputs=canonical_inputs,
+            charter_root=charter_root,
         )
         outcome = _commit_report(
             repo_root=repo_root,
@@ -416,7 +433,7 @@ def record_report_transaction(
             or _index(repo_root, relative) != index
             or _working(repo_root, relative) != working
             or collect_material_inputs(feature_dir, repo_root) != inputs
-            or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
+            or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs, charter_root=charter_root)
             or _sha256_file(report) != report_hash
             or _git(repo_root, "show", f"{committed}:{relative}") != report.read_bytes()
         ):
