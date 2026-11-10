@@ -13,7 +13,7 @@
       "wp": null
     },
     "#295": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "doc-kitty #295, cited for context (starlight.head)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6100": {
