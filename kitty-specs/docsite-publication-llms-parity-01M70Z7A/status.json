@@ -1,0 +1,102 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M72881AR8WSKTBGPXTK0Y4TY",
+  "materialized_at": "2026-11-10T08:12:28.888853+00:00",
+  "mission_number": "253",
+  "mission_slug": "docsite-publication-llms-parity-01M70Z7A",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::implementer-ivan",
+      "lane": "done",
+      "last_event_id": "01M7287ZNRRJ70RTS98W20KWR2",
+      "last_transition_at": "2026-11-10T08:12:27.192429+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-09T20:58:22Z – claude::implementer-ivan – shell_pid=29233 – Blocked (operator decision needed). Done: Part A (contract unpublished_routes/DRAFT_FOLDERS/LLMS_STANCE, site_built_check.py, frontmatter gate + built-site check wired in docs-site-build.yml/Makefile/router/scrub), Part B (11 working notes drafted, 5 retired pages archived + moves.yaml rows, links/toc/related reworded, ADR Amendment 2026-11-09). Red counts: Part A 30 failed/142 passed; Part B 1 failed/12 passed. Green: tests/docs 2175 passed 8 skipped (only test_every_page_in_a_draft_folder_is_a_draft red); ci/arch/release/terminology/ledger 300 passed 1 skipped. make docs-site: frontmatter gate green (685 files), 634 pages built, built-site check exit 1 on one page. Blockers: (1) plans/investigations/wp-runtime-state-eviction-scope.md not drafted: dated ADR 2026-07-16-1 body links to it (2 links); drafting it makes the check exit 0 (verified). (2) dockitty-check-links --strict (142 pre-existing problems, ~73 in immutable ADR/plans bodies) and dockitty-assert-no-broken-links (265 pre-existing) are red on the base tree, so they are NOT wired (T004 partial, T010 open). (3) Not archived (stop rule): sync-daemon-orphan-cleanup (ADR 2026-06-30-1 links it), team-kitty-saas and project-sync-consent (CHANGELOG.md links them), zeitgeist-client-wp01-remaining (plans/index.md links it), teamspace-mission-state-repair (scripts/ci/mission_state_audit_report.py REPAIR_DOC).",
+        "- 2026-11-09T21:28:35Z – claude::implementer-ivan – shell_pid=29233 – Operator rulings 2026-11-09 applied. Commits 78d7de175 (red: 14 failed/97 passed), cfcb044f7 (wrapper + both link gates wired), f3c27f211 (content). Declared out-of-map edits: scripts/ci/mission_state_audit_report.py REPAIR_DOC -> docs/archive/migrations/teamspace-mission-state-repair.md (+ test in tests/ci/test_mission_state_audit_report.py), tests/docs/test_relative_link_fixer.py (_KNOWN_GAPS read from site/link-debt.json gate relative-links), README.md (earlier). site/link-debt.json: 182 entries (check-links 63 = 52 pre-existing + 11 #6932; built-links 114 = 104 + 10; relative-links 5, all #6932). make docs-site: exit 0, 628 pages, frontmatter 680 valid, check-links 63/63 priced, built-site check 0 findings, built-links 114/114 priced. Tests: tests/docs 2183 passed 8 skipped 2 failed; ci/arch/release/terminology 310 passed 1 skipped. BLOCKED on T010: tests/docs/test_docs_structural_lint.py live-tree index_completeness (built-in pack lint) requires docs/architecture/index.md to link activation-ledger-and-charter-contract, charter-backend-service-future, wp-runtime-state-eviction (author-set drafts), while dockitty-check-links --strict refuses links from a published hub to drafts. Needs an open-packs fix (skip doc_status: draft in index_completeness) or an operator call.",
+        "- 2026-11-10T06:48:11Z – claude::implementer-ivan – shell_pid=29233 – Ruling 2026-11-10 applied (e7bf0ae29): the three architecture pages are published and the hub links them again. make docs-site exit 0, 631 pages: frontmatter 680 valid, check-links 59/59 priced, built-site check 0 findings (308 unpublished routes), built-links 110/110 priced. site/link-debt.json has 174 entries: check-links 48 pre-existing + 11 #6932, built-links 100 + 10, relative-links 5 (#6932). Tests: tests/docs 2185 passed, 8 skipped; ci/arch/release/terminology 307 passed, 1 skipped; ruff, format and mypy clean. Declared out-of-map edits: scripts/ci/mission_state_audit_report.py (REPAIR_DOC) and its test, tests/docs/test_relative_link_fixer.py, README.md.",
+        "Ready for review",
+        "Re-claim for review cycle 1 (implement self-heal refused: orphaned planning commit after rebase)",
+        "- 2026-11-10T07:30:07Z – claude::implementer-ivan – Review cycle 1 fixed. Re-claim: 'agent action implement' refused to self-heal (planning commit 0ebc12fc orphaned by the rebase; 'finalize-tasks --refresh-planning-commit --allow-orphaned' refused: lanes.json does not resolve to the planning target branch on this single_branch topic-branch mission), so WP01 was re-claimed with move-task planned->in_progress. Commits: cfa0ac306 red (3 failed, 70 passed, 1 skipped), 276afd08f fix. (1) site_link_gates fails closed: unrecognised output, [dk-routes] lines, a missing or mismatched summary count all fail on a non-zero exit. (2) Correction to the earlier note: the move re-pointed 14 relative links in 7 of the 10 archived pages (same targets), not 4 links in 3 pages; ADR amendment corrected. (3) Declared out-of-map edit: scripts/docs/dockitty_frontmatter_migration.py DRAFT_SECTIONS now derives from DRAFT_FOLDERS. (4) Stale relative-links debt entries are reported as warnings. Tests: tests/docs 2191 passed, 8 skipped; ci/arch/release/terminology 307 passed, 1 skipped; ruff and mypy clean. make docs-site exit 0, 631 pages; check-links 59/59 and built-links 110/110 priced; built-site check 0 findings.",
+        "Ready for review (cycle 1 fixes)",
+        "Review passed (cycle 2)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261110",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26052,
+      "shell_pid_created_at": "1794295856.51",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::implementer-ivan",
+      "lane": "done",
+      "last_event_id": "01M72881AR8WSKTBGPXTK0Y4TY",
+      "last_transition_at": "2026-11-10T08:12:28.888853+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-10T07:53:36Z – claude::implementer-ivan – shell_pid=543 – Implemented Part A (#6934) and Part B (#6935). Commits: b46e5a521 (llms red, 8 failed), 7d8e79390 (render red, 13 failed), 55d968799 (llms.txt wrapper + agent index + llms-content surface), d7812cf08 (githubAlerts + render surface). Declared out-of-map edits: scripts/docs/site_built_check.py (one import line + one SURFACES entry per surface), tests/docs/test_site_built_check.py (clean fixture carries the stance and full heads; mutant assertion reads its own surface only). Tests: tests/docs -n 4 --dist loadfile 2212 passed 8 skipped; tests/ci/test_docs_site_job.py + test_no_legacy_terminology.py + test_no_duplicate_suite_execution.py 199 passed 1 skipped; ruff/format/mypy --strict clean on 6 files. make docs-site exit 0, 631 pages, site built check: 308 unpublished routes none on a surface incl. llms-content and render; link debt check-links 59/59 priced, built-links 110/110 priced, 0 new. llms.txt 702 lines, stance after header, 0 plans routes; api/index.json built. Literal-alert pages (contributing, claude-code-workflow, install-spec-kitty, your-first-mission) now render starlight asides. SEO parity checklist delivered in the implementer report for the orchestrator to commit.",
+        "Ready for review: llms.txt + agent index (#6934), githubAlerts + render surface (#6935)",
+        "Review passed: llms.txt wrapper thin, fails build on header drift, cites #265/#312, stance from contract projection; dist llms.txt carries stance exactly, no plans/unpublished route; api/index.json no collision; render surface (description, self-canonical, og:*, literal alerts outside code) with mutants; 7 alert source pages render asides; no starlight.head; WP01 mutants still assert own surface. Red commits red alone (8, 13). LOW: title/description duplicated in llms.txt.ts and astro.config.mjs (drift risk, outside C-002's unpublished-set scope); llms-content reads repo sections.yaml, ignores --docs. tests/docs 2212p/8s; job+terminology+dup-suite 199p/1s; ruff/mypy clean; make docs-site exit 0, 631 pages."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261110",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21480,
+      "shell_pid_created_at": "1794297556.97",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "mission_slug": "docsite-publication-llms-parity-01M70Z7A",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs: test_every_page_in_a_draft_folder_is_a_draft; built-site check on the real build (308 unpublished routes, 0 on any surface)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:05.856782+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "10 pages under docs/archive/ with site/moves.yaml rows; redirect_stub_generator check-map fresh; built-site check",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:09.533687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_contract.py (unpublished_routes, DRAFT_FOLDERS) and test_site_scaffold.py projection equality",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:13.579991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/docs/site_link_gates.py + tests/docs/test_site_link_gates.py mutants; wired in docs-site-build.yml and Makefile; make docs-site exit 0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:18.371001+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_built_check.py (one mutant per surface); real build check in the shared workflow",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:23.787776+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_built_check_llms.py mutants; real site/dist/llms.txt carries the stance, 0 plans/ routes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:28.444510+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "site/dist/api/index.json built; llms surface asserts it; built-links gate finds no new problem",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:32.487854+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_built_check_render.py literal-alert mutant; 7 alert pages render asides",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:36.468031+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "render surface on every built page (description, self-canonical, og:*); research/seo-parity-checklist.md; gaps in spec-kitty/doc-kitty#313",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:40.787214+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "strict link gate passes with only immutable-source debt (site/link-debt.json, #7489)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T08:11:44.902927+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
