@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M726SASP2NFJM9JCERRTBDAB",
+  "completed_at": "2026-11-10T08:20:56.744659+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "/tmp/claude-0/-home-user-spec-kitty/df0bfa9b-376f-571a-a481-3f2829d3c1b0/scratchpad/code-grounding-7493.md"
+}
