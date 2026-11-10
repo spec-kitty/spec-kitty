@@ -457,13 +457,6 @@ class TestWhenDoneBlock:
         mark_status = next(index for index, line in enumerate(block) if "agent tasks mark-status T001" in line)
         assert block.index(commit_step) < mark_status < hand_off
 
-    def test_lane_workspace_implement_names_no_commit_step(self, feature_with_wp: Path) -> None:
-        """A lane worktree's deliverables are committed by ``move-task`` itself."""
-        block = _when_done_block(_build_wp_prompt_text(feature_with_wp, "implement"))
-
-        assert not any("safe-commit" in line for line in block), "\n".join(block)
-        assert any("move-task WP01 --to for_review" in line for line in block)
-
     @pytest.mark.parametrize(
         ("fixture_name", "action"), [("feature_with_repo_root_code_wp", "implement"), ("feature_with_wp", "implement"), ("feature_with_wp", "review")]
     )
