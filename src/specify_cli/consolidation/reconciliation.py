@@ -50,8 +50,8 @@ case) is out of scope for this mission and stays named-open in the docs.
 
 Layout (WP15): this module holds no logic, only the module docstring, the re-exports and ``__all__``.
 The code lives in flat sibling modules, one per unit of the gate, listed here in import (dependency)
-order: each module imports only modules listed above it (``test_reconciliation_split_shape`` pins the
-ranks):
+order: each module imports only modules listed above it. The order is documented, not gated;
+``test_reconciliation_module_imports`` imports every module cold, so a cycle fails it:
 
 * ``reconciliation_kernel``: lane branch, spine and dependency helpers, bookkeeping classifier, lane walk.
 * ``reconciliation_claim_types``: the claim record, lane content and presence-gap types.

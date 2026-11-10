@@ -457,10 +457,16 @@ The evidence: `tests/status/test_wp_window_capture.py`, `tests/consolidation/tes
 `test_claim_inputs_parity.py`, `test_forecast_fresh_run_parity.py`, `test_lane_approval_windows.py`,
 `test_refusal_precedence_matrix_windows.py`, `test_lane_window_query_count.py`,
 `test_window_gap_report.py`, `test_window_gap_report_entry_points.py`,
-`test_authored_walk_read_error.py`, `test_resume_frozen_anchors.py`,
-`test_reconciliation_characterization.py`, `test_reconciliation_intended_verdicts.py` and
-`test_reconciliation_seeded_mutations.py` (all under `tests/consolidation/` unless named), and
-`tests/integration/test_single_branch_approval_windows.py`.
+`test_authored_walk_read_error.py` and `test_resume_frozen_anchors.py` (all under
+`tests/consolidation/` unless named), and `tests/integration/test_single_branch_approval_windows.py`.
+
+Landing note (2026-11-10, operator ruling on #7490): the characterization corpus, the seeded-mutation
+harness, the facade surface pin and the intended-verdict ledger were refactor scaffolding. They are
+retired at landing, after an independent AST comparison showed every moved definition byte-identical
+apart from the named verdict changes. The two intended-verdict checks no other test asserted moved
+into `test_resume_frozen_anchors.py` (the merge-commit variant of (e)) and
+`test_lane_approval_windows.py` (the naming line of (b)); each behaviour above is now carried by the
+dedicated tests listed.
 
 ## Pros and Cons of the Options
 
