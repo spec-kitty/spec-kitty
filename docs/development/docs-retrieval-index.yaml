@@ -3541,6 +3541,7 @@ pages:
     - {slug: "amendment-2026-11-05-a-base-derived-from-git-stands-in-for-a-planning-commit-finalize-never-recorded-7209-7210", text: "Amendment 2026-11-05 — a base derived from git stands in for a planning commit finalize never recorded (#7209, #7210)", level: 3}
     - {slug: "amendment-2026-11-06-per-wp-approval-windows-for-single-branch-7283", text: "Amendment 2026-11-06: per-WP approval windows for single_branch (#7283)", level: 2}
     - {slug: "amendment-2026-11-08-lane-approvals-are-judged-by-recorded-work-package-windows-7403", text: "Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)", level: 2}
+    - {slug: "amendment-2026-11-10-the-implement-claim-records-its-dispatch-identity-and-a-submission-refines-it-7159", text: "Amendment 2026-11-10: the implement claim records its dispatch identity, and a submission refines it (#7159)", level: 2}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
