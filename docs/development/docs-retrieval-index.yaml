@@ -3023,6 +3023,7 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-11-10-no-mkdir-remedy-for-a-remappable-path-7512", text: "Amendment 2026-11-10: no `mkdir` remedy for a remappable path (#7512)", level: 2}
   - path: "docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md"
     title: "ADR: Relocate the expected-artifacts.yaml loader authority into charter, sibling error model"
     divio_type: "none"
@@ -4119,6 +4120,7 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "why-not-the-others", text: "Why not the others", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendment-2026-11-10-an-abandoned-record-closes-a-stale-lifecycle-record-7346", text: "Amendment 2026-11-10: an abandoned record closes a stale lifecycle record (#7346)", level: 2}
   - path: "docs/adr/4.x/2026-11-06-1-a-destructive-git-operation-discharges-named-proof-obligations.md"
     title: "ADR: a destructive git operation discharges named proof obligations"
     divio_type: "none"
@@ -6439,6 +6441,7 @@ pages:
     - {slug: "tier-3-durable-project-state-optional-action-driven", text: "Tier 3 — Durable Project State (optional, action-driven)", level: 3}
     - {slug: "promotion-rules", text: "Promotion Rules", level: 3}
     - {slug: "doctor-sweep-closures-and-the-archive-freeze-4397", text: "Doctor-Sweep Closures and the Archive Freeze (#4397)", level: 2}
+    - {slug: "lifecycle-records-in-the-same-sweep-7346", text: "Lifecycle records in the same sweep (#7346)", level: 3}
     - {slug: "saas-read-model-policy", text: "SaaS Read-Model Policy", level: 2}
     - {slug: "tier-2-saas-projection-deferred", text: "Tier 2 SaaS Projection — Deferred", level: 2}
     - {slug: "retention-and-redaction", text: "Retention and Redaction", level: 2}
