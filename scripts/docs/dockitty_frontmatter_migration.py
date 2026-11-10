@@ -55,6 +55,7 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 
 from scripts.docs._dockitty_contract import (
+    DRAFT_FOLDERS,
     INDEX_BASENAMES,
     FrontmatterFindings,
     body_of,
@@ -141,8 +142,9 @@ DOC_STATUS_ALIASES: Final[Mapping[str, str]] = {"closeout": "durable", "point_in
 
 #: ADR D-8: these subtrees take ``doc_status: draft`` and are not published. A legacy
 #: value there becomes ``draft``, not the ``durable`` of :data:`DOC_STATUS_ALIASES`,
-#: which would publish pages the operator ruled unpublished.
-DRAFT_SECTIONS: Final[tuple[str, ...]] = ("plans/engineering-notes/", "plans/investigations/", "plans/research/")
+#: which would publish pages the operator ruled unpublished. Derived from the contract's
+#: :data:`~scripts.docs._dockitty_contract.DRAFT_FOLDERS`, the one authority (#6932, C-002).
+DRAFT_SECTIONS: Final[tuple[str, ...]] = tuple(f"{folder}/" for folder in DRAFT_FOLDERS)
 
 _AUDIENCE: Final[str] = "audience"
 _RELATED: Final[str] = "related"

@@ -13,7 +13,10 @@ problem (``gate``, ``source`` page under ``docs/``, ``target``) and:
 * fails on a problem the debt file does not list;
 * fails on a debt entry whose source is not immutable
   (``_dockitty_contract.is_immutable``): an editable page fixes its links instead;
-* fails when the gate exits non-zero with no problem it can parse (a crash, a bad flag);
+* fails closed when the gate exits non-zero: every output line must be a parsed
+  problem or one of the gate's known informational lines (anything else, such as a
+  ``[dk-routes]`` route collision, fails), and the gate's own summary count must be
+  present and equal the number of problem lines it printed;
 * prints, without failing, entries that no longer occur.
 
 It is not a ratchet: no count, no shrink-only rule.
@@ -43,7 +46,7 @@ _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 from scripts.docs._dockitty_contract import is_immutable, page_for_slug  # noqa: E402  (after the path bootstrap above)
 
-__all__ = ["DEBT_PATH", "GATES", "RELATIVE_LINKS_GATE", "Problem", "Verdict", "evaluate", "load_debt", "main", "parse"]
+__all__ = ["DEBT_PATH", "GATES", "RELATIVE_LINKS_GATE", "Problem", "Verdict", "evaluate", "load_debt", "main", "parse", "unaccounted_output"]
 
 DEBT_PATH: Final[Path] = _ROOT / "site" / "link-debt.json"
 DOCS_PATH: Final[Path] = _ROOT / "docs"
@@ -58,6 +61,21 @@ RELATIVE_LINKS_GATE: Final[str] = "relative-links"
 _MARK: Final[str] = "✖"
 _CHECK_LINKS: Final[re.Pattern[str]] = re.compile(rf"^{_MARK} (?P<source>[^:]+): .* → (?P<target>.+)$")
 _BUILT_LINKS: Final[re.Pattern[str]] = re.compile(rf"^{_MARK} (?P<page>\S+) → (?P<target>.+?) \(resolved: [^)]*\): .+$")
+#: Informational lines each gate prints beside its problems; on a failing run, any other line fails.
+_INFO_LINES: Final[dict[str, tuple[re.Pattern[str], ...]]] = {
+    "check-links": (
+        re.compile(r"^check-links: "),
+        re.compile(r"^index names: "),
+        re.compile(r"^excluded folders: "),
+        re.compile(r"^✓ "),
+    ),
+    "built-links": (re.compile(r"^assert-no-broken-links: excluded folders: "),),
+}
+#: Each gate's own count of the problems it printed, on a failing run.
+_SUMMARY: Final[dict[str, re.Pattern[str]]] = {
+    "check-links": re.compile(r"^(?P<count>\d+) link problem\(s\) in "),
+    "built-links": re.compile(r"^assert-no-broken-links: FAILED — (?P<count>\d+) broken "),
+}
 _INDEX_HTML: Final[str] = "index.html"
 _UNPARSED: Final[str] = "?"
 
@@ -116,6 +134,31 @@ def parse(gate: str, output: str, docs: Path) -> set[Problem]:
     return {_parse_line(gate, line, docs) for line in lines if line.startswith(_MARK)}
 
 
+def unaccounted_output(gate: str, output: str) -> list[str]:
+    """Why a failing gate's *output* is not fully explained by its problem lines (empty when it is).
+
+    Every non-blank line must be a problem line, a known informational line or the
+    gate's summary, and the summary's count must equal the number of problem lines.
+    """
+    reasons: list[str] = []
+    marked = 0
+    counts: list[int] = []
+    for line in (raw.strip() for raw in output.splitlines()):
+        if not line:
+            continue
+        if line.startswith(_MARK):
+            marked += 1
+            continue
+        summary = _SUMMARY[gate].match(line)
+        if summary:
+            counts.append(int(summary["count"]))
+        elif not any(pattern.match(line) for pattern in _INFO_LINES[gate]):
+            reasons.append(f"unrecognised {gate} output on a failing run: {line}")
+    if counts != [marked]:
+        reasons.append(f"{gate} summary count {counts or 'missing'} does not match its {marked} problem line(s)")
+    return reasons
+
+
 def load_debt(path: Path) -> list[Problem]:
     """The debt entries of the file at *path*."""
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -161,8 +204,10 @@ def main(argv: list[str] | None = None) -> int:
     problems = parse(args.gate, output, args.docs)
     debt = [entry for entry in load_debt(args.debt) if entry.gate == args.gate]
     verdict = evaluate(problems, debt, args.docs)
-    if code != 0 and not problems:
-        verdict.failures.append(f"{args.gate} exited {code} with no problem the wrapper can parse")
+    if code != 0:
+        verdict.failures.extend(unaccounted_output(args.gate, output))
+        if not problems:
+            verdict.failures.append(f"{args.gate} exited {code} with no problem the wrapper can parse")
     for line in verdict.stale:
         print(f"link debt: {line}")
     for line in verdict.failures:
