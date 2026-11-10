@@ -150,6 +150,9 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
     ``kitty-ops/`` exemption is deliberately wider than that rule (only
     ``kitty-ops/<ULID>.jsonl`` Op records): the claim is non-destructive, so
     exempting the directory never discards anything. Do not "align" the lists.
+    The one rule the claim does share is the decision-service runtime lock, applied
+    by :func:`_claim_dirty_paths` through its own predicate rather than listed here
+    (#7493).
     """
     return (
         f"kitty-specs/{mission_slug}/status.events.jsonl",
@@ -160,6 +163,39 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
         f"{RUNTIME_STATE_DIR_NAME}/",
         "kitty-ops/",
     )
+
+
+def _claim_dirty_paths(write_checkout: Path, mission_slug: str) -> list[str]:
+    """The write checkout's uncommitted paths that refuse a claim.
+
+    Filters :func:`~specify_cli.lanes.checkout_occupancy.dirty_paths` with this
+    claim's own list (:func:`_owned_status_prefixes`), then drops every
+    Mission's decision-service runtime lock through its one predicate,
+    :func:`~specify_cli.coordination.coherence.is_decisions_runtime_lock`
+    (#6628, #7493). The lock persists, untracked, by design (#5925), so it is
+    never uncommitted work; the predicate covers ANY Mission's lock, because a
+    shared single_branch checkout also carries the locks of the other Missions
+    it hosts. Only this one rule is borrowed: the claim keeps its own list
+    otherwise, as :func:`_owned_status_prefixes` explains.
+
+    Git collapses a wholly untracked directory to one ``dir/`` entry, so a
+    ``decisions/`` that holds nothing but the lock reads as ``decisions/``;
+    such an entry is dropped only when every file under it is a lock.
+    """
+    from specify_cli.lanes.checkout_occupancy import dirty_paths
+
+    owned = _owned_status_prefixes(mission_slug)
+    return [path for path in dirty_paths(write_checkout, owned_prefixes=owned) if not _is_only_decisions_runtime_locks(write_checkout, path)]
+
+
+def _is_only_decisions_runtime_locks(write_checkout: Path, path: str) -> bool:
+    """True when *path* (a file, or a collapsed ``dir/`` entry) names only decisions runtime locks."""
+    from specify_cli.coordination.coherence import is_decisions_runtime_lock
+
+    if not path.endswith("/"):
+        return bool(is_decisions_runtime_lock(path))
+    files = [item.relative_to(write_checkout).as_posix() for item in (write_checkout / path).rglob("*") if item.is_file()]
+    return bool(files) and all(is_decisions_runtime_lock(file) for file in files)
 
 
 def _is_single_branch_mission(repo_root: Path, mission_slug: str) -> bool:
@@ -229,7 +265,7 @@ def _ensure_repo_root_checkout_available(
     if not _is_single_branch_mission(repo_root, mission_slug):
         return False
 
-    from specify_cli.lanes.checkout_occupancy import dirty_paths, in_progress_wps_in_write_checkout
+    from specify_cli.lanes.checkout_occupancy import in_progress_wps_in_write_checkout
     from specify_cli.status import Lane
     from specify_cli.status import get_wp_lane, has_event_log
 
@@ -279,7 +315,7 @@ def _ensure_repo_root_checkout_available(
     # resume.
     is_resume = has_event_log(status_feature_dir) and get_wp_lane(status_feature_dir, wp_id) == Lane.IN_PROGRESS
     if not is_resume:
-        dirty = dirty_paths(write_checkout, owned_prefixes=_owned_status_prefixes(mission_slug))
+        dirty = _claim_dirty_paths(write_checkout, mission_slug)
         if dirty:
             listed = ", ".join(dirty)
             raise WriteCheckoutDirtyError(
