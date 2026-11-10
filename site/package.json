@@ -15,7 +15,8 @@
     "@spec-kitty/doc-toolkit": "github:spec-kitty/doc-kitty#5acb83c099cde169e5e24d2f42d4012cb356a3ab&path:/src",
     "astro": ">=7.2.10 <8",
     "@astrojs/starlight": ">=0.42.0 <0.43.0",
-    "@astrojs/markdown-remark": ">=7.3.0 <8"
+    "@astrojs/markdown-remark": ">=7.3.0 <8",
+    "playwright": "1.62.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
