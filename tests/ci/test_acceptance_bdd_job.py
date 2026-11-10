@@ -82,6 +82,17 @@ def test_no_retry_guard_rejects_retry_shapes(step: dict[str, Any]) -> None:
         _assert_no_retry(step)
 
 
+@pytest.mark.p0_repro(issue=7492)
+def test_gating_leg_runs_no_wip_pass(job: dict[str, Any]) -> None:
+    """#7492: the non-gating @wip pass must never spend the gating leg's job budget.
+
+    Nightly runs 41961190305 (2026-11-05) and 42748989805 (2026-11-10): the Windows gating
+    pass went green in ~47 minutes, then the @wip step ran the leg into its 60-minute job cap,
+    the leg was cancelled and the whole acceptance-bdd run escalated as a P0 with no failing test.
+    """
+    assert _steps_running(job, "-Pacceptance.pass=wip") == []
+
+
 def test_wip_step_is_non_gating(job: dict[str, Any]) -> None:
     (step,) = _steps_running(job, "-Pacceptance.pass=wip")
     assert step["continue-on-error"] is True

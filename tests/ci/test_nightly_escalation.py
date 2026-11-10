@@ -185,6 +185,17 @@ def test_failure_with_no_open_issue_creates_a_p0_issue_with_marker() -> None:
     assert "#4242" in summary
 
 
+@pytest.mark.p0_repro(issue=7492)
+def test_cancelled_red_with_no_failing_test_names_the_cancellation() -> None:
+    """#7492: a cancelled (timed-out) suite must not read as only 'no failing tests'."""
+    from scripts.ci.nightly_xunit import XunitRead
+
+    body = mod.issue_body("acceptance-bdd", "https://run/9", report=XunitRead((), None), job_result="cancelled")
+    assert "`cancelled`" in body
+    assert "timeout-minutes" in body
+    assert body.index("`cancelled`") < body.index(mod.escalation_marker("acceptance-bdd"))
+
+
 def test_created_issue_body_carries_the_exact_stable_dedup_marker() -> None:
     body = mod.issue_body("stress", "https://run/9")
     assert "<!-- nightly-escalation-key: stress -->" in body
