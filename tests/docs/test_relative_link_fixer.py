@@ -29,8 +29,7 @@ from typing import Final
 import pytest
 
 from scripts.docs._guards import GitDiffError
-from scripts.docs._dockitty_contract import is_immutable
-from scripts.docs.site_link_gates import DEBT_PATH, RELATIVE_LINKS_GATE, load_debt
+from scripts.docs.site_link_gates import DEBT_PATH, RELATIVE_LINKS_GATE, is_debt_eligible_source, load_debt
 from scripts.docs.relative_link_fixer import (
     _LINK,
     LinkTarget,
@@ -505,9 +504,15 @@ class TestLiveTreeGate:
 
         assert stale_known_gaps({("docs/b.md", "dead.md")}, known) == [("docs/a.md", "gone.md")]
 
-    def test_known_gaps_name_only_immutable_sources(self) -> None:
-        editable = sorted(source for source, _ in self._KNOWN_GAPS if not is_immutable(source.removeprefix("docs/")))
+    def test_known_gaps_name_only_debt_eligible_sources(self, tmp_path: Path) -> None:
+        docs = _REPO_ROOT / "docs"
+        editable = sorted(source for source, _ in self._KNOWN_GAPS if not is_debt_eligible_source(source.removeprefix("docs/"), docs))
         assert editable == [], f"fix the link in an editable page instead of pricing it: {editable}"
+
+        planted = tmp_path / "plans" / "hub.md"  # a live hub under plans/ is never debt, as for the doc-kitty link gates
+        planted.parent.mkdir()
+        planted.write_text("---\ntitle: t\ndoc_status: draft\nkind: Hub\n---\n", encoding="utf-8")
+        assert not is_debt_eligible_source("plans/hub.md", tmp_path)
 
     def test_assembled_tree_has_no_unexpected_dead_links(self) -> None:
         dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT)}

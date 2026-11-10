@@ -47,7 +47,19 @@ _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 from scripts.docs._dockitty_contract import is_immutable, page_for_slug, split_frontmatter  # noqa: E402  (after the path bootstrap above)
 
-__all__ = ["DEBT_PATH", "GATES", "RELATIVE_LINKS_GATE", "Problem", "Verdict", "evaluate", "load_debt", "main", "parse", "unaccounted_output"]
+__all__ = [
+    "DEBT_PATH",
+    "GATES",
+    "RELATIVE_LINKS_GATE",
+    "Problem",
+    "Verdict",
+    "evaluate",
+    "is_debt_eligible_source",
+    "load_debt",
+    "main",
+    "parse",
+    "unaccounted_output",
+]
 
 DEBT_PATH: Final[Path] = _ROOT / "site" / "link-debt.json"
 DOCS_PATH: Final[Path] = _ROOT / "docs"
@@ -181,6 +193,14 @@ def _is_live_plan(source: str, docs: Path) -> bool:
     return fields.get("kind") == "Hub" or fields.get("doc_status") in _LIVE_PLAN_STATUSES
 
 
+def is_debt_eligible_source(source: str, docs: Path) -> bool:
+    """True when the page *source* (under *docs*) may carry priced link debt: immutable history, not a live ``plans/`` page.
+
+    The one predicate for every debt gate: the doc-kitty link gates (:func:`evaluate`) and ``relative-links``.
+    """
+    return is_immutable(source) and not _is_live_plan(source, docs)
+
+
 def evaluate(problems: Iterable[Problem], debt: Iterable[Problem], docs: Path) -> Verdict:
     """The verdict on a gate's *problems* against the *debt* entries; sources are pages under *docs*."""
     found = set(problems)
@@ -189,7 +209,7 @@ def evaluate(problems: Iterable[Problem], debt: Iterable[Problem], docs: Path) -
     verdict = Verdict()
     verdict.failures.extend(f"not in the link debt: {problem}" for problem in sorted(found - entries, key=str))
     for entry in sorted(entries, key=str):
-        if not is_immutable(entry.source) or _is_live_plan(entry.source, docs):
+        if not is_debt_eligible_source(entry.source, docs):
             verdict.failures.append(f"debt entry source is not immutable, fix the link instead: {entry}")
         elif not (docs / entry.source).is_file():
             verdict.failures.append(f"debt entry source page does not exist: {entry}")
