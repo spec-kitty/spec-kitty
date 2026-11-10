@@ -15,6 +15,7 @@ import json as _json_mod
 import logging
 import subprocess as _subprocess
 from pathlib import Path
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 if TYPE_CHECKING:
@@ -53,8 +54,11 @@ from specify_cli.invocation.op_custody import (
     OpWriteRefused,
 )
 from specify_cli.invocation.op_commit_policy import (
+    LIFECYCLE_RECORDS,
+    OP_RECORDS,
     OpCommitProbeError,
     PrimaryTracking,
+    RecordKind,
     op_commit_skip_reason,
     probe_primary_tracking,
 )
@@ -464,7 +468,7 @@ class ProfileInvocationExecutor:
         # Primary-branch Op-record tracking, decided once per executor (#6410,
         # NFR-001): one sweep closes many Ops and the answer cannot change
         # between them.
-        self._primary_tracking: PrimaryTracking | None = None
+        self._primary_tracking: dict[str, PrimaryTracking] = {}
         # Lazily populated only for doctor-sweep closes. One executor serves an
         # entire stale sweep, so keep the append-only spine's membership set in
         # memory and extend it after each successful append instead of reparsing
@@ -1112,15 +1116,54 @@ class ProfileInvocationExecutor:
                 op_path = self._writer.invocation_path(invocation_id)
                 relative_path = op_path.relative_to(self._record_root)
                 message = f"op({profile_id}): {action} [{invocation_id[:8]}]"
+        except Exception as exc:  # noqa: BLE001 - best-effort like the commit itself (#4397)
+            logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
+            return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
+        return self._commit_record_paths(
+            (relative_path,),
+            message,
+            kind=OP_RECORDS,
+            label=invocation_id,
+            explicit_trailer=explicit_trailer,
+        )
 
+    def commit_lifecycle_closures(self, paths: Sequence[Path]) -> OpCommitOutcome:
+        """Commit the lifecycle records the doctor sweep wrote in this executor's checkout (#7346).
+
+        The same best-effort commit as an Op close (:meth:`_commit_record_paths`):
+        the #6410 skip rules judged for lifecycle records, a protected-branch
+        refusal reported and never bypassed, the repository's co-author trailer.
+        ``paths`` are the new ``kitty-ops/lifecycle/<ulid>.json`` files, all under
+        this executor's record root.
+        """
+        relative = tuple(path.relative_to(self._record_root) if path.is_absolute() else path for path in paths)
+        message = f"op(doctor): close {len(relative)} stale lifecycle record(s) (doctor sweep)"
+        return self._commit_record_paths(relative, message, kind=LIFECYCLE_RECORDS, label="lifecycle closures")
+
+    def _commit_record_paths(
+        self,
+        paths: tuple[Path, ...],
+        message: str,
+        *,
+        kind: RecordKind,
+        label: str,
+        explicit_trailer: str | None = None,
+    ) -> OpCommitOutcome:
+        """The one best-effort commit of ``kitty-ops/`` records (#4397, #6410, #7346).
+
+        Returns the outcome (also kept in ``last_op_commit``) instead of raising:
+        the records are already durable on disk, so a skipped or refused commit
+        is reported, never fatal.
+        """
+        try:
             current_branch = self._current_branch()
             if current_branch is None and not self._inside_work_tree():
                 return self._record_op_commit(OpCommitOutcome(committed=False, refusal="not a git worktree"))
 
             # #6410: decide skip-or-commit before the branch check, so a
-            # detached HEAD in a repository that keeps no Op records skips
+            # detached HEAD in a repository that keeps no such records skips
             # quietly instead of reporting a refusal.
-            skip_reason = self._op_commit_skip_reason(relative_path)
+            skip_reason = next(filter(None, (self._op_commit_skip_reason(path, kind) for path in paths)), None)
             if skip_reason is not None:
                 return self._record_op_commit(OpCommitOutcome(committed=False, skipped=skip_reason))
             if current_branch is None:
@@ -1131,14 +1174,14 @@ class ProfileInvocationExecutor:
                     trailer = resolve_co_author_trailer(self._repo_root)
                 except InvalidCoAuthor as exc:
                     # A configuration defect refuses the commit, visibly; the
-                    # completed event is already durable and the Op stays closed.
-                    logger.info("Op record auto-commit for %s refused: %s", invocation_id, exc)
+                    # records are already durable and stay closed.
+                    logger.info("Op record auto-commit for %s refused: %s", label, exc)
                     return self._record_op_commit(OpCommitOutcome(committed=False, refusal=str(exc)))
             if trailer is not None:
                 message = f"{message}\n\n{trailer}"
 
             safe_commit(
-                **self._op_commit_kwargs(current_branch, relative_path),
+                **self._op_commit_kwargs(current_branch, *paths),
                 message=message,
             )
             return self._record_op_commit(OpCommitOutcome(committed=True))
@@ -1146,13 +1189,13 @@ class ProfileInvocationExecutor:
             # The guard's own message names the protected-branch override,
             # which agents must not use; report the refusal without it (#6410).
             refusal = f"protected branch {exc.destination_ref!r}"
-            logger.info("Op record auto-commit for %s refused: %s", invocation_id, refusal)
+            logger.info("Op record auto-commit for %s refused: %s", label, refusal)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=refusal))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Op record auto-commit failed for %s: %r", invocation_id, exc)
+            logger.warning("Op record auto-commit failed for %s: %r", label, exc)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
 
-    def _op_commit_kwargs(self, branch: str, path: Path) -> _OpCommitKwargs:
+    def _op_commit_kwargs(self, branch: str, *paths: Path) -> _OpCommitKwargs:
         """The commit arguments admission and the real auto-commit share (#6564).
 
         One builder, so the probe can never judge a different commit than the
@@ -1164,7 +1207,7 @@ class ProfileInvocationExecutor:
             repo_root=self._repo_root,
             worktree_root=self._record_root,
             target=CommitTarget(ref=branch),
-            paths=(path,),
+            paths=paths,
             # Op-record auto-commit targets the operator's CURRENT branch,
             # which can be protected main; STANDARD asserts no
             # protected-branch flow, so the guard refuses there and the
@@ -1226,18 +1269,19 @@ class ProfileInvocationExecutor:
         )
         return inside.returncode == 0 and inside.stdout.strip() == "true"
 
-    def _op_commit_skip_reason(self, relative_path: Path) -> str | None:
+    def _op_commit_skip_reason(self, relative_path: Path, kind: RecordKind = OP_RECORDS) -> str | None:
         """Decide whether the auto-commit is skipped (#6410); never raises.
 
         A git probe failure is a skip too: the commit is best-effort, so an
         undecidable question must not turn into an unwanted commit.
         """
         try:
-            if self._primary_tracking is None:
-                self._primary_tracking = probe_primary_tracking(self._record_root)
+            tracking = self._primary_tracking.get(kind.label)
+            if tracking is None:
+                tracking = self._primary_tracking[kind.label] = probe_primary_tracking(self._record_root, kind)
             # Typed local: under the isolated-file ``follow_imports = "skip"``
             # check the cross-module call is seen as ``Any``.
-            reason: str | None = op_commit_skip_reason(self._record_root, relative_path, tracking=self._primary_tracking)
+            reason: str | None = op_commit_skip_reason(self._record_root, relative_path, tracking=tracking)
             return reason
         except OpCommitProbeError as exc:
             return f"git probe failed while deciding whether to commit the Op record: {exc}"
