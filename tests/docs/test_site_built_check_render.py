@@ -36,7 +36,7 @@ def _page(url: str, body: str = "<p>Body</p>", *, omit: str = "", canonical: str
         "description": f'<meta name="description" content="{description}"/>',
         "canonical": f'<link rel="canonical" href="{canonical or url}"/>',
         "og:title": '<meta property="og:title" content="A page"/>',
-        "og:description": f'<meta property="og:description" content="{description}"/>',
+        "og:description": '<meta property="og:description" content="A page."/>',
         "og:url": f'<meta property="og:url" content="{url}"/>',
     }
     head = "".join(tag for name, tag in tags.items() if name != omit)

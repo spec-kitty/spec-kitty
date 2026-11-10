@@ -5,8 +5,12 @@
 // authority, through the generated dockitty-contract.json (`python -m scripts.docs.site_contract`).
 // Every dockitty-* gate must be run with `--astro-config astro.config.mjs` so it reads them.
 //
-// Not wired here yet: redirects (#6933; Astro `.html` redirect keys are fatal on static output),
-// llms.txt (#6934) and diagrams (#6936, needs the pinned PlantUML service).
+// llms.txt and the agent index are pages (src/pages/llms.txt.ts, src/pages/api/index.json.ts; #6934).
+// GitHub alerts (`> [!NOTE]`) render as asides (#6935). No `starlight.head` here: it replaces the
+// toolkit's head entries (spec-kitty/doc-kitty#295).
+//
+// Not wired here yet: redirects (#6933; Astro `.html` redirect keys are fatal on static output)
+// and diagrams (#6936, needs the pinned PlantUML service).
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import { defineDocKittyIntegrations } from '@spec-kitty/doc-toolkit/config';
@@ -24,6 +28,7 @@ export default defineConfig({
     indexBasename: contract.indexBasename,
     exclude: contract.exclude,
     diagrams: false,
+    githubAlerts: true,
     starlight: { disable404Route: true },
   }),
 });
