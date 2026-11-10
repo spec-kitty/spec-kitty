@@ -38,6 +38,8 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
+import threading
 import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, fields, is_dataclass, replace
@@ -427,6 +429,7 @@ def interrupt_after_claim(mission: ShapeMission, *extra: str) -> dict[str, Any]:
     report = mission.root / "interrupt-not-reached.json"
     report.unlink(missing_ok=True)
     if pid == 0:  # pragma: no cover - the child never returns; it is SIGKILLed or exits 3
+        stop_inherited_tracing()
         try:
             report.write_text(json.dumps(_interrupted_child_report(mission, extra)), encoding="utf-8")
         except BaseException as crashed:  # the child must never return into the parent's stack
@@ -1483,6 +1486,22 @@ def _compute_one(args: tuple[str, Mapping[str, ShapeMission], Path]) -> tuple[st
     return key, cell.compute(CellContext(templates=templates, scratch=scratch))
 
 
+def stop_inherited_tracing() -> None:
+    """Stop, in a forked child, the coverage measurement and trace hooks it inherited from the parent.
+
+    A forked child exits through ``os._exit``, so whatever a ``pytest --cov`` tracer records in it is
+    never saved; left running, the tracer only slows every line the child executes (the full corpus
+    under ``--cov`` on a 4-vCPU runner took ~590 s of its 600 s budget). Nothing is saved here either:
+    ``Coverage.stop`` only detaches the collector. Module state, so a monkeypatch applied in the parent
+    before the fork, is untouched. Without a running tracer this is a no-op.
+    """
+    coverage = sys.modules.get("coverage")  # a running tracer has imported it; never import it here
+    while coverage is not None and (running := coverage.Coverage.current()) is not None:
+        running.stop()
+    sys.settrace(None)
+    threading.settrace(None)
+
+
 def _map(function: Callable[[Any], Any], items: Sequence[Any], workers: int) -> list[Any]:
     if workers <= 1 or len(items) <= 1:
         return [function(item) for item in items]
@@ -1491,7 +1510,7 @@ def _map(function: Callable[[Any], Any], items: Sequence[Any], workers: int) -> 
         # workers only build repositories and run the CLI, and each returns a plain value.
         warnings.simplefilter("ignore", DeprecationWarning)
         context = multiprocessing.get_context("fork")
-        with context.Pool(processes=min(workers, len(items))) as pool:
+        with context.Pool(processes=min(workers, len(items)), initializer=stop_inherited_tracing) as pool:
             return pool.map(function, items, chunksize=1)
 
 

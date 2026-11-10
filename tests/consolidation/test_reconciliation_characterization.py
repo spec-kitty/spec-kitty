@@ -49,6 +49,7 @@ from collections.abc import Mapping
 import json
 import os
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -204,6 +205,30 @@ def test_corpus_workers_default_to_one_inside_an_xdist_worker(monkeypatch: pytes
     assert cs.corpus_workers() >= 1
 
 
+def _forked_worker_probe(_item: int) -> tuple[bool, bool, str]:
+    """In a forked corpus worker: (no trace hook, no running coverage, the parent's patched constant)."""
+    coverage = sys.modules.get("coverage")
+    return sys.gettrace() is None, coverage is None or coverage.Coverage.current() is None, cs.WORKERS_ENV
+
+
+def _noop_trace(_frame: Any, _event: str, _arg: Any) -> None:
+    return None
+
+
+def test_forked_corpus_workers_run_untraced_and_keep_the_parents_patches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A forked worker drops the inherited (``--cov``) tracer, whose data it never saves, but keeps module patches."""
+    monkeypatch.setattr(cs, "WORKERS_ENV", "patched-before-the-fork")
+    own_tracer = sys.gettrace() is None  # without --cov, install a hook so the child has one to drop
+    if own_tracer:
+        sys.settrace(_noop_trace)
+    try:
+        results = cs._map(_forked_worker_probe, [0, 1], workers=2)
+    finally:
+        if own_tracer:
+            sys.settrace(None)
+    assert results == [(True, True, "patched-before-the-fork")] * 2
+
+
 #: Codes only one mode can print, never a verdict of the claim: the forecast's own refusal wrapper, and the
 #: post-landing remote notice a real run prints after it lands (the forecast never lands).
 _MODE_ONLY_CODES = frozenset({"CLAIM_REFUSED_FORECAST", "NOT_LANDED_ON_NAMED_REMOTE"})
@@ -242,7 +267,7 @@ def test_modes_agree_wherever_they_apply() -> None:
     assert not disagreements, f"modes disagree on one scenario: {disagreements}"
 
 
-@pytest.mark.timeout(600)  # the corpus budget (10 min serial); on >=8 cores the forked workers finish it in about a minute
+@pytest.mark.timeout(600)  # 10 min budget; forked workers run untraced (stop_inherited_tracing), ~1 min on >=8 cores
 def test_verdict_corpus_matches_the_golden_file(tmp_path: Path) -> None:
     """Every cell recomputed; byte equality with the golden file (or a deterministic rewrite under the switch)."""
     names = list(cs.all_cells())
