@@ -39,6 +39,7 @@ from charter.activation.mission_type_profiles import (
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 from mission_runtime import ActionContextError, ClaimCommitUnresolved, OwnedRefusalCode, claim_commit_for_wp
 from runtime.next._tmp_namespace import prompt_tmp_dir, write_prompt_file
+from specify_cli.core.commit_recipe import implementation_commit_step
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.subtask_recipe import mark_status_recipe
 from specify_cli.runtime.resolver import resolve_command
@@ -264,7 +265,7 @@ def _build_wp_prompt(
     lines.append("=" * 78)
     lines.append("")
 
-    lines.extend(_completion_lines(action, wp_id, mission_slug, subtask_ids, owned))
+    lines.extend(_completion_lines(action, wp_id, mission_slug, subtask_ids, owned, workspace))
     return "\n".join(lines)
 
 
@@ -406,18 +407,54 @@ def _review_command_lines(
     return lines
 
 
-def _completion_lines(action: str, wp_id: str, mission_slug: str, subtask_ids: list[str], owned: OwnedCheckout | None = None) -> list[str]:
+_RUN_AS_WRITTEN_LINE = (
+    "  Run these commands as written (fill in only the <placeholders>) with the `spec-kitty` CLI that produced this prompt; no --help lookup is needed."
+)
+
+
+def _self_commit_branch(workspace: ResolvedWorkspace | None, owned: OwnedCheckout | None) -> str | None:
+    """The write branch when ``move-task --to for_review`` will not commit this WP's work itself, else ``None``.
+
+    Mirrors the no-auto-commit arm of ``_mt_commit_lane_deliverables``
+    (``tasks_move_task.py``): a WP whose workspace is the repository root
+    checkout and that has a write branch. There the for_review gate refuses a
+    WP with no implementation commit since claim. A lane worktree and an owned
+    checkout are auto-committed; a WP with no write branch has no such gate.
+    """
+    if owned is not None or workspace is None or workspace.resolution_kind != "repo_root":
+        return None
+    branch: str | None = workspace.branch_name
+    return branch
+
+
+def _completion_lines(
+    action: str,
+    wp_id: str,
+    mission_slug: str,
+    subtask_ids: list[str],
+    owned: OwnedCheckout | None = None,
+    workspace: ResolvedWorkspace | None = None,
+) -> list[str]:
     """The WHEN DONE completion-command block.
 
     An owned mission's completion commands carry ``--owned-checkout <P>``: that
     is the supported owned lifecycle path, and a bare command would resolve the
     repository root checkout instead.
+
+    An agent driven by ``spec-kitty next`` reads this block, not the claim
+    output, so it carries the whole hand-off runbook (#7510): the commit step
+    where ``move-task`` will not commit for the agent, and one line saying the
+    commands need no ``--help`` lookup.
     """
     # Project the validated fact only where it becomes command text; no bare
     # owned root crosses into the shared renderer (owned-authority gate G5).
     suffix = f" --owned-checkout {shlex.quote(str(owned.owned_root))}" if owned is not None else ""
-    lines = ["WHEN DONE:"]
+    lines = ["WHEN DONE:", _RUN_AS_WRITTEN_LINE]
     if action == "implement":
+        commit_branch = _self_commit_branch(workspace, owned)
+        if commit_branch is not None:
+            # Same step, same wording, as the claim output's "After implementation, run".
+            lines.append("  " + implementation_commit_step(wp_id, commit_branch))
         if subtask_ids:
             # Subtask ids are mission-scoped, so the recipe must name the work
             # package or `mark-status` refuses it when WPs reuse `T001..` (#7108).

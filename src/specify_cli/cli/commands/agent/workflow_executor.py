@@ -48,6 +48,7 @@ from kernel.git import GitCommandError, status_entries
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
+from specify_cli.core.commit_recipe import implementation_commit_step
 from specify_cli.cli.commands.implement_claim import DispatchedClaimIdentity, claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
@@ -1766,8 +1767,7 @@ def implement_finalize_and_print(
     print(f"    cat {prompt_file}")
     print()
     print("After implementation, run:")
-    _finalize_recipe = safe_commit_recipe(["<your-files>"], f"feat({normalized_wp_id}): <description>", workspace.branch_name)
-    print(f"  1. git status && {_finalize_recipe}")
+    print(f"  1. {implementation_commit_step(normalized_wp_id, workspace.branch_name)}")
     print(f"  2. {_subtask_completion_recipe(normalized_wp_id, mission_slug, subtask_cmd)}")
     print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     print("     (Pre-flight check will verify no uncommitted changes)")
