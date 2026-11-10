@@ -30,7 +30,8 @@ dependencies {
     // JUnit Platform aligns the launcher and engine versions through the BOM.
     testImplementation platform("org.junit:junit-bom:${junitBomVersion}")
     testImplementation 'org.junit.platform:junit-platform-suite'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // On the compile path (not runtime-only) because ShardFilter implements its PostDiscoveryFilter.
+    testImplementation 'org.junit.platform:junit-platform-launcher'
 
     // Cucumber-JVM 7 on the JUnit Platform.
     testImplementation "io.cucumber:cucumber-java:${cucumberVersion}"
@@ -66,6 +67,16 @@ if (requestedPass != null && !passTagFilters.containsKey(requestedPass.toString(
         + passTagFilters.keySet())
 }
 def acceptancePass = requestedPass != null ? requestedPass.toString() : 'adhoc'
+// Shard selection (#7492 follow-up): -Pacceptance.shard=K/N keeps shard K of N of the pass's
+// scenarios (kitty.acceptance.sharding.ShardFilter), so the nightly runs one pass on N runners.
+// Without it every scenario runs. A malformed value is refused here, before any scenario starts.
+def requestedShard = findProperty('acceptance.shard')?.toString()
+if (requestedShard != null) {
+    def shardMatch = requestedShard =~ /^([1-9][0-9]*)\/([1-9][0-9]*)$/
+    if (!shardMatch.matches() || (shardMatch.group(1) as int) > (shardMatch.group(2) as int)) {
+        throw new GradleException("acceptance.shard must be K/N with 1 <= K <= N, got '${requestedShard}'")
+    }
+}
 def tagFilter = requestedPass != null ? passTagFilters[acceptancePass] : adhocTagFilter
 // Every result of one pass lives under build/acceptance/<pass>/ (Gradle layout API, no raw paths).
 def passRoot = layout.buildDirectory.dir("acceptance/${acceptancePass}")
@@ -96,8 +107,13 @@ test {
     systemProperty 'acceptance.pass', acceptancePass
     systemProperty 'acceptance.pass.root', passRootPath
 
-    // Declared inputs make Gradle re-run the task when the pass or filter changes.
+    if (requestedShard != null) {
+        systemProperty 'acceptance.shard', requestedShard
+    }
+
+    // Declared inputs make Gradle re-run the task when the pass, filter or shard changes.
     inputs.property('acceptance.pass', acceptancePass)
+    inputs.property('acceptance.shard', requestedShard ?: '')
     inputs.property('cucumber.filter.tags', tagFilter ?: '')
     // The CLI under test is a wheel built from the checkout at run time, which no Gradle input
     // tracks. Without this, a re-run after a change under src/ (and nothing in this subproject)

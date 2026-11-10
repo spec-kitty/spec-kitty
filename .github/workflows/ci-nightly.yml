@@ -1868,16 +1868,25 @@ jobs:
   acceptance-bdd:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Acceptance BDD (acceptance-jvm, nightly-only, 3-OS)
+    # Sharded (#7492 follow-up): each OS runs the gating pass as ACCEPTANCE_SHARD_COUNT legs, one shard
+    # each (kitty.acceptance.sharding.ShardFilter: the executable scenarios in path/line order, dealt
+    # out round-robin, every scenario in exactly one shard). The Windows pass took ~47 minutes on one
+    # runner; three shards of 85 scenarios (29/28/28) cut the critical path to roughly a third.
+    # The matrix `shard` list must be 1..ACCEPTANCE_SHARD_COUNT (pinned by tests/ci/test_acceptance_bdd_job.py).
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
+        shard: [1, 2, 3]
+    env:
+      ACCEPTANCE_SHARD_COUNT: 3
     runs-on: ${{ matrix.os }}
     # Measured on run 38761757042 (56 gating scenarios, four at a time): Linux 6 min, macOS
     # 16 min, Windows over 30 min (a Mission lifecycle scenario runs dozens of CLI commands,
     # 200-450 s each on Windows). Nightlies 2026-11-02..10: Windows gating 44-48 min plus about
     # 2.5 min of setup. 60 minutes leaves headroom without hiding a hang for long; it budgets the
-    # gating pass only (the @wip pass has its own job, #7492).
+    # gating pass only (the @wip pass has its own job, #7492). The caps were sized for one unsharded
+    # leg and are kept until the sharded legs are measured; tighten them from those measurements.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -1900,7 +1909,7 @@ jobs:
         with:
           extras-only: 'true'
 
-      # Pin-guard pre-step (NFR-003), run ONCE on the Linux leg: the pinned gradle_pin_check.py,
+      # Pin-guard pre-step (NFR-003), run ONCE on the first Linux shard: the pinned gradle_pin_check.py,
       # through scripts/ci/acceptance_jvm_gradle_pin_check.py (its check_acceptance_jvm only: the
       # tool's bare run also scans a contracts/ JVM subproject core no longer has), checks that the
       # acceptance-jvm/tools/pins.json Gradle url carries the pinned version (and, if this job ever
@@ -1908,7 +1917,7 @@ jobs:
       # declares no Gradle version. A mismatch fails this step under the single
       # GRADLE_PIN_MISMATCH authority. Stdlib + PyYAML, so it is cheap.
       - name: Verify the acceptance-jvm Gradle pins equal pins.json
-        if: matrix.os == 'ubuntu-24.04'
+        if: matrix.os == 'ubuntu-24.04' && matrix.shard == 1
         shell: bash
         run: PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/ci/acceptance_jvm_gradle_pin_check.py
 
@@ -1953,7 +1962,7 @@ jobs:
         # #6787: below the job cap, so a timeout fails this step and the if: always() evidence and upload steps still run.
         timeout-minutes: 55
         shell: bash
-        run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
+        run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating "-Pacceptance.shard=${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"
 
       # Evidence bundle (FR-011): one versioned evidence.json per leg, counted from
       # the JUnit XML of each pass folder (not from step outcomes). if: always() so
@@ -1967,11 +1976,11 @@ jobs:
       - name: Write the acceptance evidence bundle
         if: always()
         shell: bash
-        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --pass gating --gating-step-outcome "${{ steps.gating.outcome }}"
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --shard "${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}" --pass gating --gating-step-outcome "${{ steps.gating.outcome }}"
 
       # Hand the per-pass results (allure-results, cucumber.json, junit) and
-      # evidence.json to the spec-kitty-qa nightly under an OS-qualified name so
-      # the three legs never collide. if: always() so a red gating run still
+      # evidence.json to the spec-kitty-qa nightly under an OS- and shard-qualified name so
+      # the legs never collide. if: always() so a red gating run still
       # uploads. The single path is the whole per-pass tree. The evidence step always
       # writes evidence.json there, so if-no-files-found: error only fires when that
       # step could not run at all (for example the Python environment failed to build).
@@ -1979,7 +1988,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: acceptance-bdd-results-${{ matrix.os }}
+          name: acceptance-bdd-results-${{ matrix.os }}-shard-${{ matrix.shard }}
           path: acceptance-jvm/build/acceptance/
           if-no-files-found: error
           retention-days: 30

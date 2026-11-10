@@ -291,3 +291,18 @@ def test_non_success_wip_step_fails_a_green_wip_pass(tmp_path: Path, step_outcom
 def test_main_rejects_an_unknown_pass(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         ev.main(["--root", str(tmp_path), "--os", "x", "--pass", "manual"])
+
+
+def test_shard_is_recorded_and_defaults_to_null(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(2))
+    assert ev.build_bundle(tmp_path, "x")["shard"] is None
+    assert ev.main(["--root", str(tmp_path), "--os", "x", "--pass", "gating", "--shard", "2/3"]) == 0
+    written = json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))
+    assert written["shard"] == "2/3"
+    _check_against_schema(written, json.loads(SCHEMA.read_text(encoding="utf-8")))
+
+
+@pytest.mark.parametrize("bad", ["0/3", "4/3", "3", "a/b", "1/", "/3", "-1/3"])
+def test_main_rejects_a_malformed_shard(tmp_path: Path, bad: str) -> None:
+    with pytest.raises(SystemExit):
+        ev.main(["--root", str(tmp_path), "--os", "x", "--shard", bad])
