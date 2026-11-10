@@ -62,6 +62,12 @@ class PathValidationResult:
     #: example in ``format_errors``; empty when nothing missing is remappable,
     #: so hand-built results keep rendering the historical two-lever text.
     remappable_missing_keys: list[str] = field(default_factory=list)
+    #: #7512: the missing paths a ``mkdir -p`` remedy is offered for -- every
+    #: missing path whose key is NOT in ``remappable_missing_keys`` (i.e. the
+    #: mission-artifact paths such as ``contracts/``). A remappable build-layout
+    #: path is left out: creating an empty ``src/`` only silences the check, and
+    #: the ``project.path_conventions`` remap is the remedy named for it instead.
+    creatable_missing_paths: list[str] = field(default_factory=list)
     #: #6633: the mission-type slug (``<...>/missions/<type>``'s last segment,
     #: e.g. ``software-dev``) used to name the project mission-override route
     #: (``.kittify/overrides/missions/<type>/mission.yaml``, #4088) in the
@@ -83,6 +89,10 @@ class PathValidationResult:
         lines = ["Path Convention Warnings:"]
         for warning in self.warnings:
             lines.append(f"  - {warning}")
+
+        # #7512: the advisory text names the same project-level levers as the
+        # strict text, from the one shared renderer.
+        lines.extend(self._remap_guidance_lines())
 
         if self.suggestions:
             lines.append("")
@@ -122,26 +132,9 @@ class PathValidationResult:
         # is excluded from the override vocabulary (C-010) and governed by the
         # #5298 ``contracts: none`` waiver instead. Placed AFTER the
         # ``--lenient`` sentence and BEFORE the ``mkdir -p`` suggestions so the
-        # #3783 ordering contract (``--lenient`` first) is preserved.
-        if self.remappable_missing_keys:
-            lines.append("")
-            lines.append(
-                "If this project's real layout differs from these conventions, remap "
-                "them in `.kittify/config.yaml` via `project.path_conventions` (see ADR "
-                "project-path-convention-override-precedes-doctrine):"
-            )
-            lines.append("")
-            lines.append("  project:")
-            lines.append("    path_conventions:")
-            for key in self.remappable_missing_keys:
-                lines.append(f"      {key}: <real-directory>/  # where this project keeps its {key}")
-            lines.append("")
-            lines.append(
-                "A key this project has no directory for can instead be dropped by "
-                "copying the packaged mission.yaml to "
-                f"`.kittify/overrides/missions/{self.mission_type or '<mission-type>'}/mission.yaml` "
-                "and removing that key's line."
-            )
+        # #3783 ordering contract (``--lenient`` first) is preserved. #7512:
+        # those suggestions now cover only non-remappable (artifact) paths.
+        lines.extend(self._remap_guidance_lines())
 
         if self.suggestions:
             lines.append("")
@@ -150,6 +143,35 @@ class PathValidationResult:
                 lines.append(f"  - {suggestion}")
 
         return "\n".join(lines)
+
+    def _remap_guidance_lines(self) -> list[str]:
+        """Render the ``project.path_conventions`` / mission-override guidance.
+
+        Shared by ``format_errors`` and ``format_warnings`` (#7512) so the
+        strict and ``--lenient`` texts carry one wording. Empty when no missing
+        key is remappable; otherwise starts with a blank separator line.
+        """
+        if not self.remappable_missing_keys:
+            return []
+        lines = [
+            "",
+            "If this project's real layout differs from these conventions, remap "
+            "them in `.kittify/config.yaml` via `project.path_conventions` (see ADR "
+            "project-path-convention-override-precedes-doctrine):",
+            "",
+            "  project:",
+            "    path_conventions:",
+        ]
+        for key in self.remappable_missing_keys:
+            lines.append(f"      {key}: <real-directory>/  # where this project keeps its {key}")
+        lines.append("")
+        lines.append(
+            "A key this project has no directory for can instead be dropped by "
+            "copying the packaged mission.yaml to "
+            f"`.kittify/overrides/missions/{self.mission_type or '<mission-type>'}/mission.yaml` "
+            "and removing that key's line."
+        )
+        return lines
 
 
 def suggest_directory_creation(missing_paths: Iterable[str]) -> list[str]:
@@ -313,6 +335,9 @@ def _record_missing_path(
     result.warnings.append(f"{mission_name} expects {key} path: {resolved} (not found)")
     if key not in ARTIFACT_ROUTED_KEYS:
         result.remappable_missing_keys.append(key)
+    else:
+        # #7512: only a non-remappable path is offered a ``mkdir -p`` remedy.
+        result.creatable_missing_paths.append(resolved)
     if is_artifact_tagged:
         # Real feature_dir-relative token, straight from the declared path —
         # `resolved` above is project_root-relative and can't recover this.
@@ -456,7 +481,9 @@ def validate_mission_paths(
         )
 
     if result.missing_paths:
-        result.suggestions = suggest_directory_creation(result.missing_paths)
+        # #7512: no ``mkdir -p`` for a remappable build-layout path -- an empty
+        # ``src/`` would pass the check without making it true.
+        result.suggestions = suggest_directory_creation(result.creatable_missing_paths)
         if strict:
             raise PathValidationError(result)
 

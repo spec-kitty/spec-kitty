@@ -107,7 +107,9 @@ the plan step do it. For the reasoning, see the
 
 The other path conventions, such as `src/`, `tests/` and `docs/`, stay in force for the
 mission type — but a project whose real layout differs has two honest project-level levers
-(#6633), and the strict failure text names both:
+(#6633). The strict failure text and the `--lenient` warning both name them, and neither
+suggests `mkdir -p` for these directories: an empty `src/` would pass the check without
+making it true (#7512).
 
 - **Remap to the real layout.** Declare it once in `.kittify/config.yaml` under
   `project.path_conventions` and `accept` checks the remapped directories instead:
