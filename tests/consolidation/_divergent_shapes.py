@@ -34,7 +34,8 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import ReviewResult, TransitionRequest
 
 _TARGET_BRANCH = "main"
-_APPROVE_LANES: tuple[str, ...] = ("claimed", "in_progress", "for_review", "in_review")
+_CLAIM_LANES: tuple[str, ...] = ("claimed", "in_progress")
+_REVIEW_LANES: tuple[str, ...] = ("for_review", "in_review")
 
 
 @dataclass(frozen=True)
@@ -91,8 +92,13 @@ def _init_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def _seed_wp_to_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
-    """Drive *wp_id* through the legal lane path to ``approved`` (canonical emitter)."""
+def _seed_wp_claimed(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Drive *wp_id* out of genesis to ``in_progress`` (canonical emitter), before its lane commit.
+
+    The claim comes before the work, as ``implement`` orders it: the opening move records the
+    work package's window (ADR 2026-11-08-2) at the lane head the work then builds on. Committing
+    first would put the work before its own window, which tier 2 refuses.
+    """
     emit_status_transition(
         TransitionRequest(
             feature_dir=feature_dir,
@@ -104,19 +110,29 @@ def _seed_wp_to_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> No
             reason="fixture: seed out of genesis",
         )
     )
-    for to_lane in _APPROVE_LANES:
-        gating = to_lane == "for_review"
-        emit_status_transition(
-            TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                to_lane=to_lane,
-                actor="divergent-shapes-fixture",
-                force=gating,
-                reason="fixture: manufacture reviewable state" if gating else None,
-            )
+    for to_lane in _CLAIM_LANES:
+        _emit_seed_move(feature_dir, mission_slug, wp_id, to_lane)
+
+
+def _emit_seed_move(feature_dir: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
+    gating = to_lane == "for_review"
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane=to_lane,
+            actor="divergent-shapes-fixture",
+            force=gating,
+            reason="fixture: manufacture reviewable state" if gating else None,
         )
+    )
+
+
+def _seed_wp_reviewed_to_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Drive a claimed *wp_id* through review to ``approved`` (canonical emitter), after its lane commit."""
+    for to_lane in _REVIEW_LANES:
+        _emit_seed_move(feature_dir, mission_slug, wp_id, to_lane)
     emit_status_transition(
         TransitionRequest(
             feature_dir=feature_dir,
@@ -263,14 +279,19 @@ def _build_shape(
             # an approval with nothing committed is what the evidence axis refuses.
             lanes[lane_id] = (repo, _TARGET_BRANCH)
             planning_rel = f"src/{wp_id.lower()}.py"
+            _seed_wp_claimed(feature_dir, slug, wp_id)
             (repo / "src").mkdir(parents=True, exist_ok=True)
             (repo / planning_rel).write_text(f"# {wp_id} planning artifact\n", encoding="utf-8")
             _git(repo, "add", planning_rel)
             _git(repo, "commit", "-qm", f"docs({wp_id}): planning artifact")
-            _seed_wp_to_approved(feature_dir, slug, wp_id)
+            _seed_wp_reviewed_to_approved(feature_dir, slug, wp_id)
             continue
 
         worktree_path, branch = allocate_lane_worktree(repo, slug, wp_id, manifest)
+        approved = not (with_canceled_lane and lane_id == "lane-b" and canceled_lane_status == "canceled")
+        if approved:
+            # The claim precedes the work (ADR 2026-11-08-2): its window opens at the lane's cut.
+            _seed_wp_claimed(feature_dir, slug, wp_id)
         owned_rel = f"src/{wp_id.lower()}.py"
         (worktree_path / "src").mkdir(parents=True, exist_ok=True)
         (worktree_path / owned_rel).write_text(f"# {wp_id}\n", encoding="utf-8")
@@ -278,10 +299,10 @@ def _build_shape(
         _git(worktree_path, "commit", "-qm", f"feat({wp_id}): implement")
         lanes[lane_id] = (worktree_path, branch)
 
-        if with_canceled_lane and lane_id == "lane-b" and canceled_lane_status == "canceled":
-            _seed_wp_to_canceled(feature_dir, slug, wp_id)
+        if approved:
+            _seed_wp_reviewed_to_approved(feature_dir, slug, wp_id)
         else:
-            _seed_wp_to_approved(feature_dir, slug, wp_id)
+            _seed_wp_to_canceled(feature_dir, slug, wp_id)
 
     if delete_created_branch_of is not None:
         worktree_path, branch = lanes[delete_created_branch_of]

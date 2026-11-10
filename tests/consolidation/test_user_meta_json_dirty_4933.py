@@ -28,6 +28,7 @@ from __future__ import annotations
 import contextlib
 import json
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -137,14 +138,15 @@ def _write_wp_file(feature_dir: Path, wp_id: str, *, agent: str = "researcher-ry
     )
 
 
-def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
-    """Drive a WP to ``approved`` via the real status-emit pipeline so the
-    mission is merge-ready (:func:`_assert_mission_terminal_ready`) and the
-    dirty-tree preflight is the sole blocker the fixtures below exercise --
-    mirrors ``test_merge_lane_planning_data_loss.py``'s helper of the same
-    name."""
+def _seed_wp_claimed(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Claim a WP via the real status-emit pipeline BEFORE its lane commit.
+
+    The claim comes before the work, as ``implement`` orders it: the opening move records
+    the work package's window (ADR 2026-11-08-2) at the lane head the work builds on, so the
+    lane commit lies inside that window instead of before it.
+    """
     from specify_cli.status.emit import emit_status_transition
-    from specify_cli.status.models import ReviewResult, TransitionRequest
+    from specify_cli.status.models import TransitionRequest
 
     emit_status_transition(
         TransitionRequest(
@@ -157,7 +159,27 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
             reason="seed",
         )
     )
-    for to_lane in ("claimed", "in_progress", "for_review", "in_review"):
+    for to_lane in ("claimed", "in_progress"):
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=to_lane,
+                actor="seed",
+            )
+        )
+
+
+def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
+    """Drive a claimed WP through review to ``approved`` via the real status-emit
+    pipeline so the mission is merge-ready (:func:`_assert_mission_terminal_ready`)
+    and the dirty-tree preflight is the sole blocker the fixtures below exercise --
+    mirrors ``test_merge_lane_planning_data_loss.py``'s helper of the same name."""
+    from specify_cli.status.emit import emit_status_transition
+    from specify_cli.status.models import ReviewResult, TransitionRequest
+
+    for to_lane in ("for_review", "in_review"):
         gating = to_lane == "for_review"
         emit_status_transition(
             TransitionRequest(
@@ -211,6 +233,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
 
     lane_branch = lane_branch_name(slug, "lane-a", target_branch="main")
     _git(tmp_path, "branch", lane_branch, "main")
+    _seed_wp_claimed(feature_dir, slug, "WP01")
     _commit_file(
         tmp_path,
         branch=lane_branch,
@@ -233,7 +256,7 @@ def _add_lane_worktree(tmp_path: Path, slug: str, lane_branch: str) -> Path:
 
 
 @contextlib.contextmanager
-def _real_merge_external_mocks(repo_root: Path):
+def _real_merge_external_mocks(repo_root: Path) -> Iterator[None]:
     """Mock only the side effects that touch state OUTSIDE git.
 
     Mirrors the Layer-2 harness in ``test_merge_primary_checkout_safety.py`` /
