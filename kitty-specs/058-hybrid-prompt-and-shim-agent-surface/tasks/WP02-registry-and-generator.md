@@ -14,18 +14,10 @@ base_branch: main
 base_commit: 5f610cc2df502d13e40ea8c8f023dcbb79f9988a
 created_at: '2026-03-30T14:23:01.960689+00:00'
 subtasks:
-- id: T008
-  title: Add PROMPT_DRIVEN / CLI_DRIVEN frozensets to registry.py
-  status: planned
-- id: T009
-  title: Update generate_all_shims() to skip prompt-driven commands
-  status: planned
-- id: T010
-  title: Update shim_dispatch() to return None for prompt-driven commands
-  status: planned
-- id: T011
-  title: Tests for registry classification and generator output count
-  status: planned
+- T008
+- T009
+- T010
+- T011
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'

@@ -13,21 +13,11 @@ base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP03
 base_commit: 0ddd9c53d82b584ffc6d0659059776a9547680f2
 created_at: '2026-03-30T14:47:39.152758+00:00'
 subtasks:
-- id: T024
-  title: Update existing shim tests to expect 7 files not 16
-  status: planned
-- id: T025
-  title: Update init tests to verify hybrid output
-  status: planned
-- id: T026
-  title: Test prompt content cleanliness across all 9 files
-  status: planned
-- id: T027
-  title: Run full test suite and fix any regressions
-  status: planned
-- id: T028
-  title: mypy --strict on modified modules
-  status: planned
+- T024
+- T025
+- T026
+- T027
+- T028
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'

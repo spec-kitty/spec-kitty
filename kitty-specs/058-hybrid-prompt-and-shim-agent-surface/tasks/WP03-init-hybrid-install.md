@@ -15,18 +15,10 @@ base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP01
 base_commit: 64746d186e96e89ee9b42eb927bab6f822375c4c
 created_at: '2026-03-30T14:36:45.658790+00:00'
 subtasks:
-- id: T012
-  title: Update init.py to call generate_agent_assets() for prompt-driven commands
-  status: planned
-- id: T013
-  title: Verify 4-tier resolution chain resolves restored templates
-  status: planned
-- id: T014
-  title: Ensure ensure_runtime() deploys new command-templates to ~/.kittify/
-  status: planned
-- id: T015
-  title: 'Integration test: spec-kitty init in temp dir produces hybrid output'
-  status: planned
+- T012
+- T013
+- T014
+- T015
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'
