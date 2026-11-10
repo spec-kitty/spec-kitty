@@ -46,14 +46,9 @@ def record(owned: Path, *, explicit: bool, report_only: bool, claim: Path | None
     return CliRunner().invoke(app, args, input=BODY)
 
 
-# #7434: report_transaction.py still binds the repository-root charter for --report-only, which
-# `next` then reads as stale. strict, so these turn red the moment #7434 is fixed.
-_REPORT_ONLY_BINDS_PRIMARY_CHARTER = pytest.mark.xfail(strict=True, raises=AssertionError, reason="#7434: --report-only binds the repository-root charter")
-
-
 @pytest.mark.parametrize("protected", [False, True])
 @pytest.mark.parametrize("explicit", [False, True])
-@pytest.mark.parametrize("report_only", [False, pytest.param(True, marks=_REPORT_ONLY_BINDS_PRIMARY_CHARTER)])
+@pytest.mark.parametrize("report_only", [False, True])
 def test_analysis_records_in_owned_write_branch(analysis_checkouts, monkeypatch, explicit, report_only):
     from specify_cli.core import checkout_ownership
     from specify_cli.frontmatter import FrontmatterManager
@@ -90,10 +85,9 @@ def test_analysis_records_in_owned_write_branch(analysis_checkouts, monkeypatch,
         assert repeated.exit_code == 0, repeated.output
         assert json.loads(repeated.output)["commit_status"] == "unchanged"
         assert git(owned, "rev-parse", "HEAD") == qualified_head
-    # #6846 (88ca02dbd): a validated owned checkout records and checks its OWN
-    # charter; the repository-root charter stays the default only off the owned path.
-    # Checked last so the transaction and idempotence assertions above still run
-    # for the --report-only parameters while #7434 keeps them xfail.
+    # #6846 (88ca02dbd), #7434: a validated owned checkout records and checks its OWN
+    # charter, with or without --report-only; the repository-root charter stays the
+    # default only off the owned path.
     assert metadata["input_artifacts"]["charter"] == collect_input_artifact_hashes(meta_path.parent, owned, charter_root=owned)["charter"]
     assert check_analysis_report_current(meta_path.parent, owned, charter_root=owned).ok
 
@@ -120,16 +114,15 @@ def test_report_only_preserves_unrelated_partial_staging(analysis_checkouts, mon
     assert application.read_text(encoding="utf-8") == "staged\nunstaged\n"
     assert (owned / "untracked.txt").read_text(encoding="utf-8") == "untracked\n"
     assert (snapshot(primary), snapshot(sibling)) == before
-    assert check_analysis_report_current(owned / "kitty-specs" / SLUG, owned).ok
+    assert check_analysis_report_current(owned / "kitty-specs" / SLUG, owned, charter_root=owned).ok
 
 
 @pytest.mark.parametrize("protected", [False, True])
-@pytest.mark.parametrize("where", ["owned_spec", "canonical_charter", "owned_charter", "owned_config"])
+@pytest.mark.parametrize("where", ["owned_spec", "owned_charter", "owned_config"])
 def test_report_only_material_dirt_refuses_before_write(analysis_checkouts, monkeypatch, where):
     primary, owned, sibling = analysis_checkouts
     paths = {
         "owned_spec": owned / "kitty-specs" / SLUG / "spec.md",
-        "canonical_charter": primary / ".kittify/charter/charter.yaml",
         "owned_charter": owned / ".kittify/charter/charter.yaml",
         "owned_config": owned / ".kittify/config.yaml",
     }
@@ -169,12 +162,12 @@ def test_invalid_claim_refuses_before_writes(analysis_checkouts, tmp_path, monke
 
 
 @pytest.mark.parametrize("protected", [True])
-@pytest.mark.parametrize("where", ["owned_spec", "canonical_charter"])
+@pytest.mark.parametrize("where", ["owned_spec", "owned_charter"])
 def test_material_race_keeps_written_report_unqualified(analysis_checkouts, monkeypatch, where):
     from specify_cli.git import report_transaction
 
     primary, owned, sibling = analysis_checkouts
-    path = owned / "kitty-specs" / SLUG / "spec.md" if where == "owned_spec" else primary / ".kittify/charter/charter.yaml"
+    path = owned / "kitty-specs" / SLUG / "spec.md" if where == "owned_spec" else owned / ".kittify/charter/charter.yaml"
     original = report_transaction.write_analysis_report
 
     def race(*args, **kwargs):
@@ -192,7 +185,7 @@ def test_material_race_keeps_written_report_unqualified(analysis_checkouts, monk
     assert "concurrent material change" in path.read_text(encoding="utf-8")
     assert git(owned, "rev-parse", "HEAD") == head
     assert snapshot(sibling) == sibling_before
-    assert not check_analysis_report_current(owned / "kitty-specs" / SLUG, owned).ok
+    assert not check_analysis_report_current(owned / "kitty-specs" / SLUG, owned, charter_root=owned).ok
 
 
 @pytest.mark.parametrize("protected", [False, True])
@@ -248,29 +241,46 @@ def test_transaction_rejects_foreign_mission_directory(analysis_checkouts):
 
 @pytest.mark.parametrize("protected", [True])
 @pytest.mark.parametrize("fallback", ["markdown", "absent"])
-def test_canonical_charter_deletion_refuses_before_write(analysis_checkouts, monkeypatch, fallback):
+def test_owned_charter_deletion_refuses_before_write(analysis_checkouts, monkeypatch, fallback):
+    """A dirty deletion of the hashed (owned) charter never becomes a clean fallback.
+
+    The fixture's config points at the owned charter, which carries the Mission-type
+    activation, so its deletion refuses before any write as invalid activation; the
+    charter-dirt gate is not reached here (its unit test covers the deletion branch).
+    """
     primary, owned, sibling = analysis_checkouts
     if fallback == "markdown":
-        markdown = primary / ".kittify/charter/charter.md"
-        markdown.write_text("# Canonical charter fallback\n", encoding="utf-8")
-        git(primary, "add", str(markdown))
-        git(primary, "commit", "-qm", "fixture: charter fallback")
-    (primary / ".kittify/charter/charter.yaml").unlink()
+        markdown = owned / ".kittify/charter/charter.md"
+        markdown.write_text("# Owned charter fallback\n", encoding="utf-8")
+        git(owned, "add", str(markdown))
+        git(owned, "commit", "-qm", "fixture: charter fallback")
+    (owned / ".kittify/charter/charter.yaml").unlink()
     monkeypatch.chdir(owned)
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     result = record(owned, explicit=True, report_only=True)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == "DIRTY_ANALYSIS_INPUT"
+    payload = json.loads(result.output)
+    assert (payload["success"], payload["commit_status"]) == (False, "failed_before_write")
+    assert payload["error"] == "Configured charter activation is invalid"
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
+    assert not (owned / REPORT).exists()
 
 
 @pytest.mark.parametrize("protected", [True])
-def test_unselected_canonical_markdown_dirt_is_unrelated(analysis_checkouts, monkeypatch):
+@pytest.mark.parametrize("dirt", ["markdown", "yaml", "yaml_deleted"])
+def test_repository_root_charter_dirt_is_unrelated(analysis_checkouts, monkeypatch, dirt):
+    """#7434: an owned recording hashes the owned charter, so repository-root charter dirt is not an input."""
     primary, owned, sibling = analysis_checkouts
-    (primary / ".kittify/charter/charter.md").write_text("# Unselected pending charter\n", encoding="utf-8")
+    if dirt == "markdown":
+        (primary / ".kittify/charter/charter.md").write_text("# Unselected pending charter\n", encoding="utf-8")
+    elif dirt == "yaml_deleted":
+        (primary / ".kittify/charter/charter.yaml").unlink()
+    else:
+        charter = primary / ".kittify/charter/charter.yaml"
+        charter.write_text(charter.read_text(encoding="utf-8") + "\n# pending root charter edit\n", encoding="utf-8")
     monkeypatch.chdir(owned)
     before = snapshot(primary), snapshot(sibling)
     result = record(owned, explicit=True, report_only=True)
     assert result.exit_code == 0, result.output
     assert (snapshot(primary), snapshot(sibling)) == before
-    assert check_analysis_report_current(owned / "kitty-specs" / SLUG, owned).ok
+    assert check_analysis_report_current(owned / "kitty-specs" / SLUG, owned, charter_root=owned).ok
