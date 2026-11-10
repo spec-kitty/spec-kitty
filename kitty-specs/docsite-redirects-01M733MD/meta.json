@@ -1,0 +1,34 @@
+{
+  "accept_commit": "603b9e6854b114d9761db7e30ca2ddb0a8e41d0e",
+  "acceptance_history": [
+    {
+      "accept_commit": "603b9e6854b114d9761db7e30ca2ddb0a8e41d0e",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-10T17:21:56.957631+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "cc4a32ac5d7d045f3f5408e0fdb141993fb3d9bf"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-10T17:21:56.957631+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "cc4a32ac5d7d045f3f5408e0fdb141993fb3d9bf",
+  "contracts": "none",
+  "contracts_rationale": "No API or schema is published; the interfaces are the generated site/legacy-redirects.json map and the doc-kitty coverage gate, specified in data-model.md and pinned by tests and the real gate run.",
+  "created_at": "2026-11-10T16:11:08.235500+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite legacy redirects",
+  "mid8": "01M733MD",
+  "mission_id": "01M733MDGD0AC71S59SE7QTZ7Q",
+  "mission_number": null,
+  "mission_slug": "docsite-redirects-01M733MD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #6933 of epic #6100: generate the legacyHtmlRedirects map from moves.yaml and the URL baseline, and gate redirect coverage twice in the docs-site build.",
+  "purpose_tldr": "Every legacy DocFX URL keeps resolving on the doc-kitty site",
+  "slug": "docsite-redirects-01M733MD",
+  "status_phase": "1",
+  "target_branch": "issue-6933-docsite-redirects",
+  "topology": "single_branch",
+  "topology_source": "owned_checkout"
+}

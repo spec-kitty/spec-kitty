@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-redirects-01M733MD",
+  "mission_id": "01M733MDGD0AC71S59SE7QTZ7Q",
+  "mission_branch": "issue-6933-docsite-redirects",
+  "target_branch": "issue-6933-docsite-redirects",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/docs-site-build.yml",
+        "Makefile",
+        "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md",
+        "scripts/docs/_dockitty_contract.py",
+        "scripts/docs/site_built_check.py",
+        "scripts/docs/site_built_check_render.py",
+        "scripts/docs/site_redirects.py",
+        "scripts/docs/site_redirects_selftest.py",
+        "site/astro.config.mjs",
+        "site/legacy-redirects.json",
+        "tests/docs/test_dockitty_contract.py",
+        "tests/docs/test_site_built_check.py",
+        "tests/docs/test_site_built_check_render.py",
+        "tests/docs/test_site_redirects.py",
+        "tests/docs/test_site_redirects_selftest.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-10T16:15:52.363871+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "434e2f0277c6520601db1a9962056b45eb09e980"
+}
