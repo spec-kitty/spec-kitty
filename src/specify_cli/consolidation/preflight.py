@@ -58,7 +58,7 @@ from specify_cli.status import (
     actor_identities_independent,
     build_system_actor,
     is_migration_actor,
-    latest_implementer_event,
+    latest_implementer_identity,
     read_events_lenient,
 )
 
@@ -642,14 +642,12 @@ def _latest_implementer_identity(feature_dir: Path, wp_id: str) -> str | None:
     """Full recorded identity of the WP's implementer of record (#5340).
 
     Delegates to the one projection in ``status.review_roles`` (a reviewer's
-    rework verdict is not an implementation claim) and keeps the full-identity
+    rework verdict is not an implementation claim; the implementer's own
+    ``for_review`` submissions refine the claim, #7159) and keeps the full-identity
     string, not the tool-scoped key, so same-tool/different-profile pairs stay
     distinct.
     """
-    event = latest_implementer_event(read_events_lenient(feature_dir), wp_id)
-    if event is None:
-        return None
-    identity: str | None = actor_full_identity(event.actor)
+    identity: str | None = latest_implementer_identity(read_events_lenient(feature_dir), wp_id)
     return identity
 
 
