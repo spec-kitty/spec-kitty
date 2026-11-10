@@ -124,6 +124,10 @@ def test_an_unlisted_problem_fails(tmp_path: Path, docs: Path) -> None:
         pytest.param(GUIDE, None, id="editable-section"),
         pytest.param("plans/live-hub.md", "---\ntitle: t\ndoc_status: draft\nkind: Hub\n---\n", id="live-hub-under-plans"),
         pytest.param("plans/live-plan.md", "---\ntitle: t\ndoc_status: active\nkind: Planning\n---\n", id="active-plan"),
+        pytest.param("plans/lower-hub.md", "---\ntitle: t\ndoc_status: superseded\nkind: hub\n---\n", id="hub-kind-any-case"),
+        pytest.param("plans/no-frontmatter.md", "# no frontmatter\n", id="no-frontmatter"),
+        pytest.param("plans/no-kind.md", "---\ntitle: t\ndoc_status: superseded\n---\n", id="no-kind"),
+        pytest.param("plans/no-status.md", "---\ntitle: t\nkind: Planning\n---\n", id="no-doc-status"),
     ],
 )
 def test_a_listed_problem_from_an_editable_source_fails(tmp_path: Path, docs: Path, source: str, text: str | None) -> None:

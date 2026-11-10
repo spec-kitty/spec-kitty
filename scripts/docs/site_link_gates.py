@@ -183,14 +183,20 @@ def load_debt(path: Path) -> list[Problem]:
     return [Problem(entry["gate"], entry["source"], entry["target"]) for entry in data["entries"]]
 
 
-def _is_live_plan(source: str, docs: Path) -> bool:
-    """True for a ``plans/`` page that is maintained, not history: a hub or an active/durable plan (ADR 2026-10-31-1, Amendment 2026-11-09)."""
+def _is_live_or_unreadable_plan(source: str, docs: Path) -> bool:
+    """True for a ``plans/`` page that is maintained (a hub, or ``active``/``durable``) or whose status cannot be read.
+
+    A page with no frontmatter, or without ``kind`` or ``doc_status``, is refused rather than taken for history
+    (ADR 2026-10-31-1, Amendment 2026-11-09). ``kind`` and ``doc_status`` compare case-insensitively.
+    """
     page = docs / source
     if not source.startswith(_PLANS_PREFIX) or not page.is_file():
         return False
     parts = split_frontmatter(page.read_text(encoding="utf-8"))
-    fields = {match["key"]: match["value"] for match in _FRONTMATTER_SCALAR.finditer(parts[0])} if parts else {}
-    return fields.get("kind") == "Hub" or fields.get("doc_status") in _LIVE_PLAN_STATUSES
+    fields = {match["key"]: match["value"].lower() for match in _FRONTMATTER_SCALAR.finditer(parts[0])} if parts else {}
+    if not fields.get("kind") or not fields.get("doc_status"):
+        return True
+    return fields["kind"] == "hub" or fields["doc_status"] in _LIVE_PLAN_STATUSES
 
 
 def is_debt_eligible_source(source: str, docs: Path) -> bool:
@@ -198,7 +204,7 @@ def is_debt_eligible_source(source: str, docs: Path) -> bool:
 
     The one predicate for every debt gate: the doc-kitty link gates (:func:`evaluate`) and ``relative-links``.
     """
-    return is_immutable(source) and not _is_live_plan(source, docs)
+    return is_immutable(source) and not _is_live_or_unreadable_plan(source, docs)
 
 
 def evaluate(problems: Iterable[Problem], debt: Iterable[Problem], docs: Path) -> Verdict:
