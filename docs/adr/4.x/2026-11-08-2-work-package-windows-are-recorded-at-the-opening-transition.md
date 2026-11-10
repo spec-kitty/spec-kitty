@@ -1,16 +1,16 @@
 ---
 title: 'ADR: work-package windows are recorded at the opening transition'
 description: 'The consolidation gate judges each approved work package against the window recorded on the status event that opened it, built from one set of claim inputs.'
-status: Proposed
+status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-08'
-updated: '2026-11-09T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 ---
 
 # Work-package windows are recorded at the opening transition
 
-**Status:** Proposed (2026-11-08). The operator accepts or amends it on the pull request.
+**Status:** Accepted (2026-11-10). The operator ratified it as written on PR #7490, including the interpretation that a review rejection back to `planned` keeps the window and only a rewind from in-progress resets it.
 
 **Date:** 2026-11-08
 
