@@ -73,16 +73,16 @@
       "wp": "WP02"
     },
     "#6935": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 (githubAlerts, SEO render check, parity checklist)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Render parity",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#6936": {
       "evidence_ref": "<link or commit>",
