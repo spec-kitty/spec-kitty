@@ -36,7 +36,8 @@
         "Ready for review",
         "Re-claim for review cycle 1 (implement self-heal refused: orphaned planning commit after rebase)",
         "- 2026-11-10T07:30:07Z – claude::implementer-ivan – Review cycle 1 fixed. Re-claim: 'agent action implement' refused to self-heal (planning commit 0ebc12fc orphaned by the rebase; 'finalize-tasks --refresh-planning-commit --allow-orphaned' refused: lanes.json does not resolve to the planning target branch on this single_branch topic-branch mission), so WP01 was re-claimed with move-task planned->in_progress. Commits: cfa0ac306 red (3 failed, 70 passed, 1 skipped), 276afd08f fix. (1) site_link_gates fails closed: unrecognised output, [dk-routes] lines, a missing or mismatched summary count all fail on a non-zero exit. (2) Correction to the earlier note: the move re-pointed 14 relative links in 7 of the 10 archived pages (same targets), not 4 links in 3 pages; ADR amendment corrected. (3) Declared out-of-map edit: scripts/docs/dockitty_frontmatter_migration.py DRAFT_SECTIONS now derives from DRAFT_FOLDERS. (4) Stale relative-links debt entries are reported as warnings. Tests: tests/docs 2191 passed, 8 skipped; ci/arch/release/terminology 307 passed, 1 skipped; ruff and mypy clean. make docs-site exit 0, 631 pages; check-links 59/59 and built-links 110/110 priced; built-site check 0 findings.",
-        "Ready for review (cycle 1 fixes)"
+        "Ready for review (cycle 1 fixes)",
+        "Review passed (cycle 2)"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
