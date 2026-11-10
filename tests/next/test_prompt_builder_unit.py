@@ -404,6 +404,79 @@ class TestBuildPromptWP:
         path.unlink()
 
 
+@pytest.fixture
+def feature_with_repo_root_code_wp(feature_dir: Path) -> Path:
+    """A code WP on the repo-root lane: its workspace is the repository root checkout."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nlane: planned\nsubtasks:\n  - T001\n---\n# WP01 Content\nDo stuff.\n",
+        encoding="utf-8",
+    )
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), lane_id="lane-planning")
+    return feature_dir
+
+
+def _when_done_block(text: str) -> list[str]:
+    """The lines of the prompt's closing WHEN DONE block."""
+    lines = text.splitlines()
+    return lines[lines.index("WHEN DONE:") :]
+
+
+def _build_wp_prompt_text(feature_dir: Path, action: str) -> str:
+    text, path = build_prompt(
+        action=action,
+        feature_dir=feature_dir,
+        mission_slug="042-test-feature",
+        wp_id="WP01",
+        agent="claude",
+        repo_root=feature_dir.parent.parent,
+        mission_type="software-dev",
+    )
+    path.unlink()
+    return text
+
+
+class TestWhenDoneBlock:
+    """The WHEN DONE block is the whole hand-off runbook a ``next``-driven agent reads (#7510)."""
+
+    def test_repo_root_implement_names_the_commit_step_before_the_hand_off(self, feature_with_repo_root_code_wp: Path) -> None:
+        """``move-task --to for_review`` does not auto-commit in the repository root checkout.
+
+        It refuses a WP with no implementation commit since claim, so the prompt
+        must print the same commit recipe the claim output prints, ahead of the
+        hand-off command.
+        """
+        from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
+
+        block = _when_done_block(_build_wp_prompt_text(feature_with_repo_root_code_wp, "implement"))
+
+        commit_step = "  git status && " + safe_commit_recipe(["<your-files>"], "feat(WP01): <description>", "main")
+        assert commit_step in block, "\n".join(block)
+        hand_off = next(index for index, line in enumerate(block) if "move-task WP01 --to for_review" in line)
+        mark_status = next(index for index, line in enumerate(block) if "agent tasks mark-status T001" in line)
+        assert block.index(commit_step) < mark_status < hand_off
+
+    def test_lane_workspace_implement_names_no_commit_step(self, feature_with_wp: Path) -> None:
+        """A lane worktree's deliverables are committed by ``move-task`` itself."""
+        block = _when_done_block(_build_wp_prompt_text(feature_with_wp, "implement"))
+
+        assert not any("safe-commit" in line for line in block), "\n".join(block)
+        assert any("move-task WP01 --to for_review" in line for line in block)
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "action"), [("feature_with_repo_root_code_wp", "implement"), ("feature_with_wp", "implement"), ("feature_with_wp", "review")]
+    )
+    def test_block_says_its_commands_run_as_written(self, fixture_name: str, action: str, request: pytest.FixtureRequest) -> None:
+        """One line tells the agent not to probe ``--help`` before trusting the commands."""
+        block = _when_done_block(_build_wp_prompt_text(request.getfixturevalue(fixture_name), action))
+
+        expected = (
+            "  Run these commands as written (fill in only the <placeholders>) with the `spec-kitty` CLI that produced this prompt; no --help lookup is needed."
+        )
+        assert block[1] == expected, "\n".join(block)
+
+
 # ---------------------------------------------------------------------------
 # build_prompt (template actions)
 # ---------------------------------------------------------------------------
