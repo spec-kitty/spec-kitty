@@ -201,5 +201,7 @@ A missing path whose key the project can remap (any key outside `ARTIFACT_ROUTED
 `--lenient` warning: an empty directory passes the check without making it true. `accept --lenient`
 and the `project.path_conventions` remap are the remedies named for it, and the `--lenient` warning
 now carries the same remap guidance. A missing Mission artifact path (`deliverables`) keeps its
-`mkdir -p` suggestion. Which paths are checked, and whether a missing path blocks, is unchanged, so a
+`mkdir -p` suggestion, and so does every path in `path_prefix` mode (research Missions): there the
+prefixed paths sit in the Mission's own deliverables directory, are Mission output rather than
+build layout, and are not offered the remap. Which paths are checked, and whether a missing path blocks, is unchanged, so a
 plain Python project whose `src/` is really missing still blocks, but no longer sees a `mkdir` hint.
