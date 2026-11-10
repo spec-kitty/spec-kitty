@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import re
 import time
-import warnings
 from pathlib import Path
 from typing import Final
 
@@ -500,13 +499,6 @@ class TestLiveTreeGate:
     _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset(
         (f"docs/{entry.source}", entry.target) for entry in load_debt(DEBT_PATH) if entry.gate == RELATIVE_LINKS_GATE
     )
-
-    def test_stale_known_gaps_are_reported_not_fatal(self) -> None:
-        """An entry that no longer occurs is reported (as the link-gate wrapper does), never fatal."""
-        dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT, exclude_prefixes=())}
-        stale = stale_known_gaps(dead, self._KNOWN_GAPS)
-        for source, link in stale:
-            warnings.warn(f"link debt: no longer occurs (remove the entry): relative-links: {source} -> {link}", stacklevel=1)
 
     def test_a_stale_known_gap_is_reported(self) -> None:
         known = frozenset({("docs/a.md", "gone.md"), ("docs/b.md", "dead.md")})

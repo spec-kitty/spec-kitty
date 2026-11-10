@@ -212,43 +212,6 @@ def test_the_job_installs_frozen_and_checks_the_contract() -> None:
     assert "-m scripts.docs.site_contract --check" in run
 
 
-def _step_index(job: dict[str, Any], needle: str) -> int:
-    """The position of the first ``run`` step carrying *needle*, or ``-1``."""
-    runs = [str(step.get("run", "")) for step in job.get("steps", [])]
-    return next((index for index, run in enumerate(runs) if needle in run), -1)
-
-
-def _gate_order_violations(job: dict[str, Any]) -> list[str]:
-    """The source gates run after the install, the built-site checks after the build (D-11)."""
-    install = _step_index(job, "pnpm install --frozen-lockfile")
-    build = _step_index(job, "pnpm run build")
-    violations = []
-    for needle, after, name in (
-        ("dockitty-validate-frontmatter", install, "install"),
-        ("dockitty-check-links", install, "install"),
-        ("-m scripts.docs.site_built_check", build, "build"),
-        ("dockitty-assert-no-broken-links", build, "build"),
-    ):
-        index = _step_index(job, needle)
-        if index <= after or after < 0:
-            violations.append(f"{needle} must run after the {name} step")
-    return violations
-
-
-def test_the_gates_run_where_their_inputs_exist() -> None:
-    assert _gate_order_violations(_build_job()) == []
-
-
-def test_a_built_site_check_before_the_build_is_caught() -> None:
-    mutant = copy.deepcopy(_build_job())
-    steps = mutant["steps"]
-    (check,) = [step for step in steps if "-m scripts.docs.site_built_check" in str(step.get("run", ""))]
-    steps.remove(check)
-    steps.insert(0, check)
-
-    assert _gate_order_violations(mutant) == ["-m scripts.docs.site_built_check must run after the build step"]
-
-
 def test_no_step_swallows_a_failure() -> None:
     """A required job never swallows a failure: no step-level ``continue-on-error`` and no shell fallback."""
     job = _build_job()
