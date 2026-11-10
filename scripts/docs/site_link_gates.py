@@ -65,7 +65,9 @@ _BUILT_LINKS: Final[re.Pattern[str]] = re.compile(rf"^{_MARK} (?P<page>\S+) → 
 #: Informational lines each gate prints beside its problems; on a failing run, any other line fails.
 _INFO_LINES: Final[dict[str, tuple[re.Pattern[str], ...]]] = {
     "check-links": (
-        re.compile(r"^check-links: "),
+        # The two informational lines the pinned toolkit prints: the draft-publication summary and the non-strict note.
+        re.compile(r"^check-links: DK_PUBLISH_DRAFTS=(?:on|off) \(from: .+; site root: .+; mode: .+\)$"),
+        re.compile(r"^check-links: note: .+ looks like a built site \(an Astro config sits next to it\)\. .+$"),
         re.compile(r"^index names: "),
         re.compile(r"^excluded folders: "),
         re.compile(r"^✓ "),
