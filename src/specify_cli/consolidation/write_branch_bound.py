@@ -125,7 +125,9 @@ def _preceding_wp(repo_root: Path, claim_base: str, sha: str, reaches: Sequence[
     canceled work packages' commits), so every commit it refuses is one of those. A change that
     lets tier 2 judge a commit tier 1 did not must keep this invariant or name the commit otherwise.
     """
-    ancestors = frozenset(commits_in_range(repo_root, claim_base, sha))
+    # Strict ancestors: an approval stamp equal to *sha* is that approval's own head, not an approval
+    # made before it (a work package approved with nothing committed after a pre-claim commit).
+    ancestors = frozenset(commits_in_range(repo_root, claim_base, sha)) - {sha}
     before = [entry for entry in reaches if entry.window.approval_stamp in ancestors]
     if before:
         return max(before, key=lambda entry: len(entry.reach)).window.wp_id, False
