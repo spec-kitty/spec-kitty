@@ -38,8 +38,12 @@ from specify_cli.core.subtask_rows import (
 )
 from specify_cli.migration.backfill_runtime_state import _subtasks_from_tasks_md
 from specify_cli.status import emit_inner_state_changed
+from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import TransitionRequest
+from specify_cli.status.store import read_events
 from specify_cli.status.store import read_event_stream
 from specify_cli.status.models import Lane, SubtaskStatus, SubtaskValue, WPInnerStateDelta
+from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -215,6 +219,25 @@ def test_ambiguous_wp_files_fail_closed(tmp_path: Path) -> None:
         _check(tmp_path, "WP01")
 
 
+def test_directory_named_like_a_wp_file_fails_closed(tmp_path: Path) -> None:
+    """#7443: a directory matching the WP name is refused, not read."""
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
+    (feature_dir / "tasks" / "WP03-dir.md").mkdir()
+
+    with pytest.raises(SubtaskRosterResolutionError, match=r"WP03-dir\.md is not a regular file"):
+        authored_subtask_roster(feature_dir, "WP03")
+
+
+@pytest.mark.parametrize("readme", ["README.md", "readme.md", "ReadMe.md"])
+def test_readme_never_matches_a_wp_id(tmp_path: Path, readme: str) -> None:
+    """#7443: ``readme.md`` is excluded in any case, so it never stands in for a WP file."""
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
+    (feature_dir / "tasks" / readme).write_text("---\nsubtasks: [T001]\n---\n", encoding="utf-8")
+
+    with pytest.raises(SubtaskRosterResolutionError, match="work-package file is missing"):
+        authored_subtask_roster(feature_dir, "README")
+
+
 def test_malformed_wp_file_fails_closed(tmp_path: Path) -> None:
     feature_dir = _seed_feature_dir(tmp_path, tasks_md=_TASKS_MD_NO_CHECKBOXES)
     (feature_dir / "tasks" / "WP01.md").write_text(
@@ -342,3 +365,114 @@ def test_unchecked_from_snapshot_fail_closed_and_terminal_detection(tmp_path: Pa
 
     # An empty roster is nothing to block on regardless of snapshot state.
     assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", []) == []
+
+
+# ---------------------------------------------------------------------------
+# #7442 — the authored roster accepts only task ids (``str``, non-bool ``int``);
+# any other entry refuses with the WP file, the entry position, its type and
+# the expected list form, instead of being coerced to an unmatchable junk id.
+# ---------------------------------------------------------------------------
+
+#: An integer whose decimal text exceeds Python's 4300-digit int->str limit.
+#: Written as hex so the YAML parser builds it (its own decimal parse would refuse).
+_HUGE_HEX_INT = "0x" + "f" * 4000
+
+_NON_ID_ENTRIES = [
+    pytest.param("- id: T001\n  title: x", 1, "mapping", id="mapping"),
+    pytest.param("- [T001]", 1, "list", id="list"),
+    pytest.param("- T001\n- 1.5", 2, "float", id="float"),
+    pytest.param("- 2026-01-01", 1, "date", id="date"),
+    pytest.param("- 2026-01-01T10:00:00Z", 1, "datetime", id="datetime"),
+    pytest.param("- true", 1, "bool", id="bool"),
+    pytest.param("- null", 1, "null", id="null"),
+    pytest.param("- T001\n- ~", 2, "null", id="tilde"),
+]
+
+
+def _write_wp_raw_subtasks(feature_dir: Path, wp_id: str, subtasks_body: str) -> Path:
+    """Author a WP file whose ``subtasks:`` value is *subtasks_body*, verbatim."""
+    wp_file = feature_dir / "tasks" / f"{wp_id}-roster.md"
+    wp_file.write_text(
+        f"---\nwork_package_id: {wp_id}\ntitle: repro\nsubtasks:\n{subtasks_body}\n---\n\n# {wp_id}\n",
+        encoding="utf-8",
+    )
+    return wp_file
+
+
+@pytest.mark.parametrize(("body", "position", "type_label"), _NON_ID_ENTRIES)
+def test_non_id_roster_entry_refuses_with_file_position_and_remedy(
+    tmp_path: Path, body: str, position: int, type_label: str
+) -> None:
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
+    _write_wp_raw_subtasks(feature_dir, "WP01", body)
+
+    with pytest.raises(SubtaskRosterResolutionError) as excinfo:
+        authored_subtask_roster(feature_dir, "WP01")
+
+    message = str(excinfo.value)
+    assert "WP01-roster.md" in message
+    assert f"entry {position} is a {type_label}" in message
+    assert "as a list of task ids, e.g. - T001" in message
+
+
+def test_int_too_long_to_convert_refuses_as_a_roster_error(tmp_path: Path) -> None:
+    """Python refuses to render an int past 4300 digits; that must not escape as ``ValueError``."""
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
+    _write_wp_raw_subtasks(feature_dir, "WP01", f"- T001\n- {_HUGE_HEX_INT}")
+
+    with pytest.raises(SubtaskRosterResolutionError, match=r"WP01-roster\.md.*entry 2 is an int too long"):
+        authored_subtask_roster(feature_dir, "WP01")
+
+
+def test_str_and_int_entries_are_still_accepted(tmp_path: Path) -> None:
+    """Same-fixture positive control (FR-015): ``- T001`` and ``- 7`` are task ids."""
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
+    _write_wp_raw_subtasks(feature_dir, "WP01", "- T001\n- 7\n- ' T001 '")
+
+    assert authored_subtask_roster(feature_dir, "WP01") == ["T001", "7"]
+
+
+def test_for_review_cli_door_refuses_a_map_shaped_roster(tmp_path: Path) -> None:
+    """The ``move-task --to for_review`` subtask gate (``_check_unchecked_subtasks``) refuses.
+
+    Before #7442 the map was coerced to ``"{'id': 'T001', ...}"`` and the gate
+    reported that junk id as an unchecked subtask nobody could ever mark.
+    """
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=_TASKS_MD_NO_CHECKBOXES)
+    _write_wp_raw_subtasks(feature_dir, "WP01", "- id: T001\n  title: alpha")
+
+    with pytest.raises(SubtaskRosterResolutionError, match=r"WP01-roster\.md.*e\.g\. - T001"):
+        _check(tmp_path, "WP01")
+
+
+def test_for_review_transition_refuses_a_map_shaped_roster_and_persists_nothing(tmp_path: Path) -> None:
+    """The emit pipeline's ``in_progress -> for_review`` subtask gate refuses too (FR-008)."""
+    feature_dir = _seed_feature_dir(tmp_path, tasks_md=_TASKS_MD_NO_CHECKBOXES)
+    _write_wp_raw_subtasks(feature_dir, "WP01", "- id: T001\n  title: alpha")
+    seed_wp_to_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
+    for lane in ("claimed", "in_progress"):
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=_MISSION_SLUG,
+                wp_id="WP01",
+                to_lane=lane,
+                actor="agent-1",
+                workspace_context="worktree:/x",
+                repo_root=tmp_path,
+            )
+        )
+    before = len(read_events(feature_dir))
+
+    with pytest.raises(SubtaskRosterResolutionError, match=r"WP01-roster\.md.*e\.g\. - T001"):
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=_MISSION_SLUG,
+                wp_id="WP01",
+                to_lane="for_review",
+                actor="agent-1",
+                repo_root=tmp_path,
+            )
+        )
+    assert len(read_events(feature_dir)) == before

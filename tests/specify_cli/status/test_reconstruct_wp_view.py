@@ -296,6 +296,28 @@ def test_reader_does_not_crash_without_tasks_dir(tmp_path: Path) -> None:
     assert view.authored == AuthoredGroup()
 
 
+def test_reader_treats_a_directory_match_as_no_authored_source(tmp_path: Path) -> None:
+    """#7443: a directory named like the WP file yields an empty authored group, no crash."""
+    feature_dir = _make_feature_dir(tmp_path)
+    (feature_dir / "tasks" / f"{_WP_ID}-dir.md").mkdir(parents=True)
+
+    view = reconstruct_wp_view(feature_dir, _WP_ID)
+
+    assert view.authored == AuthoredGroup()
+
+
+def test_reader_reads_a_lowercase_wp_file(tmp_path: Path) -> None:
+    """#7443: the WP id matches case-insensitively, so ``wp01-core.md`` is read."""
+    feature_dir = _make_feature_dir(tmp_path)
+    wp_file = _write_wp_file(feature_dir)
+    wp_file.rename(wp_file.with_name("wp01-core.md"))
+
+    view = reconstruct_wp_view(feature_dir, _WP_ID)
+
+    assert view.authored.subtasks == ("T001", "T002")
+    assert view.authored.role == _AUTHORED_ROLE
+
+
 # ---------------------------------------------------------------------------
 # SC-008 — latest-actual across implement-claim → review-claim + byte-stability
 # ---------------------------------------------------------------------------
@@ -408,6 +430,21 @@ def test_authored_group_normalizes_subtask_roster_like_transition_guard() -> Non
     )
 
     assert _authored_group(metadata).subtasks == ("T01", "T02")
+
+
+def test_reader_shows_no_authored_subtasks_for_a_non_id_roster_entry(tmp_path: Path) -> None:
+    """#7442: a map-shaped ``subtasks:`` entry empties the authored list; nothing crashes."""
+    feature_dir = _make_feature_dir(tmp_path)
+    wp_file = _write_wp_file(feature_dir)
+    text = wp_file.read_text(encoding="utf-8")
+    wp_file.write_text(text.replace("- T001\n- T002\n", "- id: T001\n  title: x\n"), encoding="utf-8")
+
+    view = reconstruct_wp_view(feature_dir, _WP_ID)
+
+    assert view.authored.subtasks == ()
+    assert view.authored.role == _AUTHORED_ROLE
+    assert view.authored.owned_files == ("src/a.py", "src/b.py")
+    assert view.authored.dependencies == ("WP00",)
 
 
 def test_wpview_type_holds_both_groups(tmp_path: Path) -> None:

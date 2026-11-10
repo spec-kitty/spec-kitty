@@ -1191,6 +1191,106 @@ class TestExtractConflicts:
         # Effective strictness comes from SemanticCheckEvaluated event
         assert result[0]["effective_strictness"] == "medium"
 
+    def test_repeated_resolved_only_events_yield_one_conflict(self):
+        """Three resolved-only events with the same conflict_id yield one record.
+
+        Control for the #7463 hoist: without ``existing_ids.add(cid)`` after
+        appending, a set built once before the loop would let repeated
+        resolved-only events for the same id produce duplicate records.
+        """
+        from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
+
+        cid = "repeated-resolve-uuid"
+        events = [
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": cid,
+                "term_surface": "test",
+                "timestamp": "2026-01-01T00:01:00Z",
+            },
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": cid,
+                "term_surface": "test",
+                "timestamp": "2026-01-01T00:02:00Z",
+            },
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": cid,
+                "term_surface": "test",
+                "timestamp": "2026-01-01T00:03:00Z",
+            },
+        ]
+
+        result = _extract_conflicts_from_events(events)
+        assert len(result) == 1
+        assert result[0]["conflict_id"] == cid
+        assert result[0]["status"] == "resolved"
+
+    def test_two_distinct_resolved_only_ids_yield_two_conflicts_in_order(self):
+        """Two resolved-only events with distinct ids yield two records, in event order.
+
+        Positive control for the de-duplication test above: proves the probe
+        can observe more than one resolved-only conflict.
+        """
+        from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
+
+        events = [
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": "res-first-uuid",
+                "term_surface": "first",
+                "timestamp": "2026-01-01T00:01:00Z",
+            },
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": "res-second-uuid",
+                "term_surface": "second",
+                "timestamp": "2026-01-01T00:02:00Z",
+            },
+        ]
+
+        result = _extract_conflicts_from_events(events)
+        assert [c["conflict_id"] for c in result] == ["res-first-uuid", "res-second-uuid"]
+
+    def test_scale_requested_plus_resolved_only_counts(self):
+        """n requested + n resolved-only events with distinct ids yield 2n conflicts in order.
+
+        Scale characterisation for #7463: the second pass must stay
+        de-duplicated and order-preserving at volume. No timing assertion —
+        wall-clock timings are recorded in the WP history instead (C-006).
+        """
+        from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
+
+        n = 2000
+        requested = [
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": f"req-{i}",
+                "term": f"term-{i}",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": f"s{i}",
+                "timestamp": "2026-01-01T00:00:01Z",
+            }
+            for i in range(n)
+        ]
+        resolved_only = [
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": f"res-{i}",
+                "term_surface": f"term-r-{i}",
+                "timestamp": "2026-01-01T00:01:00Z",
+            }
+            for i in range(n)
+        ]
+
+        result = _extract_conflicts_from_events(requested + resolved_only)
+        assert len(result) == 2 * n
+        assert [c["conflict_id"] for c in result] == [f"req-{i}" for i in range(n)] + [f"res-{i}" for i in range(n)]
+
 
 # =============================================================================
 # Tests: _load_store_from_seeds and _get_all_terms_from_store

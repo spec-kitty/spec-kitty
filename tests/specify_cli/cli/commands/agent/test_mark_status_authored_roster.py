@@ -41,10 +41,15 @@ exactly as before; this is additive, not a replacement.
 
 from __future__ import annotations
 
+import json
+from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands.agent.tasks_mark_status import (
     TaskIdResolutionOutcome,
     _resolve_authored_roster,
@@ -206,3 +211,56 @@ def test_owning_wp_from_authored_roster_kind_co_membership_is_pinned() -> None:
     # surface"), so pin that too rather than only pinning equality.
     assert tasks_index_is_primary is True
     assert work_package_task_is_primary is True
+
+
+# ---------------------------------------------------------------------------
+# #7442 / FR-011: one non-id roster entry refuses ``mark-status`` for the whole
+# Mission, through the real command, naming the file and the list-form remedy.
+# ---------------------------------------------------------------------------
+
+_SLUG = "7442-map-roster"
+_runner = CliRunner()
+
+
+@contextmanager
+def _null_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-def]
+    del repo_root, mission_slug
+    yield
+
+
+def _invoke_mark_status(repo: Path, *args: str) -> tuple[int, str]:
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=repo),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=_SLUG),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(repo, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+    ):
+        result = _runner.invoke(
+            app,
+            ["mark-status", *args, "--status", "done", "--mission", _SLUG, "--json", "--no-auto-commit"],
+        )
+    return result.exit_code, result.output
+
+
+def test_map_shaped_roster_refuses_mark_status_for_the_whole_mission(tmp_path: Path) -> None:
+    mission_dir = tmp_path / "kitty-specs" / _SLUG
+    tasks = mission_dir / "tasks"
+    tasks.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_id": "01TESTMISSION", "status_phase": "1"}), encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    (tasks / "WP01-good.md").write_text("---\nwork_package_id: WP01\ntitle: WP01\nsubtasks:\n  - T001\n---\n\n# WP01\n", encoding="utf-8")
+    (tasks / "WP02-maps.md").write_text(
+        "---\nwork_package_id: WP02\ntitle: WP02\nsubtasks:\n  - id: T002\n    title: map form\n---\n\n# WP02\n",
+        encoding="utf-8",
+    )
+
+    # T001 belongs to WP01, whose roster is fine: the refusal is still Mission-wide,
+    # because an unreadable roster could hide a second owner of T001.
+    exit_code, output = _invoke_mark_status(tmp_path, "T001")
+
+    assert exit_code == 1, output
+    assert "Cannot determine which work package owns the subtasks" in output
+    assert "WP02-maps.md" in output
+    assert "as a list of task ids, e.g. - T001" in output
+    assert not (mission_dir / "status.events.jsonl").exists()

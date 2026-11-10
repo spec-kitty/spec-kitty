@@ -263,6 +263,7 @@ def _extract_conflicts_from_events(  # noqa: C901
     # For SemanticCheckEvaluated findings that never got a
     # GlossaryClarificationRequested (e.g., immediately resolved),
     # check if they have a matching GlossaryClarificationResolved instead
+    existing_ids = {c["conflict_id"] for c in conflict_events}
     for event in events:
         event_type = event.get("event_type", "")
         if event_type == EVT_GLOSSARY_CLARIFICATION_RESOLVED:
@@ -270,7 +271,6 @@ def _extract_conflicts_from_events(  # noqa: C901
             term_text = event.get("term_surface", "unknown")
             # If this resolved event's conflict_id is not yet in our list,
             # it was resolved immediately (no Requested event)
-            existing_ids = {c["conflict_id"] for c in conflict_events}
             if cid and cid not in existing_ids:
                 conflict_events.append(
                     {
@@ -284,6 +284,7 @@ def _extract_conflicts_from_events(  # noqa: C901
                         "effective_strictness": "unknown",
                     }
                 )
+                existing_ids.add(cid)
 
     # Mark resolved conflicts
     for conflict in conflict_events:

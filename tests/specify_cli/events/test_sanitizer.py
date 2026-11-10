@@ -122,7 +122,7 @@ def test_pii_stripped_inside_list_of_dicts() -> None:
 
 def test_does_not_mutate_input() -> None:
     """Input dict must not be mutated by the sanitizer."""
-    original: dict = {
+    original: dict[str, object] = {
         "machine_name": "x",
         "payload": {"developer_email": "y@z.com"},
     }
@@ -252,6 +252,38 @@ def test_malformed_ended_at_removed_no_exception() -> None:
     assert "session_ended_at" not in result
     assert "session_started_at" not in result
     assert "session_duration_s" not in result
+
+
+@pytest.mark.parametrize(
+    ("started", "ended"),
+    [
+        ("2026-01-01T10:00:00", "2026-01-01T10:05:00+00:00"),
+        ("2026-01-01T10:00:00+00:00", "2026-01-01T10:05:00"),
+    ],
+    ids=["naive-start-aware-end", "aware-start-naive-end"],
+)
+def test_mixed_naive_aware_pair_dropped_without_duration(started: str, ended: str) -> None:
+    """A naive/aware session pair is malformed: both removed, no duration, no TypeError (#7440)."""
+    envelope = {"event_type": "E", "session_started_at": started, "session_ended_at": ended}
+    result = sanitize_event_for_log(envelope)
+    assert "session_started_at" not in result
+    assert "session_ended_at" not in result
+    assert "session_duration_s" not in result
+    assert result["event_type"] == "E"
+
+
+@pytest.mark.parametrize(
+    ("started", "ended"),
+    [
+        ("2026-01-01T10:00:00", "2026-01-01T10:05:00"),
+        ("2026-01-01T10:00:00+00:00", "2026-01-01T10:05:00+00:00"),
+    ],
+    ids=["both-naive", "both-aware"],
+)
+def test_same_kind_pair_still_yields_duration(started: str, ended: str) -> None:
+    """Positive control for the mixed-pair case: a consistent pair keeps its duration."""
+    result = sanitize_event_for_log({"session_started_at": started, "session_ended_at": ended})
+    assert result["session_duration_s"] == 300
 
 
 def test_neither_timestamp_field_output_unchanged() -> None:

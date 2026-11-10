@@ -22,7 +22,7 @@ import logging
 import os
 import re
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +53,11 @@ EVENTS_FILENAME = "status.events.jsonl"
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 _MISSION_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _WP_ID_PATTERN = WP_ID_PATTERN
+
+#: The only row breaks of the event log: CRLF, LF or a lone CR (#7439). Unlike
+#: ``str.splitlines()`` this never breaks at U+0085, U+2028, U+2029 or the C0
+#: separators, which may sit raw inside a JSON string of a single row.
+_LINE_BREAK = re.compile(r"\r\n|\n|\r")
 
 
 class StoreError(Exception):
@@ -295,9 +300,45 @@ def serialize_event_line(event_dict: Mapping[str, Any]) -> str:
 
     The one authority for the on-disk row shape: every writer (append, batch
     append) and the mission-state repair route through it, so they cannot
-    diverge (#5811).
+    diverge (#5811). The bytes follow the spec-kitty-events contract
+    (``serialize_record``): sorted keys, ASCII escapes, no NaN or Infinity.
+
+    Raises:
+        StoreError: the row holds a non-finite number, which is not valid JSON
+            (#7441); the caller writes nothing.
     """
-    return json.dumps(sanitize_event_for_log(event_dict), sort_keys=True)
+    try:
+        return json.dumps(sanitize_event_for_log(event_dict), sort_keys=True, allow_nan=False)
+    except ValueError as exc:
+        raise StoreError(f"Refusing to write event {_event_ident(event_dict)}: non-finite number (NaN/Infinity) is not valid JSON") from exc
+
+
+def _event_ident(event_dict: Mapping[str, Any]) -> str:
+    """A short human handle for an event row: its ``event_id`` and ``wp_id`` when present."""
+    parts = [str(event_dict[key]) for key in ("event_id", "wp_id") if event_dict.get(key)]
+    return " ".join(parts) if parts else "<unidentified>"
+
+
+def _jsonl_lines(text: str) -> Iterator[tuple[int, str]]:
+    """Yield ``(1-based physical line number, line)`` for each row of JSONL *text*.
+
+    Rows end only at CRLF, LF or a lone CR (see :data:`_LINE_BREAK`), so a row
+    whose string field holds U+2028 or a similar separator stays one row.
+    """
+    return enumerate(_LINE_BREAK.split(text), start=1)
+
+
+def _decode_json_line(line: str, line_number: int) -> Any:
+    """Decode one JSONL row, mapping every decode failure to :class:`StoreError`.
+
+    Besides syntax errors, CPython's decoder raises a plain ``ValueError`` for an
+    integer over 4300 digits and ``RecursionError`` for very deep nesting
+    (#7439); all of them become ``StoreError("Invalid JSON on line N: ...")``.
+    """
+    try:
+        return json.loads(line)
+    except (ValueError, RecursionError) as exc:
+        raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
 
 
 def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
@@ -366,7 +407,8 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     tmp_path = Path(raw_tmp_path)
     replaced = False
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        # newline="\n": the log is LF-framed on every OS (#7441).
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(existing)
             fh.write(additions)
             fh.flush()
@@ -391,13 +433,17 @@ def seed_scratch_event_log(feature_dir: Path, raw: bytes) -> None:
     the one event-log write primitive.
 
     Raises:
-        ValueError: a line is not a JSON object (the caller fails closed).
+        ValueError: a line is not valid JSON or not a JSON object (the caller
+            fails closed); nothing is written.
     """
     rows: list[dict[str, Any]] = []
-    for line in raw.decode("utf-8").splitlines():
+    for line_number, line in _jsonl_lines(raw.decode("utf-8")):
         if not line.strip():
             continue
-        row = json.loads(line)
+        try:
+            row = _decode_json_line(line, line_number)
+        except StoreError as exc:
+            raise ValueError(str(exc)) from exc
         if not isinstance(row, dict):
             raise ValueError(f"event log line is not a JSON object: {line[:80]!r}")
         rows.append(row)
@@ -559,10 +605,7 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
             stripped = raw_line.strip()
             if not stripped:
                 continue
-            try:
-                obj = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+            obj = _decode_json_line(stripped, line_number)
             if not isinstance(obj, dict):
                 raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
             results.append(obj)
@@ -667,14 +710,11 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
     resolver = _SlugResolver(feature_dir)
     transitions: list[StatusEvent] = []
     annotations: list[InnerStateChanged] = []
-    for line_number, raw_line in enumerate(content.splitlines(), start=1):
+    for line_number, raw_line in _jsonl_lines(content):
         stripped = raw_line.strip()
         if not stripped:
             continue
-        try:
-            obj = json.loads(stripped)
-        except json.JSONDecodeError as exc:
-            raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
+        obj = _decode_json_line(stripped, line_number)
         if not isinstance(obj, dict):
             raise StoreError(f"Invalid event structure on line {line_number}: expected JSON object")
 
@@ -767,11 +807,11 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
 _LENIENT_DEFAULTS: dict[str, Any] = {"event_id": "", "at": "", "actor": "", "force": False, "execution_mode": ""}
 
 
-def _lenient_lane_event(raw_line: str) -> StatusEvent | None:
+def _lenient_lane_event(line_number: int, raw_line: str) -> StatusEvent | None:
     """One lane ``StatusEvent`` decoded through :meth:`StatusEvent.from_dict`, or ``None`` when the line is no lane event or cannot be decoded."""
     try:
-        obj = json.loads(raw_line)
-    except json.JSONDecodeError:
+        obj = _decode_json_line(raw_line, line_number)
+    except StoreError:
         return None
     if not isinstance(obj, dict) or is_non_lane_event(obj) or obj.get("kind") == ANNOTATION_KIND:
         return None
@@ -797,7 +837,7 @@ def read_events_lenient(feature_dir: Path) -> list[StatusEvent]:
         text = _events_path(feature_dir).read_text(encoding="utf-8")
     except OSError:
         return []
-    events = (_lenient_lane_event(line) for line in text.splitlines() if line.strip())
+    events = (_lenient_lane_event(number, line) for number, line in _jsonl_lines(text) if line.strip())
     return [event for event in events if event is not None]
 
 

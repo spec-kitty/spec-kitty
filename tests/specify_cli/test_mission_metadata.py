@@ -24,9 +24,11 @@ from specify_cli.mission_metadata import (
     load_meta,
     load_meta_or_empty,
     load_meta_strict,
+    parse_meta_file,
     restore_meta_text,
     write_meta,
 )
+from specify_cli.status.emit import _load_mission_id
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -67,6 +69,19 @@ def _seed_malformed(feature_dir: Path) -> Path:
     meta_path = feature_dir / META_FILENAME
     meta_path.write_text('{"a":', encoding="utf-8")
     return meta_path
+
+
+def _seed_bom_prefixed(feature_dir: Path) -> dict[str, Any]:
+    """Write a valid meta.json carrying a leading UTF-8 BOM (``EF BB BF``).
+
+    Writing with ``utf-8-sig`` prepends the BOM, so a plain ``utf-8`` decode
+    leaves a leading U+FEFF that ``json.loads`` rejects (#7445).
+    """
+    meta = _valid_meta()
+    (feature_dir / META_FILENAME).write_text(
+        json.dumps(meta, ensure_ascii=False), encoding="utf-8-sig"
+    )
+    return meta
 
 
 # ===================================================================
@@ -118,6 +133,69 @@ def test_contract_a_non_utf8_bytes_raise_malformed_value_error(tmp_path: Path) -
     with pytest.raises(ValueError, match="Malformed JSON") as excinfo:
         load_meta(tmp_path)
     assert not isinstance(excinfo.value, UnicodeDecodeError)
+
+
+def test_contract_a_bom_prefixed_file_loads(tmp_path: Path) -> None:
+    """A BOM-prefixed meta.json loads through the canonical reader (#7445).
+
+    A ``meta.json`` saved with a UTF-8 byte-order mark is the same file as one
+    without it, so the canonical defaults must parse it -- not raise the
+    historical ``ValueError("Unexpected UTF-8 BOM")``.
+    """
+    meta = _seed_bom_prefixed(tmp_path)
+    assert load_meta(tmp_path) == meta
+
+
+def test_contract_a_bom_prefixed_file_loads_on_malformed_none(tmp_path: Path) -> None:
+    """The invisibility symptom (#7445): ``on_malformed="none"`` must not absorb a BOM'd file.
+
+    A BOM-prefixed file is well-formed JSON, so callers that pass
+    ``on_malformed="none"`` must see the mapping, not ``None`` -- a ``None``
+    here made the whole Mission invisible to status commands.
+    """
+    meta = _seed_bom_prefixed(tmp_path)
+    assert load_meta(tmp_path, on_malformed="none") == meta
+
+
+def test_contract_a_bom_prefixed_file_parse_meta_file(tmp_path: Path) -> None:
+    """The path-holding reader accepts a BOM-prefixed file too (#7445)."""
+    meta = _seed_bom_prefixed(tmp_path)
+    assert parse_meta_file(tmp_path / META_FILENAME) == meta
+
+
+def test_contract_a_bom_prefixed_and_plain_decode_identically(tmp_path: Path) -> None:
+    """Same-fixture control (FR-015): BOM'd and BOM-less files decode identically.
+
+    The same mapping written with and without the BOM must return the identical
+    dict from all three canonical readers -- a non-BOM file decodes
+    byte-identically to today.
+    """
+    meta = _valid_meta()
+    bom_dir = tmp_path / "with-bom"
+    plain_dir = tmp_path / "without-bom"
+    bom_dir.mkdir()
+    plain_dir.mkdir()
+    (bom_dir / META_FILENAME).write_text(
+        json.dumps(meta, ensure_ascii=False), encoding="utf-8-sig"
+    )
+    (plain_dir / META_FILENAME).write_text(
+        json.dumps(meta, ensure_ascii=False), encoding="utf-8"
+    )
+    for mission_dir in (bom_dir, plain_dir):
+        assert load_meta(mission_dir) == meta
+        assert load_meta(mission_dir, on_malformed="none") == meta
+        assert parse_meta_file(mission_dir / META_FILENAME) == meta
+
+
+def test_load_mission_id_reads_bom_prefixed_meta(tmp_path: Path) -> None:
+    """Symptom level (#7445): a real caller sees the mission_id of a BOM'd file.
+
+    ``status.emit._load_mission_id`` reads through ``on_malformed="none"``, so
+    on the base a BOM-prefixed ``meta.json`` made the Mission's identity
+    resolve to ``None``.
+    """
+    meta = _seed_bom_prefixed(tmp_path)
+    assert _load_mission_id(tmp_path) == meta["mission_id"]
 
 
 # ===================================================================

@@ -34,13 +34,13 @@ NOT produced here — pulling them into the reader would regress the dashboard
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.subtask_rows import normalize_authored_subtask_roster
+from specify_cli.core.subtask_rows import SubtaskRosterEntryError, normalize_authored_subtask_roster
+from specify_cli.core.wp_task_files import match_wp_task_files, non_regular
 
 from .reducer import wp_snapshot_state
 from .resolved_binding import (
@@ -57,11 +57,6 @@ __all__ = [
     "WPView",
     "reconstruct_wp_view",
 ]
-
-#: WP-file name matcher: ``WP04.md`` / ``WP04-slug.md`` / ``WP04_slug.md`` but
-#: NOT ``WP04b.md`` — the same word-boundary rule the emit/support locators use.
-_WP_FILE_SEP = r"(?:[-_.]|\.md$)"
-
 
 @dataclass(frozen=True)
 class ResolvedGroup:
@@ -209,15 +204,22 @@ def _authored_group(metadata: WPMetadata | None) -> AuthoredGroup:
 
     Pure transform of a :class:`WPMetadata` — stable inputs/outputs, directly
     testable. ``None`` (no locatable/parsable WP file) yields an empty group so
-    the reader never crashes on a WP with no frontmatter.
+    the reader never crashes on a WP with no frontmatter. Likewise a
+    ``subtasks:`` entry that is not a task id (#7442) yields an empty authored
+    subtask list while the other authored fields stay populated: the view only
+    reports, and the gates (``for_review``, ``mark-status``) refuse such a roster.
     """
     if metadata is None:
         return AuthoredGroup()
+    try:
+        subtasks = tuple(normalize_authored_subtask_roster(metadata.subtasks))
+    except SubtaskRosterEntryError:
+        subtasks = ()
     return AuthoredGroup(
         role=metadata.role,
         agent_profile=metadata.agent_profile,
         model=metadata.model,
-        subtasks=tuple(normalize_authored_subtask_roster(metadata.subtasks)),
+        subtasks=subtasks,
         owned_files=tuple(metadata.owned_files),
         dependencies=tuple(metadata.dependencies),
         requirement_refs=tuple(metadata.requirement_refs),
@@ -236,21 +238,13 @@ def _locate_wp_metadata(feature_dir: Path, wp_id: str) -> WPMetadata | None:
     group reads only frontmatter-canonical fields, so the raw parse is both
     correct and cheaper.
 
-    Returns ``None`` when the tasks dir is absent, no file matches, or the match
-    is ambiguous / unparsable — the reader tolerates a missing authored source
-    rather than raising.
+    Returns ``None`` when the tasks dir is absent, no file matches, the match is
+    ambiguous or not a regular file, or it is unparsable — the reader tolerates a
+    missing authored source rather than raising. Matching is the one rule in
+    :mod:`specify_cli.core.wp_task_files` (#7443).
     """
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return None
-
-    pattern = re.compile(rf"^{re.escape(wp_id)}{_WP_FILE_SEP}", re.IGNORECASE)
-    matches = [
-        path
-        for path in tasks_dir.glob("*.md")
-        if path.name.lower() != "readme.md" and pattern.match(path.name)
-    ]
-    if len(matches) != 1:
+    matches = match_wp_task_files(feature_dir, wp_id)
+    if len(matches) != 1 or non_regular(matches):
         return None
 
     from specify_cli.frontmatter import FrontmatterManager

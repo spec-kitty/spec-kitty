@@ -328,6 +328,46 @@ class TestVerdictHelpers:
         with pytest.raises(TransitionError, match="ambiguous"):
             emit_module._declared_dependencies(feature_dir, "WP03")
 
+    # #7443: one task-file locator, one case rule, regular files only.
+    @pytest.mark.parametrize("name", ["wp02-x.md", "WP02-x.md"])
+    def test_declared_dependencies_match_the_wp_id_case_insensitively(self, name: str, feature_dir: Path) -> None:
+        """A lowercase task file declares the same dependencies as its uppercase twin (#7443)."""
+        tasks = feature_dir / "tasks"
+        tasks.mkdir()
+        (tasks / name).write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\nbody\n", encoding="utf-8")
+        assert emit_module._declared_dependencies(feature_dir, "WP02") == ("WP01",)
+
+    def test_declared_dependencies_refuse_a_directory_named_like_a_task_file(self, feature_dir: Path) -> None:
+        """A directory is not a WP file: the declarations are unresolvable, not read (#7443)."""
+        (feature_dir / "tasks" / "WP03-dir.md").mkdir(parents=True)
+        with pytest.raises(TransitionError, match=r"WP03-dir\.md is not a regular file"):
+            emit_module._declared_dependencies(feature_dir, "WP03")
+
+    def test_declared_dependencies_mixed_case_twins_are_ambiguous(self, feature_dir: Path) -> None:
+        """``WP02-a.md`` beside ``wp02-b.md`` is two candidates, so it fails closed (#7443)."""
+        tasks = feature_dir / "tasks"
+        tasks.mkdir()
+        for name in ("WP02-a.md", "wp02-b.md"):
+            (tasks / name).write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\nbody\n", encoding="utf-8")
+        with pytest.raises(TransitionError, match="ambiguous"):
+            emit_module._declared_dependencies(feature_dir, "WP02")
+
+    def test_lowercase_task_file_still_gates_the_claim(self, feature_dir: Path) -> None:
+        """SC-003: a lowercase-named WP with an unfinished dependency cannot be claimed (#7443)."""
+        _write_wp(feature_dir, "WP01")
+        tasks = feature_dir / "tasks"
+        (tasks / "wp02-x.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: WP02\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+        seed_wp_to_planned(feature_dir, "WP01", slug=_SLUG)
+        seed_wp_to_planned(feature_dir, "WP02", slug=_SLUG)
+        _advance(feature_dir, "WP01", Lane.CLAIMED, Lane.IN_PROGRESS)
+        before = len(read_events(feature_dir))
+        with pytest.raises(TransitionError, match="unsatisfied dependencies"):
+            emit_status_transition(_claim_request(feature_dir, "WP02"))
+        assert len(read_events(feature_dir)) == before
+
     def test_declared_dependencies_reads_only_the_dependencies_key(self, feature_dir: Path) -> None:
         tasks = feature_dir / "tasks"
         tasks.mkdir()
