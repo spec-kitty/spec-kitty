@@ -62,7 +62,8 @@
       "last_transition_at": "2026-11-10T10:23:50.716285+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-11-10T10:17:03Z – claude – shell_pid=29706 – SC-001 on a scratch clone of this repository: 123 orphans before, 123 closed in one commit, 0 after, clean tree. NFR-003: a sweep of the 1,652-file store with no orphans takes 0.07 s (the first sweep, closing 123, 7.4 s). Design note: the shared commit stays inside ProfileInvocationExecutor (_commit_record_paths, commit_lifecycle_closures) instead of a new trail_commit.py, so the existing tests that patch executor.safe_commit/_current_branch keep covering it. WP01 review L1 (phase set from the Literal) and L2 (next never writes abandoned) folded here."
+        "- 2026-11-10T10:17:03Z – claude – shell_pid=29706 – SC-001 on a scratch clone of this repository: 123 orphans before, 123 closed in one commit, 0 after, clean tree. NFR-003: a sweep of the 1,652-file store with no orphans takes 0.07 s (the first sweep, closing 123, 7.4 s). Design note: the shared commit stays inside ProfileInvocationExecutor (_commit_record_paths, commit_lifecycle_closures) instead of a new trail_commit.py, so the existing tests that patch executor.safe_commit/_current_branch keep covering it. WP01 review L1 (phase set from the Literal) and L2 (next never writes abandoned) folded here.",
+        "Ready for review: lifecycle sweep in doctor ops --close-stale (every checkout, counted dedupe, one commit per checkout via the executor's record commit, additive lifecycle_records JSON, exit 1 on fresh orphans), docs and changelog. SC-001 verified on this repository's store (123/123 closed, 0 left)."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
