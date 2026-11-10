@@ -731,12 +731,12 @@
      "deprecated": false
     },
     "invocation-pairing": {
-     "help": "List orphan profile-invocation lifecycle records.\n\nWP05 (#843) wiring: scans\n``.kittify/events/profile-invocation-lifecycle.jsonl`` for ``started``\nrecords with no paired ``completed`` or ``failed`` partner. Mid-cycle\nagent crashes show up here. The check observes; it does not remediate.\n\nExit codes:\n  0  No orphans observed.\n  1  At least one orphan found.\n\nExamples:\n    spec-kitty doctor invocation-pairing\n    spec-kitty doctor invocation-pairing --json",
+     "help": "List orphan profile-invocation lifecycle records.\n\nWP05 (#843) wiring: scans the lifecycle records (``kitty-ops/lifecycle/``)\nfor ``started`` records with no paired completion (``completed``,\n``failed`` or ``abandoned``). Mid-cycle agent crashes show up here. The\ncheck observes; ``doctor ops --close-stale`` closes stale ones (#7346).\n\nExit codes:\n  0  No orphans observed.\n  1  At least one orphan found.\n\nExamples:\n    spec-kitty doctor invocation-pairing\n    spec-kitty doctor invocation-pairing --json",
      "hidden": false,
      "deprecated": false
     },
     "ops": {
-     "help": "List orphan Op records; --close-stale sweeps stale ones closed as abandoned.",
+     "help": "List orphan Op records; --close-stale closes stale Ops and lifecycle records as abandoned.",
      "hidden": false,
      "deprecated": false
     },
