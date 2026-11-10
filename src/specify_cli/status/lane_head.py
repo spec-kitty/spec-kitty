@@ -47,6 +47,7 @@ from the same single reading as ``lane_head`` (W-2, NFR-006).
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -158,13 +159,26 @@ def _redacted(detail: str, repo_root: Path) -> str:
 
     The detail is written into the committed event log, so it must not carry a
     machine-specific absolute path: the repository root reads ``<repo>`` and the
-    home directory ``~``.
+    home directory ``~``. Only whole path segments are replaced (``/repo`` does
+    not match inside ``/repob``), a non-absolute root is left alone, and an
+    unknown home directory skips the home redaction instead of raising.
     """
-    roots = {str(repo_root): "<repo>", str(repo_root.resolve()): "<repo>"}
+    roots = {str(repo_root): "<repo>", str(repo_root.resolve()): "<repo>"} if repo_root.is_absolute() else {}
+    try:
+        roots[str(Path.home())] = "~"
+    except (RuntimeError, KeyError, OSError):
+        # HOME unset and no passwd entry for the uid: nothing to redact, and this
+        # best-effort reader must never raise into a status transition.
+        logger.debug("_redacted: home directory unknown; skipping home redaction", exc_info=True)
     for root, placeholder in sorted(roots.items(), key=lambda item: -len(item[0])):
-        detail = detail.replace(root, placeholder)
-    home = str(Path.home())
-    return detail.replace(home, "~") if home not in ("", "/") else detail
+        if root in ("", "/"):
+            continue
+        detail = re.sub(re.escape(root) + _SEGMENT_END, placeholder, detail)
+    return detail
+
+
+#: A replaced root must end at a path separator or a non-name character, never inside a longer segment.
+_SEGMENT_END: Final = r"(?![\w-]|\.\w)"
 
 
 _NO_STAMP_WARNING = (
