@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from scripts.docs import _dockitty_contract as contract
 from scripts.docs._dockitty_contract import (
     DESCRIPTION_MAX,
     DOCKITTY_PIN,
@@ -318,3 +319,80 @@ def test_persona_kind_requires_its_attributes() -> None:
     )
     complete = _page(kind="Persona", role="Maintainer", goals=["ship"], responsibilities=["review"])
     assert validate_frontmatter("context/audience/x.md", complete).errors == ()
+
+
+# ---------------------------------------------------------------------------
+# The unpublished set (#6932, FR-003): one derivation the gates, the built-site
+# check and the redirect generator (#6933) all read.
+# ---------------------------------------------------------------------------
+
+_DOCS_LLMS = Path(__file__).resolve().parents[2] / "docs" / "llms.txt"
+
+
+def _page_at(root: Path, rel: str, frontmatter: str | None) -> None:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    head = "" if frontmatter is None else f"---\ntitle: t\n{frontmatter}---\n"
+    path.write_text(f"{head}\n# Body\n", encoding="utf-8")
+
+
+@pytest.fixture
+def docs_tree(tmp_path: Path) -> Path:
+    _page_at(tmp_path, "index.md", "doc_status: active\n")
+    _page_at(tmp_path, "guides/live.md", "doc_status: active\n")
+    _page_at(tmp_path, "guides/old.md", "doc_status: 'deprecated'\n")
+    _page_at(tmp_path, "guides/wip.md", "doc_status: draft\n")
+    _page_at(tmp_path, "guides/unstated.md", "")
+    _page_at(tmp_path, "guides/bare.md", None)
+    _page_at(tmp_path, "guides/nested/README.md", 'doc_status: "draft"\n')
+    _page_at(tmp_path, "archive/guides/gone.md", "doc_status: active\n")
+    _page_at(tmp_path, "plans/engineering-notes/note.md", "doc_status: deprecated\n")
+    _page_at(tmp_path, "plans/roadmap.md", "doc_status: active\n")
+    (tmp_path / "guides" / "notes.txt").write_text("not a page\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_unpublished_routes_name_drafts_excluded_folders_and_draft_folders(docs_tree: Path) -> None:
+    assert contract.unpublished_routes(docs_tree) == frozenset(
+        {
+            "/guides/wip/",
+            "/guides/unstated/",
+            "/guides/bare/",
+            "/guides/nested/",
+            "/archive/guides/gone/",
+            "/plans/engineering-notes/note/",
+        }
+    )
+
+
+def test_a_status_key_nested_under_another_key_does_not_publish_a_page(docs_tree: Path) -> None:
+    _page_at(docs_tree, "guides/nested-key.md", "meta:\n  doc_status: active\n")
+
+    assert "/guides/nested-key/" in contract.unpublished_routes(docs_tree)
+
+
+@pytest.mark.parametrize(
+    ("rel", "in_draft_folder"),
+    [
+        ("plans/engineering-notes/x.md", True),
+        ("plans/investigations/a/b.md", True),
+        ("plans/research/index.md", True),
+        ("plans/research-notes.md", False),
+        ("plans/roadmap.md", False),
+        ("guides/engineering-notes/x.md", False),
+    ],
+)
+def test_is_in_draft_folder(rel: str, in_draft_folder: bool) -> None:
+    assert contract.is_in_draft_folder(rel) is in_draft_folder
+
+
+def test_route_of_matches_the_built_directory_route() -> None:
+    assert contract.route_of("guides/x.md") == "/guides/x/"
+    assert contract.route_of("adr/4.x/README.md") == "/adr/4.x/"
+    assert contract.route_of("index.md") == "/"
+
+
+def test_the_hand_written_llms_txt_still_carries_the_stance() -> None:
+    """``docs/llms.txt`` keeps a copy of the stance until #6938 deletes it; the copies must agree."""
+    assert contract.LLMS_STANCE.startswith("## Current Version Stance\n")
+    assert contract.LLMS_STANCE in _DOCS_LLMS.read_text(encoding="utf-8")
