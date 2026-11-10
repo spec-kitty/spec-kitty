@@ -185,7 +185,6 @@ def test_failure_with_no_open_issue_creates_a_p0_issue_with_marker() -> None:
     assert "#4242" in summary
 
 
-@pytest.mark.p0_repro(issue=7492)
 def test_cancelled_red_with_no_failing_test_names_the_cancellation() -> None:
     """#7492: a cancelled (timed-out) suite must not read as only 'no failing tests'."""
     from scripts.ci.nightly_xunit import XunitRead
@@ -194,6 +193,83 @@ def test_cancelled_red_with_no_failing_test_names_the_cancellation() -> None:
     assert "`cancelled`" in body
     assert "timeout-minutes" in body
     assert body.index("`cancelled`") < body.index(mod.escalation_marker("acceptance-bdd"))
+    # The xunit sentence stays, ahead of the explanation.
+    assert body.index("listed no failing tests") < body.index("`cancelled`")
+
+
+def _xunit(*failing: str) -> Any:
+    from scripts.ci.nightly_xunit import FailedTest, XunitRead
+
+    return XunitRead(tuple(FailedTest(test_id=name, reason="boom", file="", line="") for name in failing), None)
+
+
+@pytest.mark.parametrize(
+    ("job_result", "report_failures", "expected"),
+    [
+        (None, (), ""),
+        ("success", (), ""),
+        ("failure", ("T::a",), ""),
+        ("failure", (), "`failure`"),
+        ("cancelled", ("T::a",), "`cancelled`"),
+        ("skipped", (), "`skipped`"),
+    ],
+)
+def test_job_result_note_names_only_a_red_that_is_not_a_listed_failing_test(job_result: str | None, report_failures: tuple[str, ...], expected: str) -> None:
+    note = mod.job_result_note(job_result, _xunit(*report_failures))
+    if expected:
+        assert expected in note
+    else:
+        assert note == ""
+
+
+@pytest.mark.parametrize("report", [None, "problem"])
+def test_failure_without_a_usable_report_is_named(report: str | None) -> None:
+    from scripts.ci.nightly_xunit import XunitRead
+
+    read = None if report is None else XunitRead((), "no xunit report in directory")
+    assert "`failure`" in mod.job_result_note("failure", read)
+
+
+def test_failure_note_with_listed_failures_keeps_the_ids_marker() -> None:
+    from scripts.ci.nightly_xunit import recorded_ids
+
+    body = mod.issue_body("acceptance-bdd", "https://run/9", report=_xunit("T::a"), job_result="cancelled")
+    assert recorded_ids(body) == ("T::a",)
+    assert "`cancelled`" in body
+
+
+def test_recurrence_comment_names_the_cancellation() -> None:
+    client = FakeClient(existing=_triaged_issue(77, key="acceptance-bdd"))
+    mod.run_escalation(client, ref=_MAIN, suite_key="acceptance-bdd", conclusion="failure", run_url="https://run/3", report=_xunit(), job_result="cancelled")
+    (comment,) = [args for name, args in client.calls if name == "comment"]
+    assert "`cancelled`" in comment[1]
+
+
+def test_job_result_never_closes_a_p0() -> None:
+    """--job-result only explains a red; the binary --conclusion alone decides open/bump/close."""
+    client = FakeClient(existing=_triaged_issue(77))
+    mod.run_escalation(client, ref=_MAIN, suite_key="integration", conclusion="failure", job_result="success")
+    assert "close" not in _call_names(client)
+
+
+def test_main_passes_the_job_result_into_the_issue(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GH_TOKEN", _FAKE_TOKEN)
+    created: dict[str, str] = {}
+
+    def _fake_create(self: Any, *, title: str, body: str, labels: list[str]) -> dict[str, Any]:
+        created["body"] = body
+        return _triaged_issue(5)
+
+    monkeypatch.setattr(mod.GitHubIssueClient, "find_open_issue_by_marker", lambda self, marker: None)
+    monkeypatch.setattr(mod.GitHubIssueClient, "create_issue", _fake_create)
+    args = [*_MAIN_ARGS, "--suite-key", "acceptance-bdd", "--conclusion", "failure", "--repo", "spec-kitty/spec-kitty", "--job-result", "cancelled"]
+    assert mod.main(args) == 0
+    assert "`cancelled`" in created["body"]
+
+
+def test_main_rejects_an_unknown_job_result() -> None:
+    with pytest.raises(SystemExit):
+        mod.main([*_MAIN_ARGS, "--suite-key", "x", "--conclusion", "failure", "--job-result", "neutral"])
 
 
 def test_created_issue_body_carries_the_exact_stable_dedup_marker() -> None:

@@ -1860,12 +1860,10 @@ jobs:
   # docs/development/testing/acceptance-scenarios.md.
   #
   # The GATING run (`-Pacceptance.pass=gating`: `not @wip and not @manual`) has NO retry wrapper --
-  # a flake IS the signal (NFR-005), never retried-to-green. A separate
-  # non-gating `@wip` run is continue-on-error so WIP scenarios never fail the
-  # leg (FR-014). timeout-minutes: the job is new and unmeasured; sized
-  # generously from the stages (one env sync, a Gradle download, a JVM compile
-  # and two scenario runs) -- a generous cap costs nothing unless a leg hangs. Since the
-  # Mission lifecycle scenarios landed (ADR 2026-10-15-1) the cap is sized from measured legs.
+  # a flake IS the signal (NFR-005), never retried-to-green. The non-gating `@wip` run is NOT
+  # in this job: it runs in `acceptance-bdd-wip` below, with its own budget and its own verdict,
+  # so WIP scenarios never fail the leg (FR-014, #7492). Since the Mission lifecycle scenarios
+  # landed (ADR 2026-10-15-1) the cap is sized from measured legs.
   # ---------------------------------------------------------------------------
   acceptance-bdd:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
@@ -1877,7 +1875,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Measured on run 38761757042 (56 gating scenarios, four at a time): Linux 6 min, macOS
     # 16 min, Windows over 30 min (a Mission lifecycle scenario runs dozens of CLI commands,
-    # 200-450 s each on Windows). 60 minutes leaves headroom without hiding a hang for long.
+    # 200-450 s each on Windows). Nightlies 2026-11-02..10: Windows gating 44-48 min plus about
+    # 2.5 min of setup. 60 minutes leaves headroom without hiding a hang for long; it budgets the
+    # gating pass only (the @wip pass has its own job, #7492).
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -1955,27 +1955,19 @@ jobs:
         shell: bash
         run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 
-      # NON-GATING run: the @wip scenarios, in their own build/acceptance/wip/
-      # folder. continue-on-error so a WIP scenario never fails the leg (FR-014).
-      # --rerun-tasks is kept on purpose: the pass is a Gradle input so the test
-      # task would re-execute anyway, but forcing it guarantees the wip results
-      # are fresh and never resolved UP-TO-DATE from a cached run.
-      - name: Run the non-gating @wip scenarios (never fails the leg)
-        continue-on-error: true
-        shell: bash
-        run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Pacceptance.pass=wip
-
       # Evidence bundle (FR-011): one versioned evidence.json per leg, counted from
       # the JUnit XML of each pass folder (not from step outcomes). if: always() so
       # a red gating step still produces it; it is written under the uploaded root.
       # The script writes evidence.json first, then exits non-zero unless the gating pass passed (no
       # JUnit XML, failures, or no scenario executed), so a gating pass that never ran is a red leg.
       # --gating-step-outcome hands it the gating step's outcome: a gating run that died after
-      # writing some green JUnit XML is recorded as failed, never passed.
+      # writing some green JUnit XML is recorded as failed, never passed. --pass gating: this job
+      # runs the gating pass only, so `passes_run` is ["gating"] and the wip entry is `missing`
+      # (the wip bundle is in the acceptance-bdd-wip-results-<os> artifact, #7492).
       - name: Write the acceptance evidence bundle
         if: always()
         shell: bash
-        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --gating-step-outcome "${{ steps.gating.outcome }}"
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --pass gating --gating-step-outcome "${{ steps.gating.outcome }}"
 
       # Hand the per-pass results (allure-results, cucumber.json, junit) and
       # evidence.json to the spec-kitty-qa nightly under an OS-qualified name so
@@ -1988,6 +1980,111 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: acceptance-bdd-results-${{ matrix.os }}
+          path: acceptance-jvm/build/acceptance/
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # acceptance-bdd-wip (#7492, FR-014): the non-gating `@wip` scenarios, on the same three
+  # OSes, in a job of their own. A WIP scenario never fails a leg, and a slow or hung @wip pass
+  # can no longer spend the gating leg's job budget: on Windows the gating pass (~47 min) plus
+  # the @wip pass (~11 min) ran into the shared 60-minute cap, cancelled the leg and escalated a
+  # P0 with no failing test (runs 41961190305, 42748989805). Operator ruling on #7492: split,
+  # not a larger shared cap.
+  #
+  # Non-gating end to end: nothing `needs:` this job (not acceptance-bdd-escalation, not
+  # nightly-summary), it never escalates, the job is continue-on-error (the release gate reads the
+  # run's conclusion), and the @wip step is continue-on-error with a step cap below the job cap, so
+  # a timeout fails only that step and the evidence and upload steps still run. The cap is sized from the measured @wip pass (Windows 11 min, 2026-11-02..10;
+  # Linux and macOS under 6) with ~1.8x headroom, plus the 5-minute reserve for setup and upload.
+  # Results go to `acceptance-bdd-wip-results-<os>` (wip/ and an evidence.json whose
+  # `passes_run` is ["wip"]); the name never matches the escalation's `acceptance-bdd-results-*`.
+  # ---------------------------------------------------------------------------
+  acceptance-bdd-wip:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
+    name: Acceptance BDD @wip (non-gating, 3-OS)
+    # Job-level as well as step-level: the release gate (scripts/ci/release_nightly_gate.py) reads the
+    # run's conclusion, so a failed setup, upload or job cap here must not turn the nightly red either.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      - name: Install the locked Python environment
+        shell: bash
+        run: uv sync --frozen --no-install-project
+
+      # The pinned contract-tools extra (install_tools.py) installs the pinned Gradle, as in acceptance-bdd.
+      - name: Sync the pinned service extras (contract tools)
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # Same caches and keys as acceptance-bdd (tool and dependency artefacts only, never test results).
+      - name: Restore the pinned Gradle tool cache (checksum-verified on restore)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/tools
+          key: gradle-tool-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json') }}
+
+      - name: Restore the Gradle dependency cache (never test results)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: gradle-deps-${{ runner.os }}-${{ hashFiles('acceptance-jvm/tools/pins.json', 'acceptance-jvm/build.gradle', 'acceptance-jvm/settings.gradle', 'acceptance-jvm/gradle/verification-metadata.xml') }}
+          restore-keys: |
+            gradle-deps-${{ runner.os }}-
+
+      - name: Install the pinned Gradle (checksum verified; cache re-verified before use)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools="$(PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+          uv run --frozen --no-sync python scripts/ci/gradle_tool_cache.py ensure --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --installer "$tools/install_tools.py"
+
+      # NON-GATING run: the @wip scenarios, in their own build/acceptance/wip/ folder.
+      # continue-on-error so a WIP scenario never fails the job (FR-014); the step cap sits below
+      # the job cap so a slow pass fails this step only and the evidence and upload still run.
+      # --rerun-tasks is kept on purpose: it guarantees the wip results are fresh and never
+      # resolved UP-TO-DATE from a cached run.
+      - name: Run the non-gating @wip scenarios (never fails the job)
+        id: wip
+        continue-on-error: true
+        timeout-minutes: 20
+        shell: bash
+        run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Pacceptance.pass=wip
+
+      # Evidence bundle (FR-011) for the wip pass only: `passes_run` is ["wip"], the gating
+      # entry is `missing` (it lives in acceptance-bdd-results-<os>), and the script exits 0
+      # whatever the wip outcome. --wip-step-outcome records a timed-out pass as failed.
+      - name: Write the acceptance evidence bundle
+        if: always()
+        shell: bash
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --pass wip --wip-step-outcome "${{ steps.wip.outcome }}"
+
+      - name: Upload acceptance-bdd @wip results (wip pass and evidence.json)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: acceptance-bdd-wip-results-${{ matrix.os }}
           path: acceptance-jvm/build/acceptance/
           if-no-files-found: error
           retention-days: 30
@@ -2034,6 +2131,8 @@ jobs:
       # --xunit gets each leg's GATING junit folder only (never wip/, whose reds never fail a leg);
       # the script dedupes a scenario that went red on several legs. A leg with no gating folder is
       # warned about; with none at all there is no --xunit and the issue keeps the exit-code message.
+      # --job-result hands over the matrix result, so a cancelled (timed-out) leg or a red outside
+      # the tests is named in the P0 instead of only "no failing tests" (#7492).
       - name: Escalate acceptance-bdd red -> deduped P0 (fail-closed)
         if: always() && github.ref == 'refs/heads/main'
         shell: bash
@@ -2048,7 +2147,7 @@ jobs:
             junit="$leg/gating/junit"
             if [ -d "$junit" ]; then xunit_args+=(--xunit "$junit"); else echo "::warning::${leg##*/} has no gating JUnit XML; its failures are not listed in the P0"; fi
           done
-          python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" "${xunit_args[@]}"
+          python3 scripts/ci/nightly_escalation.py --suite-key acceptance-bdd --conclusion "$conclusion" --job-result "${ACCEPTANCE_RESULT:-failure}" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" "${xunit_args[@]}"
       # The job mirrors the matrix verdict so nightly-summary shows a red acceptance run in one row.
       - name: Fail the job if the acceptance-bdd run was not green
         if: always()

@@ -8,10 +8,15 @@ The bundle follows ``contracts/evidence.schema.json`` of the
 
 ``evidence.json`` is always written. The exit status is 1 unless the gating pass is ``passed`` (no JUnit XML, failures, or nothing executed).
 
+``--pass`` (repeatable; default both) names the passes this job ran (#7492: the nightly runs the
+gating and ``@wip`` passes in separate jobs). The bundle still carries every pass the schema
+requires, so a pass not run here reads ``missing``; the additive ``passes_run`` field says which
+were run. A job that did not run the gating pass never fails on it: a wip-only job exits 0.
+
 ``--gating-step-outcome`` takes the CI outcome of the step that ran the gating pass
 (``steps.<id>.outcome``). Anything but ``success`` turns a ``passed`` gating pass into
 ``failed``: a run that died after writing some green JUnit XML must not read as green. A
-pass with no JUnit XML stays ``missing``.
+pass with no JUnit XML stays ``missing``. ``--wip-step-outcome`` does the same for the wip pass.
 """
 
 from __future__ import annotations
@@ -26,7 +31,8 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 GATING_NAME = "gating"
-PASSES = (GATING_NAME, "wip")
+WIP_NAME = "wip"
+PASSES = (GATING_NAME, WIP_NAME)
 COUNTERS = ("tests", "failures", "errors", "skipped")
 EVIDENCE_FILE = "evidence.json"
 STEP_SUCCESS = "success"
@@ -180,18 +186,28 @@ def _run_url() -> str | None:
     return None
 
 
-def build_bundle(root: Path, os_name: str, gating_step_outcome: str | None = None) -> dict[str, Any]:
+def build_bundle(
+    root: Path,
+    os_name: str,
+    gating_step_outcome: str | None = None,
+    *,
+    passes_run: Sequence[str] = PASSES,
+    wip_step_outcome: str | None = None,
+) -> dict[str, Any]:
     """Assemble the evidence bundle for the pass folders under ``root``.
 
-    ``gating_step_outcome`` is the CI outcome of the gating step; ``None`` trusts the JUnit XML alone.
+    ``gating_step_outcome`` / ``wip_step_outcome`` are the CI outcomes of the steps that ran each
+    pass; ``None`` trusts the JUnit XML alone. ``passes_run`` names the passes this job ran, in
+    :data:`PASSES` order.
     """
-    step_outcomes = {GATING_NAME: gating_step_outcome}
+    step_outcomes = {GATING_NAME: gating_step_outcome, WIP_NAME: wip_step_outcome}
     return {
         "schema_version": SCHEMA_VERSION,
         "commit_sha": _environment_value(root, "commit.sha"),
         "cli_version": _environment_value(root, "cli.version"),
         "os": os_name,
         "run_url": _run_url(),
+        "passes_run": [name for name in PASSES if name in passes_run],
         "passes": {name: _pass_entry(root, name, step_outcomes.get(name)) for name in PASSES},
     }
 
@@ -206,12 +222,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="CI outcome of the gating step (steps.<id>.outcome); anything but success fails the gating pass",
     )
+    parser.add_argument(
+        "--wip-step-outcome",
+        choices=STEP_OUTCOMES,
+        default=None,
+        help="CI outcome of the wip step (steps.<id>.outcome); anything but success fails the wip pass (never the exit status)",
+    )
+    parser.add_argument(
+        "--pass",
+        dest="passes_run",
+        action="append",
+        choices=PASSES,
+        default=None,
+        help="a pass this job ran; repeat for several (default: every pass). Without gating the exit status is 0",
+    )
     args = parser.parse_args(argv)
-    bundle = build_bundle(args.root, args.os_name, args.gating_step_outcome)
+    passes_run = tuple(args.passes_run or PASSES)
+    bundle = build_bundle(args.root, args.os_name, args.gating_step_outcome, passes_run=passes_run, wip_step_outcome=args.wip_step_outcome)
     args.root.mkdir(parents=True, exist_ok=True)
     target = args.root / EVIDENCE_FILE
     target.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"wrote {target}")
+    if GATING_NAME not in passes_run:
+        return 0
     outcome = bundle["passes"][GATING_NAME]["outcome"]
     if outcome != "passed":
         print(f"error: the {GATING_NAME} pass is {outcome} under {args.root}")
