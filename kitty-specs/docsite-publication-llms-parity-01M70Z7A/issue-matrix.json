@@ -61,16 +61,16 @@
       "wp": null
     },
     "#6934": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 (llms.txt wrapper with the D-9 stance, agent index)",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "llms.txt",
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#6935": {
       "evidence_ref": "<link or commit>",
