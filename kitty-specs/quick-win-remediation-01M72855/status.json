@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M7290PJQRE3RXWQYC5AESAWB",
-  "materialized_at": "2026-11-10T08:25:57.079281+00:00",
+  "event_count": 3,
+  "last_event_id": "01M7290S8HM66Z3CKNZ50CAT37",
+  "materialized_at": "2026-11-10T08:25:59.825349+00:00",
   "mission_number": "",
   "mission_slug": "quick-win-remediation-01M72855",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -31,6 +31,13 @@
       "lane": "planned",
       "last_event_id": "01M7290PJQRE3RXWQYC5AESAWB",
       "last_transition_at": "2026-11-10T08:25:57.079281+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M7290S8HM66Z3CKNZ50CAT37",
+      "last_transition_at": "2026-11-10T08:25:59.825349+00:00"
     }
   }
 }
