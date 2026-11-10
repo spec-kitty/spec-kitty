@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from collections import Counter
 import logging
 import os
 from dataclasses import dataclass, field
@@ -327,6 +328,9 @@ def _commit_note(outcome: OpCommitOutcome | None) -> str | None:
 # WP lifecycle records (#7346)
 # ---------------------------------------------------------------------------
 
+#: A lifecycle record's identity across checkouts: Mission, action, agent, work package, ``at``.
+_LifecycleKey = tuple[str, str, str, str | None, str]
+
 #: ``reason`` of an ``abandoned`` lifecycle record the sweep writes.
 LIFECYCLE_ABANDONED_REASON = "abandoned by doctor ops --close-stale (older than {threshold}h)"
 
@@ -340,12 +344,13 @@ def close_stale_lifecycle_records(repo_root: Path, *, threshold_hours: float, no
     ``abandoned`` record written next to it in the checkout that holds it
     (:func:`~specify_cli.invocation.lifecycle.write_abandoned_completion`). A record
     present in several checkouts (tracked on a shared branch) is handled once, in
-    the first checkout that holds it. Each checkout's closures are then committed
+    the first checkout that holds it; identical records within one checkout are
+    each their own orphan, so occurrences are counted, not collapsed. Each checkout's closures are then committed
     once through the executor's record commit (#6410 skip rules, protected-branch
     refusal reported). Mission status, ``meta.json`` and work package files are
     never read or written.
     """
-    seen: set[tuple[str, str, str, str | None, str]] = set()
+    seen: Counter[_LifecycleKey] = Counter()
     entries: list[SweepLifecycleEntry] = []
     for checkout in _checkouts(repo_root):
         entries.extend(_sweep_lifecycle_checkout(repo_root, checkout, threshold_hours=threshold_hours, now=now, seen=seen))
@@ -358,9 +363,13 @@ def _sweep_lifecycle_checkout(
     *,
     threshold_hours: float,
     now: datetime,
-    seen: set[tuple[str, str, str, str | None, str]],
+    seen: Counter[_LifecycleKey],
 ) -> list[SweepLifecycleEntry]:
-    """Close one checkout's stale unpaired ``started`` records, then commit the closures once."""
+    """Close one checkout's stale unpaired ``started`` records, then commit the closures once.
+
+    *seen* counts each record identity handled in earlier checkouts; this checkout
+    skips that many occurrences of it and adds what it holds beyond them.
+    """
     try:
         records = read_lifecycle_records(checkout)
     except (OSError, UnicodeDecodeError) as exc:
@@ -369,17 +378,19 @@ def _sweep_lifecycle_checkout(
     reason = LIFECYCLE_ABANDONED_REASON.format(threshold=f"{threshold_hours:g}")
     entries: list[SweepLifecycleEntry] = []
     closures: list[tuple[SweepLifecycleEntry, Path]] = []
+    held: Counter[_LifecycleKey] = Counter()
     for started in (record for group in find_orphans(records) for record in unpaired_started(group)):
         key = (started.mission_id, started.canonical_action_id, started.agent, started.wp_id, started.at.isoformat())
-        if key in seen:
+        held[key] += 1
+        if held[key] <= seen[key]:
             continue
-        seen.add(key)
         entry = _lifecycle_entry(started, now)
         entries.append(entry)
         if threshold_hours == 0 or (entry.age_hours is not None and entry.age_hours > threshold_hours):
             path = _close_lifecycle_record(checkout, started, entry, reason)
             if path is not None:
                 closures.append((entry, path))
+    seen |= held
     _commit_lifecycle_closures(repo_root, checkout, closures)
     return entries
 

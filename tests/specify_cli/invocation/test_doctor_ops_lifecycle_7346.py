@@ -211,3 +211,22 @@ def test_the_cli_reports_lifecycle_records_and_exits_on_fresh_orphans(tmp_path: 
     assert entry["canonical_action_id"] == "implement::cli"
     assert entry["action_taken"] == ("closed_abandoned" if exit_code == 0 else "none")
     assert payload["swept"] == 0
+
+
+def test_two_identical_started_records_in_one_checkout_are_both_closed(tmp_path: Path) -> None:
+    """This repository holds such pairs: the cross-checkout dedupe must count occurrences, not collapse them."""
+    repo = _repo(tmp_path)
+    checkout_issue_branch(repo)
+    at = _NOW - timedelta(hours=48)
+    for _ in range(2):
+        write_started(repo, canonical_action_id="implement::twin", agent="claude", mission_id=_MISSION, wp_id="WP03", at=at)
+    _commit_all(repo, "twin orphans")
+    worktree = tmp_path / "lane"
+    run_git(repo, "worktree", "add", "-q", "-b", "lane-topic", str(worktree))
+
+    entries = close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
+
+    assert [entry.action_taken for entry in entries] == ["closed_abandoned", "closed_abandoned"]
+    assert _abandoned(repo) == ["implement::twin", "implement::twin"]
+    assert doctor_orphan_report(repo)["orphan_count"] == 0
+    assert _abandoned(worktree) == []
