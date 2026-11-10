@@ -20,7 +20,7 @@ This document records a corroborated investigation into why **research / adversa
 squads recently stopped loading charter agent profiles**, and defines the **near-term
 stabilization design**. The deployable charter-backend evolution that this
 work makes possible is a **separate, backlog-scoped** design — see
-Charter Backend Service (Future) (an unpublished draft, `docs/architecture/charter-backend-service-future.md`).
+[Charter Backend Service (Future)](charter-backend-service-future.md).
 
 > **Status (2026-09-30).** Partly shipped. The activation-allowlist fix (#3810, §4.1)
 > and the `directive:<id>` selector fix (#3816, §6 D1) shipped in 3.2.6. #3814 was closed.
@@ -214,7 +214,7 @@ full repository).
 The backend evolution is deliberately **out of the near-term scope**. §4.2 is intentionally a transport
 change the *orchestrator* owns, so a future backend slots in behind the **same resolution
 contract** without touching delegates. See
-Charter Backend Service (Future) (an unpublished draft, `docs/architecture/charter-backend-service-future.md`).
+[Charter Backend Service (Future)](charter-backend-service-future.md).
 
 > **Freeze note.** The `adversarial-squad` skill and charter packs are doctrine surfaces;
 > during the 3.2.x cycle some changes fell under the doctrine-surface freeze (`pr:deferred`). Sequence

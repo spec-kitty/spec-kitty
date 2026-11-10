@@ -173,11 +173,14 @@ Every page in `docs/architecture/`. These pages capture design rationale and mod
 - [Understanding Charter: synthesis, DRG, and governed context](charter-synthesis-drg.md).
 - [Understanding governed profile invocation](governed-profile-invocation.md) — standalone dispatch under governance.
 - [Profile-load reliability](profile-load-reliability.md) — why squads stopped loading charter agent profiles, and the stabilization design (partly shipped in 3.2.6; the rest is on 4.x Work).
+- [Charter backend service (future)](charter-backend-service-future.md) — preliminary backlog design for a deployable charter/doctrine resolution endpoint.
 - [Documentation Mission Guide](documentation-mission.md) — the Documentation Kitty mission.
 - [Understanding the retrospective learning loop](retrospective-learning-loop.md) — the four-category model.
 - [The Artifact Placement Seam](artifact-placement-seam.md) — the layer model deciding which physical tree a mission artifact resolves to, and where callers bypass it.
 - [Post-merge partition authority](post-merge-partition-authority.md) — one model for the write half (which bytes win per artifact on squash) and the read half (which surface a post-merge reader trusts).
+- [The activation ledger and the charter contract](activation-ledger-and-charter-contract.md) — how core's activation ledger maps onto the charter service's activation contract through one seam, what diverges, and the impact on the remaining work.
 - [Branch-target routing](branch-target-routing.md) — which git branch receives each type of change.
+- [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
 - [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development artifact set and its change-intent canvas.
 - [Team Kitty and Zeitgeist](../context/team-kitty.md) — the **historical** hosted model (removed from this repository in #6164): CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram. Kept for orientation only.

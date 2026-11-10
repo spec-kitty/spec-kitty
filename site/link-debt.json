@@ -298,12 +298,6 @@
     {
       "gate": "built-links",
       "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
-      "target": "../../architecture/wp-runtime-state-eviction.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "built-links",
-      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
       "target": "../../plans/investigations/wp-op-schema-proposal.md",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
     },
@@ -531,12 +525,6 @@
     },
     {
       "gate": "built-links",
-      "source": "adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md",
-      "target": "../../architecture/charter-backend-service-future.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "built-links",
       "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
       "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/data-model.md",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
@@ -563,18 +551,6 @@
       "gate": "built-links",
       "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
       "target": "../../../tests/charter/conformance/activation_ledger_cases.yaml",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "built-links",
-      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
-      "target": "../../architecture/activation-ledger-and-charter-contract.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "built-links",
-      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
-      "target": "../../architecture/activation-ledger-and-charter-contract.md#divergence-register",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
     },
     {
@@ -772,12 +748,6 @@
     {
       "gate": "check-links",
       "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
-      "target": "../../architecture/wp-runtime-state-eviction.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "check-links",
-      "source": "adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md",
       "target": "../../plans/investigations/wp-op-schema-proposal.md",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
     },
@@ -885,12 +855,6 @@
     },
     {
       "gate": "check-links",
-      "source": "adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md",
-      "target": "../../architecture/charter-backend-service-future.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "check-links",
       "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
       "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/data-model.md",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
@@ -911,18 +875,6 @@
       "gate": "check-links",
       "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
       "target": "../../../kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "check-links",
-      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
-      "target": "../../architecture/activation-ledger-and-charter-contract.md",
-      "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
-    },
-    {
-      "gate": "check-links",
-      "source": "adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
-      "target": "../../architecture/activation-ledger-and-charter-contract.md#divergence-register",
       "reason": "broken link inside an immutable history body (pre-existing); the body is never rewritten"
     },
     {
