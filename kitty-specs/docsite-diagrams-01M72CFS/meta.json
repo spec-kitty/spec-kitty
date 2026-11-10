@@ -1,0 +1,20 @@
+{
+  "create_return_branch": "issue-6936-docsite-diagrams",
+  "created_at": "2026-11-10T09:26:38.616100+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite diagrams",
+  "mid8": "01M72CFS",
+  "mission_branch": "kitty/mission-docsite-diagrams-01M72CFS",
+  "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+  "mission_number": null,
+  "mission_slug": "docsite-diagrams-01M72CFS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The doc-kitty docsite must render the docs' Mermaid and PlantUML diagrams at build time, as DocFX does today, without letting a diagram fetch remote content. A self-hosted PlantUML server pinned by digest runs in SANDBOX mode beside the build, a canary check proves it refuses remote includes, and the ADR records that guarantee. DocFX keeps deploying with its own PlantUML path.",
+  "purpose_tldr": "Render every Mermaid and PlantUML diagram as a static SVG in the doc-kitty build, against a digest-pinned sandboxed PlantUML server (#6936)",
+  "slug": "docsite-diagrams-01M72CFS",
+  "target_branch": "issue-6936-docsite-diagrams",
+  "topology": "single_branch",
+  "topology_settled": false,
+  "topology_source": "default"
+}
