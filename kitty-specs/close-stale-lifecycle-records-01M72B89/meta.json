@@ -15,6 +15,14 @@
   "slug": "close-stale-lifecycle-records-01M72B89",
   "target_branch": "feat/7346-close-stale-lifecycle-records",
   "topology": "single_branch",
-  "topology_settled": false,
+  "topology_decision": {
+    "code_lane_count": 2,
+    "from": "single_branch",
+    "rule": "wp_count_le_2",
+    "target_protected": false,
+    "to": "single_branch",
+    "wp_count": 2
+  },
+  "topology_settled": true,
   "topology_source": "default"
 }
