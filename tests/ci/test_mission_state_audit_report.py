@@ -288,3 +288,10 @@ def test_a_report_with_neither_key_says_nothing_could_be_listed_not_that_it_is_c
     assert report_mod.NO_MISSIONS_NOTE in log and report_mod.NO_MISSIONS_NOTE in summary
     assert report_mod.NO_BLOCKERS not in log and report_mod.NO_BLOCKERS not in summary
     assert "? Missions" in summary
+
+
+def test_the_repair_doc_the_remedy_names_exists() -> None:
+    """The remedy points operators at a page; it must be a real file (it moved to the archive in #6932)."""
+    root = Path(__file__).resolve().parents[2]
+
+    assert (root / report_mod.REPAIR_DOC).is_file()

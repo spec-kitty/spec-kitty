@@ -26,5 +26,3 @@
   href: upgrade-with-live-lanes-recovery.md
 - name: --start-branch Coordination Divergence
   href: start-branch-coord-divergence.md
-- name: Sync Daemon Orphan Cleanup
-  href: sync-daemon-orphan-cleanup.md

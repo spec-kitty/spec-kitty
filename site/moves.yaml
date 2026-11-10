@@ -345,3 +345,15 @@ moves:
   - {from: /adr/2.x/README.html, to: /adr/2.x/index.html, ref: "#6928", note: "redirect stub deleted"}
   - {from: /adr/3.x/README.html, to: /adr/3.x/index.html, ref: "#6928", note: "redirect stub deleted"}
   - {from: /architecture/README.html, to: /architecture/index.html, ref: "#6928", note: "landing page folded into the index"}
+  # --- 2026-11-09 #6932: retired hosted/sync pages archived (unpublished; ADR 2026-10-31-1 D-5 rule 4) ---
+  - {from: /architecture/zeitgeist-session-identity.html, to: /architecture/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /guides/how-to/collaboration/sync-workspaces.html, to: /guides/how-to/collaboration/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /migrations/teamspace-mission-state-920-closeout.html, to: /migrations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /operations/internal-hosted-readiness.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /operations/logged-out-teamspace.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  # --- 2026-11-09 #6932 (operator ruling): pinned retired pages archived as well ---
+  - {from: /architecture/team-kitty-saas.html, to: /architecture/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /guides/project-sync-consent.html, to: /guides/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /migrations/teamspace-mission-state-repair.html, to: /migrations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /operations/sync-daemon-orphan-cleanup.html, to: /operations/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}
+  - {from: /plans/zeitgeist-client-wp01-remaining.html, to: /plans/index.html, ref: "#6932", note: "retired hosted/sync page, archived (#6932)"}

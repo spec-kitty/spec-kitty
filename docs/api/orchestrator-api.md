@@ -58,7 +58,7 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   below. An external host can now drive the entire design pipeline
   (`specify → plan → tasks → check-prerequisites/record-analysis →
   decision resolution`) without crossing into host-CLI territory; see
-  [Host Boundary Rules](../../src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md)
+  [Host Boundary Rules](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md)
   for the updated Boundary Decision Matrix.
 - `1.5.0` — the `tasks` verb's pass-through `data` gained the
   `planning_commit` object (`action` / `sha` / `previous_sha` / `branch_tip`)
@@ -477,7 +477,7 @@ entire design pipeline — `specify → plan → tasks →
 check-prerequisites/record-analysis → decision resolution` — the same way it
 already drives the WP-implementation loop above, without ever calling
 `spec-kitty next` or another host-CLI command directly. See
-[Host Boundary Rules](../../src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md)
+[Host Boundary Rules](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/host-boundary-rules.md)
 for when to use these verbs versus the host CLI.
 
 ### specify

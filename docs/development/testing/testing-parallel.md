@@ -43,7 +43,7 @@ make test-full    # everything, parallel + serial passes — CI's target, not PR
 
 `make test-full` runs the bulk of the suite across worker processes, then gives
 each of the two parallel-unsafe families (`stress` and `timing`) its own
-dedicated serial pass — see [AGENTS.md](../../../AGENTS.md#commands) for the
+dedicated serial pass — see [AGENTS.md](https://github.com/spec-kitty/spec-kitty/blob/main/AGENTS.md#commands) for the
 exact pass breakdown and the PR-validation test policy.
 
 ## Why `--dist loadfile` (never bare `--dist load`)

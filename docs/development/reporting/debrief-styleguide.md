@@ -15,11 +15,11 @@ related:
 
 **Status:** the design system's house style, now shipped as the internal
 doctrine styleguide
-[`packs/internal/styleguides/executive-debrief.styleguide.yaml`](../../../packs/internal/styleguides/executive-debrief.styleguide.yaml).
+[`packs/internal/styleguides/executive-debrief.styleguide.yaml`](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/styleguides/executive-debrief.styleguide.yaml).
 This page is that artifact's detailed layout, palette and print-treatment reference.
 **Applies to:** the reports produced by the `kitty-report-debrief` pack skill — the
 time-window "what landed since <T>" debrief and the milestone/label open-issue
-snapshot. One-pager examples: [`examples/`](examples/).
+snapshot. One-pager examples: [`examples/`](https://github.com/spec-kitty/spec-kitty/tree/main/docs/development/reporting/examples).
 
 ## Two layouts
 
@@ -42,7 +42,7 @@ colours and type from the branded generator and needs no styling of its own.
 A long-form debrief is one Markdown file rendered by the branded PDF generator.
 Do not build a cover, a footer or a stylesheet by hand: the generator draws
 them from the design tokens. Its look is documented in
-[`BRANDED_DOCUMENT_GENERATION.md`](../../../packs/internal/toolguides/BRANDED_DOCUMENT_GENERATION.md).
+[`BRANDED_DOCUMENT_GENERATION.md`](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/toolguides/BRANDED_DOCUMENT_GENERATION.md).
 
 ### Order (fixed)
 

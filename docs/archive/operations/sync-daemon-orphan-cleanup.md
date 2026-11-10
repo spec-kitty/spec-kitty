@@ -20,7 +20,7 @@ what each cleanup class means, what is never touched, the JSON fields for
 scripting, and the hosted-auth/sync test environment gate.
 
 **Architectural background:**
-[`docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md`](../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md)
+[`docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md`](../../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md)
 
 ---
 

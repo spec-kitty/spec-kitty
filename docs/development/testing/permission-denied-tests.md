@@ -12,7 +12,7 @@ audience:
 
 A test that covers an `EACCES` branch must reach that branch for every uid.
 
-Root ignores mode bits. CI containers and cloud sessions run as uid 0, so a test that denies access with `chmod` either skips there or passes without reaching the branch it names (#5654, #5691). Inject the denial at the filesystem seam instead, with the helpers in [`tests/_support/eacces.py`](../../../tests/_support/eacces.py).
+Root ignores mode bits. CI containers and cloud sessions run as uid 0, so a test that denies access with `chmod` either skips there or passes without reaching the branch it names (#5654, #5691). Inject the denial at the filesystem seam instead, with the helpers in [`tests/_support/eacces.py`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/_support/eacces.py).
 
 ## Pick the seam the code under test calls
 

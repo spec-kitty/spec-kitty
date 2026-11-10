@@ -1,8 +1,11 @@
 # ---------------------------------------------------------------------------
 # docs-site-build (#6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
 # D-11): the ONE build definition of the doc-kitty docsite. It checks the site's folder
-# contract, installs site/ with the frozen lockfile (no token: doc-kitty is public), builds
-# with drafts off (site/.env.production) and uploads site/dist.
+# contract, installs site/ with the frozen lockfile (no token: doc-kitty is public), runs the
+# frontmatter and source link gates, builds with drafts off (site/.env.production), checks that
+# the built site publishes no unpublished route (#6932), runs the built-site link gate and
+# uploads site/dist. The link gates run through scripts/docs/site_link_gates.py, which fails on
+# any problem not priced in site/link-debt.json (immutable history bodies only, #7489).
 #
 # Callers:
 #   - ci-router.yml `docs-site` (the required pull-request gate): plain artifact upload. Its
@@ -54,9 +57,27 @@ jobs:
       - name: Install the site with the frozen lockfile (no token)
         working-directory: site
         run: pnpm install --frozen-lockfile
+      - name: Frontmatter gate (doc-kitty, published and draft pages)
+        working-directory: site
+        run: pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
+      - name: Source link gate (strict; immutable-body debt priced in site/link-debt.json, #7489)
+        working-directory: site
+        env:
+          PYTHONPATH: ..:../src
+        run: python3 -m scripts.docs.site_link_gates check-links -- pnpm exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
       - name: Build the docsite (drafts off via site/.env.production)
         working-directory: site
         run: pnpm run build
+      - name: Check the built site publishes no unpublished route (#6932)
+        # Standard library plus src/kernel, like the contract check above.
+        env:
+          PYTHONPATH: .:src
+        run: python3 -m scripts.docs.site_built_check site/dist --docs docs
+      - name: Built-site link gate (immutable-body debt priced in site/link-debt.json, #7489)
+        working-directory: site
+        env:
+          PYTHONPATH: ..:../src
+        run: python3 -m scripts.docs.site_link_gates built-links -- pnpm exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../docs --astro-config astro.config.mjs
       - name: Upload the built site
         if: ${{ !inputs.pages-artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

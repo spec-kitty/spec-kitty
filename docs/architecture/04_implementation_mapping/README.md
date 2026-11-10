@@ -34,11 +34,11 @@ explains the charter offering stack layer model, and identifies where the curren
 implementation aligns with or diverges from the target architecture.
 
 > **Current package boundaries** — Package inventory is defined by
-> [`pyproject.toml`](../../../pyproject.toml) `[tool.hatch.build.targets.wheel].packages`,
-> enforced by [`test_pyproject_shape.py`](../../../tests/architectural/test_pyproject_shape.py).
+> [`pyproject.toml`](https://github.com/spec-kitty/spec-kitty/blob/main/pyproject.toml) `[tool.hatch.build.targets.wheel].packages`,
+> enforced by [`test_pyproject_shape.py`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/architectural/test_pyproject_shape.py).
 > Import direction is defined and enforced by the `landscape` fixture in
-> [`conftest.py`](../../../tests/architectural/conftest.py) and
-> [`test_layer_rules.py`](../../../tests/architectural/test_layer_rules.py).
+> [`conftest.py`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/architectural/conftest.py) and
+> [`test_layer_rules.py`](https://github.com/spec-kitty/spec-kitty/blob/main/tests/architectural/test_layer_rules.py).
 > This implementation mapping is a derived view of those sources.
 > [05_ownership_map.md](../05_ownership_map.md) is historical narrative only;
 > its former slice assignments and extraction roadmap are not authoritative for

@@ -589,7 +589,6 @@ Work paused due to external dependency, then resumed.
 
 ## How-To Guides
 
-- [Sync Workspaces](../guides/how-to/collaboration/sync-workspaces.md)
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md)
 
 ## Reference

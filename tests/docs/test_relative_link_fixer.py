@@ -23,12 +23,15 @@ from __future__ import annotations
 
 import re
 import time
+import warnings
 from pathlib import Path
 from typing import Final
 
 import pytest
 
 from scripts.docs._guards import GitDiffError
+from scripts.docs._dockitty_contract import is_immutable
+from scripts.docs.site_link_gates import DEBT_PATH, RELATIVE_LINKS_GATE, load_debt
 from scripts.docs.relative_link_fixer import (
     _LINK,
     LinkTarget,
@@ -452,6 +455,11 @@ class TestKnownGapsProjection:
 # --------------------------------------------------------------------------- #
 
 
+def stale_known_gaps(dead: set[tuple[str, str]], known: frozenset[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Known gaps (``relative-links`` debt entries) that no longer occur, sorted."""
+    return sorted(known - dead)
+
+
 class TestLiveTreeGate:
     """Pin the real ``docs/`` to **zero** unexpected dead bare-relative body links.
 
@@ -484,7 +492,30 @@ class TestLiveTreeGate:
     # those paths (2026-08-02-1-charter-wheel-assessment.md) was instead rewritten
     # to name them as plain code spans (no markdown link), which preserves the
     # historical record without producing a dead link.
-    _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset()
+    #
+    # Since #6932 the gaps are the `relative-links` entries of site/link-debt.json, the one
+    # priced-debt file for broken links inside immutable history bodies (Standing Order #5,
+    # burn-down #7489); scripts/docs/site_link_gates.py reads the same file for the doc-kitty
+    # link gates. Only immutable sources may be listed (test below).
+    _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset(
+        (f"docs/{entry.source}", entry.target) for entry in load_debt(DEBT_PATH) if entry.gate == RELATIVE_LINKS_GATE
+    )
+
+    def test_stale_known_gaps_are_reported_not_fatal(self) -> None:
+        """An entry that no longer occurs is reported (as the link-gate wrapper does), never fatal."""
+        dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT, exclude_prefixes=())}
+        stale = stale_known_gaps(dead, self._KNOWN_GAPS)
+        for source, link in stale:
+            warnings.warn(f"link debt: no longer occurs (remove the entry): relative-links: {source} -> {link}", stacklevel=1)
+
+    def test_a_stale_known_gap_is_reported(self) -> None:
+        known = frozenset({("docs/a.md", "gone.md"), ("docs/b.md", "dead.md")})
+
+        assert stale_known_gaps({("docs/b.md", "dead.md")}, known) == [("docs/a.md", "gone.md")]
+
+    def test_known_gaps_name_only_immutable_sources(self) -> None:
+        editable = sorted(source for source, _ in self._KNOWN_GAPS if not is_immutable(source.removeprefix("docs/")))
+        assert editable == [], f"fix the link in an editable page instead of pricing it: {editable}"
 
     def test_assembled_tree_has_no_unexpected_dead_links(self) -> None:
         dead = {(u.file, u.link) for u in check_dead_body_links(_REPO_ROOT)}

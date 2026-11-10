@@ -41,8 +41,8 @@ entangled.
 state. When set, it is used **verbatim** as the state root (it is *not* suffixed
 with `.spec-kitty`), and it redirects both resolvers the codebase relies on —
 `get_runtime_root()` (runtime state) and `get_kittify_home()` (asset home). See
-[`src/kernel/paths.py`](../../../src/kernel/paths.py) and
-[`src/specify_cli/paths/windows_paths.py`](../../../src/specify_cli/paths/windows_paths.py).
+[`src/kernel/paths.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/kernel/paths.py) and
+[`src/specify_cli/paths/windows_paths.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/specify_cli/paths/windows_paths.py).
 
 > The parallel test suite isolates itself the same way — each `pytest-xdist`
 > worker gets its own `HOME`/`SPEC_KITTY_HOME` so a run never touches the real

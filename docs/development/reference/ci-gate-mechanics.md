@@ -45,7 +45,7 @@ Two habits defuse most of this class:
   when you name it directly.
 - Before declaring a branch green, run the architectural gate files your change
   implicates over the **rebased tip**. Do not sweep the whole
-  `tests/architectural/` directory in mission work ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml)); CI runs
+  `tests/architectural/` directory in mission work ([`NO_FULL_HEAVY_SUITES_IN_MISSION`](https://github.com/spec-kitty/spec-kitty-open-packs/blob/main/packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml)); CI runs
   the whole battery for you: the always-on `architectural-fast` job plus the two
   `architectural-heavy` legs on code and CI-config PRs.
 
