@@ -118,6 +118,13 @@ record shipped open in the pull request (#7340's WP04).
   `started` record it closes, so a later sweep pairs it with that record and never closes another.
 - Pairing counts `abandoned` as a completion (`lifecycle.COMPLETION_PHASES`), so the orphan count,
   the pairing rate and `find_latest_unpaired_started` treat the record as closed.
+- One record-level pairing authority, `lifecycle.unpaired_started`, decides which `started` records are
+  open, for `spec-kitty next`, `doctor invocation-pairing` and the sweep alike. A completion pairs in
+  three rounds: an `abandoned` record pairs the exact record it names; any other completion pairs the
+  latest record of its own agent and work package started before it; a completion left over pairs the
+  oldest remaining record of its own agent, then the oldest of any agent. The per-group counts are
+  unchanged. Before this, `next` and the doctor report named the group's latest `started` records as
+  open, so they could disagree with the sweep about which record was open (#7505).
 - It has one writer, `lifecycle.write_abandoned_completion`, which writes through the same locked
   `append_lifecycle_record`: one new file, never a rewrite. `spec-kitty next` keeps writing only
   `completed` and `failed`.
@@ -142,3 +149,13 @@ record shipped open in the pull request (#7340's WP04).
 - Matching a completion to its `started` record is a heuristic for records `spec-kitty next` wrote
   (same agent and work package, the latest started before it); two retries completed in different
   checkouts can still be told apart wrongly.
+- A `started` record whose `at` is in the future (clock skew) counts as stale, so the sweep closes it
+  rather than reporting it as fresh on every run. The same rule applies to Op records.
+- The record has no schema version. An older CLI drops a record with an unknown phase without a
+  warning, when it reads the store (`lifecycle.read_lifecycle_records`).
+- The bookkeeping path rule trusts a lifecycle record by its path, not its content: a commit on an
+  approved lane that adds only a hand-written `kitty-ops/lifecycle/<ULID>.json` record is not
+  refused by the approval bound. It changes pairing data, never code.
+- A closure the sweep could not commit (skipped or refused) leaves the command's exit code unchanged,
+  as for an Op record. `spec-kitty next` commits any uncommitted lifecycle record with its own
+  commit, so such a closure is committed with the next action that `next` reports in that checkout.
