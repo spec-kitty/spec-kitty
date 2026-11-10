@@ -24,8 +24,10 @@ same ``at`` keep their write order.
 Pairing semantics
 -----------------
 - For every ``started`` record there should eventually exist exactly one
-  paired ``completed`` or ``failed`` record sharing the same
-  ``canonical_action_id``.
+  paired completion (:data:`COMPLETION_PHASES`: ``completed``, ``failed`` or
+  ``abandoned``) sharing the same ``canonical_action_id``. ``abandoned`` is
+  written only by ``doctor ops --close-stale`` (:func:`write_abandoned_completion`,
+  #7346), so a stale record can be closed without advancing the Mission.
 - A ``started`` without a partner is an *orphan*; the doctor surface lists
   these so mid-cycle agent crashes are observable.
 - ``find_orphans`` and ``compute_pairing_rate`` are pure functions over the
@@ -60,6 +62,12 @@ LIFECYCLE_LOG_RELATIVE_PATH = Path("kitty-ops") / "lifecycle.jsonl"
 LIFECYCLE_RECORDS_RELATIVE_DIR = Path("kitty-ops") / "lifecycle"
 #: Suffix of a per-record file: ``<ulid>.json``.
 LIFECYCLE_RECORD_SUFFIX = ".json"
+#: The phases that pair a ``started`` record: the one completion predicate (#7346).
+COMPLETION_PHASES: frozenset[str] = frozenset({"completed", "failed", "abandoned"})
+#: The completions ``spec-kitty next`` writes for an action's own result.
+_NEXT_RESULT_PHASES: frozenset[str] = frozenset({"completed", "failed"})
+#: ``metadata`` stamped on a record the doctor sweep writes (#7346).
+ABANDONED_BY_DOCTOR_SWEEP: dict[str, str] = {"closed_by": "doctor_sweep"}
 
 _ULID_LOCK = threading.Lock()
 _last_record_id: ULID | None = None
@@ -207,7 +215,7 @@ class LifecycleGroup:
 
     @property
     def completions(self) -> tuple[ProfileInvocationRecord, ...]:
-        return tuple(r for r in self.records if r.phase in ("completed", "failed"))
+        return tuple(r for r in self.records if r.phase in COMPLETION_PHASES)
 
     @property
     def is_orphan(self) -> bool:
@@ -243,6 +251,18 @@ def group_by_action(records: Iterable[ProfileInvocationRecord]) -> list[Lifecycl
     ]
 
 
+def unpaired_started(group: LifecycleGroup) -> tuple[ProfileInvocationRecord, ...]:
+    """The ``started`` records of *group* that no completion pairs: its last ``deficit`` ones.
+
+    Pairing is count-based, so the unpaired records are the latest ``started``
+    records in read order. Empty for a balanced group.
+    """
+    deficit = len(group.started) - len(group.completions)
+    if deficit <= 0:
+        return ()
+    return group.started[-deficit:]
+
+
 def find_orphans(
     records: Iterable[ProfileInvocationRecord],
 ) -> list[LifecycleGroup]:
@@ -270,12 +290,8 @@ def find_latest_unpaired_started(
     for group in grouped:
         if not group.is_orphan:
             continue
-        # The orphan started is the most-recent started without a partner.
-        # Since one extra started can produce multiple unpaired starteds,
-        # match each unpaired one independently.
-        deficit = len(group.started) - len(group.completions)
-        unpaired = list(group.started)[-deficit:]
-        candidates.extend(unpaired)
+        # One extra started can leave several unpaired; match each independently.
+        candidates.extend(unpaired_started(group))
 
     candidates = [
         r for r in candidates
@@ -299,7 +315,7 @@ def compute_pairing_rate(records: Iterable[ProfileInvocationRecord]) -> float:
     started = sum(1 for r in materialised if r.phase == "started")
     if started == 0:
         return 1.0
-    completions = sum(1 for r in materialised if r.phase in ("completed", "failed"))
+    completions = sum(1 for r in materialised if r.phase in COMPLETION_PHASES)
     paired = min(started, completions)
     return paired / started
 
@@ -334,8 +350,7 @@ def doctor_orphan_report(repo_root: Path) -> dict[str, object]:
     orphans = find_orphans(records)
     orphan_entries: list[dict[str, object]] = []
     for group in orphans:
-        deficit = len(group.started) - len(group.completions)
-        for started_record in list(group.started)[-deficit:]:
+        for started_record in unpaired_started(group):
             orphan_entries.append({
                 "canonical_action_id": started_record.canonical_action_id,
                 "agent": started_record.agent,
@@ -417,7 +432,8 @@ def write_paired_completion(
     canonical id is read once at issuance and never re-computed at
     completion time (per FR-011 and the contract Always-true rules).
     """
-    if phase == "started":
+    if phase not in _NEXT_RESULT_PHASES:
+        # ``abandoned`` is the doctor sweep's (write_abandoned_completion), never next's.
         raise ValueError("write_paired_completion phase must be 'completed' or 'failed'")
     record = ProfileInvocationRecord(
         canonical_action_id=started.canonical_action_id,
@@ -430,3 +446,32 @@ def write_paired_completion(
     )
     append_lifecycle_record(repo_root, record)
     return record
+
+
+def write_abandoned_completion(
+    repo_root: Path,
+    *,
+    started: ProfileInvocationRecord,
+    reason: str,
+    at: datetime | None = None,
+) -> Path:
+    """Append an ``abandoned`` record paired with ``started``; return its file path (#7346).
+
+    Written only by ``doctor ops --close-stale`` for a stale orphaned ``started``
+    record, so the record is closed without ``spec-kitty next`` reporting a result
+    (which would advance the Mission). The canonical id, agent, Mission and work
+    package are copied verbatim; the record is one new file, never a rewrite.
+    """
+    if started.phase != "started":
+        raise ValueError(f"write_abandoned_completion pairs a started record, got phase {started.phase!r}")
+    record = ProfileInvocationRecord(
+        canonical_action_id=started.canonical_action_id,
+        phase="abandoned",
+        at=at or now_utc(),
+        agent=started.agent,
+        mission_id=started.mission_id,
+        wp_id=started.wp_id,
+        reason=reason,
+        metadata=dict(ABANDONED_BY_DOCTOR_SWEEP),
+    )
+    return append_lifecycle_record(repo_root, record)

@@ -239,7 +239,9 @@ class EvidenceArtifact:
 # ---------------------------------------------------------------------------
 
 
-ProfileInvocationPhase = Literal["started", "completed", "failed"]
+#: ``abandoned`` (#7346): closed by ``doctor ops --close-stale``, not by the action's result.
+ProfileInvocationPhase = Literal["started", "completed", "failed", "abandoned"]
+_PROFILE_INVOCATION_PHASES: frozenset[str] = frozenset({"started", "completed", "failed", "abandoned"})
 
 
 @dataclass(frozen=True)
@@ -247,8 +249,10 @@ class ProfileInvocationRecord:
     """Paired profile-invocation lifecycle record (WP05).
 
     Captures one phase of a public action `next` issued. For every `started`
-    record there should eventually be exactly one paired `completed` or
-    `failed` record sharing the same ``canonical_action_id``.
+    record there should eventually be exactly one paired `completed`, `failed`
+    or `abandoned` record sharing the same ``canonical_action_id``. An
+    `abandoned` record is written by ``doctor ops --close-stale`` for a stale
+    `started` record; it says nothing about the action's result (#7346).
 
     See data-model.md §4 and contracts/invocation-lifecycle.md.
     """
@@ -304,8 +308,8 @@ class ProfileInvocationRecord:
                 metadata[str(k)] = str(v)
 
         phase_raw = data.get("phase")
-        if phase_raw not in ("started", "completed", "failed"):
-            raise ValueError(f"ProfileInvocationRecord.phase must be started|completed|failed, got {phase_raw!r}")
+        if phase_raw not in _PROFILE_INVOCATION_PHASES:
+            raise ValueError(f"ProfileInvocationRecord.phase must be started|completed|failed|abandoned, got {phase_raw!r}")
 
         return cls(
             canonical_action_id=str(data["canonical_action_id"]),
