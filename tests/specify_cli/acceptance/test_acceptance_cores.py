@@ -320,6 +320,7 @@ class TestEvaluatePathConventions:
         assert "project.path_conventions" in warning
         assert "Suggestions:\n  - mkdir -p kitty-specs/demo-mission/contracts/" in warning
         assert warning.count("mkdir -p") == 1
+        assert warning.index("project.path_conventions") < warning.index("Suggestions:")
 
     def test_empty_format_errors_falls_back_to_default_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
