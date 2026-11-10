@@ -291,7 +291,10 @@ def test_a_report_with_neither_key_says_nothing_could_be_listed_not_that_it_is_c
 
 
 def test_the_repair_doc_the_remedy_names_exists() -> None:
-    """The remedy points operators at a page; it must be a real file (it moved to the archive in #6932)."""
+    """The remedy points operators at a live, published page that documents ``doctor mission-state``."""
     root = Path(__file__).resolve().parents[2]
+    page = root / report_mod.REPAIR_DOC
 
-    assert (root / report_mod.REPAIR_DOC).is_file()
+    assert page.is_file()
+    assert not report_mod.REPAIR_DOC.startswith("docs/archive/")
+    assert "## spec-kitty doctor mission-state" in page.read_text(encoding="utf-8")
