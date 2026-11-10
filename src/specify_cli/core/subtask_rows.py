@@ -310,8 +310,9 @@ def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
     explicitly readable empty ``subtasks`` list yields ``[]`` ("nothing to
     block on"). Missing, ambiguous, or malformed WP metadata raises
     :class:`SubtaskRosterResolutionError` so transition callers fail closed; any
-    other entry type raises its :class:`SubtaskRosterEntryError` subclass naming
-    the WP file, the entry and the expected list form (#7442).
+    other entry type raises :class:`SubtaskRosterEntryError` (a
+    :class:`SubtaskRosterResolutionError` subclass), naming the WP file, the
+    entry and the expected list form (#7442).
     """
     wp_file = _locate_wp_file(feature_dir, wp_id)
     # Lazy imports: ``core`` must not import ``status`` at module scope
