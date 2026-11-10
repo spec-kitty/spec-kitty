@@ -68,8 +68,18 @@ class TestEventIdsOf:
         lines = [_row("a"), "\n", "   \n", _row("b")]
         assert event_ids_of(lines) == ("a", "b")
 
-    def test_malformed_line_raises_not_skips(self) -> None:
-        lines = [_row("a"), "not json\n"]
+    @pytest.mark.parametrize(
+        "bad_line",
+        [
+            "not json\n",
+            # Decode limits raise ValueError / RecursionError, not JSONDecodeError (#7439).
+            '{"event_id": "b", "n": ' + "9" * 5000 + "}\n",
+            "[" * 100_000 + "]" * 100_000 + "\n",
+        ],
+        ids=["not-json", "int-digit-limit", "deep-nesting"],
+    )
+    def test_malformed_line_raises_not_skips(self, bad_line: str) -> None:
+        lines = [_row("a"), bad_line]
         with pytest.raises(MalformedEventLogLineError) as excinfo:
             event_ids_of(lines)
         assert excinfo.value.line_number == 2
