@@ -22,6 +22,8 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli.decisions.lock import decisions_lock
+from specify_cli.decisions.lock import lock_path as decisions_lock_path
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.implement_support import (
     WriteCheckoutDirtyError,
@@ -625,6 +627,129 @@ def test_cli_implement_refuses_operator_edit_beside_next_ops_records(repo: Path)
     assert "Workspace allocation failed" in output, output
     assert "README.md" in output
     assert "kitty-ops/" not in output
+
+
+# ---------------------------------------------------------------------------
+# #7493: the claim accepts the decision service's persistent runtime lock.
+# ---------------------------------------------------------------------------
+
+
+def _leave_decisions_lock(feature_dir: Path) -> Path:
+    """Commit a decisions index, then hold and release the REAL decisions lock.
+
+    Release truncates the sidecar and never unlinks it (#5925), so this leaves
+    ``decisions/index.json.lock`` untracked beside a committed ledger: the
+    state a Mission is in after a Decision Moment was opened and resolved.
+    """
+    repo = feature_dir.parents[1]
+    index = feature_dir / "decisions" / "index.json"
+    index.parent.mkdir(parents=True, exist_ok=True)
+    index.write_text('{"decisions": []}\n', encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "planning: decisions index")
+    held = decisions_lock_path(feature_dir)
+    with decisions_lock(held, timeout_s=5.0, mission_slug=feature_dir.name, decision_id=None):
+        pass
+    assert held.exists(), "the decisions lock must persist after release (#5925)"
+    return held
+
+
+def test_decisions_runtime_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
+    """The persistent ``decisions/index.json.lock`` is spec-kitty's own
+    bookkeeping (#6628); the claim must not tell the operator to commit it (#7493)."""
+    mission_slug = "impl-decisions-lock"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0001")
+    held = _leave_decisions_lock(feature_dir)
+    assert _git(repo, "status", "--porcelain") == f"?? {held.relative_to(repo).as_posix()}"
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws) is True
+
+
+def test_another_missions_decisions_lock_in_shared_write_checkout_is_not_dirty(repo: Path) -> None:
+    """A shared single_branch checkout also carries the locks of the other
+    Missions it hosts; #6628 exempts every Mission's lock, not only this one's (#7493)."""
+    other_dir = _build_mission(repo, "impl-decisions-lock-other", "01IMPLDECISIONSLOCK0004")
+    mission_slug = "impl-decisions-lock-self"
+    _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0005")
+    held = _leave_decisions_lock(other_dir)
+    assert _git(repo, "status", "--porcelain") == f"?? {held.relative_to(repo).as_posix()}"
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws) is True
+
+
+def test_decisions_lock_alone_in_untracked_decisions_dir_is_not_dirty(repo: Path) -> None:
+    """With no tracked ``decisions/`` file, git collapses the lock's directory to
+    one ``?? decisions/`` entry; holding only the lock, it is not dirt (#7493)."""
+    mission_slug = "impl-decisions-lock-collapsed"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0007")
+    held = decisions_lock_path(feature_dir)
+    held.parent.mkdir()
+    with decisions_lock(held, timeout_s=5.0, mission_slug=mission_slug, decision_id=None):
+        pass
+    assert _git(repo, "status", "--porcelain") == f"?? kitty-specs/{mission_slug}/decisions/"
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    assert _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws) is True
+
+
+def test_untracked_decisions_dir_with_real_content_still_refuses(repo: Path) -> None:
+    """A collapsed ``decisions/`` that also holds an uncommitted ledger file is real dirt (#7493)."""
+    mission_slug = "impl-decisions-lock-collapsed-ledger"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0008")
+    held = decisions_lock_path(feature_dir)
+    held.parent.mkdir()
+    held.write_text("", encoding="utf-8")
+    (held.parent / "index.json").write_text('{"decisions": []}\n', encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+    assert f"kitty-specs/{mission_slug}/decisions/" in str(excinfo.value)
+
+
+def test_lookalike_lock_outside_decisions_still_refuses(repo: Path) -> None:
+    """The exemption is depth-exact: an ``index.json.lock`` elsewhere is real dirt (#7493)."""
+    mission_slug = "impl-decisions-lock-lookalike"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0006")
+    lookalike = feature_dir / "research" / "index.json.lock"
+    lookalike.parent.mkdir()
+    lookalike.write_text("", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+    assert "research/" in str(excinfo.value)
+
+
+def test_operator_edit_beside_decisions_lock_still_refuses_naming_only_the_edit(repo: Path) -> None:
+    """The exemption is not "any dirt": the refusal lists only the operator file (#7493)."""
+    mission_slug = "impl-decisions-lock-edit"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0002")
+    _leave_decisions_lock(feature_dir)
+    (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+
+    listed = str(excinfo.value).split("uncommitted changes: ", 1)[1].split(". Commit or stash", 1)[0].split(", ")
+    assert listed == ["README.md"]
+
+
+def test_cli_implement_accepts_decisions_runtime_lock(repo: Path) -> None:
+    """``spec-kitty implement`` with only the decisions lock uncommitted claims,
+    and never stages the lock (#7493, #5925)."""
+    mission_slug = "impl-cli-decisions-lock"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLDECISIONSLOCK0003")
+    held = _leave_decisions_lock(feature_dir)
+
+    result = _run_implement(repo, mission_slug)
+
+    assert result.exit_code == 0, result.output
+    rel = held.relative_to(repo).as_posix()
+    assert _git(repo, "ls-files", rel) == "", "the decisions lock must never be staged or committed"
 
 
 # ---------------------------------------------------------------------------
