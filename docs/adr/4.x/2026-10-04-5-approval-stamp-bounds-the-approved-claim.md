@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-10-04'
-updated: '2026-11-09T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 ---
 
 **Status:** Accepted
@@ -321,3 +321,23 @@ This follow-up supersedes, for forced moves into `approved`, the residual above 
 ## Amendment 2026-11-08: lane approvals are judged by recorded work-package windows (#7403)
 
 Every non-migration move of a lane-mapped work package into `claimed` or `in_progress` now records its window-open SHA (`policy_metadata.wp_window`), and on every code lane with at least one recorded window each approved work package covers only `(window-open SHA, newest approval stamp]`. This is the per-work-package window model of the `single_branch` amendment above, applied to lanes. The bound in this record runs unchanged first (tier 1); a second tier then refuses a commit outside every window with `LANE_MOVED_AFTER_APPROVAL`, naming the commit and the work package approved before it. On that path the exemption anchors are the closed-world anchors plus the approval stamps of other lanes, never the lane's own (operator ruling, Decision Moment `01M6YAFYHT0RMVZB03THW1WWSE`), and a canceled work package's own attributed commits are exempt from the second tier (operator ruling 2026-11-09). A work package without a usable window falls back to this record's approval-stamp bound, is never refused for the gap alone, and is listed in a gap report; a lane where every window is a gap is judged exactly as before. `single_branch` approval windows read the recorded window-open SHA when present. The detail, the residuals and the evidence live in [`2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition`](./2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md).
+
+## Amendment 2026-11-10: the implement claim records its dispatch identity, and a submission refines it (#7159)
+
+**Reader:** a maintainer who needs to know why a same-tool reviewer under another `--profile` now approves where it was refused `REVIEW_NOT_INDEPENDENT`, and which recorded event names the implementer.
+
+**Problem.** Ruling 7 compares `tool:model:profile` segment-wise, so a same-tool reviewer is independent only when a profile or model is recorded on both sides. `agent action implement --agent claude --profile python-pedro` on a fresh code lane recorded its claim with the bare actor `claude`: the lane was created through the top-level `implement` command, which emitted the claim with the `--agent` string, and the structured claim then found the work package `in_progress` and emitted nothing. The implementer read as `claude::`, and recording the full identity later did not help: a rework into `in_progress` carries a `review_ref` (a reviewer verdict by construction), and a `for_review` submission was not an implementer event. [#7159](https://github.com/spec-kitty/spec-kitty/issues/7159).
+
+**Decision** (operator rulings 2026-11-10).
+
+- **The claim records the dispatch-resolved identity.** Both claim emitters of `agent action implement` record the structured implementer actor and binding annotation built once (`workflow_executor.implementer_claim_identity`). The dispatch binding is resolved before any lane or claim exists. `--model` stays refused (#7013); only `--profile`, an Op's profile and the compact `--agent` segments reach the actor. Without `--agent` the fresh lane's claim keeps the generic `implement-command` placeholder: the frontmatter agent is planned, not proven, and never names the implementer (#6400).
+- **A submission refines the claim's identity.** The implementer of record is the identity of the latest qualifying claim (`latest_implementer_event`, unchanged), refined by every later unforced `in_progress -> for_review` submission of the work package (`status.latest_implementer_identity`, `status.models.refine_actor_identity`). A submission by the claim's tool fills a model or profile the claim did not record. It is ignored when it names another tool, contradicts a recorded segment or is not a `tool:model:profile` identity, so a submission never overrides a segment the claim recorded. Forced moves, seeds and placeholder actors never refine. `move-task` and the accept/consolidate evidence axis read this one projection.
+- **Unchanged.** The comparison (`actor_identities_independent`), the refusal codes and their text, and the reviewer-verdict reading of a rework into `in_progress`.
+
+**Residuals.** Identities stay self-asserted.
+
+- Any same-tool submitter, not only the implementer, fills what a bare claim left empty: a bare claim followed by an unforced submission under another profile records that profile, as a claim under that profile already would.
+- A submission can fill the model a claim never records (#7013), so a later approver under the same profile and another model is independent of it, as it would be of a claim that recorded the model (ruling 7).
+- The refusal text of the review-lane exit (`work_package_lifecycle`) still names the unrefined claim.
+
+**Confirmation.** `tests/integration/test_7159_implement_claim_profile.py` (the fresh-lane claim on coord and lanes; the agent-less placeholder; a refusal before any lane exists; a bare claim refined by a submission), `tests/specify_cli/cli/commands/test_dispatched_claim_identity_7159.py` (the seam) and the `latest_implementer_identity` truth table in `tests/unit/status/test_review_roles.py`.
