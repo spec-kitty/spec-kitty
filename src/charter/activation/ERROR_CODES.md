@@ -212,6 +212,8 @@ Template set not selected in charter; fallback 'software-dev-default' applied.
 unioned onto the base set: tools beyond the runtime registry, selected
 directives or paradigms beyond the base (or all already present), and
 project-local directives merged onto the resolved set (or all already present).
+In process, the
+entry's `kind` says which list it is about (`None` for tools).
 
 **JSON stability**: this code string is stable across minor releases; consumers
 may match it as an opaque identifier.

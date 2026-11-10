@@ -636,6 +636,9 @@ def _governance_context(
 _SELECT_GOVERNANCE_LINE = "  - Select project governance: run `spec-kitty charter generate` when this project is ready for charter-governed workflows"
 
 
+_DEFAULT_ALTERING_CODES = frozenset({GovernanceDiagnosticCode.SELECTION_MERGED, GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED})
+
+
 def _legacy_governance_context(repo_root: Path, *, scope: CharterScope | None = None) -> str:
     """Render compact governance context via resolver."""
     try:
@@ -669,11 +672,12 @@ def _catalog_default_kinds(diagnostics: list[GovernanceDiagnostic]) -> frozenset
 
     Classified by diagnostic code and kind, never by message text. A
     ``SELECTION_MERGED`` entry means the project added to a base, so the lists
-    are then enumerated in full rather than described as the default.
+    are then enumerated in full rather than described as the default. The same
+    holds, per kind, for a dropped unknown selection: the reader must see it.
     """
-    if any(d.code is GovernanceDiagnosticCode.SELECTION_MERGED for d in diagnostics):
-        return frozenset()
-    return frozenset(d.kind for d in diagnostics if d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED and d.kind is not None)
+    defaulted = {d.kind for d in diagnostics if d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED and d.kind is not None}
+    altered = {d.kind for d in diagnostics if d.code in _DEFAULT_ALTERING_CODES}
+    return frozenset(defaulted - altered)
 
 
 def _governance_list(items: list[str], *, catalog_default: bool) -> str:

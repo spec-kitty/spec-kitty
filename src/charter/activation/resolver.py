@@ -689,9 +689,15 @@ class GovernanceResolution:
     diagnostics: list[GovernanceDiagnostic] = field(default_factory=list)
 
 
-def _drop_unknown(kind: str, token: str, diagnostics: list[GovernanceDiagnostic]) -> None:
+def _drop_unknown(kind: ArtifactKind, token: str, diagnostics: list[GovernanceDiagnostic]) -> None:
     """Record that *token* was dropped because no layer knows it (#6407)."""
-    diagnostics.append(GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, UNKNOWN_SELECTION_DIAGNOSTIC.format(kind=kind, token=token)))
+    diagnostics.append(
+        GovernanceDiagnostic(
+            GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED,
+            UNKNOWN_SELECTION_DIAGNOSTIC.format(kind=kind.value, token=token),
+            kind=kind,
+        )
+    )
 
 
 def _resolve_selected_paradigms(
@@ -713,7 +719,7 @@ def _resolve_selected_paradigms(
         if declared is None and (token in offering_catalog.paradigms or not validate):
             declared = token
         if declared is None:
-            _drop_unknown("paradigm", token, diagnostics)
+            _drop_unknown(ArtifactKind.PARADIGM, token, diagnostics)
         elif declared not in resolved:
             resolved.append(declared)
     return resolved
@@ -826,13 +832,13 @@ def _resolve_selected_directives(
             legacy = normalize_directive_id(token)
             declared = legacy if legacy in local_ids or legacy in catalog_ids else None
         if declared is None:
-            _drop_unknown("directive", token, diagnostics)
+            _drop_unknown(ArtifactKind.DIRECTIVE, token, diagnostics)
         elif declared not in resolved:
             resolved.append(declared)
     return resolved
 
 
-def _report_charter_selection(noun: str, resolved: list[str], base: list[str], base_source: str, diagnostics: list[GovernanceDiagnostic]) -> None:
+def _report_charter_selection(kind: ArtifactKind, resolved: list[str], base: list[str], base_source: str, diagnostics: list[GovernanceDiagnostic]) -> None:
     """Append the "beyond the base" / "none added" diagnostic for a resolved charter selection.
 
     Silent when nothing resolved (every entry was unknown): the unknown-selection
@@ -840,12 +846,15 @@ def _report_charter_selection(noun: str, resolved: list[str], base: list[str], b
     """
     if not resolved:
         return
+    noun = kind.value
     base_set = set(base)
     added = [item for item in resolved if item not in base_set]
     if added:
         diagnostics.append(
             GovernanceDiagnostic(
-                GovernanceDiagnosticCode.SELECTION_MERGED, f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + "."
+                GovernanceDiagnosticCode.SELECTION_MERGED,
+                f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + ".",
+                kind=kind,
             )
         )
     else:
@@ -853,6 +862,7 @@ def _report_charter_selection(noun: str, resolved: list[str], base: list[str], b
             GovernanceDiagnostic(
                 GovernanceDiagnosticCode.SELECTION_MERGED,
                 f"All {len(resolved)} charter-selected {noun}(s) already present in the {base_source} base; none added: " + ", ".join(resolved) + ".",
+                kind=kind,
             )
         )
 
@@ -920,7 +930,7 @@ def _resolve_directive_base(
 
     selected_directives = _resolve_selected_directives(list(charter_config.selected_directives), local_ids, catalog_ids, identity, diagnostics)
 
-    _report_charter_selection("directive", selected_directives, base, base_source, diagnostics)
+    _report_charter_selection(ArtifactKind.DIRECTIVE, selected_directives, base, base_source, diagnostics)
     if not selected_directives:
         return base, base_source
     return list(dict.fromkeys([*base, *selected_directives])), f"{base_source}+charter"
@@ -963,7 +973,9 @@ def _resolve_directives_selection(
     if added:
         diagnostics.append(
             GovernanceDiagnostic(
-                GovernanceDiagnosticCode.SELECTION_MERGED, f"Merged {len(added)} project-local directive(s) onto the {base_source} set: " + ", ".join(added) + "."
+                GovernanceDiagnosticCode.SELECTION_MERGED,
+                f"Merged {len(added)} project-local directive(s) onto the {base_source} set: " + ", ".join(added) + ".",
+                kind=ArtifactKind.DIRECTIVE,
             )
         )
     else:
@@ -971,6 +983,7 @@ def _resolve_directives_selection(
             GovernanceDiagnostic(
                 GovernanceDiagnosticCode.SELECTION_MERGED,
                 f"All {len(local_ids)} project-local directive(s) already present in the {base_source} set; none added: " + ", ".join(local_ids) + ".",
+                kind=ArtifactKind.DIRECTIVE,
             )
         )
     return resolved, f"{base_source}+project_local"
@@ -1059,7 +1072,7 @@ def resolve_project_governance(
 
     selected_paradigms_raw = _resolve_selected_paradigms(list(charter_config.selected_paradigms), offering_catalog, identity, diagnostics)
     paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, pack_ctx, identity, diagnostics)
-    _report_charter_selection("paradigm", selected_paradigms_raw, paradigm_base, paradigm_base_source, diagnostics)
+    _report_charter_selection(ArtifactKind.PARADIGM, selected_paradigms_raw, paradigm_base, paradigm_base_source, diagnostics)
     selected_paradigms = list(dict.fromkeys([*paradigm_base, *selected_paradigms_raw]))
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
