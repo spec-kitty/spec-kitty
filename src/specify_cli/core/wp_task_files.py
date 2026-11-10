@@ -4,9 +4,11 @@ A WP task file is a ``tasks/*.md`` entry whose name starts with the WP id,
 matched case-insensitively, followed by a word boundary: ``WP04.md``,
 ``WP04-slug.md``, ``WP04_slug.md`` and ``WP04.x.md`` belong to ``WP04``;
 ``WP04b.md`` does not. ``readme.md`` never matches, in any case. This is the
-spec-kitty-events R26 rule; before #7443 the dependency guard, the subtask
-roster and the WP view each carried their own copy, and the guard's copy was
-case-sensitive, so a lowercase ``wp02-x.md`` declared no dependencies.
+spec-kitty-events write-service contract rule R26, as recorded for core in
+``kitty-specs/quick-win-remediation-01M72855/decisions/DM-01M7286WQY7NYXCPNDH0S72M7N.md``.
+Before #7443 the dependency guard, the subtask roster and the WP view each
+carried their own copy, and the guard's copy was case-sensitive, so a
+lowercase ``wp02-x.md`` declared no dependencies.
 
 The matcher does not filter by entry type. A directory (or a dangling link)
 named like a task file is returned, so a gate can refuse it instead of
