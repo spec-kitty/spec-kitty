@@ -884,10 +884,10 @@ def invocation_pairing(
 ) -> None:
     """List orphan profile-invocation lifecycle records.
 
-    WP05 (#843) wiring: scans
-    ``.kittify/events/profile-invocation-lifecycle.jsonl`` for ``started``
-    records with no paired ``completed`` or ``failed`` partner. Mid-cycle
-    agent crashes show up here. The check observes; it does not remediate.
+    WP05 (#843) wiring: scans the lifecycle records (``kitty-ops/lifecycle/``)
+    for ``started`` records with no paired completion (``completed``,
+    ``failed`` or ``abandoned``). Mid-cycle agent crashes show up here. The
+    check observes; ``doctor ops --close-stale`` closes stale ones (#7346).
 
     Exit codes:
       0  No orphans observed.
@@ -990,17 +990,22 @@ def _warn_unreadable_op_checkouts(checkouts: list[Path], repo_root: Path) -> Non
 def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
     """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
     from kernel.clock import now_utc
-    from specify_cli.doctor.ops import close_stale_ops
+    from specify_cli.doctor.ops import close_stale_lifecycle_records, close_stale_ops
 
+    now = now_utc()
     report = close_stale_ops(
         repo_root,
         threshold_hours=threshold_hours,
-        now=now_utc(),
+        now=now,
     )
+    # #7346: orphaned WP lifecycle records are closed by the same sweep, without
+    # advancing any Mission.
+    report.lifecycle_records = close_stale_lifecycle_records(repo_root, threshold_hours=threshold_hours, now=now)
     _warn_unreadable_op_checkouts(report.unreadable_checkouts, repo_root)
-    # Exit 1 on per-op write/IO errors or when open-but-fresh Ops remain after
-    # the sweep (consistent with report mode); already_closed is not a failure.
-    exit_code = 1 if (report.has_errors or report.skipped_fresh > 0) else 0
+    # Exit 1 on per-entry write/IO errors or when open-but-fresh Ops or lifecycle
+    # records remain after the sweep (consistent with report mode); already_closed
+    # is not a failure.
+    exit_code = 1 if (report.has_errors or report.skipped_fresh > 0 or report.lifecycle_fresh > 0) else 0
 
     if json_output:
         console.print_json(json.dumps(report.to_dict(), indent=2))
@@ -1032,8 +1037,36 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         _print_sweep_commit_summary(report)
     if report.skipped_fresh:
         console.print("\nFresh open Ops remain — close them with spec-kitty profile-invocation complete, or re-run with --threshold 0.")
+    _print_lifecycle_sweep(report)
     console.print()
     raise typer.Exit(exit_code)
+
+
+def _print_lifecycle_sweep(report: SweepReport) -> None:
+    """The lifecycle-record half of the sweep: one table, with each closure's commit outcome in its last column (#7346)."""
+    entries = report.lifecycle_records
+    if not entries:
+        return
+    closed = [entry for entry in entries if entry.action_taken == "closed_abandoned"]
+    console.print(f"\n[bold]Lifecycle records[/bold] — {len(closed)} closed as abandoned, {report.lifecycle_fresh} fresh (left open)\n")
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    for column in ("Action", "Mission", "WP", _STARTED_AT_COLUMN, "Age (h)", "Result", "Closure commit"):
+        table.add_column(column)
+    for entry in entries:
+        age_text = f"{entry.age_hours:.1f}" if entry.age_hours is not None else "?"
+        result = entry.action_taken if entry.error is None else f"error: {entry.error}"
+        table.add_row(
+            escape(entry.canonical_action_id),
+            escape(entry.mission_id),
+            escape(entry.wp_id or "-"),
+            escape(entry.started_at),
+            age_text,
+            escape(result),
+            escape(entry.commit or "-"),
+        )
+    console.print(table)
+    if report.lifecycle_fresh:
+        console.print("\nFresh lifecycle records remain open — they close when spec-kitty next reports a result, or re-run with --threshold 0.")
 
 
 @app.command(name="ops")
@@ -1046,7 +1079,7 @@ def ops(
         bool,
         typer.Option(
             "--close-stale",
-            help="Close open Ops older than --threshold as abandoned (closed_by=doctor_sweep)",
+            help="Close open Ops and work-package lifecycle records older than --threshold as abandoned (closed_by=doctor_sweep)",
         ),
     ] = False,
     threshold: Annotated[
@@ -1057,7 +1090,7 @@ def ops(
         ),
     ] = None,
 ) -> None:
-    """List orphan Op records; --close-stale sweeps stale ones closed as abandoned."""
+    """List orphan Op records; --close-stale closes stale Ops and lifecycle records as abandoned."""
     from specify_cli.doctor.ops import display_path, scan_op_records
 
     if threshold is not None and not close_stale:
