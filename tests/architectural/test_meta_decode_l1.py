@@ -13,9 +13,12 @@ The ``b"\xff\xfe\x00"`` case specifically pins the *explicit* ``raw.decode(
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from kernel.meta_decode import MetaDecodeError, decode_meta
+from specify_cli.mission_metadata import load_meta
 
 # ``architectural`` is the CI-gate-selected marker (no gate selects bare
 # ``unit`` -- see tests/architectural/_gate_coverage.py); ``unit`` is retained as
@@ -132,3 +135,10 @@ def test_raise_bad_bytes_caught_by_value_error_boundary() -> None:
     except ValueError as exc:  # the L3 boundary shape, verbatim
         caught = exc
     assert isinstance(caught, MetaDecodeError)
+
+
+def test_load_meta_reads_a_bom_prefixed_meta_json(tmp_path: Path) -> None:
+    """#7445: the canonical reader tolerates a UTF-8 BOM by default (an editor-saved ``meta.json``)."""
+    (tmp_path / "meta.json").write_bytes(b"\xef\xbb\xbf" + b'{"mission_slug": "bom-mission"}')
+
+    assert load_meta(tmp_path) == {"mission_slug": "bom-mission"}
