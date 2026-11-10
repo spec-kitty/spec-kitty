@@ -2,9 +2,10 @@
 # docs-site-build (#6937; ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
 # D-11): the ONE build definition of the doc-kitty docsite. It checks the site's folder
 # contract, installs site/ with the frozen lockfile (no token: doc-kitty is public), runs the
-# frontmatter and source link gates, builds with drafts off (site/.env.production), checks that
-# the built site publishes no unpublished route (#6932), runs the built-site link gate and
-# uploads site/dist. The link gates run through scripts/docs/site_link_gates.py, which fails on
+# frontmatter and source link gates and that the legacy redirect map is generated (#6933), builds
+# with drafts off (site/.env.production), checks that the built site publishes no unpublished
+# route (#6932), gates redirect coverage of every legacy URL twice and proves the gate's own
+# verdicts on mutants (#6933), runs the built-site link gate and uploads site/dist. The link gates run through scripts/docs/site_link_gates.py, which fails on
 # any problem not priced in site/link-debt.json (immutable history bodies only, #7489).
 #
 # Callers:
@@ -45,6 +46,11 @@ jobs:
         env:
           PYTHONPATH: .:src
         run: python3 -m scripts.docs.site_contract --check
+      - name: Check the legacy redirect map is generated, not stale (#6933)
+        # Standard library plus PyYAML (the runner's python3 has it, as docs-pages.yml relies on).
+        env:
+          PYTHONPATH: .:src
+        run: python3 -m scripts.docs.site_redirects --check
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           # The pnpm version comes from site/package.json `packageManager`.
@@ -73,6 +79,16 @@ jobs:
         env:
           PYTHONPATH: .:src
         run: python3 -m scripts.docs.site_built_check site/dist --docs docs
+      - name: Redirect coverage, drafts excused only through the declared map (#6933)
+        working-directory: site
+        run: pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.config.mjs
+      - name: Redirect coverage, nothing excused (#6933; ADR D-5 "No silent excuse")
+        working-directory: site
+        run: pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs
+      - name: Prove the redirect gate's verdicts on mutants of a hard-linked copy of the site (#6933)
+        env:
+          PYTHONPATH: .:src
+        run: python3 -m scripts.docs.site_redirects_selftest site/dist
       - name: Built-site link gate (immutable-body debt priced in site/link-debt.json, #7489)
         working-directory: site
         env:

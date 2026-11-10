@@ -44,11 +44,15 @@ docs-lint: ## Spell-check docs (typos + scoped US spelling) and check the change
 # Any dockitty-* gate added here runs from site/ with `--astro-config astro.config.mjs` (D-1).
 docs-site: ## Build the doc-kitty docsite (site/) as CI does: contract check, frozen install, gates, build, built-site checks
 	uv run --frozen python -m scripts.docs.site_contract --check
+	uv run --frozen python -m scripts.docs.site_redirects --check
 	cd site && pnpm install --frozen-lockfile
 	cd site && pnpm exec dockitty-validate-frontmatter ../docs --astro-config astro.config.mjs
 	uv run --frozen python -m scripts.docs.site_link_gates check-links -- pnpm --dir site exec dockitty-check-links ../docs --strict --astro-config astro.config.mjs
 	cd site && pnpm run build
 	uv run --frozen python -m scripts.docs.site_built_check site/dist --docs docs
+	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --docs ../docs --declared-redirects legacy-redirects.json --astro-config astro.config.mjs
+	cd site && pnpm exec dockitty-check-redirect-coverage url-baseline.txt dist --astro-config astro.config.mjs
+	uv run --frozen python -m scripts.docs.site_redirects_selftest site/dist
 	uv run --frozen python -m scripts.docs.site_link_gates built-links -- pnpm --dir site exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../docs --astro-config astro.config.mjs
 
 docs-site-bump: ## Bump the doc-kitty pin and peer ranges (REF=<tag|sha>; ADR D-2 steps 1-2)
