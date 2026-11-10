@@ -32,6 +32,7 @@ from specify_cli.status.store import (
     read_events_lenient,
     read_events_raw,
     seed_scratch_event_log,
+    jsonl_lines,
     serialize_event_line,
 )
 
@@ -39,11 +40,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
 
-#: Characters ``str.splitlines()`` treats as line boundaries that are not LF/CR.
-#: The C0 controls (VT, FF, FS, GS, RS) are always escaped by ``json.dumps`` (a raw
-#: one inside a JSON string is invalid JSON), so their cases pin the escaped form;
-#: U+0085, U+2028 and U+2029 are written raw and are the ones that split a row.
-_NON_BREAK_SEPARATORS = ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "]
+#: Characters ``str.splitlines()`` treats as line boundaries that are legal raw
+#: inside a JSON string: the reader cases below write them unescaped into a row.
+_NON_BREAK_SEPARATORS = ["\x85", "\u2028", "\u2029"]
+
+#: The C0 separators ``str.splitlines()`` also breaks at. ``json.dumps`` always
+#: escapes them and a raw one inside a JSON string is invalid JSON, so a reader
+#: case could not tell framing from decoding; they are pinned at the framing
+#: seam (:func:`jsonl_lines`) instead.
+_C0_SEPARATORS = ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e"]
 
 
 def _row(event_id: str, reason: str | None = None) -> dict[str, Any]:
@@ -86,6 +91,13 @@ def _write_log(feature_dir: Path, text: str) -> None:
 # ---------------------------------------------------------------------------
 # Separators inside a string field stay inside one row
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("separator", _C0_SEPARATORS + _NON_BREAK_SEPARATORS, ids=lambda s: f"U+{ord(s):04X}")
+def test_jsonl_lines_breaks_rows_only_at_lf_crlf_and_lone_cr(separator: str) -> None:
+    """The raw separator stays inside its row; only real line breaks end one."""
+    text = f"a{separator}b\nc\r\nd\re"
+    assert list(jsonl_lines(text)) == [(1, f"a{separator}b"), (2, "c"), (3, "d"), (4, "e")]
 
 
 @pytest.mark.parametrize("separator", _NON_BREAK_SEPARATORS, ids=lambda s: f"U+{ord(s):04X}")
@@ -145,6 +157,18 @@ class TestLineBreaks:
     def test_read_event_stream_from_text(self, tmp_path: Path, line_break: str) -> None:
         stream = read_event_stream_from_text(tmp_path, self._text(line_break))
         assert [e.event_id for e in stream.transitions] == [_FIRST_ID, _SECOND_ID]
+
+    def test_read_events_on_disk(self, tmp_path: Path, line_break: str) -> None:
+        _write_log(tmp_path, self._text(line_break))
+        assert [e.event_id for e in read_events(tmp_path)] == [_FIRST_ID, _SECOND_ID]
+
+    def test_read_event_stream_on_disk(self, tmp_path: Path, line_break: str) -> None:
+        _write_log(tmp_path, self._text(line_break))
+        assert [e.event_id for e in read_event_stream(tmp_path).transitions] == [_FIRST_ID, _SECOND_ID]
+
+    def test_read_events_lenient_on_disk(self, tmp_path: Path, line_break: str) -> None:
+        _write_log(tmp_path, self._text(line_break))
+        assert [e.event_id for e in read_events_lenient(tmp_path)] == [_FIRST_ID, _SECOND_ID]
 
 
 # ---------------------------------------------------------------------------
