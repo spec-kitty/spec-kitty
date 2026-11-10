@@ -36,7 +36,7 @@ from tests._support.ansi import strip_ansi
 from tests.integration.coord_topology_fixture import FlatTopologyContext, _git, build_flat_topology_mission
 from tests.status.conftest import seed_wp_to_planned
 
-pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SHA = "3f1c0d9e8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e"
 _CONTRACT = Path(__file__).resolve().parents[2] / "kitty-specs" / "consolidation-window-provenance-01M6Y84D" / "contracts" / "status-event-wp-window.md"

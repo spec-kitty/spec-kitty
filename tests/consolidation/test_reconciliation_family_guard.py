@@ -42,7 +42,7 @@ from specify_cli.consolidation import claim_inputs, reconciliation
 from tests.consolidation import reconciliation_family
 from tests.consolidation.reconciliation_family import patch_callee_name, setattr_reconciliation_family
 
-pytestmark = pytest.mark.fast
+pytestmark = pytest.mark.integration
 
 repo_root = Path(__file__).resolve().parents[2]
 
