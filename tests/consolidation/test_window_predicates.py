@@ -18,7 +18,7 @@ import specify_cli.consolidation.git_probes as git_probes
 from specify_cli.consolidation.git_probes import GitProbeError
 from specify_cli.consolidation.write_branch_bound import bind_lane_predicates
 
-pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _NOT_IN_CLONE = "f" * 40
 
