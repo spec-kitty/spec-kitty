@@ -3,7 +3,7 @@ title: Owned analysis currency repair
 description: Root-custody decisions and qualification scope for owned analysis recording and freshness checks.
 doc_status: draft
 kind: Planning
-updated: '2026-10-30T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 audience:
 - profile: internal/maintainer
   guidance_text: Review the owned analysis recording and freshness repair.
@@ -61,3 +61,13 @@ Polyglot reports as stale on their owned compiled charter inputs. Their older
 reports recorded the repository-root charter digest. Fresh independent analysis
 against owned governance, followed by the normal official recorder, is required;
 rebinding the old metadata would not establish a current analysis.
+
+## Follow-up: report-only recording (#7434, 2026-11-10)
+
+Report-only transactional analysis, left outside this qualification, now follows the
+same contract. `git/report_transaction.py` derives the charter root from the validated
+`OwnedCheckout` and passes it to every input hash, the renderer and the writer; its
+charter-dirt gate checks the owned checkout. Dirt on the repository-root charter is no
+longer an input of an owned report-only recording.
+Report-only reports recorded in an owned checkout before this fix carry the
+repository-root charter digest and must be recorded again.
