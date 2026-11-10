@@ -673,7 +673,8 @@ def _catalog_default_kinds(diagnostics: list[GovernanceDiagnostic]) -> frozenset
     Classified by diagnostic code and kind, never by message text. A
     ``SELECTION_MERGED`` entry means the project added to a base, so the lists
     are then enumerated in full rather than described as the default. The same
-    holds, per kind, for a dropped unknown selection: the reader must see it.
+    holds, per kind, for a dropped unknown selection and for a deactivation
+    (the deny list removes ids from the default): the reader must see them.
     """
     defaulted = {d.kind for d in diagnostics if d.code is GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED and d.kind is not None}
     altered = {d.kind for d in diagnostics if d.code in _DEFAULT_ALTERING_CODES}

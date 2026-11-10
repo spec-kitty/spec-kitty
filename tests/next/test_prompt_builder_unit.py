@@ -789,7 +789,7 @@ class TestGovernanceContext:
         notes: str,
         feature_dir: Path,
     ) -> None:
-        """#7511: a merge or a dropped selection un-compacts its own kind only."""
+        """#7511: a merge, a dropped selection or a deactivation un-compacts its own kind only."""
         default = GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED
         directives = ["DIRECTIVE_001", "QA_003"] if directives_line.startswith("DIRECTIVE") else ["DIRECTIVE_001", "DIRECTIVE_003"]
         mock_resolve.return_value = MagicMock(
@@ -807,6 +807,28 @@ class TestGovernanceContext:
         assert f"  - Paradigms: {paradigms_line}" in lines
         assert f"  - Directives: {directives_line}" in lines
         assert lines[-1] == f"  - Diagnostics: {notes}"
+
+    def test_a_deactivated_directive_is_not_reported_as_none_selected(self, tmp_path: Path) -> None:
+        """#7511: `charter deactivate` of a catalog default leaves the directives enumerated and the removal named."""
+        import subprocess
+
+        from charter.activation.resolver import resolve_project_governance
+
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        bare = resolve_project_governance(tmp_path)
+        denied = bare.directives[0]
+        ledger = tmp_path / ".kittify" / "charter" / "activation.yaml"
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        ledger.write_text(f"deactivated_directives:\n- {denied}\n", encoding="utf-8")
+
+        resolution = resolve_project_governance(tmp_path)
+        assert denied not in resolution.directives and len(resolution.directives) == len(bare.directives) - 1, resolution.directives
+
+        lines = _governance_context(tmp_path).splitlines()
+
+        assert f"  - Directives: {', '.join(resolution.directives)}" in lines
+        assert any(denied in line and line.startswith("  - Diagnostics:") for line in lines), lines
+        assert any(line.startswith("  - Paradigms: built-in catalog default") for line in lines), lines
 
     @pytest.mark.fast
     def test_scope_not_found_is_not_swallowed(self, feature_dir: Path) -> None:
