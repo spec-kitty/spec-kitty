@@ -5,7 +5,7 @@ status: Accepted
 doc_status: active
 kind: ADR
 date: '2026-11-01'
-updated: '2026-11-01T00:00:00Z'
+updated: '2026-11-10T00:00:00Z'
 ---
 
 # Op lifecycle records are one file per record
@@ -99,3 +99,42 @@ on lifecycle records and no merge driver is needed.
   never changed.
 - `docs/architecture/event-ledger-writers-and-readers.md` still names the legacy path. It is in the
   frozen set of ADR 2026-10-29-1 D-9, so it is corrected in `spec-kitty-events`, not here.
+
+## Amendment 2026-11-10: an abandoned record closes a stale lifecycle record (#7346)
+
+**Reader:** a maintainer who needs to know how a lifecycle record is closed when `spec-kitty next`
+never reports a result for it.
+
+**Problem.** The only completion writer was `spec-kitty next` reporting a result, which also advances
+the Mission. A work package whose agent stopped mid-action left its `started` record open, and the
+record shipped open in the pull request (#7340's WP04).
+
+**Decision** (operator rulings, Mission `close-stale-lifecycle-records-01M72B89`).
+
+- The record contract gains a fourth phase, `abandoned`: the record was closed by
+  `doctor ops --close-stale`, not by the action's result. It copies the `started` record's canonical
+  id, agent, Mission and work package, names the sweep and its threshold in `reason`, and carries
+  `metadata.closed_by = doctor_sweep` and `metadata.closes_started_at`, the `at` of the exact
+  `started` record it closes, so a later sweep pairs it with that record and never closes another.
+- Pairing counts `abandoned` as a completion (`lifecycle.COMPLETION_PHASES`), so the orphan count,
+  the pairing rate and `find_latest_unpaired_started` treat the record as closed.
+- It has one writer, `lifecycle.write_abandoned_completion`, which writes through the same locked
+  `append_lifecycle_record`: one new file, never a rewrite. `spec-kitty next` keeps writing only
+  `completed` and `failed`.
+
+**Consequences.**
+
+- The store stays append-only; the preservation gate admits the new files as it admits any other.
+- A CLI older than this amendment cannot parse an `abandoned` record, skips it, and keeps reporting
+  the orphan. The operator accepted this with the phase choice.
+
+**Residuals.**
+
+- A `started` record whose `at` cannot be parsed is dropped when the store is read, so neither the
+  sweep nor `doctor invocation-pairing` sees it.
+- The sweep commits in every checkout that holds a stale record, linked worktrees included. A closure
+  committed on an approved lane branch is a commit after the approval, which `consolidate` refuses
+  (`LANE_MOVED_AFTER_APPROVAL`); `kitty-ops/lifecycle/` is not a bookkeeping path for that bound.
+- Matching a completion to its `started` record is a heuristic for records `spec-kitty next` wrote
+  (same agent and work package, the latest started before it); two retries completed in different
+  checkouts can still be told apart wrongly.
