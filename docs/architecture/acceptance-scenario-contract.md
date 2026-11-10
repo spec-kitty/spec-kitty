@@ -165,10 +165,25 @@ which CLI build, on which OS, in which pass produced it. The current upload does
   `schema_version`, commit SHA, CLI version, OS, the run URL, and per pass the outcome, scenario
   counts and the result paths. spec-kitty-qa reads this file first; a field it does not know
   never breaks it, and a `schema_version` it does not know makes it refuse.
-- The upload keeps the name `acceptance-bdd-results-<os>`, uploads only
+- The upload keeps the name `acceptance-bdd-results-<os>` (since the #7492 follow-up below:
+  `acceptance-bdd-results-<os>-shard-<k>`, one per shard), uploads only
   `acceptance-jvm/build/acceptance/`, fails when the gating results are missing
   (`if-no-files-found: error`), and sets `retention-days: 30`.
 - The job's `if:` drops the `pull_request` clause.
+- **Amendment (#7492, 2026-11-10).** The `@wip` pass moved to its own non-gating job,
+  `acceptance-bdd-wip`: on Windows the gating pass and the `@wip` pass together ran into the
+  leg's 60-minute cap, and the canceled leg escalated a P0 with no failing test. Each job now
+  writes its own `evidence.json` (schema version 1 unchanged: both passes are present, the one
+  the job did not run is `missing`, and the additive `passes_run` field names the one it ran).
+  The gating bundle stays in `acceptance-bdd-results-<os>`; the `@wip` bundle is uploaded as
+  `acceptance-bdd-wip-results-<os>`. spec-kitty-qa reads the `@wip` results from that artifact.
+- **Amendment (#7492 follow-up, 2026-11-10).** The gating pass runs as three shards per OS
+  (`-Pacceptance.shard=K/N`, `kitty.acceptance.sharding.ShardFilter`), to cut the Windows leg's
+  ~47-minute critical path. Each shard uploads `acceptance-bdd-results-<os>-shard-<k>`, and its
+  `evidence.json` adds `shard: "K/N"` (additive; `null` when unsharded). A consumer reads every
+  shard artifact of an OS to see the whole gating pass. Every shard still lists the tag-skipped
+  (`@wip`, `@manual`) scenarios as skipped, so a consumer merging the shards dedupes them. This
+  changes the artifact name FR-011 and ADR `2026-10-13-1` kept; spec-kitty-qa follows it.
 
 ## D. Fixture builders (built)
 
