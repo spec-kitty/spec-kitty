@@ -80,8 +80,8 @@ def _replace_session_timestamps(envelope: dict[str, Any]) -> dict[str, Any]:
       remove it, no replacement.
     * Only ``session_ended_at`` present → remove it, no replacement.
     * Neither present → envelope unchanged.
-    * Malformed timestamp string → field removed silently, debug log emitted,
-      no exception raised.
+    * Malformed timestamp string → field removed (debug-logged), no exception
+      raised.
     * One naive and one timezone-aware timestamp → treated as malformed: both
       removed, no ``session_duration_s``, debug log emitted (#7440).
 
@@ -150,7 +150,7 @@ def sanitize_event_for_log(envelope: dict[str, Any]) -> dict[str, Any]:
       If both ``session_started_at`` and ``session_ended_at`` are present they
       are replaced by ``session_duration_s`` (integer seconds).  If only one is
       present it is removed without replacement.  Malformed timestamps, and a
-      pair mixing a naive with a timezone-aware timestamp, are removed silently.
+      pair mixing a naive with a timezone-aware timestamp, are removed (debug-logged).
 
     Fields that are explicitly **preserved**: ``node_id``, ``build_id``,
     ``mission_id``, ``project_uuid``, ``git_branch``, ``head_commit_sha``,
