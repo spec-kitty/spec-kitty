@@ -35,16 +35,22 @@ __all__ = [
     "OP_RECORDS",
     "OpCommitProbeError",
     "PrimaryTracking",
+    "ROOT_KITTY_OPS_RECORD_RE",
     "RecordKind",
     "op_commit_skip_reason",
     "probe_primary_tracking",
 ]
 
-#: Op-record shape ``kitty-ops/<26-char ULID>.jsonl``. Same pattern as the one
-#: ``coordination/coherence.py`` uses; a test pins that the two agree.
-OP_RECORD_PATH_RE = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
-#: WP lifecycle-record shape ``kitty-ops/lifecycle/<26-char ULID>.json`` (#7346).
-LIFECYCLE_RECORD_PATH_RE = re.compile(r"(?:^|/)kitty-ops/lifecycle/[0-9A-HJKMNP-TV-Z]{26}\.json$")
+_ULID = r"[0-9A-HJKMNP-TV-Z]{26}"
+#: Op-record path ``kitty-ops/<26-char ULID>.jsonl``, unanchored: the one definition every matcher derives from.
+OP_RECORD_PATH = rf"kitty-ops/{_ULID}\.jsonl"
+#: WP lifecycle-record path ``kitty-ops/lifecycle/<26-char ULID>.json`` (#7346), unanchored.
+LIFECYCLE_RECORD_PATH = rf"kitty-ops/lifecycle/{_ULID}\.json"
+#: Op-record shape at any depth. Same pattern as the one ``coordination/coherence.py`` uses; a test pins that the two agree.
+OP_RECORD_PATH_RE = re.compile(rf"(?:^|/){OP_RECORD_PATH}$")
+LIFECYCLE_RECORD_PATH_RE = re.compile(rf"(?:^|/){LIFECYCLE_RECORD_PATH}$")
+#: A repository-root Op or lifecycle record; match with ``fullmatch`` (``$`` would accept a trailing newline).
+ROOT_KITTY_OPS_RECORD_RE = re.compile(rf"{OP_RECORD_PATH}|{LIFECYCLE_RECORD_PATH}")
 
 _GIT_TIMEOUT_SECONDS = 30
 _EVENTS_PATHSPEC = "kitty-ops/"

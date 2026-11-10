@@ -8,7 +8,6 @@ every name, so no caller changes (C-005).
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +16,7 @@ from typing import Any
 from specify_cli.consolidation.git_probes import GitProbeError, commits_in_range, first_parent_commits_in_range
 from specify_cli.consolidation.wp_attribution import Unattributable, UnattributableReason
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
+from specify_cli.invocation.op_commit_policy import ROOT_KITTY_OPS_RECORD_RE
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
@@ -37,7 +37,7 @@ _APPROVED_MEMBERSHIP_LANES: frozenset[str] = frozenset({"approved", "done"})
 # package lifecycle record matches too (#7346 operator ruling): ``doctor ops
 # --close-stale`` commits its ``abandoned`` closures in lane checkouts, and such a
 # commit on an approved lane is spec-kitty's own bookkeeping, not unreviewed work.
-_KITTY_OPS_ROOT_RECORD = re.compile(r"^kitty-ops/(?:[0-9A-HJKMNP-TV-Z]{26}\.jsonl|lifecycle/[0-9A-HJKMNP-TV-Z]{26}\.json)$")
+_KITTY_OPS_ROOT_RECORD = ROOT_KITTY_OPS_RECORD_RE
 
 
 def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
@@ -124,7 +124,7 @@ def _is_bookkeeping(path: str, mission_slug: str | None, planning_prefix: str | 
         return True
     if _is_nested_alias_coordination_file(normalized, mission_slug, planning_prefix):
         return True
-    return bool(_KITTY_OPS_ROOT_RECORD.match(normalized))
+    return bool(_KITTY_OPS_ROOT_RECORD.fullmatch(normalized))
 
 
 def _is_nested_alias_coordination_file(path: str, mission_slug: str | None, planning_prefix: str | None) -> bool:
