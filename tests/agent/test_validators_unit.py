@@ -204,7 +204,10 @@ def test_validate_paths_warns_when_missing(tmp_path: Path) -> None:
     assert not result.is_valid
     assert result.missing_paths == ["tests/"]
     assert any("tests/" in warning for warning in result.warnings)
-    assert any("mkdir -p tests/" in suggestion for suggestion in result.suggestions)
+    # #7512: ``tests`` is a remappable build-layout key, so no ``mkdir -p`` is
+    # suggested for it -- an empty directory would only silence the check.
+    assert result.remappable_missing_keys == ["tests"]
+    assert result.suggestions == []
 
 
 def test_validate_paths_strict_mode_raises(tmp_path: Path) -> None:
@@ -549,8 +552,10 @@ def test_strict_failure_names_project_path_conventions_and_drop_route(tmp_path: 
     """#6633: the strict failure text must name the honest project-level levers
     #3016 (``project.path_conventions`` remap) and #4088 (mission-type override)
     for a repo whose layout is not ``src/``/``tests/``/``docs/`` -- with the exact
-    missing keys in a copy-pasteable example, while the #3783 ordering contract
-    (``--lenient`` before ``mkdir -p``) stays intact.
+    missing keys in a copy-pasteable example. #7512: every missing key here is
+    remappable, so the text carries no ``mkdir -p`` at all; the #3783 ordering
+    contract (``--lenient`` before ``mkdir -p``) is pinned on an artifact path in
+    ``test_strict_failure_keeps_mkdir_for_artifact_path_after_lenient_and_remap``.
     """
     repo_root = _go_style_repo(tmp_path)
     feature_dir = repo_root / "kitty-specs" / "010-mission"
@@ -572,9 +577,93 @@ def test_strict_failure_names_project_path_conventions_and_drop_route(tmp_path: 
         assert f"{key}:" in output
     # The drop lever is named with the real mission-type directory (FR-002).
     assert ".kittify/overrides/missions/software-dev/mission.yaml" in output
-    # The #3783 contract survives the addition (FR-003).
+    # The #3783 lever survives the addition (FR-003).
     assert "--lenient" in output
-    assert output.index("--lenient") < output.index("mkdir -p")
+    # #7512: no fake-green remedy for a build-layout path.
+    assert "mkdir -p" not in output
+    assert "Required Actions" not in output
+
+
+def _software_dev_stub_with_contracts() -> _MissionStub:
+    return _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+
+def test_strict_failure_keeps_mkdir_for_artifact_path_after_lenient_and_remap(tmp_path: Path) -> None:
+    """#7512 + the #3783 ordering contract: with a build-layout path (``src/``)
+    AND a mission-artifact path (``contracts/``) missing, only the artifact path
+    gets a ``mkdir -p`` remedy, and it still reads after ``--lenient`` and the
+    ``project.path_conventions`` remap."""
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(_software_dev_stub_with_contracts(), repo_root, strict=True, feature_dir=feature_dir)
+
+    result = excinfo.value.result
+    output = str(excinfo.value)
+
+    # Both paths are still reported missing: the blocking decision is unchanged.
+    assert result.missing_paths == ["src/", "kitty-specs/010-mission/contracts/"]
+    assert result.suggestions == ["mkdir -p kitty-specs/010-mission/contracts/"]
+    assert "mkdir -p src/" not in output
+    assert "Create directories in one go" not in output
+    assert output.index("--lenient") < output.index("project.path_conventions") < output.index("mkdir -p")
+
+
+def test_lenient_warning_names_remap_and_drops_mkdir_for_build_paths(tmp_path: Path) -> None:
+    """#7512: the ``--lenient`` warning text follows the same rule as the strict
+    text -- the ``project.path_conventions`` remap for build-layout keys, no
+    ``mkdir -p`` for them."""
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    missions_dir = repo_root / ".kittify" / "missions"
+    missions_dir.mkdir(parents=True)
+
+    result = validate_mission_paths(_software_dev_stub(missions_dir / "software-dev"), repo_root, strict=False, feature_dir=feature_dir)
+    output = result.format_warnings()
+
+    assert result.missing_paths == ["src/", "tests/", "docs/"]
+    assert "project.path_conventions" in output
+    for key in ("workspace", "tests", "documentation"):
+        assert f"      {key}: <real-directory>/" in output
+    assert ".kittify/overrides/missions/software-dev/mission.yaml" in output
+    assert "mkdir -p" not in output
+    assert "Suggestions:" not in output
+
+
+def test_lenient_warning_keeps_mkdir_for_artifact_path_only(tmp_path: Path) -> None:
+    """#7512: under ``--lenient`` a missing mission-artifact path keeps its
+    ``mkdir -p`` suggestion; the build-layout path beside it gets the remap."""
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+
+    result = validate_mission_paths(_software_dev_stub_with_contracts(), repo_root, strict=False, feature_dir=feature_dir)
+    output = result.format_warnings()
+
+    assert "      workspace: <real-directory>/" in output
+    assert "mkdir -p src/" not in output
+    assert "  - mkdir -p kitty-specs/010-mission/contracts/" in output
+    assert output.index("project.path_conventions") < output.index("Suggestions:")
+
+
+def test_strict_and_lenient_texts_share_one_remap_wording(tmp_path: Path) -> None:
+    """#7512: the lenient warning reuses the strict text's remap guidance
+    verbatim -- one wording, not a second copy that can drift."""
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+
+    result = validate_mission_paths(_software_dev_stub(), repo_root, strict=False, feature_dir=feature_dir)
+    errors, warnings = result.format_errors(), result.format_warnings()
+
+    start = "If this project's real layout differs"
+    end = "removing that key's line."
+    strict_block = errors[errors.index(start) : errors.index(end)]
+    assert strict_block
+    assert strict_block in warnings
 
 
 def test_path_conventions_example_lists_only_actually_missing_keys(tmp_path: Path) -> None:
@@ -617,6 +706,8 @@ def test_artifact_routed_missing_key_gets_no_path_conventions_hint(tmp_path: Pat
     assert "contracts" in output  # the missing artifact is still reported
     assert "project.path_conventions" not in output
     assert ".kittify/overrides/missions/" not in output
+    # #7512: an artifact path is not remappable, so its mkdir remedy stays.
+    assert "mkdir -p kitty-specs/010-mission/contracts/" in output
 
 
 def test_waived_artifact_path_is_not_required(tmp_path: Path) -> None:

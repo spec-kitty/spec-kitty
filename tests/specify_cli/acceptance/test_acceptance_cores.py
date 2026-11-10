@@ -275,6 +275,52 @@ class TestEvaluatePathConventions:
         assert warning == "missing src/ (advisory)"
         assert dedup_tokens == frozenset()
 
+    @staticmethod
+    def _software_dev_mission() -> SimpleNamespace:
+        return SimpleNamespace(
+            name="Software Dev Kitty",
+            domain="software-dev",
+            path=Path("missions") / "software-dev",
+            config=SimpleNamespace(
+                paths={"workspace": "src/", "tests": "tests/", "deliverables": "contracts/", "documentation": "docs/"},
+                artifacts=SimpleNamespace(optional=("contracts/",), required=()),
+            ),
+        )
+
+    def test_strict_blocks_without_mkdir_for_build_layout_paths(self, tmp_path: Path) -> None:
+        """#7512: a repo with no ``src/``/``tests/``/``docs/`` still blocks strict
+        accept, but the violation text no longer tells the operator to create
+        empty build directories -- only the mission-artifact path keeps a
+        ``mkdir -p`` remedy."""
+        feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+        feature_dir.mkdir(parents=True)
+
+        violations, warning, dedup_tokens = evaluate_path_conventions(self._software_dev_mission(), tmp_path, feature_dir, feature_dir, strict_metadata=True)
+
+        assert warning is None
+        assert dedup_tokens == frozenset({"contracts"})
+        assert len(violations) == 1  # blocking is unchanged
+        text = violations[0]
+        for missing in ("src/", "tests/", "docs/", "kitty-specs/demo-mission/contracts/"):
+            assert f"{missing} (not found)" in text
+        assert "project.path_conventions" in text
+        assert "Required Actions:\n  - mkdir -p kitty-specs/demo-mission/contracts/" in text
+        assert text.count("mkdir -p") == 1
+
+    def test_lenient_warning_names_remap_without_mkdir_for_build_layout_paths(self, tmp_path: Path) -> None:
+        """#7512: the ``--lenient`` warning carries the same remap guidance and
+        the same no-``mkdir`` rule for build-layout paths."""
+        feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+        feature_dir.mkdir(parents=True)
+
+        violations, warning, _dedup_tokens = evaluate_path_conventions(self._software_dev_mission(), tmp_path, feature_dir, feature_dir, strict_metadata=False)
+
+        assert violations == []
+        assert warning is not None
+        assert "project.path_conventions" in warning
+        assert "Suggestions:\n  - mkdir -p kitty-specs/demo-mission/contracts/" in warning
+        assert warning.count("mkdir -p") == 1
+
     def test_empty_format_errors_falls_back_to_default_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
