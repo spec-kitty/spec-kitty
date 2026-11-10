@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-10T09:46:32.313927+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: abandoned phase, one completion predicate, unpaired_started, write_abandoned_completion, ADR amendment. Archive gate red only from the shallow clone."
+        "Ready for review: abandoned phase, one completion predicate, unpaired_started, write_abandoned_completion, ADR amendment. Archive gate red only from the shallow clone.",
+        "Approved: red-first verified (c766a27b fails on base: ImportError write_abandoned_completion + unknown phase); abandoned accepted by record contract; COMPLETION_PHASES is the one completion predicate; unpaired_started replaces both slices; write_abandoned_completion copies ids verbatim, stamps reason/metadata, refuses non-started, writes one new file via append_lifecycle_record; write_paired_completion refuses abandoned; pair_previous_lifecycle_record unchanged and correct; ADR amendment accurate. 172 tests passed; ruff/format/mypy/C901 clean. Deferred to WP02: L1 derive _PROFILE_INVOCATION_PHASES from the Literal via typing.get_args; L2 add a test that write_paired_completion refuses abandoned."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
