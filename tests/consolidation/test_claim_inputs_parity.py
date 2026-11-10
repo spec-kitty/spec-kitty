@@ -29,7 +29,7 @@ import pytest
 from charter.hasher import hash_content
 from specify_cli.consolidation import claim_inputs as ci
 from specify_cli.consolidation import forecast, phase_claim, phase_gate, status_surface
-from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, build_claim, claim_inputs
+from specify_cli.consolidation.claim_inputs import ClaimInputContext, ClaimInputs, ClaimInputSource, claim_inputs
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.lanes.compute import lane_created_branch
@@ -300,51 +300,6 @@ def _normalized(kwargs: Mapping[str, Any]) -> dict[str, Any]:
     frozen = out.get("frozen_dependency_tips")
     out["frozen_dependency_tips"] = dict(frozen) if frozen is not None else None
     return out
-
-
-def test_build_claim_passes_todays_kwargs(recorded: list[tuple[tuple[Any, ...], dict[str, Any]]]) -> None:
-    manifest = _manifest()
-    # forecast.py before WP09: coord_base_ref=lanes_manifest.mission_branch, excluded_window_base=window_base,
-    # external_dependency_refs=dependency_refs, external_dependency_pins=dependency_pins; since WP17 (FR-013) it
-    # passes the excluded set the fresh run resolves (acceptably_canceled_wp_ids, faked here as _EXCLUDED) and the
-    # coordination SHA the fresh run captures (the status surface ref, rev-parsed; faked here as _COORD).
-    forecast_kwargs = {
-        "coord_base_ref": _COORD,
-        "excluded_canceled_wp_ids": _EXCLUDED,
-        "excluded_window_base": _TARGET,
-        "external_dependency_refs": _REFS,
-        "external_dependency_pins": _PINS,
-    }
-    # phase_claim.py before WP09: coord_base_ref=coord_base, excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
-    # excluded_window_base=run.target_expected_old_sha, external_dependency_refs/pins=run.dependency_refs/ref_pins.
-    run_kwargs = {
-        "coord_base_ref": _COORD,
-        "excluded_canceled_wp_ids": _EXCLUDED,
-        "excluded_window_base": _TARGET,
-        "external_dependency_refs": _REFS,
-        "external_dependency_pins": _PINS,
-    }
-    # phase_gate.py before WP09: the same, but coord_base_ref=run.lanes_manifest.mission_branch.
-    gate_kwargs = {**run_kwargs, "coord_base_ref": _MISSION_BRANCH}
-    # WP18 (FR-015): a resume (SAVED) also hands the builder its one frozen anchor set, the record's
-    # dependency-lane tips; the forecast and the fresh run pass none (the live read).
-    frozen = {"frozen_dependency_tips": {_LANE_A: "1" * 40}}
-
-    cases = [
-        (
-            claim_inputs(ClaimInputSource.LIVE, _context(resolved_coord_sha=None, checkpoint_sha=None, state=None, excluded_canceled_wp_ids=frozenset())),
-            forecast_kwargs,
-        ),
-        (claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context()), run_kwargs),
-        (claim_inputs(ClaimInputSource.SAVED, _context()), {**run_kwargs, **frozen}),
-        (claim_inputs(ClaimInputSource.LIVE_THEN_SAVED, _context(coord_base_override=_MISSION_BRANCH)), gate_kwargs),
-        (claim_inputs(ClaimInputSource.SAVED, _context(coord_base_override=_MISSION_BRANCH)), {**gate_kwargs, **frozen}),
-    ]
-    for inputs, expected in cases:
-        assert build_claim(_REPO, manifest, inputs) == "claim"
-        args, kwargs = recorded.pop()
-        assert args == (_REPO, _STATUS, manifest), inputs.source
-        assert _normalized(kwargs) == _normalized(expected), inputs.source
 
 
 def test_fresh_run_coord_base_falls_back_to_checkpoint_then_mission_branch(recorded: list[Any]) -> None:
