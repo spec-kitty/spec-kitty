@@ -48,6 +48,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 # Runnable bare (`python3 scripts/docs/site_built_check.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.docs._dockitty_contract import route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
+from scripts.docs import site_built_check_llms, site_built_check_render  # noqa: E402  (surfaces kept in their own modules)
 
 __all__ = ["SITE_ORIGIN", "SURFACES", "Finding", "check", "main", "normalise_url", "unpublished_routes"]
 
@@ -208,6 +209,8 @@ SURFACES: Final[dict[str, Callable[[Path, frozenset[str]], Iterator[Finding]]]] 
     "search": _search,
     "llms": _llms,
     "agent-index": _agent_index,
+    site_built_check_llms.SURFACE: site_built_check_llms.surface,
+    site_built_check_render.SURFACE: site_built_check_render.surface,
 }
 
 
