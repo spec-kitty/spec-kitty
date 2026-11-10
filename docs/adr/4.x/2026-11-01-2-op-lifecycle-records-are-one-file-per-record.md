@@ -127,14 +127,18 @@ record shipped open in the pull request (#7340's WP04).
 - The store stays append-only; the preservation gate admits the new files as it admits any other.
 - A CLI older than this amendment cannot parse an `abandoned` record, skips it, and keeps reporting
   the orphan. The operator accepted this with the phase choice.
+- The sweep commits in every checkout that holds a stale record, lane worktrees included. A
+  repository-root `kitty-ops/lifecycle/<ULID>.json` file is `consolidate`'s bookkeeping, as a root
+  `kitty-ops/<ULID>.jsonl` Op record is (`reconciliation_kernel._KITTY_OPS_ROOT_RECORD`; operator
+  ruling, Decision Moment `01M72P4C1S5Z4MG13Q2W1S1KM0`), so a closure committed on an approved lane
+  branch is not a commit after the approval and does not trip `LANE_MOVED_AFTER_APPROVAL`. The
+  dirty-state classifier (`coordination.coherence.is_self_bookkeeping_churn`) is unchanged: a closure
+  the sweep could not commit is still dirt in that checkout.
 
 **Residuals.**
 
 - A `started` record whose `at` cannot be parsed is dropped when the store is read, so neither the
   sweep nor `doctor invocation-pairing` sees it.
-- The sweep commits in every checkout that holds a stale record, linked worktrees included. A closure
-  committed on an approved lane branch is a commit after the approval, which `consolidate` refuses
-  (`LANE_MOVED_AFTER_APPROVAL`); `kitty-ops/lifecycle/` is not a bookkeeping path for that bound.
 - Matching a completion to its `started` record is a heuristic for records `spec-kitty next` wrote
   (same agent and work package, the latest started before it); two retries completed in different
   checkouts can still be told apart wrongly.

@@ -242,8 +242,9 @@ it reports a result. `doctor ops --close-stale` closes the rest:
   close, with the #6410 rules judged for lifecycle records: the commit is skipped
   when the path is ignored or the primary branch tracks no
   `kitty-ops/lifecycle/<ULID>.json` record. A protected-branch refusal is
-  reported and the closures stay on disk. A closure committed on an approved lane
-  branch counts as a commit after the approval, which `consolidate` refuses.
+  reported and the closures stay on disk. `consolidate` treats a root
+  `kitty-ops/lifecycle/<ULID>.json` file as bookkeeping, so a closure committed on
+  an approved lane branch does not count as a commit after the approval.
 - Mission status, `meta.json` and work package files are never touched.
 - `--json` lists them under the additive `lifecycle_records` key; a fresh one left
   open makes the command exit 1, as a fresh Op does.
