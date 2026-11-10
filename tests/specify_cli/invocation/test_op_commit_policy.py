@@ -221,3 +221,46 @@ def test_worst_case_with_dangling_origin_head_stays_within_nfr_001_bound(tmp_pat
 
     assert tracking == PrimaryTracking(tracked=True, primary="develop")
     assert len(calls) <= 11
+
+
+# ---------------------------------------------------------------------------
+# #7346: the same rules judged for WP lifecycle records
+# ---------------------------------------------------------------------------
+
+_LIFECYCLE_RECORD = "kitty-ops/lifecycle/01ARZ3NDEKTSV4RRFFQ69G5FAV.json"
+
+
+@pytest.mark.parametrize(
+    ("path", "matches"),
+    [
+        (_LIFECYCLE_RECORD, True),
+        ("kitty-ops/01ARZ3NDEKTSV4RRFFQ69G5FAV.jsonl", False),  # an Op record
+        ("kitty-ops/lifecycle.jsonl", False),  # the legacy log
+        ("kitty-ops/lifecycle/not-a-ulid.json", False),
+    ],
+)
+def test_lifecycle_record_pattern(path: str, matches: bool) -> None:
+    from specify_cli.invocation.op_commit_policy import LIFECYCLE_RECORD_PATH_RE
+
+    assert bool(LIFECYCLE_RECORD_PATH_RE.search(path)) is matches
+
+
+def test_lifecycle_tracking_is_judged_on_lifecycle_records_only(tmp_path: Path) -> None:
+    from specify_cli.invocation.op_commit_policy import LIFECYCLE_RECORDS
+
+    repo = _repo(tmp_path)
+    _commit_file(repo, RECORD)  # an Op record: tracked Op records do not make lifecycle records tracked
+    _git(repo, "checkout", "-b", "fix/x")
+
+    untracked = probe_primary_tracking(repo, LIFECYCLE_RECORDS)
+    assert untracked == PrimaryTracking(tracked=False, primary="main", kind=LIFECYCLE_RECORDS)
+    assert op_commit_skip_reason(repo, _LIFECYCLE_RECORD, tracking=untracked) == (
+        "the primary branch (main) tracks no lifecycle records under kitty-ops/lifecycle/"
+    )
+
+    _git(repo, "checkout", "main")
+    _commit_file(repo, _LIFECYCLE_RECORD)
+    _git(repo, "checkout", "fix/x")
+    tracked = probe_primary_tracking(repo, LIFECYCLE_RECORDS)
+    assert tracked.tracked is True
+    assert op_commit_skip_reason(repo, _LIFECYCLE_RECORD, tracking=tracked) is None

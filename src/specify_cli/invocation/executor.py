@@ -1175,7 +1175,7 @@ class ProfileInvocationExecutor:
                 except InvalidCoAuthor as exc:
                     # A configuration defect refuses the commit, visibly; the
                     # records are already durable and stay closed.
-                    logger.info("Op record auto-commit for %s refused: %s", label, exc)
+                    logger.info("Record auto-commit for %s refused: %s", label, exc)
                     return self._record_op_commit(OpCommitOutcome(committed=False, refusal=str(exc)))
             if trailer is not None:
                 message = f"{message}\n\n{trailer}"
@@ -1189,10 +1189,10 @@ class ProfileInvocationExecutor:
             # The guard's own message names the protected-branch override,
             # which agents must not use; report the refusal without it (#6410).
             refusal = f"protected branch {exc.destination_ref!r}"
-            logger.info("Op record auto-commit for %s refused: %s", label, refusal)
+            logger.info("Record auto-commit for %s refused: %s", label, refusal)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=refusal))
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Op record auto-commit failed for %s: %r", label, exc)
+            logger.warning("Record auto-commit failed for %s: %r", label, exc)
             return self._record_op_commit(OpCommitOutcome(committed=False, refusal=repr(exc)))
 
     def _op_commit_kwargs(self, branch: str, *paths: Path) -> _OpCommitKwargs:
@@ -1284,7 +1284,8 @@ class ProfileInvocationExecutor:
             reason: str | None = op_commit_skip_reason(self._record_root, relative_path, tracking=tracking)
             return reason
         except OpCommitProbeError as exc:
-            return f"git probe failed while deciding whether to commit the Op record: {exc}"
+            subject = "the Op record" if kind is OP_RECORDS else f"the {kind.label}"
+            return f"git probe failed while deciding whether to commit {subject}: {exc}"
 
     def _record_op_commit(self, outcome: OpCommitOutcome) -> OpCommitOutcome:
         """Store the latest auto-commit outcome for caller visibility (#4397)."""
