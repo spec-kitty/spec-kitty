@@ -695,17 +695,18 @@ def _door_refusal(mission: cs.ShapeMission, built: _Built) -> str | None:
 
 @pytest.mark.parametrize("template", ["canceled_superseded", "canceled_unsuperseded", "canceled_after_approval"])
 def test_approved_bound_refusal_matches_claim_on_canceled_commits(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, template: str) -> None:
-    """FR-022 with the ruling: the ``orchestrator-api`` door exempts the same canceled commits from tier 2 as the claim (and no more)."""
+    """The claim exempts a canceled work package's commits from tier 2; the ``orchestrator-api`` door, which runs no canceled-content check, exempts none."""
     mission = templates.copy(template, tmp_path)
 
     built = _forecast_claim(mission, monkeypatch)
     door = _door_refusal(mission, built)
 
-    assert door == built.claim.refusal
     if template == "canceled_after_approval":
+        assert door == built.claim.refusal
         assert door is not None and TIER_ONE_MARKER in door, door
     else:
-        assert door is None, door
+        assert built.claim.refusal is None, built.claim.refusal
+        assert door is not None and MOVED in door and "canceled.py" in door, door
 
 
 def test_classifier_reads_the_tip_the_bound_resolved(templates: _Templates, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

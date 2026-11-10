@@ -673,39 +673,6 @@ def _unreadable_canceled_dependency_refusal_text(unreadable: list[_UnreadableCan
     return "; ".join(_unreadable_canceled_dependency_clause(lane) for lane in unreadable)
 
 
-def _canceled_window_exemptions(query: _CanceledLaneQuery, event_log: _ClaimEventLog) -> Mapping[str, frozenset[str]]:
-    """Each mixed lane's attributed canceled commits, resolved as the claim resolves them, for a caller that builds no claim.
-
-    ``approved_bound_refusal`` (the ``orchestrator-api`` door) judges the lanes without the claim's
-    mixed-lane resolution, so it asks here for the same tier-2 exemption (operator ruling 2026-11-09):
-    the fully-canceled dependency lanes first (their unapproved commits are never exempt from the
-    closed world), then :func:`_resolve_mixed_lanes` once. Anything that would refuse the claim
-    before the mixed lanes are resolved exempts nothing, as the claim's own compound refusal does.
-    """
-    if not _mixed_lanes(query.lanes_manifest, query.work_packages, query.excluded_ids):
-        return {}
-    if _unreadable_canceled_dependency_lanes(query.repo_root, query.lanes_manifest, query.excluded_ids, query.coord_base_ref, event_log):
-        return {}
-    dependency = _resolve_canceled_dependency_lanes(query, event_log)
-    if dependency.refusal is not None:
-        return {}
-    resolution = _resolve_mixed_lanes(
-        query.repo_root,
-        query.feature_dir,
-        query.lanes_manifest,
-        query.work_packages,
-        query.excluded_ids,
-        query.coord_base_ref,
-        query.planning_prefix,
-        query.target_base,
-        query.sb_window,
-        canceled_lane_commits=dependency.unapproved_commits,
-        event_log=event_log,
-        frozen_tips=query.frozen_tips,
-    )
-    return resolution.canceled_commits
-
-
 __all__ = [
     "_CanceledDependencyResolution",
     "_CanceledLaneQuery",
