@@ -95,26 +95,38 @@ def _assert_nothing_moved(mission: cs.ShapeMission, tips: dict[str, str], logs: 
 # --------------------------------------------------------------------------- T092: closed world (NFR-002 e, consumer 1)
 
 
-def test_resume_closed_world_does_not_exempt_a_post_interrupt_dependency_commit(tmp_path: Path) -> None:
+@pytest.mark.parametrize("merge_shape", ["spine", "no_ff_merge"])
+def test_resume_closed_world_does_not_exempt_a_post_interrupt_dependency_commit(tmp_path: Path, merge_shape: str) -> None:
     """US4-3, FR-015: the mixed-lane closed world reads the FROZEN dependency-lane tip on a resume.
 
     Mixed lane-b (approved WP01 + canceled WP02) depends on lane-a (WP03). After the interruption lane-b gains D and
     lane-a merges lane-b, so lane-a's LIVE tip reaches D while the tip the interrupted run froze does not. D sits on
     lane-b's first-parent spine as a non-merge commit outside every WP window: with the frozen anchor the closed world
     refuses it (``commit_outside_windows``). With the live lane-a branch as an anchor D was exempt.
+
+    ``no_ff_merge`` is the allocator-shaped variant: lane-a gains D and lane-b merges it with ``--no-ff``. D then sits behind a
+    merge commit, which the closed world's first-parent walk never sees, so the observable is the approved bound's refusal
+    line for lane-b, and it must name D (before FR-015 D was exempt on lane-b and only lane-a was refused).
     """
     mission = rfa.build_mixed_lane_with_dependency(tmp_path)
     rfa.frozen_resume_state(mission, "WP03")
-    advanced = rfa.advance_lane_into_dependency(mission, "WP01", dependency_wp="WP03")
+    if merge_shape == "spine":
+        advanced = rfa.advance_lane_into_dependency(mission, "WP01", dependency_wp="WP03")
+    else:
+        advanced = rfa.advance_dependency_lane(mission, "WP03", merge_into="WP01")
     tips, logs = rfa.branch_tips(mission), rfa.reflogs(mission)
 
     result = rfa.resume(mission)
 
     assert result.exit_code == 1, result.output
-    closed_world = _line_naming(result.output, "mixed lane lane-b: canceled WP02 cannot be attributed")
-    assert "outside every WP's recorded work window" in closed_world, f"the closed world must refuse lane-b:\n{result.output}"
-    assert advanced[:10] in closed_world, f"the closed-world refusal must name D ({advanced[:10]}):\n{result.output}"
-    assert rfa.ADVANCED_PATH in closed_world
+    if merge_shape == "spine":
+        closed_world = _line_naming(result.output, "mixed lane lane-b: canceled WP02 cannot be attributed")
+        assert "outside every WP's recorded work window" in closed_world, f"the closed world must refuse lane-b:\n{result.output}"
+        assert advanced[:10] in closed_world, f"the closed-world refusal must name D ({advanced[:10]}):\n{result.output}"
+        assert rfa.ADVANCED_PATH in closed_world
+    else:
+        assert "LANE_MOVED_AFTER_APPROVAL" in result.output, result.output
+        assert advanced[:7] in _line_naming(result.output, "(lane-b carries WP01)"), f"lane-b's own refusal line must name D:\n{result.output}"
     _assert_nothing_moved(mission, tips, logs)
 
 
