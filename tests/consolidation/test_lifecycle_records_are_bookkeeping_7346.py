@@ -31,6 +31,8 @@ def test_root_kitty_ops_records_are_bookkeeping(path: str) -> None:
         f"kitty-ops/lifecycle/sub/{_ULID}.json",
         "kitty-ops/lifecycle.jsonl",
         "kitty-ops/lifecycle",
+        f"kitty-ops/lifecycle/{_ULID}.json\n",  # ``$`` would accept the trailing newline
+        f"kitty-ops/{_ULID}.jsonl\n",
     ],
 )
 def test_other_kitty_ops_shaped_paths_stay_content(path: str) -> None:
