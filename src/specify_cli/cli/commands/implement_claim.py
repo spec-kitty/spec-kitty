@@ -7,7 +7,10 @@ Stays in the command package because the claim commit imports
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +41,48 @@ from specify_cli.status import TransitionError
 from specify_cli.status import (
     Lane,
     WorkPackageClaimConflict,
+    WPInnerStateDelta,
     claim_policy_metadata,
     start_implementation_status,
 )
+
+
+@dataclass(frozen=True)
+class DispatchedClaimIdentity:
+    """The dispatch-resolved identity ``agent action implement`` records on the claim (#7159).
+
+    ``actor`` is the structured implementer actor (``build_status_actor``) and
+    ``annotation_delta`` the resolved binding's claim annotation, both built by the
+    caller from its dispatch context (``--agent``, ``--profile``, ``--invocation-id``).
+    """
+
+    actor: dict[str, str | None]
+    annotation_delta: WPInnerStateDelta | None
+
+
+#: Set only by :func:`dispatched_claim_identity`, around ``agent action implement``'s
+#: call of the top-level ``implement`` command. A structured actor cannot travel
+#: through that command's typer options, and the command's own ``--actor`` stays a
+#: verbatim string for its direct callers.
+_DISPATCHED_CLAIM_IDENTITY: ContextVar[DispatchedClaimIdentity | None] = ContextVar("dispatched_claim_identity", default=None)
+
+
+@contextmanager
+def dispatched_claim_identity(identity: DispatchedClaimIdentity | None) -> Iterator[None]:
+    """Record *identity* on any implement claim emitted inside this block (#7159).
+
+    ``agent action implement`` creates a fresh code lane through the top-level
+    ``implement`` command, which emits the claim. Without this, that claim recorded
+    the bare ``--agent`` string and dropped ``--profile``, so the review-independence
+    gate read the implementer as ``tool::``. ``None`` records nothing new: the claim
+    keeps the command's own actor.
+    """
+    token = _DISPATCHED_CLAIM_IDENTITY.set(identity)
+    try:
+        yield
+    finally:
+        _DISPATCHED_CLAIM_IDENTITY.reset(token)
+
 
 #: The lanes ``start_implementation_status`` moves a WP out of. Only such a claim
 #: changes the WP's lane, and only a lane change ends in the claim commit
@@ -117,7 +159,8 @@ def _claim_commit_checkout(repo_root: Path, feature_dir: Path, mission_slug: str
     """
     from specify_cli.coordination.planning_commit import planning_checkout_root
 
-    return planning_checkout_root(repo_root, feature_dir, mission_slug)
+    checkout: Path = planning_checkout_root(repo_root, feature_dir, mission_slug)
+    return checkout
 
 
 def _raise_if_claim_commit_head_mismatch(
@@ -402,15 +445,21 @@ def _start_wp_implementation_status(
     repo_root: Path,
 ) -> Any:
     """Call ``start_implementation_status``, translating claim-conflict /
-    transition failures into a printed error + ``typer.Exit(1)``."""
+    transition failures into a printed error + ``typer.Exit(1)``.
+
+    Inside :func:`dispatched_claim_identity` the claim records the dispatched
+    structured actor and binding annotation (#7159); otherwise *effective_actor*
+    verbatim. The claim triple keeps the bare agent either way.
+    """
     import os as _os
 
+    dispatched = _DISPATCHED_CLAIM_IDENTITY.get()
     try:
         return start_implementation_status(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=wp_id,
-            actor=effective_actor,
+            actor=dispatched.actor if dispatched is not None else effective_actor,
             workspace_context=f"{status_execution_mode}:{workspace_path}",
             execution_mode=status_execution_mode,
             repo_root=repo_root,
@@ -418,6 +467,7 @@ def _start_wp_implementation_status(
             # planned -> claimed transition's policy_metadata sidecar; the
             # frontmatter pre-write mirror was removed in the #2816 cutover.
             policy_metadata=claim_policy_metadata(_os.getppid(), effective_actor),
+            annotation_delta=dispatched.annotation_delta if dispatched is not None else None,
         )
     except WorkPackageClaimConflict as exc:
         console.print(f"[red]Error:[/red] {exc}")

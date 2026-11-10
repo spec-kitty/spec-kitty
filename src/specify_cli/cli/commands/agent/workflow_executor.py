@@ -48,7 +48,7 @@ from kernel.git import GitCommandError, status_entries
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
-from specify_cli.cli.commands.implement_claim import claim_status_pair_paths
+from specify_cli.cli.commands.implement_claim import DispatchedClaimIdentity, claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
     has_prior_rejection,
@@ -896,7 +896,7 @@ def _implement_start_claim(
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
-    transition_actor = _implementer_actor(agent, wp_agent_assignment, resolved_binding)
+    claim_identity = implementer_claim_identity(agent, wp_agent_assignment, resolved_binding)
 
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
     # via the shared claim builder BEFORE emitting the claim status event
@@ -930,7 +930,7 @@ def _implement_start_claim(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id=normalized_wp_id,
-            actor=transition_actor,
+            actor=claim_identity.actor,
             workspace_context=f"{status_execution_mode}:{workspace_path}",
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
@@ -943,11 +943,7 @@ def _implement_start_claim(
             # instead of a separate WP-file write -- WP01's reducer folds
             # these exact keys into the reduced snapshot.
             policy_metadata=_status_facade.claim_policy_metadata(int(shell_pid), actor),
-            annotation_delta=(
-                resolved_binding.to_delta(role=_IMPLEMENT_CLAIM_ROLE)
-                if resolved_binding is not None
-                else None
-            ),
+            annotation_delta=claim_identity.annotation_delta,
         )
     except WorkPackageClaimConflict as exc:
         print(f"Error: {exc}")
@@ -1036,6 +1032,24 @@ def _implementer_actor(
         binding=resolved_binding,
     )
     return actor
+
+
+def implementer_claim_identity(
+    agent: str | None,
+    wp_agent_assignment: AgentAssignment,
+    resolved_binding: ResolvedBinding | None,
+) -> DispatchedClaimIdentity:
+    """The structured actor and binding annotation every implement claim records (#6400, #7159).
+
+    One builder for both claim emitters of ``agent action implement``: the
+    structured claim in :func:`_implement_start_claim`, and the fresh code lane's
+    claim that the top-level ``implement`` command emits inside
+    ``implement_claim.dispatched_claim_identity``.
+    """
+    return DispatchedClaimIdentity(
+        actor=_implementer_actor(agent, wp_agent_assignment, resolved_binding),
+        annotation_delta=resolved_binding.to_delta(role=_IMPLEMENT_CLAIM_ROLE) if resolved_binding is not None else None,
+    )
 
 
 def _implement_emit_resume_refresh(
