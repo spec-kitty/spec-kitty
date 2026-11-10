@@ -72,7 +72,9 @@ def test_close_stale_sweeps_stale_op_json_and_exits_zero(
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert set(payload) == {"open_ops", "swept", "skipped_fresh", "threshold_hours", "closure_spine"}
+    # #7346: lifecycle_records is additive; the Op keys keep their meaning.
+    assert set(payload) == {"open_ops", "swept", "skipped_fresh", "threshold_hours", "closure_spine", "lifecycle_records"}
+    assert payload["lifecycle_records"] == []
     assert payload["swept"] == 1
     assert payload["skipped_fresh"] == 0
     assert payload["threshold_hours"] == 24.0

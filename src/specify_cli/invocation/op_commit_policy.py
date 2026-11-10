@@ -31,8 +31,11 @@ from kernel.git.runner import GitCommandError
 from specify_cli.core.git_ops import COMMON_PRIMARY_BRANCHES
 
 __all__ = [
+    "LIFECYCLE_RECORDS",
+    "OP_RECORDS",
     "OpCommitProbeError",
     "PrimaryTracking",
+    "RecordKind",
     "op_commit_skip_reason",
     "probe_primary_tracking",
 ]
@@ -40,6 +43,8 @@ __all__ = [
 #: Op-record shape ``kitty-ops/<26-char ULID>.jsonl``. Same pattern as the one
 #: ``coordination/coherence.py`` uses; a test pins that the two agree.
 OP_RECORD_PATH_RE = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
+#: WP lifecycle-record shape ``kitty-ops/lifecycle/<26-char ULID>.json`` (#7346).
+LIFECYCLE_RECORD_PATH_RE = re.compile(r"(?:^|/)kitty-ops/lifecycle/[0-9A-HJKMNP-TV-Z]{26}\.json$")
 
 _GIT_TIMEOUT_SECONDS = 30
 _EVENTS_PATHSPEC = "kitty-ops/"
@@ -52,11 +57,27 @@ class OpCommitProbeError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class RecordKind:
+    """A kind of ``kitty-ops/`` record the auto-commit decides about (#6410, #7346)."""
+
+    label: str
+    pathspec: str
+    pattern: re.Pattern[str]
+
+
+#: Op records, ``kitty-ops/<ULID>.jsonl`` (#6410).
+OP_RECORDS = RecordKind(label="Op records", pathspec=_EVENTS_PATHSPEC, pattern=OP_RECORD_PATH_RE)
+#: WP lifecycle records, ``kitty-ops/lifecycle/<ULID>.json``, closed by the doctor sweep (#7346).
+LIFECYCLE_RECORDS = RecordKind(label="lifecycle records", pathspec="kitty-ops/lifecycle/", pattern=LIFECYCLE_RECORD_PATH_RE)
+
+
+@dataclass(frozen=True)
 class PrimaryTracking:
-    """Whether the primary branch tracks Op records, and which ref was asked."""
+    """Whether the primary branch tracks records of ``kind``, and which ref was asked."""
 
     tracked: bool
     primary: str | None  # short branch name, ``None`` when unresolved
+    kind: RecordKind = OP_RECORDS
 
 
 def _git(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -107,25 +128,25 @@ def resolve_primary_refs(repo_root: Path) -> tuple[str, ...]:
     return ()
 
 
-def primary_tracks_op_records(repo_root: Path, refs: tuple[str, ...]) -> bool:
-    """True when any of ``refs`` tracks a ``kitty-ops/<ULID>.jsonl`` file."""
+def primary_tracks_op_records(repo_root: Path, refs: tuple[str, ...], kind: RecordKind = OP_RECORDS) -> bool:
+    """True when any of ``refs`` tracks a record of ``kind`` (default: ``kitty-ops/<ULID>.jsonl``)."""
     for ref in refs:
         try:
-            paths = tree_paths(repo_root, ref, pathspecs=(_EVENTS_PATHSPEC,), timeout=_GIT_TIMEOUT_SECONDS)
+            paths = tree_paths(repo_root, ref, pathspecs=(kind.pathspec,), timeout=_GIT_TIMEOUT_SECONDS)
         except GitCommandError as exc:
-            raise OpCommitProbeError(f"listing {_EVENTS_PATHSPEC} on {ref} failed: {exc}") from exc
-        if any(OP_RECORD_PATH_RE.search(path.as_posix()) for path in paths):
+            raise OpCommitProbeError(f"listing {kind.pathspec} on {ref} failed: {exc}") from exc
+        if any(kind.pattern.search(path.as_posix()) for path in paths):
             return True
     return False
 
 
-def probe_primary_tracking(repo_root: Path) -> PrimaryTracking:
-    """Resolve the primary branch and ask whether it tracks Op records."""
+def probe_primary_tracking(repo_root: Path, kind: RecordKind = OP_RECORDS) -> PrimaryTracking:
+    """Resolve the primary branch and ask whether it tracks records of ``kind``."""
     refs = resolve_primary_refs(repo_root)
     if not refs:
-        return PrimaryTracking(tracked=False, primary=None)
+        return PrimaryTracking(tracked=False, primary=None, kind=kind)
     primary = refs[0].removeprefix("refs/heads/").removeprefix("refs/remotes/origin/")
-    return PrimaryTracking(tracked=primary_tracks_op_records(repo_root, refs), primary=primary)
+    return PrimaryTracking(tracked=primary_tracks_op_records(repo_root, refs, kind), primary=primary, kind=kind)
 
 
 def is_path_ignored(repo_root: Path, rel_path: PurePath | str) -> bool:
@@ -149,7 +170,8 @@ def op_commit_skip_reason(repo_root: Path, rel_path: PurePath | str, *, tracking
     if is_path_ignored(repo_root, posix):
         return f"{posix} matches an ignore rule in this repository"
     if not tracking.tracked:
+        kind = tracking.kind
         if tracking.primary is None:
-            return f"{_UNRESOLVED_PRIMARY}, so it cannot be shown to track Op records"
-        return f"the primary branch ({tracking.primary}) tracks no Op records under kitty-ops/"
+            return f"{_UNRESOLVED_PRIMARY}, so it cannot be shown to track {kind.label}"
+        return f"the primary branch ({tracking.primary}) tracks no {kind.label} under {kind.pathspec}"
     return None
