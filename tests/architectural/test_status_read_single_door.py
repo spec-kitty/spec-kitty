@@ -237,7 +237,6 @@ LEGACY_READ_ALLOWLIST: dict[str, str] = {
     "src/specify_cli/design/validation.py::_tasks_finalized::read_dir(STATUS_STATE)": _DRIFT,
     "src/specify_cli/lanes/implement_support.py::_ensure_repo_root_checkout_available::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/implement_support.py::reenter_lane_self_heal::read_dir(STATUS_STATE)": _PATH_CONSUMER,
-    "src/specify_cli/lanes/recovery.py::scan_recovery_state::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/worktree_allocator.py::_canonical_wp_lane_value::read_dir(STATUS_STATE)": _FAIL_LOUD,
     "src/specify_cli/missions/_read_path_resolver.py::resolve_surface_dir_or_typed_error::resolve_status_surface": _DELEGATOR,
     "src/specify_cli/post_merge/review_artifact_consistency.py::_resolve_lane_state_read_dir::resolve_partition_read_dir(STATUS_STATE)": _PARTITION,

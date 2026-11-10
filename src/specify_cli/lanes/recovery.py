@@ -30,7 +30,8 @@ from specify_cli.lanes.branch_naming import (
     parse_mission_slug_from_branch,
 )
 from specify_cli.lanes.worktree_allocator import persist_lane_context, predict_lane_worktree
-from specify_cli.status import Lane, build_system_actor
+from specify_cli.status import Lane, build_system_actor, resolve_status_read
+from specify_cli.status.read_surface import StatusReadSurface
 from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
@@ -214,19 +215,34 @@ def _worktree_exists_for_branch(repo_root: Path, branch: str) -> Path | None:
     return None
 
 
-def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
-    """Get the current lane for a WP from the status event log."""
-    try:
-        from specify_cli.status import reduce, read_events  # noqa: PLC0415
+def _resolve_recovery_status_surface(repo_root: Path, mission_slug: str) -> StatusReadSurface | None:
+    """The recovery scan's STATUS source through the one read door, or ``None`` when no Mission exists.
 
-        events = read_events(feature_dir)
+    A Mission with neither a ``meta.json`` nor a directory has no status to read: the scan
+    reports it as having no recorded lanes, as it did before the door. Every other door
+    refusal (a deleted coordination branch, an unreadable worktree registry) stays loud.
+    """
+    try:
+        return resolve_status_read(repo_root, mission_slug)
+    except FileNotFoundError:
+        return None
+
+
+def _get_wp_lane_from_events(status_surface: StatusReadSurface | None, wp_id: str) -> str:
+    """Get the current lane for a WP from the status event log on *status_surface*."""
+    if status_surface is None:
+        return str(Lane.PLANNED.value)
+    try:
+        from specify_cli.status import reduce, read_status_events  # noqa: PLC0415
+
+        events = read_status_events(status_surface)
         if events:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
                 return str(Lane(state.get("lane", Lane.PLANNED)).value)
     except Exception:
-        logger.debug("Could not read status events for %s in %s", wp_id, feature_dir)
+        logger.debug("Could not read status events for %s in %s", wp_id, status_surface)
     return str(Lane.PLANNED.value)
 
 
@@ -366,22 +382,24 @@ def _read_wp_dependencies(wp_files: dict[str, Path], wp_id: str) -> list[str]:
         return []
 
 
-def _get_all_wp_lanes_from_events(feature_dir: Path) -> dict[str, str]:
-    """Return {wp_id: lane} mapping from the status event log.
+def _get_all_wp_lanes_from_events(status_surface: StatusReadSurface | None) -> dict[str, str]:
+    """Return {wp_id: lane} mapping from the status event log on *status_surface*.
 
     Returns an empty dict when the event log is absent or unreadable.
     """
+    if status_surface is None:
+        return {}
     try:
-        from specify_cli.status import reduce, read_events  # noqa: PLC0415
+        from specify_cli.status import reduce, read_status_events  # noqa: PLC0415
 
-        events = read_events(feature_dir)
+        events = read_status_events(status_surface)
         if not events:
             return {}
         snapshot = reduce(events)
         return {wp_id: str(state.get("lane", "planned"))
                 for wp_id, state in snapshot.work_packages.items()}
     except Exception:
-        logger.debug("Could not read all WP lanes from %s", feature_dir)
+        logger.debug("Could not read all WP lanes from %s", status_surface)
         return {}
 
 
@@ -425,7 +443,7 @@ def _scan_live_branch_states(
     mission_slug: str,
     *,
     primary_dir: Path,
-    coord_dir: Path,
+    status_surface: StatusReadSurface | None,
     mission_branch: str,
     lane_branches: list[str],
     contexts_by_lane: dict[str, WorkspaceContext],
@@ -434,8 +452,8 @@ def _scan_live_branch_states(
 
     PRIMARY/STATUS split (FR-002 / C-001): lane→WP membership is read from
     ``lanes.json`` on *primary_dir* (LANE_STATE, PRIMARY-partition), while the
-    per-WP lane comes from the status event log on *coord_dir* (STATUS — stays
-    coord-aware).
+    per-WP lane comes from the status event log on *status_surface* (STATUS, read
+    through the one status read door).
     """
     recovery_states: list[RecoveryState] = []
     for branch in lane_branches:
@@ -463,7 +481,7 @@ def _scan_live_branch_states(
 
         for wp_id in wp_ids:
             # STATUS leg: the per-WP lane comes from the event log (coord-aware).
-            status_lane = _get_wp_lane_from_events(coord_dir, wp_id)
+            status_lane = _get_wp_lane_from_events(status_surface, wp_id)
             recovery_states.append(
                 RecoveryState(
                     wp_id=wp_id,
@@ -649,13 +667,14 @@ def scan_recovery_state(
     # single PRIMARY read dir co-resolves both LANE_STATE and WORK_PACKAGE_TASK.
     seam = placement_seam(repo_root, mission_slug)
     primary_dir = seam.read_dir(MissionArtifactKind.LANE_STATE)
-    # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
-    # Fail-loud on a DELETED coordination branch is deliberate and specified: the
-    # WP02 classification ledger records this site as `migrate-fail-loud` because
+    # STATUS leg: the one status read door (ADR 2026-11-06-2, #7310). An empty or
+    # unmaterialized coordination worktree reads the committed coordination branch.
+    # Fail-loud on a DELETED coordination branch (not landed) is deliberate and
+    # specified: the door raises CoordinationBranchDeleted, because
     # "recovery-state computation genuinely needs to know whether the coord branch
     # backing a WP's event log was deleted, rather than silently reading a
-    # stale/absent surface". See docs/development/read-side-seam-classification.md
-    # (`lanes/recovery.py` row) and the acceptance test
+    # stale/absent surface" (the WP02 classification ledger's `migrate-fail-loud`
+    # row). Acceptance test:
     # tests/specify_cli/consolidation/test_read_seam_migration_merge_lanes.py
     # ::test_recovery_scan_fails_loud_when_coordination_branch_was_deleted.
     #
@@ -664,7 +683,7 @@ def scan_recovery_state(
     # report finding carrying the exception's `doctor coordination --fix` next_step
     # rather than raising. That is a deliberate UX contract change and is out of
     # scope for the read-side seam migration; it needs its own mission.
-    coord_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
+    status_surface = _resolve_recovery_status_surface(repo_root, mission_slug)
 
     branches = _list_mission_branches(repo_root, mission_slug)
     lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
@@ -673,14 +692,14 @@ def scan_recovery_state(
     contexts_by_lane = _collect_contexts_by_lane(repo_root, mission_slug)
 
     all_wp_lanes: dict[str, str] = (
-        _get_all_wp_lanes_from_events(coord_dir) if consult_status_events else {}
+        _get_all_wp_lanes_from_events(status_surface) if consult_status_events else {}
     )
 
     recovery_states = _scan_live_branch_states(
         repo_root,
         mission_slug,
         primary_dir=primary_dir,
-        coord_dir=coord_dir,
+        status_surface=status_surface,
         mission_branch=mission_branch,
         lane_branches=lane_branches,
         contexts_by_lane=contexts_by_lane,
