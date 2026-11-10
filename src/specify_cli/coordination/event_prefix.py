@@ -77,7 +77,7 @@ def event_ids_of(lines: Iterable[str]) -> tuple[str, ...]:
             continue
         try:
             payload = json.loads(raw_line)
-        except json.JSONDecodeError as exc:
+        except (ValueError, RecursionError) as exc:  # JSONDecodeError, and the decode limits (#7439)
             raise MalformedEventLogLineError(line_number=line_number, line=raw_line) from exc
         if not isinstance(payload, dict) or "event_id" not in payload:
             raise MalformedEventLogLineError(line_number=line_number, line=raw_line)
