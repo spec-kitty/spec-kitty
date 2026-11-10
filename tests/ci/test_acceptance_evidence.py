@@ -247,3 +247,47 @@ def test_main_fails_when_the_gating_step_failed(tmp_path: Path) -> None:
 def test_main_rejects_an_unknown_step_outcome(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         ev.main(["--root", str(tmp_path), "--os", "x", "--gating-step-outcome", "green"])
+
+
+# --- #7492: the gating and @wip passes run in separate nightly jobs -----------------------------
+
+
+def test_default_bundle_records_both_passes_run(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(2))
+    assert ev.build_bundle(tmp_path, "x")["passes_run"] == ["gating", "wip"]
+
+
+def test_wip_only_job_exits_zero_with_no_gating_results(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "wip", _suite(1, failures=1))
+    assert ev.main(["--root", str(tmp_path), "--os", "windows-latest", "--pass", "wip"]) == 0
+    written = json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))
+    assert written["passes_run"] == ["wip"]
+    assert written["passes"]["gating"]["outcome"] == "missing"
+    assert written["passes"]["wip"]["outcome"] == "failed"
+    _check_against_schema(written, json.loads(SCHEMA.read_text(encoding="utf-8")))
+
+
+def test_gating_only_job_still_fails_on_a_red_gating_pass(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(2, failures=1))
+    assert ev.main(["--root", str(tmp_path), "--os", "x", "--pass", "gating"]) == 1
+    written = json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))
+    assert written["passes_run"] == ["gating"]
+    assert written["passes"]["wip"]["outcome"] == "missing"
+    _check_against_schema(written, json.loads(SCHEMA.read_text(encoding="utf-8")))
+
+
+def test_passes_run_follows_the_schema_order_whatever_the_flag_order(tmp_path: Path) -> None:
+    assert ev.build_bundle(tmp_path, "x", passes_run=("wip", "gating"))["passes_run"] == ["gating", "wip"]
+
+
+@pytest.mark.parametrize("step_outcome", ["failure", "cancelled"])
+def test_non_success_wip_step_fails_a_green_wip_pass(tmp_path: Path, step_outcome: str) -> None:
+    """A @wip step that timed out after writing some green JUnit XML must not read as passed."""
+    _make_pass(tmp_path, "wip", _suite(3))
+    assert ev.build_bundle(tmp_path, "x", passes_run=("wip",), wip_step_outcome=step_outcome)["passes"]["wip"]["outcome"] == "failed"
+    assert ev.main(["--root", str(tmp_path), "--os", "x", "--pass", "wip", "--wip-step-outcome", step_outcome]) == 0
+
+
+def test_main_rejects_an_unknown_pass(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        ev.main(["--root", str(tmp_path), "--os", "x", "--pass", "manual"])

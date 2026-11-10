@@ -86,6 +86,23 @@ EXIT_OK = 0
 CONCLUSION_SUCCESS = "success"
 CONCLUSION_FAILURE = "failure"
 
+# The GitHub ``needs.<job>.result`` values (#7492). ``--conclusion`` stays binary
+# (fail-closed: only ``success`` closes); ``--job-result`` only explains a red.
+JOB_RESULT_CANCELLED = "cancelled"
+JOB_RESULT_SKIPPED = "skipped"
+JOB_RESULTS = (CONCLUSION_SUCCESS, CONCLUSION_FAILURE, JOB_RESULT_CANCELLED, JOB_RESULT_SKIPPED)
+_JOB_RESULT_NOTES = {
+    JOB_RESULT_CANCELLED: (
+        "The suite's job ended `cancelled`: a job reached its `timeout-minutes` cap or was cancelled "
+        "before it finished, so this red is not (only) a failing test. Open the run to see which job and step."
+    ),
+    JOB_RESULT_SKIPPED: "The suite's job ended `skipped`: it never ran. Open the run to see which condition or upstream job skipped it.",
+    CONCLUSION_FAILURE: (
+        "The suite's job ended `failure`, but no failing test was reported: a step outside the tests failed "
+        "(for example setup, a build or a step timeout). Open the run to see which step."
+    ),
+}
+
 # The only ref whose nightly verdict may touch a standing P0 (open/bump/close).
 MAINLINE_REF = "refs/heads/main"
 
@@ -127,27 +144,46 @@ def issue_title(suite_key: str) -> str:
     return _ISSUE_TITLE_TEMPLATE.format(key=suite_key)
 
 
-def issue_body(suite_key: str, run_url: str | None, *, report: XunitRead | None = None) -> str:
+def job_result_note(job_result: str | None, report: XunitRead | None) -> str:
+    """Explain a red that is not (only) a failing test, from the job's GitHub result (#7492).
+
+    ``cancelled`` and ``skipped`` are always named. ``failure`` is named only when no failing
+    test was listed (no report, an unusable report, or an empty one). ``success`` and ``None``
+    add nothing.
+    """
+    if job_result in (JOB_RESULT_CANCELLED, JOB_RESULT_SKIPPED):
+        return _JOB_RESULT_NOTES[job_result]
+    if job_result == CONCLUSION_FAILURE and (report is None or report.problem is not None or not report.failures):
+        return _JOB_RESULT_NOTES[CONCLUSION_FAILURE]
+    return ""
+
+
+def issue_body(suite_key: str, run_url: str | None, *, report: XunitRead | None = None, job_result: str | None = None) -> str:
     """Return the body for a freshly created escalation issue (carries the marker)."""
+    marker = escalation_marker(suite_key)
+    note = job_result_note(job_result, report)
     body = (
         f"The nightly `{suite_key}` suite failed on {_run_reference(run_url)}.\n\n"
         "This issue was opened automatically by the nightly red -> P0 escalation "
         "(`scripts/ci/nightly_escalation.py`, FR-007). It is deduped by the hidden "
         "marker below; a later failure comments here instead of opening a duplicate, "
         "and the next green nightly for this suite closes it automatically.\n\n"
-        f"{escalation_marker(suite_key)}\n"
+        f"{marker}\n"
     )
-    if report is None:
-        return body
-    marker = escalation_marker(suite_key)
-    body = body.replace(marker, issue_evidence(report) + marker, 1)
-    if report.problem is None:
+    if report is not None:
+        body = body.replace(marker, issue_evidence(report) + marker, 1)
+    if note:
+        body = body.replace(marker, f"{note}\n\n{marker}", 1)
+    if report is not None and report.problem is None:
         return with_recorded_ids(body, [item.test_id for item in report.failures])
     return body
 
 
-def _recurrence_comment(suite_key: str, run_url: str | None, *, report: XunitRead | None = None, previous_body: str = "") -> str:
+def _recurrence_comment(suite_key: str, run_url: str | None, *, report: XunitRead | None = None, previous_body: str = "", job_result: str | None = None) -> str:
     text = f"The nightly `{suite_key}` suite failed again on {_run_reference(run_url)}."
+    note = job_result_note(job_result, report)
+    if note:
+        text += f"\n\n{note}"
     if report is None:
         return text
     return text + recurrence_evidence(previous_body, report)
@@ -292,6 +328,7 @@ def run_escalation(
     ref: str | None,
     run_url: str | None = None,
     report: XunitRead | None = None,
+    job_result: str | None = None,
     warn: Callable[[str], None] = _emit_warning,
 ) -> str:
     """Apply the dedup/open/close policy for one suite; return a human summary.
@@ -302,6 +339,8 @@ def run_escalation(
     gate by omission: a non-mainline ref returns before the client is touched.
     A filed or bumped issue is then triaged (:func:`triage_issue`); a triage
     failure is reported through ``warn`` and noted in the summary, never raised.
+    ``job_result`` (the GitHub job result) only explains a red in the issue text
+    (:func:`job_result_note`); it never decides whether to open, bump or close.
     """
     if not escalation_allowed(ref):
         return _non_mainline_summary(suite_key, ref)
@@ -313,13 +352,13 @@ def run_escalation(
         if existing is not None:
             number = int(existing["number"])
             previous = str(existing.get("body") or "")
-            client.comment_on_issue(number, _recurrence_comment(suite_key, run_url, report=report, previous_body=previous))
+            client.comment_on_issue(number, _recurrence_comment(suite_key, run_url, report=report, previous_body=previous, job_result=job_result))
             _record_failure_ids(client, number, previous, report, warn)
             failed = triage_issue(client, existing, warn=warn)
             return f"updated existing escalation issue #{number} for {suite_key!r}{_triage_note(failed)}"
         created = client.create_issue(
             title=issue_title(suite_key),
-            body=issue_body(suite_key, run_url, report=report),
+            body=issue_body(suite_key, run_url, report=report, job_result=job_result),
             labels=list(ESCALATION_LABELS),
         )
         failed = triage_issue(client, created, warn=warn)
@@ -472,6 +511,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--job-result",
+        choices=JOB_RESULTS,
+        default=None,
+        help="the suite job's GitHub result (needs.<job>.result); names a cancelled, skipped or non-test red in the issue",
+    )
+    parser.add_argument(
         "--ref",
         default=os.environ.get("GITHUB_REF"),
         help=f"the run's git ref (default: $GITHUB_REF); only {MAINLINE_REF} escalates",
@@ -501,6 +546,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ref=args.ref,
             run_url=args.run_url,
             report=report,
+            job_result=args.job_result,
         )
     except EscalationError as exc:
         print(f"warning: nightly P0 escalation degraded (fail-loud only): {exc}", file=sys.stderr)

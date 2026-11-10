@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import fnmatch
+
 import pytest
 
 from tests.architectural._gate_coverage import load_spliced_workflow
@@ -82,7 +84,6 @@ def test_no_retry_guard_rejects_retry_shapes(step: dict[str, Any]) -> None:
         _assert_no_retry(step)
 
 
-@pytest.mark.p0_repro(issue=7492)
 def test_gating_leg_runs_no_wip_pass(job: dict[str, Any]) -> None:
     """#7492: the non-gating @wip pass must never spend the gating leg's job budget.
 
@@ -93,14 +94,10 @@ def test_gating_leg_runs_no_wip_pass(job: dict[str, Any]) -> None:
     assert _steps_running(job, "-Pacceptance.pass=wip") == []
 
 
-def test_wip_step_is_non_gating(job: dict[str, Any]) -> None:
-    (step,) = _steps_running(job, "-Pacceptance.pass=wip")
-    assert step["continue-on-error"] is True
-
-
-def test_no_step_uses_cucumber_filter_tags(job: dict[str, Any]) -> None:
-    assert not _steps_running(job, "cucumber.filter.tags")
-    assert len(_steps_running(job, "-Pacceptance.pass=")) == 2
+def test_no_step_uses_cucumber_filter_tags(job: dict[str, Any], wip_job: dict[str, Any]) -> None:
+    for each in (job, wip_job):
+        assert not _steps_running(each, "cucumber.filter.tags")
+        assert len(_steps_running(each, "-Pacceptance.pass=")) == 1
 
 
 def test_evidence_step_runs_always(job: dict[str, Any]) -> None:
@@ -109,6 +106,7 @@ def test_evidence_step_runs_always(job: dict[str, Any]) -> None:
     run = step["run"]
     assert "--root acceptance-jvm/build/acceptance" in run
     assert '--os "${{ matrix.os }}"' in run
+    assert "--pass gating" in run and "--pass wip" not in run
     (gating,) = _steps_running(job, "-Pacceptance.pass=gating")
     assert f'--gating-step-outcome "${{{{ steps.{gating["id"]}.outcome }}}}"' in run
 
@@ -130,12 +128,68 @@ def test_evidence_runs_before_upload(job: dict[str, Any]) -> None:
     assert evidence < upload
 
 
-# --- acceptance-bdd-escalation (ADR 2026-10-15-1, decision 5) -------------------------------------
-
-
 @pytest.fixture(scope="module")
 def jobs() -> dict[str, Any]:
     return load_spliced_workflow(WORKFLOW)["jobs"]
+
+
+# --- acceptance-bdd-wip (#7492, FR-014) -----------------------------------------------------------
+
+WIP_JOB = "acceptance-bdd-wip"
+WIP_ARTIFACT = "acceptance-bdd-wip-results-${{ matrix.os }}"
+# Minutes the @wip step cap leaves under its job cap (setup before it, evidence and upload after),
+# the same reserve tests/ci/test_nightly_suite_step_timeout.py requires of a suite step.
+_STEP_RESERVE_MINUTES = 5
+
+
+@pytest.fixture(scope="module")
+def wip_job(jobs: dict[str, Any]) -> dict[str, Any]:
+    return jobs[WIP_JOB]
+
+
+def test_wip_job_runs_on_every_gating_os_without_fail_fast(job: dict[str, Any], wip_job: dict[str, Any]) -> None:
+    assert wip_job["strategy"]["matrix"]["os"] == job["strategy"]["matrix"]["os"]
+    assert wip_job["strategy"]["fail-fast"] is False
+    assert wip_job["if"] == job["if"]
+    assert "pull_request" not in str(wip_job["if"])
+
+
+def test_wip_step_is_non_gating_and_bounded_below_its_job_cap(wip_job: dict[str, Any]) -> None:
+    """A slow @wip pass fails only its own continue-on-error step; the evidence and upload still run."""
+    (step,) = _steps_running(wip_job, "-Pacceptance.pass=wip")
+    assert step["continue-on-error"] is True
+    assert isinstance(step.get("timeout-minutes"), int)
+    assert 0 < step["timeout-minutes"] <= int(wip_job["timeout-minutes"]) - _STEP_RESERVE_MINUTES
+
+
+def test_wip_job_never_gates_anything(jobs: dict[str, Any], wip_job: dict[str, Any]) -> None:
+    """FR-014: no job waits on the wip job, it never escalates and asks for no write scope."""
+    dependants = [key for key, other in jobs.items() if WIP_JOB in (other.get("needs") or [])]
+    assert dependants == []
+    assert _escalation_keys(wip_job) == []
+    assert "permissions" not in wip_job
+
+
+def test_wip_evidence_covers_the_wip_pass_and_records_its_step_outcome(wip_job: dict[str, Any]) -> None:
+    (step,) = _steps_running(wip_job, "scripts.ci.acceptance_evidence")
+    assert step["if"] == "always()"
+    run = step["run"]
+    assert "--pass wip" in run and "--pass gating" not in run
+    (wip,) = _steps_running(wip_job, "-Pacceptance.pass=wip")
+    assert f'--wip-step-outcome "${{{{ steps.{wip["id"]}.outcome }}}}"' in run
+
+
+def test_wip_results_upload_under_a_name_the_escalation_never_reads(jobs: dict[str, Any], wip_job: dict[str, Any]) -> None:
+    (upload,) = [s for s in wip_job["steps"] if str(s.get("uses") or "").startswith("actions/upload-artifact@")]
+    assert upload["if"] == "always()"
+    assert upload["with"]["name"] == WIP_ARTIFACT
+    assert str(upload["with"]["path"]).strip() == UPLOAD_PATH
+    assert upload["with"]["if-no-files-found"] == "error"
+    download = next(s for s in jobs["acceptance-bdd-escalation"]["steps"] if str(s.get("uses") or "").startswith("actions/download-artifact@"))
+    assert not fnmatch.fnmatch(WIP_ARTIFACT.replace("${{ matrix.os }}", "windows-latest"), download["with"]["pattern"])
+
+
+# --- acceptance-bdd-escalation (ADR 2026-10-15-1, decision 5) -------------------------------------
 
 
 def _escalation_keys(job: dict[str, Any]) -> list[str]:
@@ -165,6 +219,12 @@ def test_escalation_runs_after_a_red_matrix_and_only_files_from_main(jobs: dict[
     (step,) = [s for s in escalation["steps"] if "nightly_escalation.py" in str(s.get("run") or "")]
     assert step["if"] == "always() && github.ref == 'refs/heads/main'"
     assert step["env"]["ACCEPTANCE_RESULT"] == "${{ needs.acceptance-bdd.result }}"
+
+
+def test_escalation_names_the_matrix_result(jobs: dict[str, Any]) -> None:
+    """#7492: a cancelled (timed-out) leg is named in the P0, not only 'no failing tests'."""
+    (step,) = [s for s in jobs["acceptance-bdd-escalation"]["steps"] if "nightly_escalation.py" in str(s.get("run") or "")]
+    assert '--job-result "${ACCEPTANCE_RESULT:-failure}"' in step["run"]
 
 
 def test_escalation_is_fail_closed(jobs: dict[str, Any]) -> None:
