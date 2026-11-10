@@ -210,6 +210,18 @@ def test_validate_paths_warns_when_missing(tmp_path: Path) -> None:
     assert result.suggestions == []
 
 
+def test_validate_paths_research_prefix_keeps_mkdir_hint(tmp_path: Path) -> None:
+    """``path_prefix`` (research) paths are Mission output: mkdir hint, no remap (#7512)."""
+    mission = _MissionStub("Research Kitty", {"workspace": "src/", "data": "data/"})
+
+    result = validate_mission_paths(mission, tmp_path, strict=False, path_prefix="docs/research/001")
+
+    assert result.remappable_missing_keys == []
+    assert any(
+        "mkdir -p docs/research/001/src/ docs/research/001/data/" in line for line in result.suggestions
+    )
+
+
 def test_validate_paths_strict_mode_raises(tmp_path: Path) -> None:
     mission = _MissionStub("Software Dev Kitty", {"workspace": "src/"})
 

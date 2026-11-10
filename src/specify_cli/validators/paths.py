@@ -321,6 +321,7 @@ def _record_missing_path(
     resolved: str,
     relative_path: str,
     is_artifact_tagged: bool,
+    prefixed: bool = False,
 ) -> None:
     """Record one missing required path on ``result`` (#6633: split out of
     ``validate_mission_paths`` to keep its cyclomatic complexity under the C901
@@ -330,10 +331,13 @@ def _record_missing_path(
     guidance needs: a missing key outside ``ARTIFACT_ROUTED_KEYS`` is remappable
     via ``project.path_conventions`` (#3016); artifact-routed keys are excluded
     from the override vocabulary (C-010) and governed by the #5298 waiver.
+    In ``path_prefix`` mode (research Missions, ``prefixed``) every path sits in
+    the Mission's own deliverables directory: it is Mission output, not build
+    layout, so it keeps its ``mkdir -p`` hint and is not offered a remap.
     """
     result.missing_paths.append(resolved)
     result.warnings.append(f"{mission_name} expects {key} path: {resolved} (not found)")
-    if key not in ARTIFACT_ROUTED_KEYS:
+    if key not in ARTIFACT_ROUTED_KEYS and not prefixed:
         result.remappable_missing_keys.append(key)
     else:
         # #7512: only a non-remappable path is offered a ``mkdir -p`` remedy.
@@ -478,6 +482,7 @@ def validate_mission_paths(
             resolved=resolved,
             relative_path=relative_path,
             is_artifact_tagged=is_artifact_tagged,
+            prefixed=bool(path_prefix),
         )
 
     if result.missing_paths:
