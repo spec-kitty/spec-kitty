@@ -510,6 +510,29 @@ def test_dirty_refusal_is_isolated_and_carries_error_code_and_remedy(repo: Path)
     assert "Commit or stash them" in str(excinfo.value)
 
 
+@pytest.mark.parametrize("log_state", ["absent", "empty"])
+def test_no_recorded_claim_is_not_a_resume_so_dirty_still_refuses(repo: Path, log_state: str) -> None:
+    """#7310 characterisation: the resume exemption needs a recorded ``in_progress`` claim.
+
+    An absent or empty ``status.events.jsonl`` records no claim, so the dirty-tree check
+    still fires (the read-door move must keep this; it used ``has_event_log`` before).
+    """
+    mission_slug = f"impl-noclaim-{log_state}"
+    feature_dir = _build_mission(repo, mission_slug, "01IMPLNOCLAIM0000000000" + ("1" if log_state == "absent" else "2"))
+    events = feature_dir / "status.events.jsonl"
+    if log_state == "absent":
+        events.unlink()
+    else:
+        events.write_text("", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", f"status: {log_state} log")
+    (repo / "uncommitted-noclaim.py").write_text("X = 1\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError, match="uncommitted-noclaim.py"):
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+
+
 def test_review_lock_in_write_checkout_is_not_dirty(repo: Path) -> None:
     """``agent action review`` leaves ``.spec-kitty/review-lock.json`` untracked
     in the repository-root write checkout; the tool's own lock must not refuse

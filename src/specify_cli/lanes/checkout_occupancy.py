@@ -230,7 +230,7 @@ def _writers_in_write_checkout(
     """The occupancy scan of :func:`in_progress_wps_in_write_checkout`, generalised to any *lanes*."""
     from specify_cli.context.mission_resolver import FsMissionResolver
     from specify_cli.core.git_ops import get_current_branch
-    from specify_cli.status import read_events as _read_events
+    from specify_cli.status import read_status_events, resolve_status_read
     from specify_cli.status import reduce as _reduce_events
 
     write_checkout_resolved = write_checkout.resolve()
@@ -250,9 +250,9 @@ def _writers_in_write_checkout(
         if not repo_root_wp_ids:
             continue
 
-        # single_branch has no coordination partition: the status log is read
-        # through the same seam, which resolves it to the primary mission dir.
-        snapshot = _reduce_events(_read_events(placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)))
+        # single_branch has no coordination partition: the one status read door
+        # (ADR 2026-11-06-2, #7310) reads the write checkout's log.
+        snapshot = _reduce_events(read_status_events(resolve_status_read(repo_root, mission_slug)))
         for wp_id, wp_state in snapshot.work_packages.items():
             if wp_id not in repo_root_wp_ids or exclude == (mission_slug, wp_id):
                 continue
