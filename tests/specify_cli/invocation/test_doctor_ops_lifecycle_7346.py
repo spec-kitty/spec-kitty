@@ -196,7 +196,7 @@ def test_a_record_held_by_two_checkouts_is_closed_once(tmp_path: Path) -> None:
     assert _abandoned(worktree) == []
 
 
-@pytest.mark.parametrize(("hours_ago", "exit_code"), [(48.0, 0), (1.0, 1)])
+@pytest.mark.parametrize(("hours_ago", "exit_code"), [(48.0, 0), (1.0, 1), (-2.0, 0)])  # -2.0: a future-dated record (clock skew) is stale, never fresh forever
 def test_the_cli_reports_lifecycle_records_and_exits_on_fresh_orphans(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hours_ago: float, exit_code: int) -> None:
     repo = _repo(tmp_path)
     checkout_issue_branch(repo)

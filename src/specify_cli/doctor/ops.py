@@ -226,6 +226,11 @@ def _age_hours(started_at: str, now: datetime) -> float | None:
     return (now - started).total_seconds() / 3600.0
 
 
+def _is_stale(age: float | None, threshold_hours: float) -> bool:
+    """Whether a record of *age* hours is swept: no age, a negative age (a future ``at``, clock skew) or one past the threshold."""
+    return threshold_hours == 0 or age is None or age < 0 or age > threshold_hours
+
+
 def close_stale_ops(
     repo_root: Path,
     *,
@@ -282,7 +287,7 @@ def close_stale_ops(
         profile_id, started_at = _read_started_fields(path)
         age = _age_hours(started_at, now)
         parse_warning = None if age is not None else (f"unparseable started_at {started_at!r}; treated as stale")
-        is_stale = threshold_hours == 0 or age is None or age > threshold_hours
+        is_stale = _is_stale(age, threshold_hours)
         entry = SweepOpEntry(
             invocation_id=invocation_id,
             profile_id=profile_id,
@@ -427,7 +432,7 @@ def _sweep_lifecycle_checkout(
             continue
         entry = _lifecycle_entry(started, now)
         entries.append(entry)
-        if threshold_hours == 0 or (entry.age_hours is not None and entry.age_hours > threshold_hours):
+        if entry.age_hours is not None and _is_stale(entry.age_hours, threshold_hours) or threshold_hours == 0:
             path = _close_lifecycle_record(checkout, started, entry, reason, now)
             if path is not None:
                 closures.append((entry, path))
