@@ -179,7 +179,9 @@ Unknown selected directive 'NOPE_999' dropped: not found in built-in, org packs 
 ## CATALOG_DEFAULT_APPLIED
 
 **When it fires**: the activation key for paradigms or directives is absent, so
-the built-in catalog default is the base set.
+the built-in catalog default is the base set. In process, the entry's `kind`
+field (`ArtifactKind.PARADIGM` or `ArtifactKind.DIRECTIVE`) says which list
+defaulted; the JSON form carries `code` and `message` only.
 
 **JSON stability**: this code string is stable across minor releases; consumers
 may match it as an opaque identifier.

@@ -709,18 +709,22 @@
     "diagnostics": [
       {
         "code": "CATALOG_DEFAULT_APPLIED",
+        "kind": "paradigm",
         "message": "No activated paradigm set configured; using built-in catalog default (14 paradigms)."
       },
       {
         "code": "FALLBACK_APPLIED",
+        "kind": null,
         "message": "No available_tools selection provided; using runtime tool registry fallback."
       },
       {
         "code": "CATALOG_DEFAULT_APPLIED",
+        "kind": "directive",
         "message": "No activated directive set configured; using built-in catalog default (38 directives)."
       },
       {
         "code": "FALLBACK_APPLIED",
+        "kind": null,
         "message": "Template set not selected in charter; fallback 'software-dev-default' applied."
       }
     ],

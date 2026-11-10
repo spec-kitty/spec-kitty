@@ -16,6 +16,8 @@ code-to-docs flow envisioned in GitHub #645 ships).
 from dataclasses import dataclass
 from enum import StrEnum
 
+from charter.offering.artifact_kinds import ArtifactKind
+
 __all__ = [
     "CharterEncodingDiagnostic",
     "GovernanceDiagnostic",
@@ -53,10 +55,16 @@ class GovernanceDiagnostic:
 
     ``message`` is display text and may be reworded without notice; only
     ``code`` is a contract.
+
+    ``kind`` names the artifact kind the entry is about, when its producer sets
+    it (#7511: the two ``CATALOG_DEFAULT_APPLIED`` entries share one code, and a
+    consumer must tell paradigms from directives without reading ``message``).
+    It is in-process only: :meth:`to_json` stays ``{"code", "message"}``.
     """
 
     code: GovernanceDiagnosticCode
     message: str
+    kind: ArtifactKind | None = None
 
     def __post_init__(self) -> None:
         # Coerce a raw code string to its member; a code outside the closed set raises ValueError.
