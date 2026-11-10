@@ -338,55 +338,83 @@ LIFECYCLE_ABANDONED_REASON = "abandoned by doctor ops --close-stale (older than 
 def close_stale_lifecycle_records(repo_root: Path, *, threshold_hours: float, now: datetime) -> list[SweepLifecycleEntry]:
     """Close orphaned WP lifecycle records older than ``threshold_hours`` as abandoned (#7346).
 
-    For every checkout of the repository (the project root first, as
-    :func:`scan_op_records` reads them), each ``started`` record no completion
+    Every checkout of the repository is read first (the project root first, as
+    :func:`scan_op_records` orders them). A ``started`` record that no completion
     pairs is reported; one older than the threshold (any, at ``0``) gets an
     ``abandoned`` record written next to it in the checkout that holds it
-    (:func:`~specify_cli.invocation.lifecycle.write_abandoned_completion`). A record
-    present in several checkouts (tracked on a shared branch) belongs to the first
-    checkout that holds it, paired or not: a later checkout never closes it again,
-    even where its own copy still looks open. Identical records within one checkout
-    are each their own orphan, so occurrences are counted, not collapsed. Each checkout's closures are then committed
-    once through the executor's record commit (#6410 skip rules, protected-branch
-    refusal reported). Mission status, ``meta.json`` and work package files are
-    never read or written.
+    (:func:`~specify_cli.invocation.lifecycle.write_abandoned_completion`).
+
+    A record held by several checkouts (tracked on a shared branch) is closed at
+    most once across them: never when any checkout already holds its completion,
+    otherwise once, in the first checkout that holds it. Identical records within
+    one checkout are each their own orphan, so occurrences are counted, not
+    collapsed. Each checkout's closures are committed once through the executor's
+    record commit (#6410 skip rules, protected-branch refusal reported). Mission
+    status, ``meta.json`` and work package files are never read or written.
     """
+    stores = [(checkout, records) for checkout in _checkouts(repo_root) if (records := _read_lifecycle_store(checkout)) is not None]
+    # The most completions of a record identity any one checkout holds: those copies are closed somewhere.
+    paired_somewhere: Counter[_LifecycleKey] = Counter()
+    for _checkout, records in stores:
+        paired_somewhere |= _paired_counts(records)
     seen: Counter[_LifecycleKey] = Counter()
     entries: list[SweepLifecycleEntry] = []
-    for checkout in _checkouts(repo_root):
-        entries.extend(_sweep_lifecycle_checkout(repo_root, checkout, threshold_hours=threshold_hours, now=now, seen=seen))
+    for checkout, records in stores:
+        entries.extend(
+            _sweep_lifecycle_checkout(repo_root, checkout, records, threshold_hours=threshold_hours, now=now, seen=seen, paired_somewhere=paired_somewhere)
+        )
     return entries
+
+
+def _record_key(record: ProfileInvocationRecord) -> _LifecycleKey:
+    return (record.mission_id, record.canonical_action_id, record.agent, record.wp_id, record.at.isoformat())
+
+
+def _read_lifecycle_store(checkout: Path) -> list[ProfileInvocationRecord] | None:
+    try:
+        records: list[ProfileInvocationRecord] = read_lifecycle_records(checkout)
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.warning("doctor ops: cannot read lifecycle records in %s: %s", checkout, exc)
+        return None
+    return records
+
+
+def _unpaired_ids(records: list[ProfileInvocationRecord]) -> set[int]:
+    return {id(record) for group in find_orphans(records) for record in unpaired_started(group)}
+
+
+def _paired_counts(records: list[ProfileInvocationRecord]) -> Counter[_LifecycleKey]:
+    """Per record identity, how many of a checkout's ``started`` copies a completion pairs."""
+    unpaired = _unpaired_ids(records)
+    return Counter(_record_key(record) for record in records if record.phase == "started" and id(record) not in unpaired)
 
 
 def _sweep_lifecycle_checkout(
     repo_root: Path,
     checkout: Path,
+    records: list[ProfileInvocationRecord],
     *,
     threshold_hours: float,
     now: datetime,
     seen: Counter[_LifecycleKey],
+    paired_somewhere: Counter[_LifecycleKey],
 ) -> list[SweepLifecycleEntry]:
     """Close one checkout's stale unpaired ``started`` records, then commit the closures once.
 
-    *seen* counts the occurrences of each record identity that earlier checkouts
-    hold, paired or not: those checkouts own them (an open one was closed there, a
-    paired one is already closed there), so this checkout acts only on unpaired
-    occurrences beyond that count, then adds what it holds itself.
+    An unpaired copy is acted on only beyond both counts: the copies some checkout
+    holds paired (*paired_somewhere*, already closed there) and the copies earlier
+    checkouts hold (*seen*, owned there, paired or not). This checkout then adds the
+    copies it holds to *seen*.
     """
-    try:
-        records = read_lifecycle_records(checkout)
-    except (OSError, UnicodeDecodeError) as exc:
-        logger.warning("doctor ops: cannot read lifecycle records in %s: %s", checkout, exc)
-        return []
     reason = LIFECYCLE_ABANDONED_REASON.format(threshold=f"{threshold_hours:g}")
     entries: list[SweepLifecycleEntry] = []
     closures: list[tuple[SweepLifecycleEntry, Path]] = []
-    unpaired = {id(record) for group in find_orphans(records) for record in unpaired_started(group)}
+    unpaired = _unpaired_ids(records)
     held: Counter[_LifecycleKey] = Counter()
     for started in (record for record in records if record.phase == "started"):
-        key = (started.mission_id, started.canonical_action_id, started.agent, started.wp_id, started.at.isoformat())
+        key = _record_key(started)
         held[key] += 1
-        if id(started) not in unpaired or held[key] <= seen[key]:
+        if id(started) not in unpaired or held[key] <= max(seen[key], paired_somewhere[key]):
             continue
         entry = _lifecycle_entry(started, now)
         entries.append(entry)
