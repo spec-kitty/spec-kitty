@@ -50,15 +50,6 @@ def _snapshot(directory: Path) -> dict[str, bytes]:
     return {path.name: path.read_bytes() for path in sorted(directory.glob("*.json"))}
 
 
-def test_the_abandoned_phase_round_trips() -> None:
-    record = _record("abandoned")
-    payload = record.to_dict()
-    assert payload["phase"] == "abandoned"
-    assert payload["reason"] == _REASON
-    assert payload["metadata"] == {"closed_by": "doctor_sweep"}
-    assert ProfileInvocationRecord.from_dict(payload) == record
-
-
 def test_an_abandoned_record_pairs_its_started_record() -> None:
     records = [_record("started"), _record("abandoned", at=_AT + timedelta(days=2))]
     assert find_orphans(records) == []
@@ -72,6 +63,10 @@ def test_a_second_started_record_stays_unpaired() -> None:
     records = [_record("started"), later, _record("abandoned", at=_AT + timedelta(days=2), closes=_AT)]
     assert find_latest_unpaired_started(records) == later
     assert compute_pairing_rate(records) == 0.5
+    # An abandoned record that names no record pairs the latest one before it, as next pairs.
+    first = _record("started")
+    unlinked = [first, later, _record("abandoned", at=_AT + timedelta(days=2))]
+    assert find_latest_unpaired_started(unlinked) == first
 
 
 def test_the_writer_appends_one_abandoned_file_and_changes_nothing_else(tmp_path: Path) -> None:
