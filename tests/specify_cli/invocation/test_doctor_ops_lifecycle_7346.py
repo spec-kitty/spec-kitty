@@ -45,6 +45,10 @@ def _repo(tmp_path: Path, *, track_lifecycle_on_primary: bool = True) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     run_git(repo, "init", "-q", "-b", "main")
+    # The sweep's own commit runs git without run_git's -c identity (linked worktrees share this config).
+    run_git(repo, "config", "user.email", "fixture@example.com")
+    run_git(repo, "config", "user.name", "Fixture")
+    run_git(repo, "config", "commit.gpgsign", "false")
     (repo / "README.md").write_text("fixture\n", encoding="utf-8")
     run_git(repo, "add", "README.md")
     if track_lifecycle_on_primary:

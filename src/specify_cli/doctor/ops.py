@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import os
 from dataclasses import dataclass, field
 from kernel.clock import datetime, UTC, parse_iso
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.invocation.errors import AlreadyClosedError
+from specify_cli.invocation.lifecycle import find_orphans, read_lifecycle_records, unpaired_started, write_abandoned_completion
 from specify_cli.invocation.op_custody import repository_checkouts
 from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH, open_invocation_ids
+
+if TYPE_CHECKING:
+    from specify_cli.invocation.executor import OpCommitOutcome
+    from specify_cli.invocation.record import ProfileInvocationRecord
 
 #: ``SweepOpEntry.commit`` prefix for a sweep close whose spine commit was
 #: deliberately skipped (#6410): the closure stays on disk, uncommitted.
@@ -138,6 +145,25 @@ class SweepOpEntry:
 
 
 @dataclass
+class SweepLifecycleEntry:
+    """One orphaned ``started`` lifecycle record the sweep saw (#7346, contract doctor-ops-lifecycle-sweep)."""
+
+    canonical_action_id: str
+    mission_id: str
+    wp_id: str | None
+    agent: str
+    started_at: str
+    age_hours: float | None
+    action_taken: str = "none"  # "none" | "closed_abandoned"
+    path: str | None = None  # the closure file, relative to the checkout holding it
+    commit: str | None = None  # "committed" | "not_committed:<refusal>" | "skipped:<reason>"
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return dataclasses.asdict(self)
+
+
+@dataclass
 class SweepReport:
     """Result of a doctor ops stale sweep, per contracts/doctor-ops-close-stale.md."""
 
@@ -145,6 +171,8 @@ class SweepReport:
     swept: int = 0
     skipped_fresh: int = 0
     threshold_hours: float = 24.0
+    #: Orphaned WP lifecycle records the sweep saw (#7346); additive JSON key.
+    lifecycle_records: list[SweepLifecycleEntry] = field(default_factory=list)
     #: Checkouts whose Op store could not be read. Deliberately absent from
     #: :meth:`to_dict`: the sweep JSON is a frozen contract (C-001), so the command
     #: reports these on stderr instead of inventing a key.
@@ -152,7 +180,13 @@ class SweepReport:
 
     @property
     def has_errors(self) -> bool:
-        return any(entry.error is not None for entry in self.open_ops)
+        entries: list[SweepOpEntry | SweepLifecycleEntry] = [*self.open_ops, *self.lifecycle_records]
+        return any(entry.error is not None for entry in entries)
+
+    @property
+    def lifecycle_fresh(self) -> int:
+        """Orphaned lifecycle records left open because they are younger than the threshold."""
+        return sum(1 for entry in self.lifecycle_records if entry.action_taken == "none" and entry.error is None)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -161,6 +195,7 @@ class SweepReport:
             "skipped_fresh": self.skipped_fresh,
             "threshold_hours": self.threshold_hours,
             "closure_spine": OP_CLOSURES_RELATIVE_PATH.as_posix(),
+            "lifecycle_records": [entry.to_dict() for entry in self.lifecycle_records],
         }
 
 
@@ -268,16 +303,118 @@ def close_stale_ops(
             )
             entry.action_taken = "closed_abandoned"
             report.swept += 1
-            outcome_note = executor.last_op_commit
-            if outcome_note is not None and outcome_note.committed:
-                entry.commit = "committed"
-            elif outcome_note is not None and outcome_note.skipped:
-                entry.commit = f"{SWEEP_COMMIT_SKIPPED_PREFIX}{outcome_note.skipped}"
-            elif outcome_note is not None:
-                entry.commit = f"not_committed:{outcome_note.refusal or 'unknown refusal'}"
+            entry.commit = _commit_note(executor.last_op_commit)
         except AlreadyClosedError:
             entry.action_taken = "already_closed"
         except Exception as exc:  # noqa: BLE001 - one bad file must not block the sweep
             entry.error = repr(exc)
         report.open_ops.append(entry)
     return report
+
+
+def _commit_note(outcome: OpCommitOutcome | None) -> str | None:
+    """A sweep entry's ``commit`` value for an auto-commit outcome (#4397, #6410)."""
+    if outcome is None:
+        return None
+    if outcome.committed:
+        return "committed"
+    if outcome.skipped:
+        return f"{SWEEP_COMMIT_SKIPPED_PREFIX}{outcome.skipped}"
+    return f"not_committed:{outcome.refusal or 'unknown refusal'}"
+
+
+# ---------------------------------------------------------------------------
+# WP lifecycle records (#7346)
+# ---------------------------------------------------------------------------
+
+#: ``reason`` of an ``abandoned`` lifecycle record the sweep writes.
+LIFECYCLE_ABANDONED_REASON = "abandoned by doctor ops --close-stale (older than {threshold}h)"
+
+
+def close_stale_lifecycle_records(repo_root: Path, *, threshold_hours: float, now: datetime) -> list[SweepLifecycleEntry]:
+    """Close orphaned WP lifecycle records older than ``threshold_hours`` as abandoned (#7346).
+
+    For every checkout of the repository (the project root first, as
+    :func:`scan_op_records` reads them), each ``started`` record no completion
+    pairs is reported; one older than the threshold (any, at ``0``) gets an
+    ``abandoned`` record written next to it in the checkout that holds it
+    (:func:`~specify_cli.invocation.lifecycle.write_abandoned_completion`). A record
+    present in several checkouts (tracked on a shared branch) is handled once, in
+    the first checkout that holds it. Each checkout's closures are then committed
+    once through the executor's record commit (#6410 skip rules, protected-branch
+    refusal reported). Mission status, ``meta.json`` and work package files are
+    never read or written.
+    """
+    seen: set[tuple[str, str, str, str | None, str]] = set()
+    entries: list[SweepLifecycleEntry] = []
+    for checkout in _checkouts(repo_root):
+        entries.extend(_sweep_lifecycle_checkout(repo_root, checkout, threshold_hours=threshold_hours, now=now, seen=seen))
+    return entries
+
+
+def _sweep_lifecycle_checkout(
+    repo_root: Path,
+    checkout: Path,
+    *,
+    threshold_hours: float,
+    now: datetime,
+    seen: set[tuple[str, str, str, str | None, str]],
+) -> list[SweepLifecycleEntry]:
+    """Close one checkout's stale unpaired ``started`` records, then commit the closures once."""
+    try:
+        records = read_lifecycle_records(checkout)
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.warning("doctor ops: cannot read lifecycle records in %s: %s", checkout, exc)
+        return []
+    reason = LIFECYCLE_ABANDONED_REASON.format(threshold=f"{threshold_hours:g}")
+    entries: list[SweepLifecycleEntry] = []
+    closures: list[tuple[SweepLifecycleEntry, Path]] = []
+    for started in (record for group in find_orphans(records) for record in unpaired_started(group)):
+        key = (started.mission_id, started.canonical_action_id, started.agent, started.wp_id, started.at.isoformat())
+        if key in seen:
+            continue
+        seen.add(key)
+        entry = _lifecycle_entry(started, now)
+        entries.append(entry)
+        if threshold_hours == 0 or (entry.age_hours is not None and entry.age_hours > threshold_hours):
+            path = _close_lifecycle_record(checkout, started, entry, reason)
+            if path is not None:
+                closures.append((entry, path))
+    _commit_lifecycle_closures(repo_root, checkout, closures)
+    return entries
+
+
+def _lifecycle_entry(started: ProfileInvocationRecord, now: datetime) -> SweepLifecycleEntry:
+    at = started.at if started.at.tzinfo is not None else started.at.replace(tzinfo=UTC)
+    return SweepLifecycleEntry(
+        canonical_action_id=started.canonical_action_id,
+        mission_id=started.mission_id,
+        wp_id=started.wp_id,
+        agent=started.agent,
+        started_at=at.isoformat(),
+        age_hours=_age_hours(at.isoformat(), now),
+    )
+
+
+def _close_lifecycle_record(checkout: Path, started: ProfileInvocationRecord, entry: SweepLifecycleEntry, reason: str) -> Path | None:
+    """Write the ``abandoned`` record; a failure is recorded on *entry* and the sweep continues."""
+    try:
+        path: Path = write_abandoned_completion(checkout, started=started, reason=reason)
+    except Exception as exc:  # noqa: BLE001 - one unwritable record must not block the sweep
+        entry.error = repr(exc)
+        return None
+    entry.action_taken = "closed_abandoned"
+    entry.path = path.relative_to(checkout).as_posix()
+    return path
+
+
+def _commit_lifecycle_closures(repo_root: Path, checkout: Path, closures: list[tuple[SweepLifecycleEntry, Path]]) -> None:
+    """Commit one checkout's new closure files once and stamp each entry with the outcome."""
+    if not closures:
+        return
+    from specify_cli.invocation.executor import ProfileInvocationExecutor
+
+    executor = ProfileInvocationExecutor(repo_root, record_root=checkout)
+    note = _commit_note(executor.commit_lifecycle_closures([path for _entry, path in closures]))
+    for entry, _path in closures:
+        entry.commit = note
