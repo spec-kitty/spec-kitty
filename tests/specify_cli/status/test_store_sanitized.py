@@ -144,6 +144,21 @@ def test_non_pii_fields_preserved_in_status_events_jsonl(
     )
 
 
+def test_mixed_naive_and_aware_session_pair_is_dropped_without_error() -> None:
+    """#7440: a naive/aware session pair cannot be subtracted; both fields go and no duration is invented."""
+    from specify_cli.status.store import serialize_event_line
+
+    row = {
+        **_make_event().to_dict(),
+        "session_started_at": "2026-06-01T10:00:00",
+        "session_ended_at": "2026-06-01T10:05:00+00:00",
+    }
+
+    written = json.loads(serialize_event_line(row))
+
+    assert not {"session_started_at", "session_ended_at", "session_duration_s"} & written.keys()
+
+
 # ---------------------------------------------------------------------------
 # T014b — append_events_atomic() strips PII
 # ---------------------------------------------------------------------------
