@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-diagrams-01M72CFS",
+  "mission_id": "01M72CFSFXERJD0ZGJANW5SNF7",
+  "mission_branch": "kitty/mission-docsite-diagrams-01M72CFS",
+  "target_branch": "issue-6936-docsite-diagrams",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-site-build.yml",
+        "Makefile",
+        "docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md",
+        "scripts/docs/site_built_check.py",
+        "scripts/docs/site_built_check_diagrams.py",
+        "scripts/docs/site_plantuml_guard.py",
+        "site/astro.config.mjs",
+        "site/package.json",
+        "site/pnpm-lock.yaml",
+        "tests/ci/test_docs_site_job.py",
+        "tests/docs/test_site_built_check.py",
+        "tests/docs/test_site_built_check_diagrams.py",
+        "tests/docs/test_site_plantuml_guard.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-10T12:14:14.060243+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "87fd7af8c0e632e47da82bc9043c21a2eaea2dba"
+}

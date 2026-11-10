@@ -1,0 +1,77 @@
+{
+  "mission_slug": "docsite-diagrams-01M72CFS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Every published Mermaid and PlantUML block is a static SVG figure in the built site",
+      "proof_type": "ci_run",
+      "evidence": null,
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:40.732108+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Needs the docs-site job on GitHub: a PlantUML service container and Chromium. This container has no docker daemon, so only the landing PR's CI run can prove it (SC-002). Code reviewed and approved in WP01/WP02.",
+      "deferral_follow_up": "6936"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The shared build runs the digest-pinned plantuml-server as a job service with SANDBOX and a readiness wait",
+      "proof_type": "ci_run",
+      "evidence": null,
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:44.577470+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Needs the docs-site job on GitHub: a PlantUML service container and Chromium. This container has no docker daemon, so only the landing PR's CI run can prove it (SC-002). Code reviewed and approved in WP01/WP02.",
+      "deferral_follow_up": "6936"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The canary check runs before the build and fails it if the server would fetch a remote include",
+      "proof_type": "ci_run",
+      "evidence": null,
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:50.473510+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Needs the docs-site job on GitHub: a PlantUML service container and Chromium. This container has no docker daemon, so only the landing PR's CI run can prove it (SC-002). Code reviewed and approved in WP01/WP02.",
+      "deferral_follow_up": "6936"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The built-site diagrams surface fails on a raw diagram fence, a diagram error block, a missing figure and a plantuml.com reference",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_site_built_check_diagrams.py (one mutant per failure mode, red first in the WP01 red commit); tests/docs 2253 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:33.484384+00:00",
+      "notes": "NFR-003: every mutant fixture fails the surface."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Diagrams render in build mode with the exact-pinned Playwright Chromium, in CI and in make docs-site",
+      "proof_type": "ci_run",
+      "evidence": null,
+      "pass_fail": "deferred",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:55.848499+00:00",
+      "notes": "TODO: replace with a real acceptance criterion",
+      "deferral_reason": "Needs the docs-site job on GitHub: a PlantUML service container and Chromium. This container has no docker daemon, so only the landing PR's CI run can prove it (SC-002). Code reviewed and approved in WP01/WP02.",
+      "deferral_follow_up": "6936"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "ADR 2026-08-12-1 records that the renderer refuses every remote include, proven by a canary check",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/3.x/2026-08-12-1-plantuml-schema-diagram-rendering.md '## Amendment 2026-11-10'; reviewer confirmed the diff is the amendment plus the updated: bump only",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-10T13:10:37.043107+00:00",
+      "notes": "Body unchanged (immutable history); terminology guard green."
+    }
+  ],
+  "negative_invariants": []
+}
