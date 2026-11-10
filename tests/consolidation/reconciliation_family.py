@@ -7,9 +7,11 @@ split a test patched ``reconciliation.<name>`` and every reconciliation
 function saw the fake, because they all looked ``<name>`` up in that one module
 namespace. After the split the same lookups are spread over the family modules.
 These helpers patch ``<name>`` in every family module whose namespace binds it,
-which is exactly the old interception set (a module that binds a name it never
-looks up is unaffected by the patch). Tests that need only one family module
-patch that module directly.
+which reproduces the old interception set (a module that binds a name it never
+looks up is unaffected by the patch). It also patches the consumers outside the
+family that bind the same object by name (``phase_claim``, ``phase_gate``,
+``forecast``, ``claim_inputs``), so a family patch reaches them too. Tests that need
+only one family module patch that module directly.
 
 Scope notes:
 
