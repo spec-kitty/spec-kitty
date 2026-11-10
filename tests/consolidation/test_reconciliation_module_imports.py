@@ -19,18 +19,7 @@ pytestmark = pytest.mark.fast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PACKAGE = "specify_cli.consolidation"
-# One entry per module split out of reconciliation.py; each work package of the split appends its modules here.
-SPLIT_MODULES: tuple[str, ...] = (
-    "reconciliation_kernel",
-    "reconciliation_claim_types",
-    "reconciliation_rendering",
-    "reconciliation_closed_world",
-    "reconciliation_bound",
-    "reconciliation_verifier",
-    "reconciliation_canceled",
-    "reconciliation_claim",
-    "reconciliation_authorship",
-)
+SPLIT_MODULES: tuple[str, ...] = tuple(sorted(path.stem for path in (_REPO_ROOT / "src" / "specify_cli" / "consolidation").glob("reconciliation_*.py")))
 _BOGUS = "reconciliation_this_module_does_not_exist"
 _DRIVER = """
 import importlib, sys

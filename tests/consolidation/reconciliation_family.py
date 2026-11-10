@@ -23,11 +23,8 @@ Scope notes:
   step 4 uses) is likewise outside the guard's scope.
 - ``RECONCILIATION_FAMILY`` grows as later work packages of the mission create
   the split modules; each new module must be appended there.
-- :func:`patch_callee_name` is the ONE AST helper both the surface-pin scanner
-  (``test_reconciliation_surface_pin.py``) and the patch-lookup guard
-  (``test_reconciliation_family_guard.py``) use to recognize a patch call
-  (review cycle 1: it was duplicated verbatim between the two files and had
-  drifted — the guard and the scanner disagreed on ``patch.object``).
+- :func:`patch_callee_name` is the AST helper the patch-lookup guard
+  (``test_reconciliation_family_guard.py``) uses to recognize a patch call.
 """
 
 from __future__ import annotations
