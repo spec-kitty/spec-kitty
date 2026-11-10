@@ -53,6 +53,7 @@ from mission_runtime import (
     MissionArtifactKind,
     MissionTopology,
     ReadDegradeStrategy,
+    placement_seam,
     resolve_read_dir_or_degrade,
 )
 from specify_cli.agent_tasks_ports import MissionHandle, RealCoordCommitRouter
@@ -250,22 +251,35 @@ def test_agent_utils_status_build_kanban_fails_loud_sanely(tmp_path: Path, monke
     assert "materializ" in outcome["error"].lower()
 
 
-def test_lanes_recovery_scan_recovery_state_fails_loud_sanely(
+def test_lanes_recovery_scan_recovery_state_reads_the_committed_coordination_branch(
     tmp_path: Path,
 ) -> None:
-    """``lanes/recovery.py:615`` (``scan_recovery_state``): the coord STATUS_STATE
-    leg is a documented deliberate fail-loud site (`#2185`/#2155`` comment
-    above the call) — the seam raise now covers UNMATERIALIZED the same way it
-    already covered DELETED, with the same sane, informative exception."""
+    """``lanes/recovery.py`` (``scan_recovery_state``) reads its STATUS leg through the one
+    status read door (ADR 2026-11-06-2, #7310). An UNMATERIALIZED coordination worktree no
+    longer fails the scan: the door reads the committed coordination branch, so
+    ``implement --recover`` works on a fresh clone. A DELETED coordination branch stays
+    loud (``test_recovery_scan_fails_loud_when_coordination_branch_was_deleted``).
+
+    Re-pinned from ``..._fails_loud_sanely`` (#7310): that pin recorded the seam raise
+    the read door removes for ref sources.
+    """
     from specify_cli.lanes.recovery import scan_recovery_state
+    from tests.runtime._next_mission_scaffold import seed_wp_lane, write_wp_task_files
 
-    repo, result = _unmaterialized_coord_mission(tmp_path, "coord-recovery-demo")
+    repo = _repo(tmp_path)
+    result = _create_mission(repo, "coord-recovery-demo", MissionTopology.COORD)
+    write_wp_task_files(result.feature_dir, {"WP01": "done"})
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "--no-verify", "-m", "tasks: WP01"], check=True, capture_output=True)
+    coord_root = CoordinationWorkspace.worktree_path(repo, result.mission_slug, str(result.meta["mid8"]))
+    seed_wp_lane(placement_seam(repo, result.mission_slug).read_dir(MissionArtifactKind.STATUS_STATE), result.mission_slug, "WP01", "done")
+    subprocess.run(["git", "-C", str(coord_root), "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(coord_root), "commit", "-q", "--no-verify", "-m", "status: WP01 done"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(coord_root)], check=True, capture_output=True)
 
-    with pytest.raises(CoordinationWorktreeUnmaterialized) as excinfo:
-        scan_recovery_state(repo, result.mission_slug)
+    states = scan_recovery_state(repo, result.mission_slug)
 
-    assert excinfo.value.error_code == "COORDINATION_WORKTREE_UNMATERIALIZED"
-    assert "materializ" in excinfo.value.next_step.lower()
+    assert [(state.wp_id, state.status_lane, state.resolution_note) for state in states] == [("WP01", "done", "merged_and_deleted")]
 
 
 def test_agent_tasks_ports_feature_write_dir_owned_fails_closed_on_unmaterialized_coord(
