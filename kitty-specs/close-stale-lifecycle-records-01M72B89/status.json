@@ -52,7 +52,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude",
       "agent_profile": "python-pedro",
       "agent_profile_version": "1.0",
       "force_count": 3,
@@ -65,7 +65,8 @@
         "- 2026-11-10T10:17:03Z – claude – shell_pid=29706 – SC-001 on a scratch clone of this repository: 123 orphans before, 123 closed in one commit, 0 after, clean tree. NFR-003: a sweep of the 1,652-file store with no orphans takes 0.07 s (the first sweep, closing 123, 7.4 s). Design note: the shared commit stays inside ProfileInvocationExecutor (_commit_record_paths, commit_lifecycle_closures) instead of a new trail_commit.py, so the existing tests that patch executor.safe_commit/_current_branch keep covering it. WP01 review L1 (phase set from the Literal) and L2 (next never writes abandoned) folded here.",
         "Ready for review: lifecycle sweep in doctor ops --close-stale (every checkout, counted dedupe, one commit per checkout via the executor's record commit, additive lifecycle_records JSON, exit 1 on fresh orphans), docs and changelog. SC-001 verified on this repository's store (123/123 closed, 0 left).",
         "Rework cycle 1: B1 fixed (dedupe counts every started occurrence an earlier checkout holds, paired or not; red tests for both reproduced scenarios); L1 (record-kind wording in commit logs/probe reason) and L2 (lifecycle pattern and probe tests) folded; L3 deferred: an unreadable lifecycle store is logged, not added to the Op sweep's unreadable_checkouts stderr report, which names Op records. 1037 passed.",
-        "Rework cycle 2: B2 fixed. The sweep reads every checkout first; an unpaired copy is acted on only beyond both the copies any checkout holds paired and the copies earlier checkouts hold. Red-first test for the review's scenario. SC-001 re-run with a linked worktree holding all 123 records: 123 closed once in the root checkout, lane untouched, second sweep 0 entries. 1038 passed."
+        "Rework cycle 2: B2 fixed. The sweep reads every checkout first; an unpaired copy is acted on only beyond both the copies any checkout holds paired and the copies earlier checkouts hold. Red-first test for the review's scenario. SC-001 re-run with a linked worktree holding all 123 records: 123 closed once in the root checkout, lane untouched, second sweep 0 entries. 1038 passed.",
+        "Rework cycle 3: B3 fixed inside the sweep only. _unpaired_ids matches each completion to a started record of the same agent and work package first, then by read order; unpaired_started, doctor invocation-pairing and the group key unchanged. Red-first tests for both requested cases. Follow-up issue filed for the read-only report's latest-record label. 1040 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
