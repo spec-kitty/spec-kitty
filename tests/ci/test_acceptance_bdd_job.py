@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import re
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,30 @@ def test_evidence_step_has_no_fallback(job: dict[str, Any]) -> None:
     _assert_no_retry(step)
 
 
+def test_gating_pass_runs_as_disjoint_shards_on_every_os(job: dict[str, Any]) -> None:
+    """#7492 follow-up: each OS runs the gating pass as shards 1..N, and every leg names its own shard."""
+    count = int(job["env"]["ACCEPTANCE_SHARD_COUNT"])
+    assert count >= 2
+    assert job["strategy"]["matrix"]["shard"] == list(range(1, count + 1))
+    (step,) = _steps_running(job, "-Pacceptance.pass=gating")
+    assert '"-Pacceptance.shard=${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"' in step["run"]
+
+
+def test_gradle_pin_check_runs_once_per_matrix(job: dict[str, Any]) -> None:
+    (step,) = [s for s in job["steps"] if "acceptance_jvm_gradle_pin_check.py" in str(s.get("run") or "")]
+    assert step["if"] == "matrix.os == 'ubuntu-24.04' && matrix.shard == 1"
+
+
+def test_build_refuses_a_malformed_shard() -> None:
+    """build.gradle validates -Pacceptance.shard before any scenario starts (ShardFilter re-checks)."""
+    gradle = (WORKFLOW.parents[2] / "acceptance-jvm" / "build.gradle").read_text(encoding="utf-8")
+    assert "findProperty('acceptance.shard')" in gradle
+    assert re.search(r"systemProperty 'acceptance\.shard', requestedShard", gradle)
+    assert "inputs.property('acceptance.shard'" in gradle
+    service = WORKFLOW.parents[2] / "acceptance-jvm" / "src" / "test" / "resources" / "META-INF" / "services" / "org.junit.platform.launcher.PostDiscoveryFilter"
+    assert service.read_text(encoding="utf-8").split() == ["kitty.acceptance.sharding.ShardFilter"]
+
+
 @pytest.mark.parametrize(
     "step",
     [
@@ -106,6 +131,7 @@ def test_evidence_step_runs_always(job: dict[str, Any]) -> None:
     assert "--root acceptance-jvm/build/acceptance" in run
     assert '--os "${{ matrix.os }}"' in run
     assert "--pass gating" in run and "--pass wip" not in run
+    assert '--shard "${{ matrix.shard }}/${ACCEPTANCE_SHARD_COUNT}"' in run
     (gating,) = _steps_running(job, "-Pacceptance.pass=gating")
     assert f'--gating-step-outcome "${{{{ steps.{gating["id"]}.outcome }}}}"' in run
 
@@ -114,7 +140,7 @@ def test_upload_is_strict_and_single_path(job: dict[str, Any]) -> None:
     uploads = [s for s in job["steps"] if str(s.get("uses") or "").startswith("actions/upload-artifact@")]
     (step,) = uploads
     assert step["if"] == "always()"
-    assert step["with"]["name"] == "acceptance-bdd-results-${{ matrix.os }}"
+    assert step["with"]["name"] == "acceptance-bdd-results-${{ matrix.os }}-shard-${{ matrix.shard }}"
     assert str(step["with"]["path"]).strip() == UPLOAD_PATH
     assert step["with"]["if-no-files-found"] == "error"
     assert step["with"]["retention-days"] == 30

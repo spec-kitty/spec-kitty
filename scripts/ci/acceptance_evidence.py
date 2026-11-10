@@ -12,6 +12,8 @@ The bundle follows ``contracts/evidence.schema.json`` of the
 gating and ``@wip`` passes in separate jobs). The bundle still carries every pass the schema
 requires, so a pass not run here reads ``missing``; the additive ``passes_run`` field says which
 were run. A job that did not run the gating pass never fails on it: a wip-only job exits 0.
+``--shard K/N`` records which shard of the pass this leg ran (additive ``shard`` field, ``null``
+when the pass was not sharded).
 
 ``--gating-step-outcome`` takes the CI outcome of the step that ran the gating pass
 (``steps.<id>.outcome``). Anything but ``success`` turns a ``passed`` gating pass into
@@ -193,6 +195,7 @@ def build_bundle(
     *,
     passes_run: Sequence[str] = PASSES,
     wip_step_outcome: str | None = None,
+    shard: str | None = None,
 ) -> dict[str, Any]:
     """Assemble the evidence bundle for the pass folders under ``root``.
 
@@ -208,8 +211,17 @@ def build_bundle(
         "os": os_name,
         "run_url": _run_url(),
         "passes_run": [name for name in PASSES if name in passes_run],
+        "shard": shard,
         "passes": {name: _pass_entry(root, name, step_outcomes.get(name)) for name in PASSES},
     }
+
+
+def _shard_spec(value: str) -> str:
+    """Accept ``K/N`` with ``1 <= K <= N`` (the form ``-Pacceptance.shard`` takes); argparse reports anything else."""
+    index, sep, count = value.partition("/")
+    if not (sep and index.isdigit() and count.isdigit() and 1 <= int(index) <= int(count)):
+        raise argparse.ArgumentTypeError(f"expected K/N with 1 <= K <= N, got {value!r}")
+    return f"{int(index)}/{int(count)}"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -236,9 +248,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="a pass this job ran; repeat for several (default: every pass). Without gating the exit status is 0",
     )
+    parser.add_argument("--shard", type=_shard_spec, default=None, help="the shard of the pass this leg ran, as K/N (1 <= K <= N)")
     args = parser.parse_args(argv)
     passes_run = tuple(args.passes_run or PASSES)
-    bundle = build_bundle(args.root, args.os_name, args.gating_step_outcome, passes_run=passes_run, wip_step_outcome=args.wip_step_outcome)
+    bundle = build_bundle(args.root, args.os_name, args.gating_step_outcome, passes_run=passes_run, wip_step_outcome=args.wip_step_outcome, shard=args.shard)
     args.root.mkdir(parents=True, exist_ok=True)
     target = args.root / EVIDENCE_FILE
     target.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
