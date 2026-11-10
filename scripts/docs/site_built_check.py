@@ -50,7 +50,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 # Runnable bare (`python3 scripts/docs/site_built_check.py`): resolve `scripts.*` from the script, not the cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from scripts.docs._dockitty_contract import route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
+from scripts.docs._dockitty_contract import redirect_stub_target, route_of, unpublished_routes  # noqa: E402  (after the path bootstrap above)
 from scripts.docs import site_built_check_llms, site_built_check_render  # noqa: E402  (surfaces kept in their own modules)
 
 __all__ = ["SITE_ORIGIN", "SURFACES", "Finding", "check", "main", "normalise_url", "unpublished_routes"]
@@ -108,9 +108,11 @@ def _html_pages(dist: Path) -> Iterator[Path]:
 
 
 def _pages(dist: Path, routes: frozenset[str]) -> Iterator[Finding]:
+    # A redirect stub (#6933) at an unpublished route publishes nothing; the ``link`` surface
+    # still reports one whose target is unpublished.
     for route in sorted(routes):
         page = dist / route.strip("/") / _INDEX_HTML
-        if page.is_file():
+        if page.is_file() and redirect_stub_target(page.read_text(encoding="utf-8", errors="replace")) is None:
             yield Finding("page", route, page.relative_to(dist).as_posix())
 
 
