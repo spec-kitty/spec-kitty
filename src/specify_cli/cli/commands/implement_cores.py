@@ -32,7 +32,7 @@ from typing import Any, NamedTuple, Protocol, runtime_checkable
 from kernel.git import GitCommandError, StatusEntry, status_entries, tree_entries
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
-from specify_cli.coordination.coherence import is_coord_residue_churn, is_status_state_path
+from specify_cli.coordination.coherence import is_coord_residue_churn, is_decisions_runtime_lock, is_status_state_path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
@@ -277,9 +277,14 @@ def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitP
     via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``) --
     exactly the "invisible to one gate, fatal at another" split FIX-M2-05's
     own C7 precedent exists to close, just for this one remaining gate.
+
+    #7493: the decision service's runtime lock
+    (:func:`~specify_cli.coordination.coherence.is_decisions_runtime_lock`) is
+    dropped too. It persists untracked on purpose (#5925) and no committer may
+    stage it (#6628); before this, the planning auto-commit committed it.
     """
     entries = _parse_porcelain_entries(git.status_entries(repo_root, feature_dir))
-    return [e for e in entries if not is_dossier_snapshot(e.path)]
+    return [e for e in entries if not (is_dossier_snapshot(e.path) or is_decisions_runtime_lock(e.path))]
 
 
 def _structural_entries(entries: list[_PorcelainEntry]) -> list[_PorcelainEntry]:
@@ -801,7 +806,7 @@ def resolve_planning_artifact_staging(
         files_to_commit.extend(
             _drop_if(
                 extra_file_paths,
-                lambda p: is_status_state_path(p) or is_dossier_snapshot(p) or p in untracked_legacy_event_log_paths,
+                lambda p: is_status_state_path(p) or is_dossier_snapshot(p) or is_decisions_runtime_lock(p) or p in untracked_legacy_event_log_paths,
             )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
