@@ -169,3 +169,39 @@ def test_a_failing_gate_with_no_parseable_problem_fails(tmp_path: Path, docs: Pa
     argv = ["check-links", "--docs", str(docs), "--debt", str(_debt(tmp_path)), "--", *_fake_gate(tmp_path, "usage error\n", 2)]
 
     assert _gates().main(argv) == 1
+
+
+# --- a failing gate is never hidden by listed problems (review cycle 1, finding 1) -------------
+
+
+def test_a_route_collision_beside_a_listed_problem_fails(tmp_path: Path, docs: Path) -> None:
+    """``dockitty-check-links`` exits 1 on a route collision it prints as ``[dk-routes] …``, with no ``✖``."""
+    output = CHECK_LINKS_OUT + "\n[dk-routes] 1 route collision(s): /guides/x/ is served by guides/x.md and guides/x/index.md\n"
+    debt = _debt(tmp_path, _entry("check-links", ADR))
+    argv = ["check-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, output, 1)]
+
+    assert _gates().main(argv) == 1
+
+
+def test_a_summary_count_the_parsed_problems_do_not_match_fails(tmp_path: Path, docs: Path) -> None:
+    """The gate says two problems, the wrapper parsed one: the other is in a shape it cannot read."""
+    output = CHECK_LINKS_OUT.replace("1 link problem(s)", "2 link problem(s)")
+    debt = _debt(tmp_path, _entry("check-links", ADR))
+    argv = ["check-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, output, 1)]
+
+    assert _gates().main(argv) == 1
+
+
+def test_a_built_gate_failure_without_its_summary_fails(tmp_path: Path, docs: Path) -> None:
+    output = BUILT_LINKS_OUT.replace("assert-no-broken-links: FAILED — 1 broken internal link(s) or external image(s):\n", "")
+    debt = _debt(tmp_path, _entry("built-links", ADR))
+    argv = ["built-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, output, 1)]
+
+    assert _gates().main(argv) == 1
+
+
+def test_a_listed_built_problem_with_its_summary_passes(tmp_path: Path, docs: Path) -> None:
+    debt = _debt(tmp_path, _entry("built-links", ADR))
+    argv = ["built-links", "--docs", str(docs), "--debt", str(debt), "--", *_fake_gate(tmp_path, BUILT_LINKS_OUT, 1)]
+
+    assert _gates().main(argv) == 0
