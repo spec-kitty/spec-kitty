@@ -281,3 +281,41 @@ def test_a_record_completed_in_a_later_checkout_is_not_closed_in_an_earlier_one(
 
     assert entries == []
     assert _abandoned(repo) == []
+
+
+def test_completions_reported_from_different_checkouts_close_nothing(tmp_path: Path) -> None:
+    """WP02 review B3: one group, each work package completed in a different checkout."""
+    repo = _repo(tmp_path)
+    checkout_issue_branch(repo)
+    first = write_started(repo, canonical_action_id="implement::implement", agent="claude", mission_id=_MISSION, wp_id="WP01", at=_NOW - timedelta(hours=50))
+    second = write_started(repo, canonical_action_id="implement::implement", agent="claude", mission_id=_MISSION, wp_id="WP02", at=_NOW - timedelta(hours=49))
+    _commit_all(repo, "two starts on the issue branch")
+    worktree = tmp_path / "lane"
+    run_git(repo, "worktree", "add", "-q", "-b", "lane-topic", str(worktree))
+    write_paired_completion(worktree, started=first, phase="completed", at=_NOW - timedelta(hours=48))
+    _commit_all(worktree, "WP01 completed in the lane")
+    write_paired_completion(repo, started=second, phase="completed", at=_NOW - timedelta(hours=48))
+    _commit_all(repo, "WP02 completed in the root checkout")
+
+    entries = close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
+
+    assert entries == []
+    assert (_abandoned(repo), _abandoned(worktree)) == ([], [])
+    run_git(repo, "merge", "-q", "--no-edit", "lane-topic")
+    assert doctor_orphan_report(repo)["orphan_count"] == 0
+    assert sum(1 for record in read_lifecycle_records(repo) if record.phase != "started" and record.canonical_action_id == "implement::implement") == 2
+
+
+def test_the_closure_names_the_work_package_that_has_no_completion(tmp_path: Path) -> None:
+    """WP02 review B3: a completion pairs its own work package's started record, not the latest one."""
+    repo = _repo(tmp_path)
+    checkout_issue_branch(repo)
+    write_started(repo, canonical_action_id="implement::implement", agent="claude", mission_id=_MISSION, wp_id="WP01", at=_NOW - timedelta(hours=50))
+    second = write_started(repo, canonical_action_id="implement::implement", agent="claude", mission_id=_MISSION, wp_id="WP02", at=_NOW - timedelta(hours=49))
+    write_paired_completion(repo, started=second, phase="completed", at=_NOW - timedelta(hours=48))
+
+    (entry,) = close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
+
+    assert (entry.wp_id, entry.action_taken) == ("WP01", "closed_abandoned")
+    (closure,) = [record for record in read_lifecycle_records(repo) if record.phase == "abandoned"]
+    assert closure.wp_id == "WP01"
