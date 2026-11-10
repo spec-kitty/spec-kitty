@@ -12,27 +12,13 @@ base_branch: main
 base_commit: 3e3c07c2d8f95539e1e5c2bbdb303ae2504e02bd
 created_at: '2026-03-30T14:22:59.984598+00:00'
 subtasks:
-- id: T001
-  title: Create command-templates directory
-  status: planned
-- id: T002
-  title: Port and clean specify.md
-  status: planned
-- id: T003
-  title: Port and clean plan.md
-  status: planned
-- id: T004
-  title: Port and clean tasks.md
-  status: planned
-- id: T005
-  title: Port and clean tasks-outline.md and tasks-packages.md
-  status: planned
-- id: T006
-  title: Port and clean checklist.md, analyze.md, research.md, constitution.md
-  status: planned
-- id: T007
-  title: Verify all 9 prompts are clean
-  status: planned
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'

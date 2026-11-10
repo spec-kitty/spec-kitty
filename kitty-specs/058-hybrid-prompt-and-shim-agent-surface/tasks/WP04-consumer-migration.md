@@ -13,15 +13,9 @@ base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP03
 base_commit: 0ddd9c53d82b584ffc6d0659059776a9547680f2
 created_at: '2026-03-30T14:47:36.901925+00:00'
 subtasks:
-- id: T016
-  title: Write m_2_1_3_restore_prompt_commands.py migration
-  status: planned
-- id: T017
-  title: Ensure migration is idempotent
-  status: planned
-- id: T018
-  title: Test migration with mock consumer project
-  status: planned
+- T016
+- T017
+- T018
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'

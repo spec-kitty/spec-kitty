@@ -12,21 +12,11 @@ base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP04
 base_commit: 173650c3cd93aad43bbe352d6ae806cdff500746
 created_at: '2026-03-30T15:24:44.591926+00:00'
 subtasks:
-- id: T019
-  title: Delete ~/.kittify/cache/version.lock to force runtime refresh
-  status: planned
-- id: T020
-  title: Run spec-kitty upgrade in spec-kitty-tracker
-  status: planned
-- id: T021
-  title: Run spec-kitty upgrade in spec-kitty-saas
-  status: planned
-- id: T022
-  title: Run spec-kitty upgrade in spec-kitty-planning
-  status: planned
-- id: T023
-  title: Verify hybrid output in all 3 consumer projects
-  status: planned
+- T019
+- T020
+- T021
+- T022
+- T023
 phase: 1
 history:
 - at: '2026-03-30T13:59:29Z'
