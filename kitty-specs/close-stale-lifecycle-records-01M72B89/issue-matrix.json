@@ -73,7 +73,7 @@
       "wp": null
     },
     "#7346": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Mission close-stale-lifecycle-records-01M72B89 (WP01 phase, WP02 sweep)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
