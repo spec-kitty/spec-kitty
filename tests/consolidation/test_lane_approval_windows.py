@@ -269,6 +269,8 @@ def test_stray_commit_between_two_approvals_refuses(templates: _Templates, tmp_p
 
     assert result.exit_code == 1, result.output
     _assert_refusal_names(result.output, stray, "WP01")
+    # FR-007: the attribution is to WP01, the work package approved before X, never a whole-lane listing that also names WP02.
+    assert "WP02" not in _naming_line(result.output, stray[:7]), result.output
     assert _refs(mission) == before
 
 
@@ -782,3 +784,59 @@ def test_all_gap_lane_post_approval_refusal_text_is_todays(templates: _Templates
 
     assert expected is not None and late[:7] in expected
     assert built.claim.refusal == expected
+
+
+# --------------------------------------------------------------------------- named residual WW-6
+
+
+def _build_parallel_claims(tmp_path: Path) -> tuple[cs.ShapeMission, str]:
+    """WP01 and WP02 on ONE lane, WP02 claimed (and parked, never returned to ``planned``) before WP01 commits; a stray commit between their work."""
+    with fixture_phase():
+        mission, manifest = cs._bootstrap_one_lane_coord(tmp_path, mid8="01M6Y2W3", wps=("WP01", "WP02"))
+        slug = mission.slug
+        tree, branch = allocate_lane_worktree(mission.repo, slug, "WP01", manifest)
+        for lane in ("planned", "claimed", "in_progress"):
+            transition(mission, "WP01", lane, actor=ACTOR)
+        transition(mission, "WP02", "planned", actor=ACTOR)
+        transition(mission, "WP02", "claimed", actor=ACTOR)
+        _commit_in(tree, WP01_PATH, "def wp01() -> int:\n    return 1\n", f"feat({slug}): WP01 work")
+        _approve(mission, "WP01", reference="review-WP01")
+        stray = _commit_in(tree, cs.STRAY_PATH, "STRAY = True\n", f"feat({slug}): unreviewed change between the two work packages")
+        tree, branch = allocate_lane_worktree(mission.repo, slug, "WP02", manifest)
+        transition(mission, "WP02", "in_progress", actor=ACTOR)
+        _commit_in(tree, WP02_PATH, "def wp02() -> int:\n    return 2\n", f"feat({slug}): WP02 work")
+        _approve(mission, "WP02", reference="review-WP02")
+        mission.lane_branches.update({"WP01": branch, "WP02": branch})
+        shaped = cs._from_coord(mission, "coord", subject_wp="WP02", window_wps=("WP01", "WP02"))
+        cs.set_window_states(shaped, "recorded")
+    return shaped, str(stray)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "named residual WW-6 (ADR 2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition): "
+        "a work package claimed early and parked has an over-wide window that covers a stray commit between two work packages; "
+        "not removed by this Mission"
+    ),
+)
+def test_parallel_claims_window_is_not_over_wide(tmp_path: Path) -> None:
+    """Ideal verdict: the stray commit between WP01's and WP02's work is refused although WP02 claimed before WP01 committed.
+
+    WP02's window opens at its first opener, before WP01's work, so it covers the stray commit. The window model keeps that
+    commit covered (WW-6): this is a named residual, kept visible here and never flipped by this Mission.
+    """
+    mission, stray = _build_parallel_claims(tmp_path)
+    openers = _open_shas(mission, "WP02")
+    claimed, in_progress = openers[0], openers[-1]
+    require(bool(claimed) and bool(in_progress), f"WP02's openers must carry wp_window.open_sha, got {openers}")
+    require(claimed != in_progress, "WP02 must have claimed before WP01 committed and started work after the stray commit")
+    require(_is_ancestor(mission, str(claimed), stray) and not _is_ancestor(mission, stray, str(claimed)), "WP02's window must open before the stray commit")
+    before = _refs(mission)
+
+    result = _fresh(mission)
+
+    assert result.exit_code != 0, f"the run must refuse, it exited 0:\n{result.output}"
+    _assert_refusal_names(result.output, stray, "WP01")
+    assert _refs(mission) == before, "the refusal must not move any branch"
