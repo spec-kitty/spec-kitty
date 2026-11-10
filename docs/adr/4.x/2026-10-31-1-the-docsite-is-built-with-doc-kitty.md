@@ -365,7 +365,7 @@ Recorded with #6933 (redirects). D-5's and D-14's text above is unchanged. This 
   - the published set: `route_of` of every page minus `unpublished_routes()`.
 
   `--check` fails the build when the committed map is stale.
-- **Rule 4 lives in the generator.** While DocFX still publishes drafts, a `moves.yaml` row away from a draft page fails DocFX's own map check. The generator therefore redirects an unpublished page's route to its nearest published ancestor. Rule 4 moves into the ledger only once #6943 retires DocFX.
+- **Rule 4 lives in the generator.** While DocFX still publishes drafts, a `moves.yaml` row away from a draft page fails DocFX's own map check. The generator therefore redirects an unpublished page's route to its nearest published ancestor. Rule 4 moves into the ledger only once #6943 retires DocFX. Until then the two sites may answer the same legacy URL differently: DocFX's own map (`redirect_stub_generator.py`) has no rule 4 and no resource rule. That difference is accepted until the #6943 cutover.
 - **Rule 5: resources.** `docs/assets/spec-kitty-backlog.html` and `docs/assets/spec-kitty-evolution-v1-to-v3.html` are standalone HTML that DocFX copied as resources; doc-kitty publishes only pages.
   - Operator ruling 2026-11-10: they redirect to the `/assets/` hub.
   - The generator applies this as a rule, not a list: a baseline route backed by a non-page file under `docs/` goes to its nearest published ancestor.
@@ -373,7 +373,7 @@ Recorded with #6933 (redirects). D-5's and D-14's text above is unchanged. This 
 - **Counts at this amendment.** 970 baseline routes and 929 keys:
 
   | Kind of route | Count |
-  |---|---|
+  | --- | --- |
   | its own page | 571 |
   | its moved page | 305 |
   | a section hub, page unpublished | 51 |
