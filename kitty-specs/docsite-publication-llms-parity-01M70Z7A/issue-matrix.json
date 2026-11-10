@@ -37,16 +37,16 @@
       "wp": null
     },
     "#6932": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01: unpublished set authority + built-site check, working notes drafted, retired pages archived, frontmatter and link gates wired with priced debt (#7489); approved review cycle 2",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "title": "Publication rules",
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6933": {
       "evidence_ref": "<link or commit>",
