@@ -1448,6 +1448,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-11-08-2-work-package-windows-are-recorded-at-the-opening-transition.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: none
@@ -2078,12 +2084,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/architecture/team-kitty-saas.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/architecture/trail-model.md
   tag: current
   divio_type: explanation
@@ -2115,12 +2115,6 @@
   current_target: true
   notes: null
 - path: docs/architecture/wp-runtime-state-eviction.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/architecture/zeitgeist-session-identity.md
   tag: current
   divio_type: explanation
   owning_workstream: none
@@ -2180,6 +2174,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/archive/architecture/team-kitty-saas.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/architecture/zeitgeist-session-identity.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/archive/development/agent-memory-migration-manifest.md
   tag: current
   divio_type: none
@@ -2195,6 +2201,48 @@
 - path: docs/archive/development/reference/process-global-inventory-3115.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/guides/how-to/collaboration/sync-workspaces.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/guides/project-sync-consent.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/migrations/teamspace-mission-state-920-closeout.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/migrations/teamspace-mission-state-repair.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/operations/internal-hosted-readiness.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/operations/logged-out-teamspace.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/archive/operations/sync-daemon-orphan-cleanup.md
+  tag: current
+  divio_type: how-to
   owning_workstream: none
   current_target: true
   notes: null
@@ -3392,6 +3440,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/archive/plans/zeitgeist-client-wp01-remaining.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md
   tag: current
   divio_type: none
@@ -4202,12 +4256,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/how-to/collaboration/sync-workspaces.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md
   tag: current
   divio_type: how-to
@@ -4670,12 +4718,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/guides/project-sync-consent.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/guides/tutorials/charter-governed-workflow.md
   tag: current
   divio_type: tutorial
@@ -4850,18 +4892,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/migrations/teamspace-mission-state-920-closeout.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/migrations/teamspace-mission-state-repair.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/migrations/tracker-egress-refusal.md
   tag: current
   divio_type: how-to
@@ -4922,18 +4952,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/operations/internal-hosted-readiness.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/operations/logged-out-teamspace.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/operations/manual-test-plan.md
   tag: current
   divio_type: reference
@@ -4965,12 +4983,6 @@
   current_target: true
   notes: null
 - path: docs/operations/start-branch-coord-divergence.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/operations/sync-daemon-orphan-cleanup.md
   tag: current
   divio_type: how-to
   owning_workstream: none
@@ -5421,12 +5433,6 @@
   current_target: true
   notes: null
 - path: docs/plans/user_journey/index.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/zeitgeist-client-wp01-remaining.md
   tag: current
   divio_type: none
   owning_workstream: none
