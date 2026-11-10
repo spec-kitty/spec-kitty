@@ -20,6 +20,7 @@ from specify_cli.invocation.lifecycle import (
     lifecycle_records_dir,
     read_lifecycle_records,
     write_abandoned_completion,
+    write_paired_completion,
     write_started,
 )
 from specify_cli.invocation.record import ProfileInvocationRecord
@@ -99,3 +100,10 @@ def test_the_writer_refuses_a_record_that_is_not_started(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="started"):
         write_abandoned_completion(tmp_path, started=_record("completed"), reason=_REASON)
     assert not lifecycle_records_dir(tmp_path).exists()
+
+
+def test_next_never_writes_an_abandoned_record(tmp_path: Path) -> None:
+    """Only the doctor sweep writes ``abandoned`` (WP01 review finding L2)."""
+    started = write_started(tmp_path, canonical_action_id="implement::implement", agent="claude", mission_id="01M6VYS1MISSION0000000000")
+    with pytest.raises(ValueError, match="completed"):
+        write_paired_completion(tmp_path, started=started, phase="abandoned")
