@@ -352,3 +352,43 @@ def test_the_shared_definition_is_only_callable_with_read_only_access() -> None:
     assert set(call) == {"workflow_call"}, "no automated trigger: callers own when it runs (and the fork guard)"
     assert "secrets" not in (call["workflow_call"] or {})
     assert workflow["permissions"] == {"contents": "read"}
+
+
+# --- one PlantUML renderer, CI and local (#6936, ADR D-11) -------------------------------------
+#
+# The shared job runs the PlantUML server as a `services:` container; `make docs-site` renders
+# against the same image started by `make docs-site-plantuml`. A real CI run proves the CI image
+# renders and refuses remote includes (the canary); it cannot see the Makefile. What is pinned
+# here is that the two name ONE image, by digest, so a half-bumped digest (CI moved, local not, or
+# the reverse) or a tag-only image (a re-tag swaps the renderer) is caught.
+
+_PLANTUML_IMAGE = re.compile(r"^plantuml/plantuml-server:[^@\s]+@sha256:[0-9a-f]{64}$")
+_MAKE_PLANTUML_IMAGE = re.compile(r"^DOCS_SITE_PLANTUML_IMAGE\s*:=\s*(\S+)\s*$", re.MULTILINE)
+
+
+def _plantuml_image_violations(job: dict[str, Any], makefile: str) -> list[str]:
+    image = str(((job.get("services") or {}).get("plantuml") or {}).get("image", ""))
+    found = []
+    if not _PLANTUML_IMAGE.match(image):
+        found.append(f"services.plantuml.image is not a digest-pinned plantuml-server image: {image!r}")
+    local = _MAKE_PLANTUML_IMAGE.search(makefile)
+    if local is None or local.group(1) != image:
+        found.append(f"Makefile DOCS_SITE_PLANTUML_IMAGE {local.group(1) if local else None!r} is not the CI image {image!r}")
+    return found
+
+
+def test_ci_and_make_docs_site_render_against_one_digest_pinned_plantuml_image() -> None:
+    assert _plantuml_image_violations(_build_job(), MAKEFILE.read_text(encoding="utf-8")) == []
+
+
+def test_a_half_bumped_or_tag_only_plantuml_image_is_caught() -> None:
+    job = _build_job()
+    makefile = MAKEFILE.read_text(encoding="utf-8")
+    image = job["services"]["plantuml"]["image"]
+    other = image[:-1] + ("0" if image[-1] != "0" else "1")
+    half_bumped = makefile.replace(image, other)
+    tag_only = copy.deepcopy(job)
+    tag_only["services"]["plantuml"]["image"] = image.split("@", 1)[0]
+
+    assert _plantuml_image_violations(job, half_bumped) == [f"Makefile DOCS_SITE_PLANTUML_IMAGE {other!r} is not the CI image {image!r}"]
+    assert _plantuml_image_violations(tag_only, makefile)[0].startswith("services.plantuml.image is not a digest-pinned")
