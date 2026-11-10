@@ -21,7 +21,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -241,7 +241,8 @@ class EvidenceArtifact:
 
 #: ``abandoned`` (#7346): closed by ``doctor ops --close-stale``, not by the action's result.
 ProfileInvocationPhase = Literal["started", "completed", "failed", "abandoned"]
-_PROFILE_INVOCATION_PHASES: frozenset[str] = frozenset({"started", "completed", "failed", "abandoned"})
+#: Derived from the Literal so a new phase is declared in one place (WP01 review L1).
+_PROFILE_INVOCATION_PHASES: frozenset[str] = frozenset(get_args(ProfileInvocationPhase))
 
 
 @dataclass(frozen=True)
