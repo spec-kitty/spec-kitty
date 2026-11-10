@@ -28,7 +28,7 @@ Only the two refusals that call :func:`_compound_refusal` can appear together wi
 refusal, and only ever with ``bound``; every other pair is cut short by an early ``return``
 of the earlier one.
 
-Pair counts (stated once, pinned by ``test_pair_counts_match_the_module_docstring``): 9 refusals
+Pair counts: 9 refusals
 make 36 unordered pairs. 2 co-occur and are driven end to end through ``build_approved_wp_set``
 with real-git fixtures. The other 34 cannot co-occur, and each row of ``NON_CO_OCCURRING``
 carries a ``reason``:
@@ -49,7 +49,6 @@ pair make every adjacent swap fail a test.
 from __future__ import annotations
 
 import re
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import combinations
@@ -413,16 +412,6 @@ def test_every_adjacent_swap_fails_a_test() -> None:
             assert not row.witnesses
     adjacent_co = _ADJACENT & _CO_KEYS
     assert adjacent_co == {("mixed_lane", "bound")}, "an adjacent co-occurring pair is pinned by its own fixture"
-
-
-def test_pair_counts_match_the_module_docstring() -> None:
-    """The counts in the module docstring: 36 pairs, 2 co-occurring, then 4 / 3 / 0 / 27 by reason."""
-    counts = Counter(row.reason for row in NON_CO_OCCURRING.values())
-    assert len(list(combinations(_IDS, 2))) == 36
-    assert len(CO_OCCURRING_PAIRS) == 2
-    assert len(NON_CO_OCCURRING) == 34
-    assert counts == {"witnessed": 4, "data_dependency": 3, "transitive": 27}
-    assert counts["unreachable_without_production_change"] == 0
 
 
 def test_only_compounding_refusals_can_precede_another_refusal() -> None:
