@@ -235,7 +235,6 @@ LEGACY_READ_ALLOWLIST: dict[str, str] = {
     "src/specify_cli/coordination/surface_resolver.py::resolve_status_surface::resolve_status_surface_with_anchor": _DELEGATOR,
     "src/specify_cli/core/owned_charter.py::charter_scope_for_owned::artifact(STATUS_STATE)": _IDENTITY,
     "src/specify_cli/design/validation.py::_tasks_finalized::read_dir(STATUS_STATE)": _DRIFT,
-    "src/specify_cli/lanes/implement_support.py::_ensure_repo_root_checkout_available::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/implement_support.py::reenter_lane_self_heal::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/lanes/worktree_allocator.py::_canonical_wp_lane_value::read_dir(STATUS_STATE)": _FAIL_LOUD,
     "src/specify_cli/missions/_read_path_resolver.py::resolve_surface_dir_or_typed_error::resolve_status_surface": _DELEGATOR,
@@ -267,7 +266,7 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
 )
 
 #: The live scan must see at least this many hits (anti-vacuity floor; lower it as the allowlist drains).
-_LIVE_HIT_FLOOR = 43
+_LIVE_HIT_FLOOR = 42
 
 
 def test_no_status_read_bypasses_the_door() -> None:

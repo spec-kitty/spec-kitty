@@ -266,8 +266,8 @@ def _ensure_repo_root_checkout_available(
         return False
 
     from specify_cli.lanes.checkout_occupancy import in_progress_wps_in_write_checkout
-    from specify_cli.status import Lane
-    from specify_cli.status import get_wp_lane, has_event_log
+    from specify_cli.status import Lane, read_status_events, resolve_status_read
+    from specify_cli.status import reduce as reduce_status
 
     write_checkout = resolved_workspace.worktree_path
     expected_branch = resolved_workspace.branch_name
@@ -307,13 +307,13 @@ def _ensure_repo_root_checkout_available(
             "(use --to canceled instead if the work is abandoned)"
         )
 
-    status_feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-    # has_event_log guard: a caller reaching this arm before the event log
-    # is bootstrapped (e.g. a direct unit-level call to this function,
-    # bypassing implement's own earlier ``ensure_wp_claim_preconditions``
-    # seeded-WP check) has, by construction, no recorded claim -- never a
-    # resume.
-    is_resume = has_event_log(status_feature_dir) and get_wp_lane(status_feature_dir, wp_id) == Lane.IN_PROGRESS
+    # The one status read door (ADR 2026-11-06-2, #7310). A caller reaching this
+    # arm before the event log is bootstrapped (e.g. a direct unit-level call to
+    # this function, bypassing implement's own earlier
+    # ``ensure_wp_claim_preconditions`` seeded-WP check) has, by construction,
+    # no recorded claim -- never a resume: an absent log reduces to no state.
+    wp_state = reduce_status(read_status_events(resolve_status_read(repo_root, mission_slug))).work_packages.get(wp_id)
+    is_resume = wp_state is not None and Lane(wp_state.get("lane", Lane.GENESIS)) == Lane.IN_PROGRESS
     if not is_resume:
         dirty = _claim_dirty_paths(write_checkout, mission_slug)
         if dirty:
