@@ -245,3 +245,95 @@ def test_latest_implementer_event_skips_a_dict_seed_actor() -> None:
     assert latest_implementer_event([claim, _ev(Lane.CLAIMED, Lane.IN_PROGRESS, dict_seed)], "WP01") is claim
     real_dict_event = _ev(Lane.CLAIMED, Lane.IN_PROGRESS, dict_real)
     assert latest_implementer_event([claim, real_dict_event], "WP01") is real_dict_event
+
+
+# ---------------------------------------------------------------------------
+# #7159 (operator ruling): the implementer's own ``for_review`` submission refines
+# the recorded claim identity. It fills segments the claim did not record and never
+# contradicts one, so a reviewer or another actor never becomes implementer of record
+# by submitting.
+# ---------------------------------------------------------------------------
+
+
+def _identity(events: list[StatusEvent]) -> str | None:
+    from specify_cli.status import latest_implementer_identity
+
+    return latest_implementer_identity(events, "WP01")
+
+
+def _submitted(events: list[StatusEvent], actor: object) -> list[StatusEvent]:
+    return [*events, _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, actor)]
+
+
+def _claimed(actor: object) -> list[StatusEvent]:
+    return [_ev(Lane.PLANNED, Lane.CLAIMED, actor), _ev(Lane.CLAIMED, Lane.IN_PROGRESS, actor)]
+
+
+def test_identity_is_the_claim_identity_without_a_submission() -> None:
+    assert _identity(_claimed(IMPL)) == "claude:opus:implementer-ivan"
+
+
+def test_identity_is_none_without_a_claim() -> None:
+    assert _identity([_ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, IMPL)]) is None
+
+
+def test_a_full_submission_refines_a_bare_claim() -> None:
+    assert _identity(_submitted(_claimed("claude"), "claude:claude-opus-5-5:implementer-ivan")) == "claude:claude-opus-5-5:implementer-ivan"
+
+
+def test_a_submission_fills_only_the_unrecorded_segment() -> None:
+    claim = {"tool": "claude", "model": None, "profile": "python-pedro", "role": "implementer"}
+    assert _identity(_submitted(_claimed(claim), "claude:claude-opus-5-5:python-pedro")) == "claude:claude-opus-5-5:python-pedro"
+
+
+@pytest.mark.parametrize(
+    "submitter",
+    [
+        "claude:claude-opus-5-5:reviewer-renata",  # a recorded profile differs
+        "codex:gpt-5:python-pedro",  # another tool
+    ],
+)
+def test_a_contradicting_submission_never_replaces_the_claim(submitter: str) -> None:
+    claim = {"tool": "claude", "model": None, "profile": "python-pedro", "role": "implementer"}
+    assert _identity(_submitted(_claimed(claim), submitter)) == "claude::python-pedro"
+
+
+def test_a_submission_before_the_latest_claim_is_ignored() -> None:
+    events = [*_submitted(_claimed("claude"), "claude:claude-opus-5-5:implementer-ivan"), *_claimed("claude")]
+    assert _identity(events) == "claude::"
+
+
+@pytest.mark.parametrize("actor", ["user", SEED, ""])
+def test_a_placeholder_or_seed_submission_is_ignored(actor: str) -> None:
+    assert _identity(_submitted(_claimed("claude"), actor)) == "claude::"
+
+
+def test_a_reviewer_rework_verdict_does_not_refine_the_claim() -> None:
+    events = [*_claimed("claude"), _ev(Lane.FOR_REVIEW, Lane.IN_PROGRESS, "claude:claude-sonnet-5-5:reviewer-renata", review_ref="review-cycle-1.md")]
+    assert _identity(events) == "claude::"
+
+
+def test_another_work_packages_submission_is_ignored() -> None:
+    events = [*_claimed("claude"), _ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude:claude-opus-5-5:implementer-ivan", wp="WP02")]
+    assert _identity(events) == "claude::"
+
+
+def test_a_forced_submission_is_ignored() -> None:
+    from dataclasses import replace
+
+    forced = replace(_ev(Lane.IN_PROGRESS, Lane.FOR_REVIEW, "claude:claude-opus-5-5:implementer-ivan"), force=True)
+    assert _identity([*_claimed("claude"), forced]) == "claude::"
+
+
+def test_a_move_into_for_review_from_another_lane_is_ignored() -> None:
+    events = [*_claimed("claude"), _ev(Lane.IN_PROGRESS, Lane.BLOCKED, "claude"), _ev(Lane.BLOCKED, Lane.FOR_REVIEW, "claude:claude-opus-5-5:implementer-ivan")]
+    assert _identity(events) == "claude::"
+
+
+def test_a_planned_frontmatter_profile_never_fills_the_claim() -> None:
+    planned = {"tool": "claude", "model": None, "profile": "implementer-ivan", "role": "implementer", "profile_source": "wp_frontmatter"}
+    assert _identity(_submitted(_claimed("claude"), planned)) == "claude::"
+
+
+def test_a_malformed_submission_never_fills_the_claim() -> None:
+    assert _identity(_submitted(_claimed("claude"), "claude:m:p:r:extra")) == "claude::"
