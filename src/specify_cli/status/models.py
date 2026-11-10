@@ -392,6 +392,22 @@ def _identity_segments(identity: str) -> tuple[str, str, str]:
     return tool.strip(), model.strip(), profile.strip()
 
 
+def refine_actor_identity(recorded: str, submitted: str | None) -> str:
+    """*recorded* with the segments it left empty filled from *submitted*, or *recorded* unchanged (#7159).
+
+    Both are full identities as :func:`actor_full_identity` returns them. *submitted*
+    refines only an identity it agrees with: the same tool, and no model or profile
+    recorded on both sides that differs. A contradicting or malformed (not
+    ``tool:model:profile``) *submitted* never changes *recorded*.
+    """
+    if not submitted or submitted.count(":") != 2:
+        return recorded
+    mine, theirs = _identity_segments(recorded), _identity_segments(submitted)
+    if mine[0] != theirs[0] or any(m and t and m != t for m, t in zip(mine[1:], theirs[1:], strict=True)):
+        return recorded
+    return ":".join(m or t for m, t in zip(mine, theirs, strict=True))
+
+
 def actor_identities_independent(left: str | None, right: str | None) -> bool:
     """True only when two recorded identities provably belong to different actors (#6715, operator ruling R1).
 

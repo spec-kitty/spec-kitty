@@ -1194,19 +1194,17 @@ def _mt_implementer_identity(st: _MoveTaskState) -> str | None:
     """Full ``tool:model:profile`` identity of the WP's implementer of record, or ``None`` (#5939 identity).
 
     The projection ``consolidation.preflight._latest_implementer_identity`` reads
-    (``status.latest_implementer_event`` then ``actor_full_identity``), over the routed event log
-    the move itself reads. ``None`` without a resolved Mission slug.
+    (``status.latest_implementer_identity``: the claim, refined by the implementer's own
+    ``for_review`` submissions, #7159), over the routed event log the move itself reads.
+    ``None`` without a resolved Mission slug.
     """
     if not st.mission_slug:
         return None
     from specify_cli.cli.commands.agent import tasks as _tasks
-    from specify_cli.status import actor_full_identity, latest_implementer_event
+    from specify_cli.status import latest_implementer_identity
 
     events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
-    event = latest_implementer_event(events, st.task_id)
-    if event is None:
-        return None
-    identity: str | None = actor_full_identity(event.actor)
+    identity: str | None = latest_implementer_identity(events, st.task_id)
     return identity
 
 

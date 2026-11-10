@@ -361,6 +361,7 @@ from .review_roles import (
     is_latest_implementer,
     latest_implementer_actor,
     latest_implementer_event,
+    latest_implementer_identity,
 )
 from .work_package_lifecycle import (
     GENERIC_IMPLEMENTATION_ACTORS,
@@ -686,6 +687,7 @@ __all__ = [
     "is_latest_implementer",
     "latest_implementer_actor",
     "latest_implementer_event",
+    "latest_implementer_identity",
     "WorkPackageClaimConflict",
     # #6400: the structured actor for a free-text --actor option.
     "actor_from_option",

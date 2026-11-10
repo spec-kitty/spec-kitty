@@ -26,10 +26,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from specify_cli.status.models import Lane, StatusEvent, actor_identity_str, is_migration_actor
+from specify_cli.status.models import Lane, StatusEvent, actor_full_identity, actor_identity_str, is_migration_actor, refine_actor_identity
 from specify_cli.status.work_package_lifecycle import GENERIC_IMPLEMENTATION_ACTORS, _actor_key
 
-__all__ = ["is_latest_implementer", "latest_implementer_actor", "latest_implementer_event"]
+__all__ = ["is_latest_implementer", "latest_implementer_actor", "latest_implementer_event", "latest_implementer_identity"]
 
 _IMPLEMENTING_LANES: frozenset[str] = frozenset({Lane.CLAIMED.value, Lane.IN_PROGRESS.value})
 _REVIEWER_SOURCE_LANES: frozenset[str] = frozenset({Lane.FOR_REVIEW.value, Lane.IN_REVIEW.value, Lane.APPROVED.value})
@@ -89,6 +89,47 @@ def latest_implementer_event(events: Sequence[StatusEvent], wp_id: str) -> Statu
         if event.wp_id == wp_id and _qualifies(event):
             return event
     return None
+
+
+def _is_implementer_submission(event: StatusEvent) -> bool:
+    """An unforced ``in_progress -> for_review`` submission by a real, non-generic actor (#7159).
+
+    The submitter hands the work to review, so it is an implementer act. A migration
+    seed, a placeholder actor (``user``) or a forced move (an operator override) never is.
+    """
+    if event.force or is_migration_actor(event.actor):
+        return False
+    if (Lane(event.from_lane).value, Lane(event.to_lane).value) != (Lane.IN_PROGRESS.value, Lane.FOR_REVIEW.value):
+        return False
+    key = _actor_key(event.actor)
+    return key is not None and key not in GENERIC_IMPLEMENTATION_ACTORS
+
+
+def latest_implementer_identity(events: Sequence[StatusEvent], wp_id: str) -> str | None:
+    """Full ``tool:model:profile`` identity of ``wp_id``'s implementer of record, or ``None``.
+
+    The identity of :func:`latest_implementer_event`'s claim, refined by every later
+    unforced ``in_progress -> for_review`` submission of the work package (operator
+    ruling on #7159): a submission by the claim's tool fills the model or profile the
+    claim did not record, and is ignored when it contradicts one. A bare ``claude`` claim followed by a
+    ``claude:<model>:implementer-ivan`` submission is therefore that full identity,
+    while a ``claude::python-pedro`` claim keeps its profile whoever submits. The one
+    implementer identity the move-time and accept/consolidate independence checks read
+    (:func:`~specify_cli.status.actor_identities_independent` compares it).
+    """
+    for index in range(len(events) - 1, -1, -1):
+        claim = events[index]
+        if claim.wp_id == wp_id and _qualifies(claim):
+            break
+    else:
+        return None
+    identity: str | None = actor_full_identity(claim.actor)
+    if identity is None:
+        return None
+    for event in events[index + 1 :]:
+        if event.wp_id == wp_id and _is_implementer_submission(event):
+            identity = refine_actor_identity(identity, actor_full_identity(event.actor))
+    return identity
 
 
 def latest_implementer_actor(events: Sequence[StatusEvent], wp_id: str) -> str | None:
