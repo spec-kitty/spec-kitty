@@ -20,6 +20,8 @@ from types import ModuleType
 
 import pytest
 
+from scripts.docs._dockitty_contract import LLMS_STANCE
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 SITE = "https://docs.spec-kitty.ai"
@@ -40,6 +42,16 @@ def _page(status: str) -> str:
     return f"---\ntitle: t\ndoc_status: {status}\n---\n\n# Body\n"
 
 
+def _html(route: str, body: str) -> str:
+    """A built page with the head tags the render surface requires, so only *body* is under test."""
+    url = f"{SITE}{route}"
+    head = (
+        f'<meta name="description" content="d"/><link rel="canonical" href="{url}"/>'
+        f'<meta property="og:title" content="t"/><meta property="og:description" content="d"/><meta property="og:url" content="{url}"/>'
+    )
+    return f"<html><head>{head}</head><body>{body}</body></html>"
+
+
 def _fragment(url: str) -> bytes:
     return gzip.compress(b"pagefind_dcd" + json.dumps({"url": url, "content": "words", "meta": {"title": "t"}}).encode())
 
@@ -55,9 +67,9 @@ def site(tmp_path: Path) -> tuple[Path, Path]:
     _write(docs, "plans/engineering-notes/note.md", _page("deprecated"))
 
     dist = tmp_path / "dist"
-    _write(dist, "index.html", '<a href="/guides/live/">Live</a> <a href="https://github.com/x/y">GH</a>')
-    _write(dist, "guides/live/index.html", '<a href="../../">Home</a> <a href="./#top">Top</a> <a href="wip.md">raw source link</a>')
-    _write(dist, "404.html", "<p>Not found</p>")
+    _write(dist, "index.html", _html("/", '<a href="/guides/live/">Live</a> <a href="https://github.com/x/y">GH</a>'))
+    _write(dist, "guides/live/index.html", _html("/guides/live/", '<a href="../../">Home</a> <a href="./#top">Top</a> <a href="wip.md">raw source link</a>'))
+    _write(dist, "404.html", _html("/404/", "<p>Not found</p>"))
     _write(dist, "sitemap-index.xml", f"<sitemapindex><sitemap><loc>{SITE}/sitemap-0.xml</loc></sitemap></sitemapindex>")
     _write(dist, "sitemap-0.xml", f"<urlset><url><loc>{SITE}/</loc></url><url><loc>{SITE}/guides/live/</loc></url></urlset>")
     _write(dist, "okf/index.md", "# Home\n")
@@ -66,7 +78,7 @@ def site(tmp_path: Path) -> tuple[Path, Path]:
     (dist / "pagefind" / "fragment").mkdir(parents=True)
     (dist / "pagefind" / "fragment" / "en_live.pf_fragment").write_bytes(_fragment("/guides/live/"))
     _write(dist, "pagefind/pagefind-entry.json", '{"version":"1.6.0"}')
-    _write(dist, "llms.txt", f"# Spec Kitty\n\n- [Live]({SITE}/guides/live/): a page\n")
+    _write(dist, "llms.txt", f"# Spec Kitty\n\n{LLMS_STANCE}\n- [Live]({SITE}/guides/live/): a page\n")
     _write(dist, "api/index.json", json.dumps({"pages": [{"url": f"{SITE}/guides/live/", "title": "Live"}]}))
     return docs, dist
 
@@ -148,8 +160,9 @@ def test_every_planted_unpublished_route_is_reported(site: tuple[Path, Path], pl
 
     findings = _findings(docs, dist)
 
-    assert findings, f"a {surface} naming {route} must fail the check"
-    assert all(finding.startswith(f"{surface}: {route} ") for finding in findings), findings
+    own = [finding for finding in findings if finding.startswith(f"{surface}: ")]
+    assert own, f"a {surface} naming {route} must fail the check: {findings}"
+    assert all(finding.startswith(f"{surface}: {route} ") for finding in own), findings
 
 
 def test_the_command_exits_one_with_a_line_per_finding(site: tuple[Path, Path], capsys: pytest.CaptureFixture[str]) -> None:
