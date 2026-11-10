@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mission_slug": "close-stale-lifecycle-records-01M72B89",
+  "mission_id": "01M72B892MZ3ZE7FGG6WH7ED5H",
+  "mission_branch": "kitty/mission-close-stale-lifecycle-records-01M72B89",
+  "target_branch": "feat/7346-close-stale-lifecycle-records",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-01-2-op-lifecycle-records-are-one-file-per-record.md",
+        "docs/api/cli-commands.md",
+        "docs/architecture/trail-model.md",
+        "docs/changelog/unreleased/7346-close-stale-lifecycle-records.fixed.md",
+        "docs/context/ops-vs-missions.md",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/doctor/ops.py",
+        "src/specify_cli/invocation/executor.py",
+        "src/specify_cli/invocation/lifecycle.py",
+        "src/specify_cli/invocation/op_commit_policy.py",
+        "src/specify_cli/invocation/record.py",
+        "src/specify_cli/invocation/trail_commit.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/invocation/cli/test_doctor_ops_cli.py",
+        "tests/specify_cli/invocation/test_doctor_ops_lifecycle_7346.py",
+        "tests/specify_cli/invocation/test_lifecycle_abandoned_7346.py",
+        "tests/specify_cli/invocation/test_op_commit_policy.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-10T09:32:15.936668+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "17d313cbfa2ab3897082b8a76adf2873c9f833f1"
+}
