@@ -40,8 +40,7 @@ from specify_cli.migration.backfill_runtime_state import _subtasks_from_tasks_md
 from specify_cli.status import emit_inner_state_changed
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import TransitionRequest
-from specify_cli.status.store import read_events
-from specify_cli.status.store import read_event_stream
+from specify_cli.status.store import read_event_stream, read_events
 from specify_cli.status.models import Lane, SubtaskStatus, SubtaskValue, WPInnerStateDelta
 from tests.status.conftest import seed_wp_to_planned
 
