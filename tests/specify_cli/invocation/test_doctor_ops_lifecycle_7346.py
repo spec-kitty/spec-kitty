@@ -264,3 +264,20 @@ def test_a_record_completed_in_the_root_checkout_is_not_closed_in_a_stale_worktr
 
     assert entries == []
     assert _abandoned(worktree) == []
+
+
+def test_a_record_completed_in_a_later_checkout_is_not_closed_in_an_earlier_one(tmp_path: Path) -> None:
+    """WP02 review B2: the root checkout's open copy stays alone when a worktree holds the completion."""
+    repo = _repo(tmp_path)
+    checkout_issue_branch(repo)
+    started = write_started(repo, canonical_action_id="implement::shared", agent="claude", mission_id=_MISSION, wp_id="WP04", at=_NOW - timedelta(hours=48))
+    _commit_all(repo, "orphan on the issue branch")
+    worktree = tmp_path / "lane"
+    run_git(repo, "worktree", "add", "-q", "-b", "lane-topic", str(worktree))
+    write_paired_completion(worktree, started=started, phase="completed", at=_NOW - timedelta(hours=47))
+    _commit_all(worktree, "completed in the lane")
+
+    entries = close_stale_lifecycle_records(repo, threshold_hours=24.0, now=_NOW)
+
+    assert entries == []
+    assert _abandoned(repo) == []
