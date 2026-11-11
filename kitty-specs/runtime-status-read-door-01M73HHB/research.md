@@ -39,13 +39,14 @@ No dependency is added, upgraded or removed, so no supply-chain review or advers
   - always read the ref, including dispatch: rejected by the operator, because it would send agents into a missing workspace;
   - keep refusing everywhere: rejected, because it contradicts the ADR and keeps the silent empty board for unmaterialized worktrees.
 
-## R-4 Unmaterialized block and `--auto-remediate` (DM-2)
+## R-4 Advancing-path materialization (DM-2, corrected)
 
-- **Decision**: the advancing board keeps today's block on an unmaterialized coordination worktree, decided from the door's surface source instead of a seam raise. `next --auto-remediate` calls `coordination/surface_resolver.py::materialize_coord_surface_for_write`, the idempotent materializer `doctor coordination --fix` uses. It prints one line, re-resolves, and continues. A deleted branch and query mode are never remediated.
-- **Rationale**: keeps the safety stop and the byte-identical text, and removes the one manual step that always follows it. Reusing the canonical materializer adds no second materialization path.
+- **Decision** (Decision Moment `01M73J4X57HKNF5RK7WVN8QHC5`, 2026-11-11): no `--auto-remediate` flag. An advancing `next` keeps its existing automatic materialization of a missing or empty coordination worktree and reports it (one line, `remediation` in `--json`). The board selector's named block stays for direct callers, now decided from the door's surface source instead of a seam raise.
+- **Rationale**: verified through the real CLI (`research/repro/advancing_cells.py`). The advancing bootstrap (`runtime_bridge.py:505` -> `runtime_bridge_decision_log._wrap_with_decision_git_log` -> `write_dir(DECISION_LOG)`) materializes, seeds or restores the coordination worktree before the board runs, so the block the original DM-2 kept never reaches a CLI user, and a flag to lift it would be a no-op. Query mode does not run that wrap, so #7507 shows in query mode for both empty and unmaterialized worktrees. The advancing run also reports 0.0% progress in those cells, because it computes progress before the wrap materializes.
 - **Alternatives considered**:
-  - dispatch from the committed board: rejected by the operator;
-  - a general remedy runner: out of scope.
+  - make materialization opt-in behind `--auto-remediate`: rejected by the operator, because it would change what every agent harness sees today;
+  - keep it silent: rejected, because an operator should know `next` changed their workspace.
+- **Superseded**: the original R-4 (keep the block, add `--auto-remediate` via `materialize_coord_surface_for_write`).
 
 ## R-5 Identity sites (DM-3)
 

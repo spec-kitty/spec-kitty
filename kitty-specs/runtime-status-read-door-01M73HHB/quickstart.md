@@ -10,10 +10,12 @@
 
 The scripted version is `research/repro/repro_cells.py MATERIALIZED EMPTY UNMATERIALIZED`, run from the repository root with `PYTHONPATH=.`.
 
-## Use `--auto-remediate`
+## See the materialization report
 
-1. On a coordination Mission whose coordination worktree is not checked out, run `spec-kitty next --agent <name> --mission <handle> --result success`. It blocks with "materialize it" and the doctor command, as before.
-2. Run it again with `--auto-remediate`. One line reports the materialized worktree, and the normal decision follows.
+1. On a coordination Mission whose coordination worktree is not checked out (or is empty), run `spec-kitty next --agent <name> --mission <handle> --result success`.
+2. It proceeds as before (bootstrap materializes the worktree). It now prints `Materialized the coordination worktree for <mission> at <path>.`, its `--json` carries a `remediation` entry, and its progress is the real figure.
+
+The end-to-end probe is `research/repro/advancing_cells.py <path-to-spec-kitty> MATERIALIZED EMPTY UNMATERIALIZED`, run from the repository root with `PYTHONPATH=.`.
 
 ## Check the debt
 

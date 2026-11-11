@@ -4,8 +4,9 @@
 - **Origin flow:** `plan`
 - **Slot key:** `plan.scope.advancing-auto-materialize`
 - **Input key:** `advancing_auto_materialize`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-11-10T20:24:46.503450+00:00`
+- **Resolved:** `2026-11-11T05:07:29.279510+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -22,7 +23,7 @@ Advancing next already auto-materializes a missing/empty coordination worktree s
 
 ## Final answer
 
-_(none)_
+No flag; report it. Drop --auto-remediate. Keep advancing next's automatic materialization, and make it visible: one line and a remediation key in --json when the bootstrap had to create or restore the coordination worktree. The board's selector-level block stays for direct callers. Supersedes the --auto-remediate parts of DM-2 and the auto-remediate scope decision (verified: the block is unreachable from the CLI).
 
 ## Rationale
 
@@ -31,3 +32,4 @@ _(none)_
 ## Change log
 
 - `2026-11-10T20:24:46.503450+00:00` - opened
+- `2026-11-11T05:07:29.279510+00:00` - resolved (final_answer="No flag; report it. Drop --auto-remediate. Keep advancing next's automatic materialization, and make it visible: one line and a remediation key in --json when the bootstrap had to create or restore the coordination worktree. The board's selector-level block stays for direct callers. Supersedes the --auto-remediate parts of DM-2 and the auto-remediate scope decision (verified: the block is unreachable from the CLI).")

@@ -49,20 +49,21 @@ An operator or agent runs `spec-kitty next` (advancing or query) on a coordinati
 
 ---
 
-### User Story 2 - an unmaterialized coordination worktree stays a clear block, with an opt-in fix (Priority: P1)
+### User Story 2 - advancing `next` says when it set up the coordination worktree (Priority: P1)
 
-An operator runs an advancing `next` on a coordination Mission whose coordination worktree is not checked out at all. Today `next` blocks with "Coordination surface … is not readable … materialize it" and the doctor command. That block stays (operator ruling, DM-2). A new opt-in flag, `spec-kitty next --auto-remediate`, materializes the coordination worktree through the canonical path, says that it did, and continues the decision.
+An operator or agent runs an advancing `spec-kitty next` on a coordination Mission whose coordination worktree is not checked out or is empty. Today `next` already materializes (or restores) the worktree on its own, during bootstrap, through the status write seam, and then proceeds, but says nothing. Its progress numbers in that run also show 0.0%. After this Mission the automatic materialization stays, and `next` reports it: one human-readable line, plus a `remediation` entry in `--json` output. The progress numbers are the real ones (operator ruling, DM-2 as corrected 2026-11-11: verified end to end that the "materialize it" block never reaches a CLI user, so no `--auto-remediate` flag is added).
 
-**Why this priority**: it keeps a safety stop while removing a manual step the operator always takes next.
+**Why this priority**: an operator should know that `next` changed their workspace, and the progress shown must be true.
 
-**Independent Test**: on an unmaterialized coordination Mission, `next` without the flag shows the same block text and exit code as today. `next --auto-remediate` materializes the worktree, prints one line saying so, and returns the same decision a materialized Mission gives.
+**Independent Test**: on an unmaterialized and on an empty coordination Mission, an advancing `next` proceeds as today, prints one line naming the materialized worktree, carries `remediation` in its JSON, and reports the same weighted progress as a materialized control. On a materialized Mission, nothing is reported.
 
 **Acceptance Scenarios**:
 
-1. **Given** an unmaterialized coordination worktree, **When** an advancing `next` runs without `--auto-remediate`, **Then** it blocks with today's reason text and remedy, byte for byte.
-2. **Given** the same Mission, **When** an advancing `next --auto-remediate` runs, **Then** the coordination worktree is materialized through the same path `spec-kitty doctor coordination --fix` uses, one line reports the remediation, and the decision equals the materialized one.
-3. **Given** a coordination branch that was **deleted** without landing, **When** `next --auto-remediate` runs, **Then** nothing is remediated and today's "flatten" guidance is shown unchanged.
-4. **Given** query mode, **When** `--auto-remediate` is passed, **Then** query output is unaffected and nothing is materialized. Query reads the committed coordination branch and never blocks on this state.
+1. **Given** an unmaterialized or empty coordination worktree, **When** an advancing `next` runs, **Then** it proceeds as today, prints `Materialized the coordination worktree for <mission> at <path>.`, and with `--json` adds `"remediation": {"kind": "materialized_coordination_worktree", "path": "<path>"}`.
+2. **Given** the same Mission, **When** the advancing run reports progress, **Then** the numbers equal those of a materialized control (for the #7507 fixture, 30.0%).
+3. **Given** a materialized coordination worktree, **When** an advancing `next` runs, **Then** its output is identical to today's (no line, no `remediation` key).
+4. **Given** a coordination branch that was **deleted** without landing, **When** `next` runs, **Then** today's "flatten" guidance is shown unchanged and nothing is materialized.
+5. **Given** a caller that invokes the board selector directly (not through bootstrap) on an unmaterialized worktree, **When** it runs, **Then** it still returns today's named "materialize it" block, byte for byte.
 
 ---
 
@@ -97,12 +98,12 @@ Maintainers want every status read on the runtime decision path to go through th
 
 ### Edge Cases
 
-- A coordination branch deleted without landing: unchanged "flatten" guidance on every path. `--auto-remediate` never acts on it.
+- A coordination branch deleted without landing: unchanged "flatten" guidance on every path; nothing is materialized or reported.
 - A landed Mission whose coordination branch is gone: reads the landed target's copy (door behaviour), never a refusal.
 - An unreadable committed coordination branch: an explicit error naming the branch, never an empty board shown as real.
 - A corrupt line in the status log: lanes and counts fail as today, and the weighted-progress figure degrades exactly as today (logged, omitted).
 - A Mission with no status log yet: the same `not_finalized` / no-progress answers as today.
-- `--auto-remediate` when materialization itself fails: the original block is shown with the failure reason. No partial state is reported as success.
+- Bootstrap materialization fails: today's behaviour (the existing refusal or blocked decision) is unchanged, and nothing is reported as materialized.
 - The `MissionNextInvoked` row in `mission-events.jsonl`: written through the write seam in every coordination state it is written in today. A later read of that file sees it.
 
 ## Requirements *(mandatory)*
@@ -112,9 +113,9 @@ Maintainers want every status read on the runtime decision path to go through th
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
 | FR-001 | Empty coordination worktree shows real board (#7507) | As an operator, I want `next` query and advancing modes to show the lanes, counts, weighted progress and next work package committed on the coordination branch when the coordination worktree is empty, so that I am not told there is no work when there is. | High | Open | [build] | no — red-first: the same fixture reports "no actionable wp" and 0.0 today |
-| FR-002 | Unmaterialized worktree keeps its block | As an operator, I want an advancing `next` on an unmaterialized coordination worktree to keep today's block text, remedy and exit code, so that the safety stop is unchanged. | High | Open | [ratchet] | yes — paired with FR-003 on the same fixture, whose flag run must differ |
-| FR-003 | `next --auto-remediate` materializes and continues | As an operator, I want `spec-kitty next --auto-remediate` to materialize a missing or empty coordination worktree through the canonical path, report it in one line, and continue the decision, so that I need not run the doctor command by hand. | High | Open | [build] | no — without the code the flag does not exist and the run blocks |
-| FR-004 | Auto-remediation never touches a deleted branch or query | As an operator, I want `--auto-remediate` to do nothing for a deleted coordination branch and in query mode, so that it never hides a case that needs a human. | High | Open | [build] | no — a positive control (FR-003) on the same fixture shape must remediate |
+| FR-002 | Selector block unchanged for direct callers | As a maintainer, I want the board selector, called directly on an unmaterialized coordination worktree, to keep today's named block text and remedy (decided from the door's surface source, not a seam raise), so that direct callers see no change. | High | Open | [ratchet] | yes — paired with FR-001 on the same fixture shape, whose empty-worktree run must change |
+| FR-003 | Advancing `next` reports its automatic materialization | As an operator, I want an advancing `next` that materialized or restored the coordination worktree during bootstrap to say so in one line and in a `remediation` entry of its JSON output, so that I know it changed my workspace. | High | Open | [build] | no — red-first: today the same run prints nothing and has no `remediation` key |
+| FR-004 | No report without a materialization | As an operator, I want no materialization line or `remediation` key when the worktree was already materialized, in query mode, or for a deleted coordination branch, so that the report is never noise or a false claim. | High | Open | [build] | no — a positive control (FR-003) on the same fixture shape must report |
 | FR-005 | Owned query reads the committed branch | As an operator in an owned checkout, I want query mode and progress on a coordination Mission with an empty or unmaterialized coordination worktree to read the committed coordination branch, so that `next` agrees with `agent tasks status`. | Medium | Open | [build] | no — red-first: today the empty state refuses and the unmaterialized state shows an empty board |
 | FR-006 | Owned dispatch still refuses | As an operator, I want an advancing dispatch on that owned Mission to refuse with `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` and today's text, so that no agent is sent into a missing workspace. | Medium | Open | [ratchet] | yes — paired with FR-005 on the same fixture, whose query must succeed |
 | FR-007 | Door finds an owned-only Mission | As an operator, I want the status read door to find a coordination Mission that exists only in my owned checkout, so that owned reads never fail with "not found". | Medium | Open | [build] | no — red-first: the door raises for that fixture today |
@@ -156,12 +157,12 @@ Maintainers want every status read on the runtime decision path to go through th
 
 - **SC-001**: For the #7507 fixture (empty coordination worktree), `next` query reports WP01 as next, 1 planned and 1 for-review work package, and 30.0% weighted progress, the same as the materialized control. — [build] · no-op passable: no
 - **SC-002**: The single-door gate's allowlist holds 33 entries, none under `src/runtime/next/`, and the ratchet baseline and live-hit floor both read 33. — [build] · no-op passable: no
-- **SC-003**: An operator recovers from an unmaterialized coordination worktree with one command (`next --auto-remediate`) instead of two. — [build] · no-op passable: no
+- **SC-003**: Every advancing `next` run that materializes or restores a coordination worktree reports it (line and JSON), and no run that did not materialize one reports it; the advancing run's progress equals the materialized control's. — [build] · no-op passable: no
 - **SC-004**: Lanes and weighted progress agree with today's path on 100% of the repository's real status logs. — [ratchet] · no-op passable: yes — it is a parity check that a do-nothing change passes, so it is paired with SC-001, which a do-nothing change fails
 - **SC-005**: #7507 is closed by the PR, and the #7310 gate entries for runtime/next are gone. — [build] · no-op passable: no
 
 ## Assumptions
 
-- The canonical materialization path that `spec-kitty doctor coordination --fix` uses can be called from `next` without new side effects beyond creating the worktree.
+- Advancing `next` bootstrap already materializes or restores the coordination worktree through the status write seam (verified end to end through the real CLI on 2026-11-11, `research/repro/advancing_cells.py`); this Mission reports that, it does not add a second materialization path.
 - The grounding squad's reproduction of #7507 (non-owned coordination Mission, empty worktree) is representative. The `MISSION_BRANCH_REF` cell was sketched, not run, and gets its own test during implementation.
-- `--auto-remediate` is a new CLI flag on `spec-kitty next` only. No other command gains it in this Mission.
+- No new CLI flag is added (the `--auto-remediate` idea was dropped by operator ruling once the block proved unreachable from the CLI).

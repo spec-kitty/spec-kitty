@@ -9,10 +9,11 @@
   - read the door once per decision into a `BoardStatus` value;
   - fix the door's owned entry;
   - decide the board block from the surface source;
-  - `--auto-remediate` goes through the canonical materializer;
+  - ~~`--auto-remediate` goes through the canonical materializer~~ superseded by Decision Moment `01M73J4X57HKNF5RK7WVN8QHC5` (2026-11-11): no flag; the advancing bootstrap's existing materialization is reported instead;
   - five concerns, sequenced tidy-first.
   - Rejected: dual-typed `Path | surface` parameters.
 - **Specify decisions**: DM-1 to DM-4 and the `--auto-remediate` scope (see `decisions/`).
+- **Correction** (Decision Moment `01M73J4X57HKNF5RK7WVN8QHC5`, 2026-11-11): verified through the real CLI (`research/repro/advancing_cells.py`) that an advancing `next` already materializes or restores a missing or empty coordination worktree in bootstrap (`_wrap_with_decision_git_log` -> `write_dir(DECISION_LOG)`), so the block DM-2 kept never reaches a CLI user. The operator chose: no `--auto-remediate` flag; report the automatic materialization (one line + `remediation` in JSON); keep the selector-level block for direct callers.
 
 ## Summary
 
@@ -22,7 +23,7 @@
 - reduces that read once into an immutable **board status** value, which the board and progress helpers consume;
 - fixes the door's owned-checkout entry, so an owned coordination Mission is found through its owned checkout;
 - routes the four non-read sites to their proper homes: the write seam, and an explicitly passed placement seam;
-- adds `next --auto-remediate`, which calls the canonical coordination materializer and then continues.
+- makes advancing `next` report when its bootstrap materialized or restored the coordination worktree, and makes that run's progress numbers true.
 
 Each step lowers the single-door gate's allowlist, finishing at 33.
 
@@ -72,7 +73,7 @@ kitty-specs/runtime-status-read-door-01M73HHB/
 ├── data-model.md        # Phase 1: BoardStatus, surface source -> board behaviour
 ├── quickstart.md        # Phase 1: how to see the fix and the flag
 ├── contracts/
-│   └── next-auto-remediate.md   # CLI contract for the new flag
+│   └── next-materialization-report.md   # CLI output contract for the materialization report
 └── tasks.md             # /spec-kitty.tasks
 ```
 
@@ -88,7 +89,7 @@ src/runtime/next/
 ├── runtime_bridge_io.py                 # gather_artifact_presence / guard_failure_artifact_paths take the seam
 └── next_invocation_lifecycle.py         # MissionNextInvoked via the write seam
 src/specify_cli/status/read_surface.py   # owned coordination entry (FR-007)
-src/specify_cli/cli/commands/next_cmd.py # --auto-remediate flag
+src/specify_cli/cli/commands/next_cmd.py # renders the materialization report line
 src/specify_cli/coordination/surface_resolver.py  # materialize_coord_surface_for_write (reused, unchanged)
 docs/adr/4.x/2026-11-06-2-one-status-read-contract.md  # amendment (FR-012)
 tests/architectural/test_status_read_single_door.py, _baselines.yaml   # allowlist 41 -> 33
@@ -143,15 +144,16 @@ No charter violations to justify.
 - **Risks**:
   - Swapping in `PRIMARY_METADATA` naively would send coordination-kind artifacts to the primary directory. Pin the reported guard-failure paths before the move.
 
-### IC-05 — MissionNextInvoked via the write seam; `next --auto-remediate`
+### IC-05 — MissionNextInvoked via the write seam; report the bootstrap materialization
 
-- **Purpose**: the lifecycle row is written through the status write seam (read-after-write proven). `next --auto-remediate` materializes a missing or empty coordination worktree through `materialize_coord_surface_for_write`, reports it, and continues. It never acts on a deleted branch or in query mode.
-- **Relevant requirements**: FR-003, FR-004, FR-009, FR-011 (1 entry)
-- **Affected surfaces**: `next_invocation_lifecycle.py`, `next_cmd.py`, the advancing decision entry (`decide_next_via_runtime` path)
-- **Sequencing/depends-on**: IC-03 (the block it remediates)
+- **Purpose**: the lifecycle row is written through the status write seam (read-after-write proven). An advancing `next` whose bootstrap materialized or restored the coordination worktree reports it: one line, and `remediation` in `--json`. Detection: the door's surface source before the decision-log wrap is a coordination ref, and after the wrap the coordination worktree is materialized. The advancing run's progress is computed from the door, so it is the real number.
+- **Relevant requirements**: FR-001 (advancing progress), FR-003, FR-004, FR-009, FR-011 (1 entry)
+- **Affected surfaces**: `next_invocation_lifecycle.py`, `runtime_bridge.py` bootstrap (detection, shared with IC-04's file: run after it), `next_cmd.py` (render the line), the decision envelope (`remediation` key)
+- **Sequencing/depends-on**: IC-03, IC-04
 - **Risks**:
   - Assumption to verify: `write_dir` may raise on an unmaterialized worktree where `read_dir` tolerated it. Either way the best-effort event is dropped, as today.
-  - The flag must be ignored in query mode (FR-004).
+  - The JSON envelope gains an optional key. Consumers that reject unknown keys need checking (orchestrator-api, `next` JSON schema tests).
+  - No report in query mode, for an already materialized worktree, or for a deleted branch (FR-004).
 
 ### Allowlist ledger (41 -> 33)
 

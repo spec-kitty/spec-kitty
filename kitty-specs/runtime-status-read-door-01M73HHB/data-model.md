@@ -19,15 +19,15 @@ One reduced reading of a Mission's status for one `next` decision or query. It i
 
 ## Coordination worktree state -> `next` behaviour
 
-| State | Door source | Query / progress | Advancing board (non-owned) | Advancing board, `--auto-remediate` | Owned query | Owned dispatch |
+| State | Door source | Query / progress | Advancing `next` (non-owned) | Board selector called directly | Owned query | Owned dispatch |
 |---|---|---|---|---|---|---|
-| materialized | `coord_worktree` | real lanes | dispatch | dispatch (no-op) | real lanes | dispatch |
-| empty | `coord_branch_ref` | real lanes (**#7507 fix**) | dispatch from real lanes (**fix**) | dispatch (no-op) | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
-| unmaterialized | `coord_branch_ref` | real lanes (**fix**) | block, today's text | materialize, one line, then dispatch (**new**) | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
-| deleted, not landed | raises `CoordinationBranchDeleted` | flatten guidance (unchanged) | flatten guidance | flatten guidance, nothing remediated | flatten guidance | flatten guidance |
+| materialized | `coord_worktree` | real lanes | proceeds, no report | dispatch | real lanes | dispatch |
+| empty | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap restores it, **reports it** (**new**), real progress (**fix**) | dispatch from real lanes (**fix**) | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
+| unmaterialized | `coord_branch_ref` | real lanes (**#7507 fix**) | bootstrap materializes it, **reports it** (**new**), real progress (**fix**) | named "materialize it" block, today's text | real lanes (**fix**) | refuse `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` |
+| deleted, not landed | raises `CoordinationBranchDeleted` | flatten guidance (unchanged) | flatten guidance, nothing materialized or reported | flatten guidance | flatten guidance | flatten guidance |
 | landed | `consolidated_target` | landed terminal (unchanged) | landed terminal | landed terminal | landed terminal | landed terminal |
 
-The empty-worktree advancing case reads real lanes because the operator's block (DM-2) covers only the worktree that is not checked out. An empty worktree is checked out, and the door reads its committed branch.
+The advancing `next` column follows the corrected DM-2 (`01M73J4X57HKNF5RK7WVN8QHC5`): bootstrap already materializes or restores the worktree, so the advancing CLI path never shows the selector's block. This Mission only adds the report and the true progress numbers.
 
 ## Placement seam handed to artifact presence
 
