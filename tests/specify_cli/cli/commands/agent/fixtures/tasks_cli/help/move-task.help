@@ -44,7 +44,7 @@ Options
 --force Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement). Out of in_review or approved it needs --note.
 --tracker-ref <str> External tracker reference (e.g., '#1298' or 'JIRA-123'). Repeatable; appended to the WP frontmatter tracker_refs.
 --skip-review-artifact-check Override a rejected latest review artifact when arbiter-approving; requires --note and records override evidence.
---auto-commit --no-auto-commit Automatically commit WP file changes to target branch (default: from project config)
+--auto-commit --no-auto-commit Commit this move's record (the transition, its note and its review verdict); only an explicit --no-auto-commit keeps it uncommitted. Lane deliverables follow the project config
 --json Output JSON format
 --skip-pre-review-gate Skip the pre-review regression gate on a --to for_review move (also honored via the SPEC_KITTY_SKIP_PRE_REVIEW_GATE env var). The gate still runs and enforces by default.
 --owned-checkout <path> Use an owned single_branch checkout for the local review lifecycle (force/skip, done, and arbiter modes unsupported).
