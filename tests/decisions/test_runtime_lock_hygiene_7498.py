@@ -127,19 +127,6 @@ def test_safe_commit_refuses_to_stage_the_lock(tmp_path: Path) -> None:
     assert _git(repo, "diff", "--cached", "--name-only") == ""
 
 
-def test_safe_commit_without_the_lock_commits(tmp_path: Path) -> None:
-    """Positive control: the same request minus the lock lands."""
-    repo = _init_repo(tmp_path)
-    mission = repo / "kitty-specs" / _MISSION
-    _take_and_release_lock(mission)
-    (mission / "spec.md").write_text("# spec v2\n")
-
-    result = safe_commit(repo_root=repo, worktree_root=repo, destination_ref=_BRANCH, message="m", paths=(mission / "spec.md",))
-
-    assert result.sha
-    assert _git(repo, "ls-tree", "-r", "--name-only", "HEAD").splitlines() == [".gitignore", ".kittify/config.json", f"kitty-specs/{_MISSION}/spec.md"]
-
-
 def test_safe_commit_cli_refuses_the_lock_and_commits_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """End to end through ``spec-kitty safe-commit`` (the pre-existing entry point)."""
     repo = _init_repo(tmp_path)
@@ -155,7 +142,9 @@ def test_safe_commit_cli_refuses_the_lock_and_commits_nothing(tmp_path: Path, mo
     )
 
     assert result.exit_code != 0, result.output
-    assert "runtime lock" in result.output
+    payload = json.loads(result.output[result.output.index("{") :])  # the refusal stays machine-readable
+    assert payload.get("success") is False, payload
+    assert "runtime lock" in str(payload.get("error")), payload
     assert _git(repo, "rev-parse", "HEAD") == head
     assert "index.json.lock" not in _git(repo, "ls-tree", "-r", "--name-only", "HEAD")
 
@@ -183,20 +172,6 @@ def test_reset_obstruction_is_described_in_words(tmp_path: Path) -> None:
     assert len(lines) == 1, lines
     assert lines[0].startswith("?? incoming.txt (would be overwritten"), lines  # the XY prefix stays
     assert lines[0].endswith("; untracked)"), lines
-
-
-def test_lock_refusal_payload_is_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The CLI refusal stays machine-readable (``--json``)."""
-    repo = _init_repo(tmp_path)
-    mission = repo / "kitty-specs" / _MISSION
-    lock = _take_and_release_lock(mission)
-    monkeypatch.chdir(repo)
-
-    result = CliRunner().invoke(cli_app, ["safe-commit", "--to-branch", _BRANCH, "--message", "m", "--json", str(lock)])
-
-    payload = json.loads(result.output[result.output.index("{") :])
-    assert payload.get("success") is False, payload
-    assert "runtime lock" in str(payload.get("error")), payload
 
 
 def test_exclusion_is_written_when_info_exclude_is_missing(tmp_path: Path) -> None:

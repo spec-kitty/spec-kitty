@@ -258,29 +258,27 @@ def test_all_missions_fix_does_not_restore_a_branch_only_worktree(branch_only_mi
     assert code == 0, output
 
 
-def test_named_mission_with_unreadable_meta_is_never_reported_healthy(two_never_created: tuple[Path, Path, Path]) -> None:
-    """A named Mission whose meta.json is corrupt fails closed, and the other Mission is untouched."""
+@pytest.mark.parametrize("how", ["corrupt_file", "reader_returns_none"])
+def test_named_mission_with_unreadable_meta_is_never_reported_healthy(
+    two_never_created: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch, how: str
+) -> None:
+    """A named Mission whose meta.json is unreadable fails closed, and the other Mission is untouched.
+
+    ``reader_returns_none`` pins the branch a resolved-then-unreadable Mission takes
+    (the resolver itself skips a corrupt file, so ``corrupt_file`` may stop earlier).
+    """
     _repo, meta_a, meta_b = two_never_created
-    meta_a.write_text("{not json")
+    if how == "corrupt_file":
+        meta_a.write_text("{not json")
+    else:
+        monkeypatch.setattr(cd, "_read_scanned_meta", lambda _dir: None)
     before = (meta_a.read_bytes(), meta_b.read_bytes())
 
     code, output = _invoke("--fix", "--mission", A_SLUG, "--json")
 
     assert code == 1, output
-    assert "MISSION_NOT_FOUND" in output or "COORDINATION_META_UNREADABLE" in output, output
-    assert (meta_a.read_bytes(), meta_b.read_bytes()) == before
-
-
-def test_resolved_mission_whose_meta_then_reads_as_none_is_an_error(two_never_created: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    """If the reader cannot read a Mission the resolver found, the run says so and exits 1."""
-    _repo, meta_a, meta_b = two_never_created
-    before = (meta_a.read_bytes(), meta_b.read_bytes())
-    monkeypatch.setattr(cd, "_read_scanned_meta", lambda _dir: None)
-
-    code, output = _invoke("--fix", "--mission", A_SLUG, "--json")
-
-    assert code == 1, output
-    assert "COORDINATION_META_UNREADABLE" in output
+    expected = ("COORDINATION_META_UNREADABLE",) if how == "reader_returns_none" else ("MISSION_NOT_FOUND", "COORDINATION_META_UNREADABLE")
+    assert any(code_name in output for code_name in expected), output
     assert (meta_a.read_bytes(), meta_b.read_bytes()) == before
 
 
