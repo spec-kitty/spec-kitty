@@ -67,7 +67,7 @@ from pathlib import Path
 from typing import Any, cast
 
 # interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
-from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for
+from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for, mission_has_landed, placement_seam
 
 from specify_cli.core.paths import MissionMetaReadError
 
@@ -312,6 +312,28 @@ def write_issuance_lifecycle_record(
         return
 
 
+def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
+    """The Mission directory the ``MissionNextInvoked`` row is appended to.
+
+    runtime-status-read-door WP06 (FR-009): an in-flight Mission's row is a WRITE, so it resolves
+    through the status write seam (``write_dir``), which materializes an unmaterialized
+    coordination worktree or restores an empty one; the read projection it used before pointed at
+    an absent directory in those cells and the row was dropped. The advancing run reports that
+    materialization (FR-003).
+
+    A landed Mission is the exception (review cycle 2, SC-003): its status source is the
+    consolidated target (the read door's ``CONSOLIDATED_TARGET``, checked before any coordination
+    probe), consolidation tore its coordination checkout down, and ``next`` answers it with a
+    terminal decision before the decision-log wrap. Its row lands in the PRIMARY Mission directory,
+    and no coordination worktree is materialized or restored for it.
+    """
+    seam = placement_seam(repo_root, mission_slug, owned=owned)
+    primary_dir = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    if mission_has_landed(primary_dir):
+        return primary_dir
+    return seam.write_dir(MissionArtifactKind.STATUS_STATE).path
+
+
 def emit_mission_next_invoked(
     agent: str,
     result: str,
@@ -337,9 +359,7 @@ def emit_mission_next_invoked(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        feature_dir = (
-            mission_context_for(repo_root_path, mission_slug, owned=owned, tolerate_unmaterialized_coord=True).artifact(MissionArtifactKind.STATUS_STATE).read_dir
-        )
+        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned)
     except Exception:
         feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so

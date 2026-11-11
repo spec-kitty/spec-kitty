@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#3462": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5702": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5938": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6608": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7310": {
+      "evidence_ref": "Partial: this Mission drains the 8 runtime/next allowlist entries (41 -> 33, WP04-WP06). Follow-up: #7310 stays open for the remaining 33 entries owned by later slices (#7408).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Status read single-door gate and migration of the remaining legacy read sites",
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#7335": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7408": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7490": {
+      "evidence_ref": "Cited for context only: owner of allowlist entries or behaviour outside this Mission's scope (spec C-004); no work owed by this Mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#7507": {
+      "evidence_ref": "c1c0ec90 (red e066a3fa); tests/runtime/next/test_board_query_read_door_7507.py; acceptance FR-001/FR-005 pass",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "next / query on a coordination Mission with an empty coordination worktree shows no actionable wp and 0% progress",
+      "verdict": "fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

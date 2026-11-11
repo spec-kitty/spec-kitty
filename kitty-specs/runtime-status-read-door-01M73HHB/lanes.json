@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-status-read-door-01M73HHB",
+  "mission_id": "01M73HHBGCYKH10797R6YR21WS",
+  "mission_branch": "kitty/mission-runtime-status-read-door-01M73HHB",
+  "target_branch": "refactor/7310-status-read-door-s5",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/board_status.py",
+        "tests/runtime/next/test_board_status.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-11-06-2-one-status-read-contract.md",
+        "src/specify_cli/status/read_surface.py",
+        "tests/status/test_read_surface_owned_coordination.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/runtime/next/decision.py",
+        "src/runtime/next/discovery.py",
+        "tests/runtime/next/test_board_helpers_board_param.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge_decision_mapping.py",
+        "src/runtime/next/runtime_bridge_query.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_status_read_single_door.py",
+        "tests/next/test_query_mode_unit.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/runtime/next/test_board_query_read_door_7507.py",
+        "tests/runtime/test_runtime_bridge_read_path_branches.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/specify_cli/acceptance/non_wp_runtime.py",
+        "tests/integration/test_owned_next_runtime.py",
+        "tests/next/test_runtime_bridge_blocked_paths.py",
+        "tests/runtime/next/test_artifact_presence_seam_param.py",
+        "tests/runtime/next/test_bootstrap_read_door.py",
+        "tests/runtime/test_bridge_decide_next.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/runtime/next/next_invocation_lifecycle.py",
+        "src/runtime/next/runtime_bridge_decision_log.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/runtime/next/test_materialization_report.py",
+        "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-11-11T05:15:26.645307+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "00fbb1a0be41589f98ba0b08b105aeb8926dc1d3"
+}

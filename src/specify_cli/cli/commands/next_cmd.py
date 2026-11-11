@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from mission_runtime import OwnedCheckout
-    from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
+    from runtime.next.decision import AnalysisCurrency, AnalysisVerdict, Decision
     from specify_cli.context.mission_resolver import MissionListing
     from specify_cli.decisions.models import DecisionError
 
@@ -1338,11 +1338,24 @@ def _print_decision(
             d["warnings"] = commit_warnings
         print(json.dumps(d, indent=2))
     else:
+        _print_remediation_line(decision)
         if answered_id is not None:
             print(f"  Answered decision: {answered_id}")
         _print_human(decision)
         if owned is not None:
             echo_stale_copy_warning(owned)
+
+
+def _print_remediation_line(decision: Decision) -> None:
+    """Print the one-line report of a coordination worktree the advancing run materialized (FR-003).
+
+    Only when the decision carries a ``remediation`` (an advancing bootstrap that materialized or
+    restored the worktree); never in query mode (``contracts/next-materialization-report.md``).
+    """
+    remediation = getattr(decision, "remediation", None)
+    if not remediation or getattr(decision, "is_query", False):
+        return
+    print(f"Materialized the coordination worktree for {decision.mission_slug} at {remediation['path']}.")
 
 
 def _handle_answer(

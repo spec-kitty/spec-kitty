@@ -69,7 +69,6 @@ from mission_runtime import (
     OwnedCheckout,
     PlacementSeam,
     kind_for_mission_file,
-    placement_seam,
 )
 from runtime.next._internal_runtime import (
     DiscoveryContext,
@@ -1275,8 +1274,9 @@ class ArtifactPresenceSnapshot:
     wp_driven: bool = False
 
 
-#: The seam failures a presence read degrades on. ``ActionContextError`` is the
-#: seam refusing explicit placement outside ``single_branch``;
+#: The seam failures a per-artifact presence read degrades on (to the supplied
+#: directory). ``ActionContextError`` is the seam refusing explicit placement
+#: outside ``single_branch``;
 #: ``StatusReadPathNotFound`` (incl. ``CoordinationBranchDeleted``) is a
 #: coord-partition probe failing on coordination-branch liveness;
 #: ``MissionSelectorAmbiguous`` is the seam's declared selector failure on
@@ -1286,45 +1286,21 @@ class ArtifactPresenceSnapshot:
 _PRESENCE_SEAM_DEGRADES = (ActionContextError, StatusReadPathNotFound, MissionSelectorAmbiguous)
 
 
-def _artifact_presence_seam(
-    feature_dir: Path,
-    repo_root: Path | None,
-    *,
-    owned: OwnedCheckout | None = None,
-) -> PlacementSeam | None:
-    """Return the placement seam whose STATUS home is ``feature_dir``, else ``None``.
+def presence_seam(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> PlacementSeam | None:
+    """The placement seam a runtime caller hands the presence API (#7310 WP05, FR-010).
 
-    Bootstrap supplies the resolved STATUS home, so the ordinary
-    topology-aware seam matches for a linked/coord caller. An owned
-    ``single_branch`` checkout matches only under explicit placement, which
-    is *verified* the same way rather than assumed from the first mismatch.
-    ``None`` means the caller's directory is not a recognised STATUS home:
-    every artifact then resolves to the supplied directory (the pre-#3910
-    behaviour) instead of a guessed placement — see
-    :data:`_PRESENCE_SEAM_DEGRADES` for why a seam failure lands here too.
-
-    owned-checkout-lifecycle-authority WP11 (R-16): the owned arm now builds
-    ``placement_seam(repo_root, feature_dir.name, owned=owned)`` from the
-    CALLER's already-validated fact, instead of the retired guess (a second
-    ``placement_seam`` call that silently assumed the supplied ``repo_root``
-    argument itself WAS the owned checkout — wrong whenever a caller
-    genuinely passes the repository root).
+    The non-owned seam for ``owned=None``, else the owned seam built from the caller's
+    validated fact. A seam that cannot be built (one of :data:`_PRESENCE_SEAM_DEGRADES`)
+    is ``None``: every artifact then resolves to the supplied directory, as a degraded
+    per-artifact read does. Never raises those failures, so a fact port stays total.
     """
-    if repo_root is None:
-        return None
+    from mission_runtime import placement_seam  # noqa: PLC0415 -- the one seam constructor; tests patch it on mission_runtime
+
     try:
-        seam = placement_seam(repo_root, feature_dir.name)
-        if seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
-            return seam
-        if owned is not None:
-            owned_seam = placement_seam(repo_root, feature_dir.name, owned=owned)
-            if owned_seam.read_dir(MissionArtifactKind.STATUS_STATE).resolve() == feature_dir.resolve():
-                return owned_seam
+        return placement_seam(repo_root, mission_slug, owned=owned)
     except _PRESENCE_SEAM_DEGRADES as exc:
-        _logger.debug("artifact presence: seam degraded for %s, keeping supplied directory: %s", feature_dir, exc)
+        _logger.debug("artifact presence: no seam for %s, keeping supplied directory: %s", mission_slug, exc)
         return None
-    _logger.debug("artifact presence: %s is not a recognised STATUS home, keeping supplied directory", feature_dir)
-    return None
 
 
 class _ArtifactPresenceHomes:
@@ -1333,8 +1309,12 @@ class _ArtifactPresenceHomes:
     One seam resolution per kind per call (the module's one-read-per-call
     discipline, cf. ``_presence_filenames_for``), instead of one per filename.
     Classified inputs read from their canonical home; unclassified/custom
-    filenames, callers without a recognised seam, and any degraded seam read
-    keep the supplied directory.
+    filenames, callers that pass no seam, and any degraded seam read keep the
+    supplied directory.
+
+    The seam is the caller's own (#7310 WP05, FR-010): a runtime caller already
+    knows its Mission and ownership, so it hands the seam over instead of a
+    status directory this class would have to map back to one.
     """
 
     def __init__(self, feature_dir: Path, seam: PlacementSeam | None) -> None:
@@ -1364,6 +1344,7 @@ def artifact_search_paths(
     repo_root: Path | None = None,
     names: Iterable[str] | None = None,
     owned: OwnedCheckout | None = None,
+    seam: PlacementSeam | None = None,
 ) -> dict[str, str]:
     """Where a guard looked for each expected artifact (#3883).
 
@@ -1378,8 +1359,11 @@ def artifact_search_paths(
     Paths are repo-relative when ``repo_root`` contains them (what an operator
     can paste into ``ls``), absolute otherwise. ``names`` narrows the result to
     the artifacts a caller cares about — normally the ones that failed.
+
+    ``seam`` is the caller's placement seam (WP05, FR-010); ``None`` resolves every
+    artifact to ``feature_dir``.
     """
-    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
+    homes = _ArtifactPresenceHomes(feature_dir, seam)
     # Root discipline: the mission family's presence vocabulary is a P-local
     # governance read for an owned mission.
     config_root = owned.owned_root if owned is not None and repo_root is not None else repo_root
@@ -1404,6 +1388,7 @@ def guard_failure_artifact_paths(
     repo_root: Path | None = None,
     guard_failures: Iterable[str],
     owned: OwnedCheckout | None = None,
+    seam: PlacementSeam | None = None,
 ) -> dict[str, str]:
     """Map each *genuinely missing-artifact* guard failure to the real path
     a presence check would read, keyed by the real artifact tag (#3883, #4390).
@@ -1458,7 +1443,7 @@ def guard_failure_artifact_paths(
             tags.add(candidate)
     if not tags:
         return {}
-    return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags, owned=owned)
+    return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags, owned=owned, seam=seam)
 
 
 def gather_analysis_currency(analysis_currency: AnalysisCurrency | None) -> dict[str, Any]:
@@ -1536,9 +1521,9 @@ def gather_artifact_presence(
     step_id: str,
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
-    owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
+    seam: PlacementSeam | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1562,12 +1547,12 @@ def gather_artifact_presence(
     cross-check against each guard branch's exact predicate before this
     snapshot replaces the guards' own reads.
 
-    ``repo_root`` enables kind-aware artifact placement as well as org-tier
-    manifest resolution. Classified planning inputs use their canonical home;
-    lifecycle facts continue to use ``feature_dir`` (the STATUS authority).
-    Unclassified/custom filenames, callers without ``repo_root``, and callers
-    whose ``feature_dir`` is not a recognised STATUS home retain their
-    supplied directory; no alternate copies are searched. This is a total
+    ``seam`` (the caller's placement seam, #7310 WP05, FR-010) enables kind-aware
+    artifact placement; ``repo_root`` enables org-tier manifest resolution.
+    Classified planning inputs use their canonical home; lifecycle facts
+    continue to use ``feature_dir`` (the STATUS authority). Unclassified/custom
+    filenames and callers that pass no seam retain their supplied directory; no
+    alternate copies are searched. This is a total
     function: a seam refusal or a coordination-branch liveness failure while
     resolving a home degrades to the supplied directory rather than raising
     (:class:`_ArtifactPresenceHomes`).
@@ -1581,7 +1566,7 @@ def gather_artifact_presence(
     """
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
-    homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
+    homes = _ArtifactPresenceHomes(feature_dir, seam)
     present: set[str] = set()
     # The tasks guards decide on these two files whatever the resolved manifest
     # lists: an org/project whole-file override written before ``wps.yaml``

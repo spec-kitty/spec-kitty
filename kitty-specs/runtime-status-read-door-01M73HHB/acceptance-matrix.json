@@ -1,0 +1,129 @@
+{
+  "mission_slug": "runtime-status-read-door-01M73HHB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "next query mode and the board selector show the lanes, counts, weighted progress and next WP committed on the coordination branch when the coordination worktree is empty or unmaterialized, and advancing next reports the real progress (#7507).",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_query_reads_the_committed_lanes_in_every_cell, ::test_board_dispatches_wp01_from_a_materialized_or_empty_worktree; tests/runtime/next/test_bootstrap_read_door.py::test_advancing_progress_reports_the_committed_lanes; tests/runtime/next/test_board_status.py::test_ref_surface_reads_the_committed_coordination_log; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:05.552693+00:00",
+      "notes": "Query and board report WP01 next, 1 planned/1 for_review, 30.0% in materialized, empty and unmaterialized cells for coord and lanes_with_coord."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The board selector called directly on an unmaterialized coordination worktree keeps today's named block text and remedy.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_board_keeps_the_named_block_for_an_unmaterialized_worktree; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:14.104581+00:00",
+      "notes": "Block decided from the door's surface source; text pinned; paired with the empty-worktree cell that changes."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "An advancing next that materialized or restored the coordination worktree during bootstrap says so in one line and in a remediation entry of its JSON output.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_materialization_report.py::test_advancing_decision_reports_the_materialized_worktree, ::test_cli_json_carries_the_remediation_object, ::test_cli_human_output_prints_one_line_before_the_decision, ::test_owned_unmaterialized_coordination_worktree_proceeds_and_reports; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:22.376640+00:00",
+      "notes": "Line and JSON remediation {kind: materialized_coordination_worktree, path} verified. CAVEAT: the new Decision.remediation field breaks the unmodified shape pin tests/specify_cli/next/test_runtime_bridge_composition.py::test_decision_shape_unchanged_for_composed_action (green on base, red on lane-f); needs a re-pin (NFR-003)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "No materialization line or remediation key when the worktree was already materialized, in query mode, or for a deleted coordination branch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_materialization_report.py::test_already_materialized_worktree_is_not_reported, ::test_already_materialized_worktree_prints_no_line, ::test_query_mode_neither_materializes_nor_reports, ::test_query_mode_human_output_prints_no_line, ::test_deleted_coordination_branch_materializes_nothing, ::test_single_branch_mission_is_not_reported, ::test_landed_mission_terminal_neither_materializes_nor_reports; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:31.166691+00:00",
+      "notes": "Negative cells pinned against the FR-003 positive control on the same fixture shape; landed and single_branch cells also silent."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Query mode and progress on an owned coordination Mission with an empty or unmaterialized coordination worktree read the committed coordination branch.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_owned_query_reads_the_committed_branch; tests/status/test_read_surface_owned_coordination.py::test_owned_empty_coordination_worktree_reads_the_branch, ::test_owned_removed_coordination_worktree_reads_the_branch; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:40.350520+00:00",
+      "notes": "Owned query shows committed lanes, not an empty board or refusal, in both cells and both coord topologies."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Advancing next on an owned coordination Mission keeps today's dispatch outcome: refuses OWNED_COORDINATION_WORKSPACE_UNAVAILABLE where the workspace is unavailable, proceeds where bootstrap materializes it.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_bootstrap_read_door.py::test_owned_advance_on_an_empty_coordination_worktree_refuses, ::test_owned_advance_on_an_unmaterialized_coordination_worktree_proceeds; tests/runtime/next/test_board_query_read_door_7507.py::test_owned_board_declines_on_a_missing_coordination_workspace; tests/runtime/next/test_materialization_report.py::test_owned_empty_coordination_worktree_refuses_without_a_report; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:49.309360+00:00",
+      "notes": "Empty cell refuses with the existing code and text; unmaterialized cell proceeds (bootstrap materializes) and reports."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The status read door finds a coordination Mission that exists only in the owned checkout.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_read_surface_owned_coordination.py::test_owned_only_coordination_mission_resolves (+ materialized/landed/pre-seed/deleted/coordination-less cells); cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:43:58.002388+00:00",
+      "notes": "Owned-only coord and lanes_with_coord Missions resolve; deleted-not-landed still refuses; coordination-less topologies unchanged."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Each next decision and query reads the status log once through the door and reduces it once, then passes that board to every board and progress check.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_board_query_read_door_7507.py::test_query_reads_the_door_once, ::test_board_reads_the_door_once; tests/runtime/next/test_board_status.py::test_one_read_per_build; tests/runtime/next/test_board_helpers_board_param.py::test_board_weighted_progress_does_not_read_materialize_snapshot; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:44:06.591252+00:00",
+      "notes": "Read counters show exactly one door read per decision/query; helpers take the board value."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The MissionNextInvoked row is written through the status write seam and a later read sees it.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/next/test_next_invocation_lifecycle_seam.py::TestMissionNextInvokedWriteSeam::test_materialized_coordination_mission_row_is_readable, ::test_single_branch_mission_row_is_readable, ::test_unmaterialized_coordination_mission_row_is_persisted; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:44:15.116145+00:00",
+      "notes": "Read-after-write through the composition reader's path in materialized, unmaterialized and single_branch cells; allowlist entry gone."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Guard-failure paths and the artifact-presence check receive their placement seam instead of mapping a status directory back to a seam.",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/next/test_artifact_presence_seam_param.py::test_presence_answers_are_pinned; tests/runtime/test_artifact_presence_placement.py (12 tests); tests/architectural/test_status_read_single_door.py; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:44:23.590782+00:00",
+      "notes": "decision.py::_with_guard_failure_paths and runtime_bridge_io.py::_artifact_presence_seam entries removed; presence answers pinned; owned coord presence cell is the one intended change."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The 8 runtime/next entries are removed from the single-door gate's allowlist, with the live-hit floor and ratchet baseline lowered in the same change.",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_status_read_single_door.py (allowlist 33, _LIVE_HIT_FLOOR 33); tests/architectural/_baselines.yaml test_status_read_single_door.legacy_read_allowlist: 33; cd lane-f; PYTHONPATH=src pytest -n 8 --dist loadfile <14 mission test files>; 1143 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:44:31.849324+00:00",
+      "notes": "Counted LEGACY_READ_ALLOWLIST = 33 entries, 0 under src/runtime/next; floor 42->33; baseline 41->33; gate green."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "ADR 2026-11-06-2 is amended to record that owned coordination Missions read the committed branch for query and progress while an advancing dispatch refuses.",
+      "proof_type": "document_review",
+      "evidence": "docs/adr/4.x/2026-11-06-2-one-status-read-contract.md, section 'Amendment 2026-11-11: owned coordination checkouts, read vs dispatch'",
+      "pass_fail": "pass",
+      "verified_by": "claude::reviewer-renata",
+      "verified_at": "2026-11-11T09:44:40.396441+00:00",
+      "notes": "Amendment records Finding/Reading/Dispatching per DM-1. Wording nit: 'refuses when that workspace is empty or unmaterialized' does not say that bootstrap materializes an unmaterialized one first and dispatch then proceeds (FR-006 cell); not a contradiction of the requirement."
+    }
+  ],
+  "negative_invariants": []
+}

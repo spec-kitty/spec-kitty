@@ -129,19 +129,35 @@ def test_count_wp_endings_without_tasks_dir_is_zero(tmp_path: Path) -> None:
 
 
 def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    probes: list[str] = []
+    """A Mission the status read door cannot find declines, after exactly one door read (#7310 FR-008)."""
+    from specify_cli.status import read_surface
 
-    class _UnresolvableSeam:
-        def read_dir(self, kind: object) -> Path:
-            probes.append(str(kind))
-            raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no such mission")
+    door_reads: list[str] = []
+    real_door = read_surface.resolve_status_read
 
-    monkeypatch.setattr("mission_runtime.placement_seam", lambda *args, **kwargs: _UnresolvableSeam())
+    def _door(repo_root: Path, mission: str, **kwargs: Any) -> Any:
+        door_reads.append(mission)
+        return real_door(repo_root, mission, **kwargs)
+
+    monkeypatch.setattr(read_surface, "resolve_status_read", _door)
 
     action = _resolve_wp_board_action(mission_slug=_MISSION, repo_root=tmp_path)
 
     assert action == _WP_BOARD_DECLINE
-    assert len(probes) == 1
+    assert door_reads == [_MISSION]
+
+
+def test_wp_board_action_declines_when_the_primary_context_is_unresolvable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The door finds the Mission but its PRIMARY context cannot be resolved: decline (FR-006 fallback)."""
+    feature_dir = tmp_path / "kitty-specs" / _MISSION
+    _all_done_board(feature_dir)
+
+    def _unresolvable(*args: Any, **kwargs: Any) -> Any:
+        raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no such mission")
+
+    monkeypatch.setattr("mission_runtime.mission_context_for", _unresolvable)
+
+    assert _resolve_wp_board_action(mission_slug=_MISSION, repo_root=tmp_path) == _WP_BOARD_DECLINE
 
 
 def _all_done_board(feature_dir: Path) -> None:

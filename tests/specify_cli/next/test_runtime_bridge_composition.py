@@ -1488,6 +1488,11 @@ def test_decision_shape_unchanged_for_composed_action(
         # ``next --json`` gets a structured error_code without parsing
         # reason text. Additive and defaulted (None) on every other kind.
         "error_code",
+        # runtime-status-read-door WP06 (FR-003, DM-2): the coordination
+        # worktree an advancing bootstrap materialized, reported to the
+        # operator. Additive and defaulted (None); ``to_dict`` emits it only
+        # when set.
+        "remediation",
     }
     actual_fields = set(vars(decision).keys())
     assert actual_fields == expected_fields, (

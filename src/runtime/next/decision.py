@@ -24,7 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from charter.activation.pack_context import ActiveCharterConfigError
 from mission_runtime import ActionContextError, OwnedCheckout
@@ -34,6 +34,11 @@ from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.workspace.context import resolve_workspace_for_wp
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from runtime.next.board_status import BoardStatus
 
 _logger = logging.getLogger(__name__)
 
@@ -164,6 +169,11 @@ class Decision:
     # ``None`` for every decision that carries no typed refusal — including
     # every non-owned payload, which stays byte-identical (see ``to_dict``).
     error_code: str | None = None
+    # runtime-status-read-door WP06 (FR-003, contracts/next-materialization-report.md): what an
+    # advancing ``next`` changed in the workspace on its own, e.g.
+    # ``{"kind": "materialized_coordination_worktree", "path": "<worktree>"}``. ``None`` when
+    # nothing was changed; the envelope then stays byte-identical (see ``to_dict``).
+    remediation: dict[str, str] | None = None
 
     def __post_init__(self) -> None:
         """Enforce the ``kind="step"`` prompt-file contract at construction time.
@@ -225,6 +235,9 @@ class Decision:
         # refusal is present, so every non-owned payload stays byte-identical.
         if self.error_code is not None:
             payload["error_code"] = self.error_code
+        # WP06 (FR-003/FR-004): additive-only, like ``error_code``.
+        if self.remediation is not None:
+            payload["remediation"] = self.remediation
         return payload
 
 
@@ -248,23 +261,15 @@ def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
         return {}
 
 
-def _compute_wp_progress(
-    feature_dir: Path,
-    *,
-    status_dir: Path | None = None,
-) -> dict[str, int | float] | None:
-    """Compute WP lane counts and weighted progress for the progress field from the event log."""
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.is_dir():
-        return None
+def _board_or_path_lanes(lane_read_dir: Path, board: BoardStatus | None) -> Mapping[str, str]:
+    """The lane map: ``board.lanes`` when a board is given, else today's Path read."""
+    if board is not None:
+        return board.lanes
+    return _get_wp_lanes(lane_read_dir)
 
-    wp_files = sorted(tasks_dir.glob("WP*.md"))
-    if not wp_files:
-        return None
 
-    lane_read_dir = status_dir if status_dir is not None else feature_dir
-    wp_lanes = _get_wp_lanes(lane_read_dir)
-
+def _bucket_counts(wp_files: list[Path], wp_lanes: Mapping[str, str]) -> dict[str, int | float]:
+    """Count WP files into the progress buckets (pure; genesis WPs count in no bucket)."""
     counts: dict[str, int | float] = {
         "total_wps": 0,
         "done_wps": 0,
@@ -298,19 +303,58 @@ def _compute_wp_progress(
             counts["for_review_wps"] += 1
         elif state.progress_bucket() == "not_started":
             counts["planned_wps"] += 1
+    return counts
 
-    # Compute weighted progress from a PURE snapshot reduce (FR-017): this is
-    # a query, so it must never rewrite the tracked status.json the way the
-    # writing ``materialize`` does. The fallback is logged, not swallowed.
+
+def _path_weighted_percentage(lane_read_dir: Path) -> float | None:
+    """Weighted progress from a PURE snapshot reduce of ``lane_read_dir`` (the Path form).
+
+    FR-017: this is a query, so it must never rewrite the tracked status.json the
+    way the writing ``materialize`` does. The fallback is logged, not swallowed;
+    ``None`` means the figure is omitted.
+    """
     try:
         from specify_cli.status import compute_weighted_progress
         from specify_cli.status import materialize_snapshot
 
         snapshot = materialize_snapshot(lane_read_dir)
         progress = compute_weighted_progress(snapshot)
-        counts["weighted_percentage"] = round(progress.percentage, 1)
+        return round(progress.percentage, 1)
     except Exception as exc:
         _logger.warning("weighted progress unavailable for %s: %s", lane_read_dir, exc)
+        return None
+
+
+def _compute_wp_progress(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+    board: BoardStatus | None = None,
+) -> dict[str, int | float] | None:
+    """Compute WP lane counts and weighted progress for the progress field.
+
+    ``tasks/`` is a planning read on ``feature_dir`` (the PRIMARY partition). Lane
+    state comes from ``board`` when given (the preferred form, #7310 FR-008): its
+    ``lanes`` and its ``weighted_percentage``, with no ``materialize_snapshot`` read.
+    The two weighted figures agree (WP01's parity test,
+    ``tests/runtime/next/test_board_status.py``); a board whose figure is ``None``
+    omits the key, exactly as a failed Path read does. Without a board, the Path
+    form reads ``status_dir`` (or ``feature_dir``) as before.
+    """
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return None
+
+    wp_files = sorted(tasks_dir.glob("WP*.md"))
+    if not wp_files:
+        return None
+
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    counts = _bucket_counts(wp_files, _board_or_path_lanes(lane_read_dir, board))
+
+    weighted = board.weighted_percentage if board is not None else _path_weighted_percentage(lane_read_dir)
+    if weighted is not None:
+        counts["weighted_percentage"] = weighted
 
     return counts
 
@@ -320,12 +364,15 @@ def _find_first_wp_by_lane(
     lane: str,
     *,
     status_dir: Path | None = None,
+    board: BoardStatus | None = None,
 ) -> str | None:
     """Find the first WP file with the given lane value (from event log).
 
     Accepts canonical lane strings (e.g. ``"planned"``) or legacy aliases
     (e.g. ``"doing"``).  Comparison is done via :func:`wp_state_for` so
-    that aliases resolve to their canonical ``Lane`` enum member.
+    that aliases resolve to their canonical ``Lane`` enum member. Lanes come
+    from ``board`` when given (the preferred form), else from ``status_dir``
+    (or ``feature_dir``) as before.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -334,7 +381,7 @@ def _find_first_wp_by_lane(
     target_lane = wp_state_for(lane).lane
 
     lane_read_dir = status_dir if status_dir is not None else feature_dir
-    wp_lanes = _get_wp_lanes(lane_read_dir)
+    wp_lanes = _board_or_path_lanes(lane_read_dir, board)
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     for wp_file in wp_files:
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
@@ -439,22 +486,24 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path, *, owned: Own
     try:
         from runtime.next.runtime_bridge import get_mission_type
         from runtime.next.runtime_bridge_identity import _resolve_runtime_feature_dir
-        from runtime.next.runtime_bridge_io import guard_failure_artifact_paths
+        from runtime.next.runtime_bridge_io import guard_failure_artifact_paths, presence_seam
 
         if owned is None:
             feature_dir = _resolve_runtime_feature_dir(repo_root, decision.mission_slug)
         else:
             from mission_runtime import MissionArtifactKind, mission_context_for
 
+            # The Mission's own home on P (its PRIMARY metadata), never a status directory:
+            # the seam below says where each artifact lives (#7310 WP05, FR-010).
             context = mission_context_for(repo_root, decision.mission_slug, owned=owned)
-            status_dir = context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
-            feature_dir = status_dir if status_dir.is_dir() else context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+            feature_dir = context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
         decision.guard_failure_paths = guard_failure_artifact_paths(
             feature_dir,
             mission_family=decision.mission or get_mission_type(feature_dir),
             repo_root=repo_root,
             guard_failures=decision.guard_failures,
             owned=owned,
+            seam=presence_seam(repo_root, decision.mission_slug, owned=owned),
         )
     except Exception as exc:  # noqa: BLE001 — diagnostics must never break a decision
         _logger.debug("guard-failure paths unavailable for %s: %s", decision.mission_slug, exc)

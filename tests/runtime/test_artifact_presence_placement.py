@@ -11,7 +11,7 @@ import pytest
 from mission_runtime import MissionArtifactKind, placement_seam
 from runtime.next import runtime_bridge as bridge
 from runtime.next import runtime_bridge_composition as composition
-from runtime.next.runtime_bridge_io import gather_artifact_presence
+from runtime.next.runtime_bridge_io import gather_artifact_presence, presence_seam
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 from specify_cli.status.models import Lane, StatusEvent
 from tests._owned_fixtures import mint_test_fact
@@ -80,9 +80,10 @@ def test_split_artifact_guards(tmp_path: Path, topology: str, artifact: str, ste
     _git(home, "commit", "-qm", "Record planning input")
     expected = [] if authoritative else [f"Required artifact missing: {artifact}"]
 
-    cli_failures = bridge._check_cli_guards(step, status, mission_family="software-dev", repo_root=repo)
-    composed_failures = composition._check_composed_action_guard(step, status, repo_root=repo)
-    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id=step, repo_root=repo)
+    seam = presence_seam(repo, MISSION_SLUG)
+    cli_failures = bridge._check_cli_guards(step, status, mission_family="software-dev", repo_root=repo, seam=seam)
+    composed_failures = composition._check_composed_action_guard(step, status, repo_root=repo, seam=seam)
+    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id=step, repo_root=repo, seam=seam)
     assert (cli_failures, composed_failures) == (expected, expected)
     assert (artifact in snapshot.present_artifacts) is authoritative
     assert not ((status if authoritative else primary) / artifact).exists()
@@ -93,8 +94,9 @@ def test_non_coord_guard_control(tmp_path: Path, topology: str) -> None:
     repo, primary, status = _mission(tmp_path, topology)
     for artifact, step in [("spec.md", "specify"), ("plan.md", "plan")]:
         (primary / artifact).write_text("# Planning contract\n", encoding="utf-8")
-        assert bridge._check_cli_guards(step, status, mission_family="software-dev", repo_root=repo) == []
-        assert composition._check_composed_action_guard(step, status, repo_root=repo) == []
+        seam = presence_seam(repo, MISSION_SLUG)
+        assert bridge._check_cli_guards(step, status, mission_family="software-dev", repo_root=repo, seam=seam) == []
+        assert composition._check_composed_action_guard(step, status, repo_root=repo, seam=seam) == []
 
 
 def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
@@ -124,7 +126,7 @@ def test_planning_tasks_and_coord_lifecycle_facts(tmp_path: Path) -> None:
         '{"type":"source_documented"}\n{"type":"gate_passed","name":"publication_approved"}\n',
         encoding="utf-8",
     )
-    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id="tasks_finalize", repo_root=repo)
+    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id="tasks_finalize", repo_root=repo, seam=presence_seam(repo, MISSION_SLUG))
     assert "tasks_wp_files" in snapshot.present_artifacts
     assert snapshot.status_facts["wp_lane_raw"] == {"WP01": Lane.FOR_REVIEW}
     assert snapshot.status_facts["wp_dependencies_present"] == {"WP01": True}
@@ -142,7 +144,7 @@ def test_unclassified_artifact_retains_local_authority(tmp_path: Path) -> None:
     # home. #5697: ``report.md`` is now classified (RESEARCH_OUTPUT, primary-home),
     # so this uses ``source-register.csv``, still a None-kind research deliverable.
     (status / "source-register.csv").write_text("id,source\n1,x\n", encoding="utf-8")
-    snapshot = gather_artifact_presence(status, mission_family="research", step_id="output", repo_root=repo)
+    snapshot = gather_artifact_presence(status, mission_family="research", step_id="output", repo_root=repo, seam=presence_seam(repo, MISSION_SLUG))
     assert "source-register.csv" in snapshot.present_artifacts
     assert not (primary / "source-register.csv").exists()
 
@@ -153,7 +155,7 @@ def test_occurrence_guard_reads_primary_metadata(tmp_path: Path) -> None:
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     meta["change_mode"] = "bulk_edit"
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
-    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id="tasks_finalize", repo_root=repo)
+    snapshot = gather_artifact_presence(status, mission_family="software-dev", step_id="tasks_finalize", repo_root=repo, seam=presence_seam(repo, MISSION_SLUG))
     assert snapshot.status_facts["occurrence_gate_failures"]
     assert str(primary / "occurrence_map.yaml") in snapshot.status_facts["occurrence_gate_failures"][0]
 
@@ -180,10 +182,10 @@ def test_owned_checkout_artifact_guards(tmp_path: Path, artifact: str, step: str
     assert seam.read_dir(MissionArtifactKind.SPEC) == owned_mission
     expected = [] if authoritative else [f"Required artifact missing: {artifact}"]
 
-    cli_failures = bridge._check_cli_guards(step, owned_mission, mission_family="software-dev", repo_root=owned)
-    composed_failures = composition._check_composed_action_guard(step, owned_mission, repo_root=owned)
+    cli_failures = bridge._check_cli_guards(step, owned_mission, mission_family="software-dev", repo_root=owned, seam=seam)
+    composed_failures = composition._check_composed_action_guard(step, owned_mission, repo_root=owned, seam=seam)
     assert (cli_failures, composed_failures) == (expected, expected)
-    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id=step, repo_root=owned)
+    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id=step, repo_root=owned, seam=seam)
     assert (artifact in snapshot.present_artifacts) is authoritative
     assert not ((primary if authoritative else owned_mission) / artifact).exists()
 
@@ -197,8 +199,9 @@ def test_normal_linked_caller_keeps_canonical_status_authority(tmp_path: Path, t
     # Without explicit ownership, bootstrap supplies the canonical status home.
     status = placement_seam(linked, MISSION_SLUG).read_dir(MissionArtifactKind.STATUS_STATE)
     assert status == canonical_status
-    assert bridge._check_cli_guards("specify", status, mission_family="software-dev", repo_root=linked) == []
-    assert composition._check_composed_action_guard("specify", status, repo_root=linked) == []
+    seam = presence_seam(linked, MISSION_SLUG)
+    assert bridge._check_cli_guards("specify", status, mission_family="software-dev", repo_root=linked, seam=seam) == []
+    assert composition._check_composed_action_guard("specify", status, repo_root=linked, seam=seam) == []
     assert not (linked / "kitty-specs" / MISSION_SLUG / "spec.md").exists()
 
 
@@ -206,21 +209,22 @@ def test_normal_linked_caller_keeps_canonical_status_authority(tmp_path: Path, t
 #
 # ``gather_artifact_presence`` is a fact port; both production callers invoke
 # it OUTSIDE their ``try`` (tests/runtime/next/test_composed_guard_launder.py).
-# The owned-checkout re-seam is a *verified* fallback: a caller whose directory
-# is not a recognised STATUS home keeps its supplied directory (the pre-#3910
-# behaviour) instead of a guessed placement, and a PRIMARY-artifact question
-# is never turned into a coordination-branch liveness failure.
+# Since #7310 WP05 the caller hands its placement seam over (``presence_seam``)
+# instead of a status directory the port mapped back to a seam; a seam read that
+# degrades keeps the supplied directory per artifact, and a PRIMARY-artifact
+# question is never turned into a coordination-branch liveness failure.
 
 
 def test_coord_mission_called_from_primary_dir_keeps_supplied_directory(tmp_path: Path) -> None:
     repo, primary, _status = _mission(tmp_path, "coord")
     (primary / "spec.md").write_text("# Canonical planning contract\n", encoding="utf-8")
 
-    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+    seam = presence_seam(repo, MISSION_SLUG)
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo, seam=seam)
 
     assert "spec.md" in snapshot.present_artifacts
-    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
-    assert composition._check_composed_action_guard("specify", primary, repo_root=repo) == []
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo, seam=seam) == []
+    assert composition._check_composed_action_guard("specify", primary, repo_root=repo, seam=seam) == []
 
 
 def test_deleted_coordination_branch_does_not_fail_primary_presence(tmp_path: Path) -> None:
@@ -230,10 +234,11 @@ def test_deleted_coordination_branch_does_not_fail_primary_presence(tmp_path: Pa
     _git(repo, "worktree", "remove", "--force", str(coord_root))
     _git(repo, "branch", "-D", COORD_BRANCH)
 
-    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo)
+    seam = presence_seam(repo, MISSION_SLUG)
+    snapshot = gather_artifact_presence(primary, mission_family="software-dev", step_id="specify", repo_root=repo, seam=seam)
 
     assert "spec.md" in snapshot.present_artifacts
-    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo) == []
+    assert bridge._check_cli_guards("specify", primary, mission_family="software-dev", repo_root=repo, seam=seam) == []
 
 
 def test_owned_checkout_under_coord_topology_keeps_supplied_directory(tmp_path: Path) -> None:
@@ -245,6 +250,8 @@ def test_owned_checkout_under_coord_topology_keeps_supplied_directory(tmp_path: 
     owned_mission = owned / "kitty-specs" / MISSION_SLUG
     (owned_mission / "spec.md").write_text("# Owned planning contract\n", encoding="utf-8")
 
-    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id="specify", repo_root=owned)
+    # A caller with no seam for this checkout (WP05: the caller, not the port, owns the seam)
+    # keeps the supplied directory and never raises.
+    snapshot = gather_artifact_presence(owned_mission, mission_family="software-dev", step_id="specify", repo_root=owned, seam=None)
 
     assert "spec.md" in snapshot.present_artifacts

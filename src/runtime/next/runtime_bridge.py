@@ -128,10 +128,13 @@ from runtime.next.decision import (
 )
 from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
 from kernel.locks import LockAcquireTimeout
-from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
+from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode, PlacementSeam
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from runtime.next.board_status import BoardStatus
+    from specify_cli.status import StatusReadSurface
 
 logger = logging.getLogger(__name__)
 
@@ -237,9 +240,9 @@ def _check_cli_guards(
     *,
     mission_family: str | None = None,
     repo_root: Path | None = None,
-    owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
+    seam: PlacementSeam | None = None,
 ) -> list[str]:
     """Evaluate the CLI guards for ``step_id`` and return the failures.
 
@@ -267,6 +270,11 @@ def _check_cli_guards(
     run they already resolved, and no path here re-derives a mission handle from
     ``feature_dir.name``.
 
+    ``seam`` (#7310 WP05, FR-010) is the caller's placement seam, forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` so classified artifacts
+    resolve to their canonical home; ``None`` keeps every artifact in
+    ``feature_dir``.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
@@ -277,8 +285,8 @@ def _check_cli_guards(
         mission_family=mission_family,
         step_id=step_id,
         repo_root=repo_root,
-        owned=owned,
         run_dir=run_dir,
+        seam=seam,
         **injected,
     )
     if step_id in ("implement", "review"):
@@ -384,6 +392,16 @@ class DecideNextContext:
     # only on the ``analyze`` step and in the finalized-board override that
     # would hand out ``implement``; ``None`` there fails closed.
     analysis_currency: AnalysisCurrency | None = None
+    # runtime-status-read-door WP06 (FR-003): the coordination worktree the decision-log wrap
+    # materialized or restored, as the ``Decision.remediation`` entry; ``None`` otherwise.
+    remediation: dict[str, str] | None = None
+
+
+def _with_remediation(decision: Decision, remediation: dict[str, str] | None) -> Decision:
+    """Attach the bootstrap's ``remediation`` (FR-003) to ``decision``; unchanged when there is none."""
+    if remediation is not None:
+        decision.remediation = remediation
+    return decision
 
 
 def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, mission_type: str, now: str, exc: BaseException) -> Decision:
@@ -403,6 +421,78 @@ def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, miss
             error_code=OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value,
         )
     )
+
+
+class _OwnedDoorUnavailable(Exception):
+    """An owned bootstrap's door read hit an unreadable ref or worktree registry (``cause``)."""
+
+    def __init__(self, cause: Exception) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+
+
+def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> tuple[StatusReadSurface, BoardStatus] | None:
+    """Bootstrap's one status read (#7310 WP05, FR-001): the door's surface and its board.
+
+    ``None`` when the door cannot answer for a reason the board phase reports itself (a
+    deleted coordination branch, a Mission the door cannot find) or, for a non-owned call, an
+    unreadable ref or worktree registry: bootstrap then keeps today's path progress and lets
+    the later phases name the problem. An owned call raises :class:`_OwnedDoorUnavailable` for
+    the registry and ref failures, for the typed refusal. A corrupt log line raises
+    ``StoreError``, as the path read's lanes step does.
+    """
+    from runtime.next.board_status import board_status_from_surface
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import read_surface
+
+    try:
+        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
+        return surface, board_status_from_surface(surface)
+    except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
+        if owned is not None:
+            raise _OwnedDoorUnavailable(exc) from exc
+        logger.debug("decide_next bootstrap: status door unavailable for %s, keeping path progress: %s", mission_slug, exc)
+    except (StatusReadPathNotFound, FileNotFoundError, MissionSelectorAmbiguous) as exc:
+        logger.debug("decide_next bootstrap: no status surface for %s, keeping path progress: %s", mission_slug, exc)
+    return None
+
+
+def _dn_progress(
+    repo_root: Path,
+    mission_slug: str,
+    owned: OwnedCheckout | None,
+    feature_dir: Path,
+    primary_metadata_dir: Path | None,
+) -> tuple[dict[str, int | float] | None, Path]:
+    """Bootstrap's ``(progress, feature_dir)`` from its one door read (#7310 WP05, FR-001).
+
+    Progress counts the PRIMARY ``tasks/`` against the door's board. Without a board
+    (:func:`_dn_status_board` returned ``None``) it keeps today's path read of
+    ``feature_dir``. An owned call's ``feature_dir`` becomes the door's status directory
+    (:func:`_owned_status_dir`); a non-owned one is unchanged. Raises
+    :class:`_OwnedDoorUnavailable` for an owned registry or ref failure.
+    """
+    status_board = _dn_status_board(repo_root, mission_slug, owned=owned)
+    if status_board is None:
+        return _compute_wp_progress(feature_dir), feature_dir
+    surface, board = status_board
+    progress = _compute_wp_progress(primary_metadata_dir if primary_metadata_dir is not None else feature_dir, board=board)
+    if owned is not None:
+        feature_dir = _owned_status_dir(surface, feature_dir)
+    return progress, feature_dir
+
+
+def _owned_status_dir(surface: StatusReadSurface, identity_dir: Path) -> Path:
+    """The status directory an owned call's later phases read: the door's, when it is one on disk.
+
+    A path source (the owned write checkout, a materialized coordination worktree) names the
+    directory those phases read today; a ref source has none, so they keep ``identity_dir``,
+    the Mission's PRIMARY home (today's fallback when the status directory is absent).
+    """
+    path = surface.path
+    return path if path is not None and path.is_dir() else identity_dir
 
 
 def _dn_bootstrap(
@@ -443,9 +533,10 @@ def _dn_bootstrap(
             if not _decision_log._is_owned_coordination_unavailable(exc):
                 raise
             return None, _owned_coordination_unavailable_decision(agent, mission_slug, "unknown", now_utc_iso(), exc)
-        status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        # The Mission directory identity is the PRIMARY metadata home (#7310 WP05); the status
+        # source is read through the door after the decision-log wrap (``_dn_status_board``).
         primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
-        feature_dir = status_dir if status_dir.is_dir() else primary_metadata_dir
+        feature_dir = primary_metadata_dir
     now = now_utc_iso()
 
     if not feature_dir.is_dir():
@@ -522,6 +613,7 @@ def _dn_bootstrap(
         if not _decision_log._is_owned_coordination_unavailable(exc):
             raise
         return None, _owned_coordination_unavailable_decision(agent, mission_slug, mission_type, now, exc)
+    remediation = _decision_log.materialization_remediation(emitter_for_engine)
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -536,25 +628,36 @@ def _dn_bootstrap(
     except FileNotFoundError:
         origin = {"mission_tier": "unknown", "mission_path": "unknown"}
 
-    progress = _compute_wp_progress(feature_dir)
+    # #7310 WP05 (FR-001): the status is read through the door AFTER the decision-log wrap,
+    # so a coordination worktree the wrap restored or materialized is already there, and an
+    # empty or unmaterialized one reads the committed coordination branch.
+    try:
+        progress, feature_dir = _dn_progress(repo_root, mission_slug, owned, feature_dir, primary_metadata_dir)
+    except _OwnedDoorUnavailable as exc:
+        # The door's own registry/ref failure is the same O8 typed ``blocked`` decision as
+        # the wrap's (FR-006); only an owned call raises it here.
+        return None, _with_remediation(_owned_coordination_unavailable_decision(agent, mission_slug, mission_type, now, exc.cause), remediation)
 
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
         run_ref = _io_seam.get_or_start_run(mission_slug, config_root, mission_type, emitter=emitter_for_engine, owned=owned)
     except Exception as exc:
-        return None, _mapping._materialize_decision(
-            _cores.DecisionEnvelope(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state="unknown",
-                timestamp=now,
-                reason=f"Failed to start/load runtime run: {exc}",
-                progress=progress,
-                origin=origin,
-            )
+        return None, _with_remediation(
+            _mapping._materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state="unknown",
+                    timestamp=now,
+                    reason=f"Failed to start/load runtime run: {exc}",
+                    progress=progress,
+                    origin=origin,
+                )
+            ),
+            remediation,
         )
 
     run_dir = Path(run_ref.run_dir)
@@ -605,6 +708,7 @@ def _dn_bootstrap(
             run_dir=run_dir,
             current_step_id=current_step_id,
             owned=owned,
+            remediation=remediation,
         ),
         None,
     )
@@ -840,8 +944,8 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 feature_dir,
                 mission_family=mission_type,
                 repo_root=repo_root,
-                owned=owned,
                 run_dir=ctx.run_dir,
+                seam=_io_seam.presence_seam(repo_root, mission_slug, owned=owned),
             )
         except _cores.UnregisteredMissionFamilyError:
             logger.warning(
@@ -887,8 +991,8 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             feature_dir,
             mission_family=mission_type,
             repo_root=repo_root,
-            owned=owned,
             analysis_currency=ctx.analysis_currency,
+            seam=_io_seam.presence_seam(repo_root, mission_slug, owned=owned),
         )
         if guard_failures:
             return _dn_reissue_step_decision(ctx, current_step_id, guard_failures)
@@ -1070,6 +1174,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             contract=runtime_contract,
             owned=ctx.owned,
             run_dir=ctx.run_dir,
+            seam=_io_seam.presence_seam(ctx.repo_root, ctx.mission_slug, owned=ctx.owned),
         )
         if composition_failures:
             return _dn_composition_blocked_decision(ctx, current_step_id, composition_failures)
@@ -1418,7 +1523,7 @@ def decide_next_via_runtime(
     for phase in (_dn_finalized_board_override, _dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
         decision = phase(ctx)
         if decision is not None:
-            return decision
+            return _with_remediation(decision, ctx.remediation)
 
     raise AssertionError(  # pragma: no cover — decision-materialize always resolves
         "decide_next_via_runtime: no phase produced a Decision"

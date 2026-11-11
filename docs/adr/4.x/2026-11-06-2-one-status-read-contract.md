@@ -5,7 +5,7 @@ status: Proposed
 doc_status: active
 kind: ADR
 date: '2026-11-06'
-updated: '2026-11-08T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 ---
 
 # One status read contract
@@ -417,3 +417,25 @@ command closed instead of rendering an empty board), the canceled-set read of
 warning of `workflow_executor`. `tests/status/test_status_readers_cross_cwd_parity.py` carries
 `agent tasks status` in its matrix.
 
+## Amendment 2026-11-11: owned coordination checkouts, read vs dispatch
+
+**Deciders:** Stijn Dejongh (operator). Accepted by merging the pull request that carries it.
+**Technical Story:** Mission `runtime-status-read-door-01M73HHB` (FR-007, FR-012), Decision Moment
+`01M73HKG7WSR4VDRFXG9JWTGM8` (DM-1). The body and the 2026-11-08 amendment above are kept as written.
+
+**Finding the Mission.** For an owned checkout of a `coord` or `lanes_with_coord` Mission, the door
+locates the Mission through the owned checkout, not the repository root checkout. The owned
+checkout's Mission directory gives `meta.json`, the landed check and the pre-seed fallback. The
+coordination state (materialized, empty, unmaterialized, deleted) is still probed under the
+repository root, because the coordination worktree and branch are registered there. A Mission that
+exists only in the owned checkout therefore resolves. Owned `single_branch` and `lanes` Missions are
+unchanged: they read the owned checkout's Mission directory.
+
+**Reading.** Query and progress of an owned coordination Mission read the committed coordination
+branch when its worktree is empty or unmaterialized, as §2 already says for every coordination
+Mission.
+
+**Dispatching.** An advancing dispatch of that Mission (one that would send an agent to work in the
+coordination workspace) refuses with `OWNED_COORDINATION_WORKSPACE_UNAVAILABLE` when that workspace
+is empty or unmaterialized. This is the operator's ruling in DM-1: an agent must not be sent into a
+missing workspace. It is a dispatch rule, not a read rule; the door itself never refuses for it.

@@ -30,13 +30,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 from specify_cli.status import Lane
 from specify_cli.status import reduce as _reduce_events
 from specify_cli.status import read_events as _read_events
 from specify_cli.task_utils.support import extract_scalar, split_frontmatter
+
+if TYPE_CHECKING:
+    from runtime.next.board_status import BoardStatus
 
 __all__ = ["ClaimablePreview", "preview_claimable_wp"]
 
@@ -197,6 +200,7 @@ def preview_claimable_wp(
     feature_dir: Path,
     *,
     status_dir: Path | None = None,
+    board: BoardStatus | None = None,
 ) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
@@ -219,6 +223,12 @@ def preview_claimable_wp(
             keep working unchanged.  Pass a distinct coord-aware path here
             when the caller operates under coord topology so events come from
             the authoritative coord husk rather than a primary decoy.
+            Kept for outside callers (``workflow.py``) and tests; ``board=``
+            is the preferred form. Ignored when ``board`` is given.
+        board: The preferred form (#7310, FR-008): a :class:`BoardStatus`
+            already read through the status read door. When given, lanes and
+            dependency provenance come from ``board.wp_states``, the same
+            derivation as the Path form, and no status file is read here.
 
     Returns:
         :class:`ClaimablePreview` whose ``wp_id`` matches what ``agent action
@@ -251,7 +261,10 @@ def preview_claimable_wp(
     # Load the reduced states once and reuse them for both the lane map and the
     # provenance map (FR-009) so a dependent of a canceled-with-operator-provenance
     # WP is surfaced as claimable, mirroring the primary claim gates.
-    wp_states = _load_wp_states(_status_dir)
+    # The Path form keeps its own best-effort read (``_load_wp_states`` swallows
+    # every failure); it is deliberately not routed through
+    # ``board_status_from_dir``, which raises on a corrupt log.
+    wp_states: Mapping[str, Mapping[str, Any]] = board.wp_states if board is not None else _load_wp_states(_status_dir)
     return _preview_from_candidates(
         candidates,
         _wp_lanes_from_states(wp_states),

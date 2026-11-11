@@ -57,7 +57,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.charter_pack_paths import project_pack_root
-from mission_runtime import OwnedCheckout
+from mission_runtime import OwnedCheckout, PlacementSeam
 
 from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
@@ -430,8 +430,8 @@ def _check_composed_action_guard(
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
-    owned: OwnedCheckout | None = None,
     run_dir: Path | None = None,
+    seam: PlacementSeam | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -491,6 +491,10 @@ def _check_composed_action_guard(
     fact. The live dispatch path threads the run it already resolved
     (``ctx.run_dir``), so the fact never re-resolves a mission handle from
     ``feature_dir.name``.
+
+    ``seam`` (#7310 WP05, FR-010) is the caller's placement seam, forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence`; ``None`` keeps every
+    artifact in ``feature_dir``.
     """
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir,
@@ -498,8 +502,8 @@ def _check_composed_action_guard(
         step_id=action,
         legacy_step_id=legacy_step_id,
         repo_root=repo_root,
-        owned=owned,
         run_dir=run_dir,
+        seam=seam,
     )
     # WP-driven = the built-in software-dev or any family whose runtime DAG declares ``implement``.
     if action in ("implement", "review") and (mission == "software-dev" or snapshot.wp_driven):
@@ -542,6 +546,7 @@ def _dispatch_via_composition(
     contract: Any | None = None,
     owned: OwnedCheckout | None = None,
     run_dir: Path | None = None,
+    seam: PlacementSeam | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -660,8 +665,8 @@ def _dispatch_via_composition(
         mission=mission,
         legacy_step_id=legacy_step_id,
         repo_root=repo_root,
-        owned=owned,
         run_dir=run_dir,
+        seam=seam,
     )
     if failures:
         return failures
