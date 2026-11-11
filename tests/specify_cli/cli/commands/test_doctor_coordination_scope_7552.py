@@ -148,6 +148,12 @@ def test_report_without_fix_needs_no_scope(two_never_created: tuple[Path, Path, 
     assert code == 0
     assert (meta_a.read_bytes(), meta_b.read_bytes()) == before
 
+    # ``--all-missions`` without ``--fix`` still reports, and says it has no effect.
+    code, output = _invoke("--all-missions")
+    assert code == 0
+    assert "only applies with --fix" in output
+    assert (meta_a.read_bytes(), meta_b.read_bytes()) == before
+
 
 # ---------------------------------------------------------------------------
 # FR-003: --mission scopes the stranded-revert check and its fixer
