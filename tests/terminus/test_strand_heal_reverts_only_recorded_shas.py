@@ -112,7 +112,7 @@ def _reviewer_reopen(mission: CoordMission, wp_id: str) -> str:
 
 def _doctor_fix(mission: CoordMission, monkeypatch: pytest.MonkeyPatch) -> Result:
     monkeypatch.chdir(mission.repo)
-    return CliRunner().invoke(doctor_app, ["coordination", "--fix"], catch_exceptions=False)
+    return CliRunner().invoke(doctor_app, ["coordination", "--fix", "--mission", mission.slug], catch_exceptions=False)
 
 
 def _flat(text: str) -> str:

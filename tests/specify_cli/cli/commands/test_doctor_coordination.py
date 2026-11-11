@@ -626,7 +626,7 @@ def test_run_coordination_health_fix_end_to_end(
 
     # ---- Case A: fixable-only → exit 0, fix actually ran ------------------
     with pytest.raises(typer.Exit) as exc_a:
-        cd.run_coordination_health(json_output=False, fix=True)
+        cd.run_coordination_health(json_output=False, fix=True, all_missions=True)
     assert exc_a.value.exit_code == 0, "a fully-fixed mission with no other errors must exit 0"
     written = json.loads((spec_dir / "meta.json").read_text())
     assert "coordination_branch" not in written, (
@@ -654,7 +654,7 @@ def test_run_coordination_health_fix_end_to_end(
     _git(fresh_mission_repo, "commit", "-q", "-m", "add tracked worktrees junk + 2nd mission")
 
     with pytest.raises(typer.Exit) as exc_b:
-        cd.run_coordination_health(json_output=False, fix=True)
+        cd.run_coordination_health(json_output=False, fix=True, all_missions=True)
     assert exc_b.value.exit_code == 1, (
         "an unfixable error finding (TRACKED_WORKTREES_CONTENT) must survive "
         "the fix pass and force a non-zero exit code"

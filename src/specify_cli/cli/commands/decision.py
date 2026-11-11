@@ -327,7 +327,7 @@ def _handle_coord_seed_fork_refused(exc: CoordSeedForkRefused) -> NoReturn:
         "next_step": (
             "The coordination decision/status log has diverged from the "
             "repository-root checkout and cannot be auto-reconciled. Run "
-            "'spec-kitty doctor coordination --fix' or inspect both logs "
+            "'spec-kitty doctor coordination --fix --mission <mission>' or inspect both logs "
             "manually, then retry this command."
         ),
     }

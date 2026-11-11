@@ -49,6 +49,7 @@ from ._doctor_shared import console
 
 if TYPE_CHECKING:
     from specify_cli.coordination.coherence import CoordRepairOutcome
+    from specify_cli.missions._read_path_resolver import BranchOnlyMission
 
 # ``__all__`` lists this sibling's cross-module contract: the entrypoint +
 # ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports, plus
@@ -119,10 +120,26 @@ _COORD_BRANCH_REMOTE_ERROR_SKIP_HINT = (
 #: this constant, so it must stay stable.
 _STRANDED_COORD_REVERT_CODE = "COORDINATION_STRANDED_COORD_REVERT"
 
+#: #7552 (FR-001): ``--fix`` with no named scope refuses, mutating nothing. A repair
+#: is destructive (a flatten, a strand revert), so its blast radius is never implicit.
+_FIX_SCOPE_REQUIRED_CODE = "COORDINATION_FIX_SCOPE_REQUIRED"
+_FIX_SCOPE_REQUIRED_MESSAGE = (
+    "`doctor coordination --fix` repairs only the Missions you name. Pass "
+    "`--mission <handle>` to repair one Mission, or `--all-missions` to repair every "
+    "Mission in this repository. Nothing was changed."
+)
+#: #7552 (FR-004): ``--mission`` and ``--all-missions`` name conflicting scopes.
+_FIX_SCOPE_CONFLICT_CODE = "COORDINATION_FIX_SCOPE_CONFLICT"
+_FIX_SCOPE_CONFLICT_MESSAGE = (
+    "`--mission` and `--all-missions` cannot be combined: name one Mission, or all of them. Nothing was changed."
+)
+#: #7552 (FR-006): a Mission branch whose ``meta.json`` could not be read.
+_BRANCH_META_UNREADABLE_CODE = "COORDINATION_BRANCH_META_UNREADABLE"
+
 #: Recovery hint for a live strand — points at the ``--fix`` repair path.
 _STRANDED_COORD_REVERT_HINT = (
-    "Run `spec-kitty doctor coordination --fix` to revert the stranded coordination "
-    "`done` commit(s) and clear the reconcile marker."
+    "Run `spec-kitty doctor coordination --fix --mission <mission>` to revert the stranded "
+    "coordination `done` commit(s) and clear the reconcile marker."
 )
 
 #: STUCK variant (FR-007): a live strand whose recorded coordination worktree no
@@ -648,7 +665,7 @@ _COORD_STALE_VS_TARGET_CODE = "COORDINATION_BRANCH_STALE_VS_TARGET"
 #: NOT `--fix`-eligible: coord and target have diverged.
 _COORD_DIVERGED_VS_TARGET_CODE = "COORDINATION_BRANCH_DIVERGED_VS_TARGET"
 _COORD_DIVERGED_VS_TARGET_HINT = (
-    "Inspect and reconcile manually; `spec-kitty doctor coordination --fix` "
+    "Inspect and reconcile manually; `spec-kitty doctor coordination --fix --mission <mission>` "
     "will refuse to mutate a diverged coordination branch."
 )
 
@@ -691,7 +708,7 @@ def _coord_branch_stale_vs_target_finding(
             f"Coordination branch {coord_branch!r} is behind target branch "
             f"{target_branch!r} (fast-forward available)."
         ),
-        next_step="Run `spec-kitty doctor coordination --fix` to fast-forward it.",
+        next_step=f"Run `spec-kitty doctor coordination --fix --mission {mission_dir_name or '<mission>'}` to fast-forward it.",
         error_code=_COORD_STALE_VS_TARGET_CODE,
     )
     if stale is not None:
@@ -947,6 +964,227 @@ def _resolve_mission_dirs(repo_root: Path, mission_filter: str | None) -> list[P
     ]
 
 
+@dataclass(frozen=True)
+class _ScannedMission:
+    """One Mission the per-Mission checks run over (#7552).
+
+    ``mission_dir`` is set only for a Mission directory in the repository root
+    checkout: it is the one copy the ``NEVER_CREATED`` flatten may edit. A Mission
+    read from a coordination worktree or straight from its Mission branch carries
+    ``None`` and is never flattened.
+    """
+
+    meta: dict[str, object]
+    mission_dir: Path | None
+    #: True for a Mission only its own Mission branch carries (no checkout holds it).
+    branch_only: bool = False
+
+
+@dataclass(frozen=True)
+class _MissionScan:
+    """The Missions a run covers, the warnings their discovery raised, and the scope."""
+
+    missions: list[_ScannedMission]
+    warnings: list[DoctorFinding]
+    scoped_mission_id: str | None
+    scoped_mission_slug: str | None = None
+
+
+#: #7552: marks a ``COORDINATION_WORKTREE_MISSING`` finding for a Mission only its
+#: Mission branch carries. ``--fix`` materializes it only under ``--mission``:
+#: ``consolidate --abort`` removes a coordination worktree on purpose and keeps the
+#: branch, so ``--all-missions`` must not bring such worktrees back unasked.
+_BRANCH_ONLY_EXTRA = "branch_only"
+_META_UNREADABLE_CODE = "COORDINATION_META_UNREADABLE"
+#: The skip notice an unscoped ``--fix`` emits for such a Mission (distinct from the
+#: re-collected ``COORDINATION_WORKTREE_MISSING`` finding it explains).
+_BRANCH_ONLY_NOT_RESTORED_CODE = "COORDINATION_WORKTREE_NOT_RESTORED"
+
+
+def _read_scanned_meta(mission_dir: Path) -> dict[str, object] | None:
+    """The scan's one ``meta.json`` reader: an unreadable or malformed file skips the Mission.
+
+    Silent by contract, as the scan always was: a broken ``meta.json`` is reported by
+    ``doctor identity`` / ``doctor mission-state``, not here.
+    """
+    meta = load_meta(mission_dir, on_malformed="none")
+    return meta if isinstance(meta, dict) else None
+
+
+def _branch_only_warning(found: BranchOnlyMission) -> DoctorFinding:
+    """A Mission branch whose ``meta.json`` could not be read: reported, never repaired."""
+    return DoctorFinding(
+        severity="warning",
+        message=(
+            f"Could not read kitty-specs/{found.dir_name}/meta.json from Mission branch "
+            f"{found.branch!r}: {found.error}"
+        ),
+        next_step=f"Inspect it with `git show {found.branch}:kitty-specs/{found.dir_name}/meta.json`.",
+        error_code=_BRANCH_META_UNREADABLE_CODE,
+        extra={"branch": found.branch, "mission_dir_name": found.dir_name},
+    )
+
+
+def _off_root_missions(repo_root: Path, root_names: frozenset[str]) -> tuple[list[_ScannedMission], list[DoctorFinding]]:
+    """Missions no root-checkout directory carries: coordination-worktree copies, then branch-only ones.
+
+    Both come from the placement seam (``missions._read_path_resolver``): a settled
+    default Mission's PRIMARY partition lives in its coordination worktree (FR-061),
+    and once that worktree is gone only its Mission branch carries it (FR-006).
+    """
+    from specify_cli.missions._read_path_resolver import (
+        _coord_worktree_mission_dir,
+        branch_only_mission_metas,
+        coord_worktree_mission_names,
+    )
+
+    missions: list[_ScannedMission] = []
+    seen = set(root_names)
+    for name in coord_worktree_mission_names(repo_root):
+        held = None if name in seen else _coord_worktree_mission_dir(repo_root, name)
+        meta = _read_scanned_meta(held) if held is not None else None
+        if meta is not None:
+            missions.append(_ScannedMission(meta=meta, mission_dir=None))
+            seen.add(name)
+    warnings: list[DoctorFinding] = []
+    for found in branch_only_mission_metas(repo_root, known_dir_names=frozenset(seen)):
+        if found.meta is None:
+            warnings.append(_branch_only_warning(found))
+        else:
+            missions.append(_ScannedMission(meta=dict(found.meta), mission_dir=None, branch_only=True))
+    return missions, warnings
+
+
+def _matches_handle(meta: dict[str, object], handle: str) -> bool:
+    """Exact ``mission_id`` / mid8 / ``mission_slug`` match (the canonical ladder's keys).
+
+    The mid8 comes from the one sanctioned cascade
+    (:func:`~specify_cli.coordination.surface_resolver.resolve_declared_mid8`), never a re-slice.
+    """
+    from specify_cli.coordination.surface_resolver import resolve_declared_mid8
+
+    slug = meta.get("mission_slug")
+    if handle in (meta.get("mission_id"), slug):
+        return True
+    return isinstance(slug, str) and bool(slug) and resolve_declared_mid8(meta, slug) == handle
+
+
+def _scan_scoped(repo_root: Path, handle: str) -> _MissionScan:
+    """The one Mission *handle* names: the canonical resolver first, then the off-root records.
+
+    The off-root records are consulted only when the resolver finds nothing (a Mission
+    no checkout carries); more than one match there is ambiguous. No fallback to "all".
+    """
+    from specify_cli.context.mission_resolver import MissionNotFoundError
+
+    try:
+        resolved = _resolve_mission_dirs(repo_root, handle)
+    except MissionNotFoundError:
+        resolved = []
+    if not resolved:  # no root ``kitty-specs/`` at all also lands here
+        return _scan_off_root_handle(repo_root, handle)
+    mission_dir = resolved[0]
+    meta = _read_scanned_meta(mission_dir)
+    if meta is None:
+        # Named, but unreadable: say so rather than report a healthy Mission (exit 0).
+        unreadable = DoctorFinding(
+            severity="error",
+            message=f"Mission {handle!r} resolved to {mission_dir}, but its meta.json could not be read; nothing was checked or repaired.",
+            next_step=f"Run `spec-kitty doctor mission-state --mission {handle}` for details.",
+            error_code=_META_UNREADABLE_CODE,
+            extra={"mission_dir": str(mission_dir)},
+        )
+        return _MissionScan(missions=[], warnings=[unreadable], scoped_mission_id=None, scoped_mission_slug=mission_dir.name)
+    scanned = _ScannedMission(meta=meta, mission_dir=_root_dir_or_none(repo_root, mission_dir))
+    return _MissionScan(
+        missions=[scanned],
+        warnings=[],
+        scoped_mission_id=_str_or_none(meta.get("mission_id")),
+        scoped_mission_slug=_str_or_none(meta.get("mission_slug")) or mission_dir.name,
+    )
+
+
+def _scan_off_root_handle(repo_root: Path, handle: str) -> _MissionScan:
+    """*handle* among the Missions no root-checkout directory carries; none or several fail closed."""
+    from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, iter_kitty_specs_children
+
+    # The resolver already covered the root checkout's directories: skip re-reading them on
+    # every Mission branch (a branch cut from the target inherits all of them).
+    root_names = frozenset(child.name for child in iter_kitty_specs_children(repo_root))
+    off_root, _warnings = _off_root_missions(repo_root, root_names)
+    matches = [m for m in off_root if _matches_handle(m.meta, handle)]
+    if len(matches) > 1:
+        raise AmbiguousHandleError(handle, [])
+    if not matches:
+        raise MissionNotFoundError(handle)
+    meta = matches[0].meta
+    return _MissionScan(
+        missions=matches,
+        warnings=[],
+        scoped_mission_id=_str_or_none(meta.get("mission_id")),
+        scoped_mission_slug=_str_or_none(meta.get("mission_slug")),
+    )
+
+
+def _str_or_none(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _root_dir_or_none(repo_root: Path, mission_dir: Path) -> Path | None:
+    """*mission_dir* when it is the repository root checkout's own copy, else ``None``."""
+    root_specs = (repo_root / KITTY_SPECS_DIR).resolve()
+    return mission_dir if mission_dir.resolve().parent == root_specs else None
+
+
+def _scan_missions(repo_root: Path, mission_filter: str | None) -> _MissionScan:
+    """Every Mission a run covers (#7552): the root checkout's, then off-root ones; or the one named."""
+    if mission_filter is not None:
+        return _scan_scoped(repo_root, mission_filter)
+    missions: list[_ScannedMission] = []
+    root_names: set[str] = set()
+    for mission_dir in _resolve_mission_dirs(repo_root, None):
+        root_names.add(mission_dir.name)
+        meta = _read_scanned_meta(mission_dir)
+        if meta is not None:
+            missions.append(_ScannedMission(meta=meta, mission_dir=mission_dir))
+    off_root, warnings = _off_root_missions(repo_root, frozenset(root_names))
+    return _MissionScan(missions=missions + off_root, warnings=warnings, scoped_mission_id=None)
+
+
+def _strands_in_scope(findings: list[DoctorFinding], scan: _MissionScan, mission_filter: str | None) -> list[DoctorFinding]:
+    """FR-003: under ``--mission`` keep only that Mission's reconcile-marker findings.
+
+    A marker finding that names no Mission (unparseable) belongs to no scope, so only
+    an unscoped run reports (and may act on) it.
+    """
+    if mission_filter is None:
+        return findings
+    return [f for f in findings if _strand_belongs_to(f, scan)]
+
+
+def _strand_belongs_to(finding: DoctorFinding, scan: _MissionScan) -> bool:
+    """A marker finding is the scoped Mission's by ``mission_id``, else (no id on either side) by slug."""
+    marker_id = finding.extra.get("mission_id")
+    if scan.scoped_mission_id is not None and marker_id is not None:
+        return bool(marker_id == scan.scoped_mission_id)
+    return scan.scoped_mission_slug is not None and finding.extra.get("mission_slug") == scan.scoped_mission_slug
+
+
+def _mission_findings(repo_root: Path, scanned: _ScannedMission, check_staleness: bool) -> list[DoctorFinding]:
+    """The per-Mission checks for one scanned Mission."""
+    meta = scanned.meta
+    coord_findings = _check_coordination_worktree_health(repo_root, meta)
+    for f in coord_findings:
+        if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED" and scanned.mission_dir is not None:
+            f.extra["meta_path"] = str(scanned.mission_dir / "meta.json")
+        if f.error_code == "COORDINATION_WORKTREE_MISSING" and scanned.branch_only:
+            f.extra[_BRANCH_ONLY_EXTRA] = True
+    findings = [*coord_findings, *_check_lane_sparse_checkout_drift(repo_root, meta)]
+    if check_staleness:
+        findings.extend(_check_coord_branch_staleness(repo_root, meta))
+    return findings
+
+
 def _collect_coordination_findings(
     repo_root: Path,
     check_staleness: bool = False,
@@ -959,31 +1197,24 @@ def _collect_coordination_findings(
     coordinated mission. Off by default so the baseline ``doctor
     coordination`` output stays unchanged.
 
-    ``mission_filter`` (FR-012, ``--mission``) scopes the per-mission
-    kitty-specs iteration to a single mission via the shared resolver; the
-    repo-level checks (git version, tracked-worktrees hygiene, stranded-revert
-    re-verification) always run. Unresolvable / ambiguous handles raise (see
-    :func:`_resolve_mission_dirs`).
+    ``mission_filter`` (FR-012, ``--mission``) scopes the per-Mission checks AND
+    the stranded-revert markers (#7552, FR-003) to the single Mission the handle
+    names; the read-only repo-level checks (git version, tracked-worktrees
+    hygiene) always run. Without a filter the scan covers the root checkout's
+    Missions plus the Missions only a coordination worktree or a Mission branch
+    carries (#7552, FR-005/FR-006). Unresolvable / ambiguous handles raise (see
+    :func:`_scan_scoped`).
     """
+    scan = _scan_missions(repo_root, mission_filter)
     findings: list[DoctorFinding] = []
     findings.extend(_check_git_version())
     # FR-035 (#1772 Bug 0): repo-level tracked-.worktrees/ hygiene check.
     findings.extend(_check_tracked_worktrees_content(repo_root))
-    # FR-007 (#2786 / #2367-B): repo-level stranded-coord-revert re-verification.
-    findings.extend(_check_stranded_coord_revert(repo_root))
-
-    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
-        meta = load_meta(mission_dir, on_malformed="none")
-        if meta is None:
-            continue
-        coord_findings = _check_coordination_worktree_health(repo_root, meta)
-        for f in coord_findings:
-            if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED":
-                f.extra["meta_path"] = str(mission_dir / "meta.json")
-        findings.extend(coord_findings)
-        findings.extend(_check_lane_sparse_checkout_drift(repo_root, meta))
-        if check_staleness:
-            findings.extend(_check_coord_branch_staleness(repo_root, meta))
+    # FR-007 (#2786 / #2367-B): stranded-coord-revert re-verification, scoped (#7552).
+    findings.extend(_strands_in_scope(_check_stranded_coord_revert(repo_root), scan, mission_filter))
+    findings.extend(scan.warnings)
+    for scanned in scan.missions:
+        findings.extend(_mission_findings(repo_root, scanned, check_staleness))
     return findings
 
 
@@ -1223,7 +1454,7 @@ def _finding_for_reconcile_marker(
             f"{mission_slug!r} still reduces WP(s) {remaining} to "
             "`done` after a merge rollback (expected `approved`)."
         ),
-        next_step=_STRANDED_COORD_REVERT_HINT,
+        next_step=_STRANDED_COORD_REVERT_HINT.replace("<mission>", mission_slug or mission_id or "<mission>"),
         error_code=_STRANDED_COORD_REVERT_CODE,
         extra=extra,
     )
@@ -1474,8 +1705,36 @@ def _apply_stranded_revert_fix(
     return warnings
 
 
+def _branch_only_skip_warning(mission_slug: str) -> DoctorFinding:
+    """#7552: an unscoped ``--fix`` leaves a branch-only Mission's worktree alone, and says how to restore it."""
+    return DoctorFinding(
+        severity="warning",
+        message=(
+            f"Mission {mission_slug!r} exists only on its Mission branch; its coordination worktree was not "
+            "restored, because `--all-missions` does not bring back worktrees removed on purpose "
+            "(for example by `consolidate --abort`)."
+        ),
+        next_step=f"Run `spec-kitty doctor coordination --fix --mission {mission_slug}` to restore it.",
+        error_code=_BRANCH_ONLY_NOT_RESTORED_CODE,
+        extra={"mission_slug": mission_slug, _BRANCH_ONLY_EXTRA: True},
+    )
+
+
+def _branch_only_identity(f: DoctorFinding) -> dict[str, str]:
+    """The finding's resolved coordination branch and mid8, for a branch-only Mission only.
+
+    The materializer otherwise re-reads ``meta.json`` from a checkout, and a Mission only
+    its branch carries has none there (a silent no-op). An on-disk Mission keeps the
+    materializer's own derivation, so its worktree path is the one decision writes use.
+    """
+    branch, mid8 = f.extra.get("coord_branch"), f.extra.get("mid8")
+    if f.extra.get(_BRANCH_ONLY_EXTRA) and isinstance(branch, str) and branch and isinstance(mid8, str) and mid8:
+        return {"coordination_branch": branch, "mid8": mid8}
+    return {}
+
+
 def _apply_missing_worktree_fix(
-    findings: list[DoctorFinding], repo_root: Path
+    findings: list[DoctorFinding], repo_root: Path, *, scoped: bool = False
 ) -> list[DoctorFinding]:
     """#5113 / FR-014: materialize a missing coordination worktree (branch present).
 
@@ -1509,8 +1768,11 @@ def _apply_missing_worktree_fix(
             # producer) is skipped rather than crashing the whole `--fix` run.
             continue
         extra_branch = f.extra.get("coord_branch")
+        if f.extra.get(_BRANCH_ONLY_EXTRA) and not scoped:
+            warnings.append(_branch_only_skip_warning(mission_slug))
+            continue
         try:
-            materialize_coord_surface_for_write(repo_root, mission_slug)
+            materialize_coord_surface_for_write(repo_root, mission_slug, **_branch_only_identity(f))
         except CoordinationWorktreeUnmaterialized as exc:
             # #5258: classify on the branch the refusal itself names when the
             # finding carries no ``coord_branch`` extra -- relaying the
@@ -1553,7 +1815,7 @@ def _apply_missing_worktree_fix(
 
 
 def _apply_coordination_fixes(
-    findings: list[DoctorFinding], repo_root: Path
+    findings: list[DoctorFinding], repo_root: Path, *, scoped: bool = False
 ) -> list[DoctorFinding]:
     """Run every registered ``--fix`` handler over the collected findings.
 
@@ -1572,7 +1834,7 @@ def _apply_coordination_fixes(
     order-irrelevant fixers have already applied.
     """
     _apply_never_created_fix(findings, repo_root)
-    warnings = _apply_missing_worktree_fix(findings, repo_root)
+    warnings = _apply_missing_worktree_fix(findings, repo_root, scoped=scoped)
     return warnings + _apply_stranded_revert_fix(findings, repo_root)
 
 
@@ -1945,11 +2207,8 @@ def _apply_coord_staleness_fixes(
     one such mission no longer aborts fixing every OTHER mission in the same run.
     """
     blocked: list[DoctorFinding] = []
-    for mission_dir in _resolve_mission_dirs(repo_root, mission_filter):
-        meta = load_meta(mission_dir, on_malformed="none")
-        if meta is None:
-            continue
-        finding = _fix_one_mission_coord_staleness(repo_root, meta)
+    for scanned in _scan_missions(repo_root, mission_filter).missions:
+        finding = _fix_one_mission_coord_staleness(repo_root, scanned.meta)
         if finding is not None:
             blocked.append(finding)
     return blocked
@@ -1993,11 +2252,27 @@ def _emit_mission_resolver_error(
         console.print(f"[red]Error:[/red] {message}")
 
 
+def _refuse_unscoped_fix(fix: bool, mission: str | None, all_missions: bool, json_output: bool) -> None:
+    """#7552 (FR-001 / FR-004): refuse before any check runs when the repair scope is missing or ambiguous."""
+    if mission is not None and all_missions:
+        code, message = _FIX_SCOPE_CONFLICT_CODE, _FIX_SCOPE_CONFLICT_MESSAGE
+    elif fix and mission is None and not all_missions:
+        code, message = _FIX_SCOPE_REQUIRED_CODE, _FIX_SCOPE_REQUIRED_MESSAGE
+    else:
+        return
+    if json_output:
+        console.emit_json(_doctor_shared._json_error(code, message))
+    else:
+        console.print(f"[red]{code}:[/red] {message}")
+    raise typer.Exit(1)
+
+
 def run_coordination_health(
     json_output: bool,
     fix: bool = False,
     check_staleness: bool = False,
     mission: str | None = None,
+    all_missions: bool = False,
 ) -> None:
     """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding).
 
@@ -2038,7 +2313,13 @@ def run_coordination_health(
     the handle to — the SAME resolver ``doctor mission-state`` uses. An
     unresolvable or ambiguous handle fails closed with exit 1 and a
     mission-state-parity error (no silent fallback).
+
+    ``all_missions`` (#7552): ``--fix`` needs a named scope -- ``mission`` or
+    ``all_missions`` -- and refuses (``COORDINATION_FIX_SCOPE_REQUIRED``, exit 1,
+    nothing changed) without one; naming both refuses as
+    ``COORDINATION_FIX_SCOPE_CONFLICT``. The read-only report needs no scope.
     """
+    _refuse_unscoped_fix(fix, mission, all_missions, json_output)
     repo_root = _doctor_shared.resolve_project_root_or_exit(locate_project_root, json_output)
 
     from specify_cli.context.mission_resolver import (
@@ -2052,7 +2333,7 @@ def run_coordination_health(
         )
 
         if fix:
-            fix_warnings = _apply_coordination_fixes(findings, repo_root)
+            fix_warnings = _apply_coordination_fixes(findings, repo_root, scoped=mission is not None)
             # FR-009 Gap-1: a per-mission unsafe precondition (diverged / dirty)
             # now returns a blocked-fix `error` finding (renata LOW) instead of
             # raising, so one mission's Gap-1 problem no longer aborts fixing

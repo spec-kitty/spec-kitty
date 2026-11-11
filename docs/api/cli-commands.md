@@ -2353,13 +2353,19 @@ _Project health diagnostics; a bare invocation runs the default check set_
  With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
  staleness (FR-008) — non-blocking either way.
 
- With ``--mission <handle>``, scopes every per-mission check (and the
- ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
- the handle to. An unresolvable / ambiguous handle fails closed with exit 1.
+ With ``--mission <handle>``, scopes every per-mission check, the
+ stranded-revert markers and every ``--fix`` repair to the single mission the
+ shared resolver maps the handle to (a Mission only its Mission branch carries
+ is found too). An unresolvable / ambiguous handle fails closed with exit 1.
+
+ ``--fix`` repairs only the Missions you name: pass ``--mission <handle>``, or
+ ``--all-missions`` for every Mission. Without either it refuses and changes
+ nothing.
 
  Examples:
      spec-kitty doctor coordination
-     spec-kitty doctor coordination --fix
+     spec-kitty doctor coordination --fix --mission 083-my-mission
+     spec-kitty doctor coordination --fix --all-missions
      spec-kitty doctor coordination --json
      spec-kitty doctor coordination --check-staleness
      spec-kitty doctor coordination --mission 083-my-mission
@@ -2381,6 +2387,9 @@ _Project health diagnostics; a bare invocation runs the default check set_
 │                                   handle (mission_id / mid8 / slug),         │
 │                                   resolved via the same resolver as `doctor  │
 │                                   mission-state`.                            │
+│ --all-missions                    With --fix, repair every Mission in the    │
+│                                   repository. Without it, --fix needs        │
+│                                   --mission.                                 │
 │ --help             -h             Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

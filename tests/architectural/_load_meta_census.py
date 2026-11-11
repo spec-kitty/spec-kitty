@@ -145,8 +145,9 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # malformed meta.json is already reported by classify_meta_json in the same scan (#6668)
     ("src/specify_cli/audit/classifiers/fabricated_identity.py", "fabricated_identity_finding"): (1, "silent-by-contract"),
-    ("src/specify_cli/cli/commands/_coordination_doctor.py", "_apply_coord_staleness_fixes"): (1, "silent-by-contract"),
-    ("src/specify_cli/cli/commands/_coordination_doctor.py", "_collect_coordination_findings"): (1, "silent-by-contract"),
+    # #7552: the scan's one reader (root checkout, coordination worktree and the scoped
+    # resolve all go through it); it replaced the two per-loop reads below it.
+    ("src/specify_cli/cli/commands/_coordination_doctor.py", "_read_scanned_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "check_and_warn_coord_staleness"): (1, "silent-by-contract"),
     # PR #3211 landing pass (2026-08-05, F4): reads with
     # `on_malformed="none"` and returns None (no reconciliation) on an

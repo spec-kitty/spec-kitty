@@ -887,7 +887,7 @@ def test_run_coordination_health_fix_heals_dirty_coord_worktree(
     monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
 
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
 
     # Healed: exit 0, committed ref coherent, worktree clean, marker cleared.
     assert exc.value.exit_code == 0
@@ -932,7 +932,7 @@ def test_run_coordination_health_fix_heals_then_is_idempotent(
 
     # First --fix: reverts the strand -> coherent -> exit 0.
     with pytest.raises(typer.Exit) as exc:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     assert exc.value.exit_code == 0
     assert coord_incoherent_done_wps(
         "coord", ["WP-A"], repo_root=repo, feature_dir=feature_dir
@@ -945,7 +945,7 @@ def test_run_coordination_health_fix_heals_then_is_idempotent(
 
     # Second --fix: marker gone -> no finding, no revert, byte-stable coord log.
     with pytest.raises(typer.Exit) as exc2:
-        cd.run_coordination_health(json_output=True, fix=True)
+        cd.run_coordination_health(json_output=True, fix=True, all_missions=True)
     assert exc2.value.exit_code == 0
     assert _committed_coord_events(repo) == bytes_after_first
     second_state = load_state(repo, _DOCTOR_MISSION_ID)

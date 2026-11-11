@@ -67,8 +67,8 @@ class BookkeepingStatusSurfaceDiverged(BookkeepingError):
             f"KEEPS the committed events (the stranded `done` stays recorded) and only discards the stale "
             f"working-tree bytes. Once a later status write lands on top of the kept events, `consolidate --resume` "
             f"and `doctor coordination --fix` decline the automatic heal (the status log holds a commit the marker "
-            f"did not record) and ask you to reconcile manually. Do not run `doctor coordination --fix` without "
-            f"`--mission`: it then acts on every mission and flattens those with a stale coordination branch. Then retry "
+            f"did not record) and ask you to reconcile manually. Name the Mission: `doctor coordination --fix` "
+            f"refuses without `--mission` (or `--all-missions`, which repairs every Mission). Then retry "
             f"the status write."
         )
 

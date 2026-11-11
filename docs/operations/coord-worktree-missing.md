@@ -3,7 +3,7 @@ title: 'Recovery: Coordination Branch Declared but Worktree Missing'
 description: "Recovery when a mission's meta.json declares coordination_branch but the -coord worktree was never created, using spec-kitty doctor coordination --fix."
 doc_status: active
 kind: How-To
-updated: '2026-08-15T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 related:
 - operations/recovery-index
 - operations/stale-lane-seed
@@ -43,12 +43,12 @@ This distinguishes two sub-cases:
   `coordination_branch` key from `meta.json` and re-derives topology:
 
   ```bash
-  spec-kitty doctor coordination --fix
+  spec-kitty doctor coordination --fix --mission <mission-handle>
   ```
 
-  `--fix` sweeps **every** mission under `kitty-specs/`, not only the broken
-  one. Review the diff before committing, or restore unrelated missions with
-  `git checkout -- kitty-specs/` if you meant to scope it narrower.
+  `--fix` repairs only the Missions you name. `--fix --all-missions` sweeps
+  **every** Mission; without `--mission` or `--all-missions` it refuses with
+  `COORDINATION_FIX_SCOPE_REQUIRED` and changes nothing.
 
 - **The branch exists but the worktree was never materialized.** `doctor
   coordination` prints the exact recreate command in its finding:

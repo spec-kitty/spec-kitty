@@ -181,18 +181,20 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
             logger.warning(
                 "Flatten bookkeeping commit did not land for %s (%s); meta.json is "
                 "flattened on disk but may be uncommitted — recover with "
-                "`spec-kitty doctor coordination --fix`",
+                "`spec-kitty doctor coordination --fix --mission %s`",
                 run.mission_slug,
                 exc,
+                run.mission_slug,
             )
     except Exception as exc:
         # Fail-open: never abort a completed merge for a bookkeeping-commit failure.
         logger.warning(
             "Flatten bookkeeping commit failed for %s (%s); meta.json is flattened "
             "on disk but may be uncommitted — recover with "
-            "`spec-kitty doctor coordination --fix`",
+            "`spec-kitty doctor coordination --fix --mission %s`",
             run.mission_slug,
             exc,
+            run.mission_slug,
         )
 
 
@@ -620,7 +622,7 @@ _TARGET_COMMIT_BRANCH_MOVE_CAVEAT = (
     "Committing on {target!r} yourself moves it off the verified landing, so the next resume may stop at the "
     "branch-move guard. Its message prints a release command; run what each message names until the record clears, "
     "which can take a release for the coordination branch and for {target!r}. `--abort` removes that branch's "
-    "worktree and keeps the branch, and `spec-kitty doctor coordination --fix` clears a stale marker. Review "
+    "worktree and keeps the branch, and `spec-kitty doctor coordination --fix --mission <mission>` clears a stale marker. Review "
     "`git log {target}..<coordination branch>` before you delete the branch by hand; after a squash it also lists "
     "the merge's own commits."
 )
