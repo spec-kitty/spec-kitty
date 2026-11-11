@@ -430,6 +430,8 @@ coordination state (materialized, empty, unmaterialized, deleted) is still probe
 repository root, because the coordination worktree and branch are registered there. A Mission that
 exists only in the owned checkout therefore resolves. Owned `single_branch` and `lanes` Missions are
 unchanged: they read the owned checkout's Mission directory.
+For every owned topology the owned fact decides the Mission and the door does not re-check the
+handle against it: the fact was resolved from that handle (slug, mid8 or ULID) when it was minted (#7539).
 
 **Reading.** Query and progress of an owned coordination Mission read the committed coordination
 branch when its worktree is empty or unmaterialized, as §2 already says for every coordination

@@ -223,6 +223,12 @@ class _MissionFacts:
 def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout | None = None) -> StatusReadSurface:
     """Resolve the one declared status source of *mission* (ADR 2026-11-06-2).
 
+    With *owned* set, the owned fact decides the Mission: it is taken from ``owned.mission_dir``
+    and *mission* is not checked against it. The fact was minted from the caller's handle by
+    the one owned-checkout validation (``resolve_owned_mission``), which already resolved a
+    slug, mid8 or ULID handle to that directory; a second comparison here would repeat that
+    validation and a strict slug check would refuse a valid mid8 or ULID handle (#7539).
+
     Raises:
         WorktreeRegistryUnavailable: the worktree registry cannot be read (root normalization).
         CoordinationBranchDeleted: a coordination branch was deleted without landing.
