@@ -397,7 +397,7 @@ class DecideNextContext:
     # #7539 (NFR-002 per decision): the bootstrap's one status read door answer and its board,
     # read after the decision-log wrap, handed to every board reader of this decision. ``None``
     # when the door could not answer there; the board selector then reads the door itself.
-    status_read: _mapping._StatusBoardRead | None = None
+    status_read: _mapping.StatusBoardRead | None = None
 
 
 def _with_remediation(decision: Decision, remediation: dict[str, str] | None) -> Decision:
@@ -450,7 +450,7 @@ class _OwnedDoorUnavailable(Exception):
         self.cause = cause
 
 
-def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> _mapping._StatusBoardRead | None:
+def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None) -> _mapping.StatusBoardRead | None:
     """Bootstrap's one status read (#7310 WP05, FR-001): the door's surface and its board.
 
     The decision carries it to every board reader (#7539), so an advancing decision reads the
@@ -470,7 +470,7 @@ def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout
 
     try:
         surface = resolve_status_read(repo_root, mission_slug, owned=owned)
-        return _mapping._StatusBoardRead(surface=surface, board=board_status_from_surface(surface))
+        return _mapping.StatusBoardRead(surface=surface, board=board_status_from_surface(surface))
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
         raise _OwnedDoorUnavailable(exc) from exc
     except (StatusReadPathNotFound, FileNotFoundError, MissionSelectorAmbiguous) as exc:
@@ -484,7 +484,7 @@ def _dn_progress(
     owned: OwnedCheckout | None,
     feature_dir: Path,
     primary_metadata_dir: Path | None,
-) -> tuple[dict[str, int | float] | None, Path, _mapping._StatusBoardRead | None]:
+) -> tuple[dict[str, int | float] | None, Path, _mapping.StatusBoardRead | None]:
     """Bootstrap's ``(progress, feature_dir, status_read)`` from its one door read (#7310 WP05, FR-001).
 
     Progress counts the PRIMARY ``tasks/`` against the door's board. Without a board
@@ -1241,6 +1241,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 owned=ctx.owned,
                 plan=plan,
                 wp_resolution=wp_resolution,
+                status_read=ctx.status_read,
             )
         except _retrospective_seam.RetrospectiveGateRefused as refusal:
             return _retrospective_gate_refused_decision(ctx, refusal)
@@ -1280,7 +1281,7 @@ def _resolve_planned_wp_workspace(
     feature_dir: Path,
     repo_root: Path,
     owned: OwnedCheckout | None,
-    status_read: _mapping._StatusBoardRead | None = None,
+    status_read: _mapping.StatusBoardRead | None = None,
 ) -> _mapping._WpIterationResolution | None:
     """THE single place a planned WP-iteration step's board action + workspace
     is resolved BEFORE the advance is persisted (FR-008 / R-06), shared by the
