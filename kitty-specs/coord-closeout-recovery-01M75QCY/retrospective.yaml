@@ -1,0 +1,345 @@
+schema_version: 1
+mission_id: 01M75QCYDWYTVTPJZXYTFMNXDE
+mission_slug: coord-closeout-recovery-01M75QCY
+mission_number: 256
+friendly_name: Coordination closeout recovers from its own commits
+mission_type: software-dev
+target_branch: fix/7544-coord-closeout-recovery
+created_at: '2026-11-11T19:42:37.659624+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-11T19:42:37.659624+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-010
+- id: h-006
+  category: tooling
+  summary: 'Tracer: DD-3 (advance intent).'
+  evidence_refs:
+  - e-012
+  details: '- **DD-3 (advance intent).** Route `safe_commit` through its existing expected-parent mode while a consolidate
+    rollback span reports advance intents, instead of teaching the rollback to recognise its commits by message: an intent
+    is a record; a message is forgeable.'
+- id: h-008
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP03] `tests/architectural/_commit_scope_census.py` says expected-parent commits
+    "run no hooks"'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP03] `tests/architectural/_commit_scope_census.py` says expected-parent commits "run
+    no hooks"**; they run pre-commit, prepare-commit-msg, commit-msg and post-commit through `git hook run`. Stale docstring.'
+- id: h-007
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review] Approval refuses on issue-matrix rows the spec merely cites (`#7543`, the parent
+    epic)'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][review] Approval refuses on issue-matrix rows the spec merely cites (`#7543`, the parent epic)**;
+    each needs a verdict first (`not-applicable`). Expected per #3469, but the first approve is where it surfaces.'
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-011
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-002
+  category: tooling
+  summary: 'Tracer: DD-1 (status_phase).'
+  evidence_refs:
+  - e-012
+  details: '- **DD-1 (status_phase).** `status_phase: "1"` in the acceptance record is the accept-time birth cutover stamp
+    (`stamp_accept_cutover`, #2917), deliberate. Kept; documented in the spec and PR, not dropped.'
+- id: n-003
+  category: tooling
+  summary: 'Tracer: DD-2 (residue context).'
+  evidence_refs:
+  - e-012
+  details: '- **DD-2 (residue context).** Fix `ResidueContext.for_mission` (read the stored topology where the placement seam
+    puts `PRIMARY_METADATA`) instead of special-casing rollback: one authority, and every destructive-guard caller had the
+    same blind spot.'
+- id: n-004
+  category: tooling
+  summary: 'Tracer: DD-4 (rematerialization).'
+  evidence_refs:
+  - e-012
+  details: "- **DD-4 (rematerialization).** Keep `--abort`'s teardown (ruling); the next run reads the Mission's identity
+    from the branch that holds it and calls `materialize_coord_surface_for_write` with the explicit `coordination_branch`
+    + `mid8` override."
+- id: n-023
+  category: tooling
+  summary: "Tracer: [2026-11-11][accept] Dogfood: this Mission's own `spec-kitty accept` (the CLI from the root checkout,
+    i.e. `main`) crashed with the #7550 traceback"
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][accept] Dogfood: this Mission's own `spec-kitty accept` (the CLI from the root checkout, i.e.
+    `main`) crashed with the #7550 traceback** (`TaskCliError: ... .worktrees`), leaving `meta.json` and `status.events.jsonl`
+    modified in the coordination worktree. Re-running `accept` with the fixed code (lane-e `src` on `PYTHONPATH`) exited 0,
+    committed the record on the Mission branch (`e968fa3`, `63a8ae6`, `c135344`), left the coordination worktree clean, and
+    recorded `accepted_from_commit` = the Mission tip `da2f964` (not the root's `2e9ca559`). No hand-run git."
+- id: n-024
+  category: tooling
+  summary: "Tracer: [2026-11-11][accept] `accept`'s \"Next steps\" says \"Acceptance recorded directly on `<target>`. No merge
+    needed.\""
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][accept] `accept`'s \"Next steps\" says \"Acceptance recorded directly on `<target>`. No merge
+    needed.\"** for a `lanes_with_coord` Mission whose record went to the Mission branch and which still needs `consolidate`.
+    Wrong guidance; follow-up candidate."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-11][grounding] A 6-lane fixture costs about 5 minutes of CLI subprocesses.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][grounding] A 6-lane fixture costs about 5 minutes of CLI subprocesses.** Every implement / move-task
+    is a full CLI start. Workaround: build once, snapshot with tar, replay scenarios from the snapshot.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-11][grounding] A protected-target `lanes_with_coord` probe cannot reach closeout.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][grounding] A protected-target `lanes_with_coord` probe cannot reach closeout.** With the target
+    on `main` and the root checkout on `main`, `agent action implement` refuses up front (\"Refusing to start implementation
+    status on protected branch 'main' ... rerun with --no-auto-commit\"). Workaround for the probe: put the root checkout
+    and the target on an unprotected topic branch (the dogfood configuration). Follow-up: sibling runs #7545 / #7551."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-11-11][grounding] The acceptance matrix is a placeholder until `accept`.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][grounding] The acceptance matrix is a placeholder until `accept`.** Same as the read-door tracer:
+    `finalize-tasks` scaffolds `pending` criteria; `accept` refuses until `acceptance-verdict` records each. Workaround: record
+    the verdicts before accept.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-11-11][grounding] `accept` must run on the Mission or target branch, judged from the repository
+    root checkout only.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][grounding] `accept` must run on the Mission or target branch, judged from the repository root
+    checkout only.** Running it from inside the coordination worktree (which holds the Mission branch) still reports "Acceptance
+    must run on mission or target branch ... not work". Workaround: target = the branch the root checkout is on.'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP01/WP03] The commit guard warns `ACTIVE_WP_SCOPE_VIOLATION`'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][implement WP01/WP03] The commit guard warns `ACTIVE_WP_SCOPE_VIOLATION`** for a one-call product
+    change (`cli/commands/accept.py`, the residual leg must follow the record's branch) and for re-pinning a stale test (`test_rollback_anchor_kill_window.py`).
+    Warning only; both recorded in the PR."
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP01] On a default-Mission fixture, `accept` without `--lenient` reports the path-convention
+    deliverable as `.worktrees/<slug>-coord/kitty-specs/<slug>/contracts/`.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP01] On a default-Mission fixture, `accept` without `--lenient` reports the path-convention
+    deliverable as `.worktrees/<slug>-coord/kitty-specs/<slug>/contracts/`.** A coordination-worktree path in a path-convention
+    message is suspicious (possible separate defect). Workaround: `--lenient` in the fixture.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP02] The resync guard ignores untracked files'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP02] The resync guard ignores untracked files** (a `reset --hard` keeps them), so
+    an untracked file cannot serve as the "foreign edit" negative control; a tracked edit does.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP03] An existing test pinned the defect as a residual'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP03] An existing test pinned the defect as a residual** (`test_a_kill_after_an_intentless_in_span_commit_is_refused`):
+    the fix turned it red. Judged stale (Standing Order 4) and re-pinned to the restored case.'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP03] Rich wraps remedy commands across lines'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP03] Rich wraps remedy commands across lines**, so tests must normalise whitespace
+    before matching a printed command.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement WP03] The `--abort` refusal text tells the operator to "resume the consolidation
+    (`spec-kitty consolidate --resume`)" after they ran `--abort`.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement WP03] The `--abort` refusal text tells the operator to "resume the consolidation (`spec-kitty
+    consolidate --resume`)" after they ran `--abort`.** Follow-up candidate.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] Each CLI-driven integration scenario costs 2.5-4.5 minutes'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement] Each CLI-driven integration scenario costs 2.5-4.5 minutes** (every implement / move-task
+    is a full CLI start); a red run started while `src/` was being edited can mix old and new code in its CLI subprocesses.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] Each CLI-driven integration test session first builds an editable venv (about
+    40-120 s of pip installs)'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement] Each CLI-driven integration test session first builds an editable venv (about 40-120
+    s of pip installs)**, then 2.5-5 minutes per scenario; under `-n 12` the lands-primary module fixtures exceed the 240
+    s setup timeout.'
+- id: n-011
+  category: tooling
+  summary: "Tracer: [2026-11-11][implement] With the repository's `auto_commit: false`, every claim / for_review / review
+    / approve leaves Mission bookkeeping uncommitted in the coordination worktree"
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][implement] With the repository's `auto_commit: false`, every claim / for_review / review / approve
+    leaves Mission bookkeeping uncommitted in the coordination worktree** (`meta.json`, WP prompt stamps, `status.events.jsonl`,
+    `status.json`, `review-cycle-N.md`), and approve prints \"written but NOT committed (--no-auto-commit)\" though no flag
+    was passed. Same as the read-door tracer (#5763, sibling run #7545). Workaround: commit the bookkeeping with git in the
+    coordination worktree after each transition."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-11][implement] `implement` refuses until `/spec-kitty.analyze` is recorded'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][implement] `implement` refuses until `/spec-kitty.analyze` is recorded**, which is fine, but
+    `tasks` never says so; the first claim of four WPs failed four times.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review] `move-task --to for_review` prints a `cd .worktrees/<lane> && git rebase <other lane>`
+    recipe for dependent workspaces'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][review] `move-task --to for_review` prints a `cd .worktrees/<lane> && git rebase <other lane>`
+    recipe for dependent workspaces**, the shape CLAUDE.md says remedies must no longer print.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-11][review] `move-task --to for_review` runs the fast tier twice (head and a baseline worktree),
+    about 5 minutes per WP.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][review] `move-task --to for_review` runs the fast tier twice (head and a baseline worktree),
+    about 5 minutes per WP.** No progress line is printed while it runs.'
+- id: n-010
+  category: tooling
+  summary: "Tracer: [2026-11-11][tasks] The spec and plan templates' own example glyphs (em dash, arrow, section sign) fail
+    `validate-encoding`."
+  evidence_refs:
+  - e-013
+  details: "- **[2026-11-11][tasks] The spec and plan templates' own example glyphs (em dash, arrow, section sign) fail `validate-encoding`.**
+    The template text invites them. Workaround: `--fix`."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-11][tasks] `validate-encoding --fix` writes `.bak` backups next to the Mission files.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-11-11][tasks] `validate-encoding --fix` writes `.bak` backups next to the Mission files.** The next
+    `git add` of the Mission directory committed them. Workaround: `git rm` the backups. Follow-up: write backups outside
+    the Mission directory, or gitignore `*.bak` under `kitty-specs/`.'
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks/WP01-accept-record-commit.md
+- id: e-006
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks/WP02-residue-context-placement.md
+- id: e-007
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks/WP03-in-span-commit-intents.md
+- id: e-008
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks/WP04-rematerialize-after-abort.md
+- id: e-009
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/tasks/WP05-e2e-closeout.md
+- id: e-010
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/status.events.jsonl
+- id: e-011
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/analysis-report.md
+- id: e-012
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/traces/design-decisions.md
+- id: e-013
+  kind: file
+  path: kitty-specs/coord-closeout-recovery-01M75QCY/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,52 @@
+{
+  "accept_commit": "e968fa3482a288819e4a3cd0d15c7724b52c5629",
+  "acceptance_history": [
+    {
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T19:36:49.462731+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22"
+    },
+    {
+      "accept_commit": "e968fa3482a288819e4a3cd0d15c7724b52c5629",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-11T19:37:18.940252+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "da2f9642de14e8458ccd33ff987e621bbe4bc8c4"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-11T19:37:18.940252+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "da2f9642de14e8458ccd33ff987e621bbe4bc8c4",
+  "baseline_merge_commit": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22",
+  "create_return_branch": "fix/7544-coord-closeout-recovery",
+  "created_at": "2026-11-11T16:35:02.956857+00:00",
+  "flattened": true,
+  "friendly_name": "Coordination closeout recovers from its own commits",
+  "merged_at": "2026-11-11T19:42:06.902150+00:00",
+  "merged_commit": "fae56f31e6deb8ea30d7e771d641c4fc6c9dbc4e",
+  "mid8": "01M75QCY",
+  "mission_branch": "kitty/mission-coord-closeout-recovery-01M75QCY",
+  "mission_id": "01M75QCYDWYTVTPJZXYTFMNXDE",
+  "mission_number": 256,
+  "mission_slug": "coord-closeout-recovery-01M75QCY",
+  "mission_type": "software-dev",
+  "purpose_context": "Sub-epic #7544: accept's record commit (#7550), consolidate rollback over its own coordination commits (#5931, #7540 item 2), and the next run after --abort (#5406) must work on lanes_with_coord Missions with no hand-run git.",
+  "purpose_tldr": "lanes_with_coord accept and consolidate recover from state they created themselves",
+  "slug": "coord-closeout-recovery-01M75QCY",
+  "status_phase": "1",
+  "target_branch": "fix/7544-coord-closeout-recovery",
+  "topology_decision": {
+    "code_lane_count": 5,
+    "from": "single_branch",
+    "rule": "lanes_with_coord",
+    "target_protected": false,
+    "to": "lanes_with_coord",
+    "wp_count": 5
+  },
+  "topology_settled": true,
+  "topology_source": "default",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-11T16:42:36.948653+00:00"
+}

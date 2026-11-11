@@ -1,0 +1,99 @@
+{
+  "mission_slug": "coord-closeout-recovery-01M75QCY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_accept_record_commit_coord_7550.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:35:15.567681+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_accept_record_commit_coord_7550.py (accepted_from_commit == Mission tip)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:35:24.876933+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/acceptance/test_accept_record_commit_unit_7550.py (ACCEPT_RECORD_COMMIT_FAILED, no traceback)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:35:33.840915+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_residue_context_settled_topology_7540.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:35:42.924557+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_rollback_coord_residue_7540.py (+ foreign-edit control)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:35:52.038273+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_consolidate_kill_done_commit_5931.py; tests/specify_cli/git/test_safe_commit_in_span_intent_5931.py; tests/consolidation/test_rollback_anchor_kill_window.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:36:01.033643+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_consolidate_after_abort_5406.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:36:10.080924+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_missing_lanes_remedy_topology_5406.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:36:19.350991+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_closeout_recovery_7544.py (2 passed; red on origin/main)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-11T19:36:28.605468+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

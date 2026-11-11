@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "mission_slug": "coord-closeout-recovery-01M75QCY",
+  "mission_id": "01M75QCYDWYTVTPJZXYTFMNXDE",
+  "mission_branch": "kitty/mission-coord-closeout-recovery-01M75QCY",
+  "target_branch": "fix/7544-coord-closeout-recovery",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7550-accept-record-commit-coord.fixed.md",
+        "src/specify_cli/acceptance/__init__.py",
+        "tests/integration/test_accept_record_commit_coord_7550.py",
+        "tests/specify_cli/acceptance/test_accept_record_commit_unit_7550.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/7540-rollback-coord-residue.fixed.md",
+        "src/specify_cli/coordination/coherence.py",
+        "tests/coordination/test_residue_context_settled_topology_7540.py",
+        "tests/integration/test_rollback_coord_residue_7540.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/5931-kill-during-done-commits.fixed.md",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/git/ref_advance.py",
+        "tests/integration/test_consolidate_kill_done_commit_5931.py",
+        "tests/specify_cli/git/test_safe_commit_in_span_intent_5931.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/5406-consolidate-after-abort.fixed.md",
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "src/specify_cli/consolidation/executor.py",
+        "tests/consolidation/test_missing_lanes_remedy_topology_5406.py",
+        "tests/integration/test_consolidate_after_abort_5406.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/integration/test_coord_closeout_recovery_7544.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-11T16:40:53.229838+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2e9ca5599fa777cd9f93995b40f0bbe617b16d22"
+}
