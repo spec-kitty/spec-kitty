@@ -887,27 +887,33 @@ The prose of those pages is linted by a separate, always-on job: see
 ### Where the docs site deploys from
 
 `docs.spec-kitty.ai` is deployed by `.github/workflows/docs-pages.yml` from
-this repository's `main`. The workflow runs on pushes to `main` that touch
-`docs/**` (and a few docs-tooling paths) or on manual dispatch. It first probes
-whether GitHub Pages is configured and skips cleanly if not; the deploy job
-itself runs only for `spec-kitty/spec-kitty` on `refs/heads/main`. A
-`workflow_dispatch` on another branch builds but does not deploy.
+this repository's `main`. The workflow runs on pushes to `main` that touch an
+input of the doc-kitty build (`docs/**`, `site/**`, the `scripts/docs` modules
+the build runs, and the two workflow files) or on manual dispatch. It first
+probes whether GitHub Pages is configured and skips cleanly if not. The `build`
+job then calls `.github/workflows/docs-site-build.yml`, so `main` deploys only
+a site built by the definition the required `docs-site` pull-request gate runs.
+The `deploy` job runs only for `spec-kitty/spec-kitty` on
+`refs/heads/main`; a `workflow_dispatch` on another branch builds but does not
+deploy. After each deploy, the `smoketest` job runs
+`scripts/docs/site_live_probe.py` against `https://docs.spec-kitty.ai`, and a
+mismatch turns the run red. Rolling the site back to DocFX means reverting the
+cutover pull request (#6938) until DocFX is retired (#6943).
 
-### The GitHub Pages docsite build needs `PYTHONPATH`
+### The docsite's Python steps need `PYTHONPATH`
 
-- **Trips it:** the docsite deploy (`docs-pages.yml`) runs Python post-processing
-  steps that import `from kernel.clock import ...`. `kernel` is a src-layout
-  package, so a step that runs raw `python3` with no `PYTHONPATH` and no installed
-  package raises `ModuleNotFoundError: No module named 'kernel'`.
-- **Symptom:** the DocFX render succeeds but the Python post-step fails, the
-  deploy job is skipped, and merged `docs/` changes never go live. **Footgun:**
-  `docs-pages.yml` has no `pull_request` trigger, so a PR that changes it is not
-  exercised by PR CI.
-- **Fix / repro:** ensure the build job exports `PYTHONPATH: .:src` at job scope
-  (job, not step — several post-process modules import each other and the
-  `scripts.docs.*` package). Verify a change to this workflow via
-  `workflow_dispatch` on the branch, where the build runs and the deploy stays
-  skipped off `main`.
+- **Trips it:** the shared docsite build and the deploy's `smoketest` run
+  Python modules under `scripts/docs/` with the runner's `python3`, without
+  installing the package. Several of them import `from kernel.clock import ...`
+  or other `scripts.docs.*` modules, so a step with no `PYTHONPATH` raises
+  `ModuleNotFoundError: No module named 'kernel'` (or `'scripts'`).
+- **Symptom:** a docsite build step or the smoketest fails at import. A failed
+  build skips the deploy, so merged `docs/` changes never go live.
+- **Fix / repro:** give each such step `PYTHONPATH: .:src` (`..:../src` for
+  steps that run in `site/`). The shared build runs on every pull request that
+  touches the docsite, through the `docs-site` gate. `docs-pages.yml` itself has
+  no `pull_request` trigger, so a change to it is exercised only by its
+  job-graph tests (`tests/release/test_release_ci_ownership.py`) before merge.
 
 ## Accept-to-consolidate gates
 

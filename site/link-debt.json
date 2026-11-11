@@ -873,6 +873,18 @@
     },
     {
       "gate": "relative-links",
+      "source": "archive/architecture/ARCHITECTURE_DOCS_GUIDE.md",
+      "target": "../../llms.txt",
+      "reason": "docs/llms.txt deleted at the docsite cutover (#6938; the site generates /llms.txt); the archived body is never rewritten"
+    },
+    {
+      "gate": "relative-links",
+      "source": "archive/architecture/NAVIGATION_GUIDE.md",
+      "target": "../../llms.txt",
+      "reason": "docs/llms.txt deleted at the docsite cutover (#6938; the site generates /llms.txt); the archived body is never rewritten"
+    },
+    {
+      "gate": "relative-links",
       "source": "changelog/CHANGELOG.md",
       "target": "../architecture/team-kitty-saas.md",
       "reason": "unpublished by #6932 (operator ruling 2026-11-09); #6933 redirects the route to the section hub"

@@ -1,42 +1,45 @@
+# ---------------------------------------------------------------------------
+# Deploy the docsite to GitHub Pages (ADR docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md
+# D-11, D-12, D-13 step 3; #6938 cutover, #2361 smoketest).
+#
+# `build` calls the ONE doc-kitty build definition, .github/workflows/docs-site-build.yml, the
+# same build the required `docs-site` pull-request gate runs (D-11), with `pages-artifact: true`.
+# `deploy` publishes that artifact from `main` of the core repository only. `smoketest` then
+# probes the live site's URL classes, derived from the committed ledgers
+# (scripts/docs/site_live_probe.py), and a mismatch turns the run red. No alert issue is filed: the
+# red run is the signal (operator decision on #2361).
+#
+# Rollback (D-13 step 4): revert the cutover pull request. That restores the DocFX `build` and
+# `deploy` jobs and the dispatch-only canary; the DocFX sources (docs/docfx.json, toc.yml, the
+# template and the DocFX scripts) stay in the tree until #6943 retires them.
+#
+# Pinned by tests/release/test_release_ci_ownership.py (the job graph, evaluated on the real `if:`
+# conditions) and tests/ci/test_fork_guard.py.
+# ---------------------------------------------------------------------------
 name: Deploy Docs to GitHub Pages
 
 on:
   push:
     branches: [ main ]
+    # The inputs of the shared build: the router's `docs_site` group (ci-router.yml), which
+    # tests/release/test_release_ci_ownership.py keeps a subset of this list, plus this workflow.
     paths:
       - 'docs/**'
-      - 'kitty-specs/**'
-      - '.kittify/glossaries/**'
-      - 'scripts/docs/generate_kitty_specs_docs.py'
-      - 'scripts/docs/seo_postprocess.py'
-      - 'scripts/docs/seo_verify.py'
-      - 'scripts/docs/glossary_linker.py'
-      - 'scripts/docs/plantuml_render.py'
-      - 'scripts/docs/plantuml_invoke.py'
-      - 'scripts/docs/plantuml_pins.json'
-      - 'scripts/docs/redirect_stub_generator.py'
-      - 'scripts/docs/redirect_map.yaml'
-      - 'scripts/docs/redirect_baseline_urls.json'
+      - 'site/**'
+      - 'scripts/docs/_dockitty_contract.py'
+      - 'scripts/docs/site_contract.py'
+      - 'scripts/docs/site_built_check*.py'
+      - 'scripts/docs/site_link_gates.py'
+      - 'scripts/docs/site_redirects*.py'
+      - 'scripts/docs/site_live_probe.py'
       - 'scripts/docs/moves_ledger.py'
-      - 'scripts/docs/capture_baseline_urls.py'
-      - 'site/moves.yaml'
-      - 'site/url-baseline.txt'
-      - 'scripts/docs/glossary_page/**'
+      - '.github/workflows/docs-site-build.yml'
       - '.github/workflows/docs-pages.yml'
+  # A plain dispatch on `main` deploys and smoketests like a push; on another branch it builds only.
   workflow_dispatch:
-    inputs:
-      canary:
-        # ADR 2026-10-31-1 D-13 step 2 (#6938): operator-only, in an announced window with docs
-        # merges to main frozen. Deploys the doc-kitty build, probes it live, then DocFX again.
-        description: 'Canary: publish the doc-kitty build, probe https://docs.spec-kitty.ai, then republish DocFX'
-        type: boolean
-        required: false
-        default: false
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
@@ -55,6 +58,9 @@ jobs:
   pages:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
+    # Reads the Pages site and runs configure-pages without enablement: read only.
+    permissions:
+      pages: read
     outputs:
       configured: ${{ steps.probe-pages.outputs.available }}
     steps:
@@ -94,168 +100,24 @@ jobs:
       - name: Setup Pages
         id: setup-pages
         if: steps.probe-pages.outputs.available == 'true'
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
+  # The doc-kitty site, built by the shared definition the pull-request gate runs (D-11). It uploads
+  # the `github-pages` Pages artifact (the input's default name), which `deploy` publishes.
   build:
-    runs-on: ubuntu-24.04
     needs: [pages]
     if: needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'
-    # The docs scripts import first-party src-layout packages: seo_postprocess.py
-    # imports `kernel.clock` (src/kernel/), and glossary_linker.py / seo_verify.py
-    # import `scripts.docs.*` (seo_verify transitively pulls in seo_postprocess ->
-    # kernel.clock too). This job runs raw `python3 scripts/docs/*.py` without
-    # installing the package, so both roots must be on PYTHONPATH or the Build and
-    # Verify steps die with `ModuleNotFoundError: No module named 'kernel'`. Mirrors
-    # docs-build-pr.yml's `PYTHONPATH: .`, extended with `src` for the kernel import.
-    env:
-      PYTHONPATH: .:src
-      # Intentional pin: the deploy workflow installs exactly this DocFX version.
-      # NuGet verifies the package hash on install, and the tool directory cache is
-      # keyed on the version so a cache hit restores that same package, never a
-      # floating "latest". Bump deliberately, in its own reviewed change.
-      DOCFX_VERSION: '2.81.0'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # Fetch all history for git info
-
-      - name: Restore the pinned DocFX tool cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.dotnet/tools
-            ~/.nuget/packages
-          key: docfx-${{ runner.os }}-${{ env.DOCFX_VERSION }}
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Install DocFX (pinned, NuGet-verified)
-        shell: bash
-        run: |
-          set -euo pipefail
-          installed="$(dotnet tool list --global | awk '$1 == "docfx" { print $2 }')"
-          if [ "$installed" = "$DOCFX_VERSION" ]; then
-            echo "::notice::DocFX $DOCFX_VERSION restored from the pinned tool cache"
-          else
-            dotnet tool uninstall --global docfx >/dev/null 2>&1 || true
-            dotnet tool install --global docfx --version "$DOCFX_VERSION"
-          fi
-          docfx --version
-
-      - name: Build documentation
-        run: |
-          python3 scripts/docs/generate_kitty_specs_docs.py
-          cd docs
-          docfx docfx.json
-          cd ..
-          python3 scripts/docs/seo_postprocess.py
-
-      # Auto-link the first mention of every glossary term on each rendered
-      # page to its anchor on the glossary page (FR-011, NFR-004). Pure HTML
-      # post-processing on the DocFX render output, so it must run after
-      # `docfx docfx.json` — placed alongside seo_postprocess.py and before
-      # redirect-stub generation so stub pages never get glossary links
-      # injected. See scripts/docs/glossary_linker.py's module docstring.
-      - name: Auto-link glossary terms (FR-011)
-        run: python3 scripts/docs/glossary_linker.py --site-dir docs/_site
-
-      # Cache the pinned jar; plantuml_invoke.ensure_jar re-verifies its sha256 on
-      # every run and re-downloads rather than trust a stale/corrupt cache entry.
-      - name: Restore the checksum-verified PlantUML jar cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: plantuml.jar
-          key: plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}
-
-      # Render @startyaml schema diagrams to inline SVG — AFTER glossary_linker,
-      # BEFORE redirect-stub/seo_verify. Host-native stdlib-only Python; the pinned
-      # jar runs ONLY inside a digest-pinned JRE under docker --network=none (zero
-      # doctrine egress; no setup-java, no pip install). See the schema-diagram ADR.
-      - name: Render PlantUML schema diagrams (FR-001, no-egress)
-        run: |
-          python3 - <<'PY'
-          import pathlib
-          import subprocess
-
-          from scripts.docs import plantuml_invoke
-
-          pins = plantuml_invoke.load_pins()
-          plantuml_invoke.ensure_jar(pins, pathlib.Path("plantuml.jar"))
-          subprocess.run(["docker", "pull", pins.jre_image_digest], check=True)
-          PY
-          python3 scripts/docs/plantuml_render.py docs/_site
-
-      # DocFX/GitHub Pages has no native redirect (FR-006). Inject a
-      # <meta http-equiv="refresh"> stub at every moved old URL into the built
-      # _site BEFORE upload, so no bookmarked URL 404s. The redirect map is
-      # derived from the standing moves ledger site/moves.yaml (#6927). Runs
-      # after `Build documentation` (which emits docs/_site) and before
-      # `Upload artifact`. Fails the job if any stub would point at a 404.
-      - name: Inject redirect stubs into _site (FR-006)
-        run: python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
-
-      # NFR-002 gate: assert every route of the URL baseline site/url-baseline.txt
-      # (every URL the site has published, #6927) resolves directly or via a
-      # live-target stub (uncovered == []). The check is non-vacuous — it refuses
-      # to pass against an empty baseline.
-      - name: Verify redirect coverage (NFR-002)
-        run: python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
-
-      # Grow-on-publish report (#6927): warn about every published page missing
-      # from site/url-baseline.txt. It reports and never fails the deploy; the
-      # blocking gate arrives with the doc-kitty build gate (ADR 2026-10-31-1 D-11).
-      - name: Report URL baseline drift (grow-on-publish)
-        run: python3 scripts/docs/redirect_stub_generator.py baseline-drift --site-dir docs/_site
-
-      # FR-005/FR-008/FR-012 gate: assert the *shipped* HTML carries a
-      # description, a self-referential canonical, and matching Open Graph
-      # values — the render-path defects no source-level check can observe.
-      # Position is load-bearing (C-B9): it runs AFTER redirect-stub generation
-      # and its coverage check, so it sees the stubs and can assert they are
-      # correctly excluded from indexing and from sitemap.xml; and BEFORE
-      # `Upload artifact`, so a metadata regression fails the build instead of
-      # reaching the deployed site. Placing it earlier would
-      # leave stub regressions unobserved. The verifier is strictly read-only —
-      # it never mutates docs/_site.
-      # Deploy-side trigger note (FR-007): this workflow — and therefore this
-      # seo_verify gate — runs push-only on `main` (see the `on:` block above:
-      # `push: [main]` + `workflow_dispatch`, no `pull_request` trigger). So a
-      # rendered-HTML SEO regression is caught at deploy time on the destination
-      # branch, NOT on the originating PR. This is the deploy-side analogue of the
-      # docs-freshness PR-scoping gap; recorded here deliberately and left
-      # verification-free (no pre-merge gate exists for the DocFX render output).
-      - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
-        run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: docs/_site
-
-  # --- Canary (#6938; ADR 2026-10-31-1 D-13 step 2) ---------------------------------------------
-  # Only a dispatch with `canary: true`. The doc-kitty site is built by the ONE shared build
-  # definition (D-11) under its own Pages artifact name. It goes live only once the DocFX build
-  # above has also succeeded, so the restore is ready before production changes. The probe then
-  # checks the live URL classes, and `deploy` below republishes DocFX whatever the probe said; a
-  # failed canary job leaves the run red. Pinned by tests/release/test_release_ci_ownership.py.
-  canary-build:
-    needs: [pages]
-    if: github.event_name == 'workflow_dispatch' && inputs.canary && needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'
     permissions:
       contents: read
     uses: ./.github/workflows/docs-site-build.yml
     with:
       pages-artifact: true
-      pages-artifact-name: github-pages-canary
 
-  canary-deploy:
+  # Publishes only from `main` of the core repository, and only after a successful doc-kitty build.
+  deploy:
     runs-on: ubuntu-24.04
-    needs: [canary-build, build]
-    if: github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.canary && needs.canary-build.result == 'success' && needs.build.result == 'success'
+    needs: [build]
+    if: github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     permissions:
       pages: write
       id-token: write
@@ -263,16 +125,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy the doc-kitty canary to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-        with:
-          artifact_name: github-pages-canary
 
-  canary-probe:
+  # Post-deploy smoketest (#2361): the live site, not the build. The probe derives one URL per
+  # ADR D-13 class from the committed ledgers (site/url-baseline.txt, site/moves.yaml,
+  # site/legacy-redirects.json), including the root, /llms.txt and a retired URL that must answer
+  # 404. Its retries cover Pages propagation, under a 300 s budget per URL. A mismatch fails this
+  # job and the run; nothing swallows it.
+  smoketest:
     runs-on: ubuntu-24.04
-    needs: [canary-deploy]
-    if: needs.canary-deploy.result == 'success'
+    needs: [deploy]
+    if: github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.deploy.result == 'success'
     timeout-minutes: 60
     permissions:
       contents: read
@@ -280,25 +145,8 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
-      - name: Probe the live site's URL classes (ADR D-13; scripts/docs/site_live_probe.py)
-        # Standard library plus PyYAML (through moves_ledger), like site_redirects.py; retries
-        # cover Pages propagation, and each URL is bounded by a 300 s budget.
+      - name: Probe the live site's URL classes (scripts/docs/site_live_probe.py)
+        # Standard library plus PyYAML (through moves_ledger), which the runner's python3 has.
         env:
           PYTHONPATH: .:src
         run: python3 -m scripts.docs.site_live_probe https://docs.spec-kitty.ai
-
-  # DocFX deploy. On a push or a plain dispatch the canary jobs are skipped and this runs after a
-  # successful DocFX build, as before (`!cancelled()` only lets the skipped canary need through).
-  # On a canary it runs after the probe whatever the probe's result (`inputs.canary`), restoring
-  # DocFX; `needs.build.result == 'success'` still blocks it after a failed DocFX build.
-  deploy:
-    runs-on: ubuntu-24.04
-    needs: [build, canary-probe]
-    if: (!cancelled() || inputs.canary) && github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5

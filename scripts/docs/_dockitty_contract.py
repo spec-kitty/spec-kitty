@@ -111,8 +111,9 @@ DRAFT_STATUS: Final[str] = "draft"
 DRAFT_FOLDERS: Final[tuple[str, ...]] = ("plans/engineering-notes", "plans/investigations", "plans/research")
 
 #: The version stance the generated ``llms.txt`` carries (ADR 2026-10-31-1 D-9). Projected to
-#: ``site/dockitty-contract.json`` (``llmsStance``). ``docs/llms.txt`` keeps its own copy until
-#: #6938 deletes it (temporary duplication; ``tests/docs/test_dockitty_contract.py`` keeps them equal).
+#: ``site/dockitty-contract.json`` (``llmsStance``). This is the only copy: the hand-written
+#: ``docs/llms.txt`` was deleted at cutover (#6938), and ``tests/docs/test_dockitty_contract.py``
+#: keeps it from coming back.
 LLMS_STANCE: Final[str] = (
     "## Current Version Stance\n"
     "\n"

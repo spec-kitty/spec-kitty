@@ -27,10 +27,9 @@
 # Callers:
 #   - ci-router.yml `docs-site` (the required pull-request gate): plain artifact upload. Its
 #     jobs-API row reads `docs site (doc-kitty build) / build`; router-gate classifies it.
-#   - docs-pages.yml's dispatched canary (#6938): `with: {pages-artifact: true,
-#     pages-artifact-name: github-pages-canary}`; it publishes this build, probes the live site and
-#     republishes DocFX. At cutover the Pages deploy itself calls it, so main deploys the site the
-#     gate built. DocFX (docs-pages.yml) keeps deploying until then.
+#   - docs-pages.yml's `build` (the Pages deploy since the #6938 cutover): `with: {pages-artifact:
+#     true}`, uploading the default `github-pages` Pages artifact its `deploy` publishes, so main
+#     deploys the site the gate built. Its `smoketest` then probes the live site.
 #
 # workflow_call only: the callers own the triggers, path filters and the fork guard. Pinned by
 # tests/ci/test_docs_site_job.py.
@@ -46,7 +45,7 @@ on:
         required: false
         default: false
       pages-artifact-name:
-        description: The Pages artifact's name; the docs-pages.yml canary (#6938) passes its own so it never collides with DocFX's github-pages artifact in the same run.
+        description: The Pages artifact's name; the docs-pages.yml deploy uses the default, github-pages, which actions/deploy-pages reads by default.
         type: string
         required: false
         default: github-pages
@@ -188,10 +187,10 @@ jobs:
         env:
           PYTHONPATH: ..:../src
         run: python3 -m scripts.docs.site_link_gates built-links -- pnpm exec dockitty-assert-no-broken-links dist --base / --site https://docs.spec-kitty.ai --docs ../docs --astro-config astro.config.mjs
-      - name: Probe the built site over local HTTP, the canary's live-site probe (#6938)
+      - name: Probe the built site over local HTTP, the post-deploy smoketest's live-site probe (#6938, #2361)
         # The URL classes of ADR D-13, derived from the ledgers, against site/dist served on
         # loopback: a ledger change that drops a class, or a build that stops answering one, fails
-        # here and not in a production canary. Loopback answers in well under a second.
+        # here and not in the production smoketest after a deploy. Loopback answers in well under a second.
         timeout-minutes: 1
         env:
           PYTHONPATH: .:src
