@@ -41,6 +41,45 @@ def is_mission_event_log_path(path: str | Path) -> bool:
     return len(parts) == 3 and parts[0] == "kitty-specs" and parts[2] == MISSION_EVENTS_FILE
 
 
+def commit_mission_event_log(repo_root: Path, mission_slug: str, log_path: Path, checkout_root: Path) -> str | None:
+    """Commit a Mission's event log where it was appended, staging that one file only (#5938).
+
+    ``spec-kitty next`` (and ``orchestrator-api answer-decision``, which mirrors
+    it) append a ``MissionNextInvoked`` row to the coordination worktree's copy
+    of the log; nothing else ever committed it, so ``consolidate`` refused to tear
+    the worktree down (``MERGE_UNSAFE_WORKTREE_DIRTY``). The #5669 ruling keeps
+    the log real dirt for every gate, so the writer commits it instead of any
+    gate exempting it. Only ``log_path`` is staged, so an operator's own edit in
+    that checkout stays uncommitted (#5905). The target comes from the placement
+    seam for the log's kind (``STATUS_STATE``), the same shape as the status
+    door's coordination commit.
+
+    Best-effort, like the row itself: an already-committed row is a no-op, and a
+    refused or failed commit is returned as a one-line warning for the caller
+    to surface, never raised.
+    """
+    import subprocess
+
+    from mission_runtime import MissionArtifactKind, resolve_placement_only
+    from specify_cli.core.commit_guard import GuardCapability
+    from specify_cli.git.commit_helpers import SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged, safe_commit
+
+    try:
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=checkout_root,
+            target=resolve_placement_only(repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE),
+            message=f"chore(next): record next invocation for {mission_slug}",
+            paths=(log_path,),
+            capability=GuardCapability.STANDARD,
+        )
+    except (SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged):
+        return None
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+        return f"could not commit {log_path} ({type(exc).__name__}: {exc}); commit it before consolidate."
+    return None
+
+
 def emit_event(
     event_type: str,
     payload: dict,

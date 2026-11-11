@@ -774,7 +774,14 @@ def answer_decision(
 
     # --- Step 4 (WP02 seam, REQUIRED, AFTER decide_next returns): emit the
     # mission event log entry. ---
-    emit_mission_next_invoked(agent, result, mission, main_repo_root, decision)
+    event_row = emit_mission_next_invoked(agent, result, mission, main_repo_root, decision)
+    if event_row is not None and event_row.in_coordination_worktree:
+        # #5938: commit the row where it was written, exactly like the host CLI's ``next``.
+        from specify_cli.mission_v1.events import commit_mission_event_log
+
+        row_commit_warning = commit_mission_event_log(main_repo_root, mission, event_row.log_path, event_row.checkout_root)
+        if row_commit_warning is not None:
+            commit_warnings.append(row_commit_warning)
 
     # --- Step 5 (WP02 seam, REQUIRED): write the new issuance lifecycle
     # record. Called unconditionally, exactly like the host CLI

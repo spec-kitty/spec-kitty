@@ -485,7 +485,11 @@ def _dispatch_advancing_mode(
     )
     if owned is None and event_row is not None and event_row.in_coordination_worktree:
         # #5938: commit the row where it was written; the owned path commits its own changeset below.
-        _commit_next_event_row(repo_root, mission_slug, event_row, json_output=json_output)
+        from specify_cli.mission_v1.events import commit_mission_event_log
+
+        commit_warning = commit_mission_event_log(Path(str(repo_root)), mission_slug, event_row.log_path, event_row.checkout_root)
+        if commit_warning is not None:
+            print(f"Warning: {commit_warning}", file=sys.stderr)
 
     # WP05 (#843): write the `started` lifecycle record AFTER the decision is
     # finalised but BEFORE returning to the agent, so the record exists iff
@@ -649,7 +653,7 @@ def _pair_previous_lifecycle_record(
     repo_root: object,
     *,
     owned: OwnedCheckout | None = None,
-) -> MissionNextInvokedWrite | None:
+) -> None:
     """Thin delegating wrapper over the FR-014 shared seam.
 
     Kept as a private, patchable module-level name (rather than removed) so
@@ -1301,7 +1305,7 @@ def _emit_mission_next_invoked(
     decision,
     *,
     owned: OwnedCheckout | None = None,
-) -> None:
+) -> MissionNextInvokedWrite | None:
     """Thin delegating wrapper over the FR-014 shared seam.
 
     Kept as a private, patchable module-level name for the same external
@@ -1314,38 +1318,6 @@ def _emit_mission_next_invoked(
     )
 
     return _seam_emit_mission_next_invoked(agent, result, mission_slug, repo_root, decision, owned=owned)
-
-
-def _commit_next_event_row(repo_root: Path, mission_slug: str, event_row: MissionNextInvokedWrite, *, json_output: bool) -> None:
-    """Commit the ``mission-events.jsonl`` row ``next`` just wrote into the coordination worktree (#5938).
-
-    The #5669 ruling keeps the log real dirt for every gate (it has live
-    readers), so ``next`` commits it rather than any gate exempting it. Only that
-    one path is staged: an operator's own edit in the worktree stays uncommitted
-    (#5905). The target comes from the placement seam for the log's kind
-    (``STATUS_STATE``), the same shape as the status door's coordination commit.
-    Best-effort like the row itself: a refused or failed commit is a warning and
-    never fails ``next``.
-    """
-    import subprocess
-
-    from mission_runtime import resolve_placement_only
-    from specify_cli.core.commit_guard import GuardCapability
-    from specify_cli.git.commit_helpers import SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged, safe_commit
-
-    try:
-        safe_commit(
-            repo_root=repo_root,
-            worktree_root=event_row.checkout_root,
-            target=resolve_placement_only(repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE),
-            message=f"chore(next): record next invocation for {mission_slug}",
-            paths=(event_row.log_path,),
-            capability=GuardCapability.STANDARD,
-        )
-    except (SafeCommitEmptyChangeset, SafeCommitStagedTreeUnchanged):
-        return  # the row was already committed (an idempotent re-run)
-    except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
-        print(f"Warning: could not commit {event_row.log_path} ({type(exc).__name__}: {exc}); commit it before consolidate.", file=sys.stderr)
 
 
 def _print_decision(

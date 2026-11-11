@@ -88,3 +88,79 @@ def test_mission_event_log_predicate(path: str, expected: bool) -> None:
     from specify_cli.mission_v1.events import is_mission_event_log_path
 
     assert is_mission_event_log_path(path) is expected
+
+
+def test_commit_mission_event_log_stages_only_the_log(tmp_path: Path) -> None:
+    """The shared committer commits the one log file and never an operator's edit."""
+    from specify_cli.mission_v1.events import commit_mission_event_log
+
+    repo, env = init_repo(tmp_path)
+    mission = create_mission(repo, env, "epsilon", topology="coord")
+    coord = mission.coordination_worktree()
+    log = coord / "kitty-specs" / mission.slug / "mission-events.jsonl"
+    log.write_text('{"type": "MissionNextInvoked"}\n', encoding="utf-8")
+    (coord / "operator-notes.md").write_text("mine\n", encoding="utf-8")
+
+    assert commit_mission_event_log(repo, mission.slug, log, coord) is None
+    assert dirty(coord) == ["operator-notes.md"]
+    # An already-committed row is a quiet no-op.
+    assert commit_mission_event_log(repo, mission.slug, log, coord) is None
+
+
+def test_commit_mission_event_log_reports_a_refusal_instead_of_raising(tmp_path: Path) -> None:
+    from specify_cli.mission_v1.events import commit_mission_event_log
+
+    repo, env = init_repo(tmp_path)
+    mission = create_mission(repo, env, "zeta", topology="coord")
+    outside = tmp_path / "elsewhere.jsonl"
+    outside.write_text("x\n", encoding="utf-8")
+
+    warning = commit_mission_event_log(repo, mission.slug, outside, mission.coordination_worktree())
+
+    assert warning is not None
+    assert "commit it before consolidate" in warning
+
+
+def test_answer_decision_commits_the_row_and_surfaces_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``orchestrator-api answer-decision`` mirrors ``next``: it commits the row it wrote
+    into a coordination worktree through the same committer and reports a refusal in
+    its ``warnings``. Driven through the existing answer-decision harness (a flat
+    Mission); the emitter is wrapped to report a coordination-worktree write.
+    """
+    from runtime.next import next_invocation_lifecycle
+    from runtime.next.next_invocation_lifecycle import MissionNextInvokedWrite
+    from tests.specify_cli.orchestrator_api import test_answer_decision as harness
+
+    mission_slug = "wp03-answer-decision-row"
+    mission_type = "wp03-answer-decision-row-mission"
+    repo_root = harness._scaffold_project(tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP03ROWCOMMITULID00001")
+    harness._write_input_requiring_mission(repo_root, mission_type)
+    agent = "wp03-agent"
+    harness._next(repo_root, agent, mission_slug)
+    decision_id = harness._next(repo_root, agent, mission_slug)["decision_id"]
+
+    real_emit = next_invocation_lifecycle.emit_mission_next_invoked
+    committed: list[tuple[str, Path]] = []
+
+    def _emit_in_coordination(*args, **kwargs):
+        write = real_emit(*args, **kwargs)
+        assert write is not None
+        return MissionNextInvokedWrite(write.log_path, write.checkout_root, in_coordination_worktree=True)
+
+    def _refusing_commit(_repo_root: Path, slug: str, log_path: Path, _checkout_root: Path) -> str:
+        committed.append((slug, log_path))
+        return "could not commit the row (test refusal); commit it before consolidate."
+
+    # ``answer-decision`` imports the seam function-locally, so patch it at its home.
+    monkeypatch.setattr(next_invocation_lifecycle, "emit_mission_next_invoked", _emit_in_coordination)
+    monkeypatch.setattr("specify_cli.mission_v1.events.commit_mission_event_log", _refusing_commit)
+
+    result = harness._run_answer_decision(
+        repo_root,
+        ["--mission", mission_slug, "--agent", agent, "--result", "success", "--answer", "yes", "--decision-id", decision_id, "--policy", harness._POLICY],
+    )
+
+    envelope = harness._envelope(result)
+    assert envelope["success"] is True, envelope
+    assert [slug for slug, _ in committed] == [mission_slug]
+    assert "could not commit the row (test refusal); commit it before consolidate." in envelope["data"]["warnings"]
