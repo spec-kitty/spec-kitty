@@ -197,7 +197,6 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
         "test suite; counting it standalone would double-count the caller's job."
     ),
     "release.yml": "tags-only push + workflow_dispatch: a publication event, not a change.",
-    "sonar.yml": "schedule + workflow_dispatch: the nightly informational SonarCloud scan.",
 }
 
 # An authorised job runs the suite exactly once PER LEG (a leg is one static

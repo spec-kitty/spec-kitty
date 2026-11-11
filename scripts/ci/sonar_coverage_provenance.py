@@ -1,7 +1,9 @@
 """Bind nightly Sonar coverage to the exact checked-out source revision.
 
-The nightly ``Sonar`` workflow consumes coverage artefacts produced by the
-successful ``CI Modules`` run for the commit it analyses. Before this helper it
+The main-branch ``Sonar`` workflow consumes the coverage artefacts of the
+``CI Nightly`` full module matrix for the commit it analyses (#7531; before
+that it read the diff-selected ``CI Modules`` push run, which covered only the
+touched modules). Before this helper it
 selected the newest successful run for the branch, whatever its ``head_sha``,
 and filled gaps from the run before it. On a nightly that had no run at the
 checked-out revision (or on a force-push/re-run race) that silently scanned one
@@ -29,7 +31,11 @@ GitHub API payload without executing a workflow:
 ``reconcile``
     Deduplicate downloaded ``coverage-*.xml`` basenames (current run first,
     same-revision fallback fills gaps) into the comma-joined ``reportPaths``
-    value Sonar merges server-side.
+    value Sonar merges server-side. With ``--registry`` the result must also be
+    complete: every shard ``.github/ci-module-registry.yml`` expands must have
+    a report. A partial set is refused (``complete=false``, no report paths)
+    with a ``::warning::`` naming the missing shards, so Sonar never publishes
+    a percentage computed from a subset of the suite.
 
 Both commands are informational: a missing matching run or an empty coverage
 tree prints a ``::warning::`` and exits 0, because ``sonar.yml`` is an
@@ -37,7 +43,9 @@ advisory, non-required nightly check. They never substitute another revision's
 coverage, and never fail a fork-safe run that has no ``SONAR_TOKEN`` (the
 workflow does not call them in that case).
 
-Standard library only, so the workflow can run it with a bare ``python3``.
+Standard library only, so the workflow can run it with a bare ``python3``,
+except ``--registry``, which reuses ``reconcile_shards.parse_registry`` and so
+needs PyYAML.
 """
 
 from __future__ import annotations
@@ -106,16 +114,16 @@ class Selection:
             if ignored:
                 counted = ", ".join(f"{count} {reason}" for reason, count in sorted(self.ignored.items()))
                 return (
-                    f"no successful CI Modules run at {target}; ignored {ignored} candidate run(s): {counted}. "
+                    f"no successful CI Nightly run at {target}; ignored {ignored} candidate run(s): {counted}. "
                     "Scanning without coverage rather than reusing another revision's report."
                 )
-            return f"no CI Modules run returned for {target}. Scanning without coverage rather than reusing another revision's report."
+            return f"no CI Nightly run returned for {target}. Scanning without coverage rather than reusing another revision's report."
         if self.fallback is not None:
             return (
-                f"coverage bound to CI Modules run {self.primary.run_id} attempt {self.primary.run_attempt} at {target}; "
+                f"coverage bound to CI Nightly run {self.primary.run_id} attempt {self.primary.run_attempt} at {target}; "
                 f"run {self.fallback.run_id} (same source revision) fills missing report basenames"
             )
-        return f"coverage bound to CI Modules run {self.primary.run_id} attempt {self.primary.run_attempt} at {target}"
+        return f"coverage bound to CI Nightly run {self.primary.run_id} attempt {self.primary.run_attempt} at {target}"
 
 
 def _as_int(value: Any, *, field_name: str, run: Mapping[str, Any]) -> int:
@@ -195,8 +203,14 @@ def _succeeded(candidate: RunCandidate) -> bool:
     return candidate.status == "completed" and candidate.conclusion == "success"
 
 
-def select_runs(payload: Any, *, source_sha: str, branch: str | None = None) -> Selection:
-    """Select successful runs at exactly ``source_sha`` (and ``branch`` when given)."""
+def select_runs(payload: Any, *, source_sha: str, branch: str | None = None, accept_failed: bool = False) -> Selection:
+    """Select successful runs at exactly ``source_sha`` (and ``branch`` when given).
+
+    ``accept_failed`` also admits a completed run whose conclusion is
+    ``failure``: a CI Nightly run is red whenever any of its suites is, yet its
+    module shards still upload coverage. Completeness is then judged by the
+    ``reconcile --registry`` check, not by the run conclusion.
+    """
     if not source_sha:
         raise ProvenanceError("source_sha is required: coverage provenance is bound to a revision")
     expected_sha = source_sha.lower()
@@ -211,7 +225,7 @@ def select_runs(payload: Any, *, source_sha: str, branch: str | None = None) -> 
         if branch is not None and candidate.head_branch != branch:
             ignored["on another branch"] += 1
             continue
-        if not _succeeded(candidate):
+        if not (_succeeded(candidate) or (accept_failed and candidate.status == "completed" and candidate.conclusion == "failure")):
             conclusion = candidate.conclusion or candidate.status or "unknown"
             ignored[f"with {conclusion} conclusion"] += 1
             continue
@@ -282,9 +296,17 @@ def write_outputs(path: Path | None, outputs: Mapping[str, str]) -> None:
         handle.write(lines)
 
 
+def missing_registry_shards(result: ReconcileResult, registry: Path) -> list[str]:
+    """Registry shard coverage basenames absent from ``result``, in registry order."""
+    from scripts.ci.reconcile_shards import parse_registry
+
+    present = {path.name for path in result.files}
+    return [shard.basename for shard in parse_registry(registry) if shard.basename not in present]
+
+
 def _select_command(args: argparse.Namespace) -> int:
     payload = load_payload(Path(args.runs))
-    selection = select_runs(payload, source_sha=args.source_sha, branch=args.branch)
+    selection = select_runs(payload, source_sha=args.source_sha, branch=args.branch, accept_failed=args.accept_failed)
     outputs = {
         "run_id": "" if selection.primary is None else str(selection.primary.run_id),
         "fallback_run_id": "" if selection.fallback is None else str(selection.fallback.run_id),
@@ -306,22 +328,29 @@ def _reconcile_command(args: argparse.Namespace) -> int:
         current=None if args.current is None else Path(args.current),
         fallback=None if args.fallback is None else Path(args.fallback),
     )
+    source = f" for source revision {args.source_sha}" if args.source_sha else ""
+    missing = [] if args.registry is None else missing_registry_shards(result, Path(args.registry))
+    complete = bool(result.files) and not missing
     write_outputs(
         None if args.output is None else Path(args.output),
         {
-            "report-paths": result.report_paths,
+            "report-paths": result.report_paths if complete or args.registry is None else "",
             "coverage-files": str(len(result.files)),
             "stale-basenames": ",".join(result.stale),
+            "complete": "true" if complete else "false",
         },
     )
-    if result.files:
-        source = f" for source revision {args.source_sha}" if args.source_sha else ""
+    if missing and result.files:
+        print(
+            f"::warning::sonar: {len(missing)} registry shard coverage report(s) missing{source}; "
+            f"scanning WITHOUT coverage rather than publishing a partial figure. Missing: {', '.join(missing)}"
+        )
+    elif result.files:
         print(
             f"::notice::sonar: resolved {len(result.files)} coverage report(s){source}; "
             f"{len(result.stale)} served from the same-revision fallback: {sorted(result.stale)}"
         )
     else:
-        source = f" for source revision {args.source_sha}" if args.source_sha else ""
         print(f"::warning::sonar: no coverage report found{source}; scanning without coverage rather than reusing another revision's report.")
     return 0
 
@@ -330,16 +359,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Bind nightly Sonar coverage to the checked-out source revision.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    select_parser = subparsers.add_parser("select", help="choose successful CI Modules runs at one source revision")
+    select_parser = subparsers.add_parser("select", help="choose successful CI Nightly runs at one source revision")
     select_parser.add_argument("--runs", required=True, help="recorded listWorkflowRuns JSON payload")
     select_parser.add_argument("--source-sha", required=True, help="the checked-out revision")
     select_parser.add_argument("--branch", default=None, help="the checked-out branch (omit for a detached ref)")
+    select_parser.add_argument("--accept-failed", action="store_true", help="also admit completed runs whose conclusion is failure")
     select_parser.add_argument("--output", default=None, help="GitHub step output file (default: stdout)")
     select_parser.set_defaults(handler=_select_command)
 
     reconcile_parser = subparsers.add_parser("reconcile", help="dedupe downloaded coverage basenames")
     reconcile_parser.add_argument("--current", default=None, help="directory holding the selected run's reports")
     reconcile_parser.add_argument("--fallback", default=None, help="directory holding the same-revision fallback reports")
+    reconcile_parser.add_argument("--registry", default=None, help="module registry; refuse coverage unless every shard has a report")
     reconcile_parser.add_argument("--source-sha", default=None, help="the checked-out revision (for the notice)")
     reconcile_parser.add_argument("--output", default=None, help="GitHub step output file (default: stdout)")
     reconcile_parser.set_defaults(handler=_reconcile_command)
@@ -353,4 +384,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":  # pragma: no cover - exercised through main()
+    # A bare `python3 scripts/ci/<this>.py` puts scripts/ci, not the repo root,
+    # on sys.path; the registry check imports scripts.ci.reconcile_shards.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     raise SystemExit(main())

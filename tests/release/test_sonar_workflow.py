@@ -122,13 +122,16 @@ def test_sonar_declares_workflow_dispatch() -> None:
     assert "workflow_dispatch" in triggers, "sonar.yml must declare workflow_dispatch (T063)"
 
 
-def test_sonar_runs_on_schedule_or_dispatch_never_pull_request() -> None:
-    """sonar.yml must be an informational nightly/dispatch producer -- it must
-    never carry a `pull_request` trigger, which is what would let it enter a
-    PR merge-blocking `needs:` chain (T063: 'not the PR merge-blocking needs:')."""
+def test_sonar_runs_after_ci_nightly_or_on_dispatch_never_pull_request() -> None:
+    """sonar.yml is an informational producer that follows the CI Nightly run on
+    main, whose full module matrix supplies its coverage (#7531). It must never
+    carry a `pull_request` trigger, which is what would let it enter a PR
+    merge-blocking `needs:` chain (T063: 'not the PR merge-blocking needs:')."""
     workflow = _workflow_yaml()
     triggers = _triggers(workflow)
-    assert "schedule" in triggers, "sonar.yml must run on a schedule (nightly)"
+    follows = triggers.get("workflow_run") or {}
+    assert follows.get("workflows") == ["CI Nightly"], "sonar.yml must follow the CI Nightly full-matrix run"
+    assert follows.get("branches") == ["main"]
     assert "pull_request" not in triggers, "sonar.yml must never trigger on pull_request (informational-only, never PR-blocking)"
 
 
@@ -198,7 +201,7 @@ def test_sonar_binds_coverage_runs_to_the_checked_out_source_revision() -> None:
     assert listing["env"]["SOURCE_SHA"] == "${{ steps.source.outputs.sha }}"
     script = str(listing["with"]["script"])
     assert "head_sha: process.env.SOURCE_SHA" in script, "the API query must be revision-bound, not branch-newest"
-    assert "status: 'success'" in script
+    assert "workflow_id: 'ci-nightly.yml'" in script, "coverage must come from the CI Nightly full matrix, not the diff-selected CI Modules run"
 
     selector = next(step for step in steps if "sonar_coverage_provenance.py select" in str(step.get("run") or ""))
     run = str(selector["run"])
@@ -215,6 +218,7 @@ def test_sonar_fallback_and_reconciliation_are_same_revision_helper_outputs() ->
     assert "sonar_coverage_provenance.py reconcile" in run
     assert "--current out/reports/artifacts/current" in run
     assert "--fallback out/reports/artifacts/previous" in run
+    assert "--registry .github/ci-module-registry.yml" in run, "a partial shard set must be refused before upload"
     text = _workflow_text()
     assert "steps.current-run.outputs.fallback_run_id" in text
     assert "stale-artefact fallback" not in text

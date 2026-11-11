@@ -114,7 +114,7 @@ def test_no_runs_at_all_is_a_clear_no_coverage_verdict() -> None:
 
     assert selection.primary is None
     assert selection.coverage_available is False
-    assert "no CI Modules run returned" in selection.reason
+    assert "no CI Nightly run returned" in selection.reason
     assert "without coverage" in selection.reason
 
 
@@ -293,3 +293,71 @@ def test_successful_cli_outputs_explain_same_revision_fallback(tmp_path: Path, c
 def test_missing_source_revision_is_refused() -> None:
     with pytest.raises(ProvenanceError, match="source_sha is required"):
         select_runs(_payload(_run(1)), source_sha="")
+
+
+def _registry(tmp_path: Path) -> Path:
+    registry = tmp_path / "ci-module-registry.yml"
+    registry.write_text(
+        "modules:\n- module: alpha\n  tier: standard\n  shard_count: 2\n- module: beta\n  tier: fast\n  shard_count: 1\n",
+        encoding="utf-8",
+    )
+    return registry
+
+
+def _shard_report(root: Path, basename: str) -> None:
+    folder = root / f"module-tests-{basename}-attempt-1-reports" / "coverage"
+    folder.mkdir(parents=True)
+    (folder / basename).write_text("<coverage/>", encoding="utf-8")
+
+
+def _reconcile_against_registry(tmp_path: Path, basenames: list[str]) -> dict[str, str]:
+    current = tmp_path / "current"
+    for basename in basenames:
+        _shard_report(current, basename)
+    output = tmp_path / "github_output"
+    output.touch()
+    code = main(
+        [
+            "reconcile",
+            "--current",
+            str(current),
+            "--registry",
+            str(_registry(tmp_path)),
+            "--source-sha",
+            _SOURCE,
+            "--output",
+            str(output),
+        ]
+    )
+    assert code == 0
+    return _outputs(output)
+
+
+def test_reconcile_refuses_a_partial_shard_set_and_names_the_missing_shards(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    values = _reconcile_against_registry(tmp_path, ["coverage-standard-alpha-shard1-of-2.xml"])
+
+    assert values["complete"] == "false"
+    assert values["report-paths"] == "", "a partial shard set must never reach Sonar as a coverage figure"
+    captured = capsys.readouterr().out
+    assert "::warning::" in captured
+    assert "coverage-standard-alpha-shard2-of-2.xml" in captured
+    assert "coverage-fast-beta-shard1-of-1.xml" in captured
+
+
+def test_reconcile_publishes_a_complete_shard_set(tmp_path: Path) -> None:
+    names = ["coverage-standard-alpha-shard1-of-2.xml", "coverage-standard-alpha-shard2-of-2.xml", "coverage-fast-beta-shard1-of-1.xml"]
+
+    values = _reconcile_against_registry(tmp_path, names)
+
+    assert values["complete"] == "true"
+    assert values["coverage-files"] == "3"
+    assert all(name in values["report-paths"] for name in names)
+
+
+def test_accept_failed_admits_a_red_nightly_but_never_a_cancelled_one() -> None:
+    payload = _payload(_run(1, run_number=1, conclusion="cancelled"), _run(2, run_number=2, conclusion="failure"))
+
+    assert select_runs(payload, source_sha=_SOURCE).primary is None
+    selection = select_runs(payload, source_sha=_SOURCE, accept_failed=True)
+    assert selection.primary is not None and selection.primary.run_id == 2
+    assert selection.fallback is None
