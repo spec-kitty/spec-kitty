@@ -25,7 +25,8 @@ import pytest
 
 from mission_runtime import MissionTopology
 from runtime.next import board_status as board_status_module
-from runtime.next.board_status import BoardStatus, board_status_from_dir, board_status_from_surface
+from runtime.next.board_status import BoardStatus, board_status_from_surface
+from tests.runtime.next._board_path import board_status_from_dir
 from specify_cli.status import (
     Lane,
     StatusReadSource,

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from runtime.next.board_status import board_status_from_dir
+from tests.runtime.next._board_path import board_status_from_dir
 from runtime.next.decision import _compute_wp_progress, _find_first_wp_by_lane
 from runtime.next.discovery import preview_claimable_wp
 from specify_cli.status import StoreError

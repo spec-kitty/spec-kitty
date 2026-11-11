@@ -262,8 +262,7 @@ def preview_claimable_wp(
     # provenance map (FR-009) so a dependent of a canceled-with-operator-provenance
     # WP is surfaced as claimable, mirroring the primary claim gates.
     # The Path form keeps its own best-effort read (``_load_wp_states`` swallows
-    # every failure); it is deliberately not routed through
-    # ``board_status_from_dir``, which raises on a corrupt log.
+    # every failure); a corrupt log degrades here instead of raising.
     wp_states: Mapping[str, Mapping[str, Any]] = board.wp_states if board is not None else _load_wp_states(_status_dir)
     return _preview_from_candidates(
         candidates,

@@ -7,18 +7,11 @@ reads a Mission's status from the one status read door
 map, the dependency-readiness states and the weighted progress can no longer come from two
 different reads (NFR-002: one read, one reduction per build).
 
-Two builders:
-
-* :func:`board_status_from_surface` -- the door builder. It reads the surface's declared source
-  once through :func:`~specify_cli.status.read_surface.read_status_stream` (a ref surface reuses
-  the door's prefetched read) and never re-derives a source (C-001).
-* :func:`board_status_from_dir` -- a *path read* adapter for callers outside the runtime decision
-  path (the ``status_dir=`` keyword of the progress helpers) and for tests. It parses the
-  directory with the same parser the door uses for a path source. It is not a door read: the
-  single-door gate does not scan ``read_event_stream`` and this module is not one of its
-  ``DOOR_ONLY_MODULES``. Retiring the adapter is a follow-up of #7310.
-
-Both share :func:`_board_from_stream`, so the reduction exists once.
+The builder is :func:`board_status_from_surface`: it reads the surface's declared source once
+through :func:`~specify_cli.status.read_surface.read_status_stream` (a ref surface reuses the
+door's prefetched read) and never re-derives a source (C-001). The reduction itself lives once,
+in :func:`_board_from_stream`; the tests' path-read oracle (``tests/runtime/next/_board_path.py``)
+reuses it to prove parity with the helpers' ``status_dir=`` Path forms.
 """
 
 from __future__ import annotations
@@ -35,18 +28,15 @@ from specify_cli.status import (
     Lane,
     StatusReadSurface,
     compute_weighted_progress,
-    read_event_stream,
     read_status_stream,
     reduce,
 )
 
-__all__ = ["BoardStatus", "board_status_from_dir", "board_status_from_surface"]
+__all__ = ["BoardStatus", "board_status_from_surface"]
 
 _logger = logging.getLogger(__name__)
 
 _EVENTS_FILENAME = "status.events.jsonl"
-PATH_SOURCE = "path"
-"""The ``source`` of a board built by the Path adapter (not a door source)."""
 
 
 @dataclass(frozen=True)
@@ -61,8 +51,8 @@ class BoardStatus:
         has_log: whether the declared source holds a status log at all.
         weighted_percentage: weighted progress to one decimal place, or ``None`` when it could
             not be computed (logged).
-        source: the door's declared source (a ``StatusReadSource`` value), or ``"path"`` for the
-            Path adapter.
+        source: the door's declared source (a ``StatusReadSource`` value); the tests' path-read
+            oracle uses ``"path"``.
     """
 
     lanes: Mapping[str, Lane]
@@ -89,22 +79,6 @@ def board_status_from_surface(surface: StatusReadSurface) -> BoardStatus:
     """
     stream = read_status_stream(surface)
     return _board_from_stream(stream, has_log=_surface_has_log(surface, stream), source=str(surface.source), where=_describe(surface))
-
-
-def board_status_from_dir(feature_dir: Path) -> BoardStatus:
-    """Build the board from a Mission directory (a path read, not a door read).
-
-    Parses with :func:`specify_cli.status.read_event_stream`, the parser the door uses for a
-    path source, and shares the reduction with :func:`board_status_from_surface`. ``has_log``
-    matches ``has_event_log`` (the log path exists). Raises ``StoreError`` on a corrupt line.
-    """
-    stream = read_event_stream(feature_dir)
-    return _board_from_stream(
-        stream,
-        has_log=(feature_dir / _EVENTS_FILENAME).exists(),
-        source=PATH_SOURCE,
-        where=str(feature_dir),
-    )
 
 
 def _board_from_stream(stream: EventStream, *, has_log: bool, source: str, where: str) -> BoardStatus:
