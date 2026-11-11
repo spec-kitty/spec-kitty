@@ -346,7 +346,7 @@ def emit_mission_next_invoked(
     """Append a ``MissionNextInvoked`` event to the mission event log.
 
     Best-effort: an unresolvable ``feature_dir`` degrades to an
-    ``emit_event`` call with ``feature_dir=None`` (debug-logged only, never
+    ``emit_event`` call with ``feature_dir=None`` (warning-logged, never
     persisted) rather than raising — this observability write must never
     break ``next`` itself.
     """
@@ -361,7 +361,7 @@ def emit_mission_next_invoked(
     try:
         feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned)
     except Exception as exc:  # best-effort observability write: never break ``next``
-        logger.debug("MissionNextInvoked row not persisted for mission %r: %s", mission_slug, type(exc).__name__)
+        logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
         feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
     # calling code need not import ``Decision`` — narrow to ``Any`` once here
