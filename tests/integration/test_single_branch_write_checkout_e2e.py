@@ -298,10 +298,16 @@ def _next(mission_slug: str, expected_wp: str) -> None:
 
 
 def _assert_next_bookkeeping_dirty(repo: Path, slug: str) -> None:
-    """Non-vacuity guard: ``next`` really left its own bookkeeping uncommitted."""
+    """Non-vacuity guard: ``next`` really left its own bookkeeping uncommitted.
+
+    #5938: ``next`` now commits its ``mission-events.jsonl`` row in the
+    repository root checkout too, so the bookkeeping it leaves behind is its
+    ``kitty-ops/`` Op record alone.
+    """
     status = _git(repo, "status", "--porcelain")
     assert "kitty-ops/" in status, status
-    assert f"kitty-specs/{slug}/mission-events.jsonl" in status, status
+    assert f"kitty-specs/{slug}/mission-events.jsonl" not in status, status
+    assert f"kitty-specs/{slug}/mission-events.jsonl" in _git(repo, "show", "--name-only", "--format=", "HEAD")
 
 
 def test_action_implement_accepts_next_bookkeeping(agent_loop_mission: tuple[Path, str, Path]) -> None:
@@ -309,14 +315,15 @@ def test_action_implement_accepts_next_bookkeeping(agent_loop_mission: tuple[Pat
     repo, slug, feature_dir = agent_loop_mission
     _next(slug, "WP01")
     _assert_next_bookkeeping_dirty(repo, slug)
+    after_next = _git(repo, "rev-parse", "HEAD").strip()
     result = _action_implement("WP01", slug)
     assert result.exit_code == 0, result.output
     assert "WRITE_CHECKOUT_DIRTY" not in result.output
     assert read_claim_base(repo, slug, "WP01") is not None
     assert _lane_of(feature_dir, "WP01") not in (None, "planned")
     # The claim neither stages nor commits the bookkeeping.
-    _assert_next_bookkeeping_dirty(repo, slug)
-    committed = _git(repo, "show", "--name-only", "--format=", "HEAD")
+    assert "kitty-ops/" in _git(repo, "status", "--porcelain")
+    committed = _git(repo, "diff", "--name-only", after_next, "HEAD")
     assert "kitty-ops/" not in committed
     assert "mission-events.jsonl" not in committed
 
@@ -337,7 +344,12 @@ def test_cli_implement_accepts_next_bookkeeping(agent_loop_mission: tuple[Path, 
 
 
 def test_next_loop_claims_the_next_wp_after_residue_is_committed(agent_loop_mission: tuple[Path, str, Path]) -> None:
-    """#5930 SC-002: the tracked-and-modified form of the bookkeeping is accepted too."""
+    """#5930 SC-002: the next loop claims the next WP once earlier residue is committed.
+
+    #5938: ``next`` now commits its ``mission-events.jsonl`` row, so the
+    tracked-and-modified form of that file no longer arises here; the claim
+    gate's exemption for it is still pinned by the gate's own unit tests.
+    """
     repo, slug, _ = agent_loop_mission
     _next(slug, "WP01")
     _assert_setup_ok("action implement WP01", _action_implement("WP01", slug))
@@ -351,10 +363,11 @@ def test_next_loop_claims_the_next_wp_after_residue_is_committed(agent_loop_miss
 
     _next(slug, "WP02")
     # #7003 (8f3149ae5b): an Op lifecycle record is one NEW file (``kitty-ops/lifecycle/<ulid>.json``), never an
-    # append to a shared log, so no ``kitty-ops/`` path is tracked-and-modified again. The tracked-and-modified
-    # form of ``next``'s bookkeeping is the Mission's ``mission-events.jsonl``; the new-file form is untracked.
+    # append to a shared log, so no ``kitty-ops/`` path is tracked-and-modified again. #5938: ``next`` now
+    # commits its appended ``mission-events.jsonl`` row itself, so the tracked file is not left modified either;
+    # what remains is the new-file form, untracked.
     modified = _git(repo, "status", "--porcelain", "--untracked-files=no")
-    assert f"kitty-specs/{slug}/mission-events.jsonl" in modified, modified
+    assert f"kitty-specs/{slug}/mission-events.jsonl" not in modified, modified
     assert "?? kitty-ops/lifecycle/" in _git(repo, "status", "--porcelain"), "next left no per-record lifecycle file"
     result = _action_implement("WP02", slug)
     assert result.exit_code == 0, result.output
