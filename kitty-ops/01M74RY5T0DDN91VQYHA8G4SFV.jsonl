@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01M74RY5T0DDN91VQYHA8G4SFV", "profile_id": "python-pedro", "action": "generate", "request_text": "Fix #7531: source Sonar main coverage from the CI Nightly full-matrix run and fail closed on missing shards", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "66985215d7d115e4", "governance_context_available": true, "started_at": "2026-11-11T07:42:43.039230+00:00"}
+{"event": "completed", "invocation_id": "01M74RY5T0DDN91VQYHA8G4SFV", "completed_at": "2026-11-11T07:53:23.406092+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01M74RY5T0DDN91VQYHA8G4SFV", "at": "2026-11-11T07:53:23.409212+00:00", "sha": "18b5abb65e"}
