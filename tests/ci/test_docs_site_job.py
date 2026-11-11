@@ -441,10 +441,10 @@ def test_the_shared_definition_is_only_callable_with_read_only_access() -> None:
 
 # --- the live-site probe on every build (#6938) -------------------------------------------------
 #
-# The canary probes the production site; the shared build first probes the site it just built,
-# served over local HTTP, so a pull request that removes a URL class from the ledgers, or a build
-# that stops answering one, fails before any canary. The Pages artifact's name is an input, so the
-# canary's artifact never collides with DocFX's `github-pages` in the same run.
+# The post-deploy smoketest (docs-pages.yml, #2361) probes the production site; the shared build
+# first probes the site it just built, served over local HTTP, so a pull request that removes a URL
+# class from the ledgers, or a build that stops answering one, fails before any deploy. The Pages
+# artifact's name is an input; the deploy uses its default, `github-pages`.
 
 
 def _step_index(job: dict[str, Any], fragment: str) -> int:

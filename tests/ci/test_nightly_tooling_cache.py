@@ -1,10 +1,14 @@
-"""Pin the nightly/doc-tooling caches and the DocFX version to their contracts.
+"""Pin the nightly/doc-tooling caches to their contracts.
 
 These are static workflow assertions: the cache paths and keys are the
 guardrail that keeps a JVM or docs build from either paying a cold download
 every night or, worse, restoring test results or an unpinned tool. The
 checksum-verification behaviour itself is tested in
 ``tests/ci/test_gradle_tool_cache.py`` and ``tests/docs/test_plantuml_invoke.py``.
+
+The DocFX version and tool-cache pins left with the DocFX build job at the docsite cutover
+(#6938): ``docs-pages.yml`` deploys the doc-kitty build now, and reverting the cutover pull
+request restores that job and its tests together.
 """
 
 from __future__ import annotations
@@ -20,6 +24,9 @@ pytestmark = [pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 _CACHE_ACTION_PREFIX = "actions/cache@"
+#: The PlantUML jar cache key, one entry per pin set. Before the cutover (#6938) the DocFX deploy
+#: job shared it; the router's ``tests (docs)`` job now restores and saves it on its own.
+_PLANTUML_JAR_KEY = "plantuml-jar-${{ runner.os }}-${{ hashFiles('scripts/docs/plantuml_pins.json') }}"
 
 
 def _workflow(name: str) -> dict[str, Any]:
@@ -120,41 +127,13 @@ def test_sonar_caches_the_gradle_tool_and_dependencies_never_test_results() -> N
     assert "scripts/ci/gradle_tool_cache.py ensure" in str(install["run"])
 
 
-def test_docs_pages_pins_docfx_and_caches_the_versioned_tool() -> None:
-    workflow = _workflow("docs-pages.yml")
-    build_job = workflow["jobs"]["build"]
-    assert build_job["env"]["DOCFX_VERSION"] == "2.81.0", "the DocFX version is an intentional pin, not whatever is latest"
-
-    steps = _steps(workflow, "build")
-    docfx_cache = _step_named(steps, "DocFX tool cache")
-    assert _cache_paths(docfx_cache).split() == ["~/.dotnet/tools", "~/.nuget/packages"]
-    assert "${{ env.DOCFX_VERSION }}" in _cache_key(docfx_cache)
-
-    install = _step_named(steps, "Install DocFX")
-    run = str(install["run"])
-    assert 'dotnet tool install --global docfx --version "$DOCFX_VERSION"' in run
-    assert "dotnet tool install -g docfx\n" not in run, "an unpinned floating DocFX install must not return"
-
-
-def test_docs_pages_caches_the_checksum_verified_plantuml_jar() -> None:
-    steps = _steps(_workflow("docs-pages.yml"), "build")
-    jar_cache = _step_named(steps, "PlantUML jar cache")
-    assert _cache_paths(jar_cache) == "plantuml.jar"
-    assert "hashFiles('scripts/docs/plantuml_pins.json')" in _cache_key(jar_cache)
-
-    render = _step_named(steps, "Render PlantUML schema diagrams")
-    run = str(render["run"])
-    assert "plantuml_invoke.ensure_jar" in run, "the cached jar must be re-verified through the canonical helper"
-    assert "urllib.request" not in run, "the duplicate download path was replaced by the checksum-verifying provisioner"
-
-
 def test_router_docs_tests_restore_and_save_the_plantuml_jar_before_running() -> None:
     """``tests (docs)`` must not depend on the release-asset download each run.
 
     The PlantUML render tests provision ``plantuml.jar`` at the repository root.
     A GitHub release-asset 504 redded every docs PR until the job restored the
-    jar from the cache docs-pages.yml fills, provisioned it before the tests and
-    saved it independently of the test outcome.
+    jar from the shared cache entry, provisioned it before the tests and saved it
+    independently of the test outcome.
     """
     steps = _steps(_workflow("ci-router.yml"), "tests-docs")
     restore = _step_index(steps, "Restore the checksum-verified PlantUML jar cache")
@@ -163,10 +142,9 @@ def test_router_docs_tests_restore_and_save_the_plantuml_jar_before_running() ->
     run_tests = _step_index(steps, "Run tests")
     assert restore < provision < save < run_tests
 
-    pages_key = _cache_key(_step_named(_steps(_workflow("docs-pages.yml"), "build"), "PlantUML jar cache"))
     for index in (restore, save):
         assert _cache_paths(steps[index]) == "plantuml.jar"
-        assert _cache_key(steps[index]) == pages_key, "share the docs-pages cache entry"
+        assert _cache_key(steps[index]) == _PLANTUML_JAR_KEY, "one cache entry per PlantUML pin set"
     assert str(steps[restore]["uses"]).startswith("actions/cache/restore@")
     assert str(steps[save]["uses"]).startswith("actions/cache/save@")
     assert "plantuml_invoke.ensure_jar" in str(steps[provision]["run"]), "provision through the sha256-verifying helper"
