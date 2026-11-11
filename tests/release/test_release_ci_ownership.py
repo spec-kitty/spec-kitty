@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -438,7 +439,167 @@ def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_e
     assert "continue-on-error" not in setup_step
     assert build_job["needs"] == ["pages"]
     assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
-    assert deploy_job["if"] == "github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+    assert deploy_job["needs"] == ["build", "canary-probe"]
+    assert deploy_job["if"] == (
+        "(!cancelled() || inputs.canary) && github.repository == 'spec-kitty/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+    )
+
+
+# --- the docsite canary (#6938; ADR 2026-10-31-1 D-13 step 2) ------------------------------------
+#
+# A dispatch with `canary: true` builds the doc-kitty site through the shared definition (D-11),
+# publishes it, probes https://docs.spec-kitty.ai, and the DocFX `deploy` job then republishes
+# DocFX whatever the probe said. These tests run the REAL `if:` conditions through a model of
+# GitHub's job scheduling (a job with no status function in its `if:` runs only when every job
+# it needs succeeded), so the push path and the restore are judged on behaviour, not YAML text.
+
+_STATUS_CALL = re.compile(r"\b(?:always|cancelled|success|failure)\(\)")
+_CANARY_JOBS = ("canary-build", "canary-deploy", "canary-probe")
+_DEPLOY_PAGES_PIN = "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346"
+_CHECKOUT_PIN = "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8"
+_SHARED_BUILD = "./.github/workflows/docs-site-build.yml"
+_CANARY_ARTIFACT = "github-pages-canary"
+
+
+def _needs(job: dict[str, Any]) -> list[str]:
+    raw = job.get("needs") or []
+    return [raw] if isinstance(raw, str) else list(raw)
+
+
+def _ancestors(jobs: dict[str, Any], name: str) -> set[str]:
+    found: set[str] = set()
+    for need in _needs(jobs[name]):
+        found |= {need, *_ancestors(jobs, need)}
+    return found
+
+
+def _schedule(
+    *,
+    event_name: str,
+    canary: bool | None = None,
+    ref: str = "refs/heads/main",
+    repository: str = "spec-kitty/spec-kitty",
+    fails: frozenset[str] = frozenset(),
+) -> dict[str, str]:
+    """Each job's result ("success", "failure" or "skipped") for one run of docs-pages.yml.
+
+    A job that runs succeeds unless it is in *fails*. The `pages` probe reports Pages configured.
+    """
+    from tests.ci import _gh_expr
+
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    results: dict[str, str] = {}
+
+    def result(name: str) -> str:
+        if name in results:
+            return results[name]
+        for need in _needs(jobs[name]):
+            result(need)
+        upstream = _ancestors(jobs, name)
+        context: dict[str, Any] = {
+            "github.event_name": event_name,
+            "github.ref": ref,
+            "github.repository": repository,
+            "inputs.canary": canary,
+        }
+        for need in _needs(jobs[name]):
+            context[f"needs.{need}.result"] = results[need]
+            context[f"needs.{need}.outputs.configured"] = "true" if results[need] == "success" else ""
+        condition = str(jobs[name].get("if", "")).strip()
+        status = {
+            "always": True,
+            "cancelled": False,
+            "success": all(results[job] == "success" for job in upstream),
+            "failure": any(results[job] == "failure" for job in upstream),
+        }
+        with patch.dict(_gh_expr._STATUS, status):
+            runs = bool(_gh_expr.evaluate(condition, context)) if condition else True
+        if not _STATUS_CALL.search(condition):
+            runs = runs and status["success"]
+        results[name] = ("failure" if name in fails else "success") if runs else "skipped"
+        return results[name]
+
+    for name in jobs:
+        result(name)
+    return results
+
+
+@pytest.mark.parametrize(("event_name", "canary"), [("push", None), ("workflow_dispatch", False)])
+def test_docs_pages_default_path_deploys_docfx_alone(event_name: str, canary: bool | None) -> None:
+    results = _schedule(event_name=event_name, canary=canary)
+
+    assert {name: results[name] for name in ("pages", "build", "deploy")} == {"pages": "success", "build": "success", "deploy": "success"}
+    assert all(results[name] == "skipped" for name in _CANARY_JOBS)
+
+
+@pytest.mark.parametrize(("event_name", "canary"), [("push", None), ("workflow_dispatch", False), ("workflow_dispatch", True)])
+def test_docs_pages_never_deploys_after_a_failed_docfx_build(event_name: str, canary: bool | None) -> None:
+    results = _schedule(event_name=event_name, canary=canary, fails=frozenset({"build"}))
+
+    assert results["deploy"] == "skipped"
+    assert results["canary-deploy"] == "skipped", "no canary goes live when the DocFX restore artifact is missing"
+
+
+def test_docs_pages_canary_deploys_probes_then_restores_docfx() -> None:
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    results = _schedule(event_name="workflow_dispatch", canary=True)
+
+    assert all(results[name] == "success" for name in (*_CANARY_JOBS, "build", "deploy"))
+    assert {"canary-probe", "canary-deploy"} <= _ancestors(jobs, "deploy"), "DocFX is republished after the canary is probed"
+    assert {"build", "canary-build"} <= _ancestors(jobs, "canary-deploy"), "both artifacts exist before production changes"
+
+
+@pytest.mark.parametrize("failing", ["canary-probe", "canary-deploy", "canary-build"])
+def test_docs_pages_canary_restores_docfx_and_stays_red_when_any_canary_step_fails(failing: str) -> None:
+    results = _schedule(event_name="workflow_dispatch", canary=True, fails=frozenset({failing}))
+
+    assert results["deploy"] == "success", "DocFX is republished whatever the canary did"
+    assert "failure" in results.values(), "the run ends red"
+
+
+@pytest.mark.parametrize(("ref", "repository"), [("refs/heads/topic", "spec-kitty/spec-kitty"), ("refs/heads/main", "fork/spec-kitty")])
+def test_docs_pages_canary_publishes_only_from_main_of_the_core_repository(ref: str, repository: str) -> None:
+    results = _schedule(event_name="workflow_dispatch", canary=True, ref=ref, repository=repository)
+
+    assert results["canary-deploy"] == "skipped"
+    assert results["deploy"] == "skipped"
+
+
+def test_docs_pages_canary_is_a_dispatch_input_off_by_default() -> None:
+    dispatch = load_workflow("docs-pages.yml")[True]["workflow_dispatch"]
+
+    assert dispatch["inputs"]["canary"]["type"] == "boolean"
+    assert dispatch["inputs"]["canary"]["default"] is False
+
+
+def test_docs_pages_canary_builds_through_the_shared_definition_and_deploys_its_own_artifact() -> None:
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+    build, deploy = jobs["canary-build"], jobs["canary-deploy"]
+    (deploy_step,) = deploy["steps"]
+
+    assert build["uses"] == _SHARED_BUILD
+    assert build["with"] == {"pages-artifact": True, "pages-artifact-name": _CANARY_ARTIFACT}
+    assert deploy_step["uses"].split(" ")[0] == _DEPLOY_PAGES_PIN
+    assert deploy_step["with"] == {"artifact_name": _CANARY_ARTIFACT}
+    assert deploy["environment"]["name"] == "github-pages"
+
+
+def test_docs_pages_canary_jobs_hold_only_the_permissions_they_need() -> None:
+    jobs = load_workflow("docs-pages.yml")["jobs"]
+
+    assert jobs["canary-build"]["permissions"] == {"contents": "read"}
+    assert jobs["canary-deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
+    assert jobs["canary-probe"]["permissions"] == {"contents": "read"}
+
+
+def test_docs_pages_canary_probe_runs_the_live_site_probe_against_the_production_domain() -> None:
+    probe = load_workflow("docs-pages.yml")["jobs"]["canary-probe"]
+    uses = [str(step["uses"]) for step in probe["steps"] if "uses" in step]
+    run = "\n".join(str(step["run"]) for step in probe["steps"] if "run" in step)
+
+    assert uses == [_CHECKOUT_PIN]
+    assert "python3 -m scripts.docs.site_live_probe https://docs.spec-kitty.ai" in run
+    assert "|| true" not in run and all("continue-on-error" not in step for step in probe["steps"])
 
 
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
