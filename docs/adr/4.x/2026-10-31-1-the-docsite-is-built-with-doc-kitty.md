@@ -406,3 +406,35 @@ Recorded with #6938 (canary, first of two pull requests; the cutover is the seco
 - **What the probe asserts.** Redirects are not followed, so a 3xx fails: flat stubs exist to remove that hop. A page answers 200 and is not a stub. A key answers 200 with a stub (judged by `redirect_stub_target`) whose target equals the map's, and the target answers 200 with a page. Each URL gets bounded retries for Pages propagation, under a 300 s wall-clock budget that covers the whole request.
 - **The gate runs the probe too.** The shared build serves `site/dist` on loopback and runs the probe once with one attempt. A ledger change that drops a class, or a build that stops answering one, fails a pull request before any canary.
 - **Operation.** The operator dispatches the canary on `main` in an announced window with docs merges frozen, because a push would queue a DocFX deploy in the `pages` concurrency group. The D-5 GitHub Pages leg stays UNVERIFIED until that run passes. The post-deploy smoketest of #2361 lands with the cutover and reuses the probe.
+
+## Amendment 2026-11-11 (cutover)
+
+Recorded with #6938 (cutover, the second of its two pull requests) and #2361 (post-deploy smoketest). D-9's, D-11's and D-13's text above is unchanged. This section records how D-13 step 3 is carried out and what step 4, the rollback, restores.
+
+- **The canary passed.** The operator dispatched it on `main` in an announced window: run [43027580608](https://github.com/spec-kitty/spec-kitty/actions/runs/43027580608), report on [#6938](https://github.com/spec-kitty/spec-kitty/issues/6938#issuecomment-6796965517). All 8 URL classes of the probe passed on the real GitHub Pages service, and DocFX was then restored byte-identical. The D-5 GitHub Pages leg is VERIFIED.
+- **The deploy publishes the doc-kitty build.** In `docs-pages.yml`, `build` calls the shared `docs-site-build.yml` with `pages-artifact: true`, under the default artifact name `github-pages`. `deploy` publishes that artifact with `actions/deploy-pages`, from `main` of the core repository only, after a successful build. D-11's last sentence now holds: `main` deploys only a site built by the definition the `docs-site` pull-request gate runs.
+- **The Pages probe stays.** The `pages` probe-then-configure job, its 404-skips and other-status-fails semantics, the `pages` concurrency group (no cancel in progress) and the fork guard are unchanged (D-12). `actions/configure-pages` is now pinned by commit, like every other action in the workflow.
+- **Token permissions.**
+  - The workflow default is `contents: read`.
+  - The `pages` job holds `pages: read`.
+  - `build` and `smoketest` hold `contents: read`.
+  - Only `deploy` holds `pages: write` and `id-token: write`.
+- **Post-deploy smoketest (#2361).**
+  - What it is: a `smoketest` job with `needs: deploy`, on `main` of the core repository only.
+  - What it runs: `python3 -m scripts.docs.site_live_probe https://docs.spec-kitty.ai`.
+  - Which URLs: the probe and its URL classes are the canary's (Amendment 2026-11-11 above), derived from the committed ledgers.
+  - On failure: a mismatch fails the job and turns the run red.
+  - No alert issue: the operator decided that the red run is the signal, so #2361's optional auto-filed alert issue is not adopted.
+- **The canary is retired into the smoketest.** The `canary` dispatch input and the `canary-build`, `canary-deploy` and `canary-probe` jobs are removed. A canary of the site already live would duplicate the smoketest. A plain dispatch on `main` deploys and smoketests like a push; on another branch it only builds.
+- **DocFX stops running in the deploy workflow.** The DocFX `build` and `deploy` jobs are removed. Their sources stay until #6943 (D-13 step 5): `docs/docfx.json`, `toc.yml`, the template, the DocFX scripts and their tests. In the meantime no CI job builds DocFX.
+- **`docs/llms.txt` is deleted (D-9).** The site generates `/llms.txt` with the version stance (`site/src/pages/llms.txt.ts`), and the smoketest probes it. The test that kept the hand copy's stance equal to `LLMS_STANCE` now asserts the hand copy is absent. `docs/docfx.json` no longer lists it as a resource. Two archived pages still link to it; their bodies are immutable, so `site/link-debt.json` prices both links (`relative-links` gate, burn-down #7489).
+- **What a revert restores (D-13 step 4).** Reverting the cutover pull request brings back, in `docs-pages.yml`:
+  - the DocFX `build` job and its `deploy`;
+  - the dispatch-only canary jobs and their `canary` input;
+  - the DocFX-era push path filter and the workflow-level `pages: write` and `id-token: write`;
+  - `actions/configure-pages` on the floating `@v6` tag instead of its commit pin.
+
+  It reverts the comment-only updates in `ci-router.yml`, `docs-site-build.yml` and `tests/ci/test_docs_site_job.py` that describe the cutover.
+
+  It also brings back `docs/llms.txt` with its `docs/docfx.json` resource entry (and drops the two `site/link-debt.json` entries for it), and the tests that pinned the DocFX deploy (`tests/release/test_release_ci_ownership.py`, `tests/ci/test_nightly_tooling_cache.py`, `tests/docs/test_docs_seo.py`, `tests/docs/test_dockitty_contract.py`). The revert's own push to `main` then deploys DocFX. It does not touch the doc-kitty build gate (`docs-site`). The rollback works until #6943, as D-13 says.
+- **Done when (#6938).** The first post-merge deploy is green and its smoketest passes on `docs.spec-kitty.ai`. Both can only be shown after the merge, so they are followed up on #6938.
