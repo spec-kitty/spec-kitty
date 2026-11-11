@@ -232,16 +232,17 @@ def _get_wp_lane_from_events(status_surface: StatusReadSurface | None, wp_id: st
     """Get the current lane for a WP from the status event log on *status_surface*."""
     if status_surface is None:
         return str(Lane.PLANNED.value)
-    try:
-        from specify_cli.status import reduce, read_status_events  # noqa: PLC0415
+    from specify_cli.status import StoreError, reduce, read_status_events  # noqa: PLC0415
 
+    try:
         events = read_status_events(status_surface)
         if events:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
                 return str(Lane(state.get("lane", Lane.PLANNED)).value)
-    except Exception:
+    except (StoreError, ValueError):
+        # A corrupt log line degrades to PLANNED; a door refusal (unreadable ref) propagates.
         logger.debug("Could not read status events for %s in %s", wp_id, status_surface)
     return str(Lane.PLANNED.value)
 
@@ -385,20 +386,21 @@ def _read_wp_dependencies(wp_files: dict[str, Path], wp_id: str) -> list[str]:
 def _get_all_wp_lanes_from_events(status_surface: StatusReadSurface | None) -> dict[str, str]:
     """Return {wp_id: lane} mapping from the status event log on *status_surface*.
 
-    Returns an empty dict when the event log is absent or unreadable.
+    Returns an empty dict when the event log is absent or holds a corrupt line; a door
+    refusal (an unreadable ref) propagates.
     """
     if status_surface is None:
         return {}
-    try:
-        from specify_cli.status import reduce, read_status_events  # noqa: PLC0415
+    from specify_cli.status import StoreError, reduce, read_status_events  # noqa: PLC0415
 
+    try:
         events = read_status_events(status_surface)
         if not events:
             return {}
         snapshot = reduce(events)
         return {wp_id: str(state.get("lane", "planned"))
                 for wp_id, state in snapshot.work_packages.items()}
-    except Exception:
+    except (StoreError, ValueError):
         logger.debug("Could not read all WP lanes from %s", status_surface)
         return {}
 

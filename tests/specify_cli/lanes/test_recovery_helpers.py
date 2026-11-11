@@ -290,3 +290,31 @@ def test_lane_helpers_read_no_status_without_a_surface() -> None:
 
     assert _get_wp_lane_from_events(None, "WP01") == Lane.PLANNED.value
     assert _get_all_wp_lanes_from_events(None) == {}
+
+
+def test_lane_helpers_propagate_a_door_refusal_but_tolerate_a_corrupt_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unreadable ref stays loud (never PLANNED / {}); a corrupt log line still degrades."""
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.lanes.recovery import _get_all_wp_lanes_from_events, _get_wp_lane_from_events
+    from specify_cli.status import StatusReadSurface, StoreError
+    import specify_cli.status as status_pkg
+
+    surface = StatusReadSurface.__new__(StatusReadSurface)  # the helpers only hand it to the reader
+
+    def refuse(_surface: object) -> list[object]:
+        raise StatusSurfaceRefUnreadable(repo_root=tmp_path, ref="refs/heads/x", path="p", detail="bad object")
+
+    monkeypatch.setattr(status_pkg, "read_status_events", refuse)
+    with pytest.raises(StatusSurfaceRefUnreadable):
+        _get_wp_lane_from_events(surface, "WP01")
+    with pytest.raises(StatusSurfaceRefUnreadable):
+        _get_all_wp_lanes_from_events(surface)
+
+    def corrupt(_surface: object) -> list[object]:
+        raise StoreError("corrupt line")
+
+    monkeypatch.setattr(status_pkg, "read_status_events", corrupt)
+    assert _get_wp_lane_from_events(surface, "WP01") == Lane.PLANNED.value
+    assert _get_all_wp_lanes_from_events(surface) == {}
