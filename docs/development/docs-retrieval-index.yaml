@@ -4164,6 +4164,7 @@ pages:
     - {slug: "census-at-landing-45-entries", text: "Census at landing (45 entries)", level: 3}
     - {slug: "one-landed-signal", text: "One landed signal", level: 3}
     - {slug: "moved-onto-the-door-in-this-change", text: "Moved onto the door in this change", level: 3}
+    - {slug: "amendment-2026-11-11-owned-coordination-checkouts-read-vs-dispatch", text: "Amendment 2026-11-11: owned coordination checkouts, read vs dispatch", level: 2}
   - path: "docs/adr/4.x/2026-11-06-3-topology-is-settled-once-at-first-finalize.md"
     title: "ADR: a default Mission topology is settled once, by size, at the first finalize"
     divio_type: "none"
