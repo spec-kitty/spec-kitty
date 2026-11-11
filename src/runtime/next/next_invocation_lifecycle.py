@@ -355,9 +355,17 @@ class MissionNextInvokedWrite:
     log_path: Path
     checkout_root: Path
     in_coordination_worktree: bool
+    #: A landed Mission's row goes to the PRIMARY directory on its target branch;
+    #: nothing commits it there (post-landing writes have their own surfaces).
+    mission_landed: bool = False
+
+    @property
+    def should_commit(self) -> bool:
+        """Commit the row where it was written, unless the Mission has landed (#5938)."""
+        return not self.mission_landed
 
 
-def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, may_be_landed: bool) -> tuple[Path, Path, bool]:
+def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, may_be_landed: bool) -> tuple[Path, Path, bool, bool]:
     """The Mission directory the ``MissionNextInvoked`` row is appended to.
 
     runtime-status-read-door WP06 (FR-009): an in-flight Mission's row is a WRITE, so it resolves
@@ -379,16 +387,16 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     those ask the door. A ``step`` goes straight to the write seam, so an in-flight invocation
     reads the door once, in its decision (#7539).
 
-    Returns ``(mission_dir, checkout_root, in_coordination_worktree)``: the
-    directory to append to, the root of the checkout that holds it, and whether
-    that checkout is the coordination worktree (#5938: ``next`` commits the row
-    there).
+    Returns ``(mission_dir, checkout_root, in_coordination_worktree, landed)``:
+    the directory to append to, the root of the checkout that holds it, whether
+    that checkout is the coordination worktree, and whether the Mission has
+    landed (#5938: ``next`` commits the row where it was written, unless landed).
     """
     landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned) if may_be_landed else None
     if landed_dir is not None:
-        return landed_dir, repo_root, False
+        return landed_dir, repo_root, False, True
     location = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE)
-    return location.path, location.surface_root, location.surface is TopologySurface.COORD
+    return location.path, location.surface_root, location.surface is TopologySurface.COORD, False
 
 
 def emit_mission_next_invoked(
@@ -421,9 +429,10 @@ def emit_mission_next_invoked(
     feature_dir: Path | None = None
     checkout_root = repo_root_path
     in_coordination_worktree = False
+    landed = False
     try:
         may_be_landed = str(getattr(decision, "kind", "")) in _LANDED_CAPABLE_KINDS
-        feature_dir, checkout_root, in_coordination_worktree = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
+        feature_dir, checkout_root, in_coordination_worktree, landed = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, may_be_landed=may_be_landed)
     except Exception as exc:  # best-effort observability write: never break ``next``
         logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
@@ -447,4 +456,4 @@ def emit_mission_next_invoked(
     )
     if feature_dir is None or not (feature_dir / MISSION_EVENTS_FILE).is_file():
         return None
-    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, checkout_root, in_coordination_worktree)
+    return MissionNextInvokedWrite(feature_dir / MISSION_EVENTS_FILE, checkout_root, in_coordination_worktree, mission_landed=landed)
