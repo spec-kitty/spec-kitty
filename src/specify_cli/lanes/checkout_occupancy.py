@@ -267,8 +267,13 @@ def _lane_mates_writing(repo_root: Path, mission_slug: str, wp_id: str, lane_wp_
     """Other WPs of the same lane worktree that are ``in_progress`` / ``in_review``.
 
     Read through the one status read door (ADR 2026-11-06-2, #7310): an empty or
-    unmaterialized coordination worktree reads the committed coordination branch, so the
-    advisory never crashes the command it decorates.
+    unmaterialized coordination worktree reads the committed coordination branch, so those
+    two states no longer raise. Every other door error propagates to the caller:
+    :func:`~specify_cli.cli.commands.agent.workflow_executor.warn_shared_workspace_writers`
+    turns ``OSError``, ``ValueError``, ``RuntimeError`` (an unreadable ref or worktree
+    registry) and ``StoreError`` into no warning, while ``StatusReadPathNotFound`` (and its
+    subclass ``CoordinationBranchDeleted``, a deleted coordination branch) escapes the
+    advisory, as it did before the door.
     """
     from specify_cli.status import read_status_events, resolve_status_read
     from specify_cli.status import reduce as _reduce_events

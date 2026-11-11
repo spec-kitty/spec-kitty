@@ -466,8 +466,11 @@ def warn_shared_workspace_writers(
 ) -> list[str]:
     """Print the advisory #5099 warning for every other actor writing in *workspace*; return the lines.
 
-    Advisory only: the commands have no JSON mode, so the lines are human output;
-    an unreadable status or lanes surface degrades to no warning, never a refusal.
+    Advisory only: the commands have no JSON mode, so the lines are human output. An
+    ``OSError``, ``ValueError``, ``RuntimeError`` (an unreadable status ref or worktree
+    registry) or ``StoreError`` from the probe degrades to no warning. A
+    ``StatusReadPathNotFound``, such as ``CoordinationBranchDeleted`` for a deleted
+    coordination branch, is not caught and escapes to the command.
     """
     from specify_cli.lanes.checkout_occupancy import SharedWorkspaceWriter, shared_workspace_writers
 
