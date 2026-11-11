@@ -35,7 +35,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
-from scripts.docs._dockitty_contract import body_of, route_of, unpublished_routes
+from scripts.docs._dockitty_contract import body_of, redirect_stub_target, route_of, unpublished_routes
 from scripts.docs.site_built_check_render import own_url
 
 if TYPE_CHECKING:
@@ -196,10 +196,13 @@ def findings(dist: Path, *, docs: Path) -> Iterator[Finding]:
     expected = expected_figures(docs)
     built: set[str] = set()
     for page in sorted(dist.rglob(f"*{_HTML_SUFFIX}")):
+        html = page.read_text(encoding="utf-8", errors="replace")
+        if redirect_stub_target(html) is not None:
+            continue  # a legacy ``.html`` stub beside the page shares its route; it is a redirect, not the page (#6933)
         rel = page.relative_to(dist).as_posix()
         route = own_url(rel, "")
         built.add(route)
-        for defect in page_defects(page.read_text(encoding="utf-8", errors="replace"), expected.get(route, 0)):
+        for defect in page_defects(html, expected.get(route, 0)):
             yield Finding(SURFACE, route, f"{rel}: {defect}")
     for route, count in sorted(expected.items()):
         if route not in built:

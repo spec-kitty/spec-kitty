@@ -197,6 +197,22 @@ def test_a_plantuml_com_url_on_any_built_page_is_reported(site: tuple[Path, Path
     assert _findings(docs, dist) == ["diagrams: /404/ (404.html: plantuml.com URL http://plantuml.com/plantuml/png/abc)"]
 
 
+#: A legacy ``.html`` redirect stub doc-kitty's ``legacyHtmlRedirects`` writes beside the page (#6933).
+REDIRECT_STUB = (
+    "<!doctype html><title>Redirecting to: /architecture/flows/</title>"
+    '<meta http-equiv="refresh" content="0;url=/architecture/flows/"><meta name="robots" content="noindex">'
+    '<link rel="canonical" href="https://docs.spec-kitty.ai/architecture/flows/">'
+    '<body><a href="/architecture/flows/">Redirecting from <code>/architecture/flows.html</code> to <code>/architecture/flows/</code></a></body>'
+)
+
+
+def test_a_legacy_redirect_stub_beside_a_diagram_page_is_not_read_as_the_page(site: tuple[Path, Path]) -> None:
+    docs, dist = site
+    _write(dist, "architecture/flows.html", REDIRECT_STUB)
+
+    assert _findings(docs, dist) == []
+
+
 @pytest.mark.parametrize("rel", ["guides/wip.md", "archive/old.md", "plans/engineering-notes/note.md"])
 def test_a_diagram_on_an_unpublished_page_is_not_counted(site: tuple[Path, Path], rel: str) -> None:
     """A draft, an excluded folder and a draft-only folder are not built, so their diagrams are not expected."""
