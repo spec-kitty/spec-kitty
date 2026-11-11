@@ -28,8 +28,8 @@ _LANE_WPS = {"lane-a": ["WP01", "WP02"], "lane-b": ["WP03", "WP04"]}
 _RECORDED = {"WP01": {"lane": "in_progress"}, "WP02": {"lane": "for_review"}, "WP03": {"lane": "bogus"}}
 _EXPECTED_LANES = {"WP01": "in_progress", "WP02": "for_review", "WP03": "planned", "WP04": "planned"}
 
-#: Status log reads per scan, for ``consult_status_events`` True and False.
-_READS = {True: 5, False: 4}
+#: Status log reads per scan, for ``consult_status_events`` True and False: one reduction per scan.
+_READS = {True: 1, False: 1}
 
 
 def _surface() -> StatusReadSurface:
