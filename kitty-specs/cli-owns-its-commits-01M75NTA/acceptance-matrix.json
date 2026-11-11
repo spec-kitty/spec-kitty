@@ -1,0 +1,89 @@
+{
+  "mission_slug": "cli-owns-its-commits-01M75NTA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/coordination/test_mission_dirt.py (all scopes, collapsed dirs, aliases; wrapper answers pinned); WP01 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:40.481889+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_record_analysis_mission_scoped_7556.py + test_analysis_report_transaction.py controls; WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:44.421304+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py::test_other_mission_residue_* + code-dirt control; WP02 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:48.088370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/specify_cli/cli/commands/test_next_commits_coordination_row_5938.py (11 tests incl. lane guard and answer-decision); scratch e2e: consolidate exit 0 after next; WP03 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:51.845299+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_setup_plan_commits_lifecycle_3933.py; WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:55.441094+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mark_status_commits_coordination_3933.py (+ --no-auto-commit control); move-task observed clean under auto-commit (research.md); WP04 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:28:59.114291+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated",
+      "evidence": "tests/init/test_init_commits_its_writes_7555.py (commit set, pre-dirty excluded, --no-commit, unborn residual, outside git); WP05 approved",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:29:02.794872+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated",
+      "evidence": "existing refusal suites green or re-pinned with same-fixture controls (WP02, WP05 commit messages); make test-fast 3017 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude-orchestrator",
+      "verified_at": "2026-11-11T18:29:06.407241+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
