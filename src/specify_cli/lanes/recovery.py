@@ -18,6 +18,7 @@ from specify_cli.mission_metadata import load_meta
 import logging
 import re
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -228,23 +229,15 @@ def _resolve_recovery_status_surface(repo_root: Path, mission_slug: str) -> Stat
     return surface
 
 
-def _get_wp_lane_from_events(status_surface: StatusReadSurface | None, wp_id: str) -> str:
-    """Get the current lane for a WP from the status event log on *status_surface*."""
-    if status_surface is None:
-        return str(Lane.PLANNED.value)
-    from specify_cli.status import StoreError, reduce, read_status_events  # noqa: PLC0415
+def _wp_lane(wp_lanes: Mapping[str, str], wp_id: str) -> str:
+    """The lane of *wp_id* in a scan's one reduction of the status log (#7539).
 
+    A WP the log does not hold, or holds with a lane outside the state machine, is ``planned``.
+    """
     try:
-        events = read_status_events(status_surface)
-        if events:
-            snapshot = reduce(events)
-            state = snapshot.work_packages.get(wp_id)
-            if state:
-                return str(Lane(state.get("lane", Lane.PLANNED)).value)
-    except (StoreError, ValueError):
-        # A corrupt log line degrades to PLANNED; a door refusal (unreadable ref) propagates.
-        logger.debug("Could not read status events for %s in %s", wp_id, status_surface)
-    return str(Lane.PLANNED.value)
+        return str(Lane(wp_lanes.get(wp_id, Lane.PLANNED.value)).value)
+    except ValueError:
+        return str(Lane.PLANNED.value)
 
 
 def _find_wp_ids_for_lane(
@@ -449,13 +442,15 @@ def _scan_live_branch_states(
     mission_branch: str,
     lane_branches: list[str],
     contexts_by_lane: dict[str, WorkspaceContext],
+    wp_lanes: Mapping[str, str] | None = None,
 ) -> list[RecoveryState]:
     """Build recovery states for every WP that still has a live lane branch.
 
     PRIMARY/STATUS split (FR-002 / C-001): lane→WP membership is read from
     ``lanes.json`` on *primary_dir* (LANE_STATE, PRIMARY-partition), while the
     per-WP lane comes from the status event log on *status_surface* (STATUS, read
-    through the one status read door).
+    through the one status read door). The log is read and reduced once per scan (#7539):
+    *wp_lanes* is the caller's reduction, else the log is reduced at the first WP looked up.
     """
     recovery_states: list[RecoveryState] = []
     for branch in lane_branches:
@@ -483,7 +478,9 @@ def _scan_live_branch_states(
 
         for wp_id in wp_ids:
             # STATUS leg: the per-WP lane comes from the event log (coord-aware).
-            status_lane = _get_wp_lane_from_events(status_surface, wp_id)
+            if wp_lanes is None:
+                wp_lanes = _get_all_wp_lanes_from_events(status_surface)
+            status_lane = _wp_lane(wp_lanes, wp_id)
             recovery_states.append(
                 RecoveryState(
                     wp_id=wp_id,
@@ -705,6 +702,7 @@ def scan_recovery_state(
         mission_branch=mission_branch,
         lane_branches=lane_branches,
         contexts_by_lane=contexts_by_lane,
+        wp_lanes=all_wp_lanes if consult_status_events else None,
     )
 
     if not consult_status_events:
