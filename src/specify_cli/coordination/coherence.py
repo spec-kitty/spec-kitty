@@ -471,12 +471,9 @@ class ResidueContext:
         """Build the context for ``mission_slug`` reading its STORED topology; raises when it is unreadable."""
         if role is CheckoutRole.TOOL_OWNED:
             return cls(role=role)
-        from specify_cli.migration.backfill_topology import read_topology
         from specify_cli.missions._read_path_resolver import mission_dir_aliases
 
-        from specify_cli.core.paths import assert_safe_path_segment
-
-        topology = read_topology(repo_root / KITTY_SPECS_DIR / assert_safe_path_segment(mission_slug))
+        topology = _read_stored_topology(repo_root, mission_slug)
         return cls(role=role, mission_slug=mission_slug, topology=topology, mission_dir_names=mission_dir_aliases(repo_root, mission_slug))
 
     def is_disposable(self, path: str) -> bool:
@@ -493,6 +490,39 @@ class ResidueContext:
             topology=self.topology,
             mission_dir_names=self.mission_dir_names,
         )
+
+
+def _seam_metadata_dir(repo_root: Path, mission_slug: str) -> Path | None:
+    """The directory the placement seam resolves for ``PRIMARY_METADATA``, or ``None`` when it cannot resolve.
+
+    A settled default Mission keeps its ``meta.json`` only on its Mission branch, which the
+    coordination worktree holds (#7540 item 2); the seam knows that location, a raw
+    ``<repo_root>/kitty-specs/<slug>`` join does not. Any seam failure (no checkout holds the
+    Mission, an unreadable registry) is not a verdict here: the caller falls back to the raw join.
+    """
+    from mission_runtime import placement_seam
+
+    try:
+        return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    except Exception:  # any seam failure falls back to the raw join, which keeps the pre-#7540 verdict
+        return None
+
+
+def _read_stored_topology(repo_root: Path, mission_slug: str) -> MissionTopology:
+    """The Mission's STORED topology, read where its ``meta.json`` lives.
+
+    Tries the placement seam's ``PRIMARY_METADATA`` directory first, then the raw
+    ``<repo_root>/kitty-specs/<slug>`` join, so the lookup only widens to the seam location.
+    Raises ``FileNotFoundError`` when neither holds a ``meta.json``; a corrupt one propagates.
+    """
+    from specify_cli.core.paths import assert_safe_path_segment
+    from specify_cli.migration.backfill_topology import read_topology
+
+    raw_dir = repo_root / KITTY_SPECS_DIR / assert_safe_path_segment(mission_slug)
+    seam_dir = _seam_metadata_dir(repo_root, mission_slug)
+    meta_dir = seam_dir if seam_dir is not None and seam_dir != raw_dir and (seam_dir / "meta.json").is_file() else raw_dir
+    topology: MissionTopology = read_topology(meta_dir)
+    return topology
 
 
 @dataclass(frozen=True)

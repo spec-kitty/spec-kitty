@@ -80,7 +80,6 @@ def _abort(built: Built) -> subprocess.CompletedProcess[str]:
     return cli(built, "consolidate", "--mission", built.slug, "--abort")
 
 
-@pytest.mark.p0_repro(issue=7544)
 def test_abort_after_kill_resyncs_the_runs_own_coordination_residue(tmp_path: Path) -> None:
     built = _killed_consolidate(tmp_path)
     dirty_before = git(built.coord_worktree, "status", "--porcelain")
@@ -94,12 +93,21 @@ def test_abort_after_kill_resyncs_the_runs_own_coordination_residue(tmp_path: Pa
 
 
 def test_abort_after_kill_keeps_a_foreign_edit_in_the_coordination_checkout(tmp_path: Path) -> None:
+    """A tracked operator edit (``spec.md``) refuses the resync; it and an untracked note survive.
+
+    An untracked file alone never refuses the resync (``git reset --hard`` keeps it), so the
+    refusal is driven by the tracked edit; both must be kept.
+    """
     built = _killed_consolidate(tmp_path)
     notes = built.coord_worktree / built.rel / "notes.md"
     notes.write_text(_NOTES, encoding="utf-8")
+    spec = built.coord_worktree / built.rel / "spec.md"
+    edited_spec = spec.read_text(encoding="utf-8") + _NOTES
+    spec.write_text(edited_spec, encoding="utf-8")
 
     proc = _abort(built)
     output = proc.stdout + proc.stderr
 
     assert _LEFT_AS_FOUND in output, output[-4000:]
     assert notes.read_text(encoding="utf-8") == _NOTES
+    assert spec.read_text(encoding="utf-8") == edited_spec
