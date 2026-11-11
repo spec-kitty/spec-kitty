@@ -4101,6 +4101,7 @@ pages:
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-11-09", text: "Amendment 2026-11-09", level: 2}
     - {slug: "amendment-2026-11-10", text: "Amendment 2026-11-10", level: 2}
+    - {slug: "amendment-2026-11-11", text: "Amendment 2026-11-11", level: 2}
   - path: "docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md"
     title: "ADR: pull requests touch no shared generated file and land through a merge queue"
     divio_type: "none"
