@@ -223,9 +223,10 @@ def _resolve_recovery_status_surface(repo_root: Path, mission_slug: str) -> Stat
     refusal (a deleted coordination branch, an unreadable worktree registry) stays loud.
     """
     try:
-        return resolve_status_read(repo_root, mission_slug)
+        surface: StatusReadSurface = resolve_status_read(repo_root, mission_slug)
     except FileNotFoundError:
         return None
+    return surface
 
 
 def _get_wp_lane_from_events(status_surface: StatusReadSurface | None, wp_id: str) -> str:
