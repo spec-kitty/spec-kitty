@@ -1,7 +1,7 @@
-"""T1.6 — Regression tests: init inside an existing git repo leaves git state unchanged.
+"""T1.6 — Regression tests: ``init --no-commit`` inside an existing git repo leaves git state unchanged.
 
 Verifies:
-- Running init inside a repo with an existing commit leaves HEAD hash unchanged.
+- Running ``init --no-commit`` inside a repo with an existing commit leaves HEAD hash unchanged.
 - git log still shows only the original commit (no new commit added).
 - git status --porcelain shows only new init files (no modified tracked files).
 """
@@ -90,7 +90,12 @@ def test_init_does_not_touch_git_state_in_existing_repo(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """T1.6: Running init inside an existing git repo leaves HEAD hash and history unchanged."""
+    """T1.6: ``init --no-commit`` inside an existing git repo leaves HEAD hash and history unchanged.
+
+    #7555 re-pin: init now commits the files it wrote by default (pinned in
+    ``test_init_commits_its_writes_7555.py``); ``--no-commit`` keeps this original,
+    hands-off contract, which is what this test guards.
+    """
     repo = tmp_path / "myrepo"
     repo.mkdir()
 
@@ -110,7 +115,7 @@ def test_init_does_not_touch_git_state_in_existing_repo(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "--ai", "codex", "--non-interactive"])
+    result = _run(app, ["init", "--ai", "codex", "--non-interactive", "--no-commit"])
     assert result.exit_code == 0, f"init failed inside existing repo: {result.output}"
 
     # HEAD hash must be unchanged

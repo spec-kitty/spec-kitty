@@ -496,8 +496,13 @@ def commit_touched_checkout(
     baseline_paths: set[str] | None,
     from_version: str,
     to_version: str,
+    *,
+    message: str | None = None,
 ) -> tuple[bool, list[str], str | None]:
     """Auto-commit the upgrade churn a run introduced in *checkout*.
+
+    ``message`` replaces the default upgrade subject; ``spec-kitty init`` uses
+    the same baseline-diff commit for the project files it writes (#7555).
 
     The commit-set is the porcelain diff against *baseline_paths* (captured
     before any upgrade write to this checkout), filtered through the
@@ -516,7 +521,7 @@ def commit_touched_checkout(
     if not files_to_commit and not index_deletions:
         return False, [], None
 
-    commit_message = f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
+    commit_message = message or f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
     committed_paths = [to_posix(path) for path in (*files_to_commit, *index_deletions)]
     try:
         destination_ref = subprocess.check_output(

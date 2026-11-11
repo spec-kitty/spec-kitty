@@ -3,7 +3,7 @@ title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
 kind: Reference
-updated: '2026-11-06T00:00:00Z'
+updated: '2026-11-11T00:00:00Z'
 related:
 - api/bulk-edit-gate
 - api/finalize-tasks-internals
@@ -3224,8 +3224,10 @@ _Glossary management commands_
 
  Initialize a new Spec Kitty project.
 
- Creates project files only. Does not initialize a git repository.
- Does not create any commits.
+ Creates project files. Never initializes a git repository. When the
+ directory is the top of an existing git repository with at least one commit,
+ init commits the files it wrote in one commit and leaves files that were
+ already uncommitted alone; pass --no-commit to skip that commit.
 
  If PROJECT_NAME is omitted, init runs in the current directory.
  Re-running init in an already-initialized directory is idempotent for project
@@ -3238,7 +3240,7 @@ _Glossary management commands_
  its path and is preserved untouched — rename or remove it and re-run init.
 
  Note: The --no-git flag from previous versions has been removed.
-       init never touches git state regardless of flags.
+       init never runs `git init`.
 
  Interactive Mode (default):
  - Prompts you to select AI assistants
@@ -3288,6 +3290,9 @@ _Glossary management commands_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --non-interactive,--yes            Run without interactive prompts (suitable │
 │                                    for CI/CD)                                │
+│ --no-commit                        Do not commit the files init writes (by   │
+│                                    default, inside a git repository init     │
+│                                    commits them in one commit)               │
 │ --help                   -h        Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Selection ──────────────────────────────────────────────────────────────────╮

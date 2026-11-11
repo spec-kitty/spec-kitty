@@ -844,6 +844,64 @@ def _display_vcs_info(_detected_vcs: VCSBackend, console: Console) -> None:
     console.print("[green]✓ git detected[/green] - will be used for version control")
 
 
+_INIT_COMMIT_MESSAGE = "chore: initialize spec-kitty project"
+
+
+def _capture_init_commit_baseline(project_path: Path, *, enabled: bool) -> set[str] | None:
+    """The pre-write git baseline for init's own commit, or ``None`` when init will not commit (#7555).
+
+    init commits only when ``project_path`` is itself the top of a git repository
+    (it holds ``.git``): it never runs ``git init``, and a project created inside
+    a larger repository is left for that repository's owner to commit. The
+    baseline is the upgrade committer's (``upgrade.autocommit``): every path
+    already dirty or ignored before init's first write stays out of the commit.
+    """
+    if not enabled or not (project_path / ".git").exists():
+        return None
+    from specify_cli.upgrade.autocommit import capture_upgrade_baseline
+
+    # Explicit annotation: under ``follow_imports = "skip"`` the cross-module return reads as Any.
+    baseline: set[str] | None = capture_upgrade_baseline(project_path)
+    return baseline
+
+
+def _commit_init_writes(project_path: Path, baseline: set[str] | None) -> None:
+    """Commit what init wrote in one commit, through the upgrade committer (#7555).
+
+    The commit set is the git diff against ``baseline``, never a file list, so an
+    operator's pre-existing edit is never swept in (#5905). The committer holds the
+    one sanctioned capability for project-scaffold bookkeeping, so a protected
+    branch is handled exactly as ``spec-kitty upgrade`` handles it. A commit that
+    cannot be made is reported, never fatal: the files are already on disk.
+    """
+    if baseline is None:
+        return
+    from specify_cli import __version__
+    from specify_cli.core.git_ops import has_unborn_head
+    from specify_cli.git.commit_helpers import SafeCommitError
+    from specify_cli.upgrade.autocommit import commit_touched_checkout
+
+    assert _console is not None
+    if has_unborn_head(project_path):
+        # safe_commit lands only on an existing branch, so the repository's first
+        # commit is the operator's to make (a residual of #7555).
+        _console.print(
+            "[yellow]Note:[/yellow] this repository has no commits yet, so init did not commit its files. "
+            "Make them your first commit (for example `git add -A && git commit -m "
+            f'"{_INIT_COMMIT_MESSAGE}"`) before running other spec-kitty commands.'
+        )
+        return
+    try:
+        committed, paths, warning = commit_touched_checkout(project_path, baseline, __version__, __version__, message=_INIT_COMMIT_MESSAGE)
+    except SafeCommitError as exc:
+        _console.print(f"[yellow]Note:[/yellow] {escape(f'Could not commit the files init wrote: {exc}')}")
+        return
+    if committed:
+        _console.print(f"[green]Committed {len(paths)} spec-kitty project files[/green] [dim](`{_INIT_COMMIT_MESSAGE}`; pass --no-commit to skip)[/dim]")
+    elif warning:
+        _console.print(f"[yellow]Note:[/yellow] {escape(warning)}")
+
+
 def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
     """Save VCS preference to config.yaml.
 
@@ -881,6 +939,11 @@ def init(  # noqa: C901
     ),
     ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
     non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
+    no_commit: bool = typer.Option(
+        False,
+        "--no-commit",
+        help="Do not commit the files init writes (by default, inside a git repository init commits them in one commit)",
+    ),
 ) -> None:
     """Initialize a new Spec Kitty project."""
     # Use the injected dependencies
@@ -1089,6 +1152,10 @@ def init(  # noqa: C901
     ]:
         tracker.add(key, label)
 
+    # #7555: the git state before init's first write, so its own commit at the end holds
+    # exactly what this run wrote and never a file that was already uncommitted (#5905).
+    init_commit_baseline = _capture_init_commit_baseline(project_path, enabled=not no_commit)
+
     if not here and not project_path.exists():
         project_path.mkdir(parents=True)
 
@@ -1280,9 +1347,9 @@ def init(  # noqa: C901
             # delivery. Authored pre-existing config never reaches this boundary.
             _start_command_delivery(project_path, command_skill_agents)
 
-            # T001: No git initialization. init is file-creation-only.
-            # Git management is the user's responsibility. Running init inside
-            # an existing repo leaves the repo untouched.
+            # T001: No git initialization: init never runs `git init`. Inside an
+            # existing repository it commits only the files it wrote, at the end
+            # (#7555, `_commit_init_writes`; `--no-commit` opts out).
 
             # Persist a local canonical ProjectInitialized event before any
             # status fan-out so local dashboards and TeamSpace import always
@@ -1643,6 +1710,8 @@ def init(  # noqa: C901
         for scratch in kittify_dir.iterdir():
             if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
                 _remove_init_scratch(scratch, reason="init resolver scratch dir", best_effort=True)
+
+    _commit_init_writes(project_path, init_commit_baseline)
 
 
 def register_init_command(
