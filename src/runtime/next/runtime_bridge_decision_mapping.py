@@ -36,7 +36,7 @@ import dataclasses
 import re
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mission_runtime import OwnedCheckout
 from runtime.next import runtime_bridge_cores as _cores
@@ -52,6 +52,10 @@ from runtime.next.decision import (
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_all_wp_snapshots
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
+
+if TYPE_CHECKING:
+    from runtime.next.board_status import BoardStatus
+    from specify_cli.status import StatusReadSurface
 
 
 TASKS_GLOB = "WP*.md"
@@ -70,18 +74,19 @@ def _is_wp_iteration_step(step_id: str) -> bool:
     return step_id in _WP_ITERATION_STEPS
 
 
-def _has_claimable_planned_wp(feature_dir: Path, *, status_dir: Path | None = None) -> bool:
+def _has_claimable_planned_wp(feature_dir: Path, *, status_dir: Path | None = None, board: BoardStatus | None = None) -> bool:
     """True only when a ``planned`` WP is genuinely claimable (#5669).
 
     Gates the override's ``planned`` arm on the single dependency-aware
     claimability authority (``discovery.preview_claimable_wp``, C-001) instead of
     bare lane presence, so a dependency-walled ``planned`` WP never pins the
     board to ``implement`` while a sibling WP awaits review (#4860 is preserved:
-    a walled WP is never dispatched for ``implement``).
+    a walled WP is never dispatched for ``implement``). ``board`` is the preferred form
+    (#7310); ``status_dir`` stays for Path callers.
     """
     from runtime.next.discovery import preview_claimable_wp
 
-    return preview_claimable_wp(feature_dir, status_dir=status_dir).wp_id is not None
+    return preview_claimable_wp(feature_dir, status_dir=status_dir, board=board).wp_id is not None
 
 
 def _finalized_task_board_override_step(
@@ -89,6 +94,7 @@ def _finalized_task_board_override_step(
     progress: dict[str, int | float] | None,
     *,
     status_dir: Path | None = None,
+    board: BoardStatus | None = None,
 ) -> str | None:
     """Return the next step implied by finalized WP state, if available.
 
@@ -103,6 +109,9 @@ def _finalized_task_board_override_step(
     one falls through so a pending ``for_review`` WP reports ``review`` (#5669).
     ``claimed``/``in_progress`` WPs are a genuine resume and always report
     ``implement``.
+
+    Lane state comes from ``board`` when given (the preferred form, #7310 FR-008), else from
+    ``status_dir`` (or ``feature_dir``).
     """
     if progress is None:
         return None
@@ -112,20 +121,21 @@ def _finalized_task_board_override_step(
     if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
         return None
 
-    if _has_claimable_planned_wp(feature_dir, status_dir=status_dir):
+    if _has_claimable_planned_wp(feature_dir, status_dir=status_dir, board=board):
         return _STEP_IMPLEMENT
-    if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir) is not None:
+    if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir, board=board) is not None:
         return _STEP_IMPLEMENT
-    if _find_first_wp_by_lane(feature_dir, "in_progress", status_dir=status_dir) is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_progress", status_dir=status_dir, board=board) is not None:
         return _STEP_IMPLEMENT
-    if _find_first_wp_by_lane(feature_dir, "for_review", status_dir=status_dir) is not None:
+    if _find_first_wp_by_lane(feature_dir, "for_review", status_dir=status_dir, board=board) is not None:
         return _STEP_REVIEW
-    if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir, board=board) is not None:
         return "blocked:review_in_progress"
 
     done_endings, acceptable_endings = _count_wp_endings(
         feature_dir,
         status_dir=status_dir,
+        board=board,
     )
     if acceptable_endings == total:
         return "done" if done_endings == total else "accept"
@@ -143,16 +153,19 @@ def _count_wp_endings(
     feature_dir: Path,
     *,
     status_dir: Path | None = None,
+    board: BoardStatus | None = None,
 ) -> tuple[int, int]:
-    """Count WP files whose reduced lanes are done and acceptable endings."""
+    """Count WP files whose reduced lanes are done and acceptable endings.
+
+    The reduced states come from ``board`` when given (a board with no log counts nothing,
+    as an absent log does in the Path form), else from ``status_dir`` (or ``feature_dir``).
+    """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return 0, 0
 
-    lane_read_dir = status_dir if status_dir is not None else feature_dir
-    try:
-        wp_snapshots = get_all_wp_snapshots(lane_read_dir)
-    except CanonicalStatusNotFoundError:
+    wp_snapshots = _board_or_path_snapshots(status_dir if status_dir is not None else feature_dir, board)
+    if wp_snapshots is None:
         return 0, 0
 
     acceptable_endings = 0
@@ -170,6 +183,17 @@ def _count_wp_endings(
         ):
             acceptable_endings += 1
     return done_endings, acceptable_endings
+
+
+def _board_or_path_snapshots(lane_read_dir: Path, board: BoardStatus | None) -> Mapping[str, Mapping[str, Any]] | None:
+    """The reduced WP states, or ``None`` when there is no status log (both forms)."""
+    if board is not None:
+        return board.wp_states if board.has_log else None
+    try:
+        snapshots: Mapping[str, Mapping[str, Any]] = get_all_wp_snapshots(lane_read_dir)
+    except CanonicalStatusNotFoundError:
+        return None
+    return snapshots
 
 
 def _prompt_exists(path: str) -> bool:
@@ -349,7 +373,13 @@ def _wp_blocked_action(board_step: str | None, reason: str) -> _WpBoardAction:
     return _WpBoardAction(board_step=board_step, action=None, wp_id=None, workspace_path=None, blocked_reason=reason)
 
 
-def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug: str) -> str | None:
+def _wp_task_surface_error(
+    task_board_dir: Path,
+    status_dir: Path | None,
+    mission_slug: str,
+    *,
+    board: BoardStatus | None = None,
+) -> str | None:
     """Return the canonical task-read error for any WP present in status state.
 
     Validate done WPs too: progress totals and terminal counts are derived
@@ -358,13 +388,14 @@ def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug:
     are skipped: canceling is the recorded way to retire a work package whose
     task file was removed on purpose, and a canceled WP never counts toward
     completion.
+
+    Lanes come from ``board`` when given (a board with no log reports no error, as an absent
+    log does in the Path form), else from ``status_dir``.
     """
     from runtime.next.prompt_builder import read_wp_task
-    from specify_cli.status import CanonicalStatusNotFoundError, Lane, get_all_wp_lanes
 
-    try:
-        wp_lanes = get_all_wp_lanes(status_dir)
-    except CanonicalStatusNotFoundError:
+    wp_lanes = _surface_error_lanes(status_dir, board)
+    if wp_lanes is None:
         return None
 
     tasks_dir = task_board_dir / "tasks"
@@ -378,6 +409,21 @@ def _wp_task_surface_error(task_board_dir: Path, status_dir: Path, mission_slug:
     return None
 
 
+def _surface_error_lanes(status_dir: Path | None, board: BoardStatus | None) -> Mapping[str, str] | None:
+    """The lane map ``_wp_task_surface_error`` checks, or ``None`` when there is no status log."""
+    from specify_cli.status import get_all_wp_lanes
+
+    if board is not None:
+        return board.lanes if board.has_log else None
+    if status_dir is None:
+        raise ValueError("_wp_task_surface_error needs status_dir or board")
+    try:
+        lanes: Mapping[str, str] = get_all_wp_lanes(status_dir)
+    except CanonicalStatusNotFoundError:
+        return None
+    return lanes
+
+
 def _wp_dispatch_action(board_step: str, action: str, wp_id: str, workspace_path: str) -> _WpBoardAction:
     return _WpBoardAction(board_step=board_step, action=action, wp_id=wp_id, workspace_path=workspace_path, blocked_reason=None)
 
@@ -386,9 +432,10 @@ def _resolve_wp_board_implement_action(
     mission_slug: str,
     repo_root: Path,
     task_board_dir: Path,
-    status_dir: Path,
+    status_dir: Path | None,
     *,
     owned: OwnedCheckout | None = None,
+    board: BoardStatus | None = None,
 ) -> _WpBoardAction:
     """CT-3 / FR-003: implement-branch WP resolution, mirroring query mode's
     ``_build_finalized_override_query_decision`` exactly (the same
@@ -399,7 +446,7 @@ def _resolve_wp_board_implement_action(
     from runtime.next.discovery import preview_claimable_wp
     from specify_cli.workspace.context import resolve_workspace_for_wp
 
-    preview = preview_claimable_wp(task_board_dir, status_dir=status_dir)
+    preview = preview_claimable_wp(task_board_dir, status_dir=status_dir, board=board)
     if preview.wp_id is None:
         reason = preview.selection_reason or "no claimable work package"
         return _wp_blocked_action(
@@ -414,16 +461,17 @@ def _resolve_wp_board_review_action(
     mission_slug: str,
     repo_root: Path,
     task_board_dir: Path,
-    status_dir: Path,
+    status_dir: Path | None,
     *,
     owned: OwnedCheckout | None = None,
+    board: BoardStatus | None = None,
 ) -> _WpBoardAction:
     """CT-2 / FR-001: review-branch WP resolution via the canonical
     ``_find_first_wp_by_lane`` for_review reader (C-003 — no fifth lane
     reader is minted)."""
     from specify_cli.workspace.context import resolve_workspace_for_wp
 
-    wp_id = _find_first_wp_by_lane(task_board_dir, "for_review", status_dir=status_dir)
+    wp_id = _find_first_wp_by_lane(task_board_dir, "for_review", status_dir=status_dir, board=board)
     if wp_id is None:
         # A race between the board's own for_review probe and this re-read
         # — never a WP-less dispatch (FR-005); fall to the blocked floor.
@@ -435,82 +483,60 @@ def _resolve_wp_board_review_action(
     return _wp_dispatch_action(_STEP_REVIEW, _STEP_REVIEW, wp_id, workspace_path)
 
 
-def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: OwnedCheckout | None = None) -> _WpBoardAction:
-    """The single board-authority-backed WP-iteration action selector
-    (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
-    ``_map_wp_step_decision`` consult instead of the bare ``_state_to_action``
-    WP-iteration branches.
+def _coord_unreadable_block(mission_slug: str, exc: Exception, next_step: str) -> _WpBoardAction:
+    """The named block for a coordination surface the board cannot read (CT-5, #5113).
 
-    Resolves the coord-aware ``status_dir``/``task_board_dir`` via
-    ``mission_context_for`` exactly as query mode does (never the bare
-    ``feature_dir`` the two callers otherwise hold — that is the #4975
-    mechanism) and computes its OWN ``progress`` from the resolved
-    ``task_board_dir`` (never a caller-supplied, potentially coord-blind
-    ``progress`` — the bootstrap-computed ``ctx.progress`` is ``None`` for a
-    coord mission because it is read off the coord-aware ``feature_dir``,
-    which carries no ``tasks/``).
-
-    NFR-003 (CT-5): an unmaterialized/deleted coordination surface is caught
-    here and turned into a *named* blocked reason — never allowed to
-    collapse into the generic ``no_actionable_wp`` floor and never
-    substituted with an empty-primary read. ``mission_context_for``'s own
-    status-surface derivation silently composes a not-yet-materialized coord
-    path rather than raising (a pre-existing, documented "sanctioned
-    degrade" distinct from the newer fail-closed policy ADR 2026-09-24-2
-    introduced for ``resolve_artifact_surface``/``placement_seam.read_dir``)
-    — so this selector probes ``placement_seam.read_dir`` first, purely for
-    its raise, before trusting ``mission_context_for``'s directories for the
-    real board reads. Mirrors the existing ``placement_seam(repo_root,
-    mission_slug).read_dir(...)`` pattern this module already uses for
-    ``PRIMARY_METADATA`` (see ``_mission_routes_through_coordination``
-    above) — no new resolution mechanism, the canonical fail-closed
-    authority applied to one more kind.
+    ``next_step`` is the exception's own remedy (the single remedy authority,
+    ``surface_resolver._compose_next_step`` / the flatten guidance), never re-composed here.
     """
-    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for, placement_seam
-    from specify_cli.coordination.surface_resolver import (
-        CoordinationBranchDeleted,
-        CoordinationWorktreeUnmaterialized,
-    )
+    return _wp_blocked_action(None, f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). {next_step}")
+
+
+def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> StatusReadSurface | _WpBoardAction:
+    """Read the status read door once for the board (#7310 FR-008), or say why the board stops.
+
+    * A deleted coordination branch keeps today's flatten block (its own ``next_step``).
+    * An unreadable ref or worktree registry is a named block, never a traceback.
+    * A Mission the door cannot find declines, as the old ``ActionContextError`` arm did.
+    * An unmaterialized coordination worktree keeps today's "materialize it" block (FR-002),
+      decided from the door's own fact, not from a placement-seam raise; an empty worktree
+      reads the committed branch and dispatches from its lanes (#7507).
+    * An owned checkout whose coordination workspace is not materialized (a ref source or the
+      declared pre-seed fallback) declines: dispatch never runs from a missing owned
+      workspace (FR-006); bootstrap owns the typed refusal.
+    """
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import read_surface
 
     try:
-        placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
-        mission_context = mission_context_for(repo_root, mission_slug, owned=owned)
-    except CoordinationWorktreeUnmaterialized as exc:
-        # #5113 / FR-014: the branch is present, only the worktree is not yet
-        # materialized — the truthful recovery is to materialize it, never to
-        # flatten (that arm is `CoordinationBranchDeleted`, handled below).
-        # Surface the exception's OWN next_step (the single remedy authority,
-        # surface_resolver._compose_next_step) rather than re-composing the
-        # materialize command here — matching the sibling arm below, so the
-        # `doctor coordination --fix` string has exactly one composer.
-        return _wp_blocked_action(
-            None,
-            f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). {exc.next_step}",
-        )
+        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
     except CoordinationBranchDeleted as exc:
-        # The declared coordination branch itself is gone (never created or
-        # deleted) — surface the exception's OWN next_step (flatten guidance),
-        # never the "Materialize it" text that only fits the sibling arm above.
-        return _wp_blocked_action(
-            None,
-            f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). {exc.next_step}",
-        )
-    except ActionContextError:
-        # Mission context genuinely cannot be resolved -- decline and let the
-        # caller's FR-006 fallback (_state_to_action) produce whatever it
-        # would have produced pre-fix; bootstrap already succeeded, so this
-        # is not expected on a live advancing call.
+        return _coord_unreadable_block(mission_slug, exc, exc.next_step)
+    except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
+        return _wp_blocked_action(None, f"Status surface for mission {mission_slug!r} is not readable: {exc}")
+    except (StatusReadPathNotFound, FileNotFoundError):
         return _WP_BOARD_DECLINE
 
-    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
-    task_error = _wp_task_surface_error(task_board_dir, status_dir, mission_slug)
-    if task_error is not None:
-        return _wp_blocked_action(None, task_error)
+    if owned is not None and (surface.source is read_surface.StatusReadSource.COORD_BRANCH_REF or surface.fallback_reason is not None):
+        return _WP_BOARD_DECLINE
+    refusal = read_surface.unmaterialized_coordination_refusal(surface)
+    if refusal is not None:
+        return _coord_unreadable_block(mission_slug, refusal, refusal.next_step)
+    return surface
 
-    progress = _compute_wp_progress(task_board_dir, status_dir=status_dir)
-    board_step = _finalized_task_board_override_step(task_board_dir, progress, status_dir=status_dir)
 
+def _board_step_action(
+    board_step: str | None,
+    *,
+    mission_slug: str,
+    repo_root: Path,
+    task_board_dir: Path,
+    board: BoardStatus,
+    owned: OwnedCheckout | None,
+) -> _WpBoardAction:
+    """Turn the finalized board's step into the selector's action (dispatch, block or decline)."""
     if board_step is None or board_step in ("accept", "done"):
         return _WP_BOARD_DECLINE
     if board_step.startswith("blocked:"):
@@ -520,10 +546,63 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
             f"No actionable work package ({sentinel.replace('_', ' ')}). Inspect the board: `{_inspect_board_recovery_command(mission_slug)}`.",
         )
     if board_step == _STEP_IMPLEMENT:
-        return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
+        return _resolve_wp_board_implement_action(mission_slug, repo_root, task_board_dir, None, owned=owned, board=board)
     if board_step == _STEP_REVIEW:
-        return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, status_dir, owned=owned)
+        return _resolve_wp_board_review_action(mission_slug, repo_root, task_board_dir, None, owned=owned, board=board)
     return _WP_BOARD_DECLINE  # forward-compat: an unrecognized board step declines rather than guesses
+
+
+def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: OwnedCheckout | None = None) -> _WpBoardAction:
+    """The single board-authority-backed WP-iteration action selector
+    (NFR-002 / CT-7) both ``_build_wp_iteration_decision`` and
+    ``_map_wp_step_decision`` consult instead of the bare ``_state_to_action``
+    WP-iteration branches.
+
+    Reads the Mission's status once, through the status read door
+    (``resolve_status_read``, #7310 FR-008), into one :class:`BoardStatus` that every
+    board helper reads; the PRIMARY ``task_board_dir`` comes from
+    ``mission_context_for`` exactly as query mode resolves it (never the bare
+    ``feature_dir`` the two callers otherwise hold — that is the #4975 mechanism).
+    It computes its OWN ``progress`` from that board (never a caller-supplied,
+    potentially coord-blind ``progress``).
+
+    NFR-003 (CT-5): an unmaterialized/deleted coordination surface is turned into a
+    *named* blocked reason — never allowed to collapse into the generic
+    ``no_actionable_wp`` floor (see :func:`_board_surface`). An EMPTY coordination
+    worktree is not refused: the door reads the committed coordination branch, so the
+    board dispatches from the real lanes (#7507).
+    """
+    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
+    from runtime.next.board_status import board_status_from_surface
+
+    surface = _board_surface(mission_slug, repo_root, owned)
+    if isinstance(surface, _WpBoardAction):
+        return surface
+    try:
+        mission_context = mission_context_for(repo_root, mission_slug, owned=owned)
+    except ActionContextError:
+        # Mission context genuinely cannot be resolved -- decline and let the
+        # caller's FR-006 fallback (_state_to_action) produce whatever it
+        # would have produced pre-fix; bootstrap already succeeded, so this
+        # is not expected on a live advancing call.
+        return _WP_BOARD_DECLINE
+
+    task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
+    board = board_status_from_surface(surface)
+    task_error = _wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
+    if task_error is not None:
+        return _wp_blocked_action(None, task_error)
+
+    progress = _compute_wp_progress(task_board_dir, board=board)
+    board_step = _finalized_task_board_override_step(task_board_dir, progress, board=board)
+    return _board_step_action(
+        board_step,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        task_board_dir=task_board_dir,
+        board=board,
+        owned=owned,
+    )
 
 
 def _wp_iteration_action_and_state(

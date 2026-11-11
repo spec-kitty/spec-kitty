@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
 
     from specify_cli.coordination.status_service import RefRead
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
     from specify_cli.status.models import EventStream, StatusEvent, StatusSnapshot
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "read_status_stream",
     "read_status_text",
     "ref_source_remedy",
+    "unmaterialized_coordination_refusal",
     "resolve_committed_status_read",
     "resolve_consolidated_target_read",
     "resolve_landing_evidence_read",
@@ -85,6 +87,22 @@ class StatusReadSource(enum.StrEnum):
     """A ``topology_source: default`` Mission whose topic branch no usable checkout holds (WP05 decision)."""
 
 
+@dataclass(frozen=True)
+class UnmaterializedCoordination:
+    """The door's fact that a coordination worktree is not materialized (``CoordState.UNMATERIALIZED``).
+
+    The door still reads the committed branch (or the declared pre-seed fallback) for such a
+    Mission; this fact lets a caller that must refuse the cell (the ``next`` board selector,
+    FR-002) do so without probing the placement seam again. ``mission_slug`` is the PRIMARY
+    Mission directory name, the name the coordination worktree is composed from.
+    """
+
+    mission_slug: str
+    mid8: str
+    coordination_branch: str
+    primary_dir: Path
+
+
 _PATH_SOURCES = frozenset({StatusReadSource.WRITE_CHECKOUT, StatusReadSource.COORD_WORKTREE})
 _REF_SOURCES = frozenset({StatusReadSource.COORD_BRANCH_REF, StatusReadSource.MISSION_BRANCH_REF})
 
@@ -111,6 +129,8 @@ class StatusReadSurface:
     ref: str | None
     fallback_reason: str | None = None
     prefetched: RefRead | None = field(default=None, compare=False, repr=False)
+    unmaterialized: UnmaterializedCoordination | None = field(default=None, compare=False, repr=False)
+    """Set when the coordination worktree is not materialized; not part of the value's identity."""
 
     def __post_init__(self) -> None:
         if (self.path is None) == (self.ref is None):
@@ -148,6 +168,7 @@ class _Decision:
     primary_anchor: Path
     fallback_reason: str | None = None
     prefetched: RefRead | None = None
+    unmaterialized: UnmaterializedCoordination | None = None
 
     def surface(self) -> StatusReadSurface:
         return StatusReadSurface(
@@ -159,6 +180,7 @@ class _Decision:
             ref=self.ref,
             fallback_reason=self.fallback_reason,
             prefetched=self.prefetched,
+            unmaterialized=self.unmaterialized,
         )
 
 
@@ -195,8 +217,36 @@ def resolve_status_read(repo_root: Path, mission: str, *, owned: OwnedCheckout |
             repo_root=owned.repository_root,
             ref=None,
         )
-    root = owned.repository_root if owned is not None else repo_root
-    return decide_status_read(root, mission).surface()
+    if owned is not None:
+        # An owned coordination Mission (FR-007, ADR 2026-11-06-2 Amendment 2026-11-11): its
+        # Mission directory, meta.json, landed check and pre-seed fallback come from the owned
+        # checkout; the coordination state is probed under the repository root, where the
+        # coordination worktree is registered.
+        return decide_status_read(owned.repository_root, mission, primary_dir=owned.mission_dir).surface()
+    return decide_status_read(repo_root, mission).surface()
+
+
+def unmaterialized_coordination_refusal(surface: StatusReadSurface) -> CoordinationWorktreeUnmaterialized | None:
+    """The placement seam's refusal for a surface whose coordination worktree is not materialized.
+
+    ``None`` for every other surface. The exception is built by its one factory
+    (``CoordinationWorktreeUnmaterialized.for_mission``) from the door's own facts, so its
+    message and ``next_step`` are the ones the placement seam raises for the same cell; the
+    remedy keeps one composer. Built on demand: composing ``next_step`` runs a git probe.
+    """
+    facts = surface.unmaterialized
+    if facts is None:
+        return None
+    from specify_cli.coordination.surface_resolver import CoordinationWorktreeUnmaterialized
+
+    refusal: CoordinationWorktreeUnmaterialized = CoordinationWorktreeUnmaterialized.for_mission(
+        repo_root=surface.repo_root,
+        mission_slug=facts.mission_slug,
+        mid8=facts.mid8,
+        coordination_branch=facts.coordination_branch,
+        primary_candidate=facts.primary_dir,
+    )
+    return refusal
 
 
 def resolve_committed_status_read(repo_root: Path, mission: str) -> StatusReadSurface | None:
@@ -272,25 +322,29 @@ def decide_status_read(
     topology: MissionTopology | None = None,
     *,
     for_write: bool = False,
+    primary_dir: Path | None = None,
 ) -> _Decision:
     """The door's decision, shared with the legacy path projection of the surface resolver.
 
     ``topology`` is a caller-threaded stored topology (the legacy resolver signature);
     ``for_write`` skips the landed check and the pre-seed probe (a write never reads the
-    target's copy and never falls back to the write checkout).
+    target's copy and never falls back to the write checkout). ``primary_dir`` is the owned
+    checkout's Mission directory (``OwnedCheckout.mission_dir``): when given, the Mission is not
+    located under *repo_root*; that directory is its PRIMARY directory (meta.json, the landed
+    check, the pre-seed fallback), while the coordination state is still probed under
+    *repo_root*. The legacy projection never passes it.
     """
     from specify_cli.missions._read_path_resolver import normalized_status_read_root
 
     with normalized_status_read_root(_reanchor_coordination_worktree(repo_root)) as root:
-        return _decide(root, mission, topology, for_write=for_write)
+        return _decide(root, mission, topology, for_write=for_write, owned_dir=primary_dir)
 
 
-def _decide(root: Path, mission: str, topology: MissionTopology | None, *, for_write: bool) -> _Decision:
-    located = _locate_mission(root, mission)
-    candidate, dir_name, primary_dir = located
+def _decide(root: Path, mission: str, topology: MissionTopology | None, *, for_write: bool, owned_dir: Path | None = None) -> _Decision:
+    candidate, dir_name, primary_dir = _locate_mission(root, mission) if owned_dir is None else (owned_dir, owned_dir.name, owned_dir)
     if not for_write and _has_landed(primary_dir):
         return _consolidated_decision(root, dir_name, primary_dir, topology)
-    meta, husk = _read_meta(root, candidate, dir_name, primary_dir)
+    meta, husk = _read_meta(root, candidate, dir_name, primary_dir, husk_allowed=owned_dir is None)
     if husk is not None:
         return _path_decision(root, dir_name, husk, StatusReadSource.COORD_WORKTREE, MissionTopology.COORD, anchor=husk)
     if meta is None:
@@ -342,17 +396,26 @@ def _has_landed(primary_dir: Path) -> bool:
     return mission_has_landed(primary_dir)
 
 
-def _read_meta(root: Path, candidate: Path, dir_name: str, primary_dir: Path) -> tuple[Mapping[str, object] | None, Path | None]:
+def _read_meta(
+    root: Path,
+    candidate: Path,
+    dir_name: str,
+    primary_dir: Path,
+    *,
+    husk_allowed: bool = True,
+) -> tuple[Mapping[str, object] | None, Path | None]:
     """Read ``meta.json`` (candidate first, then PRIMARY); return a husk dir when it is the surface.
 
     A coordination-worktree candidate carrying its own ``meta.json`` is the surface unless the
-    PRIMARY stored topology is coordination-less (the #2062 husk-authority rule).
+    PRIMARY stored topology is coordination-less (the #2062 husk-authority rule). An owned
+    checkout's Mission directory is never a husk (``husk_allowed=False``), even when that
+    checkout itself sits under ``.worktrees``.
     """
     from specify_cli.coordination.surface_resolver import _husk_is_authoritative_surface
     from specify_cli.core.paths import load_meta_fail_closed
 
     meta: Mapping[str, object] | None = load_meta_fail_closed(candidate)
-    if meta is not None and ".worktrees" in candidate.parts and _husk_is_authoritative_surface(root, dir_name):
+    if meta is not None and husk_allowed and ".worktrees" in candidate.parts and _husk_is_authoritative_surface(root, dir_name):
         return meta, candidate
     if meta is None:
         meta = load_meta_fail_closed(primary_dir)
@@ -481,7 +544,16 @@ def _coordination_decision(facts: _MissionFacts, *, for_write: bool) -> _Decisio
         )
     if state is CoordState.MATERIALIZED:
         return _path_decision(facts.repo_root, coord_dir.name, coord_dir, StatusReadSource.COORD_WORKTREE, facts.topology, anchor=facts.primary_dir)
-    return _coord_ref_decision(facts, coord_dir, for_write=for_write, worktree_present=state is CoordState.EMPTY)
+    unmaterialized = None
+    if state is CoordState.UNMATERIALIZED:
+        unmaterialized = UnmaterializedCoordination(
+            mission_slug=facts.mission_dir_name,
+            mid8=mid8,
+            coordination_branch=facts.coord_branch,
+            primary_dir=facts.primary_dir,
+        )
+    decision = _coord_ref_decision(facts, coord_dir, for_write=for_write, worktree_present=state is CoordState.EMPTY)
+    return replace(decision, unmaterialized=unmaterialized)
 
 
 def _coord_ref_decision(facts: _MissionFacts, coord_dir: Path, *, for_write: bool, worktree_present: bool) -> _Decision:

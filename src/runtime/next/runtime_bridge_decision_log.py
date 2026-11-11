@@ -50,6 +50,40 @@ class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
 
 
+#: ``Decision.remediation`` kind for a coordination worktree the wrap materialized or restored
+#: (runtime-status-read-door WP06, FR-003; ``contracts/next-materialization-report.md``).
+MATERIALIZED_COORDINATION_WORKTREE = "materialized_coordination_worktree"
+
+#: Private attribute the wrap sets on the emitter it returns when its write-seam call
+#: materialized or restored the coordination worktree (the worktree root, a ``Path``).
+_MATERIALIZED_WORKTREE_ATTR = "_spec_kitty_materialized_coordination_worktree"
+
+
+def _materialized_worktree(location: Any) -> Path | None:
+    """The coordination worktree root when ``write_dir`` materialized or restored it, else ``None``.
+
+    The write seam's own ``establishment`` says whether it created the worktree, seeded an
+    empty surface or restored it from the coordination branch; the Mission directory must
+    then exist. An already materialized surface reports ``Establishment.NONE``.
+    """
+    from mission_runtime import Establishment
+
+    if location.establishment is Establishment.NONE or not Path(location.path).is_dir():
+        return None
+    return Path(location.surface_root)
+
+
+def materialization_remediation(emitter: object) -> dict[str, str] | None:
+    """The ``remediation`` entry for ``emitter`` when the wrap that built it materialized the worktree.
+
+    ``None`` for every emitter the wrap did not mark, including a test's pass-through fake.
+    """
+    worktree = getattr(emitter, _MATERIALIZED_WORKTREE_ATTR, None)
+    if not isinstance(worktree, Path):
+        return None
+    return {"kind": MATERIALIZED_COORDINATION_WORKTREE, "path": str(worktree)}
+
+
 def resolve_commit_target(
     *,
     coord_routing_topology: bool,
@@ -268,6 +302,7 @@ def _wrap_with_decision_git_log(
                 )
             worktree_root = location.surface_root
             mission_dir = location.path
+            materialized_worktree = _materialized_worktree(location)
         else:
             # Coord-less topology: decisions land on the primary checkout's
             # current branch (a lane/mission branch); landing == coordination ==
@@ -277,8 +312,9 @@ def _wrap_with_decision_git_log(
             # Mission (C-008, ``anchor_root``).
             worktree_root = worktree_root_candidate
             mission_dir = anchor_root / KITTY_SPECS_DIR / mission_slug
+            materialized_worktree = None
 
-        return DecisionGitLog(
+        wrapped = DecisionGitLog(
             repo_root=anchor_root,
             worktree_root=worktree_root,
             destination_ref=coordination_branch,
@@ -288,6 +324,11 @@ def _wrap_with_decision_git_log(
             mission_id=mission_id,
             target=decision_target,
         )
+        # WP06 (FR-003): carry the materialization out of the wrap on the emitter it returns;
+        # ``materialization_remediation`` reads it back.
+        if materialized_worktree is not None:
+            setattr(wrapped, _MATERIALIZED_WORKTREE_ATTR, materialized_worktree)
+        return wrapped
     except CoordinationWorkspaceUnavailable:
         # #4867 (T062): for an owned caller, let the typed refusal propagate
         # UNWRAPPED — never folded into ``DecisionGitLogUnavailable`` (which

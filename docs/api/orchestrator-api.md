@@ -31,7 +31,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.26.0`
+- `CONTRACT_VERSION`: `1.27.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -258,6 +258,10 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   carries the exception's own code, so a retryable `BOOKKEEPING_LOCK_TIMEOUT` stays distinguishable
   from a refusal that needs an operator. A new `error_code` on existing verbs, so a minor bump; no
   field or `error_code` is removed or renamed.
+- `1.27.0` — `answer-decision` success `data` (the `Decision.to_dict()` shape) gains an optional
+  `remediation` object, `{"kind": "materialized_coordination_worktree", "path": "<worktree>"}`.
+  It is present only when the advancing run materialized or restored the Mission's coordination
+  worktree, and absent otherwise, so every other payload is unchanged. Purely additive.
 
 ## Response Envelope
 
@@ -265,7 +269,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.26.0",
+  "contract_version": "1.27.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

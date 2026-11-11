@@ -208,7 +208,12 @@ from kernel.clock import now_utc_iso
 # code in ``data.bookkeeping_error_code``, so a retryable lock timeout stays distinguishable from a
 # refusal that needs an operator. A new ``error_code`` on existing verbs, so a minor bump; no field
 # or ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.26.0"
+# 1.27.0: ``answer-decision`` success ``data`` (``Decision.to_dict()``) gains an optional
+# ``remediation`` object, ``{"kind": "materialized_coordination_worktree", "path": <worktree>}``,
+# present only when the advancing run materialized or restored the Mission's coordination worktree
+# (Mission runtime-status-read-door, FR-003). Absent otherwise, so every other payload stays
+# byte-identical. Purely additive.
+CONTRACT_VERSION = "1.27.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

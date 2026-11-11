@@ -368,6 +368,23 @@ class _FakeMissionContext:
         return _FakeArtifact(self._read_dir)
 
 
+class _FakeWriteSeam:
+    """Stands in for ``mission_runtime.PlacementSeam``.
+
+    ``.read_dir(PRIMARY_METADATA)`` answers the landed check (an unlanded Mission here) and
+    ``.write_dir(kind).path`` is where the row is written.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    def read_dir(self, _kind: object) -> Path:
+        return self._path
+
+    def write_dir(self, _kind: object) -> SimpleNamespace:
+        return SimpleNamespace(path=self._path)
+
+
 def _owned_stand_in(store_root: Path, mission_dir: Path | None = None) -> Any:
     """A stand-in fact whose owned root is the record store under test.
 
@@ -439,10 +456,16 @@ class TestSeamFunctionsOwnedFork:
     def test_emit_mission_next_invoked_uses_the_owned_fact(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission_slug = "042-effective-root-mission-3"
         feature_dir = _setup_mission_dir(tmp_path, mission_slug=mission_slug, mission_id="01HSEAMEFFECTIVEROOTULID03")
-        monkeypatch.setattr(
-            "runtime.next.next_invocation_lifecycle.mission_context_for",
-            lambda *_a, **_k: _FakeMissionContext(feature_dir),
-        )
+        owned = _owned_stand_in(tmp_path, feature_dir)
+        seam_owned: list[object] = []
+
+        def _fake_seam(*_a: object, **kwargs: object) -> _FakeWriteSeam:
+            seam_owned.append(kwargs.get("owned"))
+            return _FakeWriteSeam(feature_dir)
+
+        # WP06 (FR-009): re-pinned from ``mission_context_for(...).read_dir`` to the status
+        # write seam; the domain assertion (the owned fact reaches the resolver) is unchanged.
+        monkeypatch.setattr("runtime.next.next_invocation_lifecycle.placement_seam", _fake_seam)
         decision = SimpleNamespace(
             kind="step",
             action="step_one",
@@ -457,9 +480,10 @@ class TestSeamFunctionsOwnedFork:
             mission_slug,
             tmp_path,
             decision,
-            owned=_owned_stand_in(tmp_path, feature_dir),
+            owned=owned,
         )
 
+        assert seam_owned == [owned]
         events = _read_events(feature_dir)
         assert any(e.get("type") == "MissionNextInvoked" for e in events), f"expected the owned fork to still emit the event; events={events!r}"
 
@@ -605,8 +629,9 @@ class TestSeamFunctionsFailClosedBranches:
         write_issuance_lifecycle_record("agent", mission_slug, tmp_path, decision)
 
     def test_emit_mission_next_invoked_degrades_feature_dir_to_none_on_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        # WP06 (FR-009): re-pinned to the status write seam; still degrades to None.
         monkeypatch.setattr(
-            "runtime.next.next_invocation_lifecycle.mission_context_for",
+            "runtime.next.next_invocation_lifecycle.placement_seam",
             lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
         )
         decision = SimpleNamespace(kind="query", action=None, wp_id=None, mission_state=None, mission="no-such-mission")
@@ -737,3 +762,76 @@ class TestAnswerDecisionLifecycleSeamEffects:
             assert "answer" not in answered_data
 
         assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action)
+
+
+# ---------------------------------------------------------------------------
+# runtime-status-read-door-01M73HHB WP06 (T029, FR-009): the
+# ``MissionNextInvoked`` row is written through the status WRITE seam, so a
+# later read of the same directory finds it. The read below is the one the
+# composition guards use: ``<status dir> / "mission-events.jsonl"``.
+# ---------------------------------------------------------------------------
+
+
+def _next_invoked_rows(mission_dir: Path) -> list[dict[str, Any]]:
+    return [e for e in _read_events(mission_dir) if e.get("type") == "MissionNextInvoked"]
+
+
+def _invoked_decision(mission_slug: str) -> SimpleNamespace:
+    return SimpleNamespace(kind="step", action="implement", wp_id="WP01", mission_state="implement", mission=mission_slug)
+
+
+def _coordination_mission(tmp_path: Path, *, unmaterialized: bool) -> tuple[Path, str, Path]:
+    """A non-owned ``coord`` Mission with its status log committed on the coordination branch.
+
+    Returns ``(repo, slug, coord_mission_dir)``. With ``unmaterialized`` the
+    coordination worktree is removed (the #7507 UNMATERIALIZED cell).
+    """
+    from mission_runtime import MissionTopology
+
+    from tests.runtime._next_mission_scaffold import scaffold_coord_software_dev
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, coord_mission_dir = scaffold_coord_software_dev(repo, "seam-write-coord", MissionTopology.COORD, wps={"WP01": "planned"})
+    coord_root = coord_mission_dir.parent.parent
+    subprocess.run(["git", "-C", str(coord_root), "add", "-A"], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(coord_root), "commit", "-q", "-m", "seed coordination log"], capture_output=True, check=True)
+    if unmaterialized:
+        subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(coord_root)], capture_output=True, check=True)
+        assert not coord_root.exists()
+    return repo, feature_dir.name, coord_mission_dir
+
+
+class TestMissionNextInvokedWriteSeam:
+    """FR-009: read-after-write of the ``MissionNextInvoked`` row."""
+
+    def test_materialized_coordination_mission_row_is_readable(self, tmp_path: Path) -> None:
+        """Control: a materialized coordination worktree already receives the row."""
+        repo, slug, coord_mission_dir = _coordination_mission(tmp_path, unmaterialized=False)
+
+        emit_mission_next_invoked("pedro", "success", slug, repo, _invoked_decision(slug))
+
+        assert len(_next_invoked_rows(coord_mission_dir)) == 1
+
+    def test_single_branch_mission_row_is_readable(self, tmp_path: Path) -> None:
+        from tests.runtime._next_mission_scaffold import scaffold_software_dev
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        scaffold_software_dev(repo, "seam-write-single", wps={"WP01": "planned"})
+
+        emit_mission_next_invoked("pedro", "success", "seam-write-single", repo, _invoked_decision("seam-write-single"))
+
+        assert len(_next_invoked_rows(repo / "kitty-specs" / "seam-write-single")) == 1
+
+    def test_unmaterialized_coordination_mission_row_is_persisted(self, tmp_path: Path) -> None:
+        """R-6 open check: the write seam materializes the worktree, so the row is no longer dropped.
+
+        Before WP06 the row went to the read projection (the composed coordination
+        directory, absent here) and ``emit_event`` dropped it with a warning.
+        """
+        repo, slug, coord_mission_dir = _coordination_mission(tmp_path, unmaterialized=True)
+
+        emit_mission_next_invoked("pedro", "success", slug, repo, _invoked_decision(slug))
+
+        assert len(_next_invoked_rows(coord_mission_dir)) == 1

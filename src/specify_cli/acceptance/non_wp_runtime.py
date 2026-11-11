@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from runtime.next.runtime_bridge import read_runtime_acceptance_facts
 from runtime.next.runtime_bridge_cores import MISSING_ARTIFACT_MESSAGE, evaluate_guards_strict
-from runtime.next.runtime_bridge_io import gather_artifact_presence
+from runtime.next.runtime_bridge_io import gather_artifact_presence, presence_seam
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.runtime.resolver import required_artifacts_for
 
@@ -84,9 +84,12 @@ def collect_non_wp_runtime_facts(
     required: set[str] = set()
     missing: set[str] = set()
     missing_prefix = MISSING_ARTIFACT_MESSAGE.format(name="")
+    # The presence check gets the Mission's placement seam (#7310 WP05, FR-010), so
+    # classified artifacts resolve to their canonical home from the status directory.
+    seam = presence_seam(repo_root, feature_dir.name, owned=owned)
     for step_id in facts.step_ids:
         required.update(required_artifacts_for(step_id, facts.mission_family, repo_root=runtime_root))
-        snapshot = gather_artifact_presence(status_feature_dir, mission_family=facts.mission_family, step_id=step_id, repo_root=repo_root, owned=owned)
+        snapshot = gather_artifact_presence(status_feature_dir, mission_family=facts.mission_family, step_id=step_id, repo_root=repo_root, seam=seam)
         for failure in evaluate_guards_strict(snapshot):
             if failure.startswith(missing_prefix):
                 missing.add(failure[len(missing_prefix) :])

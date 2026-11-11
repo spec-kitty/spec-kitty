@@ -797,8 +797,8 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(monkeypatch: pyte
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
-        owned: object | None = None,
         run_dir: Path | None = None,
+        seam: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -830,8 +830,8 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
-        owned: object | None = None,
         run_dir: Path | None = None,
+        seam: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -877,8 +877,8 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
-        owned: object | None = None,
         run_dir: Path | None = None,
+        seam: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -909,8 +909,8 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
         step_id: str,
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
-        owned: object | None = None,
         run_dir: Path | None = None,
+        seam: object | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -1071,8 +1071,8 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
-        owned: object | None = None,
         run_dir: Path | None = None,
+        seam: object | None = None,
     ) -> list[str]:
         calls.append(action)
         repo_roots_seen.append(repo_root)

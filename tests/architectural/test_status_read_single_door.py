@@ -188,7 +188,6 @@ def _scan_tree() -> tuple[Hit, ...]:
 
 _SEAM_ARM = "STATUS_STATE read_dir arm of the placement seam is Path-typed and cannot express a ref source; callers move to the door first"
 _PATH_CONSUMER = "Path-typed consumer (get_wp_lane / read_events / has_event_log on a dir); needs a surface-typed read"
-_RUNTIME = "runtime decision path reads STATUS_STATE through the mission context; moves with the runtime bridge readers"
 _DELEGATOR = "legacy Path projection shared by mission_runtime callers; deleted once its callers read the door"
 _WRITE_SIDE = "write-side transaction reads its own target (writer cut-over #6195/#6608 owns it)"
 _PIN = "finalize planning pin reads the status dir as a Path (#5702 decides its fail-open polarity first)"
@@ -204,14 +203,6 @@ _DOCTOR = "fail-closed / existence probe that relies on CoordinationWorktreeUnma
 
 LEGACY_READ_ALLOWLIST: dict[str, str] = {
     "src/mission_runtime/resolution.py::_resolve_status_surface_dir::resolve_status_surface": _SEAM_ARM,
-    "src/runtime/next/decision.py::_with_guard_failure_paths::artifact(STATUS_STATE)": _RUNTIME,
-    "src/runtime/next/next_invocation_lifecycle.py::emit_mission_next_invoked::artifact(STATUS_STATE)": _RUNTIME,
-    "src/runtime/next/runtime_bridge.py::_dn_bootstrap::artifact(STATUS_STATE)": _RUNTIME,
-    "src/runtime/next/runtime_bridge_decision_mapping.py::_resolve_wp_board_action::artifact(STATUS_STATE)": _RUNTIME,
-    "src/runtime/next/runtime_bridge_decision_mapping.py::_resolve_wp_board_action::read_dir(STATUS_STATE)": _DOCTOR,
-    "src/runtime/next/runtime_bridge_io.py::_artifact_presence_seam::read_dir(STATUS_STATE)": _DOCTOR,
-    "src/runtime/next/runtime_bridge_query.py::_build_finalized_override_query_decision::artifact(STATUS_STATE)": _RUNTIME,
-    "src/runtime/next/runtime_bridge_query.py::query_current_state::artifact(STATUS_STATE)": _RUNTIME,
     "src/specify_cli/acceptance/__init__.py::_status_read_feature_dir::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/agent_utils/status.py::build_kanban_status::read_dir(STATUS_STATE)": _PATH_CONSUMER,
     "src/specify_cli/charter_pack_synthesizer/apply.py::_feature_dir::read_dir(STATUS_STATE)": _PATH_CONSUMER,
@@ -266,7 +257,7 @@ DOOR_ONLY_MODULES: frozenset[str] = frozenset(
 )
 
 #: The live scan must see at least this many hits (anti-vacuity floor; lower it as the allowlist drains).
-_LIVE_HIT_FLOOR = 42
+_LIVE_HIT_FLOOR = 33
 
 
 def test_no_status_read_bypasses_the_door() -> None:

@@ -30,7 +30,7 @@ this module never imports ``runtime_bridge``; the bridge imports it.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from kernel.clock import now_utc_iso
 from kernel.tree_removal import remove_tool_owned_tree
@@ -46,6 +46,9 @@ from runtime.next._internal_runtime.events import runtime_emitter_for_mission, s
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
 from runtime.next.decision import AnalysisCurrency, Decision, DecisionKind, _compute_wp_progress
 from specify_cli.mission import get_mission_type
+
+if TYPE_CHECKING:
+    from runtime.next.board_status import BoardStatus
 
 
 # FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
@@ -69,7 +72,15 @@ def _is_read_path_error(exc: object) -> bool:
 
 
 class QueryModeValidationError(ValueError):
-    """Raised when query mode cannot produce a truthful read-only preview."""
+    """Raised when query mode cannot produce a truthful read-only preview.
+
+    ``error_code`` is what ``next`` query mode renders; it defaults to the renderer's own
+    generic code, and an unreadable status source carries its cause's code (#7310 WP05).
+    """
+
+    def __init__(self, message: str, *, error_code: str = "QUERY_MODE_VALIDATION_FAILED") -> None:
+        super().__init__(message)
+        self.error_code = error_code
 
 
 class MissionNotFoundError(Exception):
@@ -140,7 +151,15 @@ def _build_finalized_override_query_decision(
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
+    task_board_dir: Path | None = None,
+    board: BoardStatus | None = None,
 ) -> Decision:
+    """The query decision for a finalized board's step.
+
+    ``task_board_dir`` and ``board`` are what ``query_current_state`` already read (#7310
+    FR-008: one door read per query). A direct caller that passes neither gets them read
+    here, once, the same way.
+    """
     # No run (direct callers) means no resolved DAG to read, so no analyze gate.
     if finalized_override == "implement" and run_dir is not None and _io_seam.mission_declares_analyze_step(run_dir):
         analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(analysis_currency))
@@ -168,19 +187,12 @@ def _build_finalized_override_query_decision(
         preview_step = finalized_override
         reason = None
         if finalized_override == "implement":
-            from mission_runtime import MissionArtifactKind, mission_context_for
             from runtime.next.discovery import preview_claimable_wp
 
-            mission_context = mission_context_for(
-                repo_root,
-                mission_slug,
-                owned=owned,
-                tolerate_unmaterialized_coord=True,  # FR-022: a declared-but-not-yet-created coordination worktree is read/materialised, not refused
-            )
-            preview = preview_claimable_wp(
-                mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir,
-                status_dir=mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir,
-            )
+            if task_board_dir is None or board is None:
+                _slug, task_board_dir, _type = _query_resolve_primary(repo_root, mission_slug, owned=owned)
+                board = _query_read_board(repo_root, mission_slug, owned=owned)
+            preview = preview_claimable_wp(task_board_dir, board=board)
             override_wp_id = preview.wp_id
             if preview.wp_id is None and preview.selection_reason is not None:
                 reason = preview.selection_reason
@@ -355,15 +367,9 @@ def query_current_state(
     if merged_short_circuit is not None:
         return merged_short_circuit
 
-    mission_context = _query_resolve_mission_context(repo_root, mission_slug, owned=owned)
-    mission_slug = mission_context.mission_slug
+    mission_slug, task_board_dir, mission_type = _query_resolve_primary(repo_root, mission_slug, owned=owned)
 
-    from mission_runtime import MissionArtifactKind
-
-    task_board = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK)
-    status_state = mission_context.artifact(MissionArtifactKind.STATUS_STATE)
-
-    if not task_board.read_dir.is_dir():
+    if not task_board_dir.is_dir():
         # Conscious decision (C-IC02): reaching here means the resolver RESOLVED
         # a directory and verified it ``exists()`` (see resolution.py), yet it is
         # not a directory on disk — i.e. the canonical mission dir name resolved
@@ -372,8 +378,11 @@ def query_current_state(
         # deliberately-kept classification here (NOT a read-path collapse).
         raise MissionNotFoundError(mission_slug)
 
-    mission_type = mission_context.mission_type
-    task_error = _mapping._wp_task_surface_error(task_board.read_dir, status_state.read_dir, mission_slug)
+    # #7310 FR-008: the status is read once, through the status read door, and every board
+    # helper below reads that one value. An empty or unmaterialized coordination worktree
+    # reads the committed coordination branch (#7507).
+    board = _query_read_board(repo_root, mission_slug, owned=owned)
+    task_error = _mapping._wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
     if task_error is not None:
         # Query remains a read-only query decision, but an inconsistent task
         # surface cannot produce truthful file-derived progress. Match the
@@ -390,7 +399,7 @@ def query_current_state(
             )
         )
 
-    progress = _compute_wp_progress(task_board.read_dir, status_dir=status_state.read_dir)
+    progress = _compute_wp_progress(task_board_dir, board=board)
 
     # Root discipline: the run store (and the template/policy reads that start
     # an ephemeral preview run) live at P for an owned mission.
@@ -421,8 +430,8 @@ def query_current_state(
             emitted_run_id = getattr(run_ref, "run_id", None)
 
         return _query_dispatch_decision(
-            task_board=task_board,
-            status_state=status_state,
+            task_board_dir=task_board_dir,
+            board=board,
             progress=progress,
             snapshot=snapshot,
             runtime_decision=runtime_decision,
@@ -468,11 +477,76 @@ def _query_resolve_mission_context(
         # ("run mission list") points the operator the wrong way (the mission is
         # not missing — its read path is broken; the disease #15). The command
         # layer surfaces ``exc.code`` + checked paths from the typed error.
-        if _is_read_path_error(exc):
-            raise
         # A genuinely-missing mission (e.g. MISSION_CONTEXT_UNRESOLVED — no mission
         # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
+        _raise_context_error(exc, mission_slug)
+
+
+def _query_resolve_primary(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> tuple[str, Path, str]:
+    """``(canonical slug, task board dir, mission type)``: the query's PRIMARY reads.
+
+    Non-owned: the Mission context, as before. Owned: only the PRIMARY kind is resolved
+    (``placement_seam(...).read_dir(WORK_PACKAGE_TASK)``), never the whole context, which also
+    resolves the status kind and so refuses an owned coordination Mission whose coordination
+    worktree is empty or unmaterialized (``OWNED_COORDINATION_WORKSPACE_UNAVAILABLE``). The
+    status itself is read through the door (:func:`_query_read_board`), which reads the
+    committed coordination branch for those cells (FR-005). Errors map as
+    :func:`_query_resolve_mission_context` maps them.
+    """
+    if owned is None:
+        from mission_runtime import MissionArtifactKind
+
+        context = _query_resolve_mission_context(repo_root, mission_slug)
+        task_board_dir: Path = context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
+        return context.mission_slug, task_board_dir, context.mission_type
+
+    from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
+
+    try:
+        owned_task_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    except ActionContextError as exc:
+        _raise_context_error(exc, mission_slug)
+    return owned.mission_slug, owned_task_dir, get_mission_type(owned.mission_dir)
+
+
+def _query_read_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> BoardStatus:
+    """The query's one status read (#7310 FR-008): the door's surface, reduced once.
+
+    A deleted coordination branch passes through as the typed read-path error
+    (``COORDINATION_BRANCH_DELETED``); a Mission the door cannot find is
+    ``MissionNotFoundError``. An unreadable ref or worktree registry (never an empty history)
+    is a :class:`QueryModeValidationError` carrying that error's own ``error_code``
+    (``STATUS_SURFACE_REF_UNREADABLE`` / ``WORKTREE_REGISTRY_UNAVAILABLE``), which ``next``
+    query mode renders as a typed error instead of a traceback.
+    """
+    from runtime.next.board_status import board_status_from_surface
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+    from specify_cli.status import read_surface
+
+    try:
+        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
+        return board_status_from_surface(surface)
+    except CoordinationBranchDeleted:
+        raise
+    except (StatusReadPathNotFound, FileNotFoundError) as exc:
         raise MissionNotFoundError(mission_slug) from exc
+    except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
+        # The cause's own stable code, never a new one (WP04 review F1).
+        raise QueryModeValidationError(str(exc), error_code=exc.error_code) from exc
+
+
+def _raise_context_error(exc: Exception, mission_slug: str) -> NoReturn:
+    """Re-raise a context error: a typed read-path error verbatim, anything else as ``MissionNotFoundError``."""
+    if _is_read_path_error(exc):
+        raise exc
+    raise MissionNotFoundError(mission_slug) from exc
 
 
 def _query_read_runtime_plan(
@@ -516,8 +590,8 @@ def _query_read_runtime_plan(
 
 def _query_dispatch_decision(
     *,
-    task_board: Any,
-    status_state: Any,
+    task_board_dir: Path,
+    board: BoardStatus,
     progress: dict[str, Any] | None,
     snapshot: Any,
     runtime_decision: Any,
@@ -535,9 +609,9 @@ def _query_dispatch_decision(
     finalized-override / initial / decision-required / runtime branch
     ladder. Behaviour-preserving."""
     finalized_override = _mapping._finalized_task_board_override_step(
-        task_board.read_dir,
+        task_board_dir,
         progress,
-        status_dir=status_state.read_dir,
+        board=board,
     )
     if finalized_override is not None:
         return _build_finalized_override_query_decision(
@@ -552,6 +626,8 @@ def _query_dispatch_decision(
             owned=owned,
             analysis_currency=analysis_currency,
             run_dir=run_dir,
+            task_board_dir=task_board_dir,
+            board=board,
         )
 
     if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
