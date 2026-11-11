@@ -37,8 +37,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_san
 _LEFT_AS_FOUND = "coordination checkout left as found"
 _NOTES = "#7540 operator notes, not residue\n"
 
+#: Fires once on the git call that lands WP02's done commit: the porcelain ``commit`` before #5931,
+#: the compare-and-swap ``update-ref`` (``-m`` carries the message) once in-span commits report
+#: their advance intent. Either way the killed write's own status lines are in the checkout.
 _GIT_WRAPPER = """#!/usr/bin/env bash
-if [[ ! -e "__MARKER__" ]] && [[ "$*" =~ status\\ transition\\ WP02 ]] && [[ "$*" =~ commit ]]; then
+if [[ ! -e "__MARKER__" ]] && [[ "$*" =~ status\\ transition\\ WP02 ]] && [[ "$*" =~ (commit|update-ref) ]]; then
     : > "__MARKER__"
     kill -9 $PPID
     exit 137
@@ -89,7 +92,11 @@ def test_abort_after_kill_resyncs_the_runs_own_coordination_residue(tmp_path: Pa
     output = proc.stdout + proc.stderr
 
     assert _LEFT_AS_FOUND not in output, output[-4000:]
-    assert git(built.coord_worktree, "status", "--porcelain") == ""
+    # With the run's own done commits explained (#5931) the abort restores every branch and then
+    # tears the coordination worktree down (operator ruling on #5406); otherwise the kept
+    # checkout must have been resynced. Either way none of the run's residue is left behind.
+    if built.coord_worktree.exists():
+        assert git(built.coord_worktree, "status", "--porcelain") == ""
 
 
 def test_abort_after_kill_keeps_a_foreign_edit_in_the_coordination_checkout(tmp_path: Path) -> None:
