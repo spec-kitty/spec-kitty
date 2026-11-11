@@ -15,7 +15,7 @@ import typer
 
 from kernel.git import GitCommandError
 from specify_cli.coordination.planning_commit import PlanningPlacement
-from specify_cli.acceptance import _accept_dirty_gate, _resolve_git_context, _staged_paths
+from specify_cli.acceptance import _accept_dirty_gate, _resolve_git_context
 from specify_cli.agent_tasks_ports import RealGitOps
 from specify_cli.cli.commands._coordination_doctor import (
     _check_tracked_worktrees_content,
@@ -191,19 +191,6 @@ def test_implement_claim_refuses_when_planning_status_unreadable(not_a_repo: Pat
 # ---------------------------------------------------------------------------
 # acceptance: staged listing, dirty gate, residual commit
 # ---------------------------------------------------------------------------
-
-
-def test_acceptance_staged_listing_keeps_non_ascii_path(repo: Path) -> None:
-    _write(repo, NON_ASCII_FILE)
-    _git(repo, "add", NON_ASCII_FILE)
-
-    assert [str(p) for p in _staged_paths(repo, NON_ASCII_FILE)] == [NON_ASCII_FILE]
-    assert _staged_paths(repo, "README.md") == ()
-
-
-def test_acceptance_staged_listing_failure_is_a_task_error(not_a_repo: Path) -> None:
-    with pytest.raises(TaskCliError):
-        _staged_paths(not_a_repo, "x")
 
 
 def test_acceptance_dirty_gate_blocks_spaced_source_and_ignores_own_write(repo: Path) -> None:

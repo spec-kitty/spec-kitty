@@ -577,9 +577,10 @@ def _run_residual_acceptance_commit(
     :func:`~specify_cli.coordination.commit_router.partition_for_mission_path`),
     so neither leg is hand-classified here.
 
-    Decision ``plan.design.accept-primary-leg-ref``: when HEAD is unprotected,
-    the PRIMARY residual leg commits on that same branch (the branch
-    ``_commit_acceptance_meta`` uses for its raw commit). The branch is passed
+    Decision ``plan.design.accept-primary-leg-ref``: the PRIMARY residual leg
+    commits on the same branch as the acceptance-metadata commit, the unprotected
+    branch checked out where the record is written
+    (:func:`~specify_cli.acceptance.accept_primary_ref`, #7550). The branch is passed
     as ``commit_for_mission``'s ``primary_ref``, which retargets only the
     PRIMARY group. ``target_branch`` is left unset so this accept-only
     override does not change ``spec-commit`` or write-seam callers. A
@@ -599,8 +600,8 @@ def _run_residual_acceptance_commit(
     and is reported by :func:`_note_deferred_residuals`. Unclassified paths in
     the PRIMARY checkout retain the normal PRIMARY-bound write fallback.
     """
+    from specify_cli.acceptance import accept_primary_ref, accept_record_dir
     from specify_cli.coordination.commit_router import commit_for_mission
-    from specify_cli.core.git_ops import get_current_branch
     from specify_cli.git.protection_policy import ProtectionPolicy
 
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
@@ -619,8 +620,7 @@ def _run_residual_acceptance_commit(
 
     files = _residual_commit_files(repo_root, mission_slug, primary_dirty=primary_dirty, coord_dirty=coord_dirty, owned=owned)
     policy = ProtectionPolicy.resolve(repo_root)
-    current_branch = get_current_branch(repo_root)
-    primary_ref = current_branch if current_branch and not policy.is_protected(current_branch) else None
+    primary_ref = accept_primary_ref(accept_record_dir(repo_root, mission_slug, owned=owned), policy)
     result = commit_for_mission(
         repo_root,
         mission_slug,

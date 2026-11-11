@@ -45,7 +45,6 @@ def _record_matrix_verdicts(built: Built) -> None:
         )
 
 
-@pytest.mark.p0_repro(issue=7544)
 @pytest.mark.timeout(900)
 def test_accept_commits_record_on_mission_branch_of_settled_default_mission(tmp_path: Path) -> None:
     built = build(tmp_path)
