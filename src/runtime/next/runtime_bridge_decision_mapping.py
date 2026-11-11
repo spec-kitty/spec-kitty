@@ -492,6 +492,28 @@ def _coord_unreadable_block(mission_slug: str, exc: Exception, next_step: str) -
     return _wp_blocked_action(None, f"Coordination surface for mission {mission_slug!r} is not readable ({exc}). {next_step}")
 
 
+def _status_surface_unreadable_block(mission_slug: str, exc: Exception) -> _WpBoardAction:
+    """The one named block for a status source the board cannot read (resolve or read time)."""
+    return _wp_blocked_action(None, f"Status surface for mission {mission_slug!r} is not readable: {exc}")
+
+
+def _board_status_or_block(mission_slug: str, surface: StatusReadSurface) -> BoardStatus | _WpBoardAction:
+    """Read the board from the door's surface, or the named block when its ref cannot be read.
+
+    A ref surface without a prefetched read (e.g. ``MISSION_BRANCH_REF``) reads its ref here, so a
+    deleted or unreadable Mission topic branch raises at this point, not in the door. It gets the
+    same named block as the door's own ref-unreadable arm (:func:`_board_surface`), never a
+    traceback out of ``decide_next``.
+    """
+    from runtime.next.board_status import board_status_from_surface
+    from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
+
+    try:
+        return board_status_from_surface(surface)
+    except StatusSurfaceRefUnreadable as exc:
+        return _status_surface_unreadable_block(mission_slug, exc)
+
+
 def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | None) -> StatusReadSurface | _WpBoardAction:
     """Read the status read door once for the board (#7310 FR-008), or say why the board stops.
 
@@ -515,7 +537,7 @@ def _board_surface(mission_slug: str, repo_root: Path, owned: OwnedCheckout | No
     except CoordinationBranchDeleted as exc:
         return _coord_unreadable_block(mission_slug, exc, exc.next_step)
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
-        return _wp_blocked_action(None, f"Status surface for mission {mission_slug!r} is not readable: {exc}")
+        return _status_surface_unreadable_block(mission_slug, exc)
     except (StatusReadPathNotFound, FileNotFoundError):
         return _WP_BOARD_DECLINE
 
@@ -573,7 +595,6 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
     board dispatches from the real lanes (#7507).
     """
     from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
-    from runtime.next.board_status import board_status_from_surface
 
     surface = _board_surface(mission_slug, repo_root, owned)
     if isinstance(surface, _WpBoardAction):
@@ -588,7 +609,9 @@ def _resolve_wp_board_action(*, mission_slug: str, repo_root: Path, owned: Owned
         return _WP_BOARD_DECLINE
 
     task_board_dir = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir
-    board = board_status_from_surface(surface)
+    board = _board_status_or_block(mission_slug, surface)
+    if isinstance(board, _WpBoardAction):
+        return board
     task_error = _wp_task_surface_error(task_board_dir, None, mission_slug, board=board)
     if task_error is not None:
         return _wp_blocked_action(None, task_error)
