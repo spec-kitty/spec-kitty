@@ -48,6 +48,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _MISSION_ID = "01KVW9B0SELFBOOKKEEPINGTST"  # 26 chars
 _MID8 = "01KVW9B0"  # first 8 chars
 _MISSION_SLUG = f"gate-read-surface-completion-{_MID8}"
+_LIFECYCLE_ULID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"  # 26-char Crockford ULID
 
 
 def _git(repo_root: Path, *args: str) -> None:
@@ -264,6 +265,43 @@ class TestSelfBookkeepingPredicate:
 
         assert is_decisions_runtime_lock(f"kitty-specs/{_MISSION_SLUG}/decisions/{_LOCK_FILENAME}")
 
+    # ------------------------------------------------------------------
+    # #7346 — a lifecycle record the ``doctor ops --close-stale`` sweep
+    # could not commit, exact path like the Op record
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            f"kitty-ops/lifecycle/{_LIFECYCLE_ULID}.json",
+            f".worktrees/{_MISSION_SLUG}-lane-a/kitty-ops/lifecycle/{_LIFECYCLE_ULID}.json",
+            f"kitty-ops\\lifecycle\\{_LIFECYCLE_ULID}.json",
+        ],
+    )
+    def test_lifecycle_record_is_self_bookkeeping(self, path: str) -> None:
+        """#7346 operator ruling: ``kitty-ops/lifecycle/<ULID>.json`` is
+        spec-kitty bookkeeping for the general classifier too, not only for
+        ``consolidate``'s own classification."""
+        assert is_self_bookkeeping_churn(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "kitty-ops/lifecycle.jsonl",
+            "kitty-ops/lifecycle/notes.json",
+            f"kitty-ops/lifecycle/{_LIFECYCLE_ULID.lower()}.json",
+            f"kitty-ops/lifecycle/{_LIFECYCLE_ULID}.jsonl",
+            f"kitty-ops/lifecycle/{_LIFECYCLE_ULID}.json.bak",
+            f"kitty-ops/lifecycle/sub/{_LIFECYCLE_ULID}.json",
+            f"my-kitty-ops/lifecycle/{_LIFECYCLE_ULID}.json",
+            "kitty-ops/lifecycle/",
+            "kitty-ops/lifecycle",
+        ],
+    )
+    def test_other_lifecycle_shaped_paths_stay_dirt(self, path: str) -> None:
+        """No widening: only the exact record path is exempt, not the directory."""
+        assert not is_self_bookkeeping_churn(path)
+
 
 # ---------------------------------------------------------------------------
 # The real dirty-tree preflight — FR-003 false-block fix + G-5 invariant.
@@ -366,3 +404,42 @@ def test_preflight_refuses_an_identically_named_lock_at_another_depth(tmp_path: 
 
     with pytest.raises(typer.Exit):
         _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)
+
+
+# ---------------------------------------------------------------------------
+# #7346 — an uncommitted lifecycle closure through the real preflight
+# ---------------------------------------------------------------------------
+
+
+def _seed_committed_lifecycle_dir(repo_root: Path) -> Path:
+    """Track one lifecycle record, so a new one is listed by its own path."""
+    lifecycle = repo_root / "kitty-ops" / "lifecycle"
+    lifecycle.mkdir(parents=True)
+    (lifecycle / "01ARZ3NDEKTSV4RRFFQ69G5FA0.json").write_text('{"phase": "started"}\n', encoding="utf-8")
+    _git(repo_root, "add", "kitty-ops")
+    _git(repo_root, "commit", "-q", "-m", "seed lifecycle record")
+    return lifecycle
+
+
+def test_preflight_passes_with_an_uncommitted_lifecycle_closure(tmp_path: Path) -> None:
+    """#7346: a closure ``doctor ops --close-stale`` wrote but could not commit is not dirt."""
+    repo_root = _init_repo(tmp_path)
+    _seed_committed_mission(repo_root)
+    lifecycle = _seed_committed_lifecycle_dir(repo_root)
+    (lifecycle / f"{_LIFECYCLE_ULID}.json").write_text('{"phase": "abandoned"}\n', encoding="utf-8")
+
+    _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)
+
+
+def test_preflight_still_refuses_a_non_record_file_in_the_lifecycle_dir(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Only the exact ``<ULID>.json`` shape is exempt; another file there is real dirt."""
+    repo_root = _init_repo(tmp_path)
+    _seed_committed_mission(repo_root)
+    lifecycle = _seed_committed_lifecycle_dir(repo_root)
+    (lifecycle / f"{_LIFECYCLE_ULID}.json").write_text('{"phase": "abandoned"}\n', encoding="utf-8")
+    (lifecycle / "notes.json").write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        _enforce_analysis_report_write_preflight(repo_root, json_output=True, placement_ref=None, mission_slug=_MISSION_SLUG)
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["dirty_paths"] == ["kitty-ops/lifecycle/notes.json"]
