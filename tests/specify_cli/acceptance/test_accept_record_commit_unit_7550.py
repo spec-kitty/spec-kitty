@@ -242,10 +242,51 @@ def test_accept_command_renders_the_refusal(tmp_path: Path, monkeypatch: pytest.
 
     monkeypatch.setattr(accept_cmd, "perform_acceptance", _refuse)
     outcome = accept_cmd._FinalizeOutcome()
-    run = SimpleNamespace(commit_required=False, json_output=True, tracker=None, actual_mode="local", lenient=True)
+    run = SimpleNamespace(commit_required=False, json_output=True, tracker=None, actual_mode="local", lenient=True, owned=None)
 
     accept_cmd._perform_acceptance_step(cast("accept_cmd._AcceptRun", run), cast("AcceptanceSummary", SimpleNamespace()), "qa", [], outcome)
 
     assert outcome.accept_exc is refusal
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"].startswith(f"{ACCEPT_RECORD_COMMIT_FAILED}:")
+
+
+# ---------------------------------------------------------------------------
+# Review folds: owned fact reaches the router; the second commit is best-effort
+# ---------------------------------------------------------------------------
+
+
+def test_owned_fact_reaches_both_router_commits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The commit resolves its placement against the owned fact the record was written with."""
+    meta_path = _meta(tmp_path)
+    owned = object()
+    seen: list[Any] = []
+
+    def _record(*_a: object, **kwargs: Any) -> CommitRouterResult:
+        seen.append(kwargs["owned"])
+        return CommitRouterResult(status="committed", placement_ref="topic", commit_hash="abc1234")
+
+    monkeypatch.setattr(_ROUTER, _record)
+    _commit_acceptance_meta_via_router(repo_root=tmp_path, mission_slug="m", meta_path=meta_path, policy=_Policy(), parent_commit="p0", owned=cast("Any", owned))
+
+    assert seen == [owned, owned]
+
+
+def test_failed_accept_commit_stamp_only_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """The acceptance commit landed; a failure of the follow-up stamp commit is not the refusal."""
+    meta_path = _meta(tmp_path)
+    calls: list[str] = []
+
+    def _router(*_a: object, **kwargs: Any) -> CommitRouterResult:
+        calls.append(str(kwargs["message"]))
+        if len(calls) == 2:
+            raise TaskCliError("index.lock exists")
+        return CommitRouterResult(status="committed", placement_ref="topic", commit_hash="abc1234")
+
+    monkeypatch.setattr(_ROUTER, _router)
+    with caplog.at_level("WARNING"):
+        result = _route(meta_path)
+
+    assert result == ("p0", "abc1234", True)
+    assert len(calls) == 2
+    assert "did not land" in caplog.text and "ACCEPT_RECORD_COMMIT_FAILED" in caplog.text

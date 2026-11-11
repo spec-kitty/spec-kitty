@@ -528,8 +528,8 @@ _META_JSON = "meta.json"
 _RERUN_CONSOLIDATE = "re-run `spec-kitty consolidate`"
 
 
-def _coordination_branch_on_holder(main_repo: Path, holder: str, meta_rel: str) -> tuple[str, dict[str, object]] | None:
-    """``(coordination_branch, meta)`` when *holder*'s ``meta.json`` stores a coordination topology whose branch is *holder*.
+def _stored_coordination_branch(main_repo: Path, holder: str, meta_rel: str) -> tuple[str, dict[str, object]] | None:
+    """``(declared coordination_branch, meta)`` when *holder*'s ``meta.json`` stores a coordination topology.
 
     Read from the branch itself (the repository root checkout carries no copy after the
     topology settlement). ``None`` for any other stored shape, or when the blob cannot be read.
@@ -551,9 +551,17 @@ def _coordination_branch_on_holder(main_repo: Path, holder: str, meta_rel: str) 
     if topology is None or not routes_through_coordination(topology):
         return None
     declared = meta.get("coordination_branch")
-    if not isinstance(declared, str) or _short_ref(declared) != holder:
+    if not isinstance(declared, str) or not declared:
         return None
-    return holder, meta
+    return _short_ref(declared), meta
+
+
+def _coordination_branch_on_holder(main_repo: Path, holder: str, meta_rel: str) -> tuple[str, dict[str, object]] | None:
+    """``(coordination_branch, meta)`` when *holder* is itself the stored coordination branch, else ``None``."""
+    found = _stored_coordination_branch(main_repo, holder, meta_rel)
+    if found is None or found[0] != holder:
+        return None
+    return found
 
 
 def _coordination_holder(main_repo: Path, mission_slug: str) -> tuple[str, dict[str, object]] | None:
@@ -579,8 +587,11 @@ def rematerialize_coordination_surface(main_repo: Path, mission_slug: str) -> bo
     the branch (its default identity read sees the root checkout and would no-op).
 
     Returns ``True`` when the materializer was called (the caller rebuilds its seam).
-    A remote-only coordination branch refuses with exit 1 and its own remediation,
-    before any state change.
+    The holder is always a local branch, so the materializer's remote-only refusal is a
+    backstop here (a race with a branch deletion); it exits 1 with its own remediation,
+    before any state change. A coordination branch that is not local at all leaves another
+    holder (a lane branch) or none, and the missing-lanes remedy then names the branch to
+    fetch (:func:`_missing_lanes_remedy`).
     """
     from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write, resolve_declared_mid8
 
@@ -604,13 +615,15 @@ def rematerialize_coordination_surface(main_repo: Path, mission_slug: str) -> bo
 def _missing_lanes_remedy(main_repo: Path, holder: str, lanes_rel: str) -> str:
     """The remedy for a lanes manifest that only *holder* carries, by the Mission's stored topology."""
     meta_rel = lanes_rel.rsplit("/", 1)[0] + f"/{_META_JSON}"
-    if _coordination_branch_on_holder(main_repo, holder, meta_rel) is not None:
+    stored = _stored_coordination_branch(main_repo, holder, meta_rel)
+    if stored is not None:
+        coordination_branch = stored[0]
         return (
-            f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "
-            "(it is the Mission's coordination branch). `spec-kitty consolidate` rematerializes the "
-            "coordination worktree from the local coordination branch; when that is not possible, "
-            f"fetch or create the local branch {holder!r} and {_RERUN_CONSOLIDATE}. "
-            "Do not check that branch out in the repository root checkout."
+            f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission, "
+            f"whose coordination branch is {coordination_branch!r}. `spec-kitty consolidate` rematerializes "
+            "the coordination worktree from the local coordination branch; when that is not possible, "
+            f"fetch or create the local branch {coordination_branch!r} and {_RERUN_CONSOLIDATE}. "
+            "Do not check a Mission branch out in the repository root checkout."
         )
     return (
         f"lanes.json is not on the current checkout, but branch {holder!r} carries this mission "

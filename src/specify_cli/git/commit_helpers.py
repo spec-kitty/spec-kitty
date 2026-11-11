@@ -1839,6 +1839,14 @@ def _in_span_parent(worktree_root: Path, destination_ref: str) -> str | None:
     expected-parent mode, which reports the intent before its compare-and-swap. A
     ref that no longer resolves raises :class:`SafeCommitDestinationNotFound`; a move
     after this read fails the compare-and-swap closed.
+
+    In a span this is deliberately stricter than the porcelain path: the destination
+    must be checked out in ``worktree_root`` only (``advance_branch_ref_for_commit``), a
+    pre-commit hook that rewrites a requested path refuses instead of being committed,
+    and a failed real-index sync after the compare-and-swap is a diagnostic on the
+    result. No consolidate caller hits these today (its scratch worktrees are detached).
+    ``index_deletions`` commits (migration-only) still take their own path and report
+    no intent; they never run inside a consolidate span.
     """
     if not advance_intents_reported():
         return None

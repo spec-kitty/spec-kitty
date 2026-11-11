@@ -103,9 +103,11 @@ def test_single_branch_holder_remedy_is_unchanged(tmp_path: Path) -> None:
     )
 
 
-def test_coordination_topology_naming_another_branch_keeps_the_checkout_remedy(tmp_path: Path) -> None:
+def test_coordination_branch_not_local_names_it_and_never_says_check_out(tmp_path: Path) -> None:
+    """Independent review: a lane branch can hold the Mission when the coordination branch is not local."""
     message = _remedy(_repo(tmp_path, topology="lanes_with_coord", coordination_branch="kitty/elsewhere"))
-    assert f"Run `git checkout {_HOLDER}`" in message
+    assert "git checkout" not in message
+    assert "'kitty/elsewhere'" in message and "fetch or create the local branch" in message
 
 
 # ---------------------------------------------------------------------------
