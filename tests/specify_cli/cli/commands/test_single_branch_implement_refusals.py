@@ -471,6 +471,58 @@ def test_dirty_checkout_refuses(repo: Path) -> None:
     assert "Commit or stash them" in result.output
 
 
+def test_other_mission_residue_does_not_refuse_the_claim(repo: Path) -> None:
+    """#7556: another Mission's untracked files are not this claim's to guard.
+
+    Git reports a wholly untracked Mission directory as one collapsed
+    ``kitty-specs/<other>/`` entry. Before the fix the claim refused on it with
+    ``WRITE_CHECKOUT_DIRTY``; now it succeeds and names it in a warning. The
+    same-fixture control is :func:`test_operator_code_edit_beside_other_mission_residue_still_refuses`.
+    """
+    mission_slug = "impl-other-residue"
+    _build_mission(repo, mission_slug, "01IMPLOTHERRES00000001")
+    other = repo / "kitty-specs" / "other-01ABCDEF"
+    other.mkdir(parents=True)
+    (other / "notes.md").write_text("another Mission's residue\n", encoding="utf-8")
+
+    result = _run_implement(repo, mission_slug)
+
+    assert result.exit_code == 0, result.output
+    assert (other / "notes.md").exists()
+
+
+def test_other_mission_residue_is_named_in_a_warning(repo: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """#7556: the dropped path is reported, never silently ignored."""
+    mission_slug = "impl-other-residue-warn"
+    _build_mission(repo, mission_slug, "01IMPLOTHERRESWARN0001")
+    other = repo / "kitty-specs" / "other-01ABCDEF"
+    other.mkdir(parents=True)
+    (other / "notes.md").write_text("another Mission's residue\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with caplog.at_level("WARNING", logger="specify_cli.lanes.implement_support"):
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+
+    assert "kitty-specs/other-01ABCDEF/" in caplog.text
+
+
+def test_operator_code_edit_beside_other_mission_residue_still_refuses(repo: Path) -> None:
+    """#7556 control: a code edit still refuses, naming only the code edit."""
+    mission_slug = "impl-other-residue-ctl"
+    _build_mission(repo, mission_slug, "01IMPLOTHERRESCTL00001")
+    other = repo / "kitty-specs" / "other-01ABCDEF"
+    other.mkdir(parents=True)
+    (other / "notes.md").write_text("another Mission's residue\n", encoding="utf-8")
+    (repo / "uncommitted-ctl.py").write_text("X = 1\n", encoding="utf-8")
+    ws = _resolved_workspace(repo, mission_slug, "WP01", "trunk")
+
+    with pytest.raises(WriteCheckoutDirtyError) as excinfo:
+        _ensure_repo_root_checkout_available(repo, mission_slug, "WP01", ws)
+
+    assert "uncommitted-ctl.py" in str(excinfo.value)
+    assert "other-01ABCDEF" not in str(excinfo.value)
+
+
 def test_refused_implement_leaves_no_tracked_changes_and_no_vcs_lock(repo: Path) -> None:
     """#5100 A3: a refused implement writes nothing behind (no VCS lock in meta.json).
 
