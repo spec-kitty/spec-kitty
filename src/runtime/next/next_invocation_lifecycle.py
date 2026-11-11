@@ -69,6 +69,8 @@ from typing import TYPE_CHECKING, Any, cast
 # interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
 from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for, placement_seam
 
+from runtime.next.decision import DecisionKind
+
 from specify_cli.core.paths import MissionMetaReadError
 
 if TYPE_CHECKING:
@@ -336,7 +338,7 @@ def _consolidated_target_dir(repo_root: Path, mission_slug: str, owned: OwnedChe
     return landed_dir
 
 
-def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> Path:
+def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCheckout | None, *, terminal: bool) -> Path:
     """The Mission directory the ``MissionNextInvoked`` row is appended to.
 
     runtime-status-read-door WP06 (FR-009): an in-flight Mission's row is a WRITE, so it resolves
@@ -351,8 +353,12 @@ def _mission_next_invoked_dir(repo_root: Path, mission_slug: str, owned: OwnedCh
     (``CONSOLIDATED_TARGET``, checked before any coordination probe; #7539: no second landed
     derivation here), and the row lands in that directory, the PRIMARY Mission directory; no
     coordination worktree is materialized or restored for it.
+
+    Only a ``terminal`` decision can name a landed Mission (the merged short-circuit and the
+    completed-primary terminal), so only it asks the door; every other decision goes straight to
+    the write seam, and an in-flight invocation reads the door once, in its decision (#7539).
     """
-    landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned)
+    landed_dir = _consolidated_target_dir(repo_root, mission_slug, owned) if terminal else None
     if landed_dir is not None:
         return landed_dir
     return placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
@@ -383,7 +389,8 @@ def emit_mission_next_invoked(
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
 
     try:
-        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned)
+        terminal = str(getattr(decision, "kind", "")) == DecisionKind.terminal.value
+        feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned, terminal=terminal)
     except Exception as exc:  # best-effort observability write: never break ``next``
         logger.warning("MissionNextInvoked row not persisted for mission %r: %s: %s", mission_slug, type(exc).__name__, exc)
         feature_dir = None

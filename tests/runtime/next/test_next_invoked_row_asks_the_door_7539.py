@@ -3,7 +3,8 @@
 Pre-PR squad row 11: ``next_invocation_lifecycle`` decided "landed" with its own
 ``mission_has_landed`` beside the door's ``CONSOLIDATED_TARGET`` decision. The row now follows the
 door: a ``CONSOLIDATED_TARGET`` surface names the directory, anything else goes through the status
-write seam. The end-to-end cells (landed, in flight, owned) stay pinned in
+write seam. Only a terminal decision asks the door (squad fold 1): a landed Mission always answers
+with one. The end-to-end cells (landed, in flight, owned) stay pinned in
 ``test_materialization_report``.
 """
 
@@ -54,7 +55,7 @@ def test_a_consolidated_target_surface_names_the_rows_directory(tmp_path: Path, 
     writes = _stub_write_seam(monkeypatch, tmp_path / "coord")
     monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: _surface(StatusReadSource.CONSOLIDATED_TARGET, target_dir))
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None) == target_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, terminal=True) == target_dir
     assert writes == []
 
 
@@ -65,7 +66,7 @@ def test_any_other_surface_goes_through_the_write_seam(tmp_path: Path, monkeypat
     writes = _stub_write_seam(monkeypatch, write_dir)
     monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: _surface(StatusReadSource.COORD_WORKTREE, coord_dir))
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None) == write_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, terminal=True) == write_dir
     assert len(writes) == 1
 
 
@@ -79,5 +80,14 @@ def test_a_door_that_cannot_answer_goes_through_the_write_seam(tmp_path: Path, m
     writes = _stub_write_seam(monkeypatch, write_dir)
     monkeypatch.setattr(status_package, "resolve_status_read", _not_found)
 
-    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None) == write_dir
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, terminal=True) == write_dir
+    assert len(writes) == 1
+
+
+def test_a_non_terminal_decision_never_asks_the_door(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    write_dir = tmp_path / "written"
+    writes = _stub_write_seam(monkeypatch, write_dir)
+    monkeypatch.setattr(status_package, "resolve_status_read", lambda *_a, **_k: pytest.fail("a non-terminal row reads no door"))
+
+    assert lifecycle._mission_next_invoked_dir(tmp_path, SLUG, None, terminal=False) == write_dir
     assert len(writes) == 1
