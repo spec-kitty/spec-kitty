@@ -360,7 +360,8 @@ def emit_mission_next_invoked(
 
     try:
         feature_dir: Path | None = _mission_next_invoked_dir(repo_root_path, mission_slug, owned)
-    except Exception:
+    except Exception as exc:  # best-effort observability write: never break ``next``
+        logger.debug("MissionNextInvoked row not persisted for mission %r: %s", mission_slug, type(exc).__name__)
         feature_dir = None
     # ``decision`` is typed ``object`` (this WP's pinned target signature) so
     # calling code need not import ``Decision`` — narrow to ``Any`` once here
