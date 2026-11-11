@@ -508,10 +508,12 @@ def _query_resolve_primary(
     from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
 
     try:
-        owned_task_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        seam = placement_seam(repo_root, mission_slug, owned=owned)
+        owned_task_dir: Path = seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        owned_meta_dir: Path = seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)
     except ActionContextError as exc:
         _raise_context_error(exc, mission_slug)
-    return owned.mission_slug, owned_task_dir, get_mission_type(owned.mission_dir)
+    return owned.mission_slug, owned_task_dir, get_mission_type(owned_meta_dir)
 
 
 def _query_read_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> BoardStatus:
@@ -528,10 +530,10 @@ def _query_read_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckou
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted, WorktreeRegistryUnavailable
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status import read_surface
+    from specify_cli.status import resolve_status_read
 
     try:
-        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
+        surface = resolve_status_read(repo_root, mission_slug, owned=owned)
         return board_status_from_surface(surface)
     except CoordinationBranchDeleted:
         raise

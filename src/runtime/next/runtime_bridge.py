@@ -445,10 +445,10 @@ def _dn_status_board(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
-    from specify_cli.status import read_surface
+    from specify_cli.status import resolve_status_read
 
     try:
-        surface = read_surface.resolve_status_read(repo_root, mission_slug, owned=owned)
+        surface = resolve_status_read(repo_root, mission_slug, owned=owned)
         return surface, board_status_from_surface(surface)
     except (StatusSurfaceRefUnreadable, WorktreeRegistryUnavailable) as exc:
         if owned is not None:

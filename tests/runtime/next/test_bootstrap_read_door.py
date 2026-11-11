@@ -90,6 +90,7 @@ def test_owned_door_failure_after_the_wrap_is_the_typed_blocked_decision(tmp_pat
     """
     from specify_cli.coordination.status_service import StatusSurfaceRefUnreadable
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
+    import specify_cli.status as status_package
     from specify_cli.status import read_surface
 
     repo, fact = _owned_coordination_mission(tmp_path, MissionTopology.LANES_WITH_COORD, UNMATERIALIZED)
@@ -102,7 +103,7 @@ def test_owned_door_failure_after_the_wrap_is_the_typed_blocked_decision(tmp_pat
             raise WorktreeRegistryUnavailable(repo_root=repo, detail="injected worktree-list failure")
         raise StatusSurfaceRefUnreadable(repo_root=repo, ref="refs/heads/x", path="kitty-specs/m/status.events.jsonl", detail="bad object")
 
-    monkeypatch.setattr(read_surface, "resolve_status_read", _failing)
+    monkeypatch.setattr(status_package, "resolve_status_read", _failing)
 
     decision = decide_next_via_runtime("pedro", fact.mission_slug, "success", repo, owned=fact)
 
